@@ -1,5 +1,5 @@
 project(
-  'apostrophe',
+  'accolade',
   version: '3.0',
   meson_version: '>= 0.53.0'
 )
@@ -38,7 +38,7 @@ else
   name_suffix = ''
   version_suffix = ''
 endif
-application_id = 'org.gnome.gitlab.somas.Apostrophe@0@'.format(profile)
+application_id = 'org.codeberg.lapingvino.Accolade@0@'.format(profile)
 
 # Dependencies
 
@@ -60,23 +60,19 @@ pkgdatadir = datadir / meson.project_name()
 #bindir = join_paths(get_option('prefix'), get_option('bindir'))
 podir = meson.source_root() / 'po'
 
-if not fs.exists(join_paths(pkgdatadir, 'libs/reveal.js'))
-  error('No valid reveal.js installation found')
-endif
-
 subdir('data')
 #subdir('help')
 subdir('po')
 
 install_subdir(
-  'apostrophe',
+  'accolade',
   install_dir: py_installation.get_install_dir()
 )
 
 # System installation
 
 conf = configuration_data()
-conf.set('PACKAGE_URL', 'https://apps.gnome.org/Apostrophe/')
+conf.set('PACKAGE_URL', 'https://codeberg.org/lapingvino/accolade/')
 conf.set('DATA_DIR', datadir)
 conf.set('PKGDATA_DIR', pkgdatadir)
 conf.set('LOCALE_DIR', join_paths(datadir, 'locale'))
@@ -88,8 +84,8 @@ conf.set('PROFILE', profile)
 conf.set('APP_ID', application_id)
 
 configure_file(
-  input: 'apostrophe.in',
-  output: 'apostrophe',
+  input: 'accolade.in',
+  output: 'accolade',
   configuration: conf,
   install_dir: get_option('bindir')
 )
@@ -98,7 +94,7 @@ configure_file(
   input: 'config.py.in',
   output: 'config.py',
   configuration: conf,
-  install_dir: py_installation.get_install_dir() / 'apostrophe'
+  install_dir: py_installation.get_install_dir() / 'accolade'
 )
 
 # Local installation
@@ -106,7 +102,7 @@ configure_file(
 local_config = configuration_data()
 local_config.set('DATA_DIR', join_paths(meson.build_root(), 'data'))
 local_config.set('PKGDATA_DIR', join_paths(meson.build_root(), 'data'))
-local_config.set('PACKAGE_URL', 'https://apps.gnome.org/Apostrophe/')
+local_config.set('PACKAGE_URL', 'https://codeberg.org/lapingvino/accolade/')
 local_config.set('LOCALE_DIR', join_paths(datadir, 'locale'))
 local_config.set('PYTHON_DIR', meson.source_root())
 local_config.set('PROFILE', profile)
@@ -116,8 +112,8 @@ local_config.set('SCHEMAS_DIR', join_paths(meson.build_root(), 'data'))
 local_config.set('LOCAL_BUILD', 'True')
 
 configure_file(
-  input: 'apostrophe.in',
-  output: 'local-apostrophe',
+  input: 'accolade.in',
+  output: 'local-accolade',
   configuration: local_config
 )
 

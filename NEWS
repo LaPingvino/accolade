@@ -103,8 +103,8 @@ Released: 2020-05-04
 
 Bugfixes:
  - Better wording for some areas
- - Fixed some issues where Apostrophe couldn't open files from CLI/context menu
- - Now Apostrophe checks if there is unsaved work before exiting via CTRL + Q/W
+ - Fixed some issues where Accolade couldn't open files from CLI/context menu
+ - Now Accolade checks if there is unsaved work before exiting via CTRL + Q/W
  - Better parsing of weblinks and links to files
  - Fixed a bug where the bottom portion of the screen was insensitive to mouse input
 
@@ -146,7 +146,7 @@ Released: 2019-03-10
 
 Features:
  - Added italian language
- - Initial themes support: now apostrophe adapts his colors to the current GTK theme
+ - Initial themes support: now accolade adapts his colors to the current GTK theme
  - Disabled scroll gradient, can be enabled in the preferences dialog
  - Allow to disable headerbar autohidding in Dconf
  - Now a single click is enough to open files in the recent files popover
@@ -173,7 +173,7 @@ Version 2.1.2
 Released: 2018-07-27
 
 Features:
- - This release provides a fix to a bug that caused Apostrophe to not mark properly **bold**, *cursive*, and ***bold and cursive*** words.
+ - This release provides a fix to a bug that caused Accolade to not mark properly **bold**, *cursive*, and ***bold and cursive*** words.
 
 Version 2.1.1
 ~~~~~~~~~~~~~

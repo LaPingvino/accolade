@@ -2,7 +2,7 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <requires lib="adw" version="1.0"/>
-  <template class="ApostrophePreferencesDialog" parent="AdwPreferencesDialog">
+  <template class="AccoladePreferencesDialog" parent="AdwPreferencesDialog">
     <child>
       <object class="AdwPreferencesPage">
         <child>
@@ -29,13 +29,13 @@
               <object class="AdwSwitchRow" id="session_restore_row">
                 <property name="visible">False</property>
                 <property name="title" translatable="yes">Restore Session</property>
-                <property name="subtitle" translatable="yes">Return to your previous session when Apostrophe is started</property>
+                <property name="subtitle" translatable="yes">Return to your previous session when Accolade is started</property>
               </object>
             </child>
             <child>
               <object class="AdwComboRow" id="input_format_comborow">
                 <property name="title" translatable="yes">Input Format</property>
-                <property name="subtitle" translatable="yes">Flavor of markdown Apostrophe will use</property>
+                <property name="subtitle" translatable="yes">Flavor of markdown Accolade will use</property>
                 <property name="expression">
                   <lookup name="name" type="InputFormat"/>
                 </property>

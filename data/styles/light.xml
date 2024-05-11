@@ -17,7 +17,7 @@
   along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 -->
-<style-scheme id="light" name="Apostrophe Light" parent-scheme="Adwaita" version="1.0">
+<style-scheme id="light" name="Accolade Light" parent-scheme="Adwaita" version="1.0">
   <author>Manuel Genovés</author>
 
   <!-- Named Colors -->

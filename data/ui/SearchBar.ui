@@ -2,11 +2,11 @@
 <interface>
   <requires lib="gtk" version="4.0"/>
   <requires lib="adw" version="1.0"/>
-  <template class="ApostropheSearchBar" parent="AdwBin">
+  <template class="AccoladeSearchBar" parent="AdwBin">
     <!--<signal name="size-allocate" handler="update_textview_margin" swapped="no"/>-->
     <child>
       <object class="GtkSearchBar" id="searchbar">
-        <property name="search-mode-enabled" bind-source="ApostropheSearchBar" bind-property="search-mode-enabled"/>
+        <property name="search-mode-enabled" bind-source="AccoladeSearchBar" bind-property="search-mode-enabled"/>
         <child>
           <object class="GtkBox" id="searchpanel_box">
             <property name="orientation">vertical</property>
@@ -28,7 +28,7 @@
                         <property name="receives-default">1</property>
                         <property name="tooltip-text" translatable="yes">Previous Match</property>
                         <property name="icon-name">go-up-symbolic</property>
-                        <property name="sensitive" bind-source="ApostropheSearchBar" bind-property="can_move" bind-flags="sync-create"/>
+                        <property name="sensitive" bind-source="AccoladeSearchBar" bind-property="can_move" bind-flags="sync-create"/>
                         <signal name="clicked" handler="backward_search" swapped="no"/>
                       </object>
                     </child>
@@ -38,7 +38,7 @@
                         <property name="receives-default">1</property>
                         <property name="tooltip-text" translatable="yes">Next Match</property>
                         <property name="icon-name">go-down-symbolic</property>
-                        <property name="sensitive" bind-source="ApostropheSearchBar" bind-property="can_move" bind-flags="sync-create"/>
+                        <property name="sensitive" bind-source="AccoladeSearchBar" bind-property="can_move" bind-flags="sync-create"/>
                         <signal name="clicked" handler="forward_search" swapped="no"/>
                       </object>
                     </child>
@@ -71,7 +71,7 @@
                         <property name="focusable">1</property>
                         <property name="receives-default">1</property>
                         <property name="tooltip-text" translatable="yes">Replace</property>
-                        <property name="active" bind-source="ApostropheSearchBar" bind-property="replace_mode_enabled" bind-flags="bidirectional"/>
+                        <property name="active" bind-source="AccoladeSearchBar" bind-property="replace_mode_enabled" bind-flags="bidirectional"/>
                         <property name="icon-name">edit-find-replace-symbolic</property>
                       </object>
                     </child>
@@ -85,7 +85,7 @@
             </child>
             <child>
               <object class="GtkRevealer" id="replace_placeholder">
-                <property name="reveal-child" bind-source="ApostropheSearchBar" bind-property="replace_mode_enabled"/>
+                <property name="reveal-child" bind-source="AccoladeSearchBar" bind-property="replace_mode_enabled"/>
                 <property name="child">
                   <object class="GtkBox" id="replace_box">
                     <property name="margin-top">6</property>
@@ -111,7 +111,7 @@
                             <property name="label" translatable="yes">Replace</property>
                             <property name="focusable">1</property>
                             <property name="receives-default">1</property>
-                            <property name="sensitive" bind-source="ApostropheSearchBar" bind-property="can_replace" bind-flags="sync-create"/>
+                            <property name="sensitive" bind-source="AccoladeSearchBar" bind-property="can_replace" bind-flags="sync-create"/>
                             <signal name="clicked" handler="replace_clicked" swapped="no"/>
                           </object>
                         </child>
@@ -120,7 +120,7 @@
                             <property name="label" translatable="yes">Replace All</property>
                             <property name="focusable">1</property>
                             <property name="receives-default">1</property>
-                            <property name="sensitive" bind-source="ApostropheSearchBar" bind-property="can_replace_all" bind-flags="sync-create"/>
+                            <property name="sensitive" bind-source="AccoladeSearchBar" bind-property="can_replace_all" bind-flags="sync-create"/>
                             <signal name="clicked" handler="replace_all" swapped="no"/>
                           </object>
                         </child>

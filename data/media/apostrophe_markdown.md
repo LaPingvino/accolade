@@ -1,4 +1,4 @@
-Markdown Tutorial for Apostrophe
+Markdown Tutorial for Accolade
 ================================
 
 I will try to give a short impressions on how I use markdown/pandocs capabilities to greatly reduce the time spent on formatting anything -- from websites to PDF Documents.

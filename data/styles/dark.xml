@@ -17,7 +17,7 @@
   along with this library; if not, see <http://www.gnu.org/licenses/>.
 
 -->
-<style-scheme id="dark" name="Apostrophe Dark" parent-scheme="Adwaita-dark" version="1.0">
+<style-scheme id="dark" name="Accolade Dark" parent-scheme="Adwaita-dark" version="1.0">
   <author>Manuel Genovés</author>
 
   <!-- Named Colors -->

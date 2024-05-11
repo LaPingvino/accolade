@@ -3,7 +3,7 @@ desktop_conf = configuration_data()
 desktop_conf.set('icon', application_id)
 desktop_file = i18n.merge_file(
   input: configure_file(
-    input: 'org.gnome.gitlab.somas.Apostrophe.desktop.in.in',
+    input: 'org.codeberg.lapingvino.Accolade.desktop.in.in',
     output: '@BASENAME@',
     configuration: desktop_conf
   ),
@@ -30,7 +30,7 @@ appdata_conf.set('app-id', application_id)
 appdata_conf.set('gettext-package', gettext_package)
 
 metainfo_configured = configure_file(
-    input: 'org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in',
+    input: 'org.codeberg.lapingvino.Accolade.metainfo.xml.in',
     output: 'configured' + '@BASENAME@',
     configuration: appdata_conf
 )
@@ -56,7 +56,7 @@ endif
 
 # Gschema
 install_data(
-	'org.gnome.gitlab.somas.Apostrophe.gschema.xml',
+	'org.codeberg.lapingvino.Accolade.gschema.xml',
 	install_dir:  get_option('datadir') / 'glib-2.0' / 'schemas',
 	rename: '@0@.gschema.xml'.format(application_id)
 )
@@ -65,7 +65,7 @@ install_data(
 ui_config = configuration_data()
 ui_config.set('app-id', application_id)
 ui_config.set('version', meson.project_version() + version_suffix)
-ui_config.set('package_url', 'https://apps.gnome.org/Apostrophe/')
+ui_config.set('package_url', 'https://apps.gnome.org/Accolade/')
 ui_preconfigured_files = files(
   'ui/About.ui.in'
 )

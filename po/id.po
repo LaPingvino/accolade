@@ -1,12 +1,12 @@
-# Indonesian translation for apostrophe.
-# Copyright (C) 2021 apostrophe's COPYRIGHT HOLDER
-# This file is distributed under the same license as the apostrophe package.
+# Indonesian translation for accolade.
+# Copyright (C) 2021 accolade's COPYRIGHT HOLDER
+# This file is distributed under the same license as the accolade package.
 # Kukuh Syafaat <kukuhsyafaat@gnome.org>, 2021-2024
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: apostrophe main\n"
-"Report-Msgid-Bugs-To: https://gitlab.gnome.org/World/apostrophe/issues\n"
+"Project-Id-Version: accolade main\n"
+"Report-Msgid-Bugs-To: https://gitlab.gnome.org/World/accolade/issues\n"
 "POT-Creation-Date: 2024-03-03 20:09+0000\n"
 "PO-Revision-Date: 2024-03-07 16:51+0700\n"
 "Last-Translator: Kukuh Syafaat <kukuhsyafaat@gnome.org>\n"
@@ -18,164 +18,164 @@ msgstr ""
 "Plural-Forms: nplurals=1; plural=0;\n"
 "X-Generator: Poedit 3.4.2\n"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.desktop.in.in:3
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:4
-msgid "Apostrophe"
-msgstr "Apostrophe"
+#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:3
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:4
+msgid "Accolade"
+msgstr "Accolade"
 
-#. Translators: Search terms to find this application. Do NOT translate or localize the semicolons! Do NOT translate "uberwriter" or "apostrophe"! The list MUST also end with a semicolon!
-#: data/org.gnome.gitlab.somas.Apostrophe.desktop.in.in:5
-msgid "uberwriter;UberWriter;apostrophe;markdown;editor;text;write;"
+#. Translators: Search terms to find this application. Do NOT translate or localize the semicolons! Do NOT translate "uberwriter" or "accolade"! The list MUST also end with a semicolon!
+#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:5
+msgid "uberwriter;UberWriter;accolade;markdown;editor;text;write;"
 msgstr ""
-"uberwriter;UberWriter;apostrophe;markdown;penyunting;teks;menulis;editor;"
+"uberwriter;UberWriter;accolade;markdown;penyunting;teks;menulis;editor;"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.desktop.in.in:6
-msgid "Apostrophe, an elegant, distraction-free markdown editor"
-msgstr "Apostrophe, penyunting markdown yang elegan dan bebas gangguan"
+#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:6
+msgid "Accolade, an elegant, distraction-free markdown editor"
+msgstr "Accolade, penyunting markdown yang elegan dan bebas gangguan"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:29
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:29
 msgid "Color scheme"
 msgstr "Skema warna"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:30
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:30
 msgid "Use the color scheme in the application's UI and in the text area."
 msgstr "Gunakan skema warna di UI aplikasi dan di area teks."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:36
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:36
 msgid "Check spelling while typing"
 msgstr "Memeriksa ejaan saat mengetik"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:37
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:37
 msgid "Enable or disable spellchecking."
 msgstr "Aktifkan atau nonaktifkan pemeriksaan ejaan."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:43
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:43
 msgid "Synchronize editor/preview scrolling"
 msgstr "Sinkronkan penyunting/pratinjau menggulir"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:44
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:44
 msgid "Keep the editor and preview scroll positions in sync."
 msgstr "Jaga agar penyunting dan pratinjau gulir dalam posisi sinkron."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:50
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:50
 msgid "Input format"
 msgstr "Format masukan"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:51
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:51
 msgid "Input format to use when previewing and exporting using Pandoc."
 msgstr ""
 "Format masukan yang akan digunakan saat mempratinjau dan diekspor "
 "menggunakan Pandoc."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:57
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:57
 msgid "Autohide Headerbar"
 msgstr "Sembunyi Otomatis Bilah Tajuk"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:58
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:58
 msgid "Hide the header and status bars when typing."
 msgstr "Sembunyikan bilah tajuk dan status saat mengetik."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:64
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:64
 msgid "Open file base path"
 msgstr "Buka base path berkas"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:65
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:65
 msgid "Open file paths of the current session"
 msgstr "Membuka path berkas dari sesi saat ini"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:71
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:71
 msgid "Default statistic"
 msgstr "Statistik bawaan"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:72
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:72
 msgid "Which statistic is shown on the main window."
 msgstr "Statistik mana yang ditampilkan di jendela utama."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:78
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:78
 msgid "Characters per line"
 msgstr "Karakter per baris"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:79
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:79
 msgid "Maximum number of characters per line within the editor."
 msgstr "Cacah maksimum karakter per baris dalam penyunting."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:85
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:85
 #: data/ui/AboutHemingway.ui:6
 msgid "Hemingway Mode"
 msgstr "Mode Hemingway"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:86
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:86
 msgid "Whether the user can delete text or not."
 msgstr "Apakah pengguna dapat menghapus teks atau tidak."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:92
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:92
 msgid "Hemingway Toast Count"
 msgstr "Cacah Hemingway Toast"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:93
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:93
 msgid "Number of times the Hemingway Toast has been shown"
 msgstr "Berapa kali Hemingway Toast telah ditampilkan"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:99
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:99
 msgid "Preview mode"
 msgstr "Mode pratinjau"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:100
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:100
 msgid "How to display the preview."
 msgstr "Cara menampilkan pratinjau."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:106
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:106
 msgid "Preview active"
 msgstr "Pratinjau aktif"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:107
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:107
 msgid "Whether showing of preview is active when launching a new window."
 msgstr ""
 "Apakah menampilkan pratinjau aktif saat meluncurkan suatu jendela baru."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:113
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:113
 msgid "Text size"
 msgstr "Ukuran teks"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:114
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:114
 msgid "Preferred relative size for the text."
 msgstr "Ukuran relatif yang disukai bagi teks."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:120
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:120
 msgid "Toolbar"
 msgstr "Bilah Alat"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:121
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:121
 msgid "Whether the toolbar is shown or not."
 msgstr "Apakah bilah alat ditampilkan atau tidak."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:5
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:5
 msgid "Edit Markdown in style"
 msgstr "Sunting Markdown dalam gaya"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:14
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:14
 msgid "Focus on your writing with a clean, distraction-free markdown editor."
 msgstr ""
 "Fokus pada tulisan Anda dengan penyunting markdown yang bersih dan bebas "
 "gangguan."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:15
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:15
 msgid "Features:"
 msgstr "Fitur:"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:17
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:17
 msgid "An UI tailored to comfortable writing"
 msgstr "UI yang disesuaikan dengan tulisan yang nyaman"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:18
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:18
 msgid "A distraction-free mode"
 msgstr "Mode bebas gangguan"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:19
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:19
 msgid "Dark, light and sepia themes"
 msgstr "Tema gelap, terang dan sepia"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:20
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:20
 msgid ""
 "Everything you expect from a text editor, such as spellchecking or document "
 "statistics"
@@ -183,11 +183,11 @@ msgstr ""
 "Semua yang Anda harapkan dari penyunting teks, seperti pemeriksaan ejaan "
 "atau statistik dokumen"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:21
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:21
 msgid "Live preview of what you write"
 msgstr "Pratinjau langsung dari apa yang Anda tulis"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in:22
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in:22
 msgid ""
 "Export to all kind of formats: PDF, Word/Libreoffice, LaTeX, or even HTML "
 "slideshows"
@@ -230,15 +230,15 @@ msgstr ""
 msgid "_Close"
 msgstr "_Tutup"
 
-#: data/ui/Export.ui:33 apostrophe/export_dialog.py:131
-#: apostrophe/export_dialog.py:342 apostrophe/export_dialog.py:347
-#: apostrophe/main_window.py:439 apostrophe/main_window.py:513
-#: apostrophe/main_window.py:605
+#: data/ui/Export.ui:33 accolade/export_dialog.py:131
+#: accolade/export_dialog.py:342 accolade/export_dialog.py:347
+#: accolade/main_window.py:439 accolade/main_window.py:513
+#: accolade/main_window.py:605
 msgid "Cancel"
 msgstr "Batal"
 
-#: data/ui/Export.ui:44 apostrophe/export_dialog.py:126
-#: apostrophe/export_dialog.py:341 apostrophe/export_dialog.py:345
+#: data/ui/Export.ui:44 accolade/export_dialog.py:126
+#: accolade/export_dialog.py:341 accolade/export_dialog.py:345
 msgid "Export"
 msgstr "Ekspor"
 
@@ -364,8 +364,8 @@ msgid "_Keyboard Shortcuts"
 msgstr "Pintasan Papan Ti_k"
 
 #: data/ui/Headerbar.ui:111
-msgid "_About Apostrophe"
-msgstr "Tent_ang Apostrophe"
+msgid "_About Accolade"
+msgstr "Tent_ang Accolade"
 
 #: data/ui/Headerbar.ui:122
 msgid "_Save As..."
@@ -404,7 +404,7 @@ msgid "Restore Session"
 msgstr "Pulihkan Sesi"
 
 #: data/ui/Preferences.ui:57
-msgid "Return to your previous session when Apostrophe is started"
+msgid "Return to your previous session when Accolade is started"
 msgstr "Kembali ke sesi sebelumnya ketika Aposthrope dimulai"
 
 #: data/ui/Preferences.ui:70
@@ -412,14 +412,14 @@ msgid "Input Format"
 msgstr "Format Masukan"
 
 #: data/ui/Preferences.ui:71
-msgid "Flavor of markdown Apostrophe will use"
+msgid "Flavor of markdown Accolade will use"
 msgstr "Varian markdown yang akan dipakai oleh Aposthrope"
 
 #: data/ui/Preferences.ui:80
 msgid "Markdown Flavor Documentation"
 msgstr "Dokumentasi Varian Markdown"
 
-#: data/ui/PreviewLayoutSwitcher.ui:7 apostrophe/preview_window.py:30
+#: data/ui/PreviewLayoutSwitcher.ui:7 accolade/preview_window.py:30
 msgid "Preview"
 msgstr "Pratinjau"
 
@@ -638,10 +638,10 @@ msgstr "Diperlukan TexLive"
 
 #: data/ui/TexliveWarning.ui:33
 msgid ""
-"Apostrophe needs the TeXLive extension\n"
+"Accolade needs the TeXLive extension\n"
 "in order to export PDF or LaTeX files.\n"
 "\n"
-"Install it from Apostrophe's page in Software\n"
+"Install it from Accolade's page in Software\n"
 "or by running the following command in a terminal:"
 msgstr ""
 "Apostrof memerlukan ekstensi TeXLive\n"
@@ -656,7 +656,7 @@ msgstr "Salin ke Papan Klip"
 
 #: data/ui/TexliveWarning.ui:87
 msgid ""
-"Apostrophe needs TeXLive\n"
+"Accolade needs TeXLive\n"
 "in order to export PDF or LaTeX files.\n"
 "\n"
 "Install it from your distribution repositories."
@@ -694,24 +694,24 @@ msgstr "Berkas telah diubah oleh program lain"
 msgid "_Discard Changes and Reload"
 msgstr "Buang Peru_bahan dan Muat Ulang"
 
-#: apostrophe/application.py:223
+#: accolade/application.py:223
 msgid "Donate"
 msgstr "Donasi"
 
-#: apostrophe/application.py:224
+#: accolade/application.py:224
 msgid "Translations"
 msgstr "Terjemahan"
 
-#: apostrophe/export_dialog.py:121 apostrophe/helpers.py:84
+#: accolade/export_dialog.py:121 accolade/helpers.py:84
 msgid "Close"
 msgstr "Tutup"
 
-#: apostrophe/export_dialog.py:129 apostrophe/export_dialog.py:346
+#: accolade/export_dialog.py:129 accolade/export_dialog.py:346
 #, python-format
 msgid "Export to %s"
 msgstr "Ekspor ke %s"
 
-#: apostrophe/export_dialog.py:155 apostrophe/export_dialog.py:335
+#: accolade/export_dialog.py:155 accolade/export_dialog.py:335
 #, python-brace-format
 msgid ""
 "An error happened while trying to export:\n"
@@ -722,84 +722,84 @@ msgstr ""
 "\n"
 "{err_msg}"
 
-#: apostrophe/export_dialog.py:234
+#: accolade/export_dialog.py:234
 msgid "Export to {}"
 msgstr "Ekspor ke {}"
 
-#: apostrophe/export_dialog.py:342
+#: accolade/export_dialog.py:342
 msgid "Select folder"
 msgstr "Pilih folder"
 
-#: apostrophe/helpers.py:83
+#: accolade/helpers.py:83
 msgid "Error"
 msgstr "Galat"
 
-#: apostrophe/inhibitor.py:36
+#: accolade/inhibitor.py:36
 msgid "Unsaved documents"
 msgstr "Dokumen yang belum disimpan"
 
-#: apostrophe/inline_preview.py:201
+#: accolade/inline_preview.py:201
 msgid "Formula looks incorrect:"
 msgstr "Rumus terlihat salah:"
 
-#: apostrophe/inline_preview.py:241
+#: accolade/inline_preview.py:241
 msgid "No matching footnote found"
 msgstr "Tidak ada catatan kaki yang cocok ditemukan"
 
-#: apostrophe/inline_preview.py:261
+#: accolade/inline_preview.py:261
 msgid "noun"
 msgstr "kata benda"
 
-#: apostrophe/inline_preview.py:263
+#: accolade/inline_preview.py:263
 msgid "verb"
 msgstr "kata kerja"
 
-#: apostrophe/inline_preview.py:265
+#: accolade/inline_preview.py:265
 msgid "adjective"
 msgstr "kata sifat"
 
-#: apostrophe/inline_preview.py:267
+#: accolade/inline_preview.py:267
 msgid "adverb"
 msgstr "kata keterangan"
 
 #. Hemingway Toast
-#: apostrophe/main_window.py:143
+#: accolade/main_window.py:143
 msgid "Text can't be deleted while on Hemingway mode"
 msgstr "Teks tidak dapat dihapus saat berada di mode Hemingway"
 
-#: apostrophe/main_window.py:146
+#: accolade/main_window.py:146
 msgid "Tell me more"
 msgstr "Ceritakan lebih banyak"
 
-#: apostrophe/main_window.py:435
+#: accolade/main_window.py:435
 msgid "Save your File"
 msgstr "Simpan berkas Anda"
 
-#: apostrophe/main_window.py:438 apostrophe/main_window.py:607
+#: accolade/main_window.py:438 accolade/main_window.py:607
 msgid "Save"
 msgstr "Simpan"
 
-#: apostrophe/main_window.py:502
+#: accolade/main_window.py:502
 msgid "Markdown Files"
 msgstr "Berkas Markdown"
 
-#: apostrophe/main_window.py:506
+#: accolade/main_window.py:506
 msgid "Plain Text Files"
 msgstr "Berkas Teks Biasa"
 
-#: apostrophe/main_window.py:509
+#: accolade/main_window.py:509
 msgid "Open a .md file"
 msgstr "Buka berkas .md"
 
-#: apostrophe/main_window.py:512
+#: accolade/main_window.py:512
 msgid "Open"
 msgstr "Buka"
 
-#: apostrophe/main_window.py:599
+#: accolade/main_window.py:599
 msgid "Save Changes?"
 msgstr "Simpan Perubahan?"
 
-#: apostrophe/main_window.py:600
+#: accolade/main_window.py:600
 #, python-format
 msgid ""
 "“%s” contains unsaved changes. If you don’t save, all your changes will be "
@@ -808,126 +808,126 @@ msgstr ""
 "\"%s\" berisi perubahan yang belum disimpan. Jika Anda tidak menyimpan, "
 "semua perubahan Anda akan hilang secara permanen."
 
-#: apostrophe/main_window.py:606
+#: accolade/main_window.py:606
 msgid "Discard"
 msgstr "Buang"
 
-#: apostrophe/main_window.py:763 apostrophe/main_window.py:787
+#: accolade/main_window.py:763 accolade/main_window.py:787
 msgid "New File"
 msgstr "Berkas Baru"
 
-#: apostrophe/preview_layout_switcher.py:41
+#: accolade/preview_layout_switcher.py:41
 msgid "Full-Width"
 msgstr "Lebar Penuh"
 
-#: apostrophe/preview_layout_switcher.py:43
+#: accolade/preview_layout_switcher.py:43
 msgid "Half-Width"
 msgstr "Setengah Lebar"
 
-#: apostrophe/preview_layout_switcher.py:45
+#: accolade/preview_layout_switcher.py:45
 msgid "Half-Height"
 msgstr "Setengah Tinggi"
 
-#: apostrophe/preview_layout_switcher.py:47
+#: accolade/preview_layout_switcher.py:47
 msgid "Windowed"
 msgstr "Berjendela"
 
-#: apostrophe/stats_handler.py:122
+#: accolade/stats_handler.py:122
 msgid "{:n} of {:n} Characters"
 msgstr "{:n} dari {:n} Karakter"
 
-#: apostrophe/stats_handler.py:124
+#: accolade/stats_handler.py:124
 msgid "{:n} Character"
 msgid_plural "{:n} Characters"
 msgstr[0] "{:n} Karakter"
 
-#: apostrophe/stats_handler.py:127
+#: accolade/stats_handler.py:127
 msgid "{:n} of {:n} Words"
 msgstr "{:n} dari {:n} Kata"
 
-#: apostrophe/stats_handler.py:129
+#: accolade/stats_handler.py:129
 msgid "{:n} Word"
 msgid_plural "{:n} Words"
 msgstr[0] "{:n} Kata"
 
-#: apostrophe/stats_handler.py:132
+#: accolade/stats_handler.py:132
 msgid "{:n} of {:n} Sentences"
 msgstr "{:n} dari {:n}  Kalimat"
 
-#: apostrophe/stats_handler.py:134
+#: accolade/stats_handler.py:134
 msgid "{:n} Sentence"
 msgid_plural "{:n} Sentences"
 msgstr[0] "{:n} Kalimat"
 
-#: apostrophe/stats_handler.py:137
+#: accolade/stats_handler.py:137
 msgid "{:n} of {:n} Paragraphs"
 msgstr "{:n} dari {:n} Paragraf"
 
-#: apostrophe/stats_handler.py:139
+#: accolade/stats_handler.py:139
 msgid "{:n} Paragraph"
 msgid_plural "{:n} Paragraphs"
 msgstr[0] "{:n} Paragraf"
 
-#: apostrophe/stats_handler.py:142
+#: accolade/stats_handler.py:142
 msgid "{:d}:{:02d}:{:02d} of {:d}:{:02d}:{:02d} Read Time"
 msgstr "Waktu Baca {:d}:{:02d}:{:02d} dari {:d}:{:02d}:{:02d}"
 
-#: apostrophe/stats_handler.py:144
+#: accolade/stats_handler.py:144
 msgid "{:d}:{:02d}:{:02d} Read Time"
 msgstr "Waktu Baca {:d}:{:02d}:{:02d}"
 
-#: apostrophe/text_view_format_inserter.py:24
+#: accolade/text_view_format_inserter.py:24
 msgid "italic text"
 msgstr "teks miring"
 
-#: apostrophe/text_view_format_inserter.py:29
+#: accolade/text_view_format_inserter.py:29
 msgid "bold text"
 msgstr "teks tebal"
 
-#: apostrophe/text_view_format_inserter.py:34
+#: accolade/text_view_format_inserter.py:34
 msgid "strikethrough text"
 msgstr "teks coretan"
 
-#: apostrophe/text_view_format_inserter.py:49
-#: apostrophe/text_view_format_inserter.py:117
-#: apostrophe/text_view_format_inserter.py:187
+#: accolade/text_view_format_inserter.py:49
+#: accolade/text_view_format_inserter.py:117
+#: accolade/text_view_format_inserter.py:187
 msgid "Item"
 msgstr "Butir"
 
-#: apostrophe/text_view_format_inserter.py:258
+#: accolade/text_view_format_inserter.py:258
 msgid "Header"
 msgstr "Tajuk"
 
-#: apostrophe/text_view_format_inserter.py:329
+#: accolade/text_view_format_inserter.py:329
 msgid "Quote"
 msgstr "Kutip"
 
-#: apostrophe/text_view_format_inserter.py:371
+#: accolade/text_view_format_inserter.py:371
 msgid "code"
 msgstr "kode"
 
-#: apostrophe/text_view_format_inserter.py:394
+#: accolade/text_view_format_inserter.py:394
 msgid "https://www.example.com"
 msgstr "https://www.contoh.com"
 
-#: apostrophe/text_view_format_inserter.py:395
+#: accolade/text_view_format_inserter.py:395
 msgid "link text"
 msgstr "teks tautan"
 
-#: apostrophe/text_view_format_inserter.py:429
-#: apostrophe/text_view_format_inserter.py:461
+#: accolade/text_view_format_inserter.py:429
+#: accolade/text_view_format_inserter.py:461
 msgid "image caption"
 msgstr "kapsi gambar"
 
-#: apostrophe/text_view_format_inserter.py:435
+#: accolade/text_view_format_inserter.py:435
 msgid "Image"
 msgstr "Gambar"
 
-#: apostrophe/text_view_format_inserter.py:441
+#: accolade/text_view_format_inserter.py:441
 msgid "Select an image"
 msgstr "Pilih gambar"
 
-#: apostrophe/text_view_format_inserter.py:550
+#: accolade/text_view_format_inserter.py:550
 msgid ""
 "\n"
 "code\n"
@@ -935,7 +935,7 @@ msgstr ""
 "\n"
 "kode\n"
 
-#: apostrophe/text_view.py:161 apostrophe/text_view.py:163
+#: accolade/text_view.py:161 accolade/text_view.py:163
 msgid "web page"
 msgstr "halaman web"
 
@@ -979,8 +979,8 @@ msgstr "halaman web"
 #~ msgid "Menu"
 #~ msgstr "Menu"
 
-#~ msgid "Apostrophe website"
-#~ msgstr "Situs web Apostrophe"
+#~ msgid "Accolade website"
+#~ msgstr "Situs web Accolade"
 
 #~ msgid "Paypal"
 #~ msgstr "Paypal"

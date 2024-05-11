@@ -3,7 +3,7 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: Apostrophe\n"
+"Project-Id-Version: Accolade\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2021-08-29 04:08+0200\n"
 "Language: zh-TW\n"
@@ -15,24 +15,24 @@ msgstr ""
 "Language-Team: Chinese (Taiwan) <>\n"
 "PO-Revision-Date: 2022-01-22 10:30+0800\n"
 
-#: apostrophe/export_dialog.py:128 apostrophe/export_dialog.py:323
-#: apostrophe/export_dialog.py:327 data/ui/Export.ui:62
+#: accolade/export_dialog.py:128 accolade/export_dialog.py:323
+#: accolade/export_dialog.py:327 data/ui/Export.ui:62
 msgid "Export"
 msgstr "匯出"
 
-#: apostrophe/export_dialog.py:131 apostrophe/export_dialog.py:328
+#: accolade/export_dialog.py:131 accolade/export_dialog.py:328
 #, python-format
 msgid "Export to %s"
 msgstr "匯出至 %s"
 
-#: apostrophe/export_dialog.py:133 apostrophe/export_dialog.py:324
-#: apostrophe/export_dialog.py:329 apostrophe/main_window.py:344
-#: apostrophe/main_window.py:435 apostrophe/main_window.py:508
+#: accolade/export_dialog.py:133 accolade/export_dialog.py:324
+#: accolade/export_dialog.py:329 accolade/main_window.py:344
+#: accolade/main_window.py:435 accolade/main_window.py:508
 #: data/ui/Export.ui:47
 msgid "Cancel"
 msgstr "取消"
 
-#: apostrophe/export_dialog.py:158 apostrophe/export_dialog.py:358
+#: accolade/export_dialog.py:158 accolade/export_dialog.py:358
 #, python-brace-format
 msgid ""
 "An error happened while trying to export:\n"
@@ -43,154 +43,154 @@ msgstr ""
 "\n"
 "{err_msg}"
 
-#: apostrophe/export_dialog.py:234
+#: accolade/export_dialog.py:234
 msgid "Export to {}"
 msgstr "匯出至 {}"
 
-#: apostrophe/export_dialog.py:324
+#: accolade/export_dialog.py:324
 msgid "Select folder"
 msgstr "選擇文件夾"
 
-#: apostrophe/headerbars.py:126 apostrophe/preview_renderer.py:132
+#: accolade/headerbars.py:126 accolade/preview_renderer.py:132
 #: data/ui/PreviewLayoutSwitcherItem.ui:36
 msgid "Full-Width"
 msgstr "全形"
 
-#: apostrophe/headerbars.py:128 apostrophe/preview_renderer.py:134
+#: accolade/headerbars.py:128 accolade/preview_renderer.py:134
 msgid "Half-Width"
 msgstr "半形"
 
-#: apostrophe/headerbars.py:130 apostrophe/preview_renderer.py:136
+#: accolade/headerbars.py:130 accolade/preview_renderer.py:136
 msgid "Half-Height"
 msgstr "半高"
 
-#: apostrophe/headerbars.py:132 apostrophe/preview_renderer.py:138
+#: accolade/headerbars.py:132 accolade/preview_renderer.py:138
 msgid "Windowed"
 msgstr "視窗模式"
 
-#: apostrophe/helpers.py:90
+#: accolade/helpers.py:90
 msgid "Error"
 msgstr "錯誤"
 
-#: apostrophe/inhibitor.py:35
+#: accolade/inhibitor.py:35
 msgid "Unsaved documents"
 msgstr "未儲存檔案"
 
-#: apostrophe/inline_preview.py:201
+#: accolade/inline_preview.py:201
 msgid "Formula looks incorrect:"
 msgstr "算式看來不正確："
 
-#: apostrophe/inline_preview.py:240
+#: accolade/inline_preview.py:240
 msgid "No matching footnote found"
 msgstr "沒有發現相符和的註解"
 
-#: apostrophe/inline_preview.py:260
+#: accolade/inline_preview.py:260
 msgid "noun"
 msgstr "名詞"
 
-#: apostrophe/inline_preview.py:262
+#: accolade/inline_preview.py:262
 msgid "verb"
 msgstr "動詞"
 
-#: apostrophe/inline_preview.py:264
+#: accolade/inline_preview.py:264
 msgid "adjective"
 msgstr "形容詞"
 
-#: apostrophe/inline_preview.py:266
+#: accolade/inline_preview.py:266
 msgid "adverb"
 msgstr "副詞"
 
-#: apostrophe/main_window.py:340
+#: accolade/main_window.py:340
 msgid "Save your File"
 msgstr "存取您的檔案"
 
-#: apostrophe/main_window.py:343 data/ui/Headerbar.ui:225
+#: accolade/main_window.py:343 data/ui/Headerbar.ui:225
 msgid "Save"
 msgstr "儲存"
 
-#: apostrophe/main_window.py:424
+#: accolade/main_window.py:424
 msgid "Markdown Files"
 msgstr "Markdown 文件"
 
-#: apostrophe/main_window.py:428
+#: accolade/main_window.py:428
 msgid "Plain Text Files"
 msgstr "文字文件"
 
-#: apostrophe/main_window.py:431
+#: accolade/main_window.py:431
 msgid "Open a .md file"
 msgstr "開啟 .md 文件"
 
-#: apostrophe/main_window.py:434 data/ui/Headerbar.ui:182
+#: accolade/main_window.py:434 data/ui/Headerbar.ui:182
 msgid "Open"
 msgstr "開啟"
 
-#: apostrophe/main_window.py:498
+#: accolade/main_window.py:498
 #, python-format
 msgid "Save changes to document “%s” before closing?"
 msgstr "是否於關閉前儲存對 \"%s\" 的變更？"
 
-#: apostrophe/main_window.py:503
+#: accolade/main_window.py:503
 msgid "If you don’t save, all your changes will be permanently lost."
 msgstr "如果不儲存，將永久失去所有變更。"
 
-#: apostrophe/main_window.py:506
+#: accolade/main_window.py:506
 msgid "Close without saving"
 msgstr "不儲存並關閉"
 
-#: apostrophe/main_window.py:509
+#: accolade/main_window.py:509
 msgid "Save now"
 msgstr "現在存取"
 
-#: apostrophe/main_window.py:711
+#: accolade/main_window.py:711
 msgid "New File"
 msgstr "新文件"
 
-#: apostrophe/preview_renderer.py:47 data/ui/Headerbar.ui:305
+#: accolade/preview_renderer.py:47 data/ui/Headerbar.ui:305
 msgid "Preview"
 msgstr "預覽"
 
-#: apostrophe/stats_handler.py:74
+#: accolade/stats_handler.py:74
 msgid "{:n} Characters"
 msgstr "{:n} 字元"
 
-#: apostrophe/stats_handler.py:76
+#: accolade/stats_handler.py:76
 msgid "{:n} Words"
 msgstr "{:n} 字"
 
-#: apostrophe/stats_handler.py:78
+#: accolade/stats_handler.py:78
 msgid "{:n} Sentences"
 msgstr "{:n} 句子"
 
-#: apostrophe/stats_handler.py:80
+#: accolade/stats_handler.py:80
 msgid "{:n} Paragraphs"
 msgstr "{:n} 段落"
 
-#: apostrophe/stats_handler.py:82
+#: accolade/stats_handler.py:82
 msgid "{:d}:{:02d}:{:02d} Read Time"
 msgstr "需時 {:d}:{:02d}:{:02d} 閱讀"
 
-#: apostrophe/text_view_drag_drop_handler.py:75
-#: apostrophe/text_view_drag_drop_handler.py:77
+#: accolade/text_view_drag_drop_handler.py:75
+#: accolade/text_view_drag_drop_handler.py:77
 msgid "web page"
 msgstr "網頁"
 
-#: apostrophe/text_view_format_inserter.py:14
+#: accolade/text_view_format_inserter.py:14
 msgid "italic text"
 msgstr "斜體字"
 
-#: apostrophe/text_view_format_inserter.py:19
+#: accolade/text_view_format_inserter.py:19
 msgid "bold text"
 msgstr "粗體字"
 
-#: apostrophe/text_view_format_inserter.py:24
+#: accolade/text_view_format_inserter.py:24
 msgid "strikethrough text"
 msgstr "刪除線"
 
-#: apostrophe/text_view_format_inserter.py:50
+#: accolade/text_view_format_inserter.py:50
 msgid "Item"
 msgstr "項目"
 
-#: apostrophe/text_view_format_inserter.py:98
+#: accolade/text_view_format_inserter.py:98
 msgid "Header"
 msgstr "頁頭"
 
@@ -199,8 +199,8 @@ msgid "Copyright (C) 2020, Wolf Vollprecht"
 msgstr "版權 (C) 2020, Wolf Vollprecht"
 
 #: data/ui/About.ui.in:14
-msgid "Apostrophe website"
-msgstr "Apostrophe 網頁"
+msgid "Accolade website"
+msgstr "Accolade 網頁"
 
 #. Put your name in here, like this:
 #. Manuel Genovés <manuel.genoves@gmail.com>
@@ -357,16 +357,16 @@ msgid "Keyboard Shortcuts"
 msgstr "鍵盤捷徑"
 
 #: data/ui/Menu.ui:160
-msgid "About Apostrophe"
-msgstr "關於 Apostrophe"
+msgid "About Accolade"
+msgstr "關於 Accolade"
 
 #: data/ui/Preferences.ui:49
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:35
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:35
 msgid "Check spelling while typing"
 msgstr "打字時檢查串法"
 
 #: data/ui/Preferences.ui:73
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:49
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:49
 msgid "Input format"
 msgstr "輸入格式"
 
@@ -560,126 +560,126 @@ msgstr "取代"
 msgid "Replace All"
 msgstr "全部取代"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:5
-#: data/org.gnome.gitlab.somas.Apostrophe.desktop.in.in:3
-msgid "Apostrophe"
-msgstr "Apostrophe"
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:5
+#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:3
+msgid "Accolade"
+msgstr "Accolade"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:6
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:6
 msgid "An elegant, distraction-free markdown editor"
 msgstr "一個簡約、不干擾你工作的 Markdown 編輯器"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:8
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:8
 msgid "Focus on your writing with a clean, distraction-free markdown editor."
 msgstr "在這個簡潔、不干擾你工作的 Markdown 編輯器裡專注於你的寫作。"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:9
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:9
 msgid "Features:"
 msgstr "功能："
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:11
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:11
 msgid "An UI tailored to comfortable writing"
 msgstr "專為舒適寫作而設計的界面"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:12
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:12
 msgid "A distraction-free mode"
 msgstr "專注模式"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:13
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:13
 msgid "Dark, light and sepia themes"
 msgstr "淺色、深色和 Sepia 色調"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:14
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:14
 msgid ""
 "Everything you expect from a text editor, such as spellchecking or document "
 "statistics"
 msgstr "所有你對文字編輯軟件的期望，例如串字檢查及文件數據"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:15
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:15
 msgid "Live preview of what you write"
 msgstr "一邊寫作，一邊即時預覽內容"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:16
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:16
 msgid ""
 "Export to all kind of formats: PDF, Word/Libreoffice, LaTeX, or even HTML "
 "slideshows"
 msgstr "匯出文件至：PDF, Word/ LibreOffice, LaTeX, 甚或是 HTML 幻燈片"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:41
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:41
 msgid "Wolf V., Manuel G."
 msgstr "Wolf V., Manuel G."
 
 #. Translators: Search terms to find this application. Do NOT translate or localize the semicolons! The list MUST also end with a semicolon!
-#: data/org.gnome.gitlab.somas.Apostrophe.desktop.in.in:5
-msgid "uberwriter;UberWriter;apostrophe;markdown;editor;"
+#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:5
+msgid "uberwriter;UberWriter;accolade;markdown;editor;"
 msgstr ""
-"uberwriter;UberWriter;apostrophe;markdown;editor;編輯器;寫作;寫字;文字;文件;"
+"uberwriter;UberWriter;accolade;markdown;editor;編輯器;寫作;寫字;文字;文件;"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.desktop.in.in:6
-msgid "Apostrophe, an elegant, distraction-free markdown editor"
-msgstr "Apostrophe，優雅、簡約、不干擾你寫作的 Markdown 編輯器"
+#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:6
+msgid "Accolade, an elegant, distraction-free markdown editor"
+msgstr "Accolade，優雅、簡約、不干擾你寫作的 Markdown 編輯器"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:28
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:28
 msgid "Color scheme"
 msgstr "色調主題"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:29
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:29
 msgid "Use the color scheme in the application's UI and in the text area."
-msgstr "在 Apostrophe 的界面使用此色調。"
+msgstr "在 Accolade 的界面使用此色調。"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:36
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:36
 msgid "Enable or disable spellchecking."
 msgstr "啟用或停用串字檢查。"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:42
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:42
 msgid "Synchronize editor/preview scrolling"
 msgstr "同步滾動編輯器和預覽器"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:43
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:43
 msgid "Keep the editor and preview scroll positions in sync."
 msgstr "同步編輯器和預覽器的滾動位置。"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:50
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:50
 msgid "Input format to use when previewing and exporting using Pandoc."
 msgstr "當用 Pandoc 預覽和匯出時所用的輸入模式。"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:56
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:56
 msgid "Autohide Headerbar"
 msgstr "自動隱藏標題欄"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:57
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:57
 msgid "Hide the header and status bars when typing."
 msgstr "打字時隱藏標題欄和狀態欄"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:63
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:63
 msgid "Open file base path"
 msgstr "開啟文件所在的文件夾"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:64
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:64
 msgid "Open file paths of the current session"
 msgstr "打開所有已開啟的文件所在的文件夾"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:70
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:70
 msgid "Default statistic"
 msgstr "預設數據"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:71
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:71
 msgid "Which statistic is shown on the main window."
 msgstr "哪項數據在主視窗中顯示。"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:77
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:77
 msgid "Characters per line"
 msgstr "每行字元數目"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:78
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:78
 msgid "Maximum number of characters per line within the editor."
 msgstr "在編輯器中每行最多字元數目。"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:84
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:84
 msgid "Preview mode"
 msgstr "預覽模式"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:85
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:85
 msgid "How to display the preview."
 msgstr "如何顯示預覽模式。"
 

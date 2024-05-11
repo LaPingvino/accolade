@@ -62,7 +62,7 @@
       </object>
     </child>
   </template>
-  <object class="ApostropheOpenPopover" id="open_menu"/>
+  <object class="AccoladeOpenPopover" id="open_menu"/>
 
   <!-- Main Menu-->
 
@@ -98,14 +98,14 @@
       <item>
         <attribute name="label" translatable="yes">Open _Tutorial</attribute>
         <attribute name="action">win.open_file</attribute>
-        <attribute name="target">resource:///org/gnome/gitlab/somas/Apostrophe/media/apostrophe_markdown.md</attribute>
+        <attribute name="target">resource:///org/codeberg/lapingvino/Accolade/media/accolade_markdown.md</attribute>
       </item>
       <item>
         <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>
         <attribute name="action">win.show-help-overlay</attribute>
       </item>
       <item>
-        <attribute name="label" translatable="yes">_About Apostrophe</attribute>
+        <attribute name="label" translatable="yes">_About Accolade</attribute>
         <attribute name="action">app.about</attribute>
       </item>
     </section>

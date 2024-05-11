@@ -3,10 +3,10 @@ include: 'https://gitlab.gnome.org/GNOME/citemplates/raw/master/flatpak/flatpak_
 flatpak:
     image: 'quay.io/gnome_infrastructure/gnome-runtime-images:gnome-master'
     variables:
-        MANIFEST_PATH: "build-aux/flatpak/org.gnome.gitlab.somas.Apostrophe.json"
+        MANIFEST_PATH: "build-aux/flatpak/org.codeberg.lapingvino.Accolade.json"
         MESON_ARGS: "-Dprofile=Devel"
-        FLATPAK_MODULE: "apostrophe"
-        APP_ID: "org.gnome.gitlab.somas.Apostrophe"
+        FLATPAK_MODULE: "accolade"
+        APP_ID: "org.codeberg.lapingvino.Accolade"
         RUNTIME_REPO: "https://nightly.gnome.org/gnome-nightly.flatpakrepo"
-        BUNDLE: "apostrophe-dev.flatpak"
+        BUNDLE: "accolade-dev.flatpak"
     extends: .flatpak

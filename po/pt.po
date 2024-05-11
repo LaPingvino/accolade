@@ -1,14 +1,14 @@
-# Portuguese translation for apostrophe.
-# Copyright (C) 2021 apostrophe's COPYRIGHT HOLDER
-# This file is distributed under the same license as the apostrophe package.
+# Portuguese translation for accolade.
+# Copyright (C) 2021 accolade's COPYRIGHT HOLDER
+# This file is distributed under the same license as the accolade package.
 # FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
 # Juliano de Souza Camargo <julianosc@pm.me>, 2021.
 # Hugo Carvalho <hugokarvalho@hotmail.com>, 2021, 2022.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: apostrophe main\n"
-"Report-Msgid-Bugs-To: https://gitlab.gnome.org/World/apostrophe/issues\n"
+"Project-Id-Version: accolade main\n"
+"Report-Msgid-Bugs-To: https://gitlab.gnome.org/World/accolade/issues\n"
 "POT-Creation-Date: 2022-12-17 00:19+0000\n"
 "PO-Revision-Date: 2022-12-18 14:25+0000\n"
 "Last-Translator: Hugo Carvalho <hugokarvalho@hotmail.com>\n"
@@ -19,160 +19,160 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-DL-Team: pt\n"
-"X-DL-Module: apostrophe\n"
+"X-DL-Module: accolade\n"
 "X-DL-Branch: main\n"
 "X-DL-Domain: po\n"
 "X-DL-State: Translating\n"
 "X-Generator: Poedit 3.2.1\n"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.desktop.in.in:3
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:5
-msgid "Apostrophe"
+#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:3
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:5
+msgid "Accolade"
 msgstr "Apóstrofe"
 
-#. Translators: Search terms to find this application. Do NOT translate or localize the semicolons! Do NOT translate "uberwriter" or "apostrophe"! The list MUST also end with a semicolon!
-#: data/org.gnome.gitlab.somas.Apostrophe.desktop.in.in:5
-msgid "uberwriter;UberWriter;apostrophe;markdown;editor;text;write;"
+#. Translators: Search terms to find this application. Do NOT translate or localize the semicolons! Do NOT translate "uberwriter" or "accolade"! The list MUST also end with a semicolon!
+#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:5
+msgid "uberwriter;UberWriter;accolade;markdown;editor;text;write;"
 msgstr ""
 "uberwriter;UberWriter;apóstrofe;apóstrofo;markdown;editor;texto;escrever;"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.desktop.in.in:6
-msgid "Apostrophe, an elegant, distraction-free markdown editor"
+#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:6
+msgid "Accolade, an elegant, distraction-free markdown editor"
 msgstr "Apóstrofe, um editor markdown elegante e sem distração"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:29
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:29
 msgid "Color scheme"
 msgstr "Esquema de cor"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:30
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:30
 msgid "Use the color scheme in the application's UI and in the text area."
 msgstr "Usar o esquema de cor na UI da aplicação e na área de texto."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:36
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:36
 #: data/ui/Preferences.ui:15 data/ui/Preferences.ui:16
 msgid "Check spelling while typing"
 msgstr "Verificar a ortografia enquanto escreve"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:37
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:37
 msgid "Enable or disable spellchecking."
 msgstr "Ativa ou desativa a verificação ortográfica."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:43
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:43
 msgid "Synchronize editor/preview scrolling"
 msgstr "Sincronizar o deslocamento do editor/antevisão"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:44
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:44
 msgid "Keep the editor and preview scroll positions in sync."
 msgstr "Manter o deslocamento do editor e da antevisão em sincronia."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:50
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:50
 #: data/ui/Preferences.ui:70
 msgid "Input format"
 msgstr "Formato de entrada"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:51
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:51
 msgid "Input format to use when previewing and exporting using Pandoc."
 msgstr ""
 "Formato de entrada utilizado ao antever ou ao exportar usando o Pandoc."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:57
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:57
 msgid "Autohide Headerbar"
 msgstr "Esconder automaticamente a barra de título"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:58
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:58
 msgid "Hide the header and status bars when typing."
 msgstr "Esconder o cabeçalho e a barra de estado enquanto escreve."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:64
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:64
 msgid "Open file base path"
 msgstr "Abrir o caminho base do ficheiro"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:65
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:65
 msgid "Open file paths of the current session"
 msgstr "Abrir o caminho do ficheiro da sessão atual"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:71
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:71
 msgid "Default statistic"
 msgstr "Estatísticas predefinidas"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:72
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:72
 msgid "Which statistic is shown on the main window."
 msgstr "Quais estatísticas são mostradas na janela principal."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:78
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:78
 msgid "Characters per line"
 msgstr "Caracteres por linha"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:79
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:79
 msgid "Maximum number of characters per line within the editor."
 msgstr "O número máximo de caracteres por linha no editor."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:85
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:85
 #: data/ui/AboutHemingway.ui:6
 msgid "Hemingway Mode"
 msgstr "Modo Hemingway"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:86
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:86
 msgid "Whether the user can delete text or not."
 msgstr "Se o utilizador pode ou não eliminar texto."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:92
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:92
 msgid "Hemingway Toast Count"
 msgstr "Contagem de Hemingway Toast"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:93
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:93
 msgid "Number of times the Hemingway Toast has been shown"
 msgstr "Número de vezes que o Hemingway Toast foi mostrado"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:99
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:99
 msgid "Preview mode"
 msgstr "Antevisão"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:100
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:100
 msgid "How to display the preview."
 msgstr "Como mostrar a antevisão."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:106
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:106
 msgid "Preview active"
 msgstr "Pré-visualização ativa"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:107
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:107
 msgid "Whether showing of preview is active when launching a new window."
 msgstr "Se a pré-visualização estará ativa ao iniciar uma nova janela."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:113
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:113
 msgid "Text size"
 msgstr "Tamanho do texto"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.gschema.xml:114
+#: data/org.codeberg.lapingvino.Accolade.gschema.xml:114
 msgid "Preferred relative size for the text."
 msgstr "Tamanho relativo preferido para o texto."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:6
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:6
 msgid "Edit Markdown in style"
 msgstr "Editar Markdown em estilo"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:8
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:8
 msgid "Focus on your writing with a clean, distraction-free markdown editor."
 msgstr "Foque no seu texto com um editor markdown limpo e sem distrações."
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:9
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:9
 msgid "Features:"
 msgstr "Funcionalidades:"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:11
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:11
 msgid "An UI tailored to comfortable writing"
 msgstr "Uma UI desenhada para uma leitura confortável"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:12
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:12
 msgid "A distraction-free mode"
 msgstr "Um modo sem distrações"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:13
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:13
 msgid "Dark, light and sepia themes"
 msgstr "Temas escuro, claro e sépia"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:14
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:14
 msgid ""
 "Everything you expect from a text editor, such as spellchecking or document "
 "statistics"
@@ -180,11 +180,11 @@ msgstr ""
 "Tudo que espera dum editor de texto, como verificação ortográfica ou "
 "estatísticas do documento"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:15
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:15
 msgid "Live preview of what you write"
 msgstr "Antever em direto aquilo que escreve"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:16
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:16
 msgid ""
 "Export to all kind of formats: PDF, Word/Libreoffice, LaTeX, or even HTML "
 "slideshows"
@@ -192,7 +192,7 @@ msgstr ""
 "Exportar para todos os formatos: PDF, Word/Libreoffice, LaTeX, ou até "
 "apresentações HTML"
 
-#: data/org.gnome.gitlab.somas.Apostrophe.metainfo.xml.in.in:41
+#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:41
 msgid "Manuel G., Wolf V."
 msgstr "Manuel G., Wolf V."
 
@@ -230,15 +230,15 @@ msgstr ""
 msgid "_Close"
 msgstr "_Fechar"
 
-#: data/ui/Export.ui:33 apostrophe/export_dialog.py:132
-#: apostrophe/export_dialog.py:344 apostrophe/export_dialog.py:349
-#: apostrophe/main_window.py:400 apostrophe/main_window.py:471
-#: apostrophe/main_window.py:563
+#: data/ui/Export.ui:33 accolade/export_dialog.py:132
+#: accolade/export_dialog.py:344 accolade/export_dialog.py:349
+#: accolade/main_window.py:400 accolade/main_window.py:471
+#: accolade/main_window.py:563
 msgid "Cancel"
 msgstr "Cancelar"
 
-#: data/ui/Export.ui:44 apostrophe/export_dialog.py:127
-#: apostrophe/export_dialog.py:343 apostrophe/export_dialog.py:347
+#: data/ui/Export.ui:44 accolade/export_dialog.py:127
+#: accolade/export_dialog.py:343 accolade/export_dialog.py:347
 msgid "Export"
 msgstr "Exportar"
 
@@ -303,12 +303,12 @@ msgstr "Mostrar um marcador após o outro numa apresentação"
 msgid "New"
 msgstr "Novo"
 
-#: data/ui/Headerbar.ui:18 apostrophe/main_window.py:470
+#: data/ui/Headerbar.ui:18 accolade/main_window.py:470
 msgid "Open"
 msgstr "Abrir"
 
-#: data/ui/Headerbar.ui:24 apostrophe/main_window.py:399
-#: apostrophe/main_window.py:565
+#: data/ui/Headerbar.ui:24 accolade/main_window.py:399
+#: accolade/main_window.py:565
 msgid "Save"
 msgstr "Guardar"
 
@@ -345,7 +345,7 @@ msgid "_Keyboard Shortcuts"
 msgstr "_Teclas de atalho"
 
 #: data/ui/Headerbar.ui:105
-msgid "_About Apostrophe"
+msgid "_About Accolade"
 msgstr "_Acerca do Apóstrofe"
 
 #: data/ui/Headerbar.ui:116
@@ -383,18 +383,18 @@ msgid "Restore session"
 msgstr "Restaurar sessão"
 
 #: data/ui/Preferences.ui:57
-msgid "Return to your previous session when Apostrophe is started"
+msgid "Return to your previous session when Accolade is started"
 msgstr "Voltar à sua sessão anterior quando o Apóstrofe for iniciado"
 
 #: data/ui/Preferences.ui:71
-msgid "Flavor of markdown Apostrophe will use"
+msgid "Flavor of markdown Accolade will use"
 msgstr "Variante de markdown que o Apóstrofe usará"
 
 #: data/ui/Preferences.ui:80
 msgid "Markdown flavor documentation"
 msgstr "Documentação da variante markdown"
 
-#: data/ui/PreviewLayoutSwitcher.ui:7 apostrophe/preview_renderer.py:208
+#: data/ui/PreviewLayoutSwitcher.ui:7 accolade/preview_renderer.py:208
 msgid "Preview"
 msgstr "Antever"
 
@@ -635,24 +635,24 @@ msgstr "O ficheiro foi alterado por outro programa."
 msgid "_Discard Changes and Reload"
 msgstr "_Descartar alterações e recarregar"
 
-#: apostrophe/application.py:232
+#: accolade/application.py:232
 msgid "Donate"
 msgstr "Doar"
 
-#: apostrophe/application.py:233
+#: accolade/application.py:233
 msgid "Translations"
 msgstr "Traduções"
 
-#: apostrophe/export_dialog.py:122 apostrophe/helpers.py:84
+#: accolade/export_dialog.py:122 accolade/helpers.py:84
 msgid "Close"
 msgstr "Fechar"
 
-#: apostrophe/export_dialog.py:130 apostrophe/export_dialog.py:348
+#: accolade/export_dialog.py:130 accolade/export_dialog.py:348
 #, python-format
 msgid "Export to %s"
 msgstr "Exportar para %s"
 
-#: apostrophe/export_dialog.py:156 apostrophe/export_dialog.py:337
+#: accolade/export_dialog.py:156 accolade/export_dialog.py:337
 #, python-brace-format
 msgid ""
 "An error happened while trying to export:\n"
@@ -663,76 +663,76 @@ msgstr ""
 "\n"
 "{err_msg}"
 
-#: apostrophe/export_dialog.py:235
+#: accolade/export_dialog.py:235
 msgid "Export to {}"
 msgstr "Exportar para {}"
 
-#: apostrophe/export_dialog.py:344
+#: accolade/export_dialog.py:344
 msgid "Select folder"
 msgstr "Selecionar a pasta"
 
-#: apostrophe/helpers.py:83
+#: accolade/helpers.py:83
 msgid "Error"
 msgstr "Erro"
 
-#: apostrophe/inhibitor.py:36
+#: accolade/inhibitor.py:36
 msgid "Unsaved documents"
 msgstr "Documentos não guardados"
 
-#: apostrophe/inline_preview.py:201
+#: accolade/inline_preview.py:201
 msgid "Formula looks incorrect:"
 msgstr "A fórmula aparenta estar incorreta:"
 
-#: apostrophe/inline_preview.py:241
+#: accolade/inline_preview.py:241
 msgid "No matching footnote found"
 msgstr "Nenhuma nota de rodapé corresponde"
 
-#: apostrophe/inline_preview.py:261
+#: accolade/inline_preview.py:261
 msgid "noun"
 msgstr "substantivo"
 
-#: apostrophe/inline_preview.py:263
+#: accolade/inline_preview.py:263
 msgid "verb"
 msgstr "verbo"
 
-#: apostrophe/inline_preview.py:265
+#: accolade/inline_preview.py:265
 msgid "adjective"
 msgstr "adjetivo"
 
-#: apostrophe/inline_preview.py:267
+#: accolade/inline_preview.py:267
 msgid "adverb"
 msgstr "advérbio"
 
 #. Hemingway Toast
-#: apostrophe/main_window.py:132
+#: accolade/main_window.py:132
 msgid "Text can't be deleted while on Hemingway mode"
 msgstr "O texto não pode ser eliminado enquanto estiver no modo Hemingway"
 
-#: apostrophe/main_window.py:135
+#: accolade/main_window.py:135
 msgid "Tell me more"
 msgstr "Diga-me mais"
 
-#: apostrophe/main_window.py:396
+#: accolade/main_window.py:396
 msgid "Save your File"
 msgstr "Guardar o ficheiro"
 
-#: apostrophe/main_window.py:460
+#: accolade/main_window.py:460
 msgid "Markdown Files"
 msgstr "Ficheiros Markdown"
 
-#: apostrophe/main_window.py:464
+#: accolade/main_window.py:464
 msgid "Plain Text Files"
 msgstr "Ficheiros de texto simples"
 
-#: apostrophe/main_window.py:467
+#: accolade/main_window.py:467
 msgid "Open a .md file"
 msgstr "Abrir um ficheiro .md"
 
-#: apostrophe/main_window.py:557
+#: accolade/main_window.py:557
 msgid "Save changes?"
 msgstr "Guardar alterações?"
 
-#: apostrophe/main_window.py:558
+#: accolade/main_window.py:558
 #, python-format
 msgid ""
 "“%s” contains unsaved changes. If you don’t save, all your changes will be "
@@ -741,103 +741,103 @@ msgstr ""
 "\"%s\" contém alterações não guardadas. Se não guardar, todas as alterações "
 "serão permanentemente perdidas."
 
-#: apostrophe/main_window.py:564
+#: accolade/main_window.py:564
 msgid "Discard"
 msgstr "Descartar"
 
-#: apostrophe/main_window.py:734 apostrophe/main_window.py:758
+#: accolade/main_window.py:734 accolade/main_window.py:758
 msgid "New File"
 msgstr "Novo ficheiro"
 
-#: apostrophe/preview_layout_switcher.py:40
+#: accolade/preview_layout_switcher.py:40
 msgid "Full-Width"
 msgstr "Largura total"
 
-#: apostrophe/preview_layout_switcher.py:42
+#: accolade/preview_layout_switcher.py:42
 msgid "Half-Width"
 msgstr "Largura média"
 
-#: apostrophe/preview_layout_switcher.py:44
+#: accolade/preview_layout_switcher.py:44
 msgid "Half-Height"
 msgstr "Altura média"
 
-#: apostrophe/preview_layout_switcher.py:46
+#: accolade/preview_layout_switcher.py:46
 msgid "Windowed"
 msgstr "Em janela"
 
-#: apostrophe/stats_handler.py:98
+#: accolade/stats_handler.py:98
 msgid "{:n} of {:n} Characters"
 msgstr "{:n} de {:n} Caracteres"
 
-#: apostrophe/stats_handler.py:100
+#: accolade/stats_handler.py:100
 msgid "{:n} Character"
 msgid_plural "{:n} Characters"
 msgstr[0] "{:n} Carácter"
 msgstr[1] "{:n} Caracteres"
 
-#: apostrophe/stats_handler.py:103
+#: accolade/stats_handler.py:103
 msgid "{:n} of {:n} Words"
 msgstr "{:n} de {:n} Palavras"
 
-#: apostrophe/stats_handler.py:105
+#: accolade/stats_handler.py:105
 msgid "{:n} Word"
 msgid_plural "{:n} Words"
 msgstr[0] "{:n} Palavra"
 msgstr[1] "{:n} Palavras"
 
-#: apostrophe/stats_handler.py:108
+#: accolade/stats_handler.py:108
 msgid "{:n} of {:n} Sentences"
 msgstr "{:n} de {:n} Frases"
 
-#: apostrophe/stats_handler.py:110
+#: accolade/stats_handler.py:110
 msgid "{:n} Sentence"
 msgid_plural "{:n} Sentences"
 msgstr[0] "{:n} Frase"
 msgstr[1] "{:n} Frases"
 
-#: apostrophe/stats_handler.py:113
+#: accolade/stats_handler.py:113
 msgid "{:n} of {:n} Paragraphs"
 msgstr "{:n} de {:n} Parágrafos"
 
-#: apostrophe/stats_handler.py:115
+#: accolade/stats_handler.py:115
 msgid "{:n} Paragraph"
 msgid_plural "{:n} Paragraphs"
 msgstr[0] "{:n} Parágrafo"
 msgstr[1] "{:n} Parágrafos"
 
-#: apostrophe/stats_handler.py:118
+#: accolade/stats_handler.py:118
 msgid "{:d}:{:02d}:{:02d} of {:d}:{:02d}:{:02d} Read Time"
 msgstr "{:d}:{:02d}:{:02d} de {:d}:{:02d}:{:02d} Tempo de leitura"
 
-#: apostrophe/stats_handler.py:120
+#: accolade/stats_handler.py:120
 msgid "{:d}:{:02d}:{:02d} Read Time"
 msgstr "{:d}:{:02d}:{:02d} Tempo de leitura"
 
-#: apostrophe/text_view_format_inserter.py:14
+#: accolade/text_view_format_inserter.py:14
 msgid "italic text"
 msgstr "texto itálico"
 
-#: apostrophe/text_view_format_inserter.py:19
+#: accolade/text_view_format_inserter.py:19
 msgid "bold text"
 msgstr "texto negrito"
 
-#: apostrophe/text_view_format_inserter.py:24
+#: accolade/text_view_format_inserter.py:24
 msgid "strikethrough text"
 msgstr "texto rasurado"
 
-#: apostrophe/text_view_format_inserter.py:50
+#: accolade/text_view_format_inserter.py:50
 msgid "Item"
 msgstr "Item"
 
-#: apostrophe/text_view_format_inserter.py:97
+#: accolade/text_view_format_inserter.py:97
 msgid "Header"
 msgstr "Cabeçalho"
 
-#: apostrophe/text_view.py:177 apostrophe/text_view.py:179
+#: accolade/text_view.py:177 accolade/text_view.py:179
 msgid "web page"
 msgstr "página web"
 
-#~ msgid "Apostrophe website"
+#~ msgid "Accolade website"
 #~ msgstr "Sítio web do Apóstrofe"
 
 #~ msgid "Paypal"

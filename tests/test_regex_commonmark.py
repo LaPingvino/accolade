@@ -19,7 +19,7 @@
 import unittest
 import re
 
-from apostrophe import markup_regex
+from accolade import markup_regex
 
 
 class TestRegex(unittest.TestCase):

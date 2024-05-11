@@ -30,10 +30,10 @@
             </child>
             <child>
               <object class="GtkLabel">
-                <property name="label" translatable="yes">Apostrophe needs the TeXLive extension
+                <property name="label" translatable="yes">Accolade needs the TeXLive extension
 in order to export PDF or LaTeX files.
 
-Install it from Apostrophe&apos;s page in Software
+Install it from Accolade&apos;s page in Software
 or by running the following command in a terminal:</property>
                 <property name="use-markup">1</property>
                 <property name="justify">center</property>
@@ -42,7 +42,7 @@ or by running the following command in a terminal:</property>
             </child>
             <child>
               <object class="GtkEntry" id="command">
-                <property name="text">flatpak install org.gnome.gitlab.somas.Apostrophe.Plugin.TexLive</property>
+                <property name="text">flatpak install org.codeberg.lapingvino.Accolade.Plugin.TexLive</property>
                 <property name="editable">0</property>
                 <property name="max-width-chars">48</property>
               </object>
@@ -84,7 +84,7 @@ or by running the following command in a terminal:</property>
             </child>
             <child>
               <object class="GtkLabel">
-                <property name="label" translatable="yes">Apostrophe needs TeXLive
+                <property name="label" translatable="yes">Accolade needs TeXLive
 in order to export PDF or LaTeX files.
 
 Install it from your distribution repositories.</property>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0"/>
-  <template class="ApostropheOpenPopover" parent="GtkPopover">
+  <template class="AccoladeOpenPopover" parent="GtkPopover">
     <style>
       <class name="open-popover"/>
     </style>

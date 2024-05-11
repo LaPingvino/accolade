@@ -7,7 +7,7 @@ function generate_resource()
     # TODO: package css styles too
     echo '<?xml version="1.0" encoding="UTF-8"?>'
     echo '<gresources>'
-    echo '  <gresource prefix="/org/gnome/gitlab/somas/Apostrophe/">'
+    echo '  <gresource prefix="/org/codeberg/lapingvino/Accolade/">'
     for file in ../data/media/css/gtk/*.css
     do
         echo -n '    <file compressed="true">'
@@ -24,5 +24,5 @@ function generate_resource()
     echo '</gresources>'
 }
 
-generate_resource > ../data/apostrophe.gresource.xml
+generate_resource > ../data/accolade.gresource.xml
 

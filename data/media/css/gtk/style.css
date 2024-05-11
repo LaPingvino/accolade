@@ -7,33 +7,33 @@
 
 /* Main window and text colors */
 
-.apostrophe-editor {
+.accolade-editor {
   font-family: 'Fira Mono', monospace;
   font-size: 1.091em;
 }
 
-.apostrophe-editor.size14 {
+.accolade-editor.size14 {
   font-size: 0.955em;
 }
-.apostrophe-editor.size15 {
+.accolade-editor.size15 {
   font-size: 1.023em;
 }
-.apostrophe-editor.size16 {
+.accolade-editor.size16 {
   font-size: 1.091em;
 }
-.apostrophe-editor.size17 {
+.accolade-editor.size17 {
   font-size: 1.159em;
 }
-.apostrophe-editor.size18 {
+.accolade-editor.size18 {
   font-size: 1.227em;
 }
-.apostrophe-editor.size20 {
+.accolade-editor.size20 {
   font-size: 1.364em;
 }
-.apostrophe-editor.size22 {
+.accolade-editor.size22 {
   font-size: 1.5em;
 }
-.apostrophe-editor.size24 {
+.accolade-editor.size24 {
   font-size: 1.636em;
 }
 

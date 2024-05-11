@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <interface>
   <requires lib="gtk" version="4.0" />
-  <object class="ApostropheTextBuffer" id="buffer">
+  <object class="AccoladeTextBuffer" id="buffer">
     <signal name="mark-set" handler="_on_mark_set" />
     <signal name="paste-done" handler="_on_paste_done" />
     <signal name="changed" handler="_on_text_changed" />
   </object>
-  <template class="ApostropheTextView" parent="GtkSourceView">
+  <template class="AccoladeTextView" parent="GtkSourceView">
     <property name="wrap-mode">word-char</property>
     <property name="pixels-above-lines">4</property>
     <property name="pixels-below-lines">4</property>
@@ -87,7 +87,7 @@
       </object>
     </child>
     <style>
-      <class name="apostrophe-editor" />
+      <class name="accolade-editor" />
     </style>
     <signal name="notify::focus-mode" handler="_on_focus_mode_update" />
     <signal name="notify::spellcheck" handler="_on_spellcheck_update" />
