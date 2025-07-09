@@ -22,7 +22,7 @@ from gettext import gettext as _
 from typing import List
 
 import gi
-import pypandoc
+import subprocess
 from gi.overrides.Pango import Pango
 
 gi.require_version('Gtk', '4.0')
@@ -123,14 +123,52 @@ def get_char_width(widget):
         widget.get_pango_context().get_metrics().get_approximate_char_width())
 
 
-def pandoc_convert(text, fr=None, to="html5", args=[], outputfile=None):
-    if not fr:
-        fr = Settings.new().get_value('input-format').get_string() or "markdown"
-    # args.extend(["--quiet"])
-    if to=="html5":
-        args.extend(["--wrap=none"])
-    return pypandoc.convert_text(
-        text, to, fr, extra_args=args, outputfile=outputfile)
+def lexington_convert(text, to="html", args=[], outputfile=None):
+    """Convert Fountain text using lexington"""
+    import tempfile
+    import os
+    
+    # Create a temporary file for input
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.fountain', delete=False) as tmp_input:
+        tmp_input.write(text)
+        tmp_input_path = tmp_input.name
+    
+    try:
+        # Build lexington command
+        cmd = ['lexington']
+        
+        if to == "html":
+            cmd.extend(['--html'])
+        elif to == "pdf":
+            cmd.extend(['--pdf'])
+        elif to == "fdx":
+            cmd.extend(['--fdx'])
+        
+        # Add custom args
+        cmd.extend(args)
+        
+        # Add input file
+        cmd.append(tmp_input_path)
+        
+        if outputfile:
+            cmd.extend(['-o', outputfile])
+            subprocess.run(cmd, check=True)
+            return ""
+        else:
+            # Capture output
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            return result.stdout
+            
+    except subprocess.CalledProcessError as e:
+        LOGGER.error(f"Lexington conversion failed: {e}")
+        return f"<p>Error converting Fountain: {e}</p>"
+    except FileNotFoundError:
+        LOGGER.error("Lexington not found. Please install lexington.")
+        return "<p>Error: Lexington not found. Please install lexington.</p>"
+    finally:
+        # Clean up temporary file
+        if os.path.exists(tmp_input_path):
+            os.unlink(tmp_input_path)
 
 def get_debug_info():
     flatpak = "yes" if os.path.isfile("/.flatpak-info") else "no"
@@ -152,7 +190,11 @@ def get_debug_info():
     info += f"GTK: {Gtk.get_major_version()}.{Gtk.get_minor_version()}.{Gtk.get_micro_version()}\n"
     info += f"GLib: {GLib.glib_version[0]}.{GLib.glib_version[1]}.{GLib.glib_version[2]}\n"
     info += f"Libadwaita: {Adw.get_major_version()}.{Adw.get_minor_version()}.{Adw.get_micro_version()}\n"
-    info += f"Pandoc: {pypandoc.get_pandoc_version()}\n"
+    try:
+        result = subprocess.run(['lexington', '--version'], capture_output=True, text=True, check=True)
+        info += f"Lexington: {result.stdout.strip()}\n"
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        info += f"Lexington: Not found\n"
     info += "\n"
     info += f"OS: {os_name} {os_version}\n"
     info += f"Display: {display}\n"

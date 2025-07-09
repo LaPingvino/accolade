@@ -1,46 +1,100 @@
 import re
 
-ITALIC_ASTERISK = re.compile(
-    r"(?<!\\)\*[^\s\*](?P<text>.*?\S?.*?)(?<!\\)\*")
-ITALIC_UNDERSCORE = re.compile(
-    r"(?<!(\\|\S))_[^\s_](?P<text>.*?\S?.*?)(?<!\\)_")
+# Character names (ALL CAPS, centered, followed by dialogue)
+CHARACTER = re.compile(
+    r"^[ \t]*(?P<name>[A-Z][A-Z0-9 .'_-]*[A-Z0-9])[ \t]*$", re.M)
+
+# Scene headings (INT./EXT. followed by location)
+SCENE_HEADING = re.compile(
+    r"^(?P<heading>(?:INT|EXT|EST|int|ext|est)\.?\s+.+?)(?:\s+-\s+(?P<time>.+?))?$", re.M)
+
+# Action lines (general text that's not dialogue, character names, or scene headings)
+ACTION = re.compile(
+    r"^(?P<text>(?![ \t]*[A-Z][A-Z0-9 .'_-]*[A-Z0-9][ \t]*$)(?!(?:INT|EXT|EST|int|ext|est)\.?\s+).+?)$", re.M)
+
+# Dialogue (text that follows a character name)
+DIALOGUE = re.compile(
+    r"^(?P<text>(?![ \t]*[A-Z][A-Z0-9 .'_-]*[A-Z0-9][ \t]*$)(?!(?:INT|EXT|EST|int|ext|est)\.?\s+).+?)$", re.M)
+
+# Parentheticals (text in parentheses, usually within dialogue)
+PARENTHETICAL = re.compile(
+    r"^[ \t]*\((?P<text>.*?)\)[ \t]*$", re.M)
+
+# Transitions (usually ALL CAPS, right-aligned, ending with TO:)
+TRANSITION = re.compile(
+    r"^[ \t]*(?P<text>[A-Z ]+TO:|FADE IN:|FADE OUT\.|CUT TO:|DISSOLVE TO:|SMASH CUT TO:|MATCH CUT TO:|JUMP CUT TO:|IRIS IN:|IRIS OUT:)[ \t]*$", re.M)
+
+# Forced character names (starting with @)
+FORCED_CHARACTER = re.compile(
+    r"^@(?P<name>.+?)$", re.M)
+
+# Forced scene headings (starting with .)
+FORCED_SCENE_HEADING = re.compile(
+    r"^\.(?P<heading>.+?)$", re.M)
+
+# Forced action (starting with !)
+FORCED_ACTION = re.compile(
+    r"^!(?P<text>.+?)$", re.M)
+
+# Centered text (starting and ending with >)
+CENTERED = re.compile(
+    r"^>(?P<text>.*?)<$", re.M)
+
+# Page breaks (===)
+PAGE_BREAK = re.compile(
+    r"^[ \t]*={3,}[ \t]*$", re.M)
+
+# Emphasis (italic) - *text*
+ITALIC = re.compile(
+    r"(?<!\\)\*(?P<text>[^\*\n]+?)(?<!\\)\*")
+
+# Bold - **text**
 BOLD = re.compile(
-    r"(\*\*|__)[^\s*](?P<text>.*?\S.*?)\1")
-BOLD_ITALIC = re.compile(
-    r"((\*\*|__)([*_])|([*_])(\*\*|__))[^\s*](?P<text>.*?\S.*?)(?:\5\4|\3\2)")
-STRIKETHROUGH = re.compile(
-    r"~~(?P<text>.*?\S.*?)~~")
-CODE = re.compile(
-    r"(?<!`)(?P<ticks>`+)(?!`)(?P<content>.+?)(?<!`)(?P=ticks)(?!`)")
-LINK = re.compile(
-    r"\[(?P<text>.*?)\]\((?P<url>.+?)(?: \"(?P<title>.+)\")?\)")
-LINK_ALT = re.compile(
-    r"<(?P<text>(?P<url>[A-Za-z][A-Za-z0-9.+-]{1,31}:[^<>\x00-\x20]*|(?:[a-zA-Z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*)))>")
-URL = re.compile(
-    r"[(http(s)?):\/\/(www\.)?a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)", re.I)
-IMAGE = re.compile(
-    r"!\[(?P<text>.*)\]\((?P<url>.+?)(?: \"(?P<title>.+)\")?\)")
-HORIZONTAL_RULE = re.compile(
-    r"(?:^|\n{2,})(?P<symbols> {0,3}[*\-_]{3,} *)(?:\n{2,}|$)")
-LIST = re.compile(
-    r"(?:^|\n)(?P<content>(?P<indent>(?:\t| {4})*)(?P<symbol>(?:[\-*+])) (?!\[[xX ]\])(?:\t| {4})*(?P<text>.+(?:\n+ \2.+)*)?)")
-CHECKLIST = re.compile(
-    r"(?:^|\n)(?P<content>(?P<indent>(?:\t| {4})*)(?P<symbol>(?:[\-*+])) \[(?P<check>(?:[xX ]))\] (?:\t| {4})*(?P<text>.+(?:\n+ \2.+)*)?)")
-ORDERED_LIST = re.compile(
-    r"(?:^|\n)(?P<content>(?P<indent>(?:\t| {4})*)(?P<prefix>(?:(?P<number>\d+)|(?:[a-z]))+(?P<delimiter>[.)]))(?:\t| {4}| )(?P<text>.+(?:\n+ {2}\2.+)*)?)")
-BLOCK_QUOTE = re.compile(
-    r"^ {0,3}(?:> ?)+(?P<text>.+)", re.M)
-HEADER = re.compile(
-    r"^ {0,3}(?P<level>#{1,6}) (?P<text>[^\n]+)", re.M)
-HEADER_UNDER = re.compile(
-    r"(?:^\n*|\n\n)(?P<text>[^\s].+)\n {0,3}[=\-]+(?: +?\n|$)")
-CODE_BLOCK = re.compile(
-    r"^ {0,3}(?P<block>([`~]{3})(?P<text>.+?)(?<! ) {0,3}\2)(?:\s+?$|$)", re.S|re.M)
-TABLE = re.compile(
-    r"^[\-+]{5,}\n(?P<text>.+?)\n[\-+]{5,}\n", re.S)
-MATH = re.compile(
-    r"([$]{1,2})(?P<text>[^`\\ ]{1,2}|[^` ].+?[^`\\ ])\1", re.S|re.M)
-FOOTNOTE_ID = re.compile(
-    r"[^\s]+\[\^(?P<id>(?P<text>[^\s]+))\]")
-FOOTNOTE = re.compile(
-    r"(?:^\n*|\n\n)\[\^(?P<id>[^\s]+)\]: (?P<text>(?:[^\n]+|\n+(?=(?:\t| {4})))+)(?:\n+|$)", re.M)
+    r"(?<!\\)\*\*(?P<text>[^\*\n]+?)(?<!\\)\*\*")
+
+# Underline - _text_
+UNDERLINE = re.compile(
+    r"(?<!\\)_(?P<text>[^_\n]+?)(?<!\\)_")
+
+# Notes/Comments - [[text]]
+NOTE = re.compile(
+    r"\[\[(?P<text>.*?)\]\]", re.S)
+
+# Boneyard/Omit - /*text*/
+BONEYARD = re.compile(
+    r"\/\*(?P<text>.*?)\*\/", re.S)
+
+# Section headings - # text
+SECTION = re.compile(
+    r"^#+\s*(?P<text>.+?)$", re.M)
+
+# Synopsis - = text
+SYNOPSIS = re.compile(
+    r"^=\s*(?P<text>.+?)$", re.M)
+
+# Dual dialogue indicators
+DUAL_DIALOGUE = re.compile(
+    r"\^$", re.M)
+
+# Lyrics (starting with ~)
+LYRICS = re.compile(
+    r"^~(?P<text>.+?)$", re.M)
+
+# Title page elements
+TITLE_PAGE = re.compile(
+    r"^(?P<key>Title|Credit|Author|Authors|Source|Draft date|Date|Contact|Copyright):\s*(?P<value>.+?)$", re.M | re.I)
+
+# Character extension (O.S., V.O., etc.)
+CHARACTER_EXTENSION = re.compile(
+    r"^[ \t]*(?P<name>[A-Z][A-Z0-9 .'_-]*[A-Z0-9])[ \t]*\((?P<extension>[^)]+)\)[ \t]*$", re.M)
+
+# Scene numbers - #1# or #1A#
+SCENE_NUMBER = re.compile(
+    r"#(?P<number>[0-9A-Za-z.-]+)#")
+
+# More/Cont'd indicators
+MORE = re.compile(
+    r"^[ \t]*\(MORE\)[ \t]*$", re.M)
+
+CONTD = re.compile(
+    r"^[ \t]*\(CONT'D\)[ \t]*$", re.M)

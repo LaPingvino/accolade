@@ -52,10 +52,10 @@
       </description>
     </key>
     <key name='input-format' type='s'>
-      <default>"markdown"</default>
+      <default>"fountain"</default>
       <summary>Input format</summary>
       <description>
-        Input format to use when previewing and exporting using Pandoc.
+        Input format to use when previewing and exporting using Lexington.
       </description>
     </key>
     <key name='autohide-headerbar' type='b'>
