@@ -2,17 +2,19 @@ package main
 
 import (
 	"log"
+	
+	"fyne.io/fyne/v2/widget"
 )
 
 type SpellChecker struct {
-	textView *TextView
-	enabled  bool
-	language string
+	textEditor *widget.Entry
+	enabled    bool
+	language   string
 }
 
-func NewSpellChecker(textView *TextView) *SpellChecker {
+func NewSpellChecker(textEditor *widget.Entry) *SpellChecker {
 	return &SpellChecker{
-		textView: textView,
+		textEditor: textEditor,
 		enabled:  false,
 		language: "en_US",
 	}

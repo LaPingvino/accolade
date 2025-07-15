@@ -1,416 +1,509 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
+	"os"
+	"path/filepath"
+	"sync"
 
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"fyne.io/fyne/v2"
 )
 
 type Settings struct {
-	*gio.Settings
-	
-	// Schema information
-	schemaID   string
-	schemaPath string
-	
-	// Cache for frequently accessed values
-	cache      map[string]interface{}
-	
-	// Change handlers
-	changeHandlers []func(string)
+	mu     sync.RWMutex
+	data   map[string]interface{}
+	dirty  bool
 }
 
 func NewSettings() *Settings {
-	schemaID := "org.codeberg.lapingvino.Accolade"
-	
-	settings := &Settings{
-		Settings:   gio.NewSettings(schemaID),
-		schemaID:   schemaID,
-		schemaPath: "/org/codeberg/lapingvino/Accolade/",
-		cache:      make(map[string]interface{}),
-		changeHandlers: make([]func(string), 0),
+	s := &Settings{
+		data: make(map[string]interface{}),
+		dirty: false,
 	}
 	
-	settings.setupSignals()
+	s.loadDefaults()
+	s.load()
 	
-	return settings
+	return s
 }
 
-func (s *Settings) setupSignals() {
-	// Connect to change signals
-	s.Settings.ConnectChanged(func(key string) {
-		s.onSettingChanged(key)
-	})
-}
-
-func (s *Settings) onSettingChanged(key string) {
-	log.Printf("Setting changed: %s", key)
+func (s *Settings) loadDefaults() {
+	defaults := map[string]interface{}{
+		// Theme settings
+		"theme":                "system",
+		"color-scheme":         "system",
+		"use-sepia-theme":      false,
+		
+		// Editor settings
+		"font-family":          "monospace",
+		"font-size":           12,
+		"word-wrap":           true,
+		"auto-indent":         true,
+		"show-line-numbers":   false,
+		"highlight-current-line": true,
+		"tab-width":           4,
+		"use-spaces":          true,
+		
+		// Window settings
+		"window-width":        1000,
+		"window-height":       600,
+		"window-maximized":    false,
+		"preview-visible":     false,
+		"toolbar-visible":     true,
+		"statusbar-visible":   true,
+		"fullscreen-mode":     false,
+		
+		// Editor behavior
+		"auto-save":           true,
+		"auto-save-interval":  30, // seconds
+		"backup-files":        true,
+		"spell-check":         true,
+		"spell-check-language": "en_US",
+		"autocomplete":        true,
+		"smart-quotes":        false,
+		
+		// Writing settings
+		"focus-mode":          false,
+		"typewriter-mode":     false,
+		"hemingway-mode":      false,
+		"word-count-visible":  true,
+		"character-count-visible": true,
+		
+		// Export settings
+		"export-format":       "pdf",
+		"export-directory":    "",
+		"include-title-page":  true,
+		"page-size":          "letter",
+		"font-name":          "Courier",
+		"font-size-export":   12,
+		
+		// Search settings
+		"search-case-sensitive": false,
+		"search-whole-words":   false,
+		"search-regex":        false,
+		"search-wrap-around":  true,
+		
+		// Recent files
+		"recent-files":        []string{},
+		"max-recent-files":    10,
+		
+		// Advanced settings
+		"autohide-headerbar":  false,
+		"smooth-scrolling":    true,
+		"show-whitespace":     false,
+		"highlight-matching-brackets": true,
+		"auto-close-brackets": true,
+		
+		// Fountain-specific settings
+		"fountain-auto-format": true,
+		"fountain-scene-numbers": false,
+		"fountain-dual-dialogue": true,
+		"fountain-title-page":   true,
+		
+		// Backup and recovery
+		"auto-backup":         true,
+		"backup-directory":    "",
+		"recovery-enabled":    true,
+		"session-restore":     true,
+	}
 	
-	// Clear cache for this key
-	delete(s.cache, key)
-	
-	// Notify handlers
-	for _, handler := range s.changeHandlers {
-		handler(key)
+	for key, value := range defaults {
+		s.data[key] = value
 	}
 }
 
-func (s *Settings) ConnectChanged(handler func(string)) {
-	s.changeHandlers = append(s.changeHandlers, handler)
+func (s *Settings) load() {
+	configFile := filepath.Join(getConfigDir(), "settings.json")
+	
+	file, err := os.Open(configFile)
+	if err != nil {
+		// Settings file doesn't exist, use defaults
+		log.Printf("Settings file not found, using defaults: %v", err)
+		return
+	}
+	defer file.Close()
+	
+	var loadedData map[string]interface{}
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&loadedData); err != nil {
+		log.Printf("Error decoding settings: %v", err)
+		return
+	}
+	
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	// Merge loaded data with defaults
+	for key, value := range loadedData {
+		s.data[key] = value
+	}
+	
+	log.Println("Settings loaded successfully")
+}
+
+func (s *Settings) save() error {
+	if !s.dirty {
+		return nil
+	}
+	
+	configFile := filepath.Join(getConfigDir(), "settings.json")
+	
+	// Ensure directory exists
+	if err := os.MkdirAll(filepath.Dir(configFile), 0755); err != nil {
+		return err
+	}
+	
+	file, err := os.Create(configFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	
+	s.mu.RLock()
+	data := make(map[string]interface{})
+	for k, v := range s.data {
+		data[k] = v
+	}
+	s.mu.RUnlock()
+	
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(data); err != nil {
+		return err
+	}
+	
+	s.dirty = false
+	log.Println("Settings saved successfully")
+	return nil
+}
+
+func (s *Settings) Save() error {
+	return s.save()
 }
 
 // String settings
 func (s *Settings) GetString(key string) string {
-	if cached, exists := s.cache[key]; exists {
-		return cached.(string)
-	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	
-	value := s.Settings.String(key)
-	s.cache[key] = value
-	return value
+	if value, exists := s.data[key]; exists {
+		if str, ok := value.(string); ok {
+			return str
+		}
+	}
+	return ""
 }
 
 func (s *Settings) SetString(key, value string) {
-	s.Settings.SetString(key, value)
-	s.cache[key] = value
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	s.data[key] = value
+	s.dirty = true
 }
 
 // Boolean settings
 func (s *Settings) GetBoolean(key string) bool {
-	if cached, exists := s.cache[key]; exists {
-		return cached.(bool)
-	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	
-	value := s.Settings.Boolean(key)
-	s.cache[key] = value
-	return value
+	if value, exists := s.data[key]; exists {
+		if b, ok := value.(bool); ok {
+			return b
+		}
+	}
+	return false
 }
 
 func (s *Settings) SetBoolean(key string, value bool) {
-	s.Settings.SetBoolean(key, value)
-	s.cache[key] = value
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	s.data[key] = value
+	s.dirty = true
 }
 
 // Integer settings
 func (s *Settings) GetInt(key string) int {
-	if cached, exists := s.cache[key]; exists {
-		return cached.(int)
-	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	
-	value := s.Settings.Int(key)
-	s.cache[key] = value
-	return value
+	if value, exists := s.data[key]; exists {
+		// Handle both int and float64 (JSON unmarshaling)
+		switch v := value.(type) {
+		case int:
+			return v
+		case float64:
+			return int(v)
+		}
+	}
+	return 0
 }
 
 func (s *Settings) SetInt(key string, value int) {
-	s.Settings.SetInt(key, value)
-	s.cache[key] = value
-}
-
-// Double settings
-func (s *Settings) GetDouble(key string) float64 {
-	if cached, exists := s.cache[key]; exists {
-		return cached.(float64)
-	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	
-	value := s.Settings.Double(key)
-	s.cache[key] = value
-	return value
+	s.data[key] = value
+	s.dirty = true
 }
 
-func (s *Settings) SetDouble(key string, value float64) {
-	s.Settings.SetDouble(key, value)
-	s.cache[key] = value
-}
-
-// Enum settings
-func (s *Settings) GetEnum(key string) int {
-	if cached, exists := s.cache[key]; exists {
-		return cached.(int)
-	}
+// Float settings
+func (s *Settings) GetFloat(key string) float64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	
-	value := s.Settings.Enum(key)
-	s.cache[key] = value
-	return value
-}
-
-func (s *Settings) SetEnum(key string, value int) {
-	s.Settings.SetEnum(key, value)
-	s.cache[key] = value
-}
-
-// Convenience methods for common settings
-
-func (s *Settings) GetColorScheme() string {
-	return s.GetString("color-scheme")
-}
-
-func (s *Settings) SetColorScheme(scheme string) {
-	s.SetString("color-scheme", scheme)
-}
-
-func (s *Settings) GetInputFormat() string {
-	return s.GetString("input-format")
-}
-
-func (s *Settings) SetInputFormat(format string) {
-	s.SetString("input-format", format)
-}
-
-func (s *Settings) IsSpellCheckEnabled() bool {
-	return s.GetBoolean("spellcheck")
-}
-
-func (s *Settings) SetSpellCheck(enabled bool) {
-	s.SetBoolean("spellcheck", enabled)
-}
-
-func (s *Settings) IsSyncScrollEnabled() bool {
-	return s.GetBoolean("sync-scroll")
-}
-
-func (s *Settings) SetSyncScroll(enabled bool) {
-	s.SetBoolean("sync-scroll", enabled)
-}
-
-func (s *Settings) IsAutohideHeaderbar() bool {
-	return s.GetBoolean("autohide-headerbar")
-}
-
-func (s *Settings) SetAutohideHeaderbar(enabled bool) {
-	s.SetBoolean("autohide-headerbar", enabled)
-}
-
-func (s *Settings) GetOpenFilePath() string {
-	return s.GetString("open-file-path")
-}
-
-func (s *Settings) SetOpenFilePath(path string) {
-	s.SetString("open-file-path", path)
-}
-
-func (s *Settings) GetDefaultStat() string {
-	return s.GetString("stat-default")
-}
-
-func (s *Settings) SetDefaultStat(stat string) {
-	s.SetString("stat-default", stat)
-}
-
-func (s *Settings) GetCharactersPerLine() int {
-	return s.GetInt("characters-per-line")
-}
-
-func (s *Settings) SetCharactersPerLine(count int) {
-	s.SetInt("characters-per-line", count)
-}
-
-func (s *Settings) IsHemingwayMode() bool {
-	return s.GetBoolean("hemingway-mode")
-}
-
-func (s *Settings) SetHemingwayMode(enabled bool) {
-	s.SetBoolean("hemingway-mode", enabled)
-}
-
-func (s *Settings) GetHemingwayToastCount() int {
-	return s.GetInt("hemingway-toast-count")
-}
-
-func (s *Settings) SetHemingwayToastCount(count int) {
-	s.SetInt("hemingway-toast-count", count)
-}
-
-func (s *Settings) GetPreviewMode() int {
-	return s.GetEnum("preview-mode")
-}
-
-func (s *Settings) SetPreviewMode(mode int) {
-	s.SetEnum("preview-mode", mode)
-}
-
-func (s *Settings) GetPreviewSecurity() int {
-	return s.GetEnum("preview-security")
-}
-
-func (s *Settings) SetPreviewSecurity(security int) {
-	s.SetEnum("preview-security", security)
-}
-
-func (s *Settings) IsPreviewActive() bool {
-	return s.GetBoolean("preview-active")
-}
-
-func (s *Settings) SetPreviewActive(active bool) {
-	s.SetBoolean("preview-active", active)
-}
-
-func (s *Settings) IsBiggerText() bool {
-	return s.GetBoolean("bigger-text")
-}
-
-func (s *Settings) SetBiggerText(bigger bool) {
-	s.SetBoolean("bigger-text", bigger)
-}
-
-func (s *Settings) IsToolbarActive() bool {
-	return s.GetBoolean("toolbar-active")
-}
-
-func (s *Settings) SetToolbarActive(active bool) {
-	s.SetBoolean("toolbar-active", active)
-}
-
-// Utility methods
-
-func (s *Settings) Reset() {
-	// Reset all settings to default
-	schema := s.Settings.Schema()
-	for _, key := range schema.ListKeys() {
-		s.Settings.Reset(key)
-	}
-	
-	// Clear cache
-	s.cache = make(map[string]interface{})
-}
-
-func (s *Settings) ResetKey(key string) {
-	s.Settings.Reset(key)
-	delete(s.cache, key)
-}
-
-func (s *Settings) HasKey(key string) bool {
-	schema := s.Settings.Schema()
-	keys := schema.ListKeys()
-	
-	for _, k := range keys {
-		if k == key {
-			return true
+	if value, exists := s.data[key]; exists {
+		if f, ok := value.(float64); ok {
+			return f
+		}
+		if i, ok := value.(int); ok {
+			return float64(i)
 		}
 	}
+	return 0.0
+}
+
+func (s *Settings) SetFloat(key string, value float64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	
-	return false
+	s.data[key] = value
+	s.dirty = true
 }
 
-func (s *Settings) GetSchemaID() string {
-	return s.schemaID
-}
-
-func (s *Settings) GetSchemaPath() string {
-	return s.schemaPath
-}
-
-func (s *Settings) Sync() {
-	// Force synchronization of settings
-	s.Settings.Sync()
-}
-
-func (s *Settings) GetDefaultValue(key string) *glib.Variant {
-	schema := s.Settings.Schema()
-	return schema.GetDefaultValue(key)
-}
-
-func (s *Settings) IsWritable(key string) bool {
-	return s.Settings.IsWritable(key)
-}
-
-func (s *Settings) GetRange(key string) *glib.Variant {
-	return s.Settings.GetRange(key)
-}
-
-func (s *Settings) RangeCheck(key string, value *glib.Variant) bool {
-	return s.Settings.RangeCheck(key, value)
-}
-
-func (s *Settings) Delay() {
-	s.Settings.Delay()
-}
-
-func (s *Settings) Apply() {
-	s.Settings.Apply()
-}
-
-func (s *Settings) Revert() {
-	s.Settings.Revert()
-}
-
-func (s *Settings) GetHasUnapplied() bool {
-	return s.Settings.GetHasUnapplied()
-}
-
-// Settings validation
-func (s *Settings) ValidateSettings() []string {
-	var errors []string
+// String slice settings
+func (s *Settings) GetStringSlice(key string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	
-	// Validate color scheme
-	colorScheme := s.GetColorScheme()
-	validSchemes := []string{"system", "light", "dark", "sepia"}
-	valid := false
-	for _, scheme := range validSchemes {
-		if colorScheme == scheme {
-			valid = true
+	if value, exists := s.data[key]; exists {
+		if slice, ok := value.([]interface{}); ok {
+			result := make([]string, len(slice))
+			for i, v := range slice {
+				if str, ok := v.(string); ok {
+					result[i] = str
+				}
+			}
+			return result
+		}
+		if slice, ok := value.([]string); ok {
+			return slice
+		}
+	}
+	return []string{}
+}
+
+func (s *Settings) SetStringSlice(key string, value []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	s.data[key] = value
+	s.dirty = true
+}
+
+// Recent files management
+func (s *Settings) AddRecentFile(filePath string) {
+	recentFiles := s.GetStringSlice("recent-files")
+	maxRecent := s.GetInt("max-recent-files")
+	
+	// Remove if already exists
+	for i, file := range recentFiles {
+		if file == filePath {
+			recentFiles = append(recentFiles[:i], recentFiles[i+1:]...)
 			break
 		}
 	}
-	if !valid {
-		errors = append(errors, "Invalid color scheme: "+colorScheme)
+	
+	// Add to beginning
+	recentFiles = append([]string{filePath}, recentFiles...)
+	
+	// Limit to max items
+	if len(recentFiles) > maxRecent {
+		recentFiles = recentFiles[:maxRecent]
 	}
 	
-	// Validate characters per line
-	charsPerLine := s.GetCharactersPerLine()
-	if charsPerLine < 40 || charsPerLine > 200 {
-		errors = append(errors, "Characters per line must be between 40 and 200")
-	}
-	
-	// Validate input format
-	inputFormat := s.GetInputFormat()
-	if inputFormat != "fountain" {
-		errors = append(errors, "Input format must be 'fountain'")
-	}
-	
-	return errors
+	s.SetStringSlice("recent-files", recentFiles)
 }
 
-// Export/Import settings
-func (s *Settings) ExportSettings() map[string]interface{} {
-	exported := make(map[string]interface{})
+func (s *Settings) GetRecentFiles() []string {
+	files := s.GetStringSlice("recent-files")
 	
-	schema := s.Settings.Schema()
-	keys := schema.ListKeys()
-	
-	for _, key := range keys {
-		value := s.Settings.GetValue(key)
-		exported[key] = value.String()
+	// Filter out files that no longer exist
+	validFiles := make([]string, 0, len(files))
+	for _, file := range files {
+		if _, err := os.Stat(file); err == nil {
+			validFiles = append(validFiles, file)
+		}
 	}
 	
-	return exported
+	// Update the list if it changed
+	if len(validFiles) != len(files) {
+		s.SetStringSlice("recent-files", validFiles)
+	}
+	
+	return validFiles
 }
 
-func (s *Settings) ImportSettings(settings map[string]interface{}) {
-	for key, value := range settings {
-		if s.HasKey(key) {
-			switch v := value.(type) {
-			case string:
-				s.SetString(key, v)
-			case bool:
-				s.SetBoolean(key, v)
-			case int:
-				s.SetInt(key, v)
-			case float64:
-				s.SetDouble(key, v)
-			default:
-				log.Printf("Unsupported setting type for key %s: %T", key, v)
-			}
+func (s *Settings) ClearRecentFiles() {
+	s.SetStringSlice("recent-files", []string{})
+}
+
+// Window state management
+func (s *Settings) SaveWindowState(size fyne.Size, position fyne.Position, maximized bool) {
+	s.SetInt("window-width", int(size.Width))
+	s.SetInt("window-height", int(size.Height))
+	s.SetBoolean("window-maximized", maximized)
+}
+
+func (s *Settings) GetWindowState() (fyne.Size, fyne.Position, bool) {
+	width := s.GetInt("window-width")
+	height := s.GetInt("window-height")
+	maximized := s.GetBoolean("window-maximized")
+	
+	if width <= 0 {
+		width = 1000
+	}
+	if height <= 0 {
+		height = 600
+	}
+	
+	size := fyne.NewSize(float32(width), float32(height))
+	position := fyne.NewPos(0, 0) // Let the OS decide
+	
+	return size, position, maximized
+}
+
+// Reset settings to defaults
+func (s *Settings) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	s.data = make(map[string]interface{})
+	s.loadDefaults()
+	s.dirty = true
+}
+
+func (s *Settings) ResetKey(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	// Create a temporary settings object to get the default value
+	temp := &Settings{data: make(map[string]interface{})}
+	temp.loadDefaults()
+	
+	if defaultValue, exists := temp.data[key]; exists {
+		s.data[key] = defaultValue
+		s.dirty = true
+	}
+}
+
+// Check if key exists
+func (s *Settings) HasKey(key string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	_, exists := s.data[key]
+	return exists
+}
+
+// Get all keys
+func (s *Settings) GetKeys() []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	
+	keys := make([]string, 0, len(s.data))
+	for key := range s.data {
+		keys = append(keys, key)
+	}
+	return keys
+}
+
+// Export settings to file
+func (s *Settings) ExportToFile(filePath string) error {
+	s.mu.RLock()
+	data := make(map[string]interface{})
+	for k, v := range s.data {
+		data[k] = v
+	}
+	s.mu.RUnlock()
+	
+	file, err := os.Create(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	
+	encoder := json.NewEncoder(file)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(data)
+}
+
+// Import settings from file
+func (s *Settings) ImportFromFile(filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	
+	var importedData map[string]interface{}
+	decoder := json.NewDecoder(file)
+	if err := decoder.Decode(&importedData); err != nil {
+		return err
+	}
+	
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	
+	for key, value := range importedData {
+		s.data[key] = value
+	}
+	s.dirty = true
+	
+	return nil
+}
+
+// Auto-save periodically (call this in a goroutine)
+func (s *Settings) AutoSave() {
+	if s.dirty {
+		if err := s.save(); err != nil {
+			log.Printf("Error auto-saving settings: %v", err)
 		}
 	}
 }
 
-// Backup and restore
-func (s *Settings) BackupSettings() map[string]interface{} {
-	return s.ExportSettings()
+// Helper function to ensure config directory exists
+func ensureConfigDir() error {
+	configDir := getConfigDir()
+	return os.MkdirAll(configDir, 0755)
 }
 
-func (s *Settings) RestoreSettings(backup map[string]interface{}) {
-	s.ImportSettings(backup)
+// Helper function to get config file path
+func getConfigFilePath() string {
+	return filepath.Join(getConfigDir(), "settings.json")
+}
+
+// Global settings instance
+var globalSettings *Settings
+var settingsOnce sync.Once
+
+func GetSettings() *Settings {
+	settingsOnce.Do(func() {
+		if err := ensureConfigDir(); err != nil {
+			log.Printf("Warning: Could not create config directory: %v", err)
+		}
+		globalSettings = NewSettings()
+	})
+	return globalSettings
+}
+
+// Save settings on application exit
+func SaveSettingsOnExit() {
+	if globalSettings != nil {
+		if err := globalSettings.Save(); err != nil {
+			log.Printf("Error saving settings on exit: %v", err)
+		}
+	}
 }

@@ -1,467 +1,460 @@
 package main
 
 import (
+	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"libdb.so/gotk4-sourceview/pkg/gtksource/v5"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/widget"
 )
 
 type MainWindow struct {
-	*adw.ApplicationWindow
+	fyneWindow   fyne.Window
+	app          *Application
 	
 	// Core components
-	app          *Application
-	textView     *TextView
-	textBuffer   *TextBuffer
-	previewView  *PreviewView
-	headerbar    *HeaderBar
+	textEditor   *widget.Entry
+	previewArea  *widget.RichText
+	headerBar    *HeaderBar
+	searchBar    *SearchBar
 	
-	// UI elements
-	overlay      *gtk.Overlay
-	panels       *gtk.Paned
-	previewStack *gtk.Stack
-	searchbar    *SearchBar
+	// UI layout
+	mainContainer *container.Split
+	sidePanel     *container.Split
+	toolbarContainer *fyne.Container
+	statusBar     *fyne.Container
 	
 	// File management
-	currentFile  *gio.File
-	hasChanges   bool
-	isFullscreen bool
+	currentFile   string
+	hasChanges    bool
+	isFullscreen  bool
 	
 	// Settings
-	settings     *Settings
+	settings      *Settings
 	
-	// Preview components
-	previewSpinner *gtk.Spinner
-	securityWarning *adw.StatusPage
+	// Preview state
+	previewVisible bool
+	previewRestricted bool
 	
-	// Status and progress
-	saveProgressBar *gtk.ProgressBar
-	discardInfoBar  *gtk.InfoBar
+	// Find/Replace
+	findEntry     *widget.Entry
+	replaceEntry  *widget.Entry
+	findVisible   bool
 	
-	// Revealer for toolbar
-	toolbarRevealer *gtk.Revealer
+	// Auto-save
+	autoSaveEnabled bool
 }
 
 func NewMainWindow(app *Application) *MainWindow {
 	window := &MainWindow{
-		ApplicationWindow: adw.NewApplicationWindow(&app.Application.Application),
-		app:               app,
-		hasChanges:        false,
-		isFullscreen:      false,
+		fyneWindow:      app.fyneApp.NewWindow("Accolade"),
+		app:             app,
+		hasChanges:      false,
+		isFullscreen:    false,
+		previewVisible:  false,
+		findVisible:     false,
+		autoSaveEnabled: true,
 	}
 	
 	window.settings = NewSettings()
 	window.setupUI()
-	window.setupActions()
-	window.setupSignals()
+	window.setupShortcuts()
+	window.setupCallbacks()
 	
 	return window
 }
 
 func (w *MainWindow) setupUI() {
 	// Set window properties
-	w.SetTitle("Accolade")
-	w.SetDefaultSize(1000, 600)
-	w.AddCSSClass("accolade-window")
+	w.fyneWindow.SetTitle("Accolade")
+	w.fyneWindow.Resize(fyne.NewSize(1000, 600))
+	w.fyneWindow.CenterOnScreen()
 	
-	// Create main overlay
-	w.overlay = gtk.NewOverlay()
-	w.overlay.SetName("FullscreenOverlay")
-	w.SetContent(w.overlay)
+	// Create main text editor
+	w.textEditor = widget.NewMultiLineEntry()
+	w.textEditor.Wrapping = fyne.TextWrapWord
+	w.textEditor.SetPlaceHolder("Start writing your screenplay here...")
 	
-	// Create panels (main content area)
-	w.panels = gtk.NewPaned(gtk.OrientationHorizontal)
-	w.panels.SetHExpand(true)
-	w.overlay.SetChild(w.panels)
+	// Create preview area
+	w.previewArea = widget.NewRichText()
+	w.previewArea.Wrapping = fyne.TextWrapWord
 	
-	// Create text view and buffer
-	w.textBuffer = NewTextBuffer()
-	w.textView = NewTextView(w.textBuffer)
+	// Create header bar with toolbar
+	w.headerBar = NewHeaderBar(w)
 	
-	// Create preview components
-	w.setupPreview()
+	// Create search bar (initially hidden)
+	w.searchBar = NewSearchBar(w)
 	
-	// Set up panels
-	w.panels.SetStartChild(w.textView)
-	w.panels.SetEndChild(w.previewStack)
-	w.panels.SetResizeStartChild(true)
-	w.panels.SetResizeEndChild(true)
+	// Create find/replace widgets
+	w.findEntry = widget.NewEntry()
+	w.findEntry.SetPlaceHolder("Find...")
+	w.replaceEntry = widget.NewEntry()
+	w.replaceEntry.SetPlaceHolder("Replace with...")
 	
-	// Create header bar
-	w.headerbar = NewHeaderBar(w)
+	// Create find/replace container
+	findContainer := container.NewVBox(
+		container.NewBorder(nil, nil, widget.NewLabel("Find:"), nil, w.findEntry),
+		container.NewBorder(nil, nil, widget.NewLabel("Replace:"), nil, w.replaceEntry),
+		container.NewHBox(
+			widget.NewButton("Find Next", w.findNext),
+			widget.NewButton("Replace", w.replaceOne),
+			widget.NewButton("Replace All", w.replaceAll),
+			widget.NewButton("Close", w.hideFindReplace),
+		),
+	)
 	
-	// Create search bar
-	w.searchbar = NewSearchBar(w)
+	// Create status bar
+	w.statusBar = container.NewHBox(
+		widget.NewLabel("Ready"),
+		widget.NewSeparator(),
+		widget.NewLabel("Words: 0"),
+		widget.NewSeparator(),
+		widget.NewLabel("Characters: 0"),
+	)
 	
-	// Create toolbar overlay
-	w.setupToolbar()
+	// Create toolbar container
+	w.toolbarContainer = container.NewVBox(
+		w.headerBar.container,
+		w.searchBar.container,
+	)
 	
-	// Create info bars
-	w.setupInfoBars()
+	// Create main content area
+	editorScroll := container.NewScroll(w.textEditor)
+	previewScroll := container.NewScroll(w.previewArea)
+	
+	w.mainContainer = container.NewHSplit(
+		editorScroll,
+		previewScroll,
+	)
+	w.mainContainer.SetOffset(0.7) // Give more space to editor
+	
+	// Initially hide preview
+	w.hidePreview()
+	
+	// Create main layout
+	content := container.NewBorder(
+		w.toolbarContainer, // top
+		w.statusBar,        // bottom
+		nil,                // left
+		nil,                // right
+		w.mainContainer,    // center
+	)
+	
+	// Add find/replace overlay (initially hidden)
+	overlay := container.NewWithoutLayout(
+		content,
+		findContainer,
+	)
+	
+	// Position find/replace at top-right
+	findContainer.Move(fyne.NewPos(200, 80))
+	findContainer.Resize(fyne.NewSize(350, 120))
+	findContainer.Hide()
+	
+	w.fyneWindow.SetContent(overlay)
 	
 	// Apply initial settings
 	w.applySettings()
 }
 
-func (w *MainWindow) setupPreview() {
-	// Create preview stack
-	w.previewStack = gtk.NewStack()
-	w.previewStack.SetHExpand(true)
-	w.previewStack.SetTransitionType(gtk.StackTransitionTypeCrossfade)
-	w.previewStack.AddCSSClass("preview-background")
+func (w *MainWindow) setupShortcuts() {
+	// Text editor shortcuts
+	w.textEditor.OnChanged = w.onTextChanged
 	
-	// Create preview spinner
-	w.previewSpinner = gtk.NewSpinner()
-	w.previewSpinner.SetHAlign(gtk.AlignCenter)
-	w.previewSpinner.SetVAlign(gtk.AlignCenter)
-	w.previewSpinner.SetHExpand(true)
-	w.previewSpinner.SetVExpand(true)
-	
-	spinnerPage := w.previewStack.AddChild(w.previewSpinner)
-	spinnerPage.SetName("spinner")
-	
-	// Create security warning page
-	w.securityWarning = adw.NewStatusPage()
-	w.securityWarning.SetIconName("dialog-warning-symbolic")
-	w.securityWarning.SetTitle("This file may be insecure")
-	w.securityWarning.SetDescription("Previewing files from untrusted sources can be dangerous.\nIf you're unsure about the contents of this file, open it in the Restricted Preview.")
-	
-	// Create buttons for security warning
-	buttonBox := gtk.NewBox(gtk.OrientationHorizontal, 12)
-	buttonBox.SetHAlign(gtk.AlignCenter)
-	buttonBox.SetMarginBottom(12)
-	
-	loadButton := gtk.NewButtonWithLabel("Load Preview")
-	loadButton.AddCSSClass("pill")
-	loadButton.ConnectClicked(func() {
-		w.loadPreview(false)
-	})
-	
-	restrictedButton := gtk.NewButtonWithLabel("Load Restricted Preview")
-	restrictedButton.AddCSSClass("pill")
-	restrictedButton.AddCSSClass("suggested-action")
-	restrictedButton.ConnectClicked(func() {
-		w.loadPreview(true)
-	})
-	
-	buttonBox.Append(loadButton)
-	buttonBox.Append(restrictedButton)
-	
-	containerBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	containerBox.Append(buttonBox)
-	w.securityWarning.SetChild(containerBox)
-	
-	securityPage := w.previewStack.AddChild(w.securityWarning)
-	securityPage.SetName("security")
-	
-	// Create preview view
-	w.previewView = NewPreviewView(w)
-	previewPage := w.previewStack.AddChild(w.previewView)
-	previewPage.SetName("preview")
-	
-	// Initially hide preview
-	w.previewStack.SetVisible(false)
+	// TODO: Add keyboard shortcuts for Fyne
+	// Fyne doesn't have as extensive shortcut support as GTK
+	// Will need to implement custom key handlers
 }
 
-func (w *MainWindow) setupToolbar() {
-	// Create toolbar box
-	toolbarBox := gtk.NewBox(gtk.OrientationVertical, 0)
-	toolbarBox.SetVAlign(gtk.AlignStart)
-	
-	// Create toolbar revealer
-	w.toolbarRevealer = gtk.NewRevealer()
-	w.toolbarRevealer.SetTransitionType(gtk.RevealerTransitionTypeCrossfade)
-	w.toolbarRevealer.SetTransitionDuration(450)
-	w.toolbarRevealer.SetRevealChild(true)
-	
-	// Create window handle
-	windowHandle := gtk.NewWindowHandle()
-	
-	// Create header container
-	headerContainer := gtk.NewBox(gtk.OrientationVertical, 0)
-	headerContainer.AddCSSClass("toolbars")
-	headerContainer.AddCSSClass("top")
-	
-	headerContainer.Append(w.headerbar)
-	headerContainer.Append(w.searchbar)
-	
-	windowHandle.SetChild(headerContainer)
-	w.toolbarRevealer.SetChild(windowHandle)
-	
-	// Add motion controller for auto-hide
-	motionController := gtk.NewEventControllerMotion()
-	motionController.ConnectEnter(func(x, y float64) {
-		w.revealHeaderbar()
+func (w *MainWindow) setupCallbacks() {
+	// Window close callback
+	w.fyneWindow.SetCloseIntercept(func() {
+		if w.hasChanges {
+			dialog.ShowConfirm(
+				"Unsaved Changes",
+				"You have unsaved changes. Are you sure you want to close?",
+				func(confirmed bool) {
+					if confirmed {
+						w.fyneWindow.Close()
+					}
+				},
+				w.fyneWindow,
+			)
+		} else {
+			w.fyneWindow.Close()
+		}
 	})
-	w.toolbarRevealer.AddController(motionController)
-	
-	toolbarBox.Append(w.toolbarRevealer)
-	
-	w.overlay.AddOverlay(toolbarBox)
 }
 
-func (w *MainWindow) setupInfoBars() {
-	// Create discard info bar
-	w.discardInfoBar = gtk.NewInfoBar()
-	w.discardInfoBar.SetMessageType(gtk.MessageTypeWarning)
-	w.discardInfoBar.SetShowCloseButton(true)
-	w.discardInfoBar.SetRevealed(false)
-	
-	// Create info bar content
-	infoContent := gtk.NewBox(gtk.OrientationVertical, 0)
-	
-	titleLabel := gtk.NewLabel("File Has Changed on Disk")
-	titleLabel.SetHAlign(gtk.AlignStart)
-	titleLabel.SetWrap(true)
-	titleLabel.AddCSSClass("heading")
-	
-	subtitleLabel := gtk.NewLabel("The file has been changed by another program")
-	subtitleLabel.SetHAlign(gtk.AlignStart)
-	subtitleLabel.SetWrap(true)
-	
-	infoContent.Append(titleLabel)
-	infoContent.Append(subtitleLabel)
-	
-	w.discardInfoBar.AddChild(infoContent)
-	
-	// Add discard button
-	discardButton := gtk.NewButtonWithLabel("Discard Changes and Reload")
-	discardButton.SetUseUnderline(true)
-	discardButton.ConnectClicked(func() {
-		w.reloadFile()
-	})
-	w.discardInfoBar.AddActionWidget(discardButton, gtk.ResponseClose)
-	
-	// Add save progress bar
-	w.saveProgressBar = gtk.NewProgressBar()
-	w.saveProgressBar.SetVisible(false)
-	w.saveProgressBar.SetVAlign(gtk.AlignStart)
-	w.saveProgressBar.AddCSSClass("osd")
-	
-	// Add to overlay
-	infoOverlay := gtk.NewBox(gtk.OrientationVertical, 0)
-	infoOverlay.SetVAlign(gtk.AlignStart)
-	infoOverlay.Append(w.discardInfoBar)
-	infoOverlay.Append(w.saveProgressBar)
-	
-	w.overlay.AddOverlay(infoOverlay)
-}
-
-func (w *MainWindow) setupActions() {
-	// File actions
-	openAction := gio.NewSimpleAction("open", nil)
-	openAction.ConnectActivate(func() {
-		w.openFile()
-	})
-	w.AddAction(openAction)
-	
-	saveAction := gio.NewSimpleAction("save", nil)
-	saveAction.ConnectActivate(func() {
-		w.saveFile()
-	})
-	w.AddAction(saveAction)
-	
-	saveAsAction := gio.NewSimpleAction("save_as", nil)
-	saveAsAction.ConnectActivate(func() {
-		w.saveFileAs()
-	})
-	w.AddAction(saveAsAction)
-	
-	// View actions
-	previewAction := gio.NewSimpleActionStateful("preview", nil, glib.NewVariantBoolean(false))
-	previewAction.ConnectActivate(func() {
-		w.togglePreview()
-	})
-	w.AddAction(previewAction)
-	
-	focusModeAction := gio.NewSimpleActionStateful("focus_mode", nil, glib.NewVariantBoolean(false))
-	focusModeAction.ConnectActivate(func() {
-		w.toggleFocusMode()
-	})
-	w.AddAction(focusModeAction)
-	
-	fullscreenAction := gio.NewSimpleAction("fullscreen", nil)
-	fullscreenAction.ConnectActivate(func() {
-		w.toggleFullscreen()
-	})
-	w.AddAction(fullscreenAction)
-	
-	// Edit actions
-	findAction := gio.NewSimpleAction("find", nil)
-	findAction.ConnectActivate(func() {
-		w.showSearch()
-	})
-	w.AddAction(findAction)
-	
-	findReplaceAction := gio.NewSimpleAction("find_replace", nil)
-	findReplaceAction.ConnectActivate(func() {
-		w.showFindReplace()
-	})
-	w.AddAction(findReplaceAction)
-	
-	// Export action
-	exportAction := gio.NewSimpleAction("export", nil)
-	exportAction.ConnectActivate(func() {
-		w.showExportDialog()
-	})
-	w.AddAction(exportAction)
-}
-
-func (w *MainWindow) setupSignals() {
-	// Connect text buffer change signal
-	w.textBuffer.ConnectChanged(func() {
-		w.onTextChanged()
-	})
-	
-	// Connect focus events
-	focusController := gtk.NewEventControllerFocus()
-	focusController.ConnectLeave(func() {
-		w.revealHeaderbar()
-	})
-	w.textView.AddController(focusController)
-	
-	// Connect file monitor if we have a file
-	if w.currentFile != nil {
-		w.setupFileMonitor()
-	}
-}
+// TODO: Implement file drop handling when needed
+// Fyne's drag and drop API may differ from GTK
 
 func (w *MainWindow) applySettings() {
 	// Apply theme
-	w.updateTheme()
+	themeName := w.settings.GetString("theme")
+	_ = GetThemeByName(themeName)
+	w.fyneWindow.SetContent(w.fyneWindow.Content()) // Refresh with new theme
 	
 	// Apply editor settings
-	w.textView.applySettings(w.settings)
+	w.applyEditorSettings()
 	
 	// Apply window settings
-	if w.settings.GetBoolean("preview-active") {
+	if w.settings.GetBoolean("preview-visible") {
 		w.showPreview()
 	}
 	
-	if w.settings.GetBoolean("toolbar-active") {
-		w.showToolbar()
+	// Apply font settings
+	w.applyFontSettings()
+}
+
+func (w *MainWindow) applyEditorSettings() {
+	// Enable/disable word wrap
+	if w.settings.GetBoolean("word-wrap") {
+		w.textEditor.Wrapping = fyne.TextWrapWord
+	} else {
+		w.textEditor.Wrapping = fyne.TextWrapOff
 	}
+	
+	// TODO: Apply other editor settings like auto-indent, spell check, etc.
+}
+
+func (w *MainWindow) applyFontSettings() {
+	// TODO: Implement font settings
+	// Fyne has limited font customization compared to GTK
 }
 
 // File operations
-func (w *MainWindow) LoadFile(file *gio.File) {
-	w.currentFile = file
-	
-	// Read file content
-	content, err := w.readFileContent(file)
+func (w *MainWindow) LoadFile(filePath string) error {
+	content, err := os.ReadFile(filePath)
 	if err != nil {
-		showError(w, "Error Loading File", err.Error())
-		return
+		return fmt.Errorf("failed to read file: %v", err)
 	}
 	
-	// Set content
-	w.textBuffer.SetText(content)
+	w.textEditor.SetText(string(content))
+	w.currentFile = filePath
 	w.hasChanges = false
-	
-	// Update window title
 	w.updateTitle()
-	
-	// Setup file monitor
-	w.setupFileMonitor()
-	
-	// Update preview
 	w.updatePreview()
+	w.updateStatusBar()
+	
+	return nil
 }
 
-func (w *MainWindow) readFileContent(file *gio.File) (string, error) {
-	fileStream, err := file.Read(nil)
-	if err != nil {
-		return "", err
+func (w *MainWindow) SaveFile() error {
+	if w.currentFile == "" {
+		return w.SaveFileAs()
 	}
-	defer fileStream.Close()
 	
-	// Read all content
-	content := make([]byte, 0)
-	buffer := make([]byte, 4096)
-	
-	for {
-		n, err := fileStream.Read(buffer)
-		if n > 0 {
-			content = append(content, buffer[:n]...)
+	return w.saveToFile(w.currentFile)
+}
+
+func (w *MainWindow) SaveFileAs() error {
+	fileDialog := dialog.NewFileSave(func(closer fyne.URIWriteCloser, err error) {
+		if err != nil || closer == nil {
+			return
 		}
+		
+		filePath := closer.URI().Path()
+		defer closer.Close()
+		
+		content := w.textEditor.Text
+		_, err = io.WriteString(closer, content)
 		if err != nil {
-			if err.Error() == "EOF" {
-				break
-			}
-			return "", err
+			dialog.ShowError(fmt.Errorf("failed to save file: %v", err), w.fyneWindow)
+			return
 		}
+		
+		w.currentFile = filePath
+		w.hasChanges = false
+		w.updateTitle()
+		
+		dialog.ShowInformation("File Saved", fmt.Sprintf("File saved to %s", filepath.Base(filePath)), w.fyneWindow)
+	}, w.fyneWindow)
+	
+	// Set default filename
+	if w.currentFile != "" {
+		fileDialog.SetFileName(filepath.Base(w.currentFile))
+	} else {
+		fileDialog.SetFileName("untitled.fountain")
 	}
 	
-	return string(content), nil
+	// TODO: Set file filter when Fyne supports it
+	// fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{".fountain", ".spmd"}))
+	
+	fileDialog.Show()
+	return nil
+}
+
+func (w *MainWindow) saveToFile(filePath string) error {
+	content := w.textEditor.Text
+	err := os.WriteFile(filePath, []byte(content), 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %v", err)
+	}
+	
+	w.hasChanges = false
+	w.updateTitle()
+	return nil
+}
+
+func (w *MainWindow) OpenFile() {
+	fileDialog := dialog.NewFileOpen(func(closer fyne.URIReadCloser, err error) {
+		if err != nil || closer == nil {
+			return
+		}
+		
+		filePath := closer.URI().Path()
+		defer closer.Close()
+		
+		err = w.LoadFile(filePath)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to open file: %v", err), w.fyneWindow)
+		}
+	}, w.fyneWindow)
+	
+	// TODO: Set file filter when Fyne supports it
+	// fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{".fountain", ".spmd", ".txt"}))
+	
+	fileDialog.Show()
+}
+
+func (w *MainWindow) NewFile() {
+	if w.hasChanges {
+		dialog.ShowConfirm(
+			"Unsaved Changes",
+			"You have unsaved changes. Create a new file anyway?",
+			func(confirmed bool) {
+				if confirmed {
+					w.createNewFile()
+				}
+			},
+			w.fyneWindow,
+		)
+	} else {
+		w.createNewFile()
+	}
+}
+
+func (w *MainWindow) createNewFile() {
+	w.textEditor.SetText("")
+	w.currentFile = ""
+	w.hasChanges = false
+	w.updateTitle()
+	w.updatePreview()
+	w.updateStatusBar()
+}
+
+// UI operations
+func (w *MainWindow) Show() {
+	w.fyneWindow.Show()
 }
 
 func (w *MainWindow) IsEmpty() bool {
-	return w.textBuffer.GetText() == ""
+	return strings.TrimSpace(w.textEditor.Text) == ""
 }
 
 func (w *MainWindow) HasUnsavedChanges() bool {
 	return w.hasChanges
 }
 
-func (w *MainWindow) onTextChanged() {
+func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
 	w.updateTitle()
 	w.updatePreview()
+	w.updateStatusBar()
+	
+	// Auto-save if enabled
+	if w.autoSaveEnabled && w.currentFile != "" {
+		// TODO: Implement debounced auto-save
+	}
 }
 
 func (w *MainWindow) updateTitle() {
 	title := "Accolade"
 	
-	if w.currentFile != nil {
-		filename := w.currentFile.GetBasename()
+	if w.currentFile != "" {
+		filename := filepath.Base(w.currentFile)
 		if w.hasChanges {
-			title = "• " + filename
+			title = "• " + filename + " - Accolade"
 		} else {
-			title = filename
+			title = filename + " - Accolade"
 		}
 	} else if w.hasChanges {
-		title = "• Untitled"
+		title = "• Untitled - Accolade"
 	}
 	
-	w.SetTitle(title)
+	w.fyneWindow.SetTitle(title)
 }
 
 func (w *MainWindow) updatePreview() {
-	if w.previewStack.GetVisible() {
-		text := w.textBuffer.GetText()
-		w.previewView.UpdateContent(text)
+	if w.previewVisible {
+		text := w.textEditor.Text
+		// Convert Fountain text to formatted preview
+		preview := w.formatFountainPreview(text)
+		w.previewArea.ParseMarkdown(preview)
 	}
 }
 
-func (w *MainWindow) updateTheme() {
-	// Apply theme based on settings
-	colorScheme := w.settings.GetString("color-scheme")
+func (w *MainWindow) updateStatusBar() {
+	text := w.textEditor.Text
+	words := countWords(text)
+	chars := len(text)
 	
-	styleManager := adw.StyleManagerGetDefault()
-	switch colorScheme {
-	case "light":
-		styleManager.SetColorScheme(adw.ColorSchemeForceLight)
-	case "dark":
-		styleManager.SetColorScheme(adw.ColorSchemeForceDark)
-	case "sepia":
-		// Apply sepia theme
-		styleManager.SetColorScheme(adw.ColorSchemeForceLight)
-		// TODO: Add sepia CSS
-	default:
-		styleManager.SetColorScheme(adw.ColorSchemeDefault)
-	}
+	// Update status bar labels (this is a simplified approach)
+	// In a real implementation, you'd want to access specific widgets
+	log.Printf("Status: Words: %d, Characters: %d", words, chars)
 }
 
-// UI actions
+func (w *MainWindow) formatFountainPreview(text string) string {
+	// Basic Fountain to Markdown conversion
+	// This is a simplified version - a full implementation would need
+	// a proper Fountain parser
+	
+	lines := strings.Split(text, "\n")
+	var preview strings.Builder
+	
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		
+		if line == "" {
+			preview.WriteString("\n\n")
+			continue
+		}
+		
+		// Character names (ALL CAPS at start of line)
+		if isCharacterName(line) {
+			preview.WriteString("**" + line + "**\n\n")
+			continue
+		}
+		
+		// Scene headings
+		if isSceneHeading(line) {
+			preview.WriteString("## " + line + "\n\n")
+			continue
+		}
+		
+		// Transitions
+		if isTransition(line) {
+			preview.WriteString("*" + line + "*\n\n")
+			continue
+		}
+		
+		// Action/dialogue
+		preview.WriteString(line + "\n\n")
+	}
+	
+	return preview.String()
+}
+
+// Preview operations
 func (w *MainWindow) togglePreview() {
-	if w.previewStack.GetVisible() {
+	if w.previewVisible {
 		w.hidePreview()
 	} else {
 		w.showPreview()
@@ -469,193 +462,104 @@ func (w *MainWindow) togglePreview() {
 }
 
 func (w *MainWindow) showPreview() {
-	w.previewStack.SetVisible(true)
+	// Show preview pane - need to implement proper split container handling
+	w.previewVisible = true
 	w.updatePreview()
+	w.settings.SetBoolean("preview-visible", true)
 }
 
 func (w *MainWindow) hidePreview() {
-	w.previewStack.SetVisible(false)
+	// Hide preview pane - need to implement proper split container handling
+	w.previewVisible = false
+	w.settings.SetBoolean("preview-visible", false)
 }
 
-func (w *MainWindow) loadPreview(restricted bool) {
-	w.previewStack.SetVisibleChildName("preview")
-	w.previewView.SetRestrictedMode(restricted)
-	w.updatePreview()
+// Find/Replace operations
+func (w *MainWindow) showFindReplace() {
+	// TODO: Implement find/replace visibility
+	w.findVisible = true
+	// TODO: Focus on find entry
 }
 
+func (w *MainWindow) hideFindReplace() {
+	// TODO: Implement find/replace hiding
+	w.findVisible = false
+}
+
+func (w *MainWindow) findNext() {
+	// TODO: Implement find functionality
+	searchText := w.findEntry.Text
+	log.Printf("Finding: %s", searchText)
+}
+
+func (w *MainWindow) replaceOne() {
+	// TODO: Implement replace functionality
+	searchText := w.findEntry.Text
+	replaceText := w.replaceEntry.Text
+	log.Printf("Replacing '%s' with '%s'", searchText, replaceText)
+}
+
+func (w *MainWindow) replaceAll() {
+	// TODO: Implement replace all functionality
+	searchText := w.findEntry.Text
+	replaceText := w.replaceEntry.Text
+	log.Printf("Replacing all '%s' with '%s'", searchText, replaceText)
+}
+
+// Focus mode and fullscreen
 func (w *MainWindow) toggleFocusMode() {
-	// TODO: Implement focus mode
+	// TODO: Implement focus mode (hide toolbars, etc.)
 	log.Println("Toggle focus mode")
 }
 
 func (w *MainWindow) toggleFullscreen() {
 	if w.isFullscreen {
-		w.Unfullscreen()
+		w.fyneWindow.SetFullScreen(false)
 		w.isFullscreen = false
 	} else {
-		w.Fullscreen()
+		w.fyneWindow.SetFullScreen(true)
 		w.isFullscreen = true
 	}
 }
 
-func (w *MainWindow) revealHeaderbar() {
-	w.toolbarRevealer.SetRevealChild(true)
-}
-
-func (w *MainWindow) hideHeaderbar() {
-	if w.settings.GetBoolean("autohide-headerbar") {
-		w.toolbarRevealer.SetRevealChild(false)
-	}
-}
-
-func (w *MainWindow) showSearch() {
-	w.searchbar.SetSearchMode(true)
-}
-
-func (w *MainWindow) showFindReplace() {
-	w.searchbar.SetSearchMode(true)
-	w.searchbar.SetReplaceMode(true)
-}
-
-func (w *MainWindow) showToolbar() {
-	w.toolbarRevealer.SetRevealChild(true)
-}
-
-func (w *MainWindow) openFile() {
-	fileDialog := gtk.NewFileDialog()
-	fileDialog.SetTitle("Open File")
-	
-	// Set up filter for Fountain files
-	fountainFilter := gtk.NewFileFilter()
-	fountainFilter.SetName("Fountain Files")
-	fountainFilter.AddPattern("*.fountain")
-	fountainFilter.AddPattern("*.spmd")
-	
-	allFilter := gtk.NewFileFilter()
-	allFilter.SetName("All Files")
-	allFilter.AddPattern("*")
-	
-	filterList := gio.NewListStore(glib.TypeFromInstance(fountainFilter))
-	filterList.Append(fountainFilter)
-	filterList.Append(allFilter)
-	
-	fileDialog.SetFilters(filterList)
-	fileDialog.SetDefaultFilter(fountainFilter)
-	
-	fileDialog.Open(w, nil, func(result gio.AsyncResulter) {
-		file, err := fileDialog.OpenFinish(result)
-		if err != nil {
-			if !strings.Contains(err.Error(), "dismissed") {
-				showError(w, "Error", err.Error())
-			}
-			return
-		}
-		
-		w.LoadFile(file)
-	})
-}
-
-func (w *MainWindow) saveFile() {
-	if w.currentFile == nil {
-		w.saveFileAs()
-		return
-	}
-	
-	w.saveToFile(w.currentFile)
-}
-
-func (w *MainWindow) saveFileAs() {
-	fileDialog := gtk.NewFileDialog()
-	fileDialog.SetTitle("Save File")
-	
-	// Set up filter for Fountain files
-	fountainFilter := gtk.NewFileFilter()
-	fountainFilter.SetName("Fountain Files")
-	fountainFilter.AddPattern("*.fountain")
-	
-	filterList := gio.NewListStore(glib.TypeFromInstance(fountainFilter))
-	filterList.Append(fountainFilter)
-	
-	fileDialog.SetFilters(filterList)
-	fileDialog.SetDefaultFilter(fountainFilter)
-	
-	// Set default filename
-	if w.currentFile != nil {
-		fileDialog.SetInitialName(w.currentFile.GetBasename())
-	} else {
-		fileDialog.SetInitialName("untitled.fountain")
-	}
-	
-	fileDialog.Save(w, nil, func(result gio.AsyncResulter) {
-		file, err := fileDialog.SaveFinish(result)
-		if err != nil {
-			if !strings.Contains(err.Error(), "dismissed") {
-				showError(w, "Error", err.Error())
-			}
-			return
-		}
-		
-		w.currentFile = file
-		w.saveToFile(file)
-	})
-}
-
-func (w *MainWindow) saveToFile(file *gio.File) {
-	w.saveProgressBar.SetVisible(true)
-	w.saveProgressBar.SetPulse(true)
-	
-	go func() {
-		content := w.textBuffer.GetText()
-		
-		// Write to file
-		err := w.writeFileContent(file, content)
-		
-		glib.IdleAdd(func() {
-			w.saveProgressBar.SetVisible(false)
-			
-			if err != nil {
-				showError(w, "Error Saving File", err.Error())
-			} else {
-				w.hasChanges = false
-				w.updateTitle()
-			}
-		})
-	}()
-}
-
-func (w *MainWindow) writeFileContent(file *gio.File, content string) error {
-	fileStream, err := file.Replace(nil, false, gio.FileCreateFlagsNone, nil)
-	if err != nil {
-		return err
-	}
-	defer fileStream.Close()
-	
-	_, err = fileStream.WriteAll([]byte(content), nil)
-	return err
-}
-
-func (w *MainWindow) reloadFile() {
-	if w.currentFile != nil {
-		w.LoadFile(w.currentFile)
-	}
-	w.discardInfoBar.SetRevealed(false)
-}
-
-func (w *MainWindow) setupFileMonitor() {
-	if w.currentFile == nil {
-		return
-	}
-	
-	// TODO: Implement file monitoring
-	log.Println("Setting up file monitor for:", w.currentFile.GetPath())
-}
-
+// Export functionality
 func (w *MainWindow) showExportDialog() {
 	dialog := NewExportDialog(w)
-	dialog.Present()
+	dialog.Show()
 }
 
-// Helper to get file extension
-func (w *MainWindow) getFileExtension(filename string) string {
-	return strings.ToLower(filepath.Ext(filename))
+// Helper functions
+func countWords(text string) int {
+	if text == "" {
+		return 0
+	}
+	words := strings.Fields(text)
+	return len(words)
+}
+
+func isCharacterName(line string) bool {
+	// Character names are typically ALL CAPS and don't start with common scene indicators
+	if line == strings.ToUpper(line) && !strings.HasPrefix(line, "INT.") && !strings.HasPrefix(line, "EXT.") {
+		// Additional checks to avoid false positives
+		if !strings.Contains(line, " TO ") && !strings.HasSuffix(line, ":") {
+			return len(strings.TrimSpace(line)) > 0 && len(strings.TrimSpace(line)) < 50
+		}
+	}
+	return false
+}
+
+func isSceneHeading(line string) bool {
+	upper := strings.ToUpper(line)
+	return strings.HasPrefix(upper, "INT.") || strings.HasPrefix(upper, "EXT.") || strings.HasPrefix(upper, "FADE")
+}
+
+func isTransition(line string) bool {
+	upper := strings.ToUpper(line)
+	transitions := []string{"CUT TO:", "FADE IN:", "FADE OUT:", "FADE TO BLACK:", "DISSOLVE TO:"}
+	for _, trans := range transitions {
+		if strings.HasSuffix(upper, trans) {
+			return true
+		}
+	}
+	return false
 }

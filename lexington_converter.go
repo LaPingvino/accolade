@@ -285,7 +285,3 @@ type SceneInfo struct {
 	Characters  []string
 }
 
-type ValidationError struct {
-	Line    int
-	Message string
-}

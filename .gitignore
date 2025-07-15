@@ -12,3 +12,18 @@ flatpak/*
 .mypy_cache/
 .flatpak/
 .flatpak-builder/
+
+# Zig cache and build artifacts
+.zig-cache/
+zig-out/
+
+# Go build artifacts
+accolade
+*.exe
+go.sum
+*.tar.gz
+
+# Editor temp files
+*.swp
+*.swo
+*~

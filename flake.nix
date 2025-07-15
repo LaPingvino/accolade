@@ -11,14 +11,18 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         
-        # GTK4 and related libraries
-        gtkLibs = with pkgs; [
-          gtk4
-          libadwaita
-          gtksourceview5
-          webkitgtk_4_1
-          glib
-          gobject-introspection
+        # Fyne dependencies
+        fyneLibs = with pkgs; [
+          xorg.libX11
+          xorg.libXcursor
+          xorg.libXrandr
+          xorg.libXinerama
+          xorg.libXi
+          xorg.libXext
+          xorg.libXfixes
+          mesa
+          libGL
+          alsa-lib
           pkg-config
         ];
         
@@ -27,14 +31,11 @@
           go
           gcc
           pkg-config
-          wrapGAppsHook4
-        ] ++ gtkLibs;
+        ] ++ fyneLibs;
         
         # Runtime dependencies
         nativeBuildInputs = with pkgs; [
           pkg-config
-          wrapGAppsHook4
-          gobject-introspection
         ];
         
       in
@@ -45,17 +46,16 @@
           
           shellHook = ''
             export CGO_ENABLED=1
-            export PKG_CONFIG_PATH="${pkgs.lib.makeSearchPath "lib/pkgconfig" gtkLibs}"
-            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath gtkLibs}:$LD_LIBRARY_PATH"
-            export GI_TYPELIB_PATH="${pkgs.lib.makeSearchPath "lib/girepository-1.0" gtkLibs}"
-            export XDG_DATA_DIRS="${pkgs.lib.makeSearchPath "share" gtkLibs}:$XDG_DATA_DIRS"
+            export PKG_CONFIG_PATH="${pkgs.lib.makeSearchPath "lib/pkgconfig" fyneLibs}"
+            export LD_LIBRARY_PATH="${pkgs.lib.makeLibraryPath fyneLibs}:$LD_LIBRARY_PATH"
             
             echo "Accolade development environment activated"
             echo "Go version: $(go version)"
-            echo "GTK4 development libraries are available"
+            echo "Fyne development libraries are available"
             echo ""
             echo "To build: go build -v ."
             echo "To run: ./accolade"
+            echo "To package: fyne package -os linux"
           '';
         };
         
@@ -64,19 +64,48 @@
           version = "0.1.0";
           src = ./.;
           
-          vendorHash = null;
+          vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
           
-          buildInputs = gtkLibs;
+          buildInputs = fyneLibs;
           nativeBuildInputs = nativeBuildInputs;
           
           CGO_ENABLED = 1;
           
           preBuild = ''
-            export PKG_CONFIG_PATH="${pkgs.lib.makeSearchPath "lib/pkgconfig" gtkLibs}"
+            export PKG_CONFIG_PATH="${pkgs.lib.makeSearchPath "lib/pkgconfig" fyneLibs}"
           '';
           
           postInstall = ''
-            wrapGAppsHook4 $out/bin/accolade
+            # Install desktop file
+            mkdir -p $out/share/applications
+            cat > $out/share/applications/org.codeberg.lapingvino.Accolade.desktop << EOF
+            [Desktop Entry]
+            Name=Accolade
+            Comment=A distraction-free Fountain editor for screenwriters
+            Exec=$out/bin/accolade %F
+            Icon=org.codeberg.lapingvino.Accolade
+            Terminal=false
+            Type=Application
+            Categories=Office;WordProcessor;
+            MimeType=text/fountain;text/spmd;
+            StartupNotify=true
+            EOF
+            
+            # Install MIME type
+            mkdir -p $out/share/mime/packages
+            cat > $out/share/mime/packages/fountain.xml << EOF
+            <?xml version="1.0" encoding="UTF-8"?>
+            <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+              <mime-type type="text/fountain">
+                <comment>Fountain screenplay</comment>
+                <glob pattern="*.fountain"/>
+              </mime-type>
+              <mime-type type="text/spmd">
+                <comment>Fountain screenplay (legacy)</comment>
+                <glob pattern="*.spmd"/>
+              </mime-type>
+            </mime-info>
+            EOF
           '';
           
           meta = with pkgs.lib; {

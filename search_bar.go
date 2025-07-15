@@ -1,411 +1,500 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"strings"
 
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 )
 
 type SearchBar struct {
-	*gtk.SearchBar
+	window    *MainWindow
+	container *fyne.Container
 	
-	// Core components
-	window       *MainWindow
-	searchEntry  *gtk.SearchEntry
-	replaceEntry *gtk.Entry
-	replaceBox   *gtk.Box
+	// Search widgets
+	searchEntry   *widget.Entry
+	replaceEntry  *widget.Entry
 	
-	// Search controls
-	prevButton   *gtk.Button
-	nextButton   *gtk.Button
-	replaceButton *gtk.Button
-	replaceAllButton *gtk.Button
-	closeButton  *gtk.Button
+	// Control buttons
+	findNextButton     *widget.Button
+	findPrevButton     *widget.Button
+	replaceButton      *widget.Button
+	replaceAllButton   *widget.Button
+	closeButton        *widget.Button
 	
-	// Search state
-	searchMode   bool
-	replaceMode  bool
-	caseSensitive bool
-	wholeWords   bool
-	useRegex     bool
+	// Options
+	caseSensitiveCheck *widget.Check
+	wholeWordCheck     *widget.Check
+	regexCheck         *widget.Check
 	
-	// Search results
-	currentMatch int
-	totalMatches int
-	searchText   string
-	replaceText  string
+	// Status
+	statusLabel *widget.Label
+	
+	// State
+	isVisible     bool
+	replaceMode   bool
+	currentMatch  int
+	totalMatches  int
+	searchText    string
+	lastSearchPos int
 }
 
 func NewSearchBar(window *MainWindow) *SearchBar {
 	sb := &SearchBar{
-		SearchBar:     gtk.NewSearchBar(),
 		window:        window,
-		searchMode:    false,
+		isVisible:     false,
 		replaceMode:   false,
-		caseSensitive: false,
-		wholeWords:    false,
-		useRegex:      false,
 		currentMatch:  0,
 		totalMatches:  0,
+		lastSearchPos: 0,
 	}
 	
-	sb.setupUI()
-	sb.setupSignals()
+	sb.createWidgets()
+	sb.createLayout()
+	sb.setupCallbacks()
 	
 	return sb
 }
 
-func (sb *SearchBar) setupUI() {
-	// Main container
-	mainBox := gtk.NewBox(gtk.OrientationHorizontal, 6)
-	mainBox.SetMarginStart(6)
-	mainBox.SetMarginEnd(6)
-	mainBox.SetMarginTop(6)
-	mainBox.SetMarginBottom(6)
-	
+func (sb *SearchBar) createWidgets() {
 	// Search entry
-	sb.searchEntry = gtk.NewSearchEntry()
-	sb.searchEntry.SetPlaceholderText("Search...")
-	sb.searchEntry.SetHExpand(true)
-	mainBox.Append(sb.searchEntry)
-	
-	// Previous button
-	sb.prevButton = gtk.NewButtonFromIconName("go-up-symbolic")
-	sb.prevButton.SetTooltipText("Previous match")
-	sb.prevButton.SetSensitive(false)
-	mainBox.Append(sb.prevButton)
-	
-	// Next button
-	sb.nextButton = gtk.NewButtonFromIconName("go-down-symbolic")
-	sb.nextButton.SetTooltipText("Next match")
-	sb.nextButton.SetSensitive(false)
-	mainBox.Append(sb.nextButton)
-	
-	// Options button
-	optionsButton := gtk.NewButtonFromIconName("preferences-system-symbolic")
-	optionsButton.SetTooltipText("Search options")
-	mainBox.Append(optionsButton)
-	
-	// Replace box (initially hidden)
-	sb.replaceBox = gtk.NewBox(gtk.OrientationHorizontal, 6)
-	sb.replaceBox.SetVisible(false)
+	sb.searchEntry = widget.NewEntry()
+	sb.searchEntry.SetPlaceHolder("Find...")
 	
 	// Replace entry
-	sb.replaceEntry = gtk.NewEntry()
-	sb.replaceEntry.SetPlaceholderText("Replace with...")
-	sb.replaceEntry.SetHExpand(true)
-	sb.replaceBox.Append(sb.replaceEntry)
+	sb.replaceEntry = widget.NewEntry()
+	sb.replaceEntry.SetPlaceHolder("Replace with...")
 	
-	// Replace button
-	sb.replaceButton = gtk.NewButtonWithLabel("Replace")
-	sb.replaceButton.SetSensitive(false)
-	sb.replaceBox.Append(sb.replaceButton)
-	
-	// Replace all button
-	sb.replaceAllButton = gtk.NewButtonWithLabel("Replace All")
-	sb.replaceAllButton.SetSensitive(false)
-	sb.replaceBox.Append(sb.replaceAllButton)
-	
-	// Close button
-	sb.closeButton = gtk.NewButtonFromIconName("window-close-symbolic")
-	sb.closeButton.SetTooltipText("Close search")
-	mainBox.Append(sb.closeButton)
-	
-	// Container for search and replace
-	containerBox := gtk.NewBox(gtk.OrientationVertical, 6)
-	containerBox.Append(mainBox)
-	containerBox.Append(sb.replaceBox)
-	
-	sb.SetChild(containerBox)
-	
-	// Set up search bar properties
-	sb.SetSearchMode(false)
-	sb.SetShowCloseButton(false)
-	sb.ConnectEntry(sb.searchEntry)
-}
-
-func (sb *SearchBar) setupSignals() {
-	// Search entry changed
-	sb.searchEntry.ConnectSearchChanged(func() {
-		sb.onSearchChanged()
-	})
-	
-	// Search entry activated (Enter pressed)
-	sb.searchEntry.ConnectActivate(func() {
+	// Control buttons
+	sb.findNextButton = widget.NewButtonWithIcon("Next", theme.NavigateNextIcon(), func() {
 		sb.findNext()
 	})
 	
-	// Replace entry activated
-	sb.replaceEntry.ConnectActivate(func() {
-		sb.replaceNext()
-	})
-	
-	// Button clicks
-	sb.prevButton.ConnectClicked(func() {
+	sb.findPrevButton = widget.NewButtonWithIcon("Previous", theme.NavigateBackIcon(), func() {
 		sb.findPrevious()
 	})
 	
-	sb.nextButton.ConnectClicked(func() {
-		sb.findNext()
+	sb.replaceButton = widget.NewButtonWithIcon("Replace", theme.DocumentSaveIcon(), func() {
+		sb.replaceOne()
 	})
 	
-	sb.replaceButton.ConnectClicked(func() {
-		sb.replaceNext()
-	})
-	
-	sb.replaceAllButton.ConnectClicked(func() {
+	sb.replaceAllButton = widget.NewButtonWithIcon("Replace All", theme.ContentCopyIcon(), func() {
 		sb.replaceAll()
 	})
 	
-	sb.closeButton.ConnectClicked(func() {
-		sb.closeSearch()
+	sb.closeButton = widget.NewButtonWithIcon("", theme.CancelIcon(), func() {
+		sb.Hide()
 	})
 	
-	// Search mode changed
-	sb.ConnectSearchModeChanged(func() {
-		sb.onSearchModeChanged()
+	// Options
+	sb.caseSensitiveCheck = widget.NewCheck("Case sensitive", func(checked bool) {
+		sb.updateSearch()
 	})
+	
+	sb.wholeWordCheck = widget.NewCheck("Whole words", func(checked bool) {
+		sb.updateSearch()
+	})
+	
+	sb.regexCheck = widget.NewCheck("Regular expression", func(checked bool) {
+		sb.updateSearch()
+	})
+	
+	// Status
+	sb.statusLabel = widget.NewLabel("No matches")
 }
 
-func (sb *SearchBar) onSearchChanged() {
-	sb.searchText = sb.searchEntry.Text()
-	log.Printf("Search text changed: %s", sb.searchText)
+func (sb *SearchBar) createLayout() {
+	// Search row
+	searchRow := container.NewHBox(
+		widget.NewLabel("Find:"),
+		sb.searchEntry,
+		sb.findPrevButton,
+		sb.findNextButton,
+		sb.closeButton,
+	)
 	
+	// Replace row (initially hidden)
+	replaceRow := container.NewHBox(
+		widget.NewLabel("Replace:"),
+		sb.replaceEntry,
+		sb.replaceButton,
+		sb.replaceAllButton,
+	)
+	
+	// Options row
+	optionsRow := container.NewHBox(
+		sb.caseSensitiveCheck,
+		sb.wholeWordCheck,
+		sb.regexCheck,
+		widget.NewLabel(""),  // Spacer
+		sb.statusLabel,
+	)
+	
+	// Main container
+	sb.container = container.NewVBox(
+		searchRow,
+		replaceRow,
+		optionsRow,
+	)
+	
+	// Initially hide replace row
+	replaceRow.Hide()
+	
+	// Initially hide the whole container
+	sb.container.Hide()
+}
+
+func (sb *SearchBar) setupCallbacks() {
+	// Search as you type
+	sb.searchEntry.OnChanged = func(text string) {
+		sb.searchText = text
+		sb.updateSearch()
+	}
+	
+	// Handle Enter key in search entry
+	sb.searchEntry.OnSubmitted = func(text string) {
+		sb.findNext()
+	}
+	
+	// Handle Enter key in replace entry
+	sb.replaceEntry.OnSubmitted = func(text string) {
+		sb.replaceOne()
+	}
+}
+
+func (sb *SearchBar) Show() {
+	sb.container.Show()
+	sb.isVisible = true
+	sb.searchEntry.FocusGained()
+}
+
+func (sb *SearchBar) Hide() {
+	sb.container.Hide()
+	sb.isVisible = false
+	sb.clearHighlights()
+}
+
+func (sb *SearchBar) SetReplaceMode(enabled bool) {
+	sb.replaceMode = enabled
+	
+	// Get replace row (second child)
+	if len(sb.container.Objects) >= 2 {
+		replaceRow := sb.container.Objects[1]
+		if enabled {
+			replaceRow.Show()
+		} else {
+			replaceRow.Hide()
+		}
+	}
+	
+	sb.container.Refresh()
+}
+
+func (sb *SearchBar) IsVisible() bool {
+	return sb.isVisible
+}
+
+func (sb *SearchBar) updateSearch() {
 	if sb.searchText == "" {
 		sb.clearHighlights()
-		sb.updateMatchCount(0, 0)
+		sb.updateStatus(0, 0)
 		return
 	}
 	
-	// Perform search
-	sb.performSearch()
-}
-
-func (sb *SearchBar) onSearchModeChanged() {
-	if sb.SearchMode() {
-		sb.searchEntry.GrabFocus()
+	matches := sb.findAllMatches()
+	sb.totalMatches = len(matches)
+	
+	if sb.totalMatches > 0 {
+		sb.currentMatch = 1
+		sb.highlightMatches(matches)
+		sb.scrollToMatch(matches[0])
 	} else {
+		sb.currentMatch = 0
 		sb.clearHighlights()
-		sb.window.textView.GrabFocus()
-	}
-}
-
-func (sb *SearchBar) performSearch() {
-	if sb.searchText == "" {
-		return
 	}
 	
-	// TODO: Implement actual search in text buffer
-	log.Printf("Performing search for: %s", sb.searchText)
-	
-	// Mock search results for now
-	sb.totalMatches = 3
-	sb.currentMatch = 1
-	sb.updateMatchCount(sb.currentMatch, sb.totalMatches)
-	
-	// Enable/disable navigation buttons
-	sb.prevButton.SetSensitive(sb.totalMatches > 0)
-	sb.nextButton.SetSensitive(sb.totalMatches > 0)
-	sb.replaceButton.SetSensitive(sb.totalMatches > 0 && sb.replaceMode)
-	sb.replaceAllButton.SetSensitive(sb.totalMatches > 0 && sb.replaceMode)
-}
-
-func (sb *SearchBar) updateMatchCount(current, total int) {
-	sb.currentMatch = current
-	sb.totalMatches = total
-	
-	if total == 0 {
-		sb.searchEntry.AddCSSClass("error")
-	} else {
-		sb.searchEntry.RemoveCSSClass("error")
-	}
-	
-	// TODO: Update match count display
-	log.Printf("Match count: %d/%d", current, total)
+	sb.updateStatus(sb.currentMatch, sb.totalMatches)
 }
 
 func (sb *SearchBar) findNext() {
-	if sb.totalMatches == 0 {
+	if sb.searchText == "" {
 		return
 	}
 	
-	sb.currentMatch++
-	if sb.currentMatch > sb.totalMatches {
-		sb.currentMatch = 1
+	matches := sb.findAllMatches()
+	if len(matches) == 0 {
+		return
 	}
 	
-	sb.updateMatchCount(sb.currentMatch, sb.totalMatches)
-	sb.jumpToMatch(sb.currentMatch)
+	// Find next match after current cursor position
+	cursorPos := sb.getCurrentCursorPosition()
+	nextMatch := -1
+	
+	for i, match := range matches {
+		if match.start > cursorPos {
+			nextMatch = i
+			break
+		}
+	}
+	
+	// If no match found after cursor, wrap to beginning
+	if nextMatch == -1 {
+		nextMatch = 0
+	}
+	
+	sb.currentMatch = nextMatch + 1
+	sb.scrollToMatch(matches[nextMatch])
+	sb.selectMatch(matches[nextMatch])
+	sb.updateStatus(sb.currentMatch, len(matches))
 }
 
 func (sb *SearchBar) findPrevious() {
-	if sb.totalMatches == 0 {
+	if sb.searchText == "" {
 		return
 	}
 	
-	sb.currentMatch--
-	if sb.currentMatch < 1 {
-		sb.currentMatch = sb.totalMatches
-	}
-	
-	sb.updateMatchCount(sb.currentMatch, sb.totalMatches)
-	sb.jumpToMatch(sb.currentMatch)
-}
-
-func (sb *SearchBar) jumpToMatch(matchNum int) {
-	// TODO: Implement jumping to specific match in text buffer
-	log.Printf("Jumping to match %d", matchNum)
-}
-
-func (sb *SearchBar) replaceNext() {
-	if sb.currentMatch == 0 {
+	matches := sb.findAllMatches()
+	if len(matches) == 0 {
 		return
 	}
 	
-	sb.replaceText = sb.replaceEntry.Text()
-	log.Printf("Replacing match %d with: %s", sb.currentMatch, sb.replaceText)
+	// Find previous match before current cursor position
+	cursorPos := sb.getCurrentCursorPosition()
+	prevMatch := -1
 	
-	// TODO: Implement actual text replacement
+	for i := len(matches) - 1; i >= 0; i-- {
+		if matches[i].start < cursorPos {
+			prevMatch = i
+			break
+		}
+	}
 	
-	// Update search results
-	sb.performSearch()
+	// If no match found before cursor, wrap to end
+	if prevMatch == -1 {
+		prevMatch = len(matches) - 1
+	}
+	
+	sb.currentMatch = prevMatch + 1
+	sb.scrollToMatch(matches[prevMatch])
+	sb.selectMatch(matches[prevMatch])
+	sb.updateStatus(sb.currentMatch, len(matches))
+}
+
+func (sb *SearchBar) replaceOne() {
+	if sb.searchText == "" || sb.replaceEntry.Text == "" {
+		return
+	}
+	
+	// Get current selection or find next match
+	selectedText := sb.getSelectedText()
+	if selectedText == sb.searchText || (sb.caseSensitiveCheck.Checked && selectedText == sb.searchText) {
+		// Replace current selection
+		sb.replaceSelectedText(sb.replaceEntry.Text)
+	}
+	
+	// Find next occurrence
+	sb.findNext()
 }
 
 func (sb *SearchBar) replaceAll() {
-	if sb.totalMatches == 0 {
+	if sb.searchText == "" {
 		return
 	}
 	
-	sb.replaceText = sb.replaceEntry.Text()
-	log.Printf("Replacing all %d matches with: %s", sb.totalMatches, sb.replaceText)
+	text := sb.window.textEditor.Text
+	replacement := sb.replaceEntry.Text
 	
-	// TODO: Implement replace all functionality
+	var newText string
+	if sb.caseSensitiveCheck.Checked {
+		newText = strings.ReplaceAll(text, sb.searchText, replacement)
+	} else {
+		// Case-insensitive replace
+		newText = sb.replaceAllCaseInsensitive(text, sb.searchText, replacement)
+	}
 	
-	// Update search results
-	sb.performSearch()
+	sb.window.textEditor.SetText(newText)
+	sb.updateSearch() // Refresh search results
+}
+
+func (sb *SearchBar) replaceAllCaseInsensitive(text, search, replace string) string {
+	if search == "" {
+		return text
+	}
+	
+	lowerText := strings.ToLower(text)
+	lowerSearch := strings.ToLower(search)
+	
+	var result strings.Builder
+	start := 0
+	
+	for {
+		index := strings.Index(lowerText[start:], lowerSearch)
+		if index == -1 {
+			result.WriteString(text[start:])
+			break
+		}
+		
+		actualIndex := start + index
+		result.WriteString(text[start:actualIndex])
+		result.WriteString(replace)
+		start = actualIndex + len(search)
+	}
+	
+	return result.String()
+}
+
+type searchMatch struct {
+	start int
+	end   int
+	text  string
+}
+
+func (sb *SearchBar) findAllMatches() []searchMatch {
+	if sb.searchText == "" {
+		return nil
+	}
+	
+	text := sb.window.textEditor.Text
+	searchText := sb.searchText
+	
+	var matches []searchMatch
+	
+	if !sb.caseSensitiveCheck.Checked {
+		text = strings.ToLower(text)
+		searchText = strings.ToLower(searchText)
+	}
+	
+	start := 0
+	for {
+		index := strings.Index(text[start:], searchText)
+		if index == -1 {
+			break
+		}
+		
+		actualIndex := start + index
+		match := searchMatch{
+			start: actualIndex,
+			end:   actualIndex + len(sb.searchText),
+			text:  sb.searchText,
+		}
+		
+		// Check whole word option
+		if sb.wholeWordCheck.Checked {
+			if sb.isWholeWord(sb.window.textEditor.Text, match.start, match.end) {
+				matches = append(matches, match)
+			}
+		} else {
+			matches = append(matches, match)
+		}
+		
+		start = actualIndex + 1
+	}
+	
+	return matches
+}
+
+func (sb *SearchBar) isWholeWord(text string, start, end int) bool {
+	// Check if character before start is word boundary
+	if start > 0 {
+		prevChar := text[start-1]
+		if sb.isWordChar(prevChar) {
+			return false
+		}
+	}
+	
+	// Check if character after end is word boundary
+	if end < len(text) {
+		nextChar := text[end]
+		if sb.isWordChar(nextChar) {
+			return false
+		}
+	}
+	
+	return true
+}
+
+func (sb *SearchBar) isWordChar(char byte) bool {
+	return (char >= 'a' && char <= 'z') ||
+		(char >= 'A' && char <= 'Z') ||
+		(char >= '0' && char <= '9') ||
+		char == '_'
+}
+
+func (sb *SearchBar) highlightMatches(matches []searchMatch) {
+	// TODO: Implement text highlighting in Fyne
+	// Fyne's Entry widget has limited text formatting capabilities
+	// This would need a custom widget or RichText widget
 }
 
 func (sb *SearchBar) clearHighlights() {
-	// TODO: Clear search highlights in text buffer
-	log.Println("Clearing search highlights")
+	// TODO: Clear text highlights
 }
 
-func (sb *SearchBar) closeSearch() {
-	sb.SetSearchMode(false)
-	sb.SetReplaceMode(false)
+func (sb *SearchBar) scrollToMatch(match searchMatch) {
+	// TODO: Scroll to match position
+	// This is limited in Fyne's Entry widget
 }
 
-func (sb *SearchBar) SetReplaceMode(replace bool) {
-	sb.replaceMode = replace
-	sb.replaceBox.SetVisible(replace)
-	
-	if replace {
-		sb.replaceEntry.GrabFocus()
+func (sb *SearchBar) selectMatch(match searchMatch) {
+	// TODO: Select text at match position
+	// Limited in Fyne's Entry widget
+}
+
+func (sb *SearchBar) getCurrentCursorPosition() int {
+	// TODO: Get cursor position from text editor
+	// This is not directly available in Fyne's Entry widget
+	return sb.lastSearchPos
+}
+
+func (sb *SearchBar) getSelectedText() string {
+	// TODO: Get currently selected text
+	// Limited in Fyne's Entry widget
+	return ""
+}
+
+func (sb *SearchBar) replaceSelectedText(replacement string) {
+	// TODO: Replace currently selected text
+	// Limited in Fyne's Entry widget
+}
+
+func (sb *SearchBar) updateStatus(current, total int) {
+	if total == 0 {
+		sb.statusLabel.SetText("No matches")
+	} else {
+		sb.statusLabel.SetText(fmt.Sprintf("%d of %d", current, total))
 	}
 }
 
-func (sb *SearchBar) IsReplaceMode() bool {
-	return sb.replaceMode
-}
-
-func (sb *SearchBar) SetCaseSensitive(caseSensitive bool) {
-	sb.caseSensitive = caseSensitive
-	sb.performSearch()
-}
-
-func (sb *SearchBar) IsCaseSensitive() bool {
-	return sb.caseSensitive
-}
-
-func (sb *SearchBar) SetWholeWords(wholeWords bool) {
-	sb.wholeWords = wholeWords
-	sb.performSearch()
-}
-
-func (sb *SearchBar) IsWholeWords() bool {
-	return sb.wholeWords
-}
-
-func (sb *SearchBar) SetUseRegex(useRegex bool) {
-	sb.useRegex = useRegex
-	sb.performSearch()
-}
-
-func (sb *SearchBar) IsUseRegex() bool {
-	return sb.useRegex
+// Public API methods
+func (sb *SearchBar) SetSearchText(text string) {
+	sb.searchEntry.SetText(text)
+	sb.searchText = text
+	sb.updateSearch()
 }
 
 func (sb *SearchBar) GetSearchText() string {
 	return sb.searchText
 }
 
-func (sb *SearchBar) SetSearchText(text string) {
-	sb.searchEntry.SetText(text)
-}
-
-func (sb *SearchBar) GetReplaceText() string {
-	return sb.replaceText
-}
-
 func (sb *SearchBar) SetReplaceText(text string) {
 	sb.replaceEntry.SetText(text)
 }
 
-func (sb *SearchBar) GetCurrentMatch() int {
-	return sb.currentMatch
+func (sb *SearchBar) GetReplaceText() string {
+	return sb.replaceEntry.Text
 }
 
-func (sb *SearchBar) GetTotalMatches() int {
-	return sb.totalMatches
+func (sb *SearchBar) SetCaseSensitive(sensitive bool) {
+	sb.caseSensitiveCheck.SetChecked(sensitive)
 }
 
-func (sb *SearchBar) HasMatches() bool {
-	return sb.totalMatches > 0
+func (sb *SearchBar) SetWholeWords(wholeWords bool) {
+	sb.wholeWordCheck.SetChecked(wholeWords)
 }
 
-func (sb *SearchBar) FindInText(text string, searchFor string) []SearchMatch {
-	// TODO: Implement actual text search with various options
-	matches := []SearchMatch{}
-	
-	if !sb.caseSensitive {
-		text = strings.ToLower(text)
-		searchFor = strings.ToLower(searchFor)
-	}
-	
-	if sb.wholeWords {
-		// TODO: Implement whole word search
-	}
-	
-	if sb.useRegex {
-		// TODO: Implement regex search
-	} else {
-		// Simple substring search
-		start := 0
-		for {
-			pos := strings.Index(text[start:], searchFor)
-			if pos == -1 {
-				break
-			}
-			
-			match := SearchMatch{
-				Start:  start + pos,
-				End:    start + pos + len(searchFor),
-				Length: len(searchFor),
-				Text:   searchFor,
-			}
-			matches = append(matches, match)
-			
-			start += pos + 1
-		}
-	}
-	
-	return matches
-}
-
-type SearchMatch struct {
-	Start  int
-	End    int
-	Length int
-	Text   string
+func (sb *SearchBar) SetRegularExpression(regex bool) {
+	sb.regexCheck.SetChecked(regex)
 }

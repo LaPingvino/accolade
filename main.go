@@ -6,11 +6,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"github.com/diamondburned/gotk4/pkg/gio/v2"
-	"github.com/diamondburned/gotk4/pkg/glib/v2"
-	"github.com/diamondburned/gotk4/pkg/gtk/v4"
-	"github.com/diamondburned/gotk4-adwaita/pkg/adw"
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/widget"
+	"fyne.io/fyne/v2/driver/desktop"
 )
 
 const (
@@ -18,129 +20,75 @@ const (
 )
 
 type Application struct {
-	*adw.Application
+	fyneApp fyne.App
 	windows []*MainWindow
+	ctx     context.Context
 }
 
 func NewApplication() *Application {
 	app := &Application{
-		Application: adw.NewApplication(AppID, gio.ApplicationFlagsHandlesOpen|gio.ApplicationFlagsNonUnique),
-		windows:     make([]*MainWindow, 0),
+		fyneApp: app.NewWithID(AppID),
+		windows: make([]*MainWindow, 0),
+		ctx:     context.Background(),
 	}
 	
-	app.ConnectActivate(app.onActivate)
-	app.ConnectOpen(app.onOpen)
-	app.ConnectStartup(app.onStartup)
+	app.setupMetadata()
+	app.setupLifecycle()
 	
 	return app
 }
 
-func (app *Application) onStartup() {
-	log.Println("Application starting up...")
-	
-	// Set up CSS providers
-	app.setupStyles()
-	
-	// Set up actions
-	app.setupActions()
-	
-	// Set up keyboard shortcuts
-	app.setupShortcuts()
+func (app *Application) setupMetadata() {
+	metadata := app.fyneApp.Metadata()
+	metadata.Name = "Accolade"
+	metadata.Version = "0.1.0"
+	metadata.Icon = nil // TODO: Add icon resource
 }
 
-func (app *Application) setupStyles() {
-	// Load CSS for sepia theme
-	cssProvider := gtk.NewCSSProvider()
-	cssProvider.LoadFromResource("/org/codeberg/lapingvino/Accolade/style-sepia.css")
+func (app *Application) setupLifecycle() {
+	app.fyneApp.SetIcon(nil) // TODO: Set app icon
 	
-	// Add resource paths
-	iconTheme := gtk.IconThemeGetForDisplay(gtk.DisplayGetDefault())
-	iconTheme.AddResourcePath("/org/codeberg/lapingvino/Accolade/icons")
+	// Setup global shortcuts
+	if deskApp, ok := app.fyneApp.(desktop.App); ok {
+		deskApp.SetSystemTrayMenu(app.createSystemTrayMenu())
+	}
 }
 
-func (app *Application) setupActions() {
-	// New window action
-	newWindowAction := gio.NewSimpleAction("new_window", nil)
-	newWindowAction.ConnectActivate(func() {
+func (app *Application) createSystemTrayMenu() *fyne.Menu {
+	newWindow := fyne.NewMenuItem("New Window", func() {
 		app.newWindow()
 	})
-	app.AddAction(newWindowAction)
 	
-	// Preferences action
-	preferencesAction := gio.NewSimpleAction("preferences", nil)
-	preferencesAction.ConnectActivate(func() {
+	preferences := fyne.NewMenuItem("Preferences", func() {
 		app.showPreferences()
 	})
-	app.AddAction(preferencesAction)
 	
-	// About action
-	aboutAction := gio.NewSimpleAction("about", nil)
-	aboutAction.ConnectActivate(func() {
+	about := fyne.NewMenuItem("About", func() {
 		app.showAbout()
 	})
-	app.AddAction(aboutAction)
 	
-	// Quit action
-	quitAction := gio.NewSimpleAction("quit", nil)
-	quitAction.ConnectActivate(func() {
+	quit := fyne.NewMenuItem("Quit", func() {
 		app.quit()
 	})
-	app.AddAction(quitAction)
 	
-	// Color scheme action
-	colorSchemeAction := gio.NewSimpleActionStateful("color_scheme", 
-		glib.NewVariantType("s"), glib.NewVariantString("system"))
-	colorSchemeAction.ConnectActivate(func(action *gio.SimpleAction, parameter *glib.Variant) {
-		if parameter != nil {
-			action.SetState(parameter)
-			app.setColorScheme(parameter.String())
-		}
-	})
-	app.AddAction(colorSchemeAction)
+	return fyne.NewMenu("Accolade", newWindow, fyne.NewMenuItemSeparator(), preferences, about, fyne.NewMenuItemSeparator(), quit)
 }
 
-func (app *Application) setupShortcuts() {
-	// Window shortcuts
-	app.SetAccelsForAction("win.focus_mode", []string{"<Ctrl>d"})
-	app.SetAccelsForAction("win.hemingway_mode", []string{"<Ctrl>t"})
-	app.SetAccelsForAction("win.preview", []string{"<Ctrl>p"})
-	app.SetAccelsForAction("win.fullscreen", []string{"F11"})
-	app.SetAccelsForAction("win.find", []string{"<Ctrl>f"})
-	app.SetAccelsForAction("win.find_replace", []string{"<Ctrl>h"})
+func (app *Application) Run(args []string) {
+	log.Println("Starting Accolade application")
 	
-	// Application shortcuts
-	app.SetAccelsForAction("app.new_window", []string{"<Ctrl>n"})
-	app.SetAccelsForAction("app.preferences", []string{"<Ctrl>comma"})
-	app.SetAccelsForAction("app.quit", []string{"<Ctrl>q"})
-	
-	// File shortcuts
-	app.SetAccelsForAction("win.open", []string{"<Ctrl>o"})
-	app.SetAccelsForAction("win.save", []string{"<Ctrl>s"})
-	app.SetAccelsForAction("win.save_as", []string{"<Ctrl><Shift>s"})
-	app.SetAccelsForAction("win.close", []string{"<Ctrl>w"})
-	
-	// Spell check
-	app.SetAccelsForAction("app.spellcheck", []string{"F7"})
-}
-
-func (app *Application) onActivate() {
-	log.Println("Application activated")
-	
-	if len(app.windows) == 0 {
+	// Handle file arguments
+	if len(args) > 1 {
+		app.openFiles(args[1:])
+	} else {
 		app.newWindow()
 	}
 	
-	// Present the last window
-	if len(app.windows) > 0 {
-		app.windows[len(app.windows)-1].Present()
-	}
+	// Show and run
+	app.fyneApp.Run()
 }
 
-func (app *Application) onOpen(files []*gio.File, hint string) {
-	log.Printf("Opening %d files", len(files))
-	
-	app.Activate()
-	
+func (app *Application) openFiles(filePaths []string) {
 	// Find empty windows
 	emptyWindows := make([]*MainWindow, 0)
 	for _, window := range app.windows {
@@ -150,7 +98,7 @@ func (app *Application) onOpen(files []*gio.File, hint string) {
 	}
 	
 	// Open files
-	for i, file := range files {
+	for i, filePath := range filePaths {
 		var window *MainWindow
 		
 		if i < len(emptyWindows) {
@@ -159,8 +107,12 @@ func (app *Application) onOpen(files []*gio.File, hint string) {
 			window = app.newWindow()
 		}
 		
-		window.LoadFile(file)
-		window.Present()
+		err := window.LoadFile(filePath)
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to open file %s: %v", filePath, err), window.fyneWindow)
+		}
+		
+		window.Show()
 	}
 }
 
@@ -171,15 +123,15 @@ func (app *Application) newWindow() *MainWindow {
 	app.windows = append(app.windows, window)
 	
 	// Set up window close handler
-	window.ConnectCloseRequest(func() bool {
-		return app.onWindowCloseRequest(window)
+	window.fyneWindow.SetOnClosed(func() {
+		app.onWindowClosed(window)
 	})
 	
 	window.Show()
 	return window
 }
 
-func (app *Application) onWindowCloseRequest(window *MainWindow) bool {
+func (app *Application) onWindowClosed(window *MainWindow) {
 	// Remove window from list
 	for i, w := range app.windows {
 		if w == window {
@@ -190,66 +142,66 @@ func (app *Application) onWindowCloseRequest(window *MainWindow) bool {
 	
 	// If no windows left, quit
 	if len(app.windows) == 0 {
-		app.Quit()
+		app.fyneApp.Quit()
 	}
-	
-	return false // Allow close
 }
 
 func (app *Application) showPreferences() {
 	log.Println("Showing preferences")
 	
-	// Get active window
-	var activeWindow *MainWindow
+	// Get active window as parent
+	var parent fyne.Window
 	if len(app.windows) > 0 {
-		activeWindow = app.windows[0] // Use first window as parent
+		parent = app.windows[0].fyneWindow
 	}
 	
-	dialog := NewPreferencesDialog()
-	if activeWindow != nil {
-		dialog.SetTransientFor(&activeWindow.Window)
-	}
-	dialog.Present()
+	dialog := NewPreferencesDialog(app, parent)
+	dialog.Show()
 }
 
 func (app *Application) showAbout() {
 	log.Println("Showing about dialog")
 	
-	// Get active window
-	var activeWindow *MainWindow
+	// Get active window as parent
+	var parent fyne.Window
 	if len(app.windows) > 0 {
-		activeWindow = app.windows[0]
+		parent = app.windows[0].fyneWindow
 	}
 	
-	aboutDialog := adw.NewAboutWindow()
-	aboutDialog.SetApplicationName("Accolade")
-	aboutDialog.SetApplicationIcon(AppID)
-	aboutDialog.SetVersion("0.1.0")
-	aboutDialog.SetDeveloperName("Joop Kiefte")
-	aboutDialog.SetCopyright("© 2024 Joop Kiefte")
-	aboutDialog.SetLicense("GPL-3.0-or-later")
-	aboutDialog.SetWebsite("https://codeberg.org/lapingvino/accolade")
-	aboutDialog.SetIssueURL("https://codeberg.org/lapingvino/accolade/issues")
-	aboutDialog.SetComments("A distraction-free Fountain editor for screenwriters")
+	content := widget.NewRichTextFromMarkdown(`
+# Accolade
+
+**Version:** 0.1.0  
+**Developer:** Joop Kiefte  
+**Copyright:** © 2024 Joop Kiefte  
+**License:** GPL-3.0-or-later  
+
+A distraction-free Fountain editor for screenwriters.
+
+**Website:** https://codeberg.org/lapingvino/accolade  
+**Issues:** https://codeberg.org/lapingvino/accolade/issues
+`)
 	
-	if activeWindow != nil {
-		aboutDialog.SetTransientFor(&activeWindow.Window)
-	}
-	
-	aboutDialog.Present()
+	aboutDialog := dialog.NewCustom("About Accolade", "Close", content, parent)
+	aboutDialog.Resize(fyne.NewSize(500, 400))
+	aboutDialog.Show()
 }
 
 func (app *Application) setColorScheme(scheme string) {
 	log.Printf("Setting color scheme to: %s", scheme)
 	
-	styleManager := adw.StyleManagerGetDefault()
+	// TODO: Implement theme switching for Fyne
+	// Fyne has built-in light/dark theme support
 	switch scheme {
 	case "light":
-		styleManager.SetColorScheme(adw.ColorSchemeForceLight)
+		app.fyneApp.Settings().SetTheme(&LightTheme{})
 	case "dark":
-		styleManager.SetColorScheme(adw.ColorSchemeForceDark)
+		app.fyneApp.Settings().SetTheme(&DarkTheme{})
+	case "sepia":
+		app.fyneApp.Settings().SetTheme(&SepiaTheme{})
 	default:
-		styleManager.SetColorScheme(adw.ColorSchemeDefault)
+		// Use system default
+		app.fyneApp.Settings().SetTheme(nil)
 	}
 }
 
@@ -258,56 +210,54 @@ func (app *Application) quit() {
 	
 	// Check for unsaved changes
 	hasUnsaved := false
+	unsavedWindows := make([]*MainWindow, 0)
+	
 	for _, window := range app.windows {
 		if window.HasUnsavedChanges() {
 			hasUnsaved = true
-			break
+			unsavedWindows = append(unsavedWindows, window)
 		}
 	}
 	
 	if hasUnsaved {
-		// TODO: Show confirmation dialog
-		log.Println("Warning: There are unsaved changes")
+		// Show confirmation dialog for first window with unsaved changes
+		parent := unsavedWindows[0].fyneWindow
+		
+		confirmDialog := dialog.NewConfirm(
+			"Unsaved Changes",
+			fmt.Sprintf("You have unsaved changes in %d window(s). Are you sure you want to quit?", len(unsavedWindows)),
+			func(confirmed bool) {
+				if confirmed {
+					app.fyneApp.Quit()
+				}
+			},
+			parent,
+		)
+		confirmDialog.Show()
+		return
 	}
 	
-	app.Quit()
+	app.fyneApp.Quit()
 }
 
 func main() {
-	// Initialize GTK
-	gtk.Init()
-	adw.Init()
-	
 	// Create application
 	app := NewApplication()
 	
-	// Set resource base path
-	app.SetResourceBasePath("/org/codeberg/lapingvino/Accolade")
-	
 	// Run application
-	ctx := context.Background()
-	if code := app.RunWithContext(ctx, os.Args); code > 0 {
-		os.Exit(code)
-	}
-}
-
-// Helper function to get resource path
-func getResourcePath(path string) string {
-	return filepath.Join("/org/codeberg/lapingvino/Accolade", path)
+	app.Run(os.Args)
 }
 
 // Helper function to show error dialog
-func showError(parent gtk.Windower, title, message string) {
-	dialog := adw.NewAlertDialog(title, message)
-	dialog.AddResponse("close", "Close")
-	dialog.SetDefaultResponse("close")
-	dialog.SetCloseResponse("close")
-	
-	if parent != nil {
-		dialog.SetTransientFor(parent)
-	}
-	
-	dialog.Present()
+func showError(parent fyne.Window, title, message string) {
+	errorDialog := dialog.NewError(fmt.Errorf("%s: %s", title, message), parent)
+	errorDialog.Show()
+}
+
+// Helper function to show info dialog
+func showInfo(parent fyne.Window, title, message string) {
+	infoDialog := dialog.NewInformation(title, message, parent)
+	infoDialog.Show()
 }
 
 // Helper function to check if executable exists
@@ -319,9 +269,7 @@ func executableExists(name string) bool {
 // Helper function to get debug info
 func getDebugInfo() string {
 	info := fmt.Sprintf("Accolade %s\n", "0.1.0")
-	info += fmt.Sprintf("GTK: %d.%d.%d\n", gtk.GetMajorVersion(), gtk.GetMinorVersion(), gtk.GetMicroVersion())
-	info += fmt.Sprintf("GLib: %d.%d.%d\n", glib.GetMajorVersion(), glib.GetMinorVersion(), glib.GetMicroVersion())
-	info += fmt.Sprintf("Libadwaita: %d.%d.%d\n", adw.GetMajorVersion(), adw.GetMinorVersion(), adw.GetMicroVersion())
+	info += fmt.Sprintf("Fyne: %s\n", "v2.4.5") // TODO: Get actual version
 	
 	// Check for lexington
 	if executableExists("lexington") {
@@ -331,4 +279,45 @@ func getDebugInfo() string {
 	}
 	
 	return info
+}
+
+// Helper function to get home directory
+func getHomeDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "/tmp"
+	}
+	return home
+}
+
+// Helper function to get config directory
+func getConfigDir() string {
+	configDir := os.Getenv("XDG_CONFIG_HOME")
+	if configDir == "" {
+		configDir = filepath.Join(getHomeDir(), ".config")
+	}
+	return filepath.Join(configDir, "accolade")
+}
+
+// Helper function to ensure directory exists
+func ensureDir(path string) error {
+	return os.MkdirAll(path, 0755)
+}
+
+// Helper function to get file extension
+func getFileExtension(filename string) string {
+	return strings.ToLower(filepath.Ext(filename))
+}
+
+// Helper function to check if file is a Fountain file
+func isFountainFile(filename string) bool {
+	ext := getFileExtension(filename)
+	return ext == ".fountain" || ext == ".spmd"
+}
+
+
+
+// Resource helpers
+func getResourcePath(path string) string {
+	return filepath.Join("/org/codeberg/lapingvino/Accolade", path)
 }

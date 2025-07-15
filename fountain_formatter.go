@@ -3,15 +3,17 @@ package main
 import (
 	"log"
 	"strings"
+	
+	"fyne.io/fyne/v2/widget"
 )
 
 type FountainFormatter struct {
-	textView *TextView
+	textEditor *widget.Entry
 }
 
-func NewFountainFormatter(textView *TextView) *FountainFormatter {
+func NewFountainFormatter(textEditor *widget.Entry) *FountainFormatter {
 	return &FountainFormatter{
-		textView: textView,
+		textEditor: textEditor,
 	}
 }
 

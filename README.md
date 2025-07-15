@@ -6,17 +6,62 @@
 
 ## About
 
-Accolade is a [GTK+](https://www.gtk.org) based distraction free Fountain editor, forked from Accolade which was originally developed by Wolf Vollprecht and currently developed and maintained by Manuel Genovés. Accolade is being developed independently by Joop Kiefte. It uses lexington as back-end for parsing Fountain and offers a very clean and sleek user interface.
+Accolade is a distraction-free Fountain editor for screenwriters, built with [Fyne](https://fyne.io) in Go. Originally forked from a GTK-based application, Accolade has been completely rewritten to provide faster compilation, better cross-platform support, and easier deployment. It uses lexington as back-end for parsing Fountain and offers a clean, modern user interface optimized for distraction-free writing.
+
+**🚀 Major Update: Fyne Transition Complete!**
+
+Accolade has been successfully migrated from GTK4 to Fyne, bringing:
+- ⚡ Faster compilation and startup
+- 🌍 Better cross-platform support (Linux, Windows, macOS)
+- 📦 Single binary deployment
+- 🔧 Easier development and maintenance
+- 🤖 LLM-friendly pure Go codebase
+
+See [FYNE_TRANSITION.md](FYNE_TRANSITION.md) for detailed information about the migration.
 
 ## Building
 
-### Building using GNOME Builder
+### Prerequisites
 
-GNOME Builder offers the easiest method to build accolade. Just follow [this guide](https://welcome.gnome.org/app/accolade/#getting-the-app-to-build) and you'll be up and running in a minute.
+- Go 1.21 or later
+- GCC compiler
+- X11 development libraries (Linux only)
 
-### Building from Git
+On Ubuntu/Debian:
+```bash
+sudo apt-get install libx11-dev libxrandr-dev libxcursor-dev \
+                     libxinerama-dev libxi-dev libgl1-mesa-dev \
+                     build-essential pkg-config
+```
 
-To build accolade from source you need to have the following dependencies installed:
+### Quick Start
+
+The easiest way to build Accolade:
+
+```bash
+./build-fyne.sh
+```
+
+### Manual Build
+
+```bash
+export CGO_ENABLED=1
+go mod tidy
+go build -v -o accolade .
+```
+
+### Using Nix
+
+For development with the included Nix flake:
+
+```bash
+nix develop
+go build -v -o accolade .
+```
+
+### Legacy GTK4 Build
+
+The previous GTK4-based version has been replaced. To build the legacy version, check out commit `b6150ed` or earlier:
 
 - Build system: `meson ninja-build`
 - Lexington, a Go tool to convert Fountain to PDF (you will probably need to build this from source)
