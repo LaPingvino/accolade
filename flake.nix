@@ -23,6 +23,9 @@
           xorg.libXxf86vm
           mesa
           libGL
+          libglvnd
+          libGLU
+          freeglut
           alsa-lib
           pkg-config
         ];
@@ -65,12 +68,12 @@
           version = "0.1.0";
           src = ./.;
           
-          vendorHash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+          vendorHash = "sha256-J3iJiDiSyhphZpVxw22MN0fttbnRIi3S5VT8cC/DEiA=";
           
           buildInputs = fyneLibs;
           nativeBuildInputs = nativeBuildInputs;
           
-          CGO_ENABLED = 1;
+          env.CGO_ENABLED = "1";
           
           preBuild = ''
             export PKG_CONFIG_PATH="${pkgs.lib.makeSearchPath "lib/pkgconfig" fyneLibs}"

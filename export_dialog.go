@@ -77,7 +77,7 @@ func NewExportDialog(window *MainWindow) *ExportDialog {
 		window.fyneWindow,
 	)
 	
-	ed.dialog.Resize(fyne.NewSize(500, 600))
+	ed.dialog.Resize(fyne.NewSize(600, 700))
 	
 	return ed
 }
@@ -88,7 +88,7 @@ func (ed *ExportDialog) createWidgets() {
 		[]string{"PDF", "HTML", "DOCX", "TXT", "Fountain"},
 		ed.onFormatChanged,
 	)
-	ed.formatSelect.SetSelected("PDF")
+	// Don't set selected yet - wait until after containers are created
 	
 	// Output settings
 	ed.outputDirEntry = widget.NewEntry()
@@ -156,7 +156,7 @@ func (ed *ExportDialog) createWidgets() {
 	ed.previewButton = widget.NewButtonWithIcon("Preview", theme.VisibilityIcon(), ed.previewExport)
 }
 
-func (ed *ExportDialog) createContent() *fyne.Container {
+func (ed *ExportDialog) createContent() fyne.CanvasObject {
 	// Output section
 	browseButton := widget.NewButtonWithIcon("", theme.FolderOpenIcon(), ed.browseOutputDir)
 	
@@ -170,7 +170,9 @@ func (ed *ExportDialog) createContent() *fyne.Container {
 	
 	// Format-specific settings
 	ed.formatSettingsContainer = container.NewVBox()
-	ed.updateFormatSettings()
+	
+	// Now it's safe to set the selected format which will call updateFormatSettings
+	ed.formatSelect.SetSelected("PDF")
 	
 	formatSection := widget.NewCard("Format Settings", "", ed.formatSettingsContainer)
 	
@@ -198,19 +200,28 @@ func (ed *ExportDialog) createContent() *fyne.Container {
 	)
 	
 	// Main container
+	// Main content - make it scrollable to prevent cutoff
 	content := container.NewVBox(
 		outputSection,
 		formatSection,
 		fountainSection,
-		widget.NewSeparator(),
 		progressSection,
 		buttonContainer,
 	)
 	
-	return content
+	// Wrap in scroll container to prevent dialog cutoff
+	scrollContent := container.NewScroll(content)
+	scrollContent.SetMinSize(fyne.NewSize(580, 650))
+	
+	return scrollContent
 }
 
 func (ed *ExportDialog) updateFormatSettings() {
+	// Safety check in case this is called before container is initialized
+	if ed.formatSettingsContainer == nil {
+		return
+	}
+	
 	ed.formatSettingsContainer.Objects = nil
 	
 	switch ed.formatSelect.Selected {

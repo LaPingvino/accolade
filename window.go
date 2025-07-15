@@ -81,6 +81,9 @@ func (w *MainWindow) setupUI() {
 	w.textEditor.Wrapping = fyne.TextWrapWord
 	w.textEditor.SetPlaceHolder("Start writing your screenplay here...")
 	
+	// Add some initial content to make sure the editor is visible
+	w.textEditor.SetText("FADE IN:\n\nINT. LIVING ROOM - DAY\n\nA simple room with basic furniture. Light streams through the windows.\n\nJOHN sits at a desk, typing on a laptop. He looks frustrated.\n\n\t\t\tJOHN\n\t\t(sighing)\n\tThis screenplay isn't writing itself.\n\nHe takes a sip of coffee and continues typing.\n\nFADE OUT.")
+	
 	// Create preview area
 	w.previewArea = widget.NewRichText()
 	w.previewArea.Wrapping = fyne.TextWrapWord
@@ -91,22 +94,10 @@ func (w *MainWindow) setupUI() {
 	// Create search bar (initially hidden)
 	w.searchBar = NewSearchBar(w)
 	
-	// Create find/replace widgets
-	w.findEntry = widget.NewEntry()
-	w.findEntry.SetPlaceHolder("Find...")
-	w.replaceEntry = widget.NewEntry()
-	w.replaceEntry.SetPlaceHolder("Replace with...")
-	
-	// Create find/replace container
-	findContainer := container.NewVBox(
-		container.NewBorder(nil, nil, widget.NewLabel("Find:"), nil, w.findEntry),
-		container.NewBorder(nil, nil, widget.NewLabel("Replace:"), nil, w.replaceEntry),
-		container.NewHBox(
-			widget.NewButton("Find Next", w.findNext),
-			widget.NewButton("Replace", w.replaceOne),
-			widget.NewButton("Replace All", w.replaceAll),
-			widget.NewButton("Close", w.hideFindReplace),
-		),
+	// Create toolbar container
+	w.toolbarContainer = container.NewVBox(
+		w.headerBar.container,
+		w.searchBar.container,
 	)
 	
 	// Create status bar
@@ -116,12 +107,6 @@ func (w *MainWindow) setupUI() {
 		widget.NewLabel("Words: 0"),
 		widget.NewSeparator(),
 		widget.NewLabel("Characters: 0"),
-	)
-	
-	// Create toolbar container
-	w.toolbarContainer = container.NewVBox(
-		w.headerBar.container,
-		w.searchBar.container,
 	)
 	
 	// Create main content area
@@ -146,18 +131,7 @@ func (w *MainWindow) setupUI() {
 		w.mainContainer,    // center
 	)
 	
-	// Add find/replace overlay (initially hidden)
-	overlay := container.NewWithoutLayout(
-		content,
-		findContainer,
-	)
-	
-	// Position find/replace at top-right
-	findContainer.Move(fyne.NewPos(200, 80))
-	findContainer.Resize(fyne.NewSize(350, 120))
-	findContainer.Hide()
-	
-	w.fyneWindow.SetContent(overlay)
+	w.fyneWindow.SetContent(content)
 	
 	// Apply initial settings
 	w.applySettings()
@@ -342,7 +316,7 @@ func (w *MainWindow) NewFile() {
 }
 
 func (w *MainWindow) createNewFile() {
-	w.textEditor.SetText("")
+	w.textEditor.SetText("FADE IN:\n\n")
 	w.currentFile = ""
 	w.hasChanges = false
 	w.updateTitle()
@@ -462,16 +436,65 @@ func (w *MainWindow) togglePreview() {
 }
 
 func (w *MainWindow) showPreview() {
-	// Show preview pane - need to implement proper split container handling
+	// Show preview pane by creating a split container
 	w.previewVisible = true
 	w.updatePreview()
 	w.settings.SetBoolean("preview-visible", true)
+	
+	// Create the split container with both editor and preview
+	editorScroll := container.NewScroll(w.textEditor)
+	previewScroll := container.NewScroll(w.previewArea)
+	
+	w.mainContainer = container.NewHSplit(
+		editorScroll,
+		previewScroll,
+	)
+	w.mainContainer.SetOffset(0.7) // Give more space to editor
+	
+	// Update the main layout
+	content := container.NewBorder(
+		w.toolbarContainer, // top
+		w.statusBar,        // bottom
+		nil,                // left
+		nil,                // right
+		w.mainContainer,    // center - split container
+	)
+	
+	// Update the window content (preserve the overlay structure)
+	if currentContent, ok := w.fyneWindow.Content().(*fyne.Container); ok && len(currentContent.Objects) > 1 {
+		findContainer := currentContent.Objects[1]
+		overlay := container.NewWithoutLayout(content, findContainer)
+		w.fyneWindow.SetContent(overlay)
+	} else {
+		w.fyneWindow.SetContent(content)
+	}
 }
 
 func (w *MainWindow) hidePreview() {
-	// Hide preview pane - need to implement proper split container handling
+	// Hide preview pane by replacing the split container with just the editor
 	w.previewVisible = false
 	w.settings.SetBoolean("preview-visible", false)
+	
+	// Replace the split container with just the editor scroll
+	editorScroll := container.NewScroll(w.textEditor)
+	
+	// Update the main layout to show only the editor
+	content := container.NewBorder(
+		w.toolbarContainer, // top
+		w.statusBar,        // bottom
+		nil,                // left
+		nil,                // right
+		editorScroll,       // center - just the editor
+	)
+	
+	// Update the window content (preserve the overlay structure)
+	if currentContent, ok := w.fyneWindow.Content().(*fyne.Container); ok && len(currentContent.Objects) > 1 {
+		findContainer := currentContent.Objects[1]
+		overlay := container.NewWithoutLayout(content, findContainer)
+		w.fyneWindow.SetContent(overlay)
+	} else {
+		w.fyneWindow.SetContent(content)
+	}
 }
 
 // Find/Replace operations
