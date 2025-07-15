@@ -20,6 +20,7 @@
           xorg.libXi
           xorg.libXext
           xorg.libXfixes
+          xorg.libXxf86vm
           mesa
           libGL
           alsa-lib
