@@ -1,0 +1,171 @@
+[Elements]
+  [Elements.default]
+    [Elements.default.action]
+      Right = 1.0
+      Left = 1.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.allcaps]
+      Right = 1.0
+      Left = 1.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.center]
+      Right = 1.0
+      Left = 1.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = "C"
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.dialog]
+      Right = 1.5
+      Left = 2.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.dualdialog]
+      Right = 0.5
+      Left = 1.0
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.dualparen]
+      Right = 0.5
+      Left = 1.3
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.dualspeaker]
+      Right = 0.5
+      Left = 1.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.empty]
+      Right = 1.0
+      Left = 1.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.lyrics]
+      Right = 2.0
+      Left = 2.0
+      Font = "Helvetica"
+      Style = "i"
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.meta]
+      Right = 1.0
+      Left = 1.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.note]
+      Right = 1.0
+      Left = 1.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.paren]
+      Right = 1.5
+      Left = 3.1
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.scene]
+      Right = 1.0
+      Left = 1.5
+      Font = ""
+      Style = "b"
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.speaker]
+      Right = 1.5
+      Left = 3.7
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = ""
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.title]
+      Right = 1.0
+      Left = 1.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = "C"
+      Prefix = ""
+      Postfix = ""
+    [Elements.default.trans]
+      Right = 1.0
+      Left = 1.5
+      Font = ""
+      Style = ""
+      Size = 0.0
+      Hide = false
+      Align = "R"
+      Prefix = ""
+      Postfix = ""
+
+[Scenes]
+  de = ["INT", "EXT", "ETABL", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"]
+  en = ["INT", "EXT", "EST", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"]
+  eo = ["EN.", "ENE", "EKST", "EK", "EN/EKST", "EKST/EN", "EKST./EN", "EN./EKST"]
+  fr = ["INT", "EXT", "INT./EXT", "INT/EXT", "EXT/INT", "EXT./INT", "I/E"]
+  it = ["INT", "EST", "INT./EST", "INT/EST", "EST/INT", "EST./INT", "I/E"]
+  nl = ["BIN", "BUI", "BI", "BU", "OPEN", "BIN./BUI", "BUI./BIN", "BIN/BUI", "BI/BU"]
+  ru = ["ИНТ", "НАТ", "ИНТ/НАТ", "ИНТ./НАТ", "НАТ/ИНТ", "НАТ./ИНТ", "ЭКСТ", "И/Н", "Н/И"]

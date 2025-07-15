@@ -29,6 +29,7 @@ type HeaderBar struct {
 	
 	// Tools
 	exportButton *widget.Button
+	titlePageButton *widget.Button
 	
 	// Settings
 	preferencesButton *widget.Button
@@ -105,16 +106,21 @@ func (hb *HeaderBar) createButtons() {
 	hb.focusModeButton.SetText("Focus")
 	
 	// Tools
-	hb.exportButton = widget.NewButtonWithIcon("", theme.MailSendIcon(), func() {
+	hb.exportButton = widget.NewButtonWithIcon("", theme.DocumentIcon(), func() {
 		hb.window.showExportDialog()
 	})
 	hb.exportButton.SetText("Export")
+	
+	hb.titlePageButton = widget.NewButtonWithIcon("", theme.InfoIcon(), func() {
+		hb.window.showTitlePageDialog()
+	})
+	hb.titlePageButton.SetText("Title Page")
 	
 	// Settings
 	hb.preferencesButton = widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
 		hb.window.app.showPreferences()
 	})
-	hb.preferencesButton.SetText("Settings")
+	hb.preferencesButton.SetText("Preferences")
 	
 	// Title
 	hb.titleLabel = widget.NewLabel("Accolade")
@@ -147,6 +153,7 @@ func (hb *HeaderBar) createLayout() {
 	
 	toolsGroup := container.NewHBox(
 		hb.exportButton,
+		hb.titlePageButton,
 		widget.NewSeparator(),
 	)
 	
