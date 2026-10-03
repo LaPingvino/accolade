@@ -540,7 +540,43 @@ func (e *ScriptEditor) TypedShortcut(s fyne.Shortcut) {
 // NewScroll puts the editor in a vertical scroll container that keeps the
 // cursor in view as it moves.
 func NewScroll(e *ScriptEditor) *container.Scroll {
-	s := container.NewVScroll(e)
+	return newScroll(e, e)
+}
+
+// NewPageScroll is NewScroll with the text in a centred column at most
+// columns characters wide (plus the line number gutter), like a page;
+// the margins scroll too.
+func NewPageScroll(e *ScriptEditor, columns int) *container.Scroll {
+	return newScroll(e, newPage(e, columns))
+}
+
+// page holds the editor's column; a click in the margins beside it goes
+// to the editor at the nearest column (left of a line: its start).
+type page struct {
+	widget.BaseWidget
+	e       *ScriptEditor
+	content *fyne.Container
+}
+
+func newPage(e *ScriptEditor, columns int) *page {
+	p := &page{e: e, content: container.New(&pageLayout{e: e, columns: columns}, e)}
+	p.ExtendBaseWidget(p)
+	return p
+}
+
+func (p *page) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(p.content) }
+
+// Tapped handles clicks in the margins (clicks on the text reach the
+// editor directly).
+func (p *page) Tapped(ev *fyne.PointEvent) {
+	at := ev.Position.Subtract(p.e.Position())
+	at.X = min(max(at.X, 0), p.e.Size().Width-1)
+	at.Y = min(max(at.Y, 0), p.e.Size().Height-1)
+	p.e.Tapped(&fyne.PointEvent{Position: at, AbsolutePosition: ev.AbsolutePosition})
+}
+
+func newScroll(e *ScriptEditor, content fyne.CanvasObject) *container.Scroll {
+	s := container.NewVScroll(content)
 	e.onCursorMoved = func(p fyne.Position, h float32) {
 		view := s.Size().Height
 		y := s.Offset.Y
@@ -555,6 +591,31 @@ func NewScroll(e *ScriptEditor) *container.Scroll {
 		s.ScrollToOffset(fyne.NewPos(s.Offset.X, max(y, 0)))
 	}
 	return s
+}
+
+// pageLayout centres the editor in a column of a given number of
+// characters, or the full width when the window is narrower.
+type pageLayout struct {
+	e       *ScriptEditor
+	columns int
+}
+
+func (l *pageLayout) width(avail float32) float32 {
+	w := l.e.cellWidth()*float32(l.columns+l.e.gutter()) + 1
+	return min(w, avail)
+}
+
+// top is the space above the first line.
+func (l *pageLayout) top() float32 { return 3 * theme.Padding() }
+
+func (l *pageLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	w := l.width(size.Width)
+	l.e.Resize(fyne.NewSize(w, max(size.Height-l.top(), l.e.MinSize().Height)))
+	l.e.Move(fyne.NewPos((size.Width-w)/2, l.top()))
+}
+
+func (l *pageLayout) MinSize([]fyne.CanvasObject) fyne.Size {
+	return l.e.MinSize().Add(fyne.NewSize(0, l.top()))
 }
 
 var (

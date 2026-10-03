@@ -26,6 +26,10 @@ const (
 	ParentheticalIndent = 31 // Parentheticals - 3.1" from left margin
 	CharacterIndent     = 37 // Character names - 3.7" from left margin
 	TransitionIndent    = 60 // Transitions - right aligned (6.0" from left margin)
+
+	// pageColumns is the width of the editor's centred text column: room
+	// for a transition after TransitionIndent
+	pageColumns = 76
 )
 
 type MainWindow struct {
@@ -117,7 +121,7 @@ func (w *MainWindow) setupUI() {
 	// Apply Courier Prime font for screenplay formatting
 	// the editor scrolls to keep the cursor in view; the theme override
 	// carries the font settings
-	w.editorView = container.NewThemeOverride(editor.NewScroll(w.textEditor), newEditorTheme("", 0))
+	w.editorView = container.NewThemeOverride(editor.NewPageScroll(w.textEditor, pageColumns), newEditorTheme("", 0))
 
 	// Create preview area
 	w.previewArea = widget.NewRichText()

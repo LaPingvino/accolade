@@ -155,3 +155,49 @@ func TestSelectionAndCursorStyles(t *testing.T) {
 		t.Errorf("cursor drawn without focus")
 	}
 }
+
+func TestPageColumnIsCentred(t *testing.T) {
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	e := New(strings.Repeat("word ", 60))
+	s := NewPageScroll(e, 40)
+	w := test.NewWindow(s)
+	t.Cleanup(w.Close)
+	col := e.cellWidth() * 40
+
+	w.Resize(fyne.NewSize(col*2, 400))
+	if e.Columns() != 40 {
+		t.Errorf("wide window: %d columns, want 40", e.Columns())
+	}
+	left, right := e.Position().X, s.Size().Width-e.Position().X-e.Size().Width
+	if left < col/3 || abs(left-right) > 2 {
+		t.Errorf("column not centred: %v left, %v right", left, right)
+	}
+
+	w.Resize(fyne.NewSize(col/2, 400))
+	if e.Columns() >= 40 || e.Position().X > 1 {
+		t.Errorf("narrow window: %d columns at x=%v, want the full width", e.Columns(), e.Position().X)
+	}
+}
+
+func TestClickInMarginPlacesCursor(t *testing.T) {
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	e := New("first line\nsecond line")
+	s := NewPageScroll(e, 40)
+	w := test.NewWindow(s)
+	t.Cleanup(w.Close)
+	w.Resize(fyne.NewSize(e.cellWidth()*80, 300))
+
+	row2 := e.Position().Y + e.cellHeight()*1.5
+	test.TapCanvas(w.Canvas(), fyne.NewPos(e.Position().X/2, row2))
+	if got := e.CursorOffset(); got != len("first line\n") {
+		t.Errorf("click left of the second line: cursor at %d, want its start", got)
+	}
+	test.TapCanvas(w.Canvas(), fyne.NewPos(s.Size().Width-2, e.Position().Y+e.cellHeight()/2))
+	if got := e.CursorOffset(); got != len("first line") {
+		t.Errorf("click right of the first line: cursor at %d, want its end", got)
+	}
+}
+
+func abs(f float32) float32 { return max(f, -f) }
