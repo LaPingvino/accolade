@@ -79,3 +79,21 @@ func TestAutoIndentOff(t *testing.T) {
 		t.Errorf("with auto-indent off: %q, want %q", got, want)
 	}
 }
+
+func TestLineNumbersPreference(t *testing.T) {
+	w := newTestWindow(t, "one\ntwo")
+	w.app.windows = append(w.app.windows, w)
+	prev := w.settings.GetBoolean("show-line-numbers")
+	t.Cleanup(func() { w.settings.SetBoolean("show-line-numbers", prev) })
+
+	w.settings.SetBoolean("show-line-numbers", true)
+	w.app.applySettingsToWindows()
+	if got := w.textEditor.GridRow(0).Cells[0].Rune; got != '1' {
+		t.Errorf("first cell %q, want the line number", got)
+	}
+	w.settings.SetBoolean("show-line-numbers", false)
+	w.app.applySettingsToWindows()
+	if got := w.textEditor.GridRow(0).Cells[0].Rune; got != 'o' {
+		t.Errorf("first cell %q without line numbers", got)
+	}
+}

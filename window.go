@@ -214,8 +214,8 @@ func (w *MainWindow) applySettings() {
 
 func (w *MainWindow) applyEditorSettings() {
 	// the script editor always wraps at the window width (screenplays are
-	// laid out in columns), so the word-wrap setting no longer applies
-	w.textEditor.Refresh()
+	// laid out in columns)
+	w.textEditor.SetLineNumbers(w.settings.GetBoolean("show-line-numbers"))
 	// auto-indent is read when Enter is pressed (editor.go)
 }
 

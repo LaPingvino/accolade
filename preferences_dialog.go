@@ -21,7 +21,7 @@ type PreferencesDialog struct {
 	// Editor settings
 	fontFamilyEntry  *widget.Entry
 	fontSizeEntry    *widget.Entry
-	wordWrapCheck    *widget.Check
+	lineNumbersCheck *widget.Check
 	autoIndentCheck  *widget.Check
 	showLineNumbersCheck *widget.Check
 	tabWidthEntry    *widget.Entry
@@ -94,7 +94,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.fontSizeEntry = widget.NewEntry()
 	pd.fontSizeEntry.SetPlaceHolder("12")
 	
-	pd.wordWrapCheck = widget.NewCheck("Enable word wrap", nil)
+	pd.lineNumbersCheck = widget.NewCheck("Show line numbers", nil)
 	pd.autoIndentCheck = widget.NewCheck("Auto-indent", nil)
 	pd.showLineNumbersCheck = widget.NewCheck("Show line numbers", nil)
 	
@@ -224,7 +224,7 @@ func (pd *PreferencesDialog) createEditorTab() *fyne.Container {
 		),
 		widget.NewCard("Text Editing", "",
 			container.NewVBox(
-				pd.wordWrapCheck,
+				pd.lineNumbersCheck,
 				pd.autoIndentCheck,
 				pd.showLineNumbersCheck,
 				container.NewHBox(widget.NewLabel("Tab width:"), pd.tabWidthEntry),
@@ -308,7 +308,7 @@ func (pd *PreferencesDialog) loadCurrentSettings() {
 	// Editor settings
 	pd.fontFamilyEntry.SetText(pd.settings.GetString("font-family"))
 	pd.fontSizeEntry.SetText(strconv.Itoa(pd.settings.GetInt("font-size")))
-	pd.wordWrapCheck.SetChecked(pd.settings.GetBoolean("word-wrap"))
+	pd.lineNumbersCheck.SetChecked(pd.settings.GetBoolean("show-line-numbers"))
 	pd.autoIndentCheck.SetChecked(pd.settings.GetBoolean("auto-indent"))
 	pd.showLineNumbersCheck.SetChecked(pd.settings.GetBoolean("show-line-numbers"))
 	pd.tabWidthEntry.SetText(strconv.Itoa(pd.settings.GetInt("tab-width")))
@@ -362,7 +362,7 @@ func (pd *PreferencesDialog) saveSettings() {
 	if fontSize, err := strconv.Atoi(pd.fontSizeEntry.Text); err == nil {
 		pd.settings.SetInt("font-size", fontSize)
 	}
-	pd.settings.SetBoolean("word-wrap", pd.wordWrapCheck.Checked)
+	pd.settings.SetBoolean("show-line-numbers", pd.lineNumbersCheck.Checked)
 	pd.settings.SetBoolean("auto-indent", pd.autoIndentCheck.Checked)
 	pd.settings.SetBoolean("show-line-numbers", pd.showLineNumbersCheck.Checked)
 	if tabWidth, err := strconv.Atoi(pd.tabWidthEntry.Text); err == nil {

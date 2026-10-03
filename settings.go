@@ -38,7 +38,6 @@ func (s *Settings) loadDefaults() {
 		// Editor settings
 		"font-family":          "monospace",
 		"font-size":           12,
-		"word-wrap":           true,
 		"auto-indent":         true,
 		"show-line-numbers":   false,
 		"highlight-current-line": true,

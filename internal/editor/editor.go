@@ -5,8 +5,10 @@
 package editor
 
 import (
+	"fmt"
 	"image/color"
 	"math"
+	"strconv"
 	"strings"
 	"unicode"
 
@@ -50,6 +52,8 @@ type ScriptEditor struct {
 	highlights [][2]int
 	// Syntax colours the text by Fountain element
 	Syntax bool
+	// lineNumbers shows each line's number in a gutter (SetLineNumbers)
+	lineNumbers bool
 
 	// onCursorMoved is told where the cursor is (see NewScroll)
 	onCursorMoved func(cursor fyne.Position, height float32)
@@ -75,6 +79,21 @@ func (e *ScriptEditor) Text() string { return e.buf.Text() }
 func (e *ScriptEditor) SetText(text string) {
 	e.buf.SetText(text)
 	e.changed(true)
+}
+
+// SetLineNumbers shows or hides line numbers in a gutter on the left.
+func (e *ScriptEditor) SetLineNumbers(on bool) {
+	e.lineNumbers = on
+	e.relayout()
+}
+
+// gutter is the number of columns the line numbers take (0 when hidden):
+// the digits of the highest line number and a space.
+func (e *ScriptEditor) gutter() int {
+	if !e.lineNumbers {
+		return 0
+	}
+	return len(strconv.Itoa(e.buf.LineCount())) + 1
 }
 
 // SetHighlights marks ranges of the text, such as all search matches, with
@@ -174,7 +193,8 @@ func (e *ScriptEditor) cellHeight() float32 { return max(e.cellSize().Height, 1)
 // relayout re-wraps the text and redraws the grid.
 func (e *ScriptEditor) relayout() {
 	text := []rune(e.buf.Text())
-	e.layout = wrap.Wrap(text, e.columns)
+	g := e.gutter()
+	e.layout = wrap.Wrap(text, max(e.columns-g, 1))
 
 	th := e.Theme()
 	v := theme.VariantLight
@@ -206,9 +226,20 @@ func (e *ScriptEditor) relayout() {
 		kinds = syntax.Classify(strings.Split(string(text), "\n"))
 	}
 
+	number := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}
 	rows := make([]widget.TextGridRow, len(e.layout.Rows))
 	for i, r := range e.layout.Rows {
-		cells := make([]widget.TextGridCell, 0, r.Indent+r.End-r.Start+1)
+		cells := make([]widget.TextGridCell, 0, g+r.Indent+r.End-r.Start+1)
+		if g > 0 {
+			label := ""
+			if i == 0 || e.layout.Rows[i-1].Line != r.Line {
+				label = strconv.Itoa(r.Line + 1)
+			}
+			label = fmt.Sprintf("%*s ", g-1, label)
+			for _, ch := range label {
+				cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
+			}
+		}
 		for c := 0; c < r.Indent; c++ {
 			cells = append(cells, widget.TextGridCell{Rune: ' '})
 		}
@@ -227,10 +258,10 @@ func (e *ScriptEditor) relayout() {
 			cells = append(cells, cell)
 		}
 		if e.focused && i == curRow {
-			for len(cells) <= curCol {
+			for len(cells) <= g+curCol {
 				cells = append(cells, widget.TextGridCell{Rune: ' '})
 			}
-			cells[curCol].Style = cursor
+			cells[g+curCol].Style = cursor
 		}
 		rows[i] = widget.TextGridRow{Cells: cells}
 	}
@@ -334,7 +365,7 @@ func (e *ScriptEditor) offsetAt(p fyne.Position) int {
 		return 0
 	}
 	row := int(p.Y / e.cellHeight())
-	col := int(math.Round(float64(p.X / e.cellWidth())))
+	col := int(math.Round(float64(p.X/e.cellWidth()))) - e.gutter()
 	if row >= len(e.layout.Rows) {
 		return e.buf.Len()
 	}
@@ -367,7 +398,7 @@ func (e *ScriptEditor) wordAt(off int) (start, end int) {
 // CursorPosition is where the cursor cell is drawn, relative to the editor.
 func (e *ScriptEditor) CursorPosition() fyne.Position {
 	row, col := e.layout.RowCol(e.buf.Cursor())
-	return fyne.NewPos(float32(col)*e.cellWidth(), float32(row)*e.cellHeight())
+	return fyne.NewPos(float32(e.gutter()+col)*e.cellWidth(), float32(row)*e.cellHeight())
 }
 
 // KeyDown and KeyUp track Shift for selecting with the arrow keys.

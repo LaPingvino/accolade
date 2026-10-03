@@ -46,7 +46,7 @@ is checked with `pdftotext` when it is installed.
 | Spell check | Not yet | `spell_checker.go` is a stub |
 | Focus mode | Not yet | Menu/toolbar action logs only |
 | Fountain colouring | Works | Scene headings, characters, parentheticals, transitions, notes |
-| Line numbers | Not yet | TextGrid supports them; not wired to a preference yet |
+| Line numbers | Works | "Show line numbers" preference; numbers on the first row of each line |
 | File drop, file type filters in dialogs | Not yet | |
 
 ## Known limitations
