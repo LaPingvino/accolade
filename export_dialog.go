@@ -428,7 +428,7 @@ func (ed *ExportDialog) startExport() {
 		err := ed.performExport(content, outputPath, format)
 		
 		// Update UI on main thread
-		ed.finishExport(err, outputPath)
+		fyne.Do(func() { ed.finishExport(err, outputPath) })
 	}()
 }
 
