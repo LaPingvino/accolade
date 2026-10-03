@@ -267,8 +267,13 @@ func (e *ScriptEditor) relayout() {
 	}
 	e.grid.Rows = rows
 	e.grid.Refresh()
-	e.Refresh()
+	e.BaseWidget.Refresh()
 }
+
+// Refresh redraws the editor with the current theme's colours: Fyne
+// refreshes every widget when the theme changes, and the syntax colours
+// are baked into the grid's cell styles.
+func (e *ScriptEditor) Refresh() { e.relayout() }
 
 // kindStyle is how a Fountain element is shown (nil for plain action).
 func kindStyle(k syntax.Kind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGridStyle {

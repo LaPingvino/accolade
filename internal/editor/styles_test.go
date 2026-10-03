@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
 
 	"fyne.io/fyne/v2/widget"
 )
@@ -87,5 +88,21 @@ func TestLineNumbers(t *testing.T) {
 	e.SetLineNumbers(false)
 	if gridText(e)[0] != "INT. BARN" {
 		t.Errorf("without line numbers: %q", gridText(e)[0])
+	}
+}
+
+func TestSyntaxColoursFollowTheTheme(t *testing.T) {
+	e := newEditor(t, "INT. BARN - DAY\n\nRain.", 40)
+	e.FocusLost()
+	e.Syntax = true
+	e.changed(false)
+	a := fyne.CurrentApp()
+	for _, th := range []fyne.Theme{theme.LightTheme(), theme.DarkTheme()} {
+		a.Settings().SetTheme(th)
+		e.Refresh()
+		want := th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant())
+		if got := e.grid.Rows[0].Cells[0].Style.TextColor(); got != want {
+			t.Errorf("scene heading colour %v, want the theme's foreground %v", got, want)
+		}
 	}
 }

@@ -15,13 +15,15 @@ import (
 // editorTheme is the theme of the script editor: the app's theme, with the
 // screenplay font and the font size from the settings.
 type editorTheme struct {
-	size           float32 // text size; 0 keeps the app theme's
-	regular, slant fyne.Resource
+	size                         float32 // text size; 0 keeps the app theme's
+	regular, slant, bold, boldSl fyne.Resource
 }
 
 var (
 	courierRegular = fyne.NewStaticResource("CourierBadi-Regular.ttf", lexfont.CourierBadiRegular)
 	courierItalic  = fyne.NewStaticResource("CourierBadi-Italic.ttf", lexfont.CourierBadiItalic)
+	courierBold    = fyne.NewStaticResource("CourierBadi-Bold.ttf", lexfont.CourierBadiBold)
+	courierBoldIt  = fyne.NewStaticResource("CourierBadi-BoldItalic.ttf", lexfont.CourierBadiBoldItalic)
 )
 
 // newEditorTheme builds the editor theme for a font family and size in
@@ -40,15 +42,20 @@ func newEditorTheme(family string, sizePt int) *editorTheme {
 		data, err := os.ReadFile(f)
 		if err != nil {
 			log.Printf("Editor font %s: %v; using the screenplay font", f, err)
-			t.regular, t.slant = courierRegular, courierItalic
+			t.useCourier()
 			break
 		}
 		t.regular = fyne.NewStaticResource(filepath.Base(f), data)
-		t.slant = t.regular
+		t.slant, t.bold, t.boldSl = t.regular, t.regular, t.regular
 	default:
-		t.regular, t.slant = courierRegular, courierItalic
+		t.useCourier()
 	}
 	return t
+}
+
+// useCourier selects the bundled screenplay font in all four styles.
+func (t *editorTheme) useCourier() {
+	t.regular, t.slant, t.bold, t.boldSl = courierRegular, courierItalic, courierBold, courierBoldIt
 }
 
 func (t *editorTheme) base() fyne.Theme {
@@ -68,7 +75,12 @@ func (t *editorTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
 
 func (t *editorTheme) Font(s fyne.TextStyle) fyne.Resource {
 	if s.Monospace && t.regular != nil {
-		if s.Italic {
+		switch {
+		case s.Bold && s.Italic:
+			return t.boldSl
+		case s.Bold:
+			return t.bold
+		case s.Italic:
 			return t.slant
 		}
 		return t.regular

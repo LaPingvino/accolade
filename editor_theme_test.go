@@ -97,3 +97,20 @@ func TestLineNumbersPreference(t *testing.T) {
 		t.Errorf("first cell %q without line numbers", got)
 	}
 }
+
+func TestScreenplayFontHasAllFourStyles(t *testing.T) {
+	th := newEditorTheme("", 0)
+	seen := map[string]fyne.TextStyle{}
+	for _, st := range []fyne.TextStyle{
+		{Monospace: true},
+		{Monospace: true, Italic: true},
+		{Monospace: true, Bold: true},
+		{Monospace: true, Bold: true, Italic: true},
+	} {
+		name := th.Font(st).Name()
+		if prev, ok := seen[name]; ok {
+			t.Errorf("%+v uses the same font (%s) as %+v", st, name, prev)
+		}
+		seen[name] = st
+	}
+}
