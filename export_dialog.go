@@ -450,14 +450,11 @@ func (ed *ExportDialog) performExport(content, outputPath, format string) error 
 }
 
 func (ed *ExportDialog) exportToPDF(content, outputPath string) error {
-	// TODO: Implement PDF export
-	// For now, just create a placeholder file
-	return os.WriteFile(outputPath, []byte("PDF export not yet implemented\n\n"+content), 0644)
+	return exportPDF(content, outputPath)
 }
 
 func (ed *ExportDialog) exportToHTML(content, outputPath string) error {
-	html := ed.convertFountainToHTML(content)
-	return os.WriteFile(outputPath, []byte(html), 0644)
+	return exportHTML(content, outputPath)
 }
 
 func (ed *ExportDialog) exportToDOCX(content, outputPath string) error {
@@ -474,53 +471,6 @@ func (ed *ExportDialog) exportToFountain(content, outputPath string) error {
 	// Clean up the content for proper Fountain format
 	cleaned := ed.cleanFountainContent(content)
 	return os.WriteFile(outputPath, []byte(cleaned), 0644)
-}
-
-func (ed *ExportDialog) convertFountainToHTML(content string) string {
-	lines := strings.Split(content, "\n")
-	var html strings.Builder
-	
-	html.WriteString(`<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <title>Screenplay</title>
-    <style>
-        body { font-family: 'Courier New', monospace; margin: 2em; line-height: 1.2; }
-        .scene-heading { text-transform: uppercase; font-weight: bold; margin-top: 2em; }
-        .character { text-transform: uppercase; margin-top: 1em; margin-left: 4em; }
-        .dialogue { margin-left: 2em; margin-right: 2em; }
-        .parenthetical { margin-left: 3em; }
-        .action { margin-top: 1em; }
-        .transition { text-align: right; text-transform: uppercase; margin-top: 1em; }
-    </style>
-</head>
-<body>
-`)
-	
-	for _, line := range lines {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			html.WriteString("<br>\n")
-			continue
-		}
-		
-		if isSceneHeading(line) {
-			html.WriteString(fmt.Sprintf(`<div class="scene-heading">%s</div>`, line))
-		} else if isCharacterName(line) {
-			html.WriteString(fmt.Sprintf(`<div class="character">%s</div>`, line))
-		} else if strings.HasPrefix(line, "(") && strings.HasSuffix(line, ")") {
-			html.WriteString(fmt.Sprintf(`<div class="parenthetical">%s</div>`, line))
-		} else if isTransition(line) {
-			html.WriteString(fmt.Sprintf(`<div class="transition">%s</div>`, line))
-		} else {
-			html.WriteString(fmt.Sprintf(`<div class="action">%s</div>`, line))
-		}
-		html.WriteString("\n")
-	}
-	
-	html.WriteString("</body>\n</html>")
-	return html.String()
 }
 
 func (ed *ExportDialog) cleanFountainContent(content string) string {
