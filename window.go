@@ -56,8 +56,6 @@ type MainWindow struct {
 	previewRestricted bool
 	
 	// Find/Replace
-	findEntry     *widget.Entry
-	replaceEntry  *widget.Entry
 	findVisible   bool
 	
 	// Auto-save
@@ -116,12 +114,6 @@ func (w *MainWindow) setupUI() {
 	
 	// Create search bar (initially hidden)
 	w.searchBar = NewSearchBar(w)
-	
-	// Create find/replace widgets
-	w.findEntry = widget.NewEntry()
-	w.findEntry.SetPlaceHolder("Find...")
-	w.replaceEntry = widget.NewEntry()
-	w.replaceEntry.SetPlaceHolder("Replace with...")
 	
 	// Create toolbar container
 	w.toolbarContainer = container.NewVBox(
@@ -752,34 +744,36 @@ func (w *MainWindow) hidePreview() {
 
 // Find/Replace operations
 func (w *MainWindow) showFindReplace() {
-	// TODO: Implement find/replace visibility
 	w.findVisible = true
-	// TODO: Focus on find entry
+	w.searchBar.SetReplaceMode(true)
+	w.searchBar.Show()
+}
+
+func (w *MainWindow) showFind() {
+	w.findVisible = true
+	w.searchBar.SetReplaceMode(false)
+	w.searchBar.Show()
 }
 
 func (w *MainWindow) hideFindReplace() {
-	// TODO: Implement find/replace hiding
 	w.findVisible = false
+	w.searchBar.Hide()
 }
 
 func (w *MainWindow) findNext() {
-	// TODO: Implement find functionality
-	searchText := w.findEntry.Text
-	log.Printf("Finding: %s", searchText)
+	w.searchBar.findNext()
+}
+
+func (w *MainWindow) findPrevious() {
+	w.searchBar.findPrevious()
 }
 
 func (w *MainWindow) replaceOne() {
-	// TODO: Implement replace functionality
-	searchText := w.findEntry.Text
-	replaceText := w.replaceEntry.Text
-	log.Printf("Replacing '%s' with '%s'", searchText, replaceText)
+	w.searchBar.replaceOne()
 }
 
 func (w *MainWindow) replaceAll() {
-	// TODO: Implement replace all functionality
-	searchText := w.findEntry.Text
-	replaceText := w.replaceEntry.Text
-	log.Printf("Replacing all '%s' with '%s'", searchText, replaceText)
+	w.searchBar.replaceAll()
 }
 
 // Focus mode and fullscreen

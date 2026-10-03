@@ -2,7 +2,10 @@ package main
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -39,7 +42,6 @@ type SearchBar struct {
 	currentMatch  int
 	totalMatches  int
 	searchText    string
-	lastSearchPos int
 }
 
 func NewSearchBar(window *MainWindow) *SearchBar {
@@ -49,7 +51,6 @@ func NewSearchBar(window *MainWindow) *SearchBar {
 		replaceMode:   false,
 		currentMatch:  0,
 		totalMatches:  0,
-		lastSearchPos: 0,
 	}
 	
 	sb.createWidgets()
@@ -168,13 +169,13 @@ func (sb *SearchBar) setupCallbacks() {
 func (sb *SearchBar) Show() {
 	sb.container.Show()
 	sb.isVisible = true
-	sb.searchEntry.FocusGained()
+	sb.window.fyneWindow.Canvas().Focus(sb.searchEntry)
 }
 
 func (sb *SearchBar) Hide() {
 	sb.container.Hide()
 	sb.isVisible = false
-	sb.clearHighlights()
+	sb.window.fyneWindow.Canvas().Focus(sb.window.textEditor)
 }
 
 func (sb *SearchBar) SetReplaceMode(enabled bool) {
@@ -199,103 +200,102 @@ func (sb *SearchBar) IsVisible() bool {
 
 func (sb *SearchBar) updateSearch() {
 	if sb.searchText == "" {
-		sb.clearHighlights()
+		sb.totalMatches = 0
+		sb.currentMatch = 0
 		sb.updateStatus(0, 0)
 		return
 	}
-	
-	matches := sb.findAllMatches()
-	sb.totalMatches = len(matches)
-	
-	if sb.totalMatches > 0 {
-		sb.currentMatch = 1
-		sb.highlightMatches(matches)
-		sb.scrollToMatch(matches[0])
-	} else {
+
+	matches, err := sb.findAllMatches()
+	if err != nil {
+		sb.totalMatches = 0
 		sb.currentMatch = 0
-		sb.clearHighlights()
+		sb.statusLabel.SetText("Invalid regular expression")
+		return
 	}
-	
+	sb.totalMatches = len(matches)
+	sb.currentMatch = 0
 	sb.updateStatus(sb.currentMatch, sb.totalMatches)
 }
 
+// findNext selects the first match starting at or after the cursor,
+// wrapping around to the top of the document.
 func (sb *SearchBar) findNext() {
-	if sb.searchText == "" {
-		return
-	}
-	
-	matches := sb.findAllMatches()
+	matches, _ := sb.findAllMatches()
 	if len(matches) == 0 {
+		sb.updateStatus(0, 0)
 		return
 	}
-	
-	// Find next match after current cursor position
-	cursorPos := sb.getCurrentCursorPosition()
-	nextMatch := -1
-	
-	for i, match := range matches {
-		if match.start > cursorPos {
-			nextMatch = i
+
+	cursor := sb.window.textEditor.CursorTextOffset()
+	next := 0
+	for i, m := range matches {
+		if m.start >= cursor {
+			next = i
 			break
 		}
 	}
-	
-	// If no match found after cursor, wrap to beginning
-	if nextMatch == -1 {
-		nextMatch = 0
-	}
-	
-	sb.currentMatch = nextMatch + 1
-	sb.scrollToMatch(matches[nextMatch])
-	sb.selectMatch(matches[nextMatch])
-	sb.updateStatus(sb.currentMatch, len(matches))
+	sb.gotoMatch(matches, next)
 }
 
+// findPrevious selects the last match that ends before the current
+// selection (or cursor), wrapping around to the bottom of the document.
 func (sb *SearchBar) findPrevious() {
-	if sb.searchText == "" {
-		return
-	}
-	
-	matches := sb.findAllMatches()
+	matches, _ := sb.findAllMatches()
 	if len(matches) == 0 {
+		sb.updateStatus(0, 0)
 		return
 	}
-	
-	// Find previous match before current cursor position
-	cursorPos := sb.getCurrentCursorPosition()
-	prevMatch := -1
-	
+
+	anchor := sb.selectionStart()
+	prev := len(matches) - 1
 	for i := len(matches) - 1; i >= 0; i-- {
-		if matches[i].start < cursorPos {
-			prevMatch = i
+		if matches[i].start < anchor {
+			prev = i
 			break
 		}
 	}
-	
-	// If no match found before cursor, wrap to end
-	if prevMatch == -1 {
-		prevMatch = len(matches) - 1
-	}
-	
-	sb.currentMatch = prevMatch + 1
-	sb.scrollToMatch(matches[prevMatch])
-	sb.selectMatch(matches[prevMatch])
-	sb.updateStatus(sb.currentMatch, len(matches))
+	sb.gotoMatch(matches, prev)
 }
 
+func (sb *SearchBar) gotoMatch(matches []searchMatch, i int) {
+	sb.currentMatch = i + 1
+	sb.totalMatches = len(matches)
+	selectRange(sb.window.textEditor, matches[i].start, matches[i].end)
+	sb.updateStatus(sb.currentMatch, sb.totalMatches)
+}
+
+// selectionStart is the rune offset where the current selection begins,
+// or the cursor offset when nothing is selected. Selections made by
+// selectRange always leave the cursor at their end.
+func (sb *SearchBar) selectionStart() int {
+	editor := sb.window.textEditor
+	return editor.CursorTextOffset() - utf8.RuneCountInString(editor.SelectedText())
+}
+
+// replaceOne replaces the selected match (if the selection is a match)
+// and moves on to the next one. Typing over the selection keeps the
+// editor's undo history intact.
 func (sb *SearchBar) replaceOne() {
-	if sb.searchText == "" || sb.replaceEntry.Text == "" {
+	if sb.searchText == "" {
 		return
 	}
-	
-	// Get current selection or find next match
-	selectedText := sb.getSelectedText()
-	if selectedText == sb.searchText || (sb.caseSensitiveCheck.Checked && selectedText == sb.searchText) {
-		// Replace current selection
-		sb.replaceSelectedText(sb.replaceEntry.Text)
+
+	matches, err := sb.findAllMatches()
+	if err != nil {
+		return
 	}
-	
-	// Find next occurrence
+	editor := sb.window.textEditor
+	selected := editor.SelectedText()
+	start := sb.selectionStart()
+	for _, m := range matches {
+		if selected != "" && m.start == start && m.end == start+utf8.RuneCountInString(selected) {
+			typeOverSelection(editor, sb.expandReplacement(selected))
+			sb.markChanged()
+			break
+		}
+	}
+
 	sb.findNext()
 }
 
@@ -303,161 +303,132 @@ func (sb *SearchBar) replaceAll() {
 	if sb.searchText == "" {
 		return
 	}
-	
+
 	text := sb.window.textEditor.Text
-	replacement := sb.replaceEntry.Text
-	
-	var newText string
-	if sb.caseSensitiveCheck.Checked {
-		newText = strings.ReplaceAll(text, sb.searchText, replacement)
-	} else {
-		// Case-insensitive replace
-		newText = sb.replaceAllCaseInsensitive(text, sb.searchText, replacement)
+	newText, count, err := sb.replaceAllIn(text)
+	if err != nil || count == 0 {
+		sb.updateSearch()
+		return
 	}
-	
+
 	sb.window.textEditor.SetText(newText)
-	sb.updateSearch() // Refresh search results
+	sb.markChanged()
+	sb.updateSearch()
+	sb.statusLabel.SetText(fmt.Sprintf("Replaced %d", count))
 }
 
-func (sb *SearchBar) replaceAllCaseInsensitive(text, search, replace string) string {
-	if search == "" {
-		return text
+// replaceAllIn returns text with every match replaced and the number of
+// replacements made.
+func (sb *SearchBar) replaceAllIn(text string) (string, int, error) {
+	re, err := sb.pattern()
+	if err != nil {
+		return text, 0, err
 	}
-	
-	lowerText := strings.ToLower(text)
-	lowerSearch := strings.ToLower(search)
-	
-	var result strings.Builder
-	start := 0
-	
-	for {
-		index := strings.Index(lowerText[start:], lowerSearch)
-		if index == -1 {
-			result.WriteString(text[start:])
-			break
+
+	count := 0
+	var out strings.Builder
+	last := 0
+	for _, loc := range re.FindAllStringSubmatchIndex(text, -1) {
+		if loc[0] == loc[1] || (sb.wholeWordCheck.Checked && !isWholeWord(text, loc[0], loc[1])) {
+			continue
 		}
-		
-		actualIndex := start + index
-		result.WriteString(text[start:actualIndex])
-		result.WriteString(replace)
-		start = actualIndex + len(search)
+		out.WriteString(text[last:loc[0]])
+		if sb.regexCheck.Checked {
+			out.Write(re.ExpandString(nil, sb.replaceEntry.Text, text, loc))
+		} else {
+			out.WriteString(sb.replaceEntry.Text)
+		}
+		last = loc[1]
+		count++
 	}
-	
-	return result.String()
+	out.WriteString(text[last:])
+	return out.String(), count, nil
+}
+
+// expandReplacement resolves $1-style group references when in regex mode.
+func (sb *SearchBar) expandReplacement(matched string) string {
+	if !sb.regexCheck.Checked {
+		return sb.replaceEntry.Text
+	}
+	re, err := sb.pattern()
+	if err != nil {
+		return sb.replaceEntry.Text
+	}
+	loc := re.FindStringSubmatchIndex(matched)
+	if loc == nil {
+		return sb.replaceEntry.Text
+	}
+	return string(re.ExpandString(nil, sb.replaceEntry.Text, matched, loc))
+}
+
+func (sb *SearchBar) markChanged() {
+	sb.window.hasChanges = true
 }
 
 type searchMatch struct {
-	start int
-	end   int
-	text  string
+	start int // rune offset
+	end   int // rune offset, exclusive
 }
 
-func (sb *SearchBar) findAllMatches() []searchMatch {
-	if sb.searchText == "" {
-		return nil
+// pattern compiles the search text according to the option checkboxes.
+func (sb *SearchBar) pattern() (*regexp.Regexp, error) {
+	expr := sb.searchText
+	if !sb.regexCheck.Checked {
+		expr = regexp.QuoteMeta(expr)
 	}
-	
-	text := sb.window.textEditor.Text
-	searchText := sb.searchText
-	
-	var matches []searchMatch
-	
 	if !sb.caseSensitiveCheck.Checked {
-		text = strings.ToLower(text)
-		searchText = strings.ToLower(searchText)
+		expr = "(?i)" + expr
 	}
-	
-	start := 0
-	for {
-		index := strings.Index(text[start:], searchText)
-		if index == -1 {
-			break
-		}
-		
-		actualIndex := start + index
-		match := searchMatch{
-			start: actualIndex,
-			end:   actualIndex + len(sb.searchText),
-			text:  sb.searchText,
-		}
-		
-		// Check whole word option
-		if sb.wholeWordCheck.Checked {
-			if sb.isWholeWord(sb.window.textEditor.Text, match.start, match.end) {
-				matches = append(matches, match)
-			}
-		} else {
-			matches = append(matches, match)
-		}
-		
-		start = actualIndex + 1
-	}
-	
-	return matches
+	return regexp.Compile(expr)
 }
 
-func (sb *SearchBar) isWholeWord(text string, start, end int) bool {
-	// Check if character before start is word boundary
+// findAllMatches returns all non-empty matches in the editor as rune offsets,
+// which is what the Fyne Entry cursor API works in.
+func (sb *SearchBar) findAllMatches() ([]searchMatch, error) {
+	if sb.searchText == "" {
+		return nil, nil
+	}
+	re, err := sb.pattern()
+	if err != nil {
+		return nil, err
+	}
+
+	text := sb.window.textEditor.Text
+	var matches []searchMatch
+	runePos, bytePos := 0, 0
+	for _, loc := range re.FindAllStringIndex(text, -1) {
+		if loc[0] == loc[1] || (sb.wholeWordCheck.Checked && !isWholeWord(text, loc[0], loc[1])) {
+			continue
+		}
+		runePos += utf8.RuneCountInString(text[bytePos:loc[0]])
+		start := runePos
+		runePos += utf8.RuneCountInString(text[loc[0]:loc[1]])
+		bytePos = loc[1]
+		matches = append(matches, searchMatch{start: start, end: runePos})
+	}
+	return matches, nil
+}
+
+// isWholeWord reports whether text[start:end] (byte offsets) is not
+// directly adjoined by letters, digits or underscores.
+func isWholeWord(text string, start, end int) bool {
 	if start > 0 {
-		prevChar := text[start-1]
-		if sb.isWordChar(prevChar) {
+		r, _ := utf8.DecodeLastRuneInString(text[:start])
+		if isWordRune(r) {
 			return false
 		}
 	}
-	
-	// Check if character after end is word boundary
 	if end < len(text) {
-		nextChar := text[end]
-		if sb.isWordChar(nextChar) {
+		r, _ := utf8.DecodeRuneInString(text[end:])
+		if isWordRune(r) {
 			return false
 		}
 	}
-	
 	return true
 }
 
-func (sb *SearchBar) isWordChar(char byte) bool {
-	return (char >= 'a' && char <= 'z') ||
-		(char >= 'A' && char <= 'Z') ||
-		(char >= '0' && char <= '9') ||
-		char == '_'
-}
-
-func (sb *SearchBar) highlightMatches(matches []searchMatch) {
-	// TODO: Implement text highlighting in Fyne
-	// Fyne's Entry widget has limited text formatting capabilities
-	// This would need a custom widget or RichText widget
-}
-
-func (sb *SearchBar) clearHighlights() {
-	// TODO: Clear text highlights
-}
-
-func (sb *SearchBar) scrollToMatch(match searchMatch) {
-	// TODO: Scroll to match position
-	// This is limited in Fyne's Entry widget
-}
-
-func (sb *SearchBar) selectMatch(match searchMatch) {
-	// TODO: Select text at match position
-	// Limited in Fyne's Entry widget
-}
-
-func (sb *SearchBar) getCurrentCursorPosition() int {
-	// TODO: Get cursor position from text editor
-	// This is not directly available in Fyne's Entry widget
-	return sb.lastSearchPos
-}
-
-func (sb *SearchBar) getSelectedText() string {
-	// TODO: Get currently selected text
-	// Limited in Fyne's Entry widget
-	return ""
-}
-
-func (sb *SearchBar) replaceSelectedText(replacement string) {
-	// TODO: Replace currently selected text
-	// Limited in Fyne's Entry widget
+func isWordRune(r rune) bool {
+	return r == '_' || unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 func (sb *SearchBar) updateStatus(current, total int) {
