@@ -18,8 +18,8 @@ type SearchBar struct {
 	container *fyne.Container
 	
 	// Search widgets
-	searchEntry   *widget.Entry
-	replaceEntry  *widget.Entry
+	searchEntry   *escEntry
+	replaceEntry  *escEntry
 	
 	// Control buttons
 	findNextButton     *widget.Button
@@ -62,11 +62,11 @@ func NewSearchBar(window *MainWindow) *SearchBar {
 
 func (sb *SearchBar) createWidgets() {
 	// Search entry
-	sb.searchEntry = widget.NewEntry()
+	sb.searchEntry = newEscEntry(sb.window.hideFindReplace)
 	sb.searchEntry.SetPlaceHolder("Find...")
 	
 	// Replace entry
-	sb.replaceEntry = widget.NewEntry()
+	sb.replaceEntry = newEscEntry(sb.window.hideFindReplace)
 	sb.replaceEntry.SetPlaceHolder("Replace with...")
 	
 	// Control buttons

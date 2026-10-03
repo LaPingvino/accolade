@@ -163,9 +163,8 @@ func (w *MainWindow) setupShortcuts() {
 		w.handleEnterKey()
 	}
 	
-	// TODO: Add keyboard shortcuts for Fyne
-	// Fyne doesn't have as extensive shortcut support as GTK
-	// Will need to implement custom key handlers
+	// Keyboard shortcuts are attached to the main menu items (see menus.go)
+	w.fyneWindow.SetMainMenu(w.buildMainMenu())
 }
 
 func (w *MainWindow) setupCallbacks() {

@@ -61,14 +61,10 @@ func (hb *HeaderBar) createButtons() {
 	})
 	hb.openButton.SetText("Open")
 	
-	hb.saveButton = widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), func() {
-		hb.window.SaveFile()
-	})
+	hb.saveButton = widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), hb.window.reportErr(hb.window.SaveFile))
 	hb.saveButton.SetText("Save")
 	
-	hb.saveAsButton = widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), func() {
-		hb.window.SaveFileAs()
-	})
+	hb.saveAsButton = widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), hb.window.reportErr(hb.window.SaveFileAs))
 	hb.saveAsButton.SetText("Save As")
 	
 	// Edit operations
