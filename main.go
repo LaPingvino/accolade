@@ -132,6 +132,8 @@ func (app *Application) newWindow() *MainWindow {
 }
 
 func (app *Application) onWindowClosed(window *MainWindow) {
+	window.cancelAutoSave()
+
 	// Remove window from list
 	for i, w := range app.windows {
 		if w == window {

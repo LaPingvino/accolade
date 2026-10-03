@@ -58,8 +58,11 @@ type MainWindow struct {
 	// Find/Replace
 	findVisible   bool
 	
-	// Auto-save
-	autoSaveEnabled bool
+	// Auto-save (autosave.go)
+	autoSaveTimer *time.Timer
+	autoSaveDelay time.Duration // overrides the setting; for tests
+
+	statusLabel *widget.Label
 	
 	// Lexington integration
 	lexParser     *LexingtonParser
@@ -76,11 +79,10 @@ func NewMainWindow(app *Application) *MainWindow {
 		isFullscreen:    false,
 		previewVisible:  false,
 		findVisible:     false,
-		autoSaveEnabled: true,
 		lexParser:       NewLexingtonParser(),
 	}
 	
-	window.settings = NewSettings()
+	window.settings = GetSettings() // shared with the preferences dialog
 	window.setupUI()
 	window.setupShortcuts()
 	window.setupCallbacks()
@@ -123,8 +125,9 @@ func (w *MainWindow) setupUI() {
 	
 	// Create status bar with element indicator
 	w.elementLabel = widget.NewLabel("Element: Action")
+	w.statusLabel = widget.NewLabel("Ready")
 	w.statusBar = container.NewHBox(
-		widget.NewLabel("Ready"),
+		w.statusLabel,
 		widget.NewSeparator(),
 		widget.NewLabel("Words: 0"),
 		widget.NewSeparator(),
@@ -288,11 +291,12 @@ func (w *MainWindow) SaveFileAs() error {
 
 func (w *MainWindow) saveToFile(filePath string) error {
 	content := w.textEditor.Text
-	err := os.WriteFile(filePath, []byte(content), 0644)
+	err := writeFileAtomic(filePath, []byte(content))
 	if err != nil {
 		return fmt.Errorf("failed to write file: %v", err)
 	}
 	
+	w.cancelAutoSave()
 	w.hasChanges = false
 	w.updateTitle()
 	return nil
@@ -368,10 +372,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	// Apply automatic formatting on certain triggers
 	w.checkForAutoFormatting(text)
 	
-	// Auto-save if enabled
-	if w.autoSaveEnabled && w.currentFile != "" {
-		// TODO: Implement debounced auto-save
-	}
+	w.scheduleAutoSave()
 }
 
 func (w *MainWindow) updateTitle() {
@@ -403,6 +404,12 @@ func (w *MainWindow) updatePreview() {
 		
 		htmlPreview := w.lexParser.FormatForPreview(elements)
 		w.previewArea.ParseMarkdown(htmlPreview)
+	}
+}
+
+func (w *MainWindow) setStatus(text string) {
+	if w.statusLabel != nil {
+		w.statusLabel.SetText(text)
 	}
 }
 
