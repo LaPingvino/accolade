@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -42,8 +43,7 @@ type MainWindow struct {
 	sidePanel        *container.Split
 	toolbarContainer *fyne.Container
 	// Status bar
-	statusBar    *fyne.Container
-	elementLabel *widget.Label
+	statusBar *fyne.Container
 
 	// File management
 	currentFile  string
@@ -68,6 +68,7 @@ type MainWindow struct {
 	autoSaveDelay time.Duration // overrides the setting; for tests
 
 	statusLabel *widget.Label
+	statsLabel  *widget.Label
 
 	// Lexington integration
 	lexParser *LexingtonParser
@@ -91,6 +92,8 @@ func NewMainWindow(app *Application) *MainWindow {
 	window.setupUI()
 	window.setupShortcuts()
 	window.setupCallbacks()
+	window.updateCurrentElement()
+	window.updateStatusBar()
 
 	return window
 }
@@ -130,16 +133,19 @@ func (w *MainWindow) setupUI() {
 	)
 
 	// Create status bar with element indicator
-	w.elementLabel = widget.NewLabel("Element: Action")
-	w.statusLabel = widget.NewLabel("Ready")
-	w.statusBar = container.NewHBox(
-		w.statusLabel,
+	// Status bar: messages on the left (saved, auto-saved), the element
+	// under the cursor and the script's statistics on the right
+	small := func(text string) *widget.Label {
+		l := widget.NewLabel(text)
+		l.SizeName = theme.SizeNameCaptionText
+		l.Importance = widget.LowImportance
+		return l
+	}
+	w.statusLabel = small("")
+	w.statsLabel = small("")
+	w.statusBar = container.NewVBox(
 		widget.NewSeparator(),
-		widget.NewLabel("Words: 0"),
-		widget.NewSeparator(),
-		widget.NewLabel("Characters: 0"),
-		widget.NewSeparator(),
-		w.elementLabel,
+		container.NewBorder(nil, nil, w.statusLabel, w.statsLabel),
 	)
 
 	// Create main content area - just the editor for now
@@ -445,31 +451,24 @@ func (w *MainWindow) setStatus(text string) {
 }
 
 func (w *MainWindow) updateStatusBar() {
-	text := w.textEditor.Text()
-	words := countWords(text)
-	chars := len(text)
-
-	// Parse with Lexington for more detailed stats
-	elements, err := w.lexParser.ParseText(text)
-	if err == nil {
-		pages := w.estimatePageCount(elements)
-		log.Printf("Status: Words: %d, Characters: %d, Pages: %d", words, chars, pages)
-	} else {
-		log.Printf("Status: Words: %d, Characters: %d", words, chars)
+	if w.statsLabel == nil {
+		return // called while the window is being built
 	}
+	text := computeStats(w.textEditor.Text(), w.textEditor.CursorOffset()).String()
+	if w.currentElement != "" && w.currentElement != "empty" {
+		text = w.currentElement + " · " + text
+	}
+	w.statsLabel.SetText(text)
 }
 
 func (w *MainWindow) onCursorChanged() {
 	w.updateCurrentElement()
+	w.updateStatusBar() // the scene under the cursor
 }
 
 func (w *MainWindow) updateCurrentElement() {
-	if w.elementLabel == nil {
-		return // called while the window is being built
-	}
 	text := w.textEditor.Text()
 	if text == "" {
-		w.elementLabel.SetText("Element: Empty")
 		w.currentElement = "empty"
 		return
 	}
@@ -479,7 +478,6 @@ func (w *MainWindow) updateCurrentElement() {
 	runes := []rune(text)
 	start, end := lineBounds(runes, min(w.textEditor.CursorOffset(), len(runes)))
 	elementType := w.detectElementType(string(runes[start:end]))
-	w.elementLabel.SetText("Element: " + elementType)
 	w.currentElement = elementType
 }
 
@@ -565,20 +563,6 @@ func (w *MainWindow) getIndentationForNextElement(currentElement string) string 
 	default:
 		return ""
 	}
-}
-
-func (w *MainWindow) estimatePageCount(elements []ParsedElement) int {
-	// Rough estimate: 250 words per page for screenplays
-	// This is a simplified calculation
-	wordCount := 0
-	for _, element := range elements {
-		wordCount += len(strings.Fields(element.Text))
-	}
-	pages := wordCount / 250
-	if pages == 0 {
-		pages = 1
-	}
-	return pages
 }
 
 // Preview operations
