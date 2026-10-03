@@ -28,13 +28,6 @@ sudo apt-get install libx11-dev libxrandr-dev libxcursor-dev \
                      build-essential pkg-config
 ```
 
-Until the lexington fixes Accolade uses are tagged, `go.mod` builds
-against a lexington checkout next to this one:
-
-```bash
-git clone https://github.com/LaPingvino/lexington ../lexington
-```
-
 ### Quick Start
 
 The easiest way to build Accolade:

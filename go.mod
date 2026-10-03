@@ -4,7 +4,7 @@ go 1.24.3
 
 require (
 	fyne.io/fyne/v2 v2.8.1
-	github.com/LaPingvino/lexington v1.2.1
+	github.com/LaPingvino/lexington v1.3.0
 )
 
 require (
@@ -44,5 +44,3 @@ require (
 	golang.org/x/text v0.22.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/LaPingvino/lexington => ../lexington

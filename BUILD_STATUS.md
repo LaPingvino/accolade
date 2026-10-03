@@ -12,17 +12,8 @@ development libraries for Fyne (see the README).
 CGO_ENABLED=1 go build -o accolade .
 ```
 
-**Lexington checkout:** `go.mod` currently has
-
-```
-replace github.com/LaPingvino/lexington => ../lexington
-```
-
-because the lexington fixes Accolade relies on (title pages, forced
-transitions, FDX, HTML escaping) are not in a tagged release yet. Until
-they are, clone lexington next to this repository
-(`git clone https://github.com/LaPingvino/lexington ../lexington`). Once
-lexington is tagged, replace the `replace` line with the new version.
+Lexington (Fountain parsing and PDF/HTML/FDX output) comes from its
+v1.3.0 release through Go modules.
 
 ## Testing
 
