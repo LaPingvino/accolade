@@ -3,7 +3,7 @@ desktop_conf = configuration_data()
 desktop_conf.set('icon', application_id)
 desktop_file = i18n.merge_file(
   input: configure_file(
-    input: 'org.codeberg.lapingvino.Accolade.desktop.in.in',
+    input: 'eu.kiefte.Accolade.desktop.in.in',
     output: '@BASENAME@',
     configuration: desktop_conf
   ),
@@ -30,7 +30,7 @@ appdata_conf.set('app-id', application_id)
 appdata_conf.set('gettext-package', gettext_package)
 
 metainfo_configured = configure_file(
-    input: 'org.codeberg.lapingvino.Accolade.metainfo.xml.in',
+    input: 'eu.kiefte.Accolade.metainfo.xml.in',
     output: 'configured' + '@BASENAME@',
     configuration: appdata_conf
 )
@@ -56,7 +56,7 @@ endif
 
 # Gschema
 install_data(
-	'org.codeberg.lapingvino.Accolade.gschema.xml',
+	'eu.kiefte.Accolade.gschema.xml',
 	install_dir:  get_option('datadir') / 'glib-2.0' / 'schemas',
 	rename: '@0@.gschema.xml'.format(application_id)
 )

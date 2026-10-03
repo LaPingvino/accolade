@@ -98,7 +98,7 @@
       <item>
         <attribute name="label" translatable="yes">Open _Tutorial</attribute>
         <attribute name="action">win.open_file</attribute>
-        <attribute name="target">resource:///org/codeberg/lapingvino/Accolade/media/accolade_markdown.md</attribute>
+        <attribute name="target">resource:///eu/kiefte/Accolade/media/accolade_markdown.md</attribute>
       </item>
       <item>
         <attribute name="label" translatable="yes">_Keyboard Shortcuts</attribute>

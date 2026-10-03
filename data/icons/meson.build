@@ -4,7 +4,7 @@ install_data(
 )
 
 install_data(
-	'org.codeberg.lapingvino.Accolade-symbolic.svg',
+	'eu.kiefte.Accolade-symbolic.svg',
 	install_dir: datadir / 'icons' / 'hicolor' / 'symbolic' / 'apps',
 	rename: '@0@-symbolic.svg'.format(application_id)
 )

@@ -82,12 +82,12 @@
           postInstall = ''
             # Install desktop file
             mkdir -p $out/share/applications
-            cat > $out/share/applications/org.codeberg.lapingvino.Accolade.desktop << EOF
+            cat > $out/share/applications/eu.kiefte.Accolade.desktop << EOF
             [Desktop Entry]
             Name=Accolade
             Comment=A distraction-free Fountain editor for screenwriters
             Exec=$out/bin/accolade %F
-            Icon=org.codeberg.lapingvino.Accolade
+            Icon=eu.kiefte.Accolade
             Terminal=false
             Type=Application
             Categories=Office;WordProcessor;

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-  <gresource prefix="/org/codeberg/lapingvino/Accolade/">
+  <gresource prefix="/eu/kiefte/Accolade/">
     <file compressed="true" alias="icons/scalable/actions/preview-layout-full-width-symbolic.svg">media/icons/preview-layout-full-width-symbolic.svg</file>
     <file compressed="true" alias="icons/scalable/actions/preview-layout-half-width-symbolic.svg">media/icons/preview-layout-half-width-symbolic.svg</file>
     <file compressed="true" alias="icons/scalable/actions/preview-layout-windowed-symbolic.svg">media/icons/preview-layout-windowed-symbolic.svg</file>

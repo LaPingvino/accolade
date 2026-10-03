@@ -42,7 +42,7 @@ or by running the following command in a terminal:</property>
             </child>
             <child>
               <object class="GtkEntry" id="command">
-                <property name="text">flatpak install org.codeberg.lapingvino.Accolade.Plugin.TexLive</property>
+                <property name="text">flatpak install eu.kiefte.Accolade.Plugin.TexLive</property>
                 <property name="editable">0</property>
                 <property name="max-width-chars">48</property>
               </object>

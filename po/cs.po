@@ -13,136 +13,136 @@ msgstr ""
 "X-Generator: Poedit 3.0.1\n"
 "X-DamnedLies-Scope: partial\n"
 
-#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:3
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:5
+#: data/eu.kiefte.Accolade.desktop.in.in:3
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:5
 msgid "Accolade"
 msgstr "Accolade"
 
 #. Translators: Search terms to find this application. Do NOT translate or localize the semicolons! Do NOT translate "uberwriter" or "accolade"! The list MUST also end with a semicolon!
-#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:5
+#: data/eu.kiefte.Accolade.desktop.in.in:5
 #, fuzzy
 #| msgid "uberwriter;UberWriter;accolade;markdown;editor;"
 msgid "uberwriter;UberWriter;accolade;markdown;editor;text;write;"
 msgstr "uberwriter;UberWriter;accolade;markdown;editor;"
 
-#: data/org.codeberg.lapingvino.Accolade.desktop.in.in:6
+#: data/eu.kiefte.Accolade.desktop.in.in:6
 msgid "Accolade, an elegant, distraction-free markdown editor"
 msgstr "Apostrohpe, elegantní Markdown editor bez rušivých elementů"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:36
+#: data/eu.kiefte.Accolade.gschema.xml:36
 #: data/ui/Preferences.ui:15 data/ui/Preferences.ui:16
 msgid "Check spelling while typing"
 msgstr "Kontrolovat pravopis při psaní"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:37
+#: data/eu.kiefte.Accolade.gschema.xml:37
 msgid "Enable or disable spellchecking."
 msgstr "Povolit nebo zakázat kontrolu pravopisu."
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:43
+#: data/eu.kiefte.Accolade.gschema.xml:43
 msgid "Synchronize editor/preview scrolling"
 msgstr "Synchronizace posouvání editoru/náhledu"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:44
+#: data/eu.kiefte.Accolade.gschema.xml:44
 msgid "Keep the editor and preview scroll positions in sync."
 msgstr "Udržovat synchronizované pozice editoru a náhledu."
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:50
+#: data/eu.kiefte.Accolade.gschema.xml:50
 #: data/ui/Preferences.ui:70
 msgid "Input format"
 msgstr "Vstupní formát"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:51
+#: data/eu.kiefte.Accolade.gschema.xml:51
 msgid "Input format to use when previewing and exporting using Pandoc."
 msgstr ""
 "Vstupní formát, který se použije při náhledu a exportu pomocí aplikace "
 "Pandoc."
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:57
+#: data/eu.kiefte.Accolade.gschema.xml:57
 msgid "Autohide Headerbar"
 msgstr "Automaticky skrývat záhlaví okna"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:58
+#: data/eu.kiefte.Accolade.gschema.xml:58
 msgid "Hide the header and status bars when typing."
 msgstr "Při psaní skrýt záhlaví okna a stavový řádek."
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:64
+#: data/eu.kiefte.Accolade.gschema.xml:64
 msgid "Open file base path"
 msgstr "Základní cesta k otevřenému souboru"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:65
+#: data/eu.kiefte.Accolade.gschema.xml:65
 msgid "Open file paths of the current session"
 msgstr "Cesty k otevřeným souborům aktuální relace"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:71
+#: data/eu.kiefte.Accolade.gschema.xml:71
 msgid "Default statistic"
 msgstr "Výchozí statistika"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:72
+#: data/eu.kiefte.Accolade.gschema.xml:72
 msgid "Which statistic is shown on the main window."
 msgstr "Která statistika se zobrazuje v hlavním okně."
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:78
+#: data/eu.kiefte.Accolade.gschema.xml:78
 msgid "Characters per line"
 msgstr "Znaků na řádku"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:79
+#: data/eu.kiefte.Accolade.gschema.xml:79
 msgid "Maximum number of characters per line within the editor."
 msgstr "Maximální počet znaků na řádek v editoru."
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:85
+#: data/eu.kiefte.Accolade.gschema.xml:85
 #: data/ui/AboutHemingway.ui:6
 msgid "Hemingway Mode"
 msgstr "Hemingwayův režim"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:92
+#: data/eu.kiefte.Accolade.gschema.xml:92
 #, fuzzy
 #| msgid "Hemingway Mode"
 msgid "Hemingway Toast Count"
 msgstr "Hemingwayův režim"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:99
+#: data/eu.kiefte.Accolade.gschema.xml:99
 msgid "Preview mode"
 msgstr "Režim náhledu"
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:100
+#: data/eu.kiefte.Accolade.gschema.xml:100
 msgid "How to display the preview."
 msgstr "Jak zobrazit náhled."
 
-#: data/org.codeberg.lapingvino.Accolade.gschema.xml:106
+#: data/eu.kiefte.Accolade.gschema.xml:106
 #, fuzzy
 #| msgid "Preview mode"
 msgid "Preview active"
 msgstr "Režim náhledu"
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:6
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:6
 #, fuzzy
 #| msgid "Markdown Files"
 msgid "Edit Markdown in style"
 msgstr "Soubory Markdown"
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:8
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:8
 #, fuzzy
 msgid "Focus on your writing with a clean, distraction-free markdown editor."
 msgstr "Soustřeďte se na vaše psaní s elegantním editorem Markdown."
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:9
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:9
 msgid "Features:"
 msgstr "Funkce:"
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:11
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:11
 msgid "An UI tailored to comfortable writing"
 msgstr ""
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:12
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:12
 #, fuzzy
 msgid "A distraction-free mode"
 msgstr "Elegantní Markdown editor bez rušivých elementů"
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:13
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:13
 msgid "Dark, light and sepia themes"
 msgstr "Tmavý, světlý a sépiový vzhled"
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:14
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:14
 msgid ""
 "Everything you expect from a text editor, such as spellchecking or document "
 "statistics"
@@ -150,12 +150,12 @@ msgstr ""
 "Všechno, co očekáváte od textového editoru, včetně kontroly pravopisu nebo "
 "statistiky dokumentu"
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:15
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:15
 #, fuzzy
 msgid "Live preview of what you write"
 msgstr "Živý náhled do vašeho psaní"
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:16
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:16
 #, fuzzy
 msgid ""
 "Export to all kind of formats: PDF, Word/Libreoffice, LaTeX, or even HTML "
@@ -164,7 +164,7 @@ msgstr ""
 "Exportujte do různých formátů: PDF, Word/Libreoffice, LaTeX, nebo dokonce "
 "HTML prezentace"
 
-#: data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in:41
+#: data/eu.kiefte.Accolade.metainfo.xml.in.in:41
 msgid "Manuel G., Wolf V."
 msgstr ""
 
@@ -914,10 +914,10 @@ msgstr "webová stránka"
 #~ msgstr "Doporučené rozšíření TexLive můžete nainstalovat pomocí příkazu:"
 
 #~ msgid ""
-#~ "flatpak install flathub org.codeberg.lapingvino.Accolade.Plugin.TexLive"
+#~ "flatpak install flathub eu.kiefte.Accolade.Plugin.TexLive"
 #~ msgstr ""
 #~ "flatpak install flathub\n"
-#~ "org.codeberg.lapingvino.Accolade.Plugin.TexLive"
+#~ "eu.kiefte.Accolade.Plugin.TexLive"
 
 #~ msgid "or from Gnome-Software"
 #~ msgstr "nebo pomocí Gnome-Software"

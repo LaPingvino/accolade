@@ -1,7 +1,7 @@
 # List of source files containing translatable strings.
-data/org.codeberg.lapingvino.Accolade.desktop.in.in
-data/org.codeberg.lapingvino.Accolade.gschema.xml
-data/org.codeberg.lapingvino.Accolade.metainfo.xml.in.in
+data/eu.kiefte.Accolade.desktop.in.in
+data/eu.kiefte.Accolade.gschema.xml
+data/eu.kiefte.Accolade.metainfo.xml.in.in
 data/ui/About.ui.in
 data/ui/AboutHemingway.ui
 data/ui/Export.ui

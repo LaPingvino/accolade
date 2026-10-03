@@ -2,7 +2,7 @@
 
 <schemalist>
 
-  <enum id='org.codeberg.lapingvino.Accolade.Stat'>
+  <enum id='eu.kiefte.Accolade.Stat'>
     <value nick='characters' value='0' />
     <value nick='words' value='1' />
     <value nick='sentences' value='2' />
@@ -10,20 +10,20 @@
     <value nick='read_time' value='4' />
   </enum>
 
-  <enum id='org.codeberg.lapingvino.Accolade.PreviewMode'>
+  <enum id='eu.kiefte.Accolade.PreviewMode'>
     <value nick='full-width' value='0' />
     <value nick='half-width' value='1' />
     <value nick='half-height' value='2' />
     <value nick='windowed' value='3' />
   </enum>
 
-  <enum id='org.codeberg.lapingvino.Accolade.PreviewSecurity'>
+  <enum id='eu.kiefte.Accolade.PreviewSecurity'>
     <value nick='ask' value='0' />
     <value nick='always-restricted' value='1' />
     <value nick='always-unrestricted' value='2' />
   </enum>
 
-  <schema path="/org/codeberg/lapingvino/Accolade/" id="org.codeberg.lapingvino.Accolade">
+  <schema path="/eu/kiefte/Accolade/" id="eu.kiefte.Accolade">
     <key name='color-scheme' type='s'>
       <choices>
         <choice value="system"/>
@@ -72,7 +72,7 @@
         Open file paths of the current session
       </description>
     </key>
-    <key name='stat-default' enum='org.codeberg.lapingvino.Accolade.Stat'>
+    <key name='stat-default' enum='eu.kiefte.Accolade.Stat'>
       <default>"words"</default>
       <summary>Default statistic</summary>
       <description>
@@ -100,14 +100,14 @@
         Number of times the Hemingway Toast has been shown
       </description>
     </key>
-    <key name='preview-mode' enum='org.codeberg.lapingvino.Accolade.PreviewMode'>
+    <key name='preview-mode' enum='eu.kiefte.Accolade.PreviewMode'>
       <default>"full-width"</default>
       <summary>Preview mode</summary>
       <description>
         How to display the preview.
       </description>
     </key>
-    <key name='preview-security' enum='org.codeberg.lapingvino.Accolade.PreviewSecurity'>
+    <key name='preview-security' enum='eu.kiefte.Accolade.PreviewSecurity'>
       <default>"ask"</default>
       <summary>Preview Security</summary>
       <description>

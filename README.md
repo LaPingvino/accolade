@@ -77,7 +77,7 @@ The previous GTK4-based version has been replaced. To build the legacy version, 
 Depending on your setup you may need to install these schemas before building:
 
 ```bash
-$ sudo cp data/org.codeberg.lapingvino.Accolade.gschema.xml /usr/share/glib-2.0/schemas/org.codeberg.lapingvino.Accolade.gschema.xml
+$ sudo cp data/eu.kiefte.Accolade.gschema.xml /usr/share/glib-2.0/schemas/eu.kiefte.Accolade.gschema.xml
 $ sudo glib-compile-schemas /usr/share/glib-2.0/schemas
 ```
 

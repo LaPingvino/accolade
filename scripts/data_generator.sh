@@ -7,7 +7,7 @@ function generate_resource()
     # TODO: package css styles too
     echo '<?xml version="1.0" encoding="UTF-8"?>'
     echo '<gresources>'
-    echo '  <gresource prefix="/org/codeberg/lapingvino/Accolade/">'
+    echo '  <gresource prefix="/eu/kiefte/Accolade/">'
     for file in ../data/media/css/gtk/*.css
     do
         echo -n '    <file compressed="true">'

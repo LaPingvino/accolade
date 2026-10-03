@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	AppID = "org.codeberg.lapingvino.Accolade"
+	AppID = "eu.kiefte.Accolade"
 )
 
 type Application struct {
@@ -319,5 +319,5 @@ func isFountainFile(filename string) bool {
 
 // Resource helpers
 func getResourcePath(path string) string {
-	return filepath.Join("/org/codeberg/lapingvino/Accolade", path)
+	return filepath.Join("/eu/kiefte/Accolade", path)
 }
