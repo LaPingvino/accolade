@@ -7,9 +7,6 @@ import (
 	"fyne.io/fyne/v2/test"
 )
 
-// Typed text avoids words like INT. or ALL-CAPS names: the auto-formatter
-// rewrites such lines with SetText, which clears the undo history (A4b).
-
 func TestUndoRedoButtons(t *testing.T) {
 	w := newTestWindow(t, "")
 	w.fyneWindow.Canvas().Focus(w.textEditor)

@@ -30,7 +30,7 @@ type MainWindow struct {
 	app          *Application
 	
 	// Core components
-	textEditor   *widget.Entry
+	textEditor   *screenplayEntry
 	previewArea  *widget.RichText
 	headerBar    *HeaderBar
 	searchBar    *SearchBar
@@ -97,7 +97,7 @@ func (w *MainWindow) setupUI() {
 	w.fyneWindow.CenterOnScreen()
 	
 	// Create main text editor with Courier Prime font
-	w.textEditor = widget.NewMultiLineEntry()
+	w.textEditor = newScreenplayEntry(w)
 	w.textEditor.Wrapping = fyne.TextWrapWord
 	w.textEditor.SetPlaceHolder("Start writing your screenplay here...")
 	
@@ -161,10 +161,7 @@ func (w *MainWindow) setupShortcuts() {
 	// Text editor shortcuts
 	w.textEditor.OnChanged = w.onTextChanged
 	
-	// Handle Enter key for automatic indentation
-	w.textEditor.OnSubmitted = func(text string) {
-		w.handleEnterKey()
-	}
+	// Lines are formatted when completed with Enter (editor.go)
 	
 	// Keyboard shortcuts are attached to the main menu items (see menus.go)
 	w.fyneWindow.SetMainMenu(w.buildMainMenu())
@@ -369,9 +366,6 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.updateStatusBar()
 	w.updateCurrentElement()
 	
-	// Apply automatic formatting on certain triggers
-	w.checkForAutoFormatting(text)
-	
 	w.scheduleAutoSave()
 }
 
@@ -467,8 +461,8 @@ func (w *MainWindow) detectElementType(line string) string {
 		return "Scene Heading"
 	}
 	
-	// Transitions
-	if strings.HasSuffix(upper, "TO:") || strings.HasSuffix(upper, "IN:") || strings.HasSuffix(upper, "OUT:") {
+	// Transitions (FADE IN: opens a script and stays at the left margin)
+	if isTransition(upper) {
 		return "Transition"
 	}
 	
@@ -477,8 +471,8 @@ func (w *MainWindow) detectElementType(line string) string {
 		return "Parenthetical"
 	}
 	
-	// Character names - all caps, possibly ending with colon
-	if upper == line && len(line) > 1 && !strings.Contains(line, ".") {
+	// Character names - all caps, not a "SOMETHING:" cue like FADE IN:
+	if upper == line && len(line) > 1 && !strings.Contains(line, ".") && !strings.HasSuffix(line, ":") && hasLetter(line) {
 		return "Character"
 	}
 	
@@ -513,34 +507,6 @@ func (w *MainWindow) detectElementType(line string) string {
 	return "Action"
 }
 
-func (w *MainWindow) handleEnterKey() {
-	text := w.textEditor.Text
-	if text == "" {
-		return
-	}
-	
-	// Get current cursor position
-	cursorRow := w.textEditor.CursorRow
-	
-	// Find the current line
-	lines := strings.Split(text, "\n")
-	
-	if cursorRow < len(lines) {
-		currentLine := strings.TrimSpace(lines[cursorRow])
-		elementType := w.detectElementType(currentLine)
-		
-		// Apply automatic indentation based on element type
-		indentation := w.getIndentationForNextElement(elementType)
-		
-		// Insert the indentation at the end of current line
-		if indentation != "" {
-			lines[cursorRow] = lines[cursorRow] + "\n" + indentation
-			newText := strings.Join(lines, "\n")
-			w.textEditor.SetText(newText)
-		}
-	}
-}
-
 func (w *MainWindow) getIndentationForNextElement(currentElement string) string {
 	switch currentElement {
 	case "Character":
@@ -564,107 +530,6 @@ func (w *MainWindow) getIndentationForNextElement(currentElement string) string 
 	default:
 		return ""
 	}
-}
-
-func (w *MainWindow) formatCurrentLine() {
-	text := w.textEditor.Text
-	if text == "" {
-		return
-	}
-	
-	// Get current cursor position
-	cursorRow := w.textEditor.CursorRow
-	
-	// Find the current line
-	lines := strings.Split(text, "\n")
-	
-	if cursorRow < len(lines) {
-		currentLine := lines[cursorRow]
-		formattedLine := w.applyElementFormatting(currentLine)
-		
-		if formattedLine != currentLine {
-			lines[cursorRow] = formattedLine
-			newText := strings.Join(lines, "\n")
-			w.textEditor.SetText(newText)
-		}
-	}
-}
-
-func (w *MainWindow) applyElementFormatting(line string) string {
-	trimmed := strings.TrimSpace(line)
-	if trimmed == "" {
-		return line
-	}
-	
-	// Detect element type and apply proper formatting
-	elementType := w.detectElementType(trimmed)
-	
-	switch elementType {
-	case "Character":
-		// Characters should be positioned at proper character indent
-		return strings.Repeat(" ", CharacterIndent) + strings.ToUpper(trimmed)
-	case "Parenthetical":
-		// Parentheticals should be positioned at proper parenthetical indent
-		if !strings.HasPrefix(trimmed, "(") {
-			return strings.Repeat(" ", ParentheticalIndent) + "(" + trimmed + ")"
-		}
-		return strings.Repeat(" ", ParentheticalIndent) + trimmed
-	case "Dialogue":
-		// Dialogue should be positioned at proper dialogue indent
-		return strings.Repeat(" ", DialogueIndent) + trimmed
-	case "Transition":
-		// Transitions should be right-aligned at proper transition indent
-		return strings.Repeat(" ", TransitionIndent) + strings.ToUpper(trimmed)
-	case "Scene Heading":
-		// Scene headings should be uppercase and left-aligned
-		return strings.ToUpper(trimmed)
-	default:
-		// Action and other elements - left-aligned, no special formatting
-		return trimmed
-	}
-}
-
-func (w *MainWindow) checkForAutoFormatting(text string) {
-	// Check if the current line ends with a colon (character name)
-	// or looks like it needs formatting
-	lines := strings.Split(text, "\n")
-	if len(lines) == 0 {
-		return
-	}
-	
-	// Get the last line (where user is typing)
-	lastLine := lines[len(lines)-1]
-	trimmed := strings.TrimSpace(lastLine)
-	
-	// Auto-format on certain patterns
-	if w.shouldAutoFormat(trimmed) {
-		w.formatCurrentLine()
-	}
-}
-
-func (w *MainWindow) shouldAutoFormat(line string) bool {
-	// Format when line looks like a character name (all caps, no punctuation except colon)
-	if strings.HasSuffix(line, ":") && strings.ToUpper(line) == line {
-		return true
-	}
-	
-	// Format when line looks like a scene heading
-	upper := strings.ToUpper(line)
-	if strings.HasPrefix(upper, "INT.") || strings.HasPrefix(upper, "EXT.") || strings.HasPrefix(upper, "EST.") {
-		return true
-	}
-	
-	// Format when line looks like a transition
-	if strings.HasSuffix(upper, "TO:") || strings.HasSuffix(upper, "IN:") || strings.HasSuffix(upper, "OUT:") {
-		return true
-	}
-	
-	// Format parentheticals
-	if strings.HasPrefix(line, "(") && strings.HasSuffix(line, ")") {
-		return true
-	}
-	
-	return false
 }
 
 func (w *MainWindow) applyScreenplayFont() {
@@ -825,22 +690,6 @@ func isCharacterName(line string) bool {
 		// Additional checks to avoid false positives
 		if !strings.Contains(line, " TO ") && !strings.HasSuffix(line, ":") {
 			return len(strings.TrimSpace(line)) > 0 && len(strings.TrimSpace(line)) < 50
-		}
-	}
-	return false
-}
-
-func isSceneHeading(line string) bool {
-	upper := strings.ToUpper(line)
-	return strings.HasPrefix(upper, "INT.") || strings.HasPrefix(upper, "EXT.") || strings.HasPrefix(upper, "FADE")
-}
-
-func isTransition(line string) bool {
-	upper := strings.ToUpper(line)
-	transitions := []string{"CUT TO:", "FADE IN:", "FADE OUT:", "FADE TO BLACK:", "DISSOLVE TO:"}
-	for _, trans := range transitions {
-		if strings.HasSuffix(upper, trans) {
-			return true
 		}
 	}
 	return false

@@ -16,7 +16,7 @@ func newTestWindow(t *testing.T, text string) *MainWindow {
 	w := NewMainWindow(&Application{fyneApp: a})
 	w.textEditor.SetText(text)
 	w.hasChanges = false
-	setCursorOffset(w.textEditor, 0)
+	setCursorOffset(&w.textEditor.Entry, 0)
 	return w
 }
 
@@ -28,7 +28,7 @@ func search(w *MainWindow, text string) {
 func TestSetCursorOffsetRoundTrips(t *testing.T) {
 	w := newTestWindow(t, "first line\n\nthird ñandú line\nlast")
 	for _, off := range []int{0, 3, 10, 11, 12, 20, 29, 33} {
-		setCursorOffset(w.textEditor, off)
+		setCursorOffset(&w.textEditor.Entry, off)
 		if got := w.textEditor.CursorTextOffset(); got != off {
 			t.Errorf("setCursorOffset(%d): cursor at %d", off, got)
 		}

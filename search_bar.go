@@ -261,7 +261,7 @@ func (sb *SearchBar) findPrevious() {
 func (sb *SearchBar) gotoMatch(matches []searchMatch, i int) {
 	sb.currentMatch = i + 1
 	sb.totalMatches = len(matches)
-	selectRange(sb.window.textEditor, matches[i].start, matches[i].end)
+	selectRange(&sb.window.textEditor.Entry, matches[i].start, matches[i].end)
 	sb.updateStatus(sb.currentMatch, sb.totalMatches)
 }
 
@@ -290,7 +290,7 @@ func (sb *SearchBar) replaceOne() {
 	start := sb.selectionStart()
 	for _, m := range matches {
 		if selected != "" && m.start == start && m.end == start+utf8.RuneCountInString(selected) {
-			typeOverSelection(editor, sb.expandReplacement(selected))
+			typeOverSelection(&editor.Entry, sb.expandReplacement(selected))
 			sb.markChanged()
 			break
 		}
