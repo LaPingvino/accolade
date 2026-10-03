@@ -1,0 +1,161 @@
+// Package tooltip adds hover tooltips to Fyne buttons, which Fyne 2.8
+// lacks.
+//
+// The tooltip is drawn on a Layer stacked over the window's content. The
+// layer holds only a rectangle and text, which take no input, so clicks
+// and hovers go through to the widgets underneath; a Fyne pop-up would
+// instead swallow the next click anywhere in the window.
+package tooltip
+
+import (
+	"image/color"
+	"time"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
+)
+
+// Delay is how long the pointer rests on a button before its tip shows.
+var Delay = 500 * time.Millisecond
+
+// Layer is where tooltips are drawn. Stack it over the window content:
+//
+//	container.NewStack(content, layer)
+type Layer struct {
+	widget.BaseWidget
+	bg    *canvas.Rectangle
+	text  *canvas.Text
+	shown bool
+}
+
+// NewLayer creates an empty tooltip layer.
+func NewLayer() *Layer {
+	l := &Layer{bg: canvas.NewRectangle(color.Transparent), text: canvas.NewText("", color.Transparent)}
+	l.bg.Hide()
+	l.text.Hide()
+	l.ExtendBaseWidget(l)
+	return l
+}
+
+// CreateRenderer draws the tooltip, if any, where ShowTip put it.
+func (l *Layer) CreateRenderer() fyne.WidgetRenderer {
+	return &layerRenderer{l: l, objects: []fyne.CanvasObject{l.bg, l.text}}
+}
+
+// Text is the tip being shown, or "" when none is.
+func (l *Layer) Text() string {
+	if !l.shown {
+		return ""
+	}
+	return l.text.Text
+}
+
+// ShowTip shows tip just below obj (a widget inside the layer's window),
+// kept within the layer's width.
+func (l *Layer) ShowTip(tip string, obj fyne.CanvasObject) {
+	d := fyne.CurrentApp().Driver()
+	at := d.AbsolutePositionForObject(obj).Subtract(d.AbsolutePositionForObject(l))
+
+	th := l.Theme()
+	v := fyne.CurrentApp().Settings().ThemeVariant()
+	pad := th.Size(theme.SizeNameInnerPadding) / 2
+	l.text.Text = tip
+	l.text.TextSize = th.Size(theme.SizeNameCaptionText)
+	// dark on light themes and light on dark ones, like most desktops' tips
+	l.text.Color = th.Color(theme.ColorNameBackground, v)
+	l.bg.FillColor = th.Color(theme.ColorNameForeground, v)
+	l.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
+
+	size := l.text.MinSize().Add(fyne.NewSize(2*pad, 2*pad))
+	pos := fyne.NewPos(at.X+(obj.Size().Width-size.Width)/2, at.Y+obj.Size().Height+2)
+	pos.X = max(0, min(pos.X, l.Size().Width-size.Width))
+	l.bg.Move(pos)
+	l.bg.Resize(size)
+	l.text.Move(pos.Add(fyne.NewPos(pad, pad)))
+	l.text.Resize(l.text.MinSize())
+	l.shown = true
+	l.bg.Show()
+	l.text.Show()
+	l.Refresh()
+}
+
+// HideTip hides the tooltip.
+func (l *Layer) HideTip() {
+	l.shown = false
+	l.bg.Hide()
+	l.text.Hide()
+	l.Refresh()
+}
+
+type layerRenderer struct {
+	l       *Layer
+	objects []fyne.CanvasObject
+}
+
+func (r *layerRenderer) Layout(fyne.Size)             {}
+func (r *layerRenderer) MinSize() fyne.Size           { return fyne.NewSize(0, 0) }
+func (r *layerRenderer) Objects() []fyne.CanvasObject { return r.objects }
+func (r *layerRenderer) Destroy()                     {}
+func (r *layerRenderer) Refresh() {
+	r.l.bg.Refresh()
+	r.l.text.Refresh()
+}
+
+// Button is a button that shows a tip when the pointer rests on it.
+type Button struct {
+	widget.Button
+	Tip   string
+	layer *Layer
+	timer *time.Timer
+}
+
+// NewButton creates an icon button with a tip shown on layer.
+func NewButton(icon fyne.Resource, tip string, tapped func(), layer *Layer) *Button {
+	b := &Button{Tip: tip, layer: layer}
+	b.Icon = icon
+	b.OnTapped = tapped
+	b.ExtendBaseWidget(b)
+	return b
+}
+
+// MouseIn starts the tip's delay.
+func (b *Button) MouseIn(e *desktop.MouseEvent) {
+	b.Button.MouseIn(e)
+	b.stop()
+	b.timer = time.AfterFunc(Delay, func() {
+		fyne.Do(func() {
+			if b.timer != nil && b.Tip != "" && b.layer != nil {
+				b.layer.ShowTip(b.Tip, b)
+			}
+		})
+	})
+}
+
+// MouseOut hides the tip.
+func (b *Button) MouseOut() {
+	b.Button.MouseOut()
+	b.hide()
+}
+
+// Tapped hides the tip and taps the button.
+func (b *Button) Tapped(e *fyne.PointEvent) {
+	b.hide()
+	b.Button.Tapped(e)
+}
+
+func (b *Button) stop() {
+	if b.timer != nil {
+		b.timer.Stop()
+		b.timer = nil
+	}
+}
+
+func (b *Button) hide() {
+	b.stop()
+	if b.layer != nil && b.layer.Text() == b.Tip {
+		b.layer.HideTip()
+	}
+}
