@@ -48,7 +48,7 @@ func TestTypingAScene(t *testing.T) {
 		pad(TransitionIndent, "CUT TO:"),
 		"",
 	}, "\n")
-	if got := w.textEditor.Text; got != want {
+	if got := w.textEditor.Text(); got != want {
 		t.Errorf("script:\n%q\nwant:\n%q", got, want)
 	}
 }
@@ -57,7 +57,7 @@ func TestSpaceAfterSceneHeadingPrefixSurvives(t *testing.T) {
 	w := newTestWindow(t, "")
 	w.fyneWindow.Canvas().Focus(w.textEditor)
 	test.Type(w.textEditor, "INT. BARN")
-	if got := w.textEditor.Text; got != "INT. BARN" {
+	if got := w.textEditor.Text(); got != "INT. BARN" {
 		t.Errorf("typed %q", got)
 	}
 }
@@ -65,31 +65,31 @@ func TestSpaceAfterSceneHeadingPrefixSurvives(t *testing.T) {
 func TestFormattingKeepsUndoHistory(t *testing.T) {
 	w := newTestWindow(t, "")
 	typeScript(w, "", "john")
-	if got := w.textEditor.Text; got != "\n"+pad(CharacterIndent, "john")+"\n" {
+	if got := w.textEditor.Text(); got != "\n"+pad(CharacterIndent, "john")+"\n" {
 		// lowercase is not a character cue: left alone
 		if got != "\njohn\n" {
 			t.Fatalf("text = %q", got)
 		}
 	}
 	undoAll(w)
-	if w.textEditor.Text != "" {
-		t.Errorf("undo could not get back to the empty script: %q", w.textEditor.Text)
+	if w.textEditor.Text() != "" {
+		t.Errorf("undo could not get back to the empty script: %q", w.textEditor.Text())
 	}
 
 	w2 := newTestWindow(t, "")
 	typeScript(w2, "int. barn")
-	if got := w2.textEditor.Text; got != "INT. BARN\n" {
+	if got := w2.textEditor.Text(); got != "INT. BARN\n" {
 		t.Fatalf("text = %q", got)
 	}
-	// Fyne records the rewritten line word by word, so stepping back
-	// through the formatting takes a few undos, but the typed text is
-	// still in the history.
-	seen := undoAll(w2)
-	if !seen["int. barn"] {
-		t.Errorf("undo never returned to the text as typed; states: %v", seen)
+	// formatting the line and the line break are one undo step: one
+	// undo gives back the text as typed
+	w2.textEditor.Undo()
+	if got := w2.textEditor.Text(); got != "int. barn" {
+		t.Errorf("one undo after Enter: %q, want the line as typed", got)
 	}
-	if w2.textEditor.Text != "" {
-		t.Errorf("undo stopped at %q", w2.textEditor.Text)
+	undoAll(w2)
+	if w2.textEditor.Text() != "" {
+		t.Errorf("undo stopped at %q", w2.textEditor.Text())
 	}
 }
 
@@ -97,12 +97,12 @@ func TestFormattingKeepsUndoHistory(t *testing.T) {
 func undoAll(w *MainWindow) map[string]bool {
 	seen := map[string]bool{}
 	for i := 0; i < 100; i++ {
-		before := w.textEditor.Text
+		before := w.textEditor.Text()
 		w.textEditor.Undo()
-		if w.textEditor.Text == before {
+		if w.textEditor.Text() == before {
 			break
 		}
-		seen[w.textEditor.Text] = true
+		seen[w.textEditor.Text()] = true
 	}
 	return seen
 }
@@ -110,9 +110,9 @@ func undoAll(w *MainWindow) map[string]bool {
 func TestEnterMidLineDoesNotFormat(t *testing.T) {
 	w := newTestWindow(t, "int. barn")
 	w.fyneWindow.Canvas().Focus(w.textEditor)
-	setCursorOffset(&w.textEditor.Entry, 4)
+	w.textEditor.SetCursorOffset(4)
 	w.textEditor.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-	if got := w.textEditor.Text; got != "int.\n barn" {
+	if got := w.textEditor.Text(); got != "int.\n barn" {
 		t.Errorf("text = %q", got)
 	}
 }
@@ -120,8 +120,8 @@ func TestEnterMidLineDoesNotFormat(t *testing.T) {
 func TestLoadingDoesNotReformat(t *testing.T) {
 	text := "INT. HOUSE - DAY\n\nJOHN\n  indented action stays put"
 	w := newTestWindow(t, text)
-	if w.textEditor.Text != text {
-		t.Errorf("loading changed the text: %q", w.textEditor.Text)
+	if w.textEditor.Text() != text {
+		t.Errorf("loading changed the text: %q", w.textEditor.Text())
 	}
 }
 

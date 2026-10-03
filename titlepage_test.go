@@ -56,8 +56,8 @@ func TestInsertTitlePage(t *testing.T) {
 			w := newTestWindow(t, doc)
 			titlePageDialog(t, w).insertTitlePage()
 			want := barnTitlePage + "\n\n" + script
-			if w.textEditor.Text != want {
-				t.Errorf("got:\n%q\nwant:\n%q", w.textEditor.Text, want)
+			if w.textEditor.Text() != want {
+				t.Errorf("got:\n%q\nwant:\n%q", w.textEditor.Text(), want)
 			}
 		})
 	}
@@ -115,7 +115,7 @@ func TestStatusBarElement(t *testing.T) {
 		"> FADE OUT.":                           "Transition",
 	} {
 		i := strings.Index(doc, line)
-		setCursorOffset(&w.textEditor.Entry, len([]rune(doc[:i]))+1)
+		w.textEditor.SetCursorOffset(len([]rune(doc[:i]))+1)
 		w.updateCurrentElement()
 		if w.currentElement != want {
 			t.Errorf("cursor in %q: element %q, want %q", line, w.currentElement, want)

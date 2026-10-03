@@ -191,7 +191,7 @@ func (tpd *TitlePageDialog) insertTitlePage() {
 	titlePageText := tpd.generateTitlePageText()
 	
 	// Insert at the beginning of the document
-	currentText := tpd.window.textEditor.Text
+	currentText := tpd.window.textEditor.Text()
 	
 	// If document already starts with a title page, replace it
 	if tpd.hasExistingTitlePage(currentText) {

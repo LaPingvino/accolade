@@ -4,87 +4,58 @@ import (
 	"strings"
 	"unicode"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
+	"github.com/LaPingvino/accolade/internal/editor"
+	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
-// screenplayEntry is the script editor: a multi-line Entry that formats
-// a line once it is completed with Enter, and starts the next line at the
-// indent the next element needs (dialogue after a character name).
-//
-// Formatting only ever touches the line just completed and goes in as
-// typed edits, so it stays on the undo stack and never fights the writer
-// mid-word.
-type screenplayEntry struct {
-	widget.Entry
-	window *MainWindow
-}
-
-func newScreenplayEntry(w *MainWindow) *screenplayEntry {
-	e := &screenplayEntry{window: w}
-	e.MultiLine = true
-	e.Wrapping = fyne.TextWrapWord
-	e.ExtendBaseWidget(e)
+// newScriptEditor creates the screenplay editor (internal/editor) with
+// Accolade's behaviour: Fountain colouring, and on Enter the completed line
+// is formatted and the next one indented (dialogue after a character
+// name). Formatting only touches the line just completed and is one undo
+// step together with the line break.
+func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
+	e := editor.New("")
+	e.Syntax = true
+	e.OnEnter = func() bool { return completeLine(w, e) }
 	return e
 }
 
-func (e *screenplayEntry) TypedKey(key *fyne.KeyEvent) {
-	if (key.Name == fyne.KeyReturn || key.Name == fyne.KeyEnter) && e.SelectedText() == "" {
-		e.completeLine()
-		return
-	}
-	e.Entry.TypedKey(key)
-}
-
 // completeLine handles Enter: format the current line if the cursor is at
-// its end, then break the line and indent the new one.
-func (e *screenplayEntry) completeLine() {
-	if e.window != nil && e.window.settings != nil && !e.window.settings.GetBoolean("auto-indent") {
-		e.Entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-		return
+// its end, then break the line and indent the new one. It reports false
+// to leave Enter to the editor (auto-indent off, or a selection).
+func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
+	if w != nil && w.settings != nil && !w.settings.GetBoolean("auto-indent") {
+		return false
+	}
+	if e.SelectedText() != "" {
+		return false
 	}
 
-	text := []rune(e.Text)
-	cursor := e.CursorTextOffset()
+	text := []rune(e.Text())
+	cursor := e.CursorOffset()
 	start, end := lineBounds(text, cursor)
 	line := string(text[start:end])
 
 	element := "Action"
+	formatted := line
 	if cursor == end {
 		prev := ""
 		if start > 0 {
 			ps, _ := lineBounds(text, start-1)
 			prev = string(text[ps : start-1])
 		}
-		formatted, kind := formatCompletedLine(prev, line)
-		element = kind
-		if formatted != line {
-			e.batchEdit(func() {
-				selectRange(&e.Entry, start, end)
-				typeOverSelection(&e.Entry, formatted)
-			})
-		}
+		formatted, element = formatCompletedLine(prev, line)
 	}
 
-	indent := nextLineIndent(element)
-	e.batchEdit(func() {
-		e.Entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-		for i := 0; i < indent; i++ {
-			e.Entry.TypedRune(' ')
-		}
+	e.Edit(func(b *buffer.Buffer) {
+		b.Group(func() {
+			if formatted != line {
+				b.Replace(start, end, formatted)
+			}
+			b.Insert("\n" + strings.Repeat(" ", nextLineIndent(element)))
+		})
 	})
-}
-
-// batchEdit runs several programmatic edits and reports a single change,
-// instead of re-parsing the script for every typed rune.
-func (e *screenplayEntry) batchEdit(edit func()) {
-	onChanged := e.OnChanged
-	e.OnChanged = nil
-	edit()
-	e.OnChanged = onChanged
-	if onChanged != nil {
-		onChanged(e.Text)
-	}
+	return true
 }
 
 // lineBounds returns the rune range [start, end) of the line containing pos.

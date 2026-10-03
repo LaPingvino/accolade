@@ -75,7 +75,7 @@ func TestAutoIndentOff(t *testing.T) {
 	t.Cleanup(func() { w.settings.SetBoolean("auto-indent", prev) })
 
 	typeScript(w, "int. barn", "", "JOHN", "hi")
-	if got, want := w.textEditor.Text, "int. barn\n\nJOHN\nhi\n"; got != want {
+	if got, want := w.textEditor.Text(), "int. barn\n\nJOHN\nhi\n"; got != want {
 		t.Errorf("with auto-indent off: %q, want %q", got, want)
 	}
 }

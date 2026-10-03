@@ -429,7 +429,7 @@ func (ed *ExportDialog) startExport() {
 	// Get export parameters
 	outputPath := filepath.Join(ed.outputDirEntry.Text, ed.filenameEntry.Text)
 	format := strings.ToLower(ed.formatSelect.Selected)
-	content := ed.window.textEditor.Text
+	content := ed.window.textEditor.Text()
 	
 	// Perform export in goroutine
 	go func() {

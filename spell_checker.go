@@ -2,21 +2,21 @@ package main
 
 import (
 	"log"
-	
-	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/accolade/internal/editor"
 )
 
 type SpellChecker struct {
-	textEditor *widget.Entry
+	textEditor *editor.ScriptEditor
 	enabled    bool
 	language   string
 }
 
-func NewSpellChecker(textEditor *widget.Entry) *SpellChecker {
+func NewSpellChecker(textEditor *editor.ScriptEditor) *SpellChecker {
 	return &SpellChecker{
 		textEditor: textEditor,
-		enabled:  false,
-		language: "en_US",
+		enabled:    false,
+		language:   "en_US",
 	}
 }
 

@@ -184,14 +184,14 @@ func (hb *HeaderBar) UpdateButtons() {
 	}
 	
 	// Save As button should always be enabled if there's content
-	if hb.window.textEditor.Text != "" {
+	if hb.window.textEditor.Text() != "" {
 		hb.saveAsButton.Enable()
 	} else {
 		hb.saveAsButton.Disable()
 	}
 	
 	// Export button should be enabled if there's content
-	if hb.window.textEditor.Text != "" {
+	if hb.window.textEditor.Text() != "" {
 		hb.exportButton.Enable()
 	} else {
 		hb.exportButton.Disable()

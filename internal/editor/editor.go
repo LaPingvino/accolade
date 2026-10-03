@@ -27,6 +27,11 @@ type ScriptEditor struct {
 
 	// OnChanged is called with the text after every edit.
 	OnChanged func(text string)
+	// OnEnter, when set, handles Enter instead of inserting a line break
+	// (Accolade formats the completed line); it reports whether it did.
+	OnEnter func() bool
+	// OnCursorChanged is called when the cursor or selection moves.
+	OnCursorChanged func()
 
 	buf     *buffer.Buffer
 	layout  wrap.Layout
@@ -65,10 +70,11 @@ func (e *ScriptEditor) Buffer() *buffer.Buffer { return e.buf }
 // Text is the edited text.
 func (e *ScriptEditor) Text() string { return e.buf.Text() }
 
-// SetText replaces the text and forgets the undo history.
+// SetText replaces the text and forgets the undo history; OnChanged is
+// called, as Fyne's Entry does.
 func (e *ScriptEditor) SetText(text string) {
 	e.buf.SetText(text)
-	e.changed(false)
+	e.changed(true)
 }
 
 // SetHighlights marks ranges of the text, such as all search matches, with
@@ -76,6 +82,63 @@ func (e *ScriptEditor) SetText(text string) {
 func (e *ScriptEditor) SetHighlights(ranges [][2]int) {
 	e.highlights = ranges
 	e.relayout()
+}
+
+// Edit changes the text through the buffer and reports the change: use
+// Buffer().Group inside for one undo step.
+func (e *ScriptEditor) Edit(f func(b *buffer.Buffer)) {
+	f(e.buf)
+	e.changed(true)
+}
+
+// Navigate changes the cursor or selection through the buffer.
+func (e *ScriptEditor) Navigate(f func(b *buffer.Buffer)) {
+	f(e.buf)
+	e.changed(false)
+}
+
+// Select selects [start, end) (rune offsets), cursor at end.
+func (e *ScriptEditor) Select(start, end int) {
+	e.Navigate(func(b *buffer.Buffer) { b.Select(start, end) })
+}
+
+// Replace replaces [start, end) with text as one undo step.
+func (e *ScriptEditor) Replace(start, end int, text string) {
+	e.Edit(func(b *buffer.Buffer) { b.Replace(start, end, text) })
+}
+
+// GridRow is what the editor shows in a visual row (for tests and
+// inspection).
+func (e *ScriptEditor) GridRow(row int) widget.TextGridRow {
+	if row < 0 || row >= len(e.grid.Rows) {
+		return widget.TextGridRow{}
+	}
+	return e.grid.Rows[row]
+}
+
+// SelectedText is the selected text.
+func (e *ScriptEditor) SelectedText() string { return e.buf.SelectedText() }
+
+// CursorOffset is the cursor's rune offset.
+func (e *ScriptEditor) CursorOffset() int { return e.buf.Cursor() }
+
+// SetCursorOffset moves the cursor, dropping the selection.
+func (e *ScriptEditor) SetCursorOffset(off int) {
+	e.Navigate(func(b *buffer.Buffer) { b.SetCursor(off, false) })
+}
+
+// Undo undoes the last edit step.
+func (e *ScriptEditor) Undo() {
+	if e.buf.Undo() {
+		e.changed(true)
+	}
+}
+
+// Redo redoes the last undone step.
+func (e *ScriptEditor) Redo() {
+	if e.buf.Redo() {
+		e.changed(true)
+	}
 }
 
 // Columns is the number of columns the text is wrapped to.
@@ -208,6 +271,9 @@ func (e *ScriptEditor) changed(edited bool) {
 	e.relayout()
 	if e.onCursorMoved != nil {
 		e.onCursorMoved(e.CursorPosition(), e.cellHeight())
+	}
+	if e.OnCursorChanged != nil {
+		e.OnCursorChanged()
 	}
 	if edited && e.OnChanged != nil {
 		e.OnChanged(e.buf.Text())
@@ -387,6 +453,9 @@ func (e *ScriptEditor) TypedKey(k *fyne.KeyEvent) {
 		e.buf.DeleteForward()
 		e.changed(true)
 	case fyne.KeyReturn, fyne.KeyEnter:
+		if e.OnEnter != nil && e.OnEnter() {
+			return
+		}
 		e.buf.Insert("\n")
 		e.changed(true)
 	case fyne.KeyTab:

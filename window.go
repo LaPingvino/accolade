@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/LaPingvino/accolade/internal/editor"
 	"io"
 	"log"
 	"os"
@@ -18,47 +19,47 @@ import (
 // Screenplay indentation constants (in character spaces)
 // Based on industry standard margins for 12-point Courier font
 const (
-	ActionIndent       = 0   // Action text - left margin (1.5")
-	DialogueIndent     = 25  // Dialogue - 2.5" from left margin
-	ParentheticalIndent = 31 // Parentheticals - 3.1" from left margin  
-	CharacterIndent    = 37  // Character names - 3.7" from left margin
-	TransitionIndent   = 60  // Transitions - right aligned (6.0" from left margin)
+	ActionIndent        = 0  // Action text - left margin (1.5")
+	DialogueIndent      = 25 // Dialogue - 2.5" from left margin
+	ParentheticalIndent = 31 // Parentheticals - 3.1" from left margin
+	CharacterIndent     = 37 // Character names - 3.7" from left margin
+	TransitionIndent    = 60 // Transitions - right aligned (6.0" from left margin)
 )
 
 type MainWindow struct {
-	fyneWindow   fyne.Window
-	app          *Application
-	
+	fyneWindow fyne.Window
+	app        *Application
+
 	// Core components
-	textEditor   *screenplayEntry
-	editorView   *container.ThemeOverride // the editor with its font settings
-	previewArea  *widget.RichText
-	headerBar    *HeaderBar
-	searchBar    *SearchBar
-	
+	textEditor  *editor.ScriptEditor
+	editorView  *container.ThemeOverride // the editor with its font settings
+	previewArea *widget.RichText
+	headerBar   *HeaderBar
+	searchBar   *SearchBar
+
 	// UI layout
-	mainContainer *container.Split
-	sidePanel     *container.Split
+	mainContainer    *container.Split
+	sidePanel        *container.Split
 	toolbarContainer *fyne.Container
 	// Status bar
-	statusBar     *fyne.Container
-	elementLabel  *widget.Label
-	
+	statusBar    *fyne.Container
+	elementLabel *widget.Label
+
 	// File management
-	currentFile   string
-	hasChanges    bool
-	isFullscreen  bool
-	
+	currentFile  string
+	hasChanges   bool
+	isFullscreen bool
+
 	// Settings
-	settings      *Settings
-	
+	settings *Settings
+
 	// Preview state
-	previewVisible bool
+	previewVisible    bool
 	previewRestricted bool
-	
+
 	// Find/Replace
-	findVisible   bool
-	
+	findVisible bool
+
 	// Name offered by Save As for an imported (converted) document
 	suggestedName string
 
@@ -67,30 +68,30 @@ type MainWindow struct {
 	autoSaveDelay time.Duration // overrides the setting; for tests
 
 	statusLabel *widget.Label
-	
+
 	// Lexington integration
-	lexParser     *LexingtonParser
-	
+	lexParser *LexingtonParser
+
 	// Current cursor position for element detection
 	currentElement string
 }
 
 func NewMainWindow(app *Application) *MainWindow {
 	window := &MainWindow{
-		fyneWindow:      app.fyneApp.NewWindow("Accolade"),
-		app:             app,
-		hasChanges:      false,
-		isFullscreen:    false,
-		previewVisible:  false,
-		findVisible:     false,
-		lexParser:       NewLexingtonParser(),
+		fyneWindow:     app.fyneApp.NewWindow("Accolade"),
+		app:            app,
+		hasChanges:     false,
+		isFullscreen:   false,
+		previewVisible: false,
+		findVisible:    false,
+		lexParser:      NewLexingtonParser(),
 	}
-	
+
 	window.settings = GetSettings() // shared with the preferences dialog
 	window.setupUI()
 	window.setupShortcuts()
 	window.setupCallbacks()
-	
+
 	return window
 }
 
@@ -99,35 +100,35 @@ func (w *MainWindow) setupUI() {
 	w.fyneWindow.SetTitle("Accolade")
 	w.fyneWindow.Resize(fyne.NewSize(1000, 600))
 	w.fyneWindow.CenterOnScreen()
-	
+
 	// Create main text editor with Courier Prime font
-	w.textEditor = newScreenplayEntry(w)
-	w.textEditor.Wrapping = fyne.TextWrapWord
-	w.textEditor.SetPlaceHolder("Start writing your screenplay here...")
-	
+	w.textEditor = newScriptEditor(w)
+	w.textEditor.OnCursorChanged = w.onCursorChanged
+
 	// Add some initial content - start with a title page
 	w.textEditor.SetText(defaultScript(time.Now()))
-	
+
 	// Apply Courier Prime font for screenplay formatting
-	w.applyScreenplayFont()
-	w.editorView = container.NewThemeOverride(w.textEditor, newEditorTheme("", 0))
-	
+	// the editor scrolls to keep the cursor in view; the theme override
+	// carries the font settings
+	w.editorView = container.NewThemeOverride(editor.NewScroll(w.textEditor), newEditorTheme("", 0))
+
 	// Create preview area
 	w.previewArea = widget.NewRichText()
 	w.previewArea.Wrapping = fyne.TextWrapWord
-	
+
 	// Create header bar with toolbar
 	w.headerBar = NewHeaderBar(w)
-	
+
 	// Create search bar (initially hidden)
 	w.searchBar = NewSearchBar(w)
-	
+
 	// Create toolbar container
 	w.toolbarContainer = container.NewVBox(
 		w.headerBar.container,
 		w.searchBar.container,
 	)
-	
+
 	// Create status bar with element indicator
 	w.elementLabel = widget.NewLabel("Element: Action")
 	w.statusLabel = widget.NewLabel("Ready")
@@ -140,10 +141,10 @@ func (w *MainWindow) setupUI() {
 		widget.NewSeparator(),
 		w.elementLabel,
 	)
-	
+
 	// Create main content area - just the editor for now
-	editorScroll := container.NewScroll(w.editorView)
-	
+	editorScroll := w.editorView
+
 	// Create main layout
 	content := container.NewBorder(
 		w.toolbarContainer, // top
@@ -152,12 +153,12 @@ func (w *MainWindow) setupUI() {
 		nil,                // right
 		editorScroll,       // center - just the editor
 	)
-	
+
 	w.fyneWindow.SetContent(content)
-	
+
 	// Initially hide preview
 	w.previewVisible = false
-	
+
 	// Apply initial settings
 	w.applySettings()
 }
@@ -165,9 +166,9 @@ func (w *MainWindow) setupUI() {
 func (w *MainWindow) setupShortcuts() {
 	// Text editor shortcuts
 	w.textEditor.OnChanged = w.onTextChanged
-	
+
 	// Lines are formatted when completed with Enter (editor.go)
-	
+
 	// Keyboard shortcuts are attached to the main menu items (see menus.go)
 	w.fyneWindow.SetMainMenu(w.buildMainMenu())
 }
@@ -198,27 +199,22 @@ func (w *MainWindow) setupCallbacks() {
 func (w *MainWindow) applySettings() {
 	// Apply theme
 	w.app.setColorScheme(w.settings.GetString("theme"))
-	
+
 	// Apply editor settings
 	w.applyEditorSettings()
-	
+
 	// Apply window settings
 	if w.settings.GetBoolean("preview-visible") {
 		w.showPreview()
 	}
-	
+
 	// Apply font settings
 	w.applyFontSettings()
 }
 
 func (w *MainWindow) applyEditorSettings() {
-	// Enable/disable word wrap
-	if w.settings.GetBoolean("word-wrap") {
-		w.textEditor.Wrapping = fyne.TextWrapWord
-	} else {
-		w.textEditor.Wrapping = fyne.TextWrapOff
-	}
-	
+	// the script editor always wraps at the window width (screenplays are
+	// laid out in columns), so the word-wrap setting no longer applies
 	w.textEditor.Refresh()
 	// auto-indent is read when Enter is pressed (editor.go)
 }
@@ -238,7 +234,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read file: %v", err)
 	}
-	
+
 	w.textEditor.SetText(string(content))
 	w.currentFile = filePath
 	w.suggestedName = ""
@@ -246,7 +242,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	w.updateTitle()
 	w.updatePreview()
 	w.updateStatusBar()
-	
+
 	return nil
 }
 
@@ -281,7 +277,7 @@ func (w *MainWindow) SaveFile() error {
 	if w.currentFile == "" {
 		return w.SaveFileAs()
 	}
-	
+
 	return w.saveToFile(w.currentFile)
 }
 
@@ -290,25 +286,25 @@ func (w *MainWindow) SaveFileAs() error {
 		if err != nil || closer == nil {
 			return
 		}
-		
+
 		filePath := closer.URI().Path()
 		defer closer.Close()
-		
-		content := w.textEditor.Text
+
+		content := w.textEditor.Text()
 		_, err = io.WriteString(closer, content)
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save file: %v", err), w.fyneWindow)
 			return
 		}
-		
+
 		w.currentFile = filePath
 		w.suggestedName = ""
 		w.hasChanges = false
 		w.updateTitle()
-		
+
 		dialog.ShowInformation("File Saved", fmt.Sprintf("File saved to %s", filepath.Base(filePath)), w.fyneWindow)
 	}, w.fyneWindow)
-	
+
 	// Set default filename
 	if w.currentFile != "" {
 		fileDialog.SetFileName(filepath.Base(w.currentFile))
@@ -317,21 +313,21 @@ func (w *MainWindow) SaveFileAs() error {
 	} else {
 		fileDialog.SetFileName("untitled.fountain")
 	}
-	
+
 	// TODO: Set file filter when Fyne supports it
 	// fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{".fountain", ".spmd"}))
-	
+
 	fileDialog.Show()
 	return nil
 }
 
 func (w *MainWindow) saveToFile(filePath string) error {
-	content := w.textEditor.Text
+	content := w.textEditor.Text()
 	err := writeFileAtomic(filePath, []byte(content))
 	if err != nil {
 		return fmt.Errorf("failed to write file: %v", err)
 	}
-	
+
 	w.cancelAutoSave()
 	w.hasChanges = false
 	w.updateTitle()
@@ -343,19 +339,19 @@ func (w *MainWindow) OpenFile() {
 		if err != nil || closer == nil {
 			return
 		}
-		
+
 		filePath := closer.URI().Path()
 		defer closer.Close()
-		
+
 		err = w.LoadFile(filePath)
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("failed to open file: %v", err), w.fyneWindow)
 		}
 	}, w.fyneWindow)
-	
+
 	// TODO: Set file filter when Fyne supports it
 	// fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{".fountain", ".spmd", ".txt"}))
-	
+
 	fileDialog.Show()
 }
 
@@ -391,7 +387,7 @@ func (w *MainWindow) Show() {
 }
 
 func (w *MainWindow) IsEmpty() bool {
-	return strings.TrimSpace(w.textEditor.Text) == ""
+	return strings.TrimSpace(w.textEditor.Text()) == ""
 }
 
 func (w *MainWindow) HasUnsavedChanges() bool {
@@ -404,13 +400,13 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.updatePreview()
 	w.updateStatusBar()
 	w.updateCurrentElement()
-	
+
 	w.scheduleAutoSave()
 }
 
 func (w *MainWindow) updateTitle() {
 	title := "Accolade"
-	
+
 	if w.currentFile != "" {
 		filename := filepath.Base(w.currentFile)
 		if w.hasChanges {
@@ -423,20 +419,20 @@ func (w *MainWindow) updateTitle() {
 	} else if w.hasChanges {
 		title = "• Untitled - Accolade"
 	}
-	
+
 	w.fyneWindow.SetTitle(title)
 }
 
 func (w *MainWindow) updatePreview() {
 	if w.previewVisible {
-		text := w.textEditor.Text
+		text := w.textEditor.Text()
 		// Parse with Lexington and generate HTML preview
 		elements, err := w.lexParser.ParseText(text)
 		if err != nil {
 			log.Printf("Error parsing Fountain text: %v", err)
 			return
 		}
-		
+
 		htmlPreview := w.lexParser.FormatForPreview(elements)
 		w.previewArea.ParseMarkdown(htmlPreview)
 	}
@@ -449,10 +445,10 @@ func (w *MainWindow) setStatus(text string) {
 }
 
 func (w *MainWindow) updateStatusBar() {
-	text := w.textEditor.Text
+	text := w.textEditor.Text()
 	words := countWords(text)
 	chars := len(text)
-	
+
 	// Parse with Lexington for more detailed stats
 	elements, err := w.lexParser.ParseText(text)
 	if err == nil {
@@ -468,17 +464,20 @@ func (w *MainWindow) onCursorChanged() {
 }
 
 func (w *MainWindow) updateCurrentElement() {
-	text := w.textEditor.Text
+	if w.elementLabel == nil {
+		return // called while the window is being built
+	}
+	text := w.textEditor.Text()
 	if text == "" {
 		w.elementLabel.SetText("Element: Empty")
 		w.currentElement = "empty"
 		return
 	}
-	
+
 	// The logical line under the cursor (CursorRow counts wrapped rows),
 	// with its indentation, which tells dialogue from action
 	runes := []rune(text)
-	start, end := lineBounds(runes, min(w.textEditor.CursorTextOffset(), len(runes)))
+	start, end := lineBounds(runes, min(w.textEditor.CursorOffset(), len(runes)))
 	elementType := w.detectElementType(string(runes[start:end]))
 	w.elementLabel.SetText("Element: " + elementType)
 	w.currentElement = elementType
@@ -488,57 +487,57 @@ func (w *MainWindow) detectElementType(line string) string {
 	if line == "" {
 		return "Empty"
 	}
-	
+
 	// Simple pattern matching for better performance
 	upper := strings.ToUpper(strings.TrimSpace(line))
-	
+
 	// Scene headings
 	if strings.HasPrefix(upper, "INT.") || strings.HasPrefix(upper, "EXT.") || strings.HasPrefix(upper, "EST.") {
 		return "Scene Heading"
 	}
-	
+
 	// Transitions (FADE IN: opens a script and stays at the left margin)
 	if isTransition(upper) {
 		return "Transition"
 	}
-	
+
 	// Parentheticals
 	if strings.HasPrefix(line, "(") && strings.HasSuffix(line, ")") {
 		return "Parenthetical"
 	}
-	
+
 	// Character names - all caps, not a "SOMETHING:" cue like FADE IN:
 	if upper == line && len(line) > 1 && !strings.Contains(line, ".") && !strings.HasSuffix(line, ":") && hasLetter(line) {
 		return "Character"
 	}
-	
+
 	// Centered text
 	if strings.HasPrefix(line, ">") && strings.HasSuffix(line, "<") {
 		return "Centered"
 	}
-	
+
 	// Check for character names first (indented at proper character position and uppercase)
 	if strings.HasPrefix(line, strings.Repeat(" ", CharacterIndent)) && upper == strings.TrimSpace(line) {
 		return "Character"
 	}
-	
+
 	// Check for parentheticals (indented at proper position and wrapped in parentheses)
-	if strings.HasPrefix(line, strings.Repeat(" ", ParentheticalIndent)) && 
-	   strings.HasPrefix(strings.TrimSpace(line), "(") && 
-	   strings.HasSuffix(strings.TrimSpace(line), ")") {
+	if strings.HasPrefix(line, strings.Repeat(" ", ParentheticalIndent)) &&
+		strings.HasPrefix(strings.TrimSpace(line), "(") &&
+		strings.HasSuffix(strings.TrimSpace(line), ")") {
 		return "Parenthetical"
 	}
-	
+
 	// Check for dialogue (indented at dialogue position)
 	if strings.HasPrefix(line, strings.Repeat(" ", DialogueIndent)) && !strings.HasPrefix(line, strings.Repeat(" ", ParentheticalIndent)) {
 		return "Dialogue"
 	}
-	
+
 	// Check for transitions (heavily indented, usually at transition position)
 	if strings.HasPrefix(line, strings.Repeat(" ", TransitionIndent-5)) {
 		return "Transition"
 	}
-	
+
 	// Default to action
 	return "Action"
 }
@@ -566,16 +565,6 @@ func (w *MainWindow) getIndentationForNextElement(currentElement string) string 
 	default:
 		return ""
 	}
-}
-
-func (w *MainWindow) applyScreenplayFont() {
-	// Apply monospace font for proper screenplay formatting
-	// Fyne doesn't have direct font setting for widgets, but we can use text styling
-	// This sets the text to use a monospace font family
-	w.textEditor.TextStyle = fyne.TextStyle{
-		Monospace: true,
-	}
-	log.Println("Applied monospace font for screenplay formatting")
 }
 
 func (w *MainWindow) estimatePageCount(elements []ParsedElement) int {
@@ -606,17 +595,17 @@ func (w *MainWindow) showPreview() {
 	w.previewVisible = true
 	w.updatePreview()
 	w.settings.SetBoolean("preview-visible", true)
-	
+
 	// Create the split container with both editor and preview
-	editorScroll := container.NewScroll(w.editorView)
+	editorScroll := w.editorView
 	previewScroll := container.NewScroll(w.previewArea)
-	
+
 	splitContainer := container.NewHSplit(
 		editorScroll,
 		previewScroll,
 	)
 	splitContainer.SetOffset(0.7) // Give more space to editor
-	
+
 	// Update the main layout
 	content := container.NewBorder(
 		w.toolbarContainer, // top
@@ -625,7 +614,7 @@ func (w *MainWindow) showPreview() {
 		nil,                // right
 		splitContainer,     // center - split container
 	)
-	
+
 	w.fyneWindow.SetContent(content)
 }
 
@@ -633,10 +622,10 @@ func (w *MainWindow) hidePreview() {
 	// Hide preview pane by replacing the split container with just the editor
 	w.previewVisible = false
 	w.settings.SetBoolean("preview-visible", false)
-	
+
 	// Replace the split container with just the editor scroll
-	editorScroll := container.NewScroll(w.editorView)
-	
+	editorScroll := w.editorView
+
 	// Update the main layout to show only the editor
 	content := container.NewBorder(
 		w.toolbarContainer, // top
@@ -645,7 +634,7 @@ func (w *MainWindow) hidePreview() {
 		nil,                // right
 		editorScroll,       // center - just the editor
 	)
-	
+
 	w.fyneWindow.SetContent(content)
 }
 

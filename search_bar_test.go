@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fyne.io/fyne/v2/widget"
 	"testing"
 
 	"fyne.io/fyne/v2/test"
@@ -16,7 +17,7 @@ func newTestWindow(t *testing.T, text string) *MainWindow {
 	w := NewMainWindow(&Application{fyneApp: a})
 	w.textEditor.SetText(text)
 	w.hasChanges = false
-	setCursorOffset(&w.textEditor.Entry, 0)
+	w.textEditor.SetCursorOffset(0)
 	return w
 }
 
@@ -28,8 +29,8 @@ func search(w *MainWindow, text string) {
 func TestSetCursorOffsetRoundTrips(t *testing.T) {
 	w := newTestWindow(t, "first line\n\nthird ñandú line\nlast")
 	for _, off := range []int{0, 3, 10, 11, 12, 20, 29, 33} {
-		setCursorOffset(&w.textEditor.Entry, off)
-		if got := w.textEditor.CursorTextOffset(); got != off {
+		w.textEditor.SetCursorOffset(off)
+		if got := w.textEditor.CursorOffset(); got != off {
 			t.Errorf("setCursorOffset(%d): cursor at %d", off, got)
 		}
 	}
@@ -101,7 +102,7 @@ func TestReplaceOneKeepsUndo(t *testing.T) {
 
 	w.findNext()
 	w.replaceOne()
-	if got := w.textEditor.Text; got != "Bye world, hello moon" {
+	if got := w.textEditor.Text(); got != "Bye world, hello moon" {
 		t.Fatalf("after replaceOne: %q", got)
 	}
 	if got := w.textEditor.SelectedText(); got != "hello" {
@@ -111,11 +112,9 @@ func TestReplaceOneKeepsUndo(t *testing.T) {
 		t.Error("replaceOne did not mark the document changed")
 	}
 
-	// Fyne records typing over a selection as two steps (erase, insert),
-	// the same as when a user does it by hand.
+	// a replacement is one undo step
 	w.textEditor.Undo()
-	w.textEditor.Undo()
-	if got := w.textEditor.Text; got != "Hello world, hello moon" {
+	if got := w.textEditor.Text(); got != "Hello world, hello moon" {
 		t.Errorf("after Undo: %q", got)
 	}
 }
@@ -125,7 +124,7 @@ func TestReplaceOneWithoutSelectionOnlyFinds(t *testing.T) {
 	search(w, "aaa")
 	w.searchBar.SetReplaceText("x")
 	w.replaceOne()
-	if got := w.textEditor.Text; got != "aaa bbb aaa" {
+	if got := w.textEditor.Text(); got != "aaa bbb aaa" {
 		t.Errorf("text changed without a selected match: %q", got)
 	}
 	if got := w.textEditor.SelectedText(); got != "aaa" {
@@ -138,11 +137,15 @@ func TestReplaceAll(t *testing.T) {
 	search(w, "int.")
 	w.searchBar.SetReplaceText("EXT.")
 	w.replaceAll()
-	if got, want := w.textEditor.Text, "EXT. HOUSE - DAY\nEXT. barn - night\nEXT. FIELD"; got != want {
+	if got, want := w.textEditor.Text(), "EXT. HOUSE - DAY\nEXT. barn - night\nEXT. FIELD"; got != want {
 		t.Errorf("replaceAll = %q, want %q", got, want)
 	}
 	if got := w.searchBar.statusLabel.Text; got != "Replaced 2" {
 		t.Errorf("status = %q", got)
+	}
+	w.textEditor.Undo()
+	if got := w.textEditor.Text(); got != "INT. HOUSE - DAY\nint. barn - night\nEXT. FIELD" {
+		t.Errorf("replace all should undo in one step: %q", got)
 	}
 }
 
@@ -152,7 +155,28 @@ func TestReplaceAllRegexGroups(t *testing.T) {
 	search(w, `(\w+), (\w+)`)
 	w.searchBar.SetReplaceText("$2 $1")
 	w.replaceAll()
-	if got, want := w.textEditor.Text, "John Smith; Jane Doe"; got != want {
+	if got, want := w.textEditor.Text(), "John Smith; Jane Doe"; got != want {
 		t.Errorf("replaceAll = %q, want %q", got, want)
 	}
+}
+
+func TestSearchHighlightsAllMatches(t *testing.T) {
+	w := newTestWindow(t, "rain, rain, go away")
+	search(w, "rain")
+	// highlighted cells carry a background on row 0, columns 0-3 and 6-9
+	cells := editorRowCells(w, 0)
+	for _, col := range []int{0, 3, 6, 9} {
+		if cells[col].Style == nil || cells[col].Style.BackgroundColor() == nil {
+			t.Errorf("column %d not highlighted", col)
+		}
+	}
+	w.searchBar.Hide()
+	if c := editorRowCells(w, 0)[1]; c.Style != nil && c.Style.BackgroundColor() != nil {
+		t.Error("highlights remain after closing the search bar")
+	}
+}
+
+// editorRowCells is what the editor's grid shows in a row.
+func editorRowCells(w *MainWindow, row int) []widget.TextGridCell {
+	return w.textEditor.GridRow(row).Cells
 }

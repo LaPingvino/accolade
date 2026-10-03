@@ -50,7 +50,7 @@ func TestOpenFDXConvertsToFountain(t *testing.T) {
 	if err := w.LoadFile(fdxPath); err != nil {
 		t.Fatal(err)
 	}
-	text := w.textEditor.Text
+	text := w.textEditor.Text()
 	for _, s := range []string{"Title: The Barn", "INT. BARN - DAY", "\nJOHN\n(beat)\nIt's coming.\n", "CUT TO:"} {
 		if !strings.Contains(text, s) {
 			t.Errorf("imported text is missing %q:\n%s", s, text)
@@ -78,7 +78,7 @@ func TestOpenBrokenFDX(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "broken.fdx") {
 		t.Errorf("err = %v", err)
 	}
-	if w.textEditor.Text != "keep me" {
-		t.Errorf("failed import replaced the text: %q", w.textEditor.Text)
+	if w.textEditor.Text() != "keep me" {
+		t.Errorf("failed import replaced the text: %q", w.textEditor.Text())
 	}
 }

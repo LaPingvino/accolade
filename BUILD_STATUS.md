@@ -30,10 +30,10 @@ is checked with `pdftotext` when it is installed.
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Editing | Works | Screenplay font (Courier Badi), size from preferences |
-| Formatting on Enter | Works | Scene headings uppercased; character, parenthetical, dialogue and transition indents; undoable; off with "auto-indent" |
-| Find / replace | Works | Case, whole word, regex with `$1` groups; no highlight-all |
-| Undo / redo | Works | Fyne's Entry undo; Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z |
+| Editing | Works | Accolade's own editor (internal/editor) on a Fyne TextGrid: wraps at the window width, screenplay font and size from preferences |
+| Formatting on Enter | Works | Scene headings uppercased; character, parenthetical, dialogue and transition indents; one undo step; off with "auto-indent" |
+| Find / replace | Works | Case, whole word, regex with `$1` groups; all matches highlighted; each replace (and Replace All) one undo step |
+| Undo / redo | Works | By word while typing; Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z |
 | Keyboard shortcuts | Works | On the main menu (File/Edit/View/Help) |
 | Auto-save | Works | Interval from preferences; atomic writes |
 | Title page dialog | Works | Generates and replaces Fountain title pages |
@@ -45,16 +45,14 @@ is checked with `pdftotext` when it is installed.
 | Export DOCX | Not yet | Removed from the export dialog until implemented |
 | Spell check | Not yet | `spell_checker.go` is a stub |
 | Focus mode | Not yet | Menu/toolbar action logs only |
-| Syntax highlighting, line numbers | Not yet | Needs a custom editor widget (see below) |
+| Fountain colouring | Works | Scene headings, characters, parentheticals, transitions, notes |
+| Line numbers | Not yet | TextGrid supports them; not wired to a preference yet |
 | File drop, file type filters in dialogs | Not yet | |
 
 ## Known limitations
 
-- Fyne's text Entry has no API to select text or highlight ranges.
-  `editor_cursor.go` works around this with cursor fields and key events.
-  A dedicated editor widget (or upstream Fyne support) is the long-term
-  fix and would also allow syntax highlighting and line numbers.
-- Undoing a formatted or replaced line takes a few steps, because Fyne
-  records typing over a selection word by word.
+- The editor is monospace only (screenplays are), and always wraps at
+  the window width; the old word-wrap setting no longer applies.
+- Double-width characters (CJK) are counted as one column.
 - `lexington_converter.go` still shells out to a `lexington` binary and
   is not used by the app; the built-in lexington library is.
