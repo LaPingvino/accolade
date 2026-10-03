@@ -311,13 +311,24 @@ func getHomeDir() string {
 	return home
 }
 
-// Helper function to get config directory
+// getConfigDir is where Accolade keeps its settings: accolade/ in
+// $XDG_CONFIG_HOME if set, else in the system's configuration directory
+// (~/.config on Linux, ~/Library/Application Support on macOS, %AppData%
+// on Windows).
 func getConfigDir() string {
-	configDir := os.Getenv("XDG_CONFIG_HOME")
-	if configDir == "" {
-		configDir = filepath.Join(getHomeDir(), ".config")
+	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
+		return filepath.Join(dir, "accolade")
 	}
-	return filepath.Join(configDir, "accolade")
+	if dir, err := os.UserConfigDir(); err == nil {
+		return filepath.Join(dir, "accolade")
+	}
+	return legacyConfigDir()
+}
+
+// legacyConfigDir is where earlier versions kept the settings on every
+// system.
+func legacyConfigDir() string {
+	return filepath.Join(getHomeDir(), ".config", "accolade")
 }
 
 // Helper function to ensure directory exists

@@ -476,7 +476,35 @@ func (s *Settings) AutoSave() {
 // Helper function to ensure config directory exists
 func ensureConfigDir() error {
 	configDir := getConfigDir()
-	return os.MkdirAll(configDir, 0755)
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return err
+	}
+	if copied, err := copyLegacySettings(configDir, legacyConfigDir()); err != nil {
+		log.Printf("Could not copy settings from %s: %v", legacyConfigDir(), err)
+	} else if copied {
+		log.Printf("Copied settings from %s", legacyConfigDir())
+	}
+	return nil
+}
+
+// copyLegacySettings copies settings.json from the old directory to dir
+// if dir has none yet (on macOS and Windows the settings moved out of
+// ~/.config). The old file is left alone.
+func copyLegacySettings(dir, legacy string) (bool, error) {
+	if filepath.Clean(dir) == filepath.Clean(legacy) {
+		return false, nil
+	}
+	target := filepath.Join(dir, "settings.json")
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		return false, err
+	}
+	data, err := os.ReadFile(filepath.Join(legacy, "settings.json"))
+	if os.IsNotExist(err) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return true, os.WriteFile(target, data, 0600)
 }
 
 // Helper function to get config file path
