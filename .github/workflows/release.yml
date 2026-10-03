@@ -32,14 +32,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version-file: go.mod, cache: true }
+        with:
+          go-version-file: go.mod
+          cache: true
       - name: Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols libfuse2
           go install fyne.io/tools/cmd/fyne@latest
       - name: Package
-        env: { CGO_ENABLED: "1", VERSION: "${{ needs.version.outputs.version }}" }
+        env:
+          CGO_ENABLED: "1"
+          VERSION: "${{ needs.version.outputs.version }}"
         run: |
           mkdir -p dist
           fyne package --target linux --release --app-version "${VERSION%%-*}"
@@ -47,7 +51,9 @@ jobs:
           go build -trimpath -ldflags="-s -w" -o accolade .
           packaging/linux/build-appimage.sh ./accolade "$VERSION" dist
       - uses: actions/upload-artifact@v4
-        with: { name: linux, path: dist/* }
+        with:
+          name: linux
+          path: dist/*
 
   windows:
     needs: version
@@ -55,10 +61,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version-file: go.mod, cache: true }
+        with:
+          go-version-file: go.mod
+          cache: true
       - name: Package
         shell: bash
-        env: { CGO_ENABLED: "1", VERSION: "${{ needs.version.outputs.version }}" }
+        env:
+          CGO_ENABLED: "1"
+          VERSION: "${{ needs.version.outputs.version }}"
         run: |
           go install fyne.io/tools/cmd/fyne@latest
           fyne package --target windows --release --app-version "${VERSION%%-*}"
@@ -70,7 +80,9 @@ jobs:
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" "/DAppVersion=${{ needs.version.outputs.version }}" "/DSourceDir=$env:GITHUB_WORKSPACE\build" packaging\windows\accolade.iss
       - uses: actions/upload-artifact@v4
-        with: { name: windows, path: dist/* }
+        with:
+          name: windows
+          path: dist/*
 
   macos:
     needs: version
@@ -81,7 +93,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
-        with: { go-version-file: go.mod, cache: true }
+        with:
+          go-version-file: go.mod
+          cache: true
       - name: Package
         env:
           CGO_ENABLED: "1"
@@ -95,7 +109,9 @@ jobs:
           mkdir -p dist
           ditto -c -k --keepParent Accolade.app "dist/Accolade-${VERSION}-macos-${{ matrix.arch }}.zip"
       - uses: actions/upload-artifact@v4
-        with: { name: macos-${{ matrix.arch }}, path: dist/* }
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist/*
 
   release:
     if: github.ref_type == 'tag'
@@ -103,9 +119,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
-        with: { path: dist, merge-multiple: true }
+        with:
+          path: dist
+          merge-multiple: true
       - name: Publish
-        env: { GH_TOKEN: "${{ github.token }}" }
+        env:
+          GH_TOKEN: "${{ github.token }}"
         run: |
           ls -l dist
           gh release create "${GITHUB_REF_NAME}" dist/* --repo "${GITHUB_REPOSITORY}" --title "Accolade ${GITHUB_REF_NAME}" --generate-notes
