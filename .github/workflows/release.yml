@@ -1,0 +1,111 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version for the packages (e.g. 0.2.0); artifacts only, no release"
+        required: false
+        default: "0.0.0-dev"
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        shell: bash
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then v="${GITHUB_REF_NAME#v}"; else v="${{ github.event.inputs.version }}"; fi
+          echo "version=${v:-0.0.0-dev}" >> "$GITHUB_OUTPUT"
+
+  linux:
+    needs: version
+    # build on the oldest supported Ubuntu so the binaries run on older distributions
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: go.mod, cache: true }
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols libfuse2
+          go install fyne.io/tools/cmd/fyne@latest
+      - name: Package
+        env: { CGO_ENABLED: "1", VERSION: "${{ needs.version.outputs.version }}" }
+        run: |
+          mkdir -p dist
+          fyne package --target linux --release --app-version "${VERSION%%-*}"
+          mv Accolade.tar.xz "dist/Accolade-${VERSION}-linux-x86_64.tar.xz"
+          go build -trimpath -ldflags="-s -w" -o accolade .
+          packaging/linux/build-appimage.sh ./accolade "$VERSION" dist
+      - uses: actions/upload-artifact@v4
+        with: { name: linux, path: dist/* }
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: go.mod, cache: true }
+      - name: Package
+        shell: bash
+        env: { CGO_ENABLED: "1", VERSION: "${{ needs.version.outputs.version }}" }
+        run: |
+          go install fyne.io/tools/cmd/fyne@latest
+          fyne package --target windows --release --app-version "${VERSION%%-*}"
+          mkdir -p dist build
+          mv Accolade.exe build/
+          (cd build && 7z a "../dist/Accolade-${VERSION}-windows-x64-portable.zip" Accolade.exe ../LICENSE)
+      - name: Installer (Inno Setup)
+        shell: pwsh
+        run: |
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" "/DAppVersion=${{ needs.version.outputs.version }}" "/DSourceDir=$env:GITHUB_WORKSPACE\build" packaging\windows\accolade.iss
+      - uses: actions/upload-artifact@v4
+        with: { name: windows, path: dist/* }
+
+  macos:
+    needs: version
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        arch: [arm64, amd64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: go.mod, cache: true }
+      - name: Package
+        env:
+          CGO_ENABLED: "1"
+          GOARCH: ${{ matrix.arch }}
+          CGO_CFLAGS: ${{ matrix.arch == 'amd64' && '-arch x86_64' || '' }}
+          CGO_LDFLAGS: ${{ matrix.arch == 'amd64' && '-arch x86_64' || '' }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          GOARCH= go install fyne.io/tools/cmd/fyne@latest
+          fyne package --target darwin --release --app-version "${VERSION%%-*}"
+          mkdir -p dist
+          ditto -c -k --keepParent Accolade.app "dist/Accolade-${VERSION}-macos-${{ matrix.arch }}.zip"
+      - uses: actions/upload-artifact@v4
+        with: { name: macos-${{ matrix.arch }}, path: dist/* }
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [version, linux, windows, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist, merge-multiple: true }
+      - name: Publish
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          ls -l dist
+          gh release create "${GITHUB_REF_NAME}" dist/* --repo "${GITHUB_REPOSITORY}" --title "Accolade ${GITHUB_REF_NAME}" --generate-notes

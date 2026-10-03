@@ -1,0 +1,8 @@
+Website = "https://github.com/LaPingvino/accolade"
+
+[Details]
+Icon = "Icon.png"
+Name = "Accolade"
+ID = "eu.kiefte.Accolade"
+Version = "0.2.0"
+Build = 2

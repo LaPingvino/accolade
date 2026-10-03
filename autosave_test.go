@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -53,7 +54,8 @@ func TestAutoSaveWritesFile(t *testing.T) {
 	if string(data) != "A quiet room.\n\nJohn waits." {
 		t.Errorf("file = %q", data)
 	}
-	if info, _ := os.Stat(path); info.Mode().Perm() != 0600 {
+	// Windows has no Unix permission bits to keep
+	if info, _ := os.Stat(path); runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
 		t.Errorf("mode changed to %v", info.Mode().Perm())
 	}
 	if !strings.HasPrefix(w.statusLabel.Text, "Auto-saved") {

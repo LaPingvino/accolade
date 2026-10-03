@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Accolade
+GenericName=Screenplay Editor
+Comment=Write screenplays in Fountain
+Exec=accolade %F
+Icon=accolade
+Terminal=false
+Categories=Office;WordProcessor;
+MimeType=text/x-fountain;
+Keywords=screenplay;fountain;script;writing;

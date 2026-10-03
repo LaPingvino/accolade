@@ -40,11 +40,17 @@ func NewApplication() *Application {
 	return app
 }
 
-func (app *Application) setupMetadata() {
-	metadata := app.fyneApp.Metadata()
-	metadata.Name = "Accolade"
-	metadata.Version = "0.1.0"
-	metadata.Icon = nil // TODO: Add icon resource
+// setupMetadata used to set the name and version here; they now come from
+// FyneApp.toml, which the fyne tool embeds when packaging.
+func (app *Application) setupMetadata() {}
+
+// appVersion is Accolade's version as packaged (FyneApp.toml, set from the
+// release tag), or "dev" for a plain go build.
+func appVersion() string {
+	if a := fyne.CurrentApp(); a != nil && a.Metadata().Version != "" {
+		return a.Metadata().Version
+	}
+	return "dev"
 }
 
 func (app *Application) setupLifecycle() {
@@ -175,7 +181,7 @@ func (app *Application) showAbout() {
 	content := widget.NewRichTextFromMarkdown(`
 # Accolade
 
-**Version:** 0.1.0  
+**Version:** ` + appVersion() + `  
 **Developer:** Joop Kiefte  
 **Copyright:** © 2024 Joop Kiefte  
 **License:** GPL-3.0-or-later  
@@ -289,7 +295,7 @@ func moduleVersion(path string) string {
 
 // Helper function to get debug info
 func getDebugInfo() string {
-	info := fmt.Sprintf("Accolade %s\n", "0.1.0")
+	info := fmt.Sprintf("Accolade %s\n", appVersion())
 	info += fmt.Sprintf("Fyne: %s\n", moduleVersion("fyne.io/fyne/v2"))
 	info += fmt.Sprintf("Lexington: %s (built in)\n", moduleVersion("github.com/LaPingvino/lexington"))
 	
