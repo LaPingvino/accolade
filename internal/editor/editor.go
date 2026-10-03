@@ -6,8 +6,10 @@ package editor
 
 import (
 	"math"
+	"unicode"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -31,6 +33,12 @@ type ScriptEditor struct {
 	shift   bool
 	// preferred column for moving up and down
 	goalCol int
+	// dragging: selecting from dragFrom
+	dragging bool
+	dragFrom int
+
+	// onCursorMoved is told where the cursor is (see NewScroll)
+	onCursorMoved func(cursor fyne.Position, height float32)
 }
 
 // New creates an editor holding text.
@@ -131,6 +139,9 @@ func (e *ScriptEditor) relayout() {
 // changed re-lays out after an edit or cursor move.
 func (e *ScriptEditor) changed(edited bool) {
 	e.relayout()
+	if e.onCursorMoved != nil {
+		e.onCursorMoved(e.CursorPosition(), e.cellHeight())
+	}
 	if edited && e.OnChanged != nil {
 		e.OnChanged(e.buf.Text())
 	}
@@ -141,11 +152,89 @@ func (e *ScriptEditor) changed(edited bool) {
 func (e *ScriptEditor) FocusGained() { e.focused = true; e.relayout() }
 func (e *ScriptEditor) FocusLost()   { e.focused = false; e.shift = false; e.relayout() }
 
-// Tapped focuses the editor (placing the cursor comes with mouse support).
-func (e *ScriptEditor) Tapped(*fyne.PointEvent) {
-	if c := fyne.CurrentApp().Driver().CanvasForObject(e); c != nil {
-		c.Focus(e)
+// Tapped focuses the editor and places the cursor at the click (Shift
+// extends the selection).
+func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
+	e.focus()
+	e.buf.SetCursor(e.offsetAt(ev.Position), e.shift)
+	e.goalCol = -1
+	e.changed(false)
+}
+
+// DoubleTapped selects the word under the pointer.
+func (e *ScriptEditor) DoubleTapped(ev *fyne.PointEvent) {
+	e.focus()
+	start, end := e.wordAt(e.offsetAt(ev.Position))
+	e.buf.Select(start, end)
+	e.changed(false)
+}
+
+// Dragged selects from where the drag started to the pointer.
+func (e *ScriptEditor) Dragged(ev *fyne.DragEvent) {
+	if !e.dragging {
+		e.focus()
+		e.dragging = true
+		e.dragFrom = e.offsetAt(ev.Position.Subtract(ev.Dragged))
 	}
+	e.buf.Select(e.dragFrom, e.offsetAt(ev.Position))
+	e.changed(false)
+}
+
+// DragEnd ends a drag selection.
+func (e *ScriptEditor) DragEnd() { e.dragging = false }
+
+// Cursor shows the text cursor over the editor.
+func (e *ScriptEditor) Cursor() desktop.Cursor { return desktop.TextCursor }
+
+func (e *ScriptEditor) focus() {
+	if app := fyne.CurrentApp(); app != nil {
+		if c := app.Driver().CanvasForObject(e); c != nil {
+			c.Focus(e)
+		}
+	}
+}
+
+// offsetAt is the text offset nearest to a position in the editor (clicks
+// land between characters).
+func (e *ScriptEditor) offsetAt(p fyne.Position) int {
+	if len(e.layout.Rows) == 0 {
+		return 0
+	}
+	row := int(p.Y / e.cellHeight())
+	col := int(math.Round(float64(p.X / e.cellWidth())))
+	if row >= len(e.layout.Rows) {
+		return e.buf.Len()
+	}
+	return e.layout.Offset(max(row, 0), max(col, 0))
+}
+
+// wordAt is the word (letters and digits) around an offset, or the single
+// character there if it is not part of a word.
+func (e *ScriptEditor) wordAt(off int) (start, end int) {
+	text := []rune(e.buf.Text())
+	isWord := func(i int) bool {
+		return i >= 0 && i < len(text) && (unicode.IsLetter(text[i]) || unicode.IsDigit(text[i]))
+	}
+	if !isWord(off) && isWord(off-1) {
+		off--
+	}
+	if !isWord(off) {
+		return off, min(off+1, len(text))
+	}
+	start, end = off, off
+	for isWord(start - 1) {
+		start--
+	}
+	for isWord(end) {
+		end++
+	}
+	return start, end
+}
+
+// CursorPosition is where the cursor cell is drawn, relative to the editor.
+func (e *ScriptEditor) CursorPosition() fyne.Position {
+	row, col := e.layout.RowCol(e.buf.Cursor())
+	return fyne.NewPos(float32(col)*e.cellWidth(), float32(row)*e.cellHeight())
 }
 
 // KeyDown and KeyUp track Shift for selecting with the arrow keys.
@@ -276,9 +365,32 @@ func (e *ScriptEditor) TypedShortcut(s fyne.Shortcut) {
 	}
 }
 
+// NewScroll puts the editor in a vertical scroll container that keeps the
+// cursor in view as it moves.
+func NewScroll(e *ScriptEditor) *container.Scroll {
+	s := container.NewVScroll(e)
+	e.onCursorMoved = func(p fyne.Position, h float32) {
+		view := s.Size().Height
+		y := s.Offset.Y
+		switch {
+		case p.Y < y:
+			y = p.Y
+		case p.Y+h > y+view:
+			y = p.Y + h - view
+		default:
+			return
+		}
+		s.ScrollToOffset(fyne.NewPos(s.Offset.X, max(y, 0)))
+	}
+	return s
+}
+
 var (
-	_ fyne.Focusable    = (*ScriptEditor)(nil)
-	_ fyne.Shortcutable = (*ScriptEditor)(nil)
-	_ fyne.Tappable     = (*ScriptEditor)(nil)
-	_ desktop.Keyable   = (*ScriptEditor)(nil)
+	_ fyne.Focusable      = (*ScriptEditor)(nil)
+	_ fyne.Draggable      = (*ScriptEditor)(nil)
+	_ fyne.DoubleTappable = (*ScriptEditor)(nil)
+	_ desktop.Cursorable  = (*ScriptEditor)(nil)
+	_ fyne.Shortcutable   = (*ScriptEditor)(nil)
+	_ fyne.Tappable       = (*ScriptEditor)(nil)
+	_ desktop.Keyable     = (*ScriptEditor)(nil)
 )
