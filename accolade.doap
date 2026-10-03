@@ -6,8 +6,8 @@
 
   <name xml:lang="en">Accolade</name>
   <shortdesc xml:lang="en">Edit Fountain in style</shortdesc>
-  <homepage rdf:resource="https://codeberg.org/lapingvino/accolade" />
-  <bug-database rdf:resource="https://codeberg.org/lapingvino/accolade/issues"/>
+  <homepage rdf:resource="https://github.com/LaPingvino/accolade" />
+  <bug-database rdf:resource="https://github.com/LaPingvino/accolade/issues"/>
   <programming-language>Python</programming-language>
 
   <maintainer>

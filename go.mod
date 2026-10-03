@@ -1,4 +1,4 @@
-module codeberg.org/lapingvino/accolade
+module github.com/LaPingvino/accolade
 
 go 1.24.3
 

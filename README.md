@@ -84,7 +84,7 @@ $ sudo glib-compile-schemas /usr/share/glib-2.0/schemas
 Once all dependencies are installed you can build accolade using the following commands:
 
 ```bash
-$ git clone https://codeberg.org/lapingvino/accolade/
+$ git clone https://github.com/LaPingvino/accolade.git
 $ cd accolade
 $ meson builddir --prefix=/usr -Dprofile=development
 $ sudo ninja -C builddir install

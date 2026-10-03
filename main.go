@@ -178,8 +178,8 @@ func (app *Application) showAbout() {
 
 A distraction-free Fountain editor for screenwriters.
 
-**Website:** https://codeberg.org/lapingvino/accolade  
-**Issues:** https://codeberg.org/lapingvino/accolade/issues
+**Website:** https://github.com/LaPingvino/accolade  
+**Issues:** https://github.com/LaPingvino/accolade/issues
 `)
 	
 	aboutDialog := dialog.NewCustom("About Accolade", "Close", content, parent)
