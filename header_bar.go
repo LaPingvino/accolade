@@ -68,17 +68,11 @@ func (hb *HeaderBar) createButtons() {
 	hb.saveAsButton.SetText("Save As")
 	
 	// Edit operations
-	hb.undoButton = widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() {
-		// TODO: Implement undo
-	})
+	hb.undoButton = widget.NewButtonWithIcon("", theme.NavigateBackIcon(), hb.window.undo)
 	hb.undoButton.SetText("Undo")
-	hb.undoButton.Disable() // Initially disabled
 	
-	hb.redoButton = widget.NewButtonWithIcon("", theme.NavigateNextIcon(), func() {
-		// TODO: Implement redo
-	})
+	hb.redoButton = widget.NewButtonWithIcon("", theme.NavigateNextIcon(), hb.window.redo)
 	hb.redoButton.SetText("Redo")
-	hb.redoButton.Disable() // Initially disabled
 	
 	hb.findButton = widget.NewButtonWithIcon("", theme.SearchIcon(), func() {
 		hb.window.showFindReplace()

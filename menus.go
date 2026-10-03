@@ -50,6 +50,11 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	)
 
 	edit := fyne.NewMenu("Edit",
+		// Ctrl+Z / Ctrl+Y reach the focused text field directly; the menu adds
+		// the Ctrl+Shift+Z redo that Fyne does not map itself.
+		fyne.NewMenuItem("Undo", w.undo),
+		menuItem("Redo", shortcut(fyne.KeyZ, fyne.KeyModifierShift), w.redo),
+		fyne.NewMenuItemSeparator(),
 		menuItem("Find…", shortcut(fyne.KeyF, 0), w.showFind),
 		menuItem("Replace…", shortcut(fyne.KeyH, 0), w.showFindReplace),
 		menuItem("Find Next", shortcut(fyne.KeyG, 0), w.findNext),
@@ -88,3 +93,20 @@ func (e *escEntry) TypedKey(key *fyne.KeyEvent) {
 	}
 	e.Entry.TypedKey(key)
 }
+
+type undoer interface {
+	Undo()
+	Redo()
+}
+
+// editTarget is the text field undo/redo should act on: the focused one
+// (the editor or a search field), falling back to the editor.
+func (w *MainWindow) editTarget() undoer {
+	if u, ok := w.fyneWindow.Canvas().Focused().(undoer); ok {
+		return u
+	}
+	return w.textEditor
+}
+
+func (w *MainWindow) undo() { w.editTarget().Undo() }
+func (w *MainWindow) redo() { w.editTarget().Redo() }
