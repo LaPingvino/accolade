@@ -203,6 +203,12 @@ func (lc *LexingtonConverter) GetLexingtonVersion() (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
+// ValidationError is a problem found in a Fountain script.
+type ValidationError struct {
+	Line    int
+	Message string
+}
+
 func (lc *LexingtonConverter) ValidateFountain(fountainText string) []ValidationError {
 	// TODO: Use lexington linter to validate Fountain syntax
 	errors := []ValidationError{}
