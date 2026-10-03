@@ -5,7 +5,9 @@
 package editor
 
 import (
+	"image/color"
 	"math"
+	"strings"
 	"unicode"
 
 	"fyne.io/fyne/v2"
@@ -15,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/editor/syntax"
 	"github.com/LaPingvino/accolade/internal/editor/wrap"
 )
 
@@ -36,6 +39,12 @@ type ScriptEditor struct {
 	// dragging: selecting from dragFrom
 	dragging bool
 	dragFrom int
+
+	// highlights are ranges shown with a highlight background (search
+	// matches); [start, end) rune offsets
+	highlights [][2]int
+	// Syntax colours the text by Fountain element
+	Syntax bool
 
 	// onCursorMoved is told where the cursor is (see NewScroll)
 	onCursorMoved func(cursor fyne.Position, height float32)
@@ -60,6 +69,13 @@ func (e *ScriptEditor) Text() string { return e.buf.Text() }
 func (e *ScriptEditor) SetText(text string) {
 	e.buf.SetText(text)
 	e.changed(false)
+}
+
+// SetHighlights marks ranges of the text, such as all search matches, with
+// a highlight background; nil clears them.
+func (e *ScriptEditor) SetHighlights(ranges [][2]int) {
+	e.highlights = ranges
+	e.relayout()
 }
 
 // Columns is the number of columns the text is wrapped to.
@@ -107,8 +123,25 @@ func (e *ScriptEditor) relayout() {
 		FGColor: th.Color(theme.ColorNameBackground, v),
 		BGColor: th.Color(theme.ColorNameForeground, v),
 	}
+	highlight := &widget.CustomTextGridStyle{BGColor: th.Color(theme.ColorNameHover, v)}
+	if c := th.Color(theme.ColorNameWarning, v); c != nil {
+		r, g, b, _ := c.RGBA()
+		highlight.BGColor = color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0x60}
+	}
 	selStart, selEnd := e.buf.Selection()
 	curRow, curCol := e.layout.RowCol(e.buf.Cursor())
+	highlighted := func(off int) bool {
+		for _, h := range e.highlights {
+			if off >= h[0] && off < h[1] {
+				return true
+			}
+		}
+		return false
+	}
+	var kinds []syntax.Kind
+	if e.Syntax {
+		kinds = syntax.Classify(strings.Split(string(text), "\n"))
+	}
 
 	rows := make([]widget.TextGridRow, len(e.layout.Rows))
 	for i, r := range e.layout.Rows {
@@ -116,10 +149,17 @@ func (e *ScriptEditor) relayout() {
 		for c := 0; c < r.Indent; c++ {
 			cells = append(cells, widget.TextGridCell{Rune: ' '})
 		}
+		var lineStyle widget.TextGridStyle
+		if r.Line < len(kinds) {
+			lineStyle = kindStyle(kinds[r.Line], th, v)
+		}
 		for off := r.Start; off < r.End; off++ {
-			cell := widget.TextGridCell{Rune: text[off]}
-			if off >= selStart && off < selEnd {
-				cell.Style = selected
+			cell := widget.TextGridCell{Rune: text[off], Style: lineStyle}
+			switch {
+			case off >= selStart && off < selEnd:
+				cell.Style = withBackground(lineStyle, selected.BGColor)
+			case highlighted(off):
+				cell.Style = withBackground(lineStyle, highlight.BGColor)
 			}
 			cells = append(cells, cell)
 		}
@@ -134,6 +174,33 @@ func (e *ScriptEditor) relayout() {
 	e.grid.Rows = rows
 	e.grid.Refresh()
 	e.Refresh()
+}
+
+// kindStyle is how a Fountain element is shown (nil for plain action).
+func kindStyle(k syntax.Kind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGridStyle {
+	fg := th.Color(theme.ColorNameForeground, v)
+	switch k {
+	case syntax.SceneHeading:
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: fg}
+	case syntax.Character:
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: th.Color(theme.ColorNamePrimary, v)}
+	case syntax.Parenthetical:
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: fg}
+	case syntax.Transition, syntax.Centered:
+		return &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePrimary, v)}
+	case syntax.Note, syntax.Section, syntax.Synopsis, syntax.PageBreak, syntax.TitlePage:
+		return &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}
+	}
+	return nil
+}
+
+// withBackground is a line style with a background colour added.
+func withBackground(s widget.TextGridStyle, bg color.Color) widget.TextGridStyle {
+	out := &widget.CustomTextGridStyle{BGColor: bg}
+	if s != nil {
+		out.TextStyle, out.FGColor = s.Style(), s.TextColor()
+	}
+	return out
 }
 
 // changed re-lays out after an edit or cursor move.
