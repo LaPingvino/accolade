@@ -39,6 +39,11 @@ func (e *screenplayEntry) TypedKey(key *fyne.KeyEvent) {
 // completeLine handles Enter: format the current line if the cursor is at
 // its end, then break the line and indent the new one.
 func (e *screenplayEntry) completeLine() {
+	if e.window != nil && e.window.settings != nil && !e.window.settings.GetBoolean("auto-indent") {
+		e.Entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+		return
+	}
+
 	text := []rune(e.Text)
 	cursor := e.CursorTextOffset()
 	start, end := lineBounds(text, cursor)

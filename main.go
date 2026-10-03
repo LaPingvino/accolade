@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"fyne.io/fyne/v2/driver/desktop"
 )
@@ -189,11 +190,18 @@ A distraction-free Fountain editor for screenwriters.
 	aboutDialog.Show()
 }
 
+// applySettingsToWindows re-applies the editor settings in every window
+// after the preferences changed.
+func (app *Application) applySettingsToWindows() {
+	for _, w := range app.windows {
+		w.applyEditorSettings()
+		w.applyFontSettings()
+	}
+}
+
 func (app *Application) setColorScheme(scheme string) {
 	log.Printf("Setting color scheme to: %s", scheme)
 	
-	// TODO: Implement theme switching for Fyne
-	// Fyne has built-in light/dark theme support
 	switch scheme {
 	case "light":
 		app.fyneApp.Settings().SetTheme(&LightTheme{})
@@ -202,8 +210,8 @@ func (app *Application) setColorScheme(scheme string) {
 	case "sepia":
 		app.fyneApp.Settings().SetTheme(&SepiaTheme{})
 	default:
-		// Use system default
-		app.fyneApp.Settings().SetTheme(nil)
+		// Fyne's own theme follows the system's light/dark preference
+		app.fyneApp.Settings().SetTheme(theme.DefaultTheme())
 	}
 }
 

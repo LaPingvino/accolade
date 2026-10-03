@@ -432,11 +432,13 @@ func (pd *PreferencesDialog) resetToDefaults() {
 
 func (pd *PreferencesDialog) apply() {
 	pd.saveSettings()
+	pd.app.applySettingsToWindows()
 	dialog.ShowInformation("Settings Applied", "Your preferences have been saved.", pd.app.windows[0].fyneWindow)
 }
 
 func (pd *PreferencesDialog) ok() {
 	pd.saveSettings()
+	pd.app.applySettingsToWindows()
 	pd.dialog.Hide()
 }
 

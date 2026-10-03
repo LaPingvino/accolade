@@ -31,6 +31,7 @@ type MainWindow struct {
 	
 	// Core components
 	textEditor   *screenplayEntry
+	editorView   *container.ThemeOverride // the editor with its font settings
 	previewArea  *widget.RichText
 	headerBar    *HeaderBar
 	searchBar    *SearchBar
@@ -109,6 +110,7 @@ func (w *MainWindow) setupUI() {
 	
 	// Apply Courier Prime font for screenplay formatting
 	w.applyScreenplayFont()
+	w.editorView = container.NewThemeOverride(w.textEditor, newEditorTheme("", 0))
 	
 	// Create preview area
 	w.previewArea = widget.NewRichText()
@@ -140,7 +142,7 @@ func (w *MainWindow) setupUI() {
 	)
 	
 	// Create main content area - just the editor for now
-	editorScroll := container.NewScroll(w.textEditor)
+	editorScroll := container.NewScroll(w.editorView)
 	
 	// Create main layout
 	content := container.NewBorder(
@@ -195,9 +197,7 @@ func (w *MainWindow) setupCallbacks() {
 
 func (w *MainWindow) applySettings() {
 	// Apply theme
-	themeName := w.settings.GetString("theme")
-	_ = GetThemeByName(themeName)
-	w.fyneWindow.SetContent(w.fyneWindow.Content()) // Refresh with new theme
+	w.app.setColorScheme(w.settings.GetString("theme"))
 	
 	// Apply editor settings
 	w.applyEditorSettings()
@@ -219,12 +219,13 @@ func (w *MainWindow) applyEditorSettings() {
 		w.textEditor.Wrapping = fyne.TextWrapOff
 	}
 	
-	// TODO: Apply other editor settings like auto-indent, spell check, etc.
+	w.textEditor.Refresh()
+	// auto-indent is read when Enter is pressed (editor.go)
 }
 
 func (w *MainWindow) applyFontSettings() {
-	// TODO: Implement font settings
-	// Fyne has limited font customization compared to GTK
+	w.editorView.Theme = newEditorTheme(w.settings.GetString("font-family"), w.settings.GetInt("font-size"))
+	w.editorView.Refresh()
 }
 
 // File operations
@@ -607,7 +608,7 @@ func (w *MainWindow) showPreview() {
 	w.settings.SetBoolean("preview-visible", true)
 	
 	// Create the split container with both editor and preview
-	editorScroll := container.NewScroll(w.textEditor)
+	editorScroll := container.NewScroll(w.editorView)
 	previewScroll := container.NewScroll(w.previewArea)
 	
 	splitContainer := container.NewHSplit(
@@ -634,7 +635,7 @@ func (w *MainWindow) hidePreview() {
 	w.settings.SetBoolean("preview-visible", false)
 	
 	// Replace the split container with just the editor scroll
-	editorScroll := container.NewScroll(w.textEditor)
+	editorScroll := container.NewScroll(w.editorView)
 	
 	// Update the main layout to show only the editor
 	content := container.NewBorder(
