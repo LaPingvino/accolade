@@ -34,8 +34,8 @@ func TestTipShowsBelowTheButtonAndHides(t *testing.T) {
 
 	b.MouseIn(&desktop.MouseEvent{})
 	waitFor(t, func() bool { return layer.Text() == "Save (Ctrl+S)" })
-	if layer.bg.Position().Y < b.Size().Height || layer.bg.Position().X < 0 {
-		t.Errorf("tip at %v, want below the button (height %v)", layer.bg.Position(), b.Size().Height)
+	if p := layer.TipPosition(); p.Y < b.Size().Height || p.X < 0 {
+		t.Errorf("tip at %v, want below the button (height %v)", p, b.Size().Height)
 	}
 
 	// the layer takes no input: tapping where the button is still taps it

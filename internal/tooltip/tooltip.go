@@ -9,6 +9,7 @@ package tooltip
 
 import (
 	"image/color"
+	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -26,9 +27,13 @@ var Delay = 500 * time.Millisecond
 //	container.NewStack(content, layer)
 type Layer struct {
 	widget.BaseWidget
-	bg    *canvas.Rectangle
-	text  *canvas.Text
+	bg   *canvas.Rectangle
+	text *canvas.Text
+
+	mu    sync.Mutex // guards the fields below
 	shown bool
+	tip   string
+	pos   fyne.Position
 }
 
 // NewLayer creates an empty tooltip layer.
@@ -47,15 +52,26 @@ func (l *Layer) CreateRenderer() fyne.WidgetRenderer {
 
 // Text is the tip being shown, or "" when none is.
 func (l *Layer) Text() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if !l.shown {
 		return ""
 	}
-	return l.text.Text
+	return l.tip
+}
+
+// TipPosition is where the shown tip's top left corner is.
+func (l *Layer) TipPosition() fyne.Position {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.pos
 }
 
 // ShowTip shows tip just below obj (a widget inside the layer's window),
 // kept within the layer's width.
 func (l *Layer) ShowTip(tip string, obj fyne.CanvasObject) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	d := fyne.CurrentApp().Driver()
 	at := d.AbsolutePositionForObject(obj).Subtract(d.AbsolutePositionForObject(l))
 
@@ -76,7 +92,7 @@ func (l *Layer) ShowTip(tip string, obj fyne.CanvasObject) {
 	l.bg.Resize(size)
 	l.text.Move(pos.Add(fyne.NewPos(pad, pad)))
 	l.text.Resize(l.text.MinSize())
-	l.shown = true
+	l.shown, l.tip, l.pos = true, tip, pos
 	l.bg.Show()
 	l.text.Show()
 	l.Refresh()
@@ -84,6 +100,8 @@ func (l *Layer) ShowTip(tip string, obj fyne.CanvasObject) {
 
 // HideTip hides the tooltip.
 func (l *Layer) HideTip() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	l.shown = false
 	l.bg.Hide()
 	l.text.Hide()
@@ -109,7 +127,10 @@ type Button struct {
 	widget.Button
 	Tip   string
 	layer *Layer
+
+	mu    sync.Mutex // guards timer and gen
 	timer *time.Timer
+	gen   int // which hover a pending timer belongs to
 }
 
 // NewButton creates an icon button with a tip shown on layer.
@@ -124,10 +145,16 @@ func NewButton(icon fyne.Resource, tip string, tapped func(), layer *Layer) *But
 // MouseIn starts the tip's delay.
 func (b *Button) MouseIn(e *desktop.MouseEvent) {
 	b.Button.MouseIn(e)
-	b.stop()
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.stopLocked()
+	gen := b.gen
 	b.timer = time.AfterFunc(Delay, func() {
 		fyne.Do(func() {
-			if b.timer != nil && b.Tip != "" && b.layer != nil {
+			b.mu.Lock()
+			current := b.gen == gen && b.timer != nil
+			b.mu.Unlock()
+			if current && b.Tip != "" && b.layer != nil {
 				b.layer.ShowTip(b.Tip, b)
 			}
 		})
@@ -146,7 +173,9 @@ func (b *Button) Tapped(e *fyne.PointEvent) {
 	b.Button.Tapped(e)
 }
 
-func (b *Button) stop() {
+// stopLocked cancels a pending tip; b.mu must be held.
+func (b *Button) stopLocked() {
+	b.gen++
 	if b.timer != nil {
 		b.timer.Stop()
 		b.timer = nil
@@ -154,7 +183,9 @@ func (b *Button) stop() {
 }
 
 func (b *Button) hide() {
-	b.stop()
+	b.mu.Lock()
+	b.stopLocked()
+	b.mu.Unlock()
 	if b.layer != nil && b.layer.Text() == b.Tip {
 		b.layer.HideTip()
 	}
