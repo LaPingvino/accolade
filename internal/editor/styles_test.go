@@ -50,8 +50,8 @@ func TestSyntaxStyles(t *testing.T) {
 	if s := style(0); s == nil || !s.Style().Bold {
 		t.Error("scene heading not bold")
 	}
-	if s := style(2); s == nil || !s.Style().Bold || s.TextColor() == nil {
-		t.Error("character not bold and coloured")
+	if s := style(2); s == nil || !s.Style().Bold {
+		t.Error("character not bold")
 	}
 	if s := style(3); s == nil || !s.Style().Italic {
 		t.Error("parenthetical not italic")
@@ -92,7 +92,7 @@ func TestLineNumbers(t *testing.T) {
 }
 
 func TestSyntaxColoursFollowTheTheme(t *testing.T) {
-	e := newEditor(t, "INT. BARN - DAY\n\nRain.", 40)
+	e := newEditor(t, "INT. BARN - DAY\n\nJOHN\nHello.", 40)
 	e.FocusLost()
 	e.Syntax = true
 	e.changed(false)
@@ -101,8 +101,8 @@ func TestSyntaxColoursFollowTheTheme(t *testing.T) {
 		a.Settings().SetTheme(th)
 		e.Refresh()
 		want := th.Color(theme.ColorNameForeground, a.Settings().ThemeVariant())
-		if got := e.grid.Rows[0].Cells[0].Style.TextColor(); got != want {
-			t.Errorf("scene heading colour %v, want the theme's foreground %v", got, want)
+		if got := e.grid.Rows[2].Cells[0].Style.TextColor(); got != want {
+			t.Errorf("character name colour %v, want the theme's foreground %v", got, want)
 		}
 	}
 }

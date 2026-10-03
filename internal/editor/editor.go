@@ -275,22 +275,34 @@ func (e *ScriptEditor) relayout() {
 // are baked into the grid's cell styles.
 func (e *ScriptEditor) Refresh() { e.relayout() }
 
-// kindStyle is how a Fountain element is shown (nil for plain action).
+// kindStyle is how a Fountain element is shown (nil for plain action and
+// dialogue). Scene headings, the landmarks of a script, are the only
+// element in the accent colour; character names are bold; parentheticals,
+// transitions, the title page and notes are dimmed.
 func kindStyle(k syntax.Kind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGridStyle {
 	fg := th.Color(theme.ColorNameForeground, v)
+	dim := mix(fg, th.Color(theme.ColorNameBackground, v), 0.45)
 	switch k {
 	case syntax.SceneHeading:
-		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: fg}
-	case syntax.Character:
 		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: th.Color(theme.ColorNamePrimary, v)}
+	case syntax.Character:
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: fg}
 	case syntax.Parenthetical:
-		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: fg}
-	case syntax.Transition, syntax.Centered:
-		return &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePrimary, v)}
-	case syntax.Note, syntax.Section, syntax.Synopsis, syntax.PageBreak, syntax.TitlePage:
-		return &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: dim}
+	case syntax.Transition, syntax.TitlePage, syntax.PageBreak:
+		return &widget.CustomTextGridStyle{FGColor: dim}
+	case syntax.Note, syntax.Section, syntax.Synopsis:
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: dim}
 	}
 	return nil
+}
+
+// mix blends a towards b by the fraction t.
+func mix(a, b color.Color, t float64) color.Color {
+	ar, ag, ab, _ := a.RGBA()
+	br, bg, bb, _ := b.RGBA()
+	f := func(x, y uint32) uint8 { return uint8((float64(x)*(1-t) + float64(y)*t) / 257) }
+	return color.NRGBA{R: f(ar, br), G: f(ag, bg), B: f(ab, bb), A: 0xff}
 }
 
 // withBackground is a line style with a background colour added.

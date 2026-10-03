@@ -17,15 +17,15 @@ func (t *LightTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) 
 	case theme.ColorNameForeground:
 		return color.RGBA{R: 0, G: 0, B: 0, A: 255} // Black
 	case theme.ColorNamePrimary:
-		return color.RGBA{R: 74, G: 144, B: 226, A: 255} // Blue
+		return color.RGBA{R: 52, G: 96, B: 140, A: 255} // Muted ink blue
 	case theme.ColorNameFocus:
-		return color.RGBA{R: 74, G: 144, B: 226, A: 255} // Blue
+		return color.RGBA{R: 52, G: 96, B: 140, A: 255} // Muted ink blue
 	case theme.ColorNameHover:
 		return color.RGBA{R: 240, G: 240, B: 240, A: 255} // Light gray
 	case theme.ColorNamePressed:
 		return color.RGBA{R: 220, G: 220, B: 220, A: 255} // Darker gray
 	case theme.ColorNameSelection:
-		return color.RGBA{R: 74, G: 144, B: 226, A: 80} // Semi-transparent blue
+		return color.RGBA{R: 52, G: 96, B: 140, A: 60} // Semi-transparent ink blue
 	case theme.ColorNameSeparator:
 		return color.RGBA{R: 200, G: 200, B: 200, A: 255} // Light gray
 	case theme.ColorNameError:
@@ -78,15 +78,15 @@ func (t *DarkTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) c
 	case theme.ColorNameForeground:
 		return color.RGBA{R: 240, G: 240, B: 240, A: 255} // Light gray
 	case theme.ColorNamePrimary:
-		return color.RGBA{R: 100, G: 180, B: 255, A: 255} // Light blue
+		return color.RGBA{R: 140, G: 176, B: 214, A: 255} // Soft blue
 	case theme.ColorNameFocus:
-		return color.RGBA{R: 100, G: 180, B: 255, A: 255} // Light blue
+		return color.RGBA{R: 140, G: 176, B: 214, A: 255} // Soft blue
 	case theme.ColorNameHover:
 		return color.RGBA{R: 60, G: 60, B: 60, A: 255} // Medium dark gray
 	case theme.ColorNamePressed:
 		return color.RGBA{R: 80, G: 80, B: 80, A: 255} // Lighter dark gray
 	case theme.ColorNameSelection:
-		return color.RGBA{R: 100, G: 180, B: 255, A: 80} // Semi-transparent light blue
+		return color.RGBA{R: 140, G: 176, B: 214, A: 70} // Semi-transparent soft blue
 	case theme.ColorNameSeparator:
 		return color.RGBA{R: 80, G: 80, B: 80, A: 255} // Dark gray
 	case theme.ColorNameError:
@@ -139,9 +139,9 @@ func (t *SepiaTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) 
 	case theme.ColorNameForeground:
 		return color.RGBA{R: 92, G: 80, B: 65, A: 255} // Dark brown
 	case theme.ColorNamePrimary:
-		return color.RGBA{R: 184, G: 134, B: 11, A: 255} // Golden brown
+		return color.RGBA{R: 140, G: 90, B: 40, A: 255} // Warm brown
 	case theme.ColorNameFocus:
-		return color.RGBA{R: 184, G: 134, B: 11, A: 255} // Golden brown
+		return color.RGBA{R: 140, G: 90, B: 40, A: 255} // Warm brown
 	case theme.ColorNameHover:
 		return color.RGBA{R: 245, G: 240, B: 215, A: 255} // Slightly darker sepia
 	case theme.ColorNamePressed:
