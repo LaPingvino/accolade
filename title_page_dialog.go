@@ -198,8 +198,8 @@ func (tpd *TitlePageDialog) insertTitlePage() {
 		currentText = tpd.removeExistingTitlePage(currentText)
 	}
 	
-	// Combine title page with content
-	newText := titlePageText + "\n\n" + currentText
+	// Combine title page with content, one blank line between them
+	newText := titlePageText + "\n\n" + strings.TrimLeft(currentText, "\n")
 	tpd.window.textEditor.SetText(newText)
 	
 	// Save settings
@@ -292,75 +292,65 @@ func (tpd *TitlePageDialog) generateTitlePageText() string {
 		}
 	}
 	
-	// Add two blank lines after title page to separate from script content
-	lines = append(lines, "")
-	lines = append(lines, "")
-	
 	return strings.Join(lines, "\n")
 }
 
 func (tpd *TitlePageDialog) hasExistingTitlePage(text string) bool {
-	// Check for title page markers: key-value pairs like Title:, Author:, etc.
-	lines := strings.Split(text, "\n")
-	for i, line := range lines {
-		if i > 20 { // Only check first part of document
-			break
-		}
-		trimmed := strings.TrimSpace(line)
-		// Look for title page key-value pairs
-		if strings.HasPrefix(trimmed, "Title:") ||
-		   strings.HasPrefix(trimmed, "Author:") ||
-		   strings.HasPrefix(trimmed, "Credit:") ||
-		   strings.HasPrefix(trimmed, "Contact:") ||
-		   strings.HasPrefix(trimmed, "Draft date:") {
-			return true
-		}
-	}
-	return false
+	return titlePageEnd(strings.Split(text, "\n")) > 0
 }
 
+// removeExistingTitlePage returns text without its leading title page.
 func (tpd *TitlePageDialog) removeExistingTitlePage(text string) string {
 	lines := strings.Split(text, "\n")
-	
-	// Find where the title page ends (look for script start)
-	inTitlePage := false
+	return strings.Join(lines[titlePageEnd(lines):], "\n")
+}
+
+// titlePageEnd returns the index of the first script line after a leading
+// Fountain title page, or 0 if there is none. The title page is the run of
+// "Key: value" fields, their indented continuation lines and the blank
+// lines between them, read the way lexington's parser reads it.
+func titlePageEnd(lines []string) int {
+	end, sawField := 0, false
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		trimmedUpper := strings.ToUpper(trimmed)
-		
-		// Check if we're in title page content
-		if strings.Contains(trimmed, ":") && (strings.HasPrefix(trimmed, "Title:") ||
-		   strings.HasPrefix(trimmed, "Author:") ||
-		   strings.HasPrefix(trimmed, "Credit:") ||
-		   strings.HasPrefix(trimmed, "Contact:") ||
-		   strings.HasPrefix(trimmed, "Draft date:") ||
-		   strings.HasPrefix(trimmed, "Source:")) {
-			inTitlePage = true
+		switch {
+		case trimmed == "":
 			continue
+		case sawField && (strings.HasPrefix(line, "\t") || strings.HasPrefix(line, "   ")):
+		case isTitleField(line, lines, i):
+			sawField = true
+		default:
+			if !sawField {
+				return 0
+			}
+			return i
 		}
-		
-		// Skip indented contact info lines
-		if inTitlePage && strings.HasPrefix(line, "    ") {
-			continue
-		}
-		
-		// Look for script start
-		if trimmedUpper == "FADE IN:" || 
-		   strings.HasPrefix(trimmedUpper, "INT.") || 
-		   strings.HasPrefix(trimmedUpper, "EXT.") ||
-		   strings.HasPrefix(trimmedUpper, "EST.") {
-			// Found start of script, return everything from here
-			return strings.Join(lines[i:], "\n")
-		}
-		
-		// If we hit non-empty, non-title-page content, start from here
-		if inTitlePage && trimmed != "" && !strings.Contains(trimmed, ":") {
-			return strings.Join(lines[i:], "\n")
-		}
+		end = i + 1
 	}
-	
-	// If no script start found, return empty (was all title page)
-	return ""
+	if !sawField {
+		return 0
+	}
+	for end < len(lines) && strings.TrimSpace(lines[end]) == "" {
+		end++
+	}
+	return end
+}
+
+// isTitleField reports whether lines[i] is a "Key: value" field rather than
+// script text such as a scene heading or a "FADE IN:" cue.
+func isTitleField(line string, lines []string, i int) bool {
+	if strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") {
+		return false
+	}
+	key, value, ok := strings.Cut(line, ":")
+	if !ok || strings.TrimSpace(key) == "" || isSceneHeading(line) {
+		return false
+	}
+	if strings.TrimSpace(value) != "" || key != strings.ToUpper(key) {
+		return true
+	}
+	return i+1 < len(lines) && strings.TrimSpace(lines[i+1]) != "" &&
+		(strings.HasPrefix(lines[i+1], "   ") || strings.HasPrefix(lines[i+1], "\t"))
 }
 
 func (tpd *TitlePageDialog) saveSettings() {

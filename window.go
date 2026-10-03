@@ -105,7 +105,7 @@ func (w *MainWindow) setupUI() {
 	w.textEditor.SetPlaceHolder("Start writing your screenplay here...")
 	
 	// Add some initial content - start with a title page
-	w.textEditor.SetText("Title: UNTITLED SCREENPLAY\n\nCredit: Written by\n\nAuthor: Your Name\n\nDraft date: " + time.Now().Format("January 2, 2006") + "\n\nContact:\nYour Name\nYour Address\nYour Phone\nYour Email\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nFADE IN:\n\nINT. LIVING ROOM - DAY\n\nA simple room with basic furniture. Light streams through the windows.\n\nJOHN sits at a desk, typing on a laptop. He looks frustrated.\n\n\t\t\tJOHN\n\t\t(sighing)\n\tThis screenplay isn't writing itself.\n\nHe takes a sip of coffee and continues typing.\n\nFADE OUT.")
+	w.textEditor.SetText(defaultScript(time.Now()))
 	
 	// Apply Courier Prime font for screenplay formatting
 	w.applyScreenplayFont()
@@ -474,18 +474,13 @@ func (w *MainWindow) updateCurrentElement() {
 		return
 	}
 	
-	// Get cursor position - use CursorRow for line detection
-	cursorRow := w.textEditor.CursorRow
-	
-	// Find the current line
-	lines := strings.Split(text, "\n")
-	
-	if cursorRow < len(lines) {
-		currentLine := strings.TrimSpace(lines[cursorRow])
-		elementType := w.detectElementType(currentLine)
-		w.elementLabel.SetText("Element: " + elementType)
-		w.currentElement = elementType
-	}
+	// The logical line under the cursor (CursorRow counts wrapped rows),
+	// with its indentation, which tells dialogue from action
+	runes := []rune(text)
+	start, end := lineBounds(runes, min(w.textEditor.CursorTextOffset(), len(runes)))
+	elementType := w.detectElementType(string(runes[start:end]))
+	w.elementLabel.SetText("Element: " + elementType)
+	w.currentElement = elementType
 }
 
 func (w *MainWindow) detectElementType(line string) string {
@@ -733,4 +728,36 @@ func isCharacterName(line string) bool {
 		}
 	}
 	return false
+}
+
+// defaultScript is the text a new window starts with: a title page to fill
+// in and the first lines of a script.
+func defaultScript(now time.Time) string {
+	return strings.Join([]string{
+		"Title: UNTITLED SCREENPLAY",
+		"Credit: Written by",
+		"Author: Your Name",
+		"Draft date: " + now.Format("January 2, 2006"),
+		"Contact:",
+		"    Your Name",
+		"    Your Address",
+		"    Your Phone",
+		"    Your Email",
+		"",
+		"FADE IN:",
+		"",
+		"INT. LIVING ROOM - DAY",
+		"",
+		"A simple room with basic furniture. Light streams through the windows.",
+		"",
+		"JOHN sits at a desk, typing on a laptop. He looks frustrated.",
+		"",
+		strings.Repeat(" ", CharacterIndent) + "JOHN",
+		strings.Repeat(" ", ParentheticalIndent) + "(sighing)",
+		strings.Repeat(" ", DialogueIndent) + "This screenplay isn't writing itself.",
+		"",
+		"He takes a sip of coffee and continues typing.",
+		"",
+		strings.Repeat(" ", TransitionIndent) + "> FADE OUT.",
+	}, "\n")
 }

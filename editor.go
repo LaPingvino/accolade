@@ -109,6 +109,12 @@ func formatCompletedLine(prev, line string) (string, string) {
 	case isSceneHeading(upper) && afterBlank:
 		return upper, "Scene Heading"
 	case isTransition(upper) && afterBlank:
+		// Only "...TO:" is a transition by itself in Fountain; others such
+		// as FADE OUT. need the ">" marker for other Fountain apps (and
+		// the PDF export) to read them as one.
+		if !strings.HasSuffix(upper, "TO:") && !strings.HasPrefix(upper, ">") {
+			upper = "> " + upper
+		}
 		return strings.Repeat(" ", TransitionIndent) + upper, "Transition"
 	case strings.HasPrefix(trimmed, "(") && strings.HasSuffix(trimmed, ")") && !afterBlank:
 		return strings.Repeat(" ", ParentheticalIndent) + trimmed, "Parenthetical"
@@ -140,11 +146,15 @@ func isSceneHeading(line string) bool {
 	return false
 }
 
-// isTransition follows Fountain: an uppercase line ending in TO:, plus the
-// usual endings. FADE IN: is deliberately not one.
+// isTransition follows Fountain: an uppercase line ending in TO:, or one
+// forced with ">", plus the usual endings like FADE OUT. that a writer types
+// without the marker. FADE IN: is deliberately not one.
 func isTransition(line string) bool {
 	upper := strings.ToUpper(strings.TrimSpace(line))
 	if strings.HasSuffix(upper, " TO:") || upper == "CUT TO:" {
+		return true
+	}
+	if strings.HasPrefix(upper, ">") && !strings.HasSuffix(upper, "<") {
 		return true
 	}
 	switch upper {

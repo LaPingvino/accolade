@@ -135,6 +135,8 @@ func TestFormatCompletedLine(t *testing.T) {
 		{"", "OK.", "OK.", "Action"},
 		{"", "I", "I", "Action"},
 		{"", "smash cut to:", pad(TransitionIndent, "SMASH CUT TO:"), "Transition"},
+		{"", "fade out.", pad(TransitionIndent, "> FADE OUT."), "Transition"},
+		{"", "> fade to black.", pad(TransitionIndent, "> FADE TO BLACK."), "Transition"},
 		{pad(CharacterIndent, "JOHN"), "(quietly)", pad(ParentheticalIndent, "(quietly)"), "Parenthetical"},
 		{"", "  He waits.", "  He waits.", "Action"},
 	}
