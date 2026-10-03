@@ -1,101 +1,69 @@
-# Build Status - Accolade Indentation Fixes
+# Build Status
 
-## ✅ Status: READY TO BUILD
+What works in the Fyne version of Accolade, what does not yet, and how to
+build and test it. Last reviewed October 2026.
 
-All indentation issues have been successfully fixed and the codebase is ready for building and testing.
+## Building
 
-## 🔧 What Was Fixed
+Accolade needs Go (see `go.mod`), a C compiler and the usual OpenGL/X11
+development libraries for Fyne (see the README).
 
-### Title Page Indentation
-- **Issue**: Used plain text instead of proper Fountain format
-- **Fix**: Implemented proper Fountain key-value syntax with indented contact info
-- **Files**: `title_page_dialog.go`
-
-### Visual Element Indentation  
-- **Issue**: Used crude tab system (`\t\t`, `\t\t\t`) instead of industry standards
-- **Fix**: Implemented precise character-based spacing matching screenplay standards
-- **Files**: `window.go`
-
-### Element Detection
-- **Issue**: Detection didn't work with new indentation system
-- **Fix**: Updated logic to recognize proper spacing levels
-- **Files**: `window.go`
-
-## 🎯 Industry-Standard Spacing Implemented
-
-| Element | Indentation | Industry Standard |
-|---------|------------|------------------|
-| Action | 0 spaces | Left margin (1.5") |
-| Dialogue | 25 spaces | 2.5" from left |
-| Parentheticals | 31 spaces | 3.1" from left |
-| Character Names | 37 spaces | 3.7" from left |
-| Transitions | 60 spaces | 6.0" from left |
-
-## 🚀 Build Instructions
-
-### Option 1: Using Nix (Recommended)
 ```bash
-nix develop
-go build -o accolade .
+CGO_ENABLED=1 go build -o accolade .
 ```
 
-### Option 2: Using Local Go
+**Lexington checkout:** `go.mod` currently has
+
+```
+replace github.com/LaPingvino/lexington => ../lexington
+```
+
+because the lexington fixes Accolade relies on (title pages, forced
+transitions, FDX, HTML escaping) are not in a tagged release yet. Until
+they are, clone lexington next to this repository
+(`git clone https://github.com/LaPingvino/lexington ../lexington`). Once
+lexington is tagged, replace the `replace` line with the new version.
+
+## Testing
+
 ```bash
-# If Go is available locally
-go build -o accolade .
+go test ./...          # headless, uses fyne.io/fyne/v2/test
+go test -race .
 ```
 
-### Option 3: Using Build Script
-```bash
-./build-fyne.sh
-```
+The tests drive real widgets: they type screenplays with Enter, use the
+menus and search bar, export PDF/HTML/FDX and read them back. PDF content
+is checked with `pdftotext` when it is installed.
 
-## 📋 Testing Checklist
+## Features
 
-After building, verify these features work:
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Editing | Works | Screenplay font (Courier Badi), size from preferences |
+| Formatting on Enter | Works | Scene headings uppercased; character, parenthetical, dialogue and transition indents; undoable; off with "auto-indent" |
+| Find / replace | Works | Case, whole word, regex with `$1` groups; no highlight-all |
+| Undo / redo | Works | Fyne's Entry undo; Ctrl+Z, Ctrl+Y, Ctrl+Shift+Z |
+| Keyboard shortcuts | Works | On the main menu (File/Edit/View/Help) |
+| Auto-save | Works | Interval from preferences; atomic writes |
+| Title page dialog | Works | Generates and replaces Fountain title pages |
+| Export PDF / HTML | Works | Via lexington |
+| Export / open FDX | Works | Via lexington; opening converts to Fountain |
+| Export TXT / Fountain | Works | |
+| Themes | Works | system, light, dark, sepia |
+| Preview pane | Partial | Basic rendering |
+| Export DOCX | Not yet | Removed from the export dialog until implemented |
+| Spell check | Not yet | `spell_checker.go` is a stub |
+| Focus mode | Not yet | Menu/toolbar action logs only |
+| Syntax highlighting, line numbers | Not yet | Needs a custom editor widget (see below) |
+| File drop, file type filters in dialogs | Not yet | |
 
-- [ ] Title page dialog generates proper Fountain format
-- [ ] Character names auto-indent to 37 spaces
-- [ ] Dialogue auto-indents to 25 spaces  
-- [ ] Parentheticals auto-indent to 31 spaces
-- [ ] Transitions auto-indent to 60 spaces
-- [ ] PDF export maintains proper formatting
-- [ ] Existing Fountain files load correctly
+## Known limitations
 
-## 📁 Key Files Modified
-
-- `window.go` - Added indentation constants and updated formatting
-- `title_page_dialog.go` - Fixed Fountain title page generation
-
-## 🎬 Example Output
-
-```fountain
-Title: The Last Stand
-Author: Jane Smith
-Contact:
-    Jane Smith
-    123 Writer's Lane
-    Hollywood, CA 90210
-
-INT. HOUSE - DAY
-
-                                     JOHN
-                    Hello there!
-                         (beat)
-                    How are you doing?
-
-                                     MARY
-                    I'm doing well, thanks.
-```
-
-## 🔍 Verification
-
-The indentation improvements ensure:
-- Professional screenplay formatting
-- Proper PDF generation compatibility
-- Industry-standard element positioning
-- Seamless lexington library integration
-
----
-
-**Ready for Production**: The codebase now provides professional-quality screenplay formatting that matches industry standards.
+- Fyne's text Entry has no API to select text or highlight ranges.
+  `editor_cursor.go` works around this with cursor fields and key events.
+  A dedicated editor widget (or upstream Fyne support) is the long-term
+  fix and would also allow syntax highlighting and line numbers.
+- Undoing a formatted or replaced line takes a few steps, because Fyne
+  records typing over a selection word by word.
+- `lexington_converter.go` still shells out to a `lexington` binary and
+  is not used by the app; the built-in lexington library is.

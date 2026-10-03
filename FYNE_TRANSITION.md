@@ -25,22 +25,22 @@ This transition was motivated by:
 
 ### UI Components
 - ✅ **HeaderBar**: Toolbar with file operations, view controls, and settings
-- ✅ **SearchBar**: Find and replace functionality (UI complete, search logic TODO)
+- ✅ **SearchBar**: Find and replace (case, whole word, regex)
 - ✅ **MainWindow**: Split-pane layout with editor and preview
 - ✅ **PreferencesDialog**: Comprehensive settings dialog with tabs
-- ✅ **ExportDialog**: Export to PDF, HTML, DOCX, TXT, and Fountain formats
+- ✅ **ExportDialog**: Export to PDF, HTML, FDX, TXT and Fountain
 
 ### Editor Features
 - ✅ Multi-line text editor with word wrap
 - ✅ File operations (New, Open, Save, Save As)
-- ✅ Basic Fountain syntax highlighting preparation
-- ✅ Auto-save capability (framework in place)
+- ✅ Screenplay formatting on Enter
+- ✅ Auto-save
 - ✅ Recent files management
 
 ### Fountain Support
 - ✅ **FountainFormatter**: Basic Fountain parsing and formatting
-- ✅ **LexingtonConverter**: Integration with Lexington tool for advanced processing
-- ✅ **Basic export**: Fountain to HTML conversion
+- ✅ **Lexington library**: parsing and PDF/HTML/FDX output
+- ✅ **Export**: PDF, HTML and FDX via lexington
 - ✅ **Validation**: Framework for Fountain syntax validation
 
 ### Settings & Preferences
@@ -136,50 +136,14 @@ go build -v -o accolade .
 ./accolade
 ```
 
-## Features Comparison
+## Current Status
 
-| Feature | GTK4 Version | Fyne Version | Status |
-|---------|-------------|--------------|--------|
-| Text Editor | ✅ GtkSourceView | ✅ Fyne Entry | Complete |
-| File Operations | ✅ | ✅ | Complete |
-| Find/Replace | ✅ | 🔄 | UI Complete, Logic TODO |
-| Preferences | ✅ | ✅ | Complete |
-| Themes | ✅ | ✅ | Complete + Custom |
-| Preview | ✅ WebKit | ✅ HTML Preview | Basic Complete |
-| Export | ✅ | ✅ | Framework Complete |
-| Spell Check | ✅ | ⏳ | Stub Only |
-| Auto-save | ✅ | ⏳ | Framework Ready |
-| Session Restore | ✅ | ⏳ | TODO |
-
-Legend: ✅ Complete, 🔄 Partial, ⏳ TODO, ❌ Not Planned
-
-## Known Limitations
-
-### Fyne Framework Limitations
-1. **Text Editor**: Less sophisticated than GtkSourceView
-   - No syntax highlighting built-in
-   - Limited text manipulation APIs
-   - No line numbers display
-   - Basic find/replace functionality
-
-2. **File Dialogs**: Simpler than GTK file dialogs
-   - No custom file filters (commented out)
-   - Limited file type handling
-
-3. **Themes**: Less extensive theming than GTK
-   - Custom themes implemented for key colors
-   - Font customization is limited
-
-### TODO Items
-1. **Search Functionality**: Complete find/replace implementation
-2. **Syntax Highlighting**: Custom Fountain syntax highlighting
-3. **Spell Checking**: Integration with system spell checker
-4. **Auto-save**: Implement debounced auto-save
-5. **Session Restore**: Restore open files on startup
-6. **Advanced Preview**: Better Fountain to HTML conversion
-7. **Keyboard Shortcuts**: Fyne has limited shortcut support
-8. **Drag & Drop**: File drop support
-9. **Line Numbers**: Custom text widget with line numbers
+The feature-by-feature status, build instructions and known limitations
+now live in [BUILD_STATUS.md](BUILD_STATUS.md). In short: editing,
+formatting on Enter, find/replace, undo/redo, keyboard shortcuts,
+auto-save, the title page dialog, themes, and PDF/HTML/FDX export work;
+spell checking, DOCX export, focus mode and syntax highlighting do not
+yet.
 
 ## Migration Notes
 
@@ -217,23 +181,11 @@ go test ./...
 
 ## Future Improvements
 
-### Short Term
-1. Complete find/replace functionality
-2. Implement basic syntax highlighting
-3. Add spell checking integration
-4. Improve export formats
-
-### Medium Term
-1. Plugin system for export formats
-2. Custom text editor widget with line numbers
-3. Advanced Fountain features (dual dialogue, etc.)
-4. Collaborative editing features
-
-### Long Term
-1. Mobile app versions (Fyne supports mobile)
-2. Web version (Fyne can compile to WebAssembly)
-3. Advanced screenplay formatting
-4. Integration with screenplay databases
+1. A dedicated editor widget (or upstream Fyne support) for selection,
+   highlighting, Fountain syntax colouring and line numbers
+2. Spell checking
+3. DOCX export
+4. Focus mode, file drop
 
 ## Conclusion
 

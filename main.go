@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime/debug"
 	"context"
 	"fmt"
 	"log"
@@ -271,22 +272,26 @@ func showInfo(parent fyne.Window, title, message string) {
 }
 
 // Helper function to check if executable exists
-func executableExists(name string) bool {
-	_, err := os.Stat(name)
-	return err == nil
+// moduleVersion is the version of a dependency this binary was built with.
+func moduleVersion(path string) string {
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		for _, m := range bi.Deps {
+			if m.Path == path {
+				if m.Replace != nil {
+					return m.Version + " (replaced by " + m.Replace.Path + ")"
+				}
+				return m.Version
+			}
+		}
+	}
+	return "unknown"
 }
 
 // Helper function to get debug info
 func getDebugInfo() string {
 	info := fmt.Sprintf("Accolade %s\n", "0.1.0")
-	info += fmt.Sprintf("Fyne: %s\n", "v2.4.5") // TODO: Get actual version
-	
-	// Check for lexington
-	if executableExists("lexington") {
-		info += "Lexington: Available\n"
-	} else {
-		info += "Lexington: Not found\n"
-	}
+	info += fmt.Sprintf("Fyne: %s\n", moduleVersion("fyne.io/fyne/v2"))
+	info += fmt.Sprintf("Lexington: %s (built in)\n", moduleVersion("github.com/LaPingvino/lexington"))
 	
 	return info
 }

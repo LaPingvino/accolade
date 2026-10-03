@@ -8,16 +8,10 @@
 
 Accolade is a distraction-free Fountain editor for screenwriters, built with [Fyne](https://fyne.io) in Go. Originally forked from a GTK-based application, Accolade has been completely rewritten to provide faster compilation, better cross-platform support, and easier deployment. It uses lexington as back-end for parsing Fountain and offers a clean, modern user interface optimized for distraction-free writing.
 
-**🚀 Major Update: Fyne Transition Complete!**
-
-Accolade has been successfully migrated from GTK4 to Fyne, bringing:
-- ⚡ Faster compilation and startup
-- 🌍 Better cross-platform support (Linux, Windows, macOS)
-- 📦 Single binary deployment
-- 🔧 Easier development and maintenance
-- 🤖 LLM-friendly pure Go codebase
-
-See [FYNE_TRANSITION.md](FYNE_TRANSITION.md) for detailed information about the migration.
+Accolade was migrated from GTK4 to Fyne; see
+[FYNE_TRANSITION.md](FYNE_TRANSITION.md) for the background and
+[BUILD_STATUS.md](BUILD_STATUS.md) for what works today, how to test it,
+and what is still missing.
 
 ## Building
 
@@ -32,6 +26,13 @@ On Ubuntu/Debian:
 sudo apt-get install libx11-dev libxrandr-dev libxcursor-dev \
                      libxinerama-dev libxi-dev libgl1-mesa-dev \
                      build-essential pkg-config
+```
+
+Until the lexington fixes Accolade uses are tagged, `go.mod` builds
+against a lexington checkout next to this one:
+
+```bash
+git clone https://github.com/LaPingvino/lexington ../lexington
 ```
 
 ### Quick Start

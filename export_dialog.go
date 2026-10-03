@@ -85,7 +85,8 @@ func NewExportDialog(window *MainWindow) *ExportDialog {
 func (ed *ExportDialog) createWidgets() {
 	// Format selection
 	ed.formatSelect = widget.NewSelect(
-		[]string{"PDF", "HTML", "FDX", "DOCX", "TXT", "Fountain"},
+		// DOCX export is not implemented yet, so it is not offered
+		[]string{"PDF", "HTML", "FDX", "TXT", "Fountain"},
 		ed.onFormatChanged,
 	)
 	// Don't set selected yet - wait until after containers are created
