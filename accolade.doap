@@ -8,18 +8,12 @@
   <shortdesc xml:lang="en">Edit Fountain in style</shortdesc>
   <homepage rdf:resource="https://github.com/LaPingvino/accolade" />
   <bug-database rdf:resource="https://github.com/LaPingvino/accolade/issues"/>
-  <programming-language>Python</programming-language>
+  <programming-language>Go</programming-language>
 
   <maintainer>
     <foaf:Person>
       <foaf:name>Joop Kiefte</foaf:name>
       <foaf:mbox rdf:resource="mailto:joop@kiefte.eu" />
-      <foaf:account>
-        <foaf:OnlineAccount>
-          <foaf:accountServiceHomepage rdf:resource="https://codeberg.org"/>
-          <foaf:accountName>somas</foaf:accountName>
-        </foaf:OnlineAccount>
-      </foaf:account>
     </foaf:Person>
   </maintainer>
 </Project>
