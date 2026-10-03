@@ -1,263 +1,85 @@
 package main
 
 import (
+	"runtime"
+	"strings"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/accolade/internal/tooltip"
 )
 
+// HeaderBar is the slim bar at the top of the window: the file actions
+// and undo/redo on the left, the document's name in the middle, and
+// find, preview, export and preferences on the right, as icon buttons
+// with tooltips. Everything else is in the menus.
 type HeaderBar struct {
 	window    *MainWindow
 	container *fyne.Container
-	
-	// File buttons
-	newButton    *widget.Button
-	openButton   *widget.Button
-	saveButton   *widget.Button
-	saveAsButton *widget.Button
-	
-	// Edit buttons
-	undoButton   *widget.Button
-	redoButton   *widget.Button
-	findButton   *widget.Button
-	
-	// View buttons
-	previewButton    *widget.Button
-	fullscreenButton *widget.Button
-	focusModeButton  *widget.Button
-	
-	// Tools
-	exportButton *widget.Button
-	titlePageButton *widget.Button
-	
-	// Settings
-	preferencesButton *widget.Button
-	
-	// Title area
-	titleLabel *widget.Label
+
+	newButton, openButton, saveButton *tooltip.Button
+	undoButton, redoButton            *tooltip.Button
+	findButton, previewButton         *tooltip.Button
+	exportButton, preferencesButton   *tooltip.Button
+	titleLabel                        *widget.Label
 }
 
 func NewHeaderBar(window *MainWindow) *HeaderBar {
-	hb := &HeaderBar{
-		window: window,
+	hb := &HeaderBar{window: window}
+	tips := window.tooltips
+	button := func(icon fyne.Resource, tip string, action func()) *tooltip.Button {
+		b := tooltip.NewButton(icon, tip, action, tips)
+		b.Importance = widget.LowImportance
+		return b
 	}
-	
-	hb.createButtons()
-	hb.createLayout()
-	
+
+	hb.newButton = button(theme.DocumentCreateIcon(), "New"+keys("N"), window.NewFile)
+	hb.openButton = button(theme.FolderOpenIcon(), "Open"+keys("O"), window.OpenFile)
+	hb.saveButton = button(theme.DocumentSaveIcon(), "Save"+keys("S"), window.reportErr(window.SaveFile))
+	hb.undoButton = button(theme.ContentUndoIcon(), "Undo"+keys("Z"), window.undo)
+	hb.redoButton = button(theme.ContentRedoIcon(), "Redo"+keys("Shift+Z"), window.redo)
+	hb.findButton = button(theme.SearchIcon(), "Find and replace"+keys("F"), window.showFindReplace)
+	hb.previewButton = button(theme.VisibilityIcon(), "Preview"+keys("Shift+P"), window.togglePreview)
+	hb.exportButton = button(theme.DownloadIcon(), "Export to PDF, HTML, FDX…"+keys("E"), window.showExportDialog)
+	hb.preferencesButton = button(theme.SettingsIcon(), "Preferences"+keys(","), func() { window.app.showPreferences() })
+
+	hb.titleLabel = widget.NewLabel("Untitled")
+	hb.titleLabel.Alignment = fyne.TextAlignCenter
+	hb.titleLabel.TextStyle = fyne.TextStyle{Bold: true}
+	hb.titleLabel.Truncation = fyne.TextTruncateEllipsis
+
+	left := container.NewHBox(hb.newButton, hb.openButton, hb.saveButton, gap(), hb.undoButton, hb.redoButton)
+	right := container.NewHBox(hb.findButton, hb.previewButton, hb.exportButton, gap(), hb.preferencesButton)
+	hb.container = container.NewBorder(nil, nil, left, right, hb.titleLabel)
 	return hb
 }
 
-func (hb *HeaderBar) createButtons() {
-	// File operations
-	hb.newButton = widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() {
-		hb.window.NewFile()
-	})
-	hb.newButton.SetText("New")
-	
-	hb.openButton = widget.NewButtonWithIcon("", theme.FolderOpenIcon(), func() {
-		hb.window.OpenFile()
-	})
-	hb.openButton.SetText("Open")
-	
-	hb.saveButton = widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), hb.window.reportErr(hb.window.SaveFile))
-	hb.saveButton.SetText("Save")
-	
-	hb.saveAsButton = widget.NewButtonWithIcon("", theme.DocumentSaveIcon(), hb.window.reportErr(hb.window.SaveFileAs))
-	hb.saveAsButton.SetText("Save As")
-	
-	// Edit operations
-	hb.undoButton = widget.NewButtonWithIcon("", theme.NavigateBackIcon(), hb.window.undo)
-	hb.undoButton.SetText("Undo")
-	
-	hb.redoButton = widget.NewButtonWithIcon("", theme.NavigateNextIcon(), hb.window.redo)
-	hb.redoButton.SetText("Redo")
-	
-	hb.findButton = widget.NewButtonWithIcon("", theme.SearchIcon(), func() {
-		hb.window.showFindReplace()
-	})
-	hb.findButton.SetText("Find")
-	
-	// View operations
-	hb.previewButton = widget.NewButtonWithIcon("", theme.VisibilityIcon(), func() {
-		hb.window.togglePreview()
-	})
-	hb.previewButton.SetText("Preview")
-	
-	hb.fullscreenButton = widget.NewButtonWithIcon("", theme.ZoomFitIcon(), func() {
-		hb.window.toggleFullscreen()
-	})
-	hb.fullscreenButton.SetText("Fullscreen")
-	
-	hb.focusModeButton = widget.NewButtonWithIcon("", theme.ViewRefreshIcon(), func() {
-		hb.window.toggleFocusMode()
-	})
-	hb.focusModeButton.SetText("Focus")
-	
-	// Tools
-	hb.exportButton = widget.NewButtonWithIcon("", theme.DocumentIcon(), func() {
-		hb.window.showExportDialog()
-	})
-	hb.exportButton.SetText("Export")
-	
-	hb.titlePageButton = widget.NewButtonWithIcon("", theme.InfoIcon(), func() {
-		hb.window.showTitlePageDialog()
-	})
-	hb.titlePageButton.SetText("Title Page")
-	
-	// Settings
-	hb.preferencesButton = widget.NewButtonWithIcon("", theme.SettingsIcon(), func() {
-		hb.window.app.showPreferences()
-	})
-	hb.preferencesButton.SetText("Preferences")
-	
-	// Title
-	hb.titleLabel = widget.NewLabel("Accolade")
-	hb.titleLabel.TextStyle = fyne.TextStyle{Bold: true}
+// gap is a little space between groups of buttons.
+func gap() fyne.CanvasObject {
+	return container.NewGridWrap(fyne.NewSize(theme.Padding(), 1))
 }
 
-func (hb *HeaderBar) createLayout() {
-	// Create button groups
-	fileGroup := container.NewHBox(
-		hb.newButton,
-		hb.openButton,
-		hb.saveButton,
-		hb.saveAsButton,
-		widget.NewSeparator(),
-	)
-	
-	editGroup := container.NewHBox(
-		hb.undoButton,
-		hb.redoButton,
-		hb.findButton,
-		widget.NewSeparator(),
-	)
-	
-	viewGroup := container.NewHBox(
-		hb.previewButton,
-		hb.fullscreenButton,
-		hb.focusModeButton,
-		widget.NewSeparator(),
-	)
-	
-	toolsGroup := container.NewHBox(
-		hb.exportButton,
-		hb.titlePageButton,
-		widget.NewSeparator(),
-	)
-	
-	settingsGroup := container.NewHBox(
-		hb.preferencesButton,
-	)
-	
-	// Create spacer to push title to center and settings to right
-	spacer1 := widget.NewLabel("")
-	spacer2 := widget.NewLabel("")
-	
-	// Create main container
-	hb.container = container.NewHBox(
-		fileGroup,
-		editGroup,
-		viewGroup,
-		toolsGroup,
-		spacer1,
-		hb.titleLabel,
-		spacer2,
-		settingsGroup,
-	)
+// keys formats a shortcut for a tooltip: " (Ctrl+S)", or " (⌘S)" on macOS.
+func keys(k string) string {
+	if runtime.GOOS == "darwin" {
+		return " (" + strings.ReplaceAll("⌘"+k, "Shift+", "⇧") + ")"
+	}
+	return " (Ctrl+" + k + ")"
 }
 
+// SetTitle shows the document's name in the middle of the bar.
 func (hb *HeaderBar) SetTitle(title string) {
 	hb.titleLabel.SetText(title)
 }
 
-func (hb *HeaderBar) UpdateButtons() {
-	// Update button states based on window state
-	hasChanges := hb.window.hasChanges
-	
-	// Save button should be enabled if there are changes
-	if hasChanges {
-		hb.saveButton.Enable()
-	} else {
-		hb.saveButton.Disable()
-	}
-	
-	// Save As button should always be enabled if there's content
-	if hb.window.textEditor.Text() != "" {
-		hb.saveAsButton.Enable()
-	} else {
-		hb.saveAsButton.Disable()
-	}
-	
-	// Export button should be enabled if there's content
-	if hb.window.textEditor.Text() != "" {
-		hb.exportButton.Enable()
-	} else {
-		hb.exportButton.Disable()
-	}
-	
-	// Update preview button based on preview state
-	if hb.window.previewVisible {
-		hb.previewButton.SetIcon(theme.VisibilityOffIcon())
-		hb.previewButton.SetText("Hide Preview")
-	} else {
-		hb.previewButton.SetIcon(theme.VisibilityIcon())
-		hb.previewButton.SetText("Show Preview")
-	}
-	
-	// Update fullscreen button based on state
-	if hb.window.isFullscreen {
-		hb.fullscreenButton.SetIcon(theme.ZoomOutIcon())
-		hb.fullscreenButton.SetText("Exit Fullscreen")
-	} else {
-		hb.fullscreenButton.SetIcon(theme.ZoomFitIcon())
-		hb.fullscreenButton.SetText("Fullscreen")
-	}
-}
-
-func (hb *HeaderBar) SetSaveEnabled(enabled bool) {
-	if enabled {
-		hb.saveButton.Enable()
-	} else {
-		hb.saveButton.Disable()
-	}
-}
-
-func (hb *HeaderBar) SetUndoEnabled(enabled bool) {
-	if enabled {
-		hb.undoButton.Enable()
-	} else {
-		hb.undoButton.Disable()
-	}
-}
-
-func (hb *HeaderBar) SetRedoEnabled(enabled bool) {
-	if enabled {
-		hb.redoButton.Enable()
-	} else {
-		hb.redoButton.Disable()
-	}
-}
-
-// Helper method to create toolbar-style buttons
-func (hb *HeaderBar) createToolbarButton(icon fyne.Resource, text string, callback func()) *widget.Button {
-	btn := widget.NewButtonWithIcon(text, icon, callback)
-	// Make buttons smaller and more compact for toolbar
-	btn.Resize(fyne.NewSize(80, 32))
-	return btn
-}
-
-// Method to hide/show the header bar (for focus mode)
+// SetVisible hides or shows the bar (for focus mode).
 func (hb *HeaderBar) SetVisible(visible bool) {
 	if visible {
 		hb.container.Show()
 	} else {
 		hb.container.Hide()
 	}
-}
-
-// Method to get the container for embedding in window
-func (hb *HeaderBar) GetContainer() *fyne.Container {
-	return hb.container
 }

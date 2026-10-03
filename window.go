@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/LaPingvino/accolade/internal/editor"
+	"github.com/LaPingvino/accolade/internal/tooltip"
 	"io"
 	"log"
 	"os"
@@ -36,6 +37,7 @@ type MainWindow struct {
 	editorView  *container.ThemeOverride // the editor with its font settings
 	previewArea *widget.RichText
 	headerBar   *HeaderBar
+	tooltips    *tooltip.Layer
 	searchBar   *SearchBar
 
 	// UI layout
@@ -92,6 +94,7 @@ func NewMainWindow(app *Application) *MainWindow {
 	window.setupUI()
 	window.setupShortcuts()
 	window.setupCallbacks()
+	window.updateTitle()
 	window.updateCurrentElement()
 	window.updateStatusBar()
 
@@ -121,6 +124,7 @@ func (w *MainWindow) setupUI() {
 	w.previewArea.Wrapping = fyne.TextWrapWord
 
 	// Create header bar with toolbar
+	w.tooltips = tooltip.NewLayer()
 	w.headerBar = NewHeaderBar(w)
 
 	// Create search bar (initially hidden)
@@ -129,6 +133,7 @@ func (w *MainWindow) setupUI() {
 	// Create toolbar container
 	w.toolbarContainer = container.NewVBox(
 		w.headerBar.container,
+		widget.NewSeparator(),
 		w.searchBar.container,
 	)
 
@@ -160,7 +165,7 @@ func (w *MainWindow) setupUI() {
 		editorScroll,       // center - just the editor
 	)
 
-	w.fyneWindow.SetContent(content)
+	w.setContent(content)
 
 	// Initially hide preview
 	w.previewVisible = false
@@ -427,6 +432,13 @@ func (w *MainWindow) updateTitle() {
 	}
 
 	w.fyneWindow.SetTitle(title)
+	if w.headerBar != nil {
+		name := strings.TrimSuffix(title, " - Accolade")
+		if name == "Accolade" {
+			name = "Untitled"
+		}
+		w.headerBar.SetTitle(name)
+	}
 }
 
 func (w *MainWindow) updatePreview() {
@@ -574,6 +586,11 @@ func (w *MainWindow) togglePreview() {
 	}
 }
 
+// setContent shows content in the window, with the tooltip layer over it.
+func (w *MainWindow) setContent(content fyne.CanvasObject) {
+	w.fyneWindow.SetContent(container.NewStack(content, w.tooltips))
+}
+
 func (w *MainWindow) showPreview() {
 	// Show preview pane by creating a split container
 	w.previewVisible = true
@@ -599,7 +616,7 @@ func (w *MainWindow) showPreview() {
 		splitContainer,     // center - split container
 	)
 
-	w.fyneWindow.SetContent(content)
+	w.setContent(content)
 }
 
 func (w *MainWindow) hidePreview() {
@@ -619,7 +636,7 @@ func (w *MainWindow) hidePreview() {
 		editorScroll,       // center - just the editor
 	)
 
-	w.fyneWindow.SetContent(content)
+	w.setContent(content)
 }
 
 // Find/Replace operations
