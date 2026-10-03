@@ -58,6 +58,9 @@ type MainWindow struct {
 	// Find/Replace
 	findVisible   bool
 	
+	// Name offered by Save As for an imported (converted) document
+	suggestedName string
+
 	// Auto-save (autosave.go)
 	autoSaveTimer *time.Timer
 	autoSaveDelay time.Duration // overrides the setting; for tests
@@ -226,6 +229,10 @@ func (w *MainWindow) applyFontSettings() {
 
 // File operations
 func (w *MainWindow) LoadFile(filePath string) error {
+	if strings.EqualFold(filepath.Ext(filePath), ".fdx") {
+		return w.importFile(filePath)
+	}
+
 	content, err := os.ReadFile(filePath)
 	if err != nil {
 		return fmt.Errorf("failed to read file: %v", err)
@@ -233,11 +240,39 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	
 	w.textEditor.SetText(string(content))
 	w.currentFile = filePath
+	w.suggestedName = ""
 	w.hasChanges = false
 	w.updateTitle()
 	w.updatePreview()
 	w.updateStatusBar()
 	
+	return nil
+}
+
+// importFile opens a Final Draft document converted to Fountain. It has no
+// file of its own until saved, so Save asks where to put the .fountain
+// file instead of overwriting the original.
+func (w *MainWindow) importFile(filePath string) error {
+	f, err := os.Open(filePath)
+	if err != nil {
+		return fmt.Errorf("failed to read file: %v", err)
+	}
+	defer f.Close()
+
+	text, err := importFDX(f)
+	if err != nil {
+		return fmt.Errorf("could not import %s: %v", filepath.Base(filePath), err)
+	}
+
+	w.cancelAutoSave()
+	w.textEditor.SetText(text)
+	w.currentFile = ""
+	w.suggestedName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)) + ".fountain"
+	w.hasChanges = true
+	w.updateTitle()
+	w.updatePreview()
+	w.updateStatusBar()
+	w.setStatus("Imported from Final Draft")
 	return nil
 }
 
@@ -266,6 +301,7 @@ func (w *MainWindow) SaveFileAs() error {
 		}
 		
 		w.currentFile = filePath
+		w.suggestedName = ""
 		w.hasChanges = false
 		w.updateTitle()
 		
@@ -275,6 +311,8 @@ func (w *MainWindow) SaveFileAs() error {
 	// Set default filename
 	if w.currentFile != "" {
 		fileDialog.SetFileName(filepath.Base(w.currentFile))
+	} else if w.suggestedName != "" {
+		fileDialog.SetFileName(w.suggestedName)
 	} else {
 		fileDialog.SetFileName("untitled.fountain")
 	}
@@ -379,6 +417,8 @@ func (w *MainWindow) updateTitle() {
 		} else {
 			title = filename + " - Accolade"
 		}
+	} else if w.suggestedName != "" {
+		title = "• " + w.suggestedName + " (not saved yet) - Accolade"
 	} else if w.hasChanges {
 		title = "• Untitled - Accolade"
 	}

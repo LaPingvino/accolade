@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/LaPingvino/lexington/fdx"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/html"
 	"github.com/LaPingvino/lexington/lex"
@@ -17,9 +19,10 @@ import (
 // PDF and HTML export go through the lexington library, which parses
 // the script the same way the lexington command line tool does.
 
+var englishScenes = rules.DefaultConf().Scenes["en"]
+
 func parseForExport(content string) lex.Screenplay {
-	scenes := rules.DefaultConf().Scenes["en"]
-	return fountain.Parse(scenes, strings.NewReader(content))
+	return fountain.Parse(englishScenes, strings.NewReader(content))
 }
 
 // exportPDF renders the script to a PDF at outputPath.
@@ -49,6 +52,34 @@ func exportHTML(content, outputPath string) error {
 		}
 		return f.Close()
 	})
+}
+
+// exportFDX writes the script as a Final Draft document.
+func exportFDX(content, outputPath string) error {
+	return writeViaTemp(outputPath, func(tmp string) error {
+		f, err := os.Create(tmp)
+		if err != nil {
+			return err
+		}
+		if err := (&fdx.FDXWriter{}).Write(f, parseForExport(content)); err != nil {
+			f.Close()
+			return err
+		}
+		return f.Close()
+	})
+}
+
+// importFDX converts a Final Draft document to Fountain text.
+func importFDX(r io.Reader) (string, error) {
+	screenplay, err := fdx.ParseWithError(r)
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	if err := (&fountain.FountainWriter{SceneConfig: englishScenes}).Write(&buf, screenplay); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // writeViaTemp lets write produce the file under a temporary name next to

@@ -85,7 +85,7 @@ func NewExportDialog(window *MainWindow) *ExportDialog {
 func (ed *ExportDialog) createWidgets() {
 	// Format selection
 	ed.formatSelect = widget.NewSelect(
-		[]string{"PDF", "HTML", "DOCX", "TXT", "Fountain"},
+		[]string{"PDF", "HTML", "FDX", "DOCX", "TXT", "Fountain"},
 		ed.onFormatChanged,
 	)
 	// Don't set selected yet - wait until after containers are created
@@ -257,6 +257,11 @@ func (ed *ExportDialog) updateFormatSettings() {
 			container.NewBorder(nil, nil, widget.NewLabel("Font size:"), nil, ed.fontSizeEntry),
 		)
 		
+	case "FDX":
+		ed.formatSettingsContainer.Add(
+			widget.NewLabel("Final Draft document (.fdx)."),
+		)
+		
 	case "TXT":
 		ed.formatSettingsContainer.Add(
 			widget.NewLabel("Plain text export with Fountain formatting preserved."),
@@ -347,6 +352,8 @@ func (ed *ExportDialog) updateDefaultFilename() {
 		ext = ".html"
 	case "DOCX":
 		ext = ".docx"
+	case "FDX":
+		ext = ".fdx"
 	case "TXT":
 		ext = ".txt"
 	case "Fountain":
@@ -438,6 +445,8 @@ func (ed *ExportDialog) performExport(content, outputPath, format string) error 
 		return ed.exportToPDF(content, outputPath)
 	case "html":
 		return ed.exportToHTML(content, outputPath)
+	case "fdx":
+		return exportFDX(content, outputPath)
 	case "docx":
 		return ed.exportToDOCX(content, outputPath)
 	case "txt":
