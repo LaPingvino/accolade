@@ -85,6 +85,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	view := fyne.NewMenu("View",
 		menuItem("Preview", shortcut(fyne.KeyP, fyne.KeyModifierShift), w.togglePreview),
 		menuItem("Outline", shortcut(fyne.KeyO, fyne.KeyModifierShift), w.toggleOutline),
+		menuItem("Notes", shortcut(fyne.KeyK, fyne.KeyModifierShift), w.toggleNotes),
 		menuItem("Fullscreen", shortcut(fyne.KeyF, fyne.KeyModifierShift), w.toggleFullscreen),
 	)
 

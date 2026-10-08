@@ -52,9 +52,12 @@ type MainWindow struct {
 	statusBar *fyne.Container
 	// headerArea is the header bar (the toolbar) with its separator
 	headerArea *fyne.Container
-	// the outline beside the editor (View > Outline)
+	// the sidebar beside the editor: the outline (View > Outline) or the
+	// notes (View > Notes)
 	outline        *outlinePanel
 	outlineVisible bool
+	notes          *notesPanel
+	notesVisible   bool
 
 	// File management
 	currentFile  string
@@ -425,6 +428,9 @@ func (w *MainWindow) onTextChanged(text string) {
 	if w.outlineVisible && w.outline != nil {
 		w.outline.update(text)
 	}
+	if w.notesVisible && w.notes != nil {
+		w.notes.update(text)
+	}
 
 	w.scheduleAutoSave()
 }
@@ -622,9 +628,24 @@ func (w *MainWindow) toggleOutline() {
 	if w.outline == nil {
 		w.outline = newOutlinePanel(w)
 	}
-	w.outlineVisible = !w.outlineVisible
+	w.outlineVisible, w.notesVisible = !w.outlineVisible, false
 	if w.outlineVisible {
 		w.outline.update(w.textEditor.Text())
+	}
+	w.relayout()
+}
+
+// toggleNotes shows or hides the script's notes beside the editor.
+func (w *MainWindow) toggleNotes() {
+	if w.notes == nil {
+		w.notes = newNotesPanel(w)
+	}
+	w.notesVisible, w.outlineVisible = !w.notesVisible, false
+	if w.notesVisible {
+		w.notes.update(w.textEditor.Text())
+		w.relayout()
+		w.fyneWindow.Canvas().Focus(w.notes.entry)
+		return
 	}
 	w.relayout()
 }
@@ -640,8 +661,11 @@ func (w *MainWindow) relayout() {
 		center = split
 	}
 	var left fyne.CanvasObject
-	if w.outlineVisible && w.outline != nil {
+	switch {
+	case w.outlineVisible && w.outline != nil:
 		left = container.NewHBox(w.outline.box, widget.NewSeparator())
+	case w.notesVisible && w.notes != nil:
+		left = container.NewHBox(w.notes.box, widget.NewSeparator())
 	}
 	w.setContent(container.NewBorder(w.toolbarContainer, w.statusBar, left, nil, center))
 }

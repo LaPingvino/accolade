@@ -30,8 +30,13 @@ func outlineOf(text string) []outlineItem {
 	var items []outlineItem
 	section := 0
 	lines := strings.Split(text, "\n")
+	inBoneyard := false // notes and other /* ... */ are not the script
 	for i, l := range lines {
 		t := strings.TrimSpace(l)
+		if inBoneyard || strings.HasPrefix(t, "/*") {
+			inBoneyard = !strings.Contains(strings.TrimPrefix(t, "/*"), "*/")
+			continue
+		}
 		prevBlank := i == 0 || strings.TrimSpace(lines[i-1]) == ""
 		switch {
 		case strings.HasPrefix(t, "#"):
