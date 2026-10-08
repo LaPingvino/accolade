@@ -9,21 +9,21 @@ func TestComputeStats(t *testing.T) {
 	script := "Title: The Barn\nAuthor: Jane\n\n" +
 		"INT. BARN - DAY\n\nRain falls.\n\n" +
 		"EXT. FIELD - NIGHT\n\nJOHN\nIt's coming.\n"
-	if got := computeStats(script, 0); got.Scenes != 2 || got.Scene != 0 || got.Words != 11 || got.Pages != 1 {
+	if got := computeStats(script, 0, nil); got.Scenes != 2 || got.Scene != 0 || got.Words != 11 || got.Pages != 1 {
 		t.Errorf("at the title page: %+v", got)
 	}
 	inField := strings.Index(script, "JOHN")
-	if got := computeStats(script, inField).Scene; got != 2 {
+	if got := computeStats(script, inField, nil).Scene; got != 2 {
 		t.Errorf("cursor in the second scene: scene %d", got)
 	}
-	if got := computeStats(script, strings.Index(script, "Rain")).Scene; got != 1 {
+	if got := computeStats(script, strings.Index(script, "Rain"), nil).Scene; got != 1 {
 		t.Errorf("cursor in the first scene: scene %d", got)
 	}
 	long := strings.Repeat("INT. ROOM - DAY\n\n"+strings.Repeat("Words go here. ", 20)+"\n\n", 30)
-	if got := computeStats(long, 0).Pages; got < 3 || got > 5 {
+	if got := computeStats(long, 0, nil).Pages; got < 3 || got > 5 {
 		t.Errorf("30 scenes with 5-line action: ~%d pages, want about 4", got)
 	}
-	if got := computeStats("  \n", 0); got != (scriptStats{}) {
+	if got := computeStats("  \n", 0, nil); got != (scriptStats{}) {
 		t.Errorf("empty script: %+v", got)
 	}
 }

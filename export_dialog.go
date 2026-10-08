@@ -387,6 +387,7 @@ func (ed *ExportDialog) job() exportJob {
 		page:          ed.documentPage(),
 		omitTitlePage: !ed.includeTitlePageCheck.Checked,
 		numberScenes:  ed.sceneNumbersCheck.Checked,
+		scenes:        sceneHeaders(ed.window.language),
 	}
 }
 

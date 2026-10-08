@@ -20,12 +20,12 @@ func TestAsElement(t *testing.T) {
 		{"cut to:", elementTransition, ind(TransitionIndent, "CUT TO:")},
 		{"fade out.", elementTransition, ind(TransitionIndent, "> FADE OUT.")},
 		{ind(CharacterIndent, "ANNA"), elementAction, "!ANNA"}, // would read as a name
-		{".THE KITCHEN", elementAction, "!THE KITCHEN"},       // and as a heading, upper case
+		{".THE KITCHEN", elementAction, "!THE KITCHEN"},        // and as a heading, upper case
 		{"Anna walks in.", elementAction, "Anna walks in."},
 		{"THE END", elementCentered, "> THE END <"},
 		{"> THE END <", elementCharacter, ind(CharacterIndent, "THE END")},
 	} {
-		if got := asElement(c.line, c.element); got != c.want {
+		if got := asElement(c.line, c.element, nil); got != c.want {
 			t.Errorf("asElement(%q, %s) = %q, want %q", c.line, c.element, got, c.want)
 		}
 	}

@@ -61,7 +61,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Find Previous", shortcut(fyne.KeyG, fyne.KeyModifierShift), w.findPrevious),
 	)
 
-	el := func(element string) func() { return func() { setLineElement(w.textEditor, element) } }
+	el := func(element string) func() { return func() { setLineElement(w.textEditor, element, w.sceneStarts()) } }
 	alt := func(key fyne.KeyName) fyne.Shortcut {
 		return &desktop.CustomShortcut{KeyName: key, Modifier: fyne.KeyModifierAlt}
 	}

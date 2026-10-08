@@ -54,6 +54,9 @@ type MainWindow struct {
 	headerArea *fyne.Container
 	// the sidebar beside the editor: the outline (View > Outline) or the
 	// notes (View > Notes)
+	// language is the script's language ("en", "eo", ...): its scene
+	// headings (language.go)
+	language string
 	// imported is closed when the PDF import under way is in
 	imported       chan struct{}
 	outline        *outlinePanel
@@ -180,6 +183,7 @@ func (w *MainWindow) setupUI() {
 func (w *MainWindow) setupShortcuts() {
 	// Text editor shortcuts
 	w.textEditor.OnChanged = w.onTextChanged
+	w.setLanguage("")                      // the preferences' until a file says otherwise
 	w.fyneWindow.SetOnDropped(w.onDropped) // drop a script or a PDF to open it
 
 	// Lines are formatted when completed with Enter (editor.go)
@@ -267,6 +271,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	w.textEditor.SetText(string(content))
 	w.currentFile = filePath
 	w.suggestedName = ""
+	w.setLanguage(languageOf(filePath))
 	w.hasChanges = false
 	w.updateTitle()
 	w.updatePreview()
@@ -373,6 +378,9 @@ func (w *MainWindow) SaveFileAs() error {
 
 		w.currentFile = filePath
 		w.suggestedName = ""
+		if l := languageOf(filePath); l != "" {
+			w.setLanguage(l)
+		}
 		w.hasChanges = false
 		w.updateTitle()
 
@@ -464,8 +472,67 @@ func (w *MainWindow) NewFile() {
 	}
 }
 
+// setLanguage makes the script's language lang ("" for the one in the
+// preferences): its scene headings in the editor, preview and exports.
+func (w *MainWindow) setLanguage(lang string) {
+	if lang == "" && w.settings != nil {
+		lang = w.settings.GetString("script-language")
+	}
+	if sceneConf[lang] == nil {
+		lang = "en"
+	}
+	w.language = lang
+	if w.textEditor != nil {
+		w.textEditor.SceneStarts = sceneStarts(lang)
+		w.textEditor.Refresh()
+	}
+}
+
+// sceneStarts are what scene headings start with in the script's
+// language (English without a window).
+func (w *MainWindow) sceneStarts() []string {
+	if w == nil {
+		return nil
+	}
+	return sceneStarts(w.language)
+}
+
+// newScriptTemplate is what a new script starts with: a title page and
+// a scene to write over, with the indents Accolade gives each element.
+func newScriptTemplate() string {
+	ind := func(n int, s string) string { return strings.Repeat(" ", n) + s }
+	return strings.Join([]string{
+		"Title: UNTITLED SCREENPLAY",
+		"Credit: Written by",
+		"Author: Your Name",
+		"Draft date: " + time.Now().Format("January 2, 2006"),
+		"Contact:",
+		"    Your Name",
+		"    Your Address",
+		"    Your Phone",
+		"    Your Email",
+		"",
+		"FADE IN:",
+		"",
+		"INT. LIVING ROOM - DAY",
+		"",
+		"A simple room with basic furniture. Light streams through the windows.",
+		"",
+		"JOHN sits at a desk, typing on a laptop. He looks frustrated.",
+		"",
+		ind(CharacterIndent, "JOHN"),
+		ind(ParentheticalIndent, "(sighing)"),
+		ind(DialogueIndent, "This screenplay isn't writing itself."),
+		"",
+		"He takes a sip of coffee and continues typing.",
+		"",
+		ind(TransitionIndent, "> FADE OUT."),
+		"",
+	}, "\n")
+}
+
 func (w *MainWindow) createNewFile() {
-	w.textEditor.SetText("Title: UNTITLED SCREENPLAY\n\nCredit: Written by\n\nAuthor: Your Name\n\nDraft date: " + time.Now().Format("January 2, 2006") + "\n\nContact:\nYour Name\nYour Address\nYour Phone\nYour Email\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nFADE IN:\n\nINT. LIVING ROOM - DAY\n\nA simple room with basic furniture. Light streams through the windows.\n\nJOHN sits at a desk, typing on a laptop. He looks frustrated.\n\n\t\t\tJOHN\n\t\t(sighing)\n\tThis screenplay isn't writing itself.\n\nHe takes a sip of coffee and continues typing.\n\nFADE OUT.")
+	w.textEditor.SetText(newScriptTemplate())
 	w.currentFile = ""
 	w.hasChanges = false
 	w.updateTitle()
@@ -531,7 +598,7 @@ func (w *MainWindow) updateTitle() {
 func (w *MainWindow) updatePreview() {
 	if w.previewVisible {
 		// the screenplay as Lexington prints it (its layout package)
-		w.previewArea.Segments = previewSegments(w.textEditor.Text(), w.lexParser.sceneHeaders, currentScriptFormat())
+		w.previewArea.Segments = previewSegments(w.textEditor.Text(), sceneHeaders(w.language), currentScriptFormat())
 		w.previewArea.Refresh()
 	}
 }
@@ -546,7 +613,7 @@ func (w *MainWindow) updateStatusBar() {
 	if w.statsLabel == nil {
 		return // called while the window is being built
 	}
-	text := computeStats(w.textEditor.Text(), w.textEditor.CursorOffset()).String()
+	text := computeStats(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()).String()
 	if w.currentElement != "" && w.currentElement != "empty" {
 		text = w.currentElement + " · " + text
 	}
@@ -557,7 +624,7 @@ func (w *MainWindow) onCursorChanged() {
 	w.updateCurrentElement()
 	w.updateStatusBar() // the scene under the cursor
 	// what Tab would complete, or nothing once it no longer applies
-	if h := completionHint(w.textEditor.Text(), w.textEditor.CursorOffset()); h != "" {
+	if h := completionHint(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()); h != "" {
 		w.setStatus(h)
 	} else if w.statusLabel != nil && strings.HasPrefix(w.statusLabel.Text, "Tab: ") {
 		w.setStatus("")

@@ -27,10 +27,18 @@ const (
 	PageBreak
 )
 
-var sceneStarts = []string{"INT.", "EXT.", "EST.", "INT./EXT.", "INT/EXT.", "I/E.", "INT ", "EXT ", "EST ", "INT/EXT ", "I/E "}
+// SceneStarts are the English scene heading starts: Classify's.
+var SceneStarts = []string{"INT.", "EXT.", "EST.", "INT./EXT.", "INT/EXT.", "I/E.", "INT ", "EXT ", "EST ", "INT/EXT ", "I/E "}
 
-// Classify returns the kind of each line.
-func Classify(lines []string) []Kind {
+// Classify returns the kind of each line, with English scene headings.
+func Classify(lines []string) []Kind { return ClassifyWith(lines, SceneStarts) }
+
+// ClassifyWith returns the kind of each line, with the scene headings of
+// a language: what they start with ("INT.", "EN. ").
+func ClassifyWith(lines []string, sceneStarts []string) []Kind {
+	if sceneStarts == nil {
+		sceneStarts = SceneStarts
+	}
 	kinds := make([]Kind, len(lines))
 	trimmed := func(i int) string {
 		if i < 0 || i >= len(lines) {
@@ -41,17 +49,17 @@ func Classify(lines []string) []Kind {
 
 	i := 0
 	// title page: leading "Key: value" fields and their indented values
-	if titleField(lines, 0) {
+	if titleField(lines, 0, sceneStarts) {
 		for ; i < len(lines); i++ {
 			t := trimmed(i)
 			switch {
 			case t == "":
 				kinds[i] = Empty
-				if i+1 < len(lines) && !titleField(lines, i+1) && !indented(lines[i+1]) {
+				if i+1 < len(lines) && !titleField(lines, i+1, sceneStarts) && !indented(lines[i+1]) {
 					i++
 					goto body
 				}
-			case titleField(lines, i) || indented(lines[i]):
+			case titleField(lines, i, sceneStarts) || indented(lines[i]):
 				kinds[i] = TitlePage
 			default:
 				goto body
@@ -133,7 +141,7 @@ func indented(line string) bool {
 }
 
 // titleField: "Key: value", or "Key:" followed by an indented value.
-func titleField(lines []string, i int) bool {
+func titleField(lines []string, i int, sceneStarts []string) bool {
 	if i >= len(lines) || indented(lines[i]) {
 		return false
 	}

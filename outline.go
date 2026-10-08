@@ -26,7 +26,7 @@ type outlineItem struct {
 }
 
 // outlineOf the script's text.
-func outlineOf(text string) []outlineItem {
+func outlineOf(text string, starts []string) []outlineItem {
 	var items []outlineItem
 	section := 0
 	lines := strings.Split(text, "\n")
@@ -43,7 +43,7 @@ func outlineOf(text string) []outlineItem {
 			level := len(t) - len(strings.TrimLeft(t, "#"))
 			section = level
 			items = append(items, outlineItem{Line: i, Text: strings.TrimSpace(t[level:]), Level: level})
-		case prevBlank && (isSceneHeading(t) || (strings.HasPrefix(t, ".") && !strings.HasPrefix(t, ".."))):
+		case prevBlank && (isSceneHeadingIn(t, starts) || (strings.HasPrefix(t, ".") && !strings.HasPrefix(t, ".."))):
 			heading := strings.TrimPrefix(t, ".")
 			if j := strings.Index(heading, " #"); j > 0 && strings.HasSuffix(heading, "#") {
 				heading = strings.TrimSpace(heading[:j]) // without its number
@@ -113,7 +113,7 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 
 // update reads the outline from the script again.
 func (o *outlinePanel) update(text string) {
-	o.items = outlineOf(text)
+	o.items = outlineOf(text, o.w.sceneStarts())
 	// rows without a synopsis are one line high
 	if o.oneLine == 0 {
 		o.oneLine = widget.NewLabel("X").MinSize().Height

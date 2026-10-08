@@ -58,7 +58,7 @@ const (
 
 // asElement is the line written as the element, with Accolade's indents
 // and the Fountain markers that make other Fountain apps read it so.
-func asElement(line, element string) string {
+func asElement(line, element string, starts []string) string {
 	bare := strings.TrimSpace(line)
 	for _, m := range []string{".", "!", "@", ">"} { // forcing markers
 		if strings.HasPrefix(bare, m) && !strings.HasPrefix(bare, "...") {
@@ -74,7 +74,7 @@ func asElement(line, element string) string {
 	switch element {
 	case elementScene:
 		s := strings.ToUpper(bare)
-		if !isSceneHeading(s) {
+		if !isSceneHeadingIn(s, starts) {
 			s = "." + s
 		}
 		return s
@@ -104,19 +104,19 @@ func asElement(line, element string) string {
 		return "> " + bare + " <"
 	}
 	// action: forced if it would read as something else
-	if isSceneHeading(bare) || isCharacterCue(bare) || isTransition(bare) {
+	if isSceneHeadingIn(bare, starts) || isCharacterCue(bare) || isTransition(bare) {
 		return "!" + bare
 	}
 	return bare
 }
 
 // setLineElement makes the line with the cursor the element.
-func setLineElement(e *editor.ScriptEditor, element string) {
+func setLineElement(e *editor.ScriptEditor, element string, starts []string) {
 	e.Edit(func(b *buffer.Buffer) {
 		b.Group(func() {
 			line, _ := b.Position(b.Cursor())
 			start, end := b.LineStart(line), b.LineEnd(line)
-			to := asElement(b.Slice(start, end), element)
+			to := asElement(b.Slice(start, end), element, starts)
 			b.Replace(start, end, to)
 			b.SetCursor(start+len([]rune(to)), false)
 		})

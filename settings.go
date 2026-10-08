@@ -51,6 +51,7 @@ func (s *Settings) loadDefaults() {
 		// Export settings
 		"export-format":       "PDF",
 		"script-format":       "default", // a Lexington preset (script_format.go)
+		"script-language":     "en",      // of new scripts: their scene headings (language.go)
 		"export-directory":    "",
 		"include-title-page":  true,
 		"page-size":          "", // the script format's (export dialog)

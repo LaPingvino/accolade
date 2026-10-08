@@ -22,7 +22,7 @@ type completion struct {
 
 // completeAt finds the completions for the cursor in text, if it is at
 // the end of a line that begins a character name or a scene heading.
-func completeAt(text string, cursor int) *completion {
+func completeAt(text string, cursor int, starts []string) *completion {
 	runes := []rune(text)
 	if cursor > len(runes) {
 		return nil
@@ -53,7 +53,7 @@ func completeAt(text string, cursor int) *completion {
 	pool := map[string]int{}
 	upper := strings.ToUpper(typed)
 	if len([]rune(typed)) >= 2 {
-		for h, n := range sceneHeadings(text) {
+		for h, n := range sceneHeadings(text, starts) {
 			pool[h] = n
 		}
 	}
@@ -107,14 +107,14 @@ func characterNames(text string) map[string]int {
 
 // sceneHeadings are the script's scene headings (without scene numbers)
 // and how often they come back.
-func sceneHeadings(text string) map[string]int {
+func sceneHeadings(text string, starts []string) map[string]int {
 	heads := map[string]int{}
 	for _, l := range strings.Split(text, "\n") {
 		t := strings.TrimSpace(l)
 		if i := strings.Index(t, " #"); i > 0 && strings.HasSuffix(t, "#") {
 			t = strings.TrimSpace(t[:i])
 		}
-		if isSceneHeading(t) || (strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..")) {
+		if isSceneHeadingIn(t, starts) || (strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..")) {
 			heads[strings.ToUpper(t)]++
 		}
 	}
@@ -124,6 +124,8 @@ func sceneHeadings(text string) map[string]int {
 // completer keeps the Tab cycle: the completion being cycled through
 // and which candidate is on the line.
 type completer struct {
+	starts func() []string // the script's scene heading starts (nil: English)
+
 	c     *completion
 	index int
 }
@@ -142,7 +144,11 @@ func (k *completer) tab(e *editor.ScriptEditor) bool {
 			return true
 		}
 	}
-	c := completeAt(text, cursor)
+	var starts []string
+	if k.starts != nil {
+		starts = k.starts()
+	}
+	c := completeAt(text, cursor, starts)
 	if c == nil {
 		k.c = nil
 		return false
@@ -161,8 +167,8 @@ func (k *completer) replace(e *editor.ScriptEditor, from, to string) {
 }
 
 // hint is what the status bar shows for the cursor's completions.
-func completionHint(text string, cursor int) string {
-	c := completeAt(text, cursor)
+func completionHint(text string, cursor int, starts []string) string {
+	c := completeAt(text, cursor, starts)
 	if c == nil {
 		return ""
 	}

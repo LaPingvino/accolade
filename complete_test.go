@@ -40,7 +40,7 @@ func TestCompleteAt(t *testing.T) {
 		{"ZED", nil},
 	} {
 		text := completeScript + c.typed
-		got := completeAt(text, len([]rune(text)))
+		got := completeAt(text, len([]rune(text)), nil)
 		if c.want == nil {
 			if got != nil {
 				t.Errorf("%q: completions %v", c.typed, got.candidates)
@@ -53,7 +53,7 @@ func TestCompleteAt(t *testing.T) {
 	}
 	// not after a blank line: dialogue in capitals, nothing to complete
 	text := completeScript + "BRAM\nAN"
-	if got := completeAt(text, len([]rune(text))); got != nil {
+	if got := completeAt(text, len([]rune(text)), nil); got != nil {
 		t.Errorf("dialogue completed: %v", got.candidates)
 	}
 }
@@ -78,7 +78,7 @@ func TestTabCycles(t *testing.T) {
 	if (&completer{}).tab(e2) {
 		t.Error("Tab completed action")
 	}
-	if h := completionHint(completeScript+"AN", len([]rune(completeScript))+2); h != "Tab: ANNA · ANDREW" {
+	if h := completionHint(completeScript+"AN", len([]rune(completeScript))+2, nil); h != "Tab: ANNA · ANDREW" {
 		t.Errorf("hint %q", h)
 	}
 }

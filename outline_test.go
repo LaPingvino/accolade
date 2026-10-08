@@ -27,7 +27,7 @@ Action right after the heading.
 
 func TestOutlineOf(t *testing.T) {
 	var got []string
-	for _, it := range outlineOf(outlineScript) {
+	for _, it := range outlineOf(outlineScript, nil) {
 		got = append(got, strings.Join([]string{strings.Repeat(">", it.Level), it.Text, it.Synopsis}, "|"))
 	}
 	want := []string{

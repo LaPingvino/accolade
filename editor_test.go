@@ -141,7 +141,7 @@ func TestFormatCompletedLine(t *testing.T) {
 		{"", "  He waits.", "  He waits.", "Action"},
 	}
 	for _, c := range cases {
-		got, kind := formatCompletedLine(c.prev, c.line)
+		got, kind := formatCompletedLine(c.prev, c.line, nil)
 		if got != c.want || kind != c.kind {
 			t.Errorf("formatCompletedLine(%q, %q) = %q, %s; want %q, %s", c.prev, c.line, got, kind, c.want, c.kind)
 		}

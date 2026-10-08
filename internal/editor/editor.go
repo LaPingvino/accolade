@@ -38,6 +38,9 @@ type ScriptEditor struct {
 	// OnTab, when set, handles Tab instead of indenting (Accolade
 	// completes names); it reports whether it did.
 	OnTab func() bool
+	// SceneStarts are what scene headings start with in the script's
+	// language, for the colours (nil: English)
+	SceneStarts []string
 	// OnCursorChanged is called when the cursor or selection moves.
 	OnCursorChanged func()
 
@@ -229,7 +232,7 @@ func (e *ScriptEditor) relayout() {
 	}
 	var kinds []syntax.Kind
 	if e.Syntax {
-		kinds = syntax.Classify(strings.Split(string(text), "\n"))
+		kinds = syntax.ClassifyWith(strings.Split(string(text), "\n"), e.SceneStarts)
 	}
 
 	number := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}

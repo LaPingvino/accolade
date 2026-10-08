@@ -1,8 +1,8 @@
 package main
 
 import (
-	"context"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -14,9 +14,9 @@ import (
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/html"
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/ocrwasm"
 	"github.com/LaPingvino/lexington/office"
 	"github.com/LaPingvino/lexington/pdf"
-	"github.com/LaPingvino/lexington/ocrwasm"
 	"github.com/LaPingvino/lexington/pdfin"
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -36,13 +36,18 @@ func parseForExport(content string) lex.Screenplay {
 type exportJob struct {
 	elements      rules.Set
 	page          string
-	omitTitlePage bool // leave the title page out
-	numberScenes  bool // number the scenes that have no number
+	omitTitlePage bool     // leave the title page out
+	numberScenes  bool     // number the scenes that have no number
+	scenes        []string // the script language's scene headings (nil: English)
 }
 
 // script is the content parsed and prepared for the job.
 func (j exportJob) script(content string) lex.Screenplay {
-	s := parseForExport(content)
+	scenes := j.scenes
+	if scenes == nil {
+		scenes = englishScenes
+	}
+	s := fountain.Parse(scenes, strings.NewReader(content))
 	if j.omitTitlePage {
 		s = withoutTitlePage(s)
 	}

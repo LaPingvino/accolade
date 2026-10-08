@@ -27,7 +27,7 @@ const (
 
 // computeStats counts scenes, words and pages, and finds the scene the
 // cursor (a rune offset) is in.
-func computeStats(text string, cursor int) scriptStats {
+func computeStats(text string, cursor int, starts []string) scriptStats {
 	var st scriptStats
 	if strings.TrimSpace(text) == "" {
 		return st
@@ -36,7 +36,7 @@ func computeStats(text string, cursor int) scriptStats {
 	cursorLine := strings.Count(string(runes[:min(max(cursor, 0), len(runes))]), "\n")
 	lines := strings.Split(text, "\n")
 	rows := 0
-	for i, k := range syntax.Classify(lines) {
+	for i, k := range syntax.ClassifyWith(lines, starts) {
 		if k == syntax.TitlePage {
 			continue
 		}

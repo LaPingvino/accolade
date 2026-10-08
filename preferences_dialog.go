@@ -34,6 +34,7 @@ type PreferencesDialog struct {
 	autoCloseBracketsCheck *widget.Check
 
 	// Script and export
+	languageSelect        *widget.Select
 	scriptFormatSelect    *widget.Select
 	scriptFormatDesc      *widget.Label
 	exportFormatSelect    *widget.Select
@@ -90,6 +91,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.autoIndentCheck = widget.NewCheck("Format the line and indent the next one on Enter", nil)
 	pd.autoCloseBracketsCheck = widget.NewCheck("Close brackets as you type them: ( and [", nil)
 
+	pd.languageSelect = widget.NewSelect(scriptLanguages(), nil)
 	pd.scriptFormatDesc = widget.NewLabel("")
 	pd.scriptFormatDesc.Wrapping = fyne.TextWrapWord
 	pd.scriptFormatSelect = newScriptFormatSelect(pd.scriptFormatDesc, nil)
@@ -163,6 +165,9 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 		widget.NewCard("Script Format", "How the preview and the exports lay the script out",
 			container.NewVBox(pd.scriptFormatSelect, pd.scriptFormatDesc),
 		),
+		widget.NewCard("Language", "Of a new script: its scene headings (INT./EXT., EN./EKST., BIN./BUI., ...). A file named like scene.eo.fountain says its own.",
+			labelled("Language:", pd.languageSelect),
+		),
 		widget.NewCard("Export", "The Export dialog starts with these", container.NewVBox(
 			labelled("Format:", pd.exportFormatSelect),
 			container.NewBorder(nil, nil, widget.NewLabel("Directory:"), browse, pd.exportDirEntry),
@@ -188,6 +193,7 @@ func (pd *PreferencesDialog) loadCurrentSettings() {
 	pd.autoCloseBracketsCheck.SetChecked(s.GetBoolean("auto-close-brackets"))
 
 	selectScriptFormat(pd.scriptFormatSelect, s.GetString("script-format"))
+	pd.languageSelect.SetSelected(s.GetString("script-language"))
 	pd.exportFormatSelect.SetSelected(exportFormatLabel(s.GetString("export-format")))
 	pd.exportDirEntry.SetText(s.GetString("export-directory"))
 	pd.paperSelect.SetSelected(documentPageLabel(s.GetString("page-size")))
@@ -217,6 +223,9 @@ func (pd *PreferencesDialog) saveSettings() {
 	s.SetBoolean("auto-close-brackets", pd.autoCloseBracketsCheck.Checked)
 
 	s.SetString("script-format", selectedScriptFormat(pd.scriptFormatSelect))
+	if pd.languageSelect.Selected != "" {
+		s.SetString("script-language", pd.languageSelect.Selected)
+	}
 	s.SetString("export-format", exportFormatLabel(pd.exportFormatSelect.Selected))
 	s.SetString("export-directory", pd.exportDirEntry.Text)
 	page := ""

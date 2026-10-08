@@ -22,7 +22,7 @@ func TestNotesBlock(t *testing.T) {
 	if notesText("  \n") != "" || notesOf(script) != "" {
 		t.Error("empty notes")
 	}
-	if items := outlineOf(with); len(items) != 1 {
+	if items := outlineOf(with, nil); len(items) != 1 {
 		t.Errorf("outline reads the notes: %+v", items)
 	}
 }

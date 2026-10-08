@@ -17,7 +17,7 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	e := editor.New("")
 	e.Syntax = true
 	e.OnEnter = func() bool { return completeLine(w, e) }
-	var tab completer
+	tab := completer{starts: w.sceneStarts}
 	e.OnTab = func() bool { return tab.tab(e) }
 	e.OnRune = func(r rune) bool {
 		if w == nil || w.settings == nil || !w.settings.GetBoolean("auto-close-brackets") {
@@ -88,7 +88,7 @@ func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
 			ps, _ := lineBounds(text, start-1)
 			prev = string(text[ps : start-1])
 		}
-		formatted, element = formatCompletedLine(prev, line)
+		formatted, element = formatCompletedLine(prev, line, w.sceneStarts())
 	}
 
 	e.Edit(func(b *buffer.Buffer) {
@@ -117,7 +117,7 @@ func lineBounds(text []rune, pos int) (start, end int) {
 // formatCompletedLine returns how a just-completed line should look, given
 // the line before it, and which element it is. Lines that are not clearly
 // a screenplay element are returned unchanged.
-func formatCompletedLine(prev, line string) (string, string) {
+func formatCompletedLine(prev, line string, starts []string) (string, string) {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" {
 		return line, "Empty"
@@ -126,7 +126,7 @@ func formatCompletedLine(prev, line string) (string, string) {
 	afterBlank := strings.TrimSpace(prev) == ""
 
 	switch {
-	case isSceneHeading(upper) && afterBlank:
+	case isSceneHeadingIn(upper, starts) && afterBlank:
 		return upper, "Scene Heading"
 	case isTransition(upper) && afterBlank:
 		// Only "...TO:" is a transition by itself in Fountain; others such
@@ -156,15 +156,9 @@ func nextLineIndent(element string) int {
 	return 0
 }
 
-func isSceneHeading(line string) bool {
-	upper := strings.ToUpper(strings.TrimSpace(line))
-	for _, p := range []string{"INT.", "EXT.", "EST.", "INT/EXT.", "I/E.", "INT ", "EXT "} {
-		if strings.HasPrefix(upper, p) {
-			return true
-		}
-	}
-	return false
-}
+// isSceneHeading reports whether a line starts like an English scene
+// heading.
+func isSceneHeading(line string) bool { return isSceneHeadingIn(line, nil) }
 
 // isTransition follows Fountain: an uppercase line ending in TO:, or one
 // forced with ">", plus the usual endings like FADE OUT. that a writer types

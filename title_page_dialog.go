@@ -332,7 +332,7 @@ func isTitleField(line string, lines []string, i int) bool {
 		return false
 	}
 	key, value, ok := strings.Cut(line, ":")
-	if !ok || strings.TrimSpace(key) == "" || isSceneHeading(line) {
+	if !ok || strings.TrimSpace(key) == "" || isSceneHeadingIn(line, nil) {
 		return false
 	}
 	if strings.TrimSpace(value) != "" || key != strings.ToUpper(key) {
