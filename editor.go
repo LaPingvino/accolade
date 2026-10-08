@@ -17,6 +17,8 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	e := editor.New("")
 	e.Syntax = true
 	e.OnEnter = func() bool { return completeLine(w, e) }
+	var tab completer
+	e.OnTab = func() bool { return tab.tab(e) }
 	e.OnRune = func(r rune) bool {
 		if w == nil || w.settings == nil || !w.settings.GetBoolean("auto-close-brackets") {
 			return false

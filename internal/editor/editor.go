@@ -35,6 +35,9 @@ type ScriptEditor struct {
 	// OnRune, when set, handles a typed character instead of inserting it
 	// (Accolade closes brackets); it reports whether it did.
 	OnRune func(r rune) bool
+	// OnTab, when set, handles Tab instead of indenting (Accolade
+	// completes names); it reports whether it did.
+	OnTab func() bool
 	// OnCursorChanged is called when the cursor or selection moves.
 	OnCursorChanged func()
 
@@ -514,6 +517,9 @@ func (e *ScriptEditor) TypedKey(k *fyne.KeyEvent) {
 		e.buf.Insert("\n")
 		e.changed(true)
 	case fyne.KeyTab:
+		if e.OnTab != nil && e.OnTab() {
+			return
+		}
 		e.buf.Insert("    ")
 		e.changed(true)
 	}

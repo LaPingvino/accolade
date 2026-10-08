@@ -489,6 +489,12 @@ func (w *MainWindow) updateStatusBar() {
 func (w *MainWindow) onCursorChanged() {
 	w.updateCurrentElement()
 	w.updateStatusBar() // the scene under the cursor
+	// what Tab would complete, or nothing once it no longer applies
+	if h := completionHint(w.textEditor.Text(), w.textEditor.CursorOffset()); h != "" {
+		w.setStatus(h)
+	} else if w.statusLabel != nil && strings.HasPrefix(w.statusLabel.Text, "Tab: ") {
+		w.setStatus("")
+	}
 }
 
 func (w *MainWindow) updateCurrentElement() {
