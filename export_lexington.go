@@ -12,6 +12,7 @@ import (
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/html"
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/office"
 	"github.com/LaPingvino/lexington/pdf"
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -49,6 +50,28 @@ func exportHTML(content, outputPath string, elements rules.Set) error {
 		}
 		w := &html.HTMLWriter{Elements: elements}
 		if err := w.Write(io.Writer(f), parseForExport(content)); err != nil {
+			f.Close()
+			return err
+		}
+		return f.Close()
+	})
+}
+
+// exportDocument writes the script as a Word ("docx") or OpenDocument
+// ("odt") document, laid out by elements on page ("letter", "a4", "a5").
+func exportDocument(content, outputPath, format string, elements rules.Set, page string) error {
+	return writeViaTemp(outputPath, func(tmp string) error {
+		f, err := os.Create(tmp)
+		if err != nil {
+			return err
+		}
+		var w interface {
+			Write(io.Writer, lex.Screenplay) error
+		} = &office.DOCXWriter{Elements: elements, Page: page}
+		if format == "odt" {
+			w = &office.ODTWriter{Elements: elements, Page: page}
+		}
+		if err := w.Write(f, parseForExport(content)); err != nil {
 			f.Close()
 			return err
 		}

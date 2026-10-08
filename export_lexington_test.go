@@ -1,8 +1,10 @@
 package main
 
 import (
+	"archive/zip"
 	"bytes"
 	"github.com/LaPingvino/lexington/rules"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,5 +98,37 @@ func TestExportToMissingDirectoryFails(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "nope", "barn.pdf")
 	if err := exportPDF(accoladeScript, out, rules.Default); err == nil {
 		t.Error("expected an error writing into a missing directory")
+	}
+}
+
+// DOCX and ODT go through Lexington: zip documents with the script's
+// styles, on the chosen paper.
+func TestExportDocuments(t *testing.T) {
+	m, _ := rules.GetPreset("musical")
+	for _, c := range []struct{ format, part, want string }{
+		{"docx", "word/document.xml", `<w:pgSz w:w="8395"`}, // A5
+		{"odt", "styles.xml", `fo:page-width="5.830in"`},    // A5
+	} {
+		out := filepath.Join(t.TempDir(), "script."+c.format)
+		if err := exportDocument(accoladeScript, out, c.format, m.Elements, m.Page); err != nil {
+			t.Fatal(err)
+		}
+		z, err := zip.OpenReader(out)
+		if err != nil {
+			t.Fatalf("%s: %v", c.format, err)
+		}
+		found := false
+		for _, f := range z.File {
+			if f.Name == c.part {
+				r, _ := f.Open()
+				b, _ := io.ReadAll(r)
+				r.Close()
+				found = strings.Contains(string(b), c.want)
+			}
+		}
+		z.Close()
+		if !found {
+			t.Errorf("%s: %s lacks %s", c.format, c.part, c.want)
+		}
 	}
 }

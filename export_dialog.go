@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/LaPingvino/lexington/rules"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -44,6 +45,7 @@ type ExportDialog struct {
 	sceneNumbersCheck      *widget.Check
 	dualDialogueCheck      *widget.Check
 	scriptFormatSelect     *widget.Select
+	documentPageSelect     *widget.Select
 	
 	// Progress
 	progressBar        *widget.ProgressBar
@@ -87,8 +89,7 @@ func NewExportDialog(window *MainWindow) *ExportDialog {
 func (ed *ExportDialog) createWidgets() {
 	// Format selection
 	ed.formatSelect = widget.NewSelect(
-		// DOCX export is not implemented yet, so it is not offered
-		[]string{"PDF", "HTML", "FDX", "TXT", "Fountain"},
+		[]string{"PDF", "HTML", "DOCX", "ODT", "FDX", "TXT", "Fountain"},
 		ed.onFormatChanged,
 	)
 	// Don't set selected yet - wait until after containers are created
@@ -100,8 +101,11 @@ func (ed *ExportDialog) createWidgets() {
 	ed.filenameEntry = widget.NewEntry()
 	ed.filenameEntry.SetText(ed.getDefaultFilename())
 	
-	// PDF and HTML: the script format (Lexington's presets)
+	// PDF, HTML, DOCX and ODT: the script format (Lexington's presets)
 	ed.scriptFormatSelect = newScriptFormatSelect(nil, nil)
+	// DOCX and ODT: the paper, or the one the script format suggests
+	ed.documentPageSelect = widget.NewSelect(documentPages, nil)
+	ed.documentPageSelect.SetSelected(documentPages[0])
 
 	// PDF settings
 	ed.pageSizeSelect = widget.NewSelect(
@@ -219,7 +223,7 @@ func (ed *ExportDialog) updateFormatSettings() {
 	ed.formatSettingsContainer.Objects = nil
 	
 	switch ed.formatSelect.Selected {
-	case "PDF", "HTML":
+	case "PDF", "HTML", "DOCX", "ODT":
 		ed.formatSettingsContainer.Add(
 			container.NewBorder(nil, nil, widget.NewLabel("Script format:"), nil, ed.scriptFormatSelect),
 		)
@@ -249,13 +253,11 @@ func (ed *ExportDialog) updateFormatSettings() {
 		ed.formatSettingsContainer.Add(ed.embedCSSCheck)
 		ed.formatSettingsContainer.Add(ed.includeJSCheck)
 		
-	case "DOCX":
+	case "DOCX", "ODT":
 		ed.formatSettingsContainer.Add(
-			container.NewBorder(nil, nil, widget.NewLabel("Font:"), nil, ed.fontSelect),
+			container.NewBorder(nil, nil, widget.NewLabel("Paper:"), nil, ed.documentPageSelect),
 		)
-		ed.formatSettingsContainer.Add(
-			container.NewBorder(nil, nil, widget.NewLabel("Font size:"), nil, ed.fontSizeEntry),
-		)
+		ed.formatSettingsContainer.Add(widget.NewLabel("Every element is a paragraph style, to restyle in Word or LibreOffice."))
 		
 	case "FDX":
 		ed.formatSettingsContainer.Add(
@@ -354,6 +356,8 @@ func (ed *ExportDialog) updateDefaultFilename() {
 		ext = ".html"
 	case "DOCX":
 		ext = ".docx"
+	case "ODT":
+		ext = ".odt"
 	case "FDX":
 		ext = ".fdx"
 	case "TXT":
@@ -409,7 +413,7 @@ func (ed *ExportDialog) validateInputs() error {
 	}
 	
 	// Validate font size for PDF/DOCX
-	if ed.formatSelect.Selected == "PDF" || ed.formatSelect.Selected == "DOCX" {
+	if ed.formatSelect.Selected == "PDF" {
 		if fontSize, err := strconv.Atoi(ed.fontSizeEntry.Text); err != nil || fontSize < 6 || fontSize > 72 {
 			return fmt.Errorf("font size must be between 6 and 72")
 		}
@@ -449,8 +453,9 @@ func (ed *ExportDialog) performExport(content, outputPath, format string) error 
 		return ed.exportToHTML(content, outputPath)
 	case "fdx":
 		return exportFDX(content, outputPath)
-	case "docx":
-		return ed.exportToDOCX(content, outputPath)
+	case "docx", "odt":
+		set := scriptFormatElements(selectedScriptFormat(ed.scriptFormatSelect))
+		return exportDocument(content, outputPath, format, set, ed.documentPage())
 	case "txt":
 		return ed.exportToTXT(content, outputPath)
 	case "fountain":
@@ -468,10 +473,20 @@ func (ed *ExportDialog) exportToHTML(content, outputPath string) error {
 	return exportHTML(content, outputPath, scriptFormatElements(selectedScriptFormat(ed.scriptFormatSelect)))
 }
 
-func (ed *ExportDialog) exportToDOCX(content, outputPath string) error {
-	// TODO: Implement DOCX export
-	// For now, just create a placeholder file
-	return os.WriteFile(outputPath, []byte("DOCX export not yet implemented\n\n"+content), 0644)
+// documentPages are the paper choices for DOCX and ODT; the first is the
+// script format's suggestion (A5 for a musical), else Letter.
+var documentPages = []string{"Script format's", "Letter", "A4", "A5"}
+
+// documentPage is the chosen paper's name for Lexington ("" for the
+// script format's).
+func (ed *ExportDialog) documentPage() string {
+	if ed.documentPageSelect.Selected == documentPages[0] {
+		if p, ok := rules.GetPreset(selectedScriptFormat(ed.scriptFormatSelect)); ok {
+			return p.Page
+		}
+		return ""
+	}
+	return strings.ToLower(ed.documentPageSelect.Selected)
 }
 
 func (ed *ExportDialog) exportToTXT(content, outputPath string) error {
