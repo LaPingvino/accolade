@@ -4,7 +4,7 @@ go 1.24.3
 
 require (
 	fyne.io/fyne/v2 v2.8.1
-	github.com/LaPingvino/lexington v1.4.1-0.20261008210221-a1ec399b57d5
+	github.com/LaPingvino/lexington v1.4.1-0.20261008211120-8e8e12f3c2a9
 )
 
 require (
