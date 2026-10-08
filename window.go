@@ -251,7 +251,8 @@ func (w *MainWindow) applyFontSettings() {
 
 // File operations
 func (w *MainWindow) LoadFile(filePath string) error {
-	if strings.EqualFold(filepath.Ext(filePath), ".fdx") {
+	switch strings.ToLower(filepath.Ext(filePath)) {
+	case ".fdx", ".pdf":
 		return w.importFile(filePath)
 	}
 
@@ -271,17 +272,25 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	return nil
 }
 
-// importFile opens a Final Draft document converted to Fountain. It has no
-// file of its own until saved, so Save asks where to put the .fountain
-// file instead of overwriting the original.
+// importFile opens a Final Draft document or a PDF of a screenplay
+// converted to Fountain. It has no file of its own until saved, so Save
+// asks where to put the .fountain file instead of overwriting the
+// original.
 func (w *MainWindow) importFile(filePath string) error {
-	f, err := os.Open(filePath)
-	if err != nil {
-		return fmt.Errorf("failed to read file: %v", err)
+	var text, from string
+	var err error
+	if strings.EqualFold(filepath.Ext(filePath), ".pdf") {
+		text, err = importPDF(filePath)
+		from = "a PDF: check the result, a PDF only shows how the script looked"
+	} else {
+		var f *os.File
+		if f, err = os.Open(filePath); err != nil {
+			return fmt.Errorf("failed to read file: %v", err)
+		}
+		defer f.Close()
+		text, err = importFDX(f)
+		from = "Final Draft"
 	}
-	defer f.Close()
-
-	text, err := importFDX(f)
 	if err != nil {
 		return fmt.Errorf("could not import %s: %v", filepath.Base(filePath), err)
 	}
@@ -294,7 +303,7 @@ func (w *MainWindow) importFile(filePath string) error {
 	w.updateTitle()
 	w.updatePreview()
 	w.updateStatusBar()
-	w.setStatus("Imported from Final Draft")
+	w.setStatus("Imported from " + from)
 	return nil
 }
 

@@ -15,6 +15,7 @@ import (
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/office"
 	"github.com/LaPingvino/lexington/pdf"
+	"github.com/LaPingvino/lexington/pdfin"
 	"github.com/LaPingvino/lexington/rules"
 )
 
@@ -157,6 +158,20 @@ func exportFDX(content, outputPath string, job exportJob) error {
 // importFDX converts a Final Draft document to Fountain text.
 func importFDX(r io.Reader) (string, error) {
 	screenplay, err := fdx.ParseWithError(r)
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	if err := (&fountain.FountainWriter{SceneConfig: englishScenes}).Write(&buf, screenplay); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+// importPDF reads a screenplay from a PDF (one with text, not a scan) as
+// Fountain text.
+func importPDF(path string) (string, error) {
+	screenplay, err := pdfin.ReadFile(path)
 	if err != nil {
 		return "", err
 	}

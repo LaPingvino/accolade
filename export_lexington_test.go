@@ -156,3 +156,25 @@ func TestExportJobScript(t *testing.T) {
 		t.Error("the title page is kept by default")
 	}
 }
+
+// A PDF opens as its script, imported: unsaved, with a .fountain name.
+func TestOpenPDF(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "script.pdf")
+	if err := exportPDF(accoladeScript, out, exportJob{elements: rules.Default}); err != nil {
+		t.Fatal(err)
+	}
+	w, _ := newDialogTestWindow(t)
+	if err := w.LoadFile(out); err != nil {
+		t.Fatal(err)
+	}
+	text := w.textEditor.Text()
+	for _, want := range []string{"Title: The Barn", "Contact: Jane Smith\n    1 Writer's Lane", "INT. BARN - DAY",
+		"Rain hammers the roof.", "\nJOHN\n(beat)\nIt's coming.", "CUT TO:"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("imported script lacks %q:\n%s", want, text)
+		}
+	}
+	if w.currentFile != "" || w.suggestedName != "script.fountain" || !w.hasChanges {
+		t.Errorf("imported: file %q, name %q, changed %v", w.currentFile, w.suggestedName, w.hasChanges)
+	}
+}

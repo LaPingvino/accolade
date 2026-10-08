@@ -20,6 +20,10 @@ github.com/LaPingvino/lexington v1.4.1-0.20261008222256-bbab98572209 h1:u2BlffTo
 github.com/LaPingvino/lexington v1.4.1-0.20261008222256-bbab98572209/go.mod h1:+JT0tk5JXh3SbORVk1a08Zfaexl7CcfO+Qfm8xDwGaU=
 github.com/LaPingvino/lexington v1.4.1-0.20261008224052-b2a452199309 h1:CBRCW+H6nF1reTq1c5NOUpfdq/AsHtlRRYS31lICoL0=
 github.com/LaPingvino/lexington v1.4.1-0.20261008224052-b2a452199309/go.mod h1:+JT0tk5JXh3SbORVk1a08Zfaexl7CcfO+Qfm8xDwGaU=
+github.com/LaPingvino/lexington v1.4.1-0.20261008225453-8b4cb0190f19 h1:KOWD0G/RfhuFCAxQWkc5ykY0i4nGTlxKwYGop2dx8l8=
+github.com/LaPingvino/lexington v1.4.1-0.20261008225453-8b4cb0190f19/go.mod h1:0JTPVIgfB0cg2mKFqkwtZvE0o9iyao5qiVJsxYt9gCM=
+github.com/LaPingvino/lexington v1.4.1-0.20261008225614-f09a78941bc0 h1:xs0A7EArqIcYq56yrk4N3hMZ8jttJfDxeTLJHgsge64=
+github.com/LaPingvino/lexington v1.4.1-0.20261008225614-f09a78941bc0/go.mod h1:0JTPVIgfB0cg2mKFqkwtZvE0o9iyao5qiVJsxYt9gCM=
 github.com/anthonynsimon/bild v0.14.0 h1:IFRkmKdNdqmexXHfEU7rPlAmdUZ8BDZEGtGHDnGWync=
 github.com/anthonynsimon/bild v0.14.0/go.mod h1:hcvEAyBjTW69qkKJTfpcDQ83sSZHxwOunsseDfeQhUs=
 github.com/boombuler/barcode v1.0.0/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=
