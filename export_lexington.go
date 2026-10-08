@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"bytes"
 	"fmt"
 	"io"
@@ -15,6 +16,7 @@ import (
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/office"
 	"github.com/LaPingvino/lexington/pdf"
+	"github.com/LaPingvino/lexington/ocrwasm"
 	"github.com/LaPingvino/lexington/pdfin"
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -168,18 +170,30 @@ func importFDX(r io.Reader) (string, error) {
 	return buf.String(), nil
 }
 
-// importPDF reads a screenplay from a PDF (one with text, not a scan) as
-// Fountain text.
-func importPDF(path string) (string, error) {
-	screenplay, err := pdfin.ReadFile(path)
+// importPDF reads a screenplay from a PDF as Fountain text. Scanned
+// pages are read with OCR: tesseract if it is installed, else the
+// built-in one (slower). progress (may be nil) is told the pages read;
+// skipped are the pages that could not be read.
+func importPDF(path string, progress func(done, pages int)) (text string, skipped []string, err error) {
+	opts := pdfin.Options{Progress: progress, Skipped: func(page int, err error) {
+		skipped = append(skipped, fmt.Sprintf("page %d: %v", page, err))
+	}}
+	if t, ok := pdfin.InstalledTesseract(); ok {
+		opts.OCR = t
+	} else {
+		o := ocrwasm.New()
+		defer o.Close(context.Background())
+		opts.OCR = o
+	}
+	screenplay, err := pdfin.ReadFileWith(path, opts)
 	if err != nil {
-		return "", err
+		return "", skipped, err
 	}
 	var buf bytes.Buffer
 	if err := (&fountain.FountainWriter{SceneConfig: englishScenes}).Write(&buf, screenplay); err != nil {
-		return "", err
+		return "", skipped, err
 	}
-	return buf.String(), nil
+	return buf.String(), skipped, nil
 }
 
 // writeViaTemp lets write produce the file under a temporary name next to

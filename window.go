@@ -54,6 +54,8 @@ type MainWindow struct {
 	headerArea *fyne.Container
 	// the sidebar beside the editor: the outline (View > Outline) or the
 	// notes (View > Notes)
+	// imported is closed when the PDF import under way is in
+	imported       chan struct{}
 	outline        *outlinePanel
 	outlineVisible bool
 	notes          *notesPanel
@@ -281,8 +283,8 @@ func (w *MainWindow) importFile(filePath string) error {
 	var text, from string
 	var err error
 	if strings.EqualFold(filepath.Ext(filePath), ".pdf") {
-		text, err = importPDF(filePath)
-		from = "a PDF: check the result, a PDF only shows how the script looked"
+		w.importPDFAsync(filePath)
+		return nil
 	} else {
 		var f *os.File
 		if f, err = os.Open(filePath); err != nil {
@@ -296,6 +298,12 @@ func (w *MainWindow) importFile(filePath string) error {
 		return fmt.Errorf("could not import %s: %v", filepath.Base(filePath), err)
 	}
 
+	w.showImported(filePath, text, from)
+	return nil
+}
+
+// showImported puts an imported script in the window, unsaved.
+func (w *MainWindow) showImported(filePath, text, from string) {
 	w.cancelAutoSave()
 	w.textEditor.SetText(text)
 	w.currentFile = ""
@@ -305,7 +313,38 @@ func (w *MainWindow) importFile(filePath string) error {
 	w.updatePreview()
 	w.updateStatusBar()
 	w.setStatus("Imported from " + from)
-	return nil
+}
+
+// importPDFAsync reads a PDF in the background (a scanned one needs OCR,
+// seconds a page), showing how far it is.
+func (w *MainWindow) importPDFAsync(filePath string) {
+	bar := widget.NewProgressBar()
+	label := widget.NewLabel("Reading " + filepath.Base(filePath) + "...")
+	d := dialog.NewCustomWithoutButtons("Importing PDF", container.NewVBox(label, bar), w.fyneWindow)
+	d.Show()
+	done := make(chan struct{})
+	w.imported = done
+	go func() {
+		defer close(done)
+		text, skipped, err := importPDF(filePath, func(done, pages int) {
+			fyne.Do(func() {
+				bar.SetValue(float64(done) / float64(max(pages, 1)))
+				label.SetText(fmt.Sprintf("Read %d of %d pages", done, pages))
+			})
+		})
+		fyne.Do(func() {
+			d.Hide()
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("could not import %s: %v", filepath.Base(filePath), err), w.fyneWindow)
+				return
+			}
+			w.showImported(filePath, text, "a PDF: check the result, a PDF only shows how the script looked")
+			if len(skipped) > 0 {
+				dialog.ShowInformation("Some pages were left out",
+					"These pages could not be read:\n"+strings.Join(skipped, "\n"), w.fyneWindow)
+			}
+		})
+	}()
 }
 
 func (w *MainWindow) SaveFile() error {

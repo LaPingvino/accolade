@@ -7,6 +7,7 @@ import (
 	"github.com/LaPingvino/lexington/rules"
 	"io"
 	"os"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/storage"
@@ -170,7 +171,7 @@ func TestOpenPDF(t *testing.T) {
 	if err := w.LoadFile(out); err != nil {
 		t.Fatal(err)
 	}
-	text := w.textEditor.Text()
+	text := waitForText(t, w)
 	for _, want := range []string{"Title: The Barn", "Contact: Jane Smith\n    1 Writer's Lane", "INT. BARN - DAY",
 		"Rain hammers the roof.", "\nJOHN\n(beat)\nIt's coming.", "CUT TO:"} {
 		if !strings.Contains(text, want) {
@@ -196,5 +197,36 @@ func TestDropOpens(t *testing.T) {
 	w.onDropped(fyne.Position{}, []fyne.URI{storage.NewFileURI(b)})
 	if w.textEditor.Text() != "INT. A - DAY\n" || len(app.windows) != 2 || app.windows[1].textEditor.Text() != "INT. B - DAY\n" {
 		t.Errorf("second drop: this window %q, %d windows", w.textEditor.Text(), len(app.windows))
+	}
+}
+
+// waitForText waits for a PDF import (in the background) to fill the
+// editor.
+func waitForText(t *testing.T, w *MainWindow) string {
+	t.Helper()
+	select {
+	case <-w.imported:
+	case <-time.After(2 * time.Minute):
+		t.Fatal("the import did not finish")
+	}
+	var text string
+	fyne.DoAndWait(func() { text = w.textEditor.Text() })
+	return text
+}
+
+// A scanned script opens through OCR: tesseract or the built-in one.
+func TestOpenScannedPDF(t *testing.T) {
+	if testing.Short() {
+		t.Skip("OCR takes seconds a page")
+	}
+	w, _ := newDialogTestWindow(t)
+	if err := w.LoadFile("testdata/scanned-tv-episode.pdf"); err != nil {
+		t.Fatal(err)
+	}
+	text := waitForText(t, w)
+	for _, want := range []string{"Title: BISCUITS", "INT. OFFICE KITCHEN - DAY", "\nANNA\nJust one left.", "BRAM ^"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("OCRed script lacks %q:\n%s", want, text)
+		}
 	}
 }
