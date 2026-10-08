@@ -17,7 +17,49 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	e := editor.New("")
 	e.Syntax = true
 	e.OnEnter = func() bool { return completeLine(w, e) }
+	e.OnRune = func(r rune) bool {
+		if w == nil || w.settings == nil || !w.settings.GetBoolean("auto-close-brackets") {
+			return false
+		}
+		return closeBracket(e, r)
+	}
 	return e
+}
+
+// brackets are the pairs closed as they are typed: a parenthetical, a
+// note ([[...]]).
+var brackets = map[rune]rune{'(': ')', '[': ']'}
+
+// closeBracket types an opening bracket with its closing one after the
+// cursor (or around the selection), and steps over a closing bracket
+// that is already there. It reports false for other characters.
+func closeBracket(e *editor.ScriptEditor, r rune) bool {
+	if closing, ok := brackets[r]; ok {
+		e.Edit(func(b *buffer.Buffer) {
+			b.Group(func() {
+				start, end := b.Selection()
+				sel := b.Slice(start, end)
+				b.Replace(start, end, string(r)+sel+string(closing))
+				if sel == "" {
+					b.SetCursor(start+1, false)
+				} else {
+					b.Select(start+1, start+1+len([]rune(sel)))
+				}
+			})
+		})
+		return true
+	}
+	for _, closing := range brackets {
+		if r != closing {
+			continue
+		}
+		b := e.Buffer()
+		if c := b.Cursor(); !b.HasSelection() && c < b.Len() && b.Slice(c, c+1) == string(r) {
+			e.Navigate(func(b *buffer.Buffer) { b.SetCursor(c+1, false) })
+			return true
+		}
+	}
+	return false
 }
 
 // completeLine handles Enter: format the current line if the cursor is at

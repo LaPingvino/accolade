@@ -32,6 +32,9 @@ type ScriptEditor struct {
 	// OnEnter, when set, handles Enter instead of inserting a line break
 	// (Accolade formats the completed line); it reports whether it did.
 	OnEnter func() bool
+	// OnRune, when set, handles a typed character instead of inserting it
+	// (Accolade closes brackets); it reports whether it did.
+	OnRune func(r rune) bool
 	// OnCursorChanged is called when the cursor or selection moves.
 	OnCursorChanged func()
 
@@ -433,6 +436,10 @@ func (e *ScriptEditor) KeyUp(k *fyne.KeyEvent) {
 
 // TypedRune inserts a typed character.
 func (e *ScriptEditor) TypedRune(r rune) {
+	if e.OnRune != nil && e.OnRune(r) {
+		e.goalCol = -1
+		return
+	}
 	e.buf.Insert(string(r))
 	e.goalCol = -1
 	e.changed(true)

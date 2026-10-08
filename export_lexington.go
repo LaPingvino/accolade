@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/LaPingvino/lexington/fdx"
@@ -26,30 +27,86 @@ func parseForExport(content string) lex.Screenplay {
 	return fountain.Parse(englishScenes, strings.NewReader(content))
 }
 
-// exportPDF renders the script to a PDF at outputPath, laid out by
-// elements (a script format).
-func exportPDF(content, outputPath string, elements rules.Set) (err error) {
+// exportJob is how to export: the script format's rules, the paper
+// ("letter", "a4", "a5"; "" for the format's suggestion or Letter), and
+// what to do with the script.
+type exportJob struct {
+	elements      rules.Set
+	page          string
+	omitTitlePage bool // leave the title page out
+	numberScenes  bool // number the scenes that have no number
+}
+
+// script is the content parsed and prepared for the job.
+func (j exportJob) script(content string) lex.Screenplay {
+	s := parseForExport(content)
+	if j.omitTitlePage {
+		s = withoutTitlePage(s)
+	}
+	if j.numberScenes {
+		s = numberScenes(s)
+	}
+	return s
+}
+
+// withoutTitlePage is the screenplay without its title page (up to and
+// including the page break after it).
+func withoutTitlePage(s lex.Screenplay) lex.Screenplay {
+	if len(s) == 0 || s[0].Type != lex.TypeTitlePage {
+		return s
+	}
+	for i, l := range s {
+		if l.Type == lex.TypeNewPage {
+			return s[i+1:]
+		}
+	}
+	return nil
+}
+
+// numberScenes gives the scenes without a number (#12#) the next one:
+// 1, 2, 3, or after a scene numbered 7, 8.
+func numberScenes(s lex.Screenplay) lex.Screenplay {
+	out := make(lex.Screenplay, len(s))
+	copy(out, s)
+	n := 0
+	for i, l := range out {
+		if l.Type != lex.TypeScene {
+			continue
+		}
+		if _, num := lex.SceneNumber(l.Contents); num != "" {
+			if v, err := strconv.Atoi(num); err == nil {
+				n = v
+			}
+			continue
+		}
+		n++
+		out[i].Contents = strings.TrimSpace(l.Contents) + " #" + strconv.Itoa(n) + "#"
+	}
+	return out
+}
+
+// exportPDF renders the script to a PDF at outputPath.
+func exportPDF(content, outputPath string, job exportJob) (err error) {
 	return writeViaTemp(outputPath, func(tmp string) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				err = fmt.Errorf("PDF rendering failed: %v", r)
 			}
 		}()
-		w := &pdf.PDFWriter{OutputFile: tmp, Elements: elements}
-		return w.Write(nil, parseForExport(content))
+		w := &pdf.PDFWriter{OutputFile: tmp, Elements: job.elements, Page: job.paper()}
+		return w.Write(nil, job.script(content))
 	})
 }
 
-// exportHTML renders the script to a standalone HTML page at outputPath,
-// laid out by elements (a script format).
-func exportHTML(content, outputPath string, elements rules.Set) error {
+// exportHTML renders the script to a standalone HTML page at outputPath.
+func exportHTML(content, outputPath string, job exportJob) error {
 	return writeViaTemp(outputPath, func(tmp string) error {
 		f, err := os.Create(tmp)
 		if err != nil {
 			return err
 		}
-		w := &html.HTMLWriter{Elements: elements}
-		if err := w.Write(io.Writer(f), parseForExport(content)); err != nil {
+		w := &html.HTMLWriter{Elements: job.elements}
+		if err := w.Write(io.Writer(f), job.script(content)); err != nil {
 			f.Close()
 			return err
 		}
@@ -58,8 +115,8 @@ func exportHTML(content, outputPath string, elements rules.Set) error {
 }
 
 // exportDocument writes the script as a Word ("docx") or OpenDocument
-// ("odt") document, laid out by elements on page ("letter", "a4", "a5").
-func exportDocument(content, outputPath, format string, elements rules.Set, page string) error {
+// ("odt") document.
+func exportDocument(content, outputPath, format string, job exportJob) error {
 	return writeViaTemp(outputPath, func(tmp string) error {
 		f, err := os.Create(tmp)
 		if err != nil {
@@ -67,11 +124,11 @@ func exportDocument(content, outputPath, format string, elements rules.Set, page
 		}
 		var w interface {
 			Write(io.Writer, lex.Screenplay) error
-		} = &office.DOCXWriter{Elements: elements, Page: page}
+		} = &office.DOCXWriter{Elements: job.elements, Page: job.paper()}
 		if format == "odt" {
-			w = &office.ODTWriter{Elements: elements, Page: page}
+			w = &office.ODTWriter{Elements: job.elements, Page: job.paper()}
 		}
-		if err := w.Write(f, parseForExport(content)); err != nil {
+		if err := w.Write(f, job.script(content)); err != nil {
 			f.Close()
 			return err
 		}
@@ -79,14 +136,17 @@ func exportDocument(content, outputPath, format string, elements rules.Set, page
 	})
 }
 
+// paper is the job's paper for Lexington.
+func (j exportJob) paper() string { return j.page }
+
 // exportFDX writes the script as a Final Draft document.
-func exportFDX(content, outputPath string) error {
+func exportFDX(content, outputPath string, job exportJob) error {
 	return writeViaTemp(outputPath, func(tmp string) error {
 		f, err := os.Create(tmp)
 		if err != nil {
 			return err
 		}
-		if err := (&fdx.FDXWriter{}).Write(f, parseForExport(content)); err != nil {
+		if err := (&fdx.FDXWriter{}).Write(f, job.script(content)); err != nil {
 			f.Close()
 			return err
 		}

@@ -16,6 +16,8 @@ github.com/LaPingvino/lexington v1.4.1-0.20261008215832-7898edbccd1e h1:g4HEO4ZN
 github.com/LaPingvino/lexington v1.4.1-0.20261008215832-7898edbccd1e/go.mod h1:+JT0tk5JXh3SbORVk1a08Zfaexl7CcfO+Qfm8xDwGaU=
 github.com/LaPingvino/lexington v1.4.1-0.20261008221312-c32809f09c1b h1:lVpZLSbGqNfq5o2V1BFDFdT3oCQDHi1s2X/CbhCSm7w=
 github.com/LaPingvino/lexington v1.4.1-0.20261008221312-c32809f09c1b/go.mod h1:+JT0tk5JXh3SbORVk1a08Zfaexl7CcfO+Qfm8xDwGaU=
+github.com/LaPingvino/lexington v1.4.1-0.20261008222256-bbab98572209 h1:u2BlffToFJZofXUgVzaM5iJiKINVmVi7exLbGtl9xlQ=
+github.com/LaPingvino/lexington v1.4.1-0.20261008222256-bbab98572209/go.mod h1:+JT0tk5JXh3SbORVk1a08Zfaexl7CcfO+Qfm8xDwGaU=
 github.com/anthonynsimon/bild v0.14.0 h1:IFRkmKdNdqmexXHfEU7rPlAmdUZ8BDZEGtGHDnGWync=
 github.com/anthonynsimon/bild v0.14.0/go.mod h1:hcvEAyBjTW69qkKJTfpcDQ83sSZHxwOunsseDfeQhUs=
 github.com/boombuler/barcode v1.0.0/go.mod h1:paBWMcWSl3LHKBqUq+rly7CNSldXjb2rDl3JlRe0mD8=

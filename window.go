@@ -50,6 +50,8 @@ type MainWindow struct {
 	toolbarContainer *fyne.Container
 	// Status bar
 	statusBar *fyne.Container
+	// headerArea is the header bar (the toolbar) with its separator
+	headerArea *fyne.Container
 
 	// File management
 	currentFile  string
@@ -135,9 +137,10 @@ func (w *MainWindow) setupUI() {
 	w.searchBar = NewSearchBar(w)
 
 	// Create toolbar container
+	// the toolbar (the header bar) can be hidden, the search bar stays
+	w.headerArea = container.NewVBox(w.headerBar.container, widget.NewSeparator())
 	w.toolbarContainer = container.NewVBox(
-		w.headerBar.container,
-		widget.NewSeparator(),
+		w.headerArea,
 		w.searchBar.container,
 	)
 
@@ -231,7 +234,20 @@ func (w *MainWindow) applyEditorSettings() {
 	// the script editor always wraps at the window width (screenplays are
 	// laid out in columns)
 	w.textEditor.SetLineNumbers(w.settings.GetBoolean("show-line-numbers"))
+	setVisible(w.headerArea, w.settings.GetBoolean("toolbar-visible"))
+	setVisible(w.statusBar, w.settings.GetBoolean("statusbar-visible"))
 	// auto-indent is read when Enter is pressed (editor.go)
+}
+
+func setVisible(o fyne.CanvasObject, visible bool) {
+	if o == nil {
+		return
+	}
+	if visible {
+		o.Show()
+	} else {
+		o.Hide()
+	}
 }
 
 func (w *MainWindow) applyFontSettings() {

@@ -10,7 +10,7 @@ import (
 
 func TestExportFDX(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "barn.fdx")
-	if err := exportFDX(accoladeScript, out); err != nil {
+	if err := exportFDX(accoladeScript, out, exportJob{}); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(out)
@@ -41,7 +41,7 @@ func TestExportFDX(t *testing.T) {
 func TestOpenFDXConvertsToFountain(t *testing.T) {
 	dir := t.TempDir()
 	fdxPath := filepath.Join(dir, "barn.fdx")
-	if err := exportFDX(accoladeScript, fdxPath); err != nil {
+	if err := exportFDX(accoladeScript, fdxPath, exportJob{}); err != nil {
 		t.Fatal(err)
 	}
 	original, _ := os.ReadFile(fdxPath)

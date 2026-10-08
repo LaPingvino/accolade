@@ -32,80 +32,33 @@ func (s *Settings) loadDefaults() {
 	defaults := map[string]interface{}{
 		// Theme settings
 		"theme":                "system",
-		"color-scheme":         "system",
-		"use-sepia-theme":      false,
 		
 		// Editor settings
 		"font-family":          "monospace",
 		"font-size":           12,
 		"auto-indent":         true,
 		"show-line-numbers":   false,
-		"highlight-current-line": true,
-		"tab-width":           4,
-		"use-spaces":          true,
 		
 		// Window settings
-		"window-width":        1000,
-		"window-height":       600,
-		"window-maximized":    false,
 		"preview-visible":     false,
 		"toolbar-visible":     true,
 		"statusbar-visible":   true,
-		"fullscreen-mode":     false,
 		
 		// Editor behavior
 		"auto-save":           true,
 		"auto-save-interval":  30, // seconds
-		"backup-files":        true,
-		"spell-check":         true,
-		"spell-check-language": "en_US",
-		"autocomplete":        true,
-		"smart-quotes":        false,
-		
-		// Writing settings
-		"focus-mode":          false,
-		"typewriter-mode":     false,
-		"hemingway-mode":      false,
-		"word-count-visible":  true,
-		"character-count-visible": true,
 		
 		// Export settings
-		"export-format":       "pdf",
+		"export-format":       "PDF",
 		"script-format":       "default", // a Lexington preset (script_format.go)
 		"export-directory":    "",
 		"include-title-page":  true,
-		"page-size":          "letter",
-		"font-name":          "Courier",
-		"font-size-export":   12,
+		"page-size":          "", // the script format's (export dialog)
 		
-		// Search settings
-		"search-case-sensitive": false,
-		"search-whole-words":   false,
-		"search-regex":        false,
-		"search-wrap-around":  true,
-		
-		// Recent files
-		"recent-files":        []string{},
-		"max-recent-files":    10,
-		
-		// Advanced settings
-		"autohide-headerbar":  false,
-		"smooth-scrolling":    true,
-		"show-whitespace":     false,
-		"highlight-matching-brackets": true,
 		"auto-close-brackets": true,
 		
 		// Fountain-specific settings
-		"fountain-auto-format": true,
 		"fountain-scene-numbers": false,
-		"fountain-dual-dialogue": true,
-		"fountain-title-page":   true,
-		
-		// Backup and recovery
-		"auto-backup":         true,
-		"backup-directory":    "",
-		"recovery-enabled":    true,
-		"session-restore":     true,
 	}
 	
 	for key, value := range defaults {

@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
 	"io"
 	"os"
@@ -56,7 +57,7 @@ func TestParseForExportElementTypes(t *testing.T) {
 func TestExportPDF(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "barn.pdf")
-	if err := exportPDF(accoladeScript, out, rules.Default); err != nil {
+	if err := exportPDF(accoladeScript, out, exportJob{elements: rules.Default}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(out)
@@ -82,7 +83,7 @@ func TestExportPDF(t *testing.T) {
 
 func TestExportHTML(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "barn.html")
-	if err := exportHTML(accoladeScript, out, rules.Default); err != nil {
+	if err := exportHTML(accoladeScript, out, exportJob{elements: rules.Default}); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(out)
@@ -96,7 +97,7 @@ func TestExportHTML(t *testing.T) {
 
 func TestExportToMissingDirectoryFails(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "nope", "barn.pdf")
-	if err := exportPDF(accoladeScript, out, rules.Default); err == nil {
+	if err := exportPDF(accoladeScript, out, exportJob{elements: rules.Default}); err == nil {
 		t.Error("expected an error writing into a missing directory")
 	}
 }
@@ -110,7 +111,7 @@ func TestExportDocuments(t *testing.T) {
 		{"odt", "styles.xml", `fo:page-width="5.830in"`},    // A5
 	} {
 		out := filepath.Join(t.TempDir(), "script."+c.format)
-		if err := exportDocument(accoladeScript, out, c.format, m.Elements, m.Page); err != nil {
+		if err := exportDocument(accoladeScript, out, c.format, exportJob{elements: m.Elements, page: m.Page}); err != nil {
 			t.Fatal(err)
 		}
 		z, err := zip.OpenReader(out)
@@ -130,5 +131,28 @@ func TestExportDocuments(t *testing.T) {
 		if !found {
 			t.Errorf("%s: %s lacks %s", c.format, c.part, c.want)
 		}
+	}
+}
+
+// The Export dialog's script options: without the title page, scenes
+// numbered after the last given number.
+func TestExportJobScript(t *testing.T) {
+	text := "Title: T\nAuthor: A\n\nINT. ONE - DAY\n\nHi.\n\nINT. TWO - DAY #7#\n\nHo.\n\nEXT. THREE - NIGHT\n"
+	s := exportJob{omitTitlePage: true, numberScenes: true}.script(text)
+	var scenes []string
+	for _, l := range s {
+		if l.Type == lex.TypeTitlePage || l.Type == "Title" {
+			t.Errorf("title page left: %+v", l)
+		}
+		if l.Type == lex.TypeScene {
+			scenes = append(scenes, l.Contents)
+		}
+	}
+	want := []string{"INT. ONE - DAY #1#", "INT. TWO - DAY #7#", "EXT. THREE - NIGHT #8#"}
+	if strings.Join(scenes, "|") != strings.Join(want, "|") {
+		t.Errorf("scenes %q", scenes)
+	}
+	if s := (exportJob{}).script(text); s[0].Type != lex.TypeTitlePage {
+		t.Error("the title page is kept by default")
 	}
 }
