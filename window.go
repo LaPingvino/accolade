@@ -52,6 +52,9 @@ type MainWindow struct {
 	statusBar *fyne.Container
 	// headerArea is the header bar (the toolbar) with its separator
 	headerArea *fyne.Container
+	// the outline beside the editor (View > Outline)
+	outline        *outlinePanel
+	outlineVisible bool
 
 	// File management
 	currentFile  string
@@ -160,19 +163,7 @@ func (w *MainWindow) setupUI() {
 		container.NewBorder(nil, nil, w.statusLabel, w.statsLabel),
 	)
 
-	// Create main content area - just the editor for now
-	editorScroll := w.editorView
-
-	// Create main layout
-	content := container.NewBorder(
-		w.toolbarContainer, // top
-		w.statusBar,        // bottom
-		nil,                // left
-		nil,                // right
-		editorScroll,       // center - just the editor
-	)
-
-	w.setContent(content)
+	w.relayout()
 
 	// Initially hide preview
 	w.previewVisible = false
@@ -431,6 +422,9 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.updatePreview()
 	w.updateStatusBar()
 	w.updateCurrentElement()
+	if w.outlineVisible && w.outline != nil {
+		w.outline.update(text)
+	}
 
 	w.scheduleAutoSave()
 }
@@ -611,51 +605,45 @@ func (w *MainWindow) setContent(content fyne.CanvasObject) {
 }
 
 func (w *MainWindow) showPreview() {
-	// Show preview pane by creating a split container
 	w.previewVisible = true
 	w.updatePreview()
 	w.settings.SetBoolean("preview-visible", true)
-
-	// Create the split container with both editor and preview
-	editorScroll := w.editorView
-	previewScroll := container.NewScroll(w.previewArea)
-
-	splitContainer := container.NewHSplit(
-		editorScroll,
-		previewScroll,
-	)
-	splitContainer.SetOffset(0.55) // the preview shows a whole page width
-
-	// Update the main layout
-	content := container.NewBorder(
-		w.toolbarContainer, // top
-		w.statusBar,        // bottom
-		nil,                // left
-		nil,                // right
-		splitContainer,     // center - split container
-	)
-
-	w.setContent(content)
+	w.relayout()
 }
 
 func (w *MainWindow) hidePreview() {
-	// Hide preview pane by replacing the split container with just the editor
 	w.previewVisible = false
 	w.settings.SetBoolean("preview-visible", false)
+	w.relayout()
+}
 
-	// Replace the split container with just the editor scroll
-	editorScroll := w.editorView
+// toggleOutline shows or hides the outline beside the editor.
+func (w *MainWindow) toggleOutline() {
+	if w.outline == nil {
+		w.outline = newOutlinePanel(w)
+	}
+	w.outlineVisible = !w.outlineVisible
+	if w.outlineVisible {
+		w.outline.update(w.textEditor.Text())
+	}
+	w.relayout()
+}
 
-	// Update the main layout to show only the editor
-	content := container.NewBorder(
-		w.toolbarContainer, // top
-		w.statusBar,        // bottom
-		nil,                // left
-		nil,                // right
-		editorScroll,       // center - just the editor
-	)
-
-	w.setContent(content)
+// relayout puts the window together: the toolbar and the status bar,
+// the outline on the left if shown, the editor with the preview beside
+// it if shown.
+func (w *MainWindow) relayout() {
+	var center fyne.CanvasObject = w.editorView
+	if w.previewVisible {
+		split := container.NewHSplit(w.editorView, container.NewScroll(w.previewArea))
+		split.SetOffset(0.55) // the preview shows a whole page width
+		center = split
+	}
+	var left fyne.CanvasObject
+	if w.outlineVisible && w.outline != nil {
+		left = container.NewHBox(w.outline.box, widget.NewSeparator())
+	}
+	w.setContent(container.NewBorder(w.toolbarContainer, w.statusBar, left, nil, center))
 }
 
 // Find/Replace operations
