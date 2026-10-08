@@ -61,6 +61,27 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Find Previous", shortcut(fyne.KeyG, fyne.KeyModifierShift), w.findPrevious),
 	)
 
+	el := func(element string) func() { return func() { setLineElement(w.textEditor, element) } }
+	alt := func(key fyne.KeyName) fyne.Shortcut {
+		return &desktop.CustomShortcut{KeyName: key, Modifier: fyne.KeyModifierAlt}
+	}
+	format := fyne.NewMenu("Format",
+		menuItem("Scene Heading", shortcut(fyne.Key1, 0), el(elementScene)),
+		menuItem("Action", shortcut(fyne.Key2, 0), el(elementAction)),
+		menuItem("Character", shortcut(fyne.Key3, 0), el(elementCharacter)),
+		menuItem("Parenthetical", shortcut(fyne.Key4, 0), el(elementParenthetical)),
+		menuItem("Dialogue", shortcut(fyne.Key5, 0), el(elementDialogue)),
+		menuItem("Transition", shortcut(fyne.Key6, 0), el(elementTransition)),
+		menuItem("Centered", shortcut(fyne.Key7, 0), el(elementCentered)),
+		fyne.NewMenuItemSeparator(),
+		menuItem("Bold", shortcut(fyne.KeyB, 0), func() { toggleEmphasis(w.textEditor, "**") }),
+		menuItem("Italic", shortcut(fyne.KeyI, 0), func() { toggleEmphasis(w.textEditor, "*") }),
+		menuItem("Underline", shortcut(fyne.KeyU, 0), func() { toggleEmphasis(w.textEditor, "_") }),
+		fyne.NewMenuItemSeparator(),
+		menuItem("Move Line Up", alt(fyne.KeyUp), func() { moveLines(w.textEditor, -1) }),
+		menuItem("Move Line Down", alt(fyne.KeyDown), func() { moveLines(w.textEditor, 1) }),
+	)
+
 	view := fyne.NewMenu("View",
 		menuItem("Preview", shortcut(fyne.KeyP, fyne.KeyModifierShift), w.togglePreview),
 		menuItem("Fullscreen", shortcut(fyne.KeyF, fyne.KeyModifierShift), w.toggleFullscreen),
@@ -70,7 +91,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItem("About Accolade", func() { w.app.showAbout() }),
 	)
 
-	return fyne.NewMainMenu(file, edit, view, help)
+	return fyne.NewMainMenu(file, edit, format, view, help)
 }
 
 // escEntry is the entry used in the search bar: Escape closes the bar
