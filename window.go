@@ -178,6 +178,7 @@ func (w *MainWindow) setupUI() {
 func (w *MainWindow) setupShortcuts() {
 	// Text editor shortcuts
 	w.textEditor.OnChanged = w.onTextChanged
+	w.fyneWindow.SetOnDropped(w.onDropped) // drop a script or a PDF to open it
 
 	// Lines are formatted when completed with Enter (editor.go)
 
@@ -376,17 +377,35 @@ func (w *MainWindow) OpenFile() {
 
 		filePath := closer.URI().Path()
 		defer closer.Close()
-
-		err = w.LoadFile(filePath)
-		if err != nil {
-			dialog.ShowError(fmt.Errorf("failed to open file: %v", err), w.fyneWindow)
-		}
+		w.openPath(filePath)
 	}, w.fyneWindow)
 
 	// TODO: Set file filter when Fyne supports it
 	// fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{".fountain", ".spmd", ".txt"}))
 
 	fileDialog.Show()
+}
+
+// openPath opens a file (a script, a Final Draft document, a PDF): in
+// this window if it is empty and unchanged, else in a new one, so that
+// nothing unsaved is replaced.
+func (w *MainWindow) openPath(path string) {
+	target := w
+	if (w.hasChanges || w.currentFile != "") && w.app != nil {
+		target = w.app.newWindow()
+	}
+	if err := target.LoadFile(path); err != nil {
+		dialog.ShowError(fmt.Errorf("failed to open %s: %v", filepath.Base(path), err), target.fyneWindow)
+	}
+}
+
+// onDropped opens the files dropped on the window, as Highland does.
+func (w *MainWindow) onDropped(_ fyne.Position, uris []fyne.URI) {
+	for _, u := range uris {
+		if u.Scheme() == "file" {
+			w.openPath(u.Path())
+		}
+	}
 }
 
 func (w *MainWindow) NewFile() {

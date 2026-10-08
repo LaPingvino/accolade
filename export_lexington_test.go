@@ -7,6 +7,9 @@ import (
 	"github.com/LaPingvino/lexington/rules"
 	"io"
 	"os"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/storage"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -176,5 +179,22 @@ func TestOpenPDF(t *testing.T) {
 	}
 	if w.currentFile != "" || w.suggestedName != "script.fountain" || !w.hasChanges {
 		t.Errorf("imported: file %q, name %q, changed %v", w.currentFile, w.suggestedName, w.hasChanges)
+	}
+}
+
+// Dropping files opens them; a window with work in it is not replaced.
+func TestDropOpens(t *testing.T) {
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a.fountain"), filepath.Join(dir, "b.fountain")
+	os.WriteFile(a, []byte("INT. A - DAY\n"), 0o644)
+	os.WriteFile(b, []byte("INT. B - DAY\n"), 0o644)
+	w, app := newDialogTestWindow(t)
+	w.onDropped(fyne.Position{}, []fyne.URI{storage.NewFileURI(a)})
+	if w.textEditor.Text() != "INT. A - DAY\n" {
+		t.Fatalf("dropped file not opened: %q", w.textEditor.Text())
+	}
+	w.onDropped(fyne.Position{}, []fyne.URI{storage.NewFileURI(b)})
+	if w.textEditor.Text() != "INT. A - DAY\n" || len(app.windows) != 2 || app.windows[1].textEditor.Text() != "INT. B - DAY\n" {
+		t.Errorf("second drop: this window %q, %d windows", w.textEditor.Text(), len(app.windows))
 	}
 }
