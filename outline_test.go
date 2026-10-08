@@ -57,7 +57,7 @@ func TestOutlinePanelGoesToTheScene(t *testing.T) {
 	if len(w.outline.items) != 6 {
 		t.Errorf("outline not updated: %d items", len(w.outline.items))
 	}
-	w.togglePreview() // both at once
+	w.showPreview() // both at once (not toggle: another test may have left it shown)
 	if !w.previewVisible || !w.outlineVisible {
 		t.Error("preview and outline together")
 	}

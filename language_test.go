@@ -59,6 +59,7 @@ func TestEsperantoScript(t *testing.T) {
 		t.Errorf("exported scenes: %d", scenes)
 	}
 	w.showPreview()
+	t.Cleanup(func() { w.settings.SetBoolean("preview-visible", false) })
 	if p := previewText(w.previewArea.Segments); !strings.Contains(p, "EN. KUIREJO - TAGO") {
 		t.Errorf("preview:\n%s", p)
 	}
