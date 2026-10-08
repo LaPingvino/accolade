@@ -1,0 +1,45 @@
+name: Arch package
+
+# Every push to main builds the Arch Linux package from
+# packaging/arch/PKGBUILD and puts it on the "main-latest" pre-release,
+# so a machine can install the latest main without building it:
+#   scripts/install-arch-latest.sh
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: arch-package
+  cancel-in-progress: true
+
+jobs:
+  arch:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Build tools
+        run: >-
+          pacman -Syu --noconfirm --needed base-devel github-cli go git pkgconf
+          mesa libgl libx11 libxcursor libxrandr libxinerama libxi libxxf86vm libxkbcommon wayland
+      - uses: actions/checkout@v4
+      - name: Build the package (makepkg runs as a normal user)
+        run: |
+          useradd -m builder
+          cp -r packaging/arch /home/builder/build
+          chown -R builder /home/builder/build
+          su builder -c 'cd /home/builder/build && makepkg -f --noconfirm'
+          ls -l /home/builder/build/*.pkg.tar.zst
+      - name: Publish as the main-latest pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          gh release delete main-latest --cleanup-tag --yes || true
+          gh release create main-latest --prerelease --target "$GITHUB_SHA" \
+            --title "Latest main (Arch package)" \
+            --notes "Built from $GITHUB_SHA by the Arch package workflow. Install with scripts/install-arch-latest.sh." \
+            /home/builder/build/accolade-git-r*.pkg.tar.zst
