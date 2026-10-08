@@ -9,6 +9,7 @@ import (
 
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/layout"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // The preview shows the screenplay as Lexington prints it (its layout
@@ -16,8 +17,8 @@ import (
 // font, one paragraph per printed line.
 
 // previewSegments are the rich text segments of a screenplay's text.
-func previewSegments(text string, sceneHeaders []string) []widget.RichTextSegment {
-	lines := layout.Lay(fountain.Parse(sceneHeaders, strings.NewReader(text)), nil)
+func previewSegments(text string, sceneHeaders []string, elements rules.Set) []widget.RichTextSegment {
+	lines := layout.Lay(fountain.Parse(sceneHeaders, strings.NewReader(text)), elements)
 	var segs []widget.RichTextSegment
 	for i := 0; i < len(lines); i++ {
 		l := lines[i]
@@ -46,12 +47,14 @@ func lineSegments(pad string, spans []layout.Span) []widget.RichTextSegment {
 		spans = []layout.Span{{}}
 	}
 	var segs []widget.RichTextSegment
+	if pad != "" { // unstyled: an underline does not run under the indent
+		segs = append(segs, &widget.TextSegment{Text: pad, Style: widget.RichTextStyle{
+			Inline: true, SizeName: theme.SizeNameCaptionText, TextStyle: fyne.TextStyle{Monospace: true},
+		}})
+	}
 	for i, s := range spans {
 		t := s.Text
-		if i == 0 {
-			t = pad + t
-		}
-		if t == "" {
+		if t == "" && pad == "" {
 			t = " " // an empty line keeps its height
 		}
 		segs = append(segs, &widget.TextSegment{Text: t, Style: widget.RichTextStyle{

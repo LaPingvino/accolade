@@ -448,7 +448,7 @@ func (w *MainWindow) updateTitle() {
 func (w *MainWindow) updatePreview() {
 	if w.previewVisible {
 		// the screenplay as Lexington prints it (its layout package)
-		w.previewArea.Segments = previewSegments(w.textEditor.Text(), w.lexParser.sceneHeaders)
+		w.previewArea.Segments = previewSegments(w.textEditor.Text(), w.lexParser.sceneHeaders, currentScriptFormat())
 		w.previewArea.Refresh()
 	}
 }

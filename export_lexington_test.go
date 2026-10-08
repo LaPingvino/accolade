@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/LaPingvino/lexington/rules"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,7 +54,7 @@ func TestParseForExportElementTypes(t *testing.T) {
 func TestExportPDF(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "barn.pdf")
-	if err := exportPDF(accoladeScript, out); err != nil {
+	if err := exportPDF(accoladeScript, out, rules.Default); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(out)
@@ -79,7 +80,7 @@ func TestExportPDF(t *testing.T) {
 
 func TestExportHTML(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "barn.html")
-	if err := exportHTML(accoladeScript, out); err != nil {
+	if err := exportHTML(accoladeScript, out, rules.Default); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(out)
@@ -93,7 +94,7 @@ func TestExportHTML(t *testing.T) {
 
 func TestExportToMissingDirectoryFails(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "nope", "barn.pdf")
-	if err := exportPDF(accoladeScript, out); err == nil {
+	if err := exportPDF(accoladeScript, out, rules.Default); err == nil {
 		t.Error("expected an error writing into a missing directory")
 	}
 }

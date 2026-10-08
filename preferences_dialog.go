@@ -53,6 +53,8 @@ type PreferencesDialog struct {
 	fountainSceneNumbersCheck *widget.Check
 	fountainDualDialogueCheck *widget.Check
 	fountainTitlePageCheck   *widget.Check
+	scriptFormatSelect       *widget.Select
+	scriptFormatDesc         *widget.Label
 	
 	// Advanced settings
 	smoothScrollingCheck      *widget.Check
@@ -133,6 +135,9 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.fountainSceneNumbersCheck = widget.NewCheck("Show scene numbers", nil)
 	pd.fountainDualDialogueCheck = widget.NewCheck("Enable dual dialogue", nil)
 	pd.fountainTitlePageCheck = widget.NewCheck("Generate title page", nil)
+	pd.scriptFormatDesc = widget.NewLabel("")
+	pd.scriptFormatDesc.Wrapping = fyne.TextWrapWord
+	pd.scriptFormatSelect = newScriptFormatSelect(pd.scriptFormatDesc, nil)
 	
 	// Advanced settings
 	pd.smoothScrollingCheck = widget.NewCheck("Smooth scrolling", nil)
@@ -272,10 +277,8 @@ func (pd *PreferencesDialog) createFountainTab() *fyne.Container {
 				pd.fountainTitlePageCheck,
 			),
 		),
-		widget.NewCard("Preview", "",
-			container.NewVBox(
-				widget.NewLabel("Fountain-specific preview settings will appear here."),
-			),
+		widget.NewCard("Script Format", "How the preview, PDF and HTML lay the script out",
+			container.NewVBox(pd.scriptFormatSelect, pd.scriptFormatDesc),
 		),
 	)
 }
@@ -337,6 +340,7 @@ func (pd *PreferencesDialog) loadCurrentSettings() {
 	pd.fountainSceneNumbersCheck.SetChecked(pd.settings.GetBoolean("fountain-scene-numbers"))
 	pd.fountainDualDialogueCheck.SetChecked(pd.settings.GetBoolean("fountain-dual-dialogue"))
 	pd.fountainTitlePageCheck.SetChecked(pd.settings.GetBoolean("fountain-title-page"))
+	selectScriptFormat(pd.scriptFormatSelect, pd.settings.GetString("script-format"))
 	
 	// Advanced settings
 	pd.smoothScrollingCheck.SetChecked(pd.settings.GetBoolean("smooth-scrolling"))
@@ -394,6 +398,7 @@ func (pd *PreferencesDialog) saveSettings() {
 		pd.settings.SetString("page-size", pd.pageSizeSelect.Selected)
 	}
 	pd.settings.SetString("font-name", pd.exportFontEntry.Text)
+	pd.settings.SetString("script-format", selectedScriptFormat(pd.scriptFormatSelect))
 	if exportFontSize, err := strconv.Atoi(pd.exportFontSizeEntry.Text); err == nil {
 		pd.settings.SetInt("font-size-export", exportFontSize)
 	}

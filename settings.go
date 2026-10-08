@@ -71,6 +71,7 @@ func (s *Settings) loadDefaults() {
 		
 		// Export settings
 		"export-format":       "pdf",
+		"script-format":       "default", // a Lexington preset (script_format.go)
 		"export-directory":    "",
 		"include-title-page":  true,
 		"page-size":          "letter",

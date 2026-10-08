@@ -43,6 +43,7 @@ type ExportDialog struct {
 	includeTitlePageCheck  *widget.Check
 	sceneNumbersCheck      *widget.Check
 	dualDialogueCheck      *widget.Check
+	scriptFormatSelect     *widget.Select
 	
 	// Progress
 	progressBar        *widget.ProgressBar
@@ -99,6 +100,9 @@ func (ed *ExportDialog) createWidgets() {
 	ed.filenameEntry = widget.NewEntry()
 	ed.filenameEntry.SetText(ed.getDefaultFilename())
 	
+	// PDF and HTML: the script format (Lexington's presets)
+	ed.scriptFormatSelect = newScriptFormatSelect(nil, nil)
+
 	// PDF settings
 	ed.pageSizeSelect = widget.NewSelect(
 		[]string{"Letter", "A4", "Legal", "Executive"},
@@ -215,6 +219,12 @@ func (ed *ExportDialog) updateFormatSettings() {
 	ed.formatSettingsContainer.Objects = nil
 	
 	switch ed.formatSelect.Selected {
+	case "PDF", "HTML":
+		ed.formatSettingsContainer.Add(
+			container.NewBorder(nil, nil, widget.NewLabel("Script format:"), nil, ed.scriptFormatSelect),
+		)
+	}
+	switch ed.formatSelect.Selected {
 	case "PDF":
 		ed.formatSettingsContainer.Add(
 			container.NewBorder(nil, nil, widget.NewLabel("Page size:"), nil, ed.pageSizeSelect),
@@ -280,6 +290,7 @@ func (ed *ExportDialog) loadSettings() {
 	}
 	
 	ed.pageSizeSelect.SetSelected(ed.settings.GetString("page-size"))
+	selectScriptFormat(ed.scriptFormatSelect, ed.settings.GetString("script-format"))
 	ed.fontSelect.SetSelected(ed.settings.GetString("font-name"))
 	ed.fontSizeEntry.SetText(strconv.Itoa(ed.settings.GetInt("font-size-export")))
 	
@@ -293,6 +304,7 @@ func (ed *ExportDialog) saveSettings() {
 	ed.settings.SetString("export-format", ed.formatSelect.Selected)
 	ed.settings.SetString("export-directory", ed.outputDirEntry.Text)
 	ed.settings.SetString("page-size", ed.pageSizeSelect.Selected)
+	ed.settings.SetString("script-format", selectedScriptFormat(ed.scriptFormatSelect))
 	ed.settings.SetString("font-name", ed.fontSelect.Selected)
 	
 	if fontSize, err := strconv.Atoi(ed.fontSizeEntry.Text); err == nil {
@@ -449,11 +461,11 @@ func (ed *ExportDialog) performExport(content, outputPath, format string) error 
 }
 
 func (ed *ExportDialog) exportToPDF(content, outputPath string) error {
-	return exportPDF(content, outputPath)
+	return exportPDF(content, outputPath, scriptFormatElements(selectedScriptFormat(ed.scriptFormatSelect)))
 }
 
 func (ed *ExportDialog) exportToHTML(content, outputPath string) error {
-	return exportHTML(content, outputPath)
+	return exportHTML(content, outputPath, scriptFormatElements(selectedScriptFormat(ed.scriptFormatSelect)))
 }
 
 func (ed *ExportDialog) exportToDOCX(content, outputPath string) error {

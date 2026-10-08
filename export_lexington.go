@@ -25,27 +25,29 @@ func parseForExport(content string) lex.Screenplay {
 	return fountain.Parse(englishScenes, strings.NewReader(content))
 }
 
-// exportPDF renders the script to a PDF at outputPath.
-func exportPDF(content, outputPath string) (err error) {
+// exportPDF renders the script to a PDF at outputPath, laid out by
+// elements (a script format).
+func exportPDF(content, outputPath string, elements rules.Set) (err error) {
 	return writeViaTemp(outputPath, func(tmp string) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				err = fmt.Errorf("PDF rendering failed: %v", r)
 			}
 		}()
-		w := &pdf.PDFWriter{OutputFile: tmp, Elements: rules.Default}
+		w := &pdf.PDFWriter{OutputFile: tmp, Elements: elements}
 		return w.Write(nil, parseForExport(content))
 	})
 }
 
-// exportHTML renders the script to a standalone HTML page at outputPath.
-func exportHTML(content, outputPath string) error {
+// exportHTML renders the script to a standalone HTML page at outputPath,
+// laid out by elements (a script format).
+func exportHTML(content, outputPath string, elements rules.Set) error {
 	return writeViaTemp(outputPath, func(tmp string) error {
 		f, err := os.Create(tmp)
 		if err != nil {
 			return err
 		}
-		w := &html.HTMLWriter{Elements: rules.Default}
+		w := &html.HTMLWriter{Elements: elements}
 		if err := w.Write(io.Writer(f), parseForExport(content)); err != nil {
 			f.Close()
 			return err

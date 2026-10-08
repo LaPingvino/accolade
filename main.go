@@ -203,6 +203,7 @@ func (app *Application) applySettingsToWindows() {
 	for _, w := range app.windows {
 		w.applyEditorSettings()
 		w.applyFontSettings()
+		w.updatePreview() // the script format may have changed
 	}
 }
 

@@ -10,6 +10,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/lexington/rules"
 )
 
 func newDialogTestWindow(t *testing.T) (*MainWindow, *Application) {
@@ -38,17 +40,13 @@ func capture(t *testing.T, c fyne.Canvas, name string) {
 func TestPreviewShowsTheScreenplay(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.showPreview()
-	var text strings.Builder
 	separators := 0
 	for _, s := range w.previewArea.Segments {
-		switch s := s.(type) {
-		case *widget.TextSegment:
-			text.WriteString(s.Text + "\n")
-		case *widget.SeparatorSegment:
+		if _, ok := s.(*widget.SeparatorSegment); ok {
 			separators++
 		}
 	}
-	got := text.String()
+	got := previewText(w.previewArea.Segments)
 	for _, want := range []string{"UNTITLED SCREENPLAY", "INT. LIVING ROOM - DAY", "JOHN", "FADE OUT."} {
 		if !strings.Contains(got, want) {
 			t.Errorf("preview lacks %q", want)
@@ -66,22 +64,14 @@ func TestPreviewShowsTheScreenplay(t *testing.T) {
 }
 
 func TestPreviewDualDialogueSideBySide(t *testing.T) {
-	segs := previewSegments("INT. ROOM - DAY\n\nANNA\nHello there.\n\nBRAM ^\nGoodbye now.\n", []string{"INT", "EXT"})
-	var text strings.Builder
-	for _, s := range segs {
-		if s, ok := s.(*widget.TextSegment); ok {
-			text.WriteString(s.Text)
-			if !s.Style.Inline {
-				text.WriteString("\n")
-			}
-		}
-	}
+	segs := previewSegments("INT. ROOM - DAY\n\nANNA\nHello there.\n\nBRAM ^\nGoodbye now.\n", []string{"INT", "EXT"}, nil)
+	text := previewText(segs)
 	found := false
-	for _, line := range strings.Split(text.String(), "\n") {
+	for _, line := range strings.Split(text, "\n") {
 		found = found || (strings.Contains(line, "ANNA") && strings.Contains(line, "BRAM"))
 	}
 	if !found {
-		t.Errorf("dual dialogue not side by side:\n%s", text.String())
+		t.Errorf("dual dialogue not side by side:\n%s", text)
 	}
 }
 
@@ -133,4 +123,59 @@ func TestDialogsHaveNoEmptyButton(t *testing.T) {
 	pd.win.Resize(fyne.NewSize(640, 420)) // smaller than its content: it scrolls, the buttons stay
 	capture(t, pd.win.Canvas(), "preferences.png")
 	pd.cancel()
+}
+
+// The preview follows the script format chosen in the preferences.
+func TestPreviewFollowsTheScriptFormat(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.textEditor.SetText("INT. ROOM - DAY\n\nANNA\nHello there.\n")
+	text := func() string {
+		w.showPreview()
+		return previewText(w.previewArea.Segments)
+	}
+	if got := text(); !strings.Contains(got, strings.Repeat(" ", 22)+"ANNA\n") {
+		t.Errorf("screenplay:\n%s", got)
+	}
+	w.settings.SetString("script-format", "transcript")
+	t.Cleanup(func() { w.settings.SetString("script-format", "default") })
+	w.app.applySettingsToWindows()
+	if got := text(); !strings.Contains(got, "\nANNA:\n") {
+		t.Errorf("transcript:\n%s", got)
+	}
+}
+
+// Every script format previews (radio's names left of the action margin
+// once made the layout panic).
+func TestPreviewInEveryScriptFormat(t *testing.T) {
+	script := "INT. ROOM - DAY #1#\n\n# ACT ONE\n\nANNA\n(quietly)\nHello there, this is a long line of dialogue that wraps.\n\nBRAM ^\nGOTCHA!\n\n~A LYRIC\n\n> CUT TO:\n"
+	for _, p := range rules.Presets() {
+		if segs := previewSegments(script, []string{"INT", "EXT"}, p.Elements); len(segs) == 0 {
+			t.Errorf("%s: empty preview", p.Key)
+		}
+	}
+}
+
+// previewText is the preview's text as shown: inline segments joined,
+// one line per paragraph.
+func previewText(segs []widget.RichTextSegment) string {
+	var b strings.Builder
+	for _, s := range segs {
+		if s, ok := s.(*widget.TextSegment); ok {
+			b.WriteString(s.Text)
+			if !s.Style.Inline {
+				b.WriteString("\n")
+			}
+		}
+	}
+	return b.String()
+}
+
+// The indent is not underlined with the text (radio's directions).
+func TestPreviewIndentUnstyled(t *testing.T) {
+	p, _ := rules.GetPreset("radio")
+	for _, s := range previewSegments("INT. ROOM - DAY\n\nA clock ticks.\n", []string{"INT", "EXT"}, p.Elements) {
+		if s, ok := s.(*widget.TextSegment); ok && strings.TrimSpace(s.Text) == "" && s.Style.TextStyle.Underline {
+			t.Errorf("underlined indent %q", s.Text)
+		}
+	}
 }
