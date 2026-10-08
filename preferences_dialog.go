@@ -5,13 +5,14 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 )
 
 type PreferencesDialog struct {
 	app      *Application
-	dialog   *dialog.CustomDialog
+	win      fyne.Window // a window of its own, not an overlay on the editor
 	settings *Settings
 	
 	// Theme settings
@@ -70,15 +71,10 @@ func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDial
 	pd.loadCurrentSettings()
 	content := pd.createContent()
 	
-	pd.dialog = dialog.NewCustom(
-		"Preferences",
-		"",
-		content,
-		parent,
-	)
-	
-	pd.dialog.Resize(fyne.NewSize(600, 500))
-	
+	pd.win = app.fyneApp.NewWindow("Preferences")
+	pd.win.SetContent(content)
+	pd.win.Resize(fyne.NewSize(640, 540))
+	pd.win.CenterOnScreen()
 	return pd
 }
 
@@ -150,27 +146,29 @@ func (pd *PreferencesDialog) createContent() *fyne.Container {
 	
 	// General tab
 	generalTab := pd.createGeneralTab()
-	tabs.Append(container.NewTabItem("General", generalTab))
+	tabs.Append(container.NewTabItem("General", container.NewVScroll(generalTab)))
 	
 	// Editor tab
 	editorTab := pd.createEditorTab()
-	tabs.Append(container.NewTabItem("Editor", editorTab))
+	tabs.Append(container.NewTabItem("Editor", container.NewVScroll(editorTab)))
 	
 	// Export tab
 	exportTab := pd.createExportTab()
-	tabs.Append(container.NewTabItem("Export", exportTab))
+	tabs.Append(container.NewTabItem("Export", container.NewVScroll(exportTab)))
 	
 	// Fountain tab
 	fountainTab := pd.createFountainTab()
-	tabs.Append(container.NewTabItem("Fountain", fountainTab))
+	tabs.Append(container.NewTabItem("Fountain", container.NewVScroll(fountainTab)))
 	
 	// Advanced tab
 	advancedTab := pd.createAdvancedTab()
-	tabs.Append(container.NewTabItem("Advanced", advancedTab))
+	tabs.Append(container.NewTabItem("Advanced", container.NewVScroll(advancedTab)))
 	
 	// Buttons at the bottom
+	// below the tabs, which scroll: the buttons never cover a setting
 	buttonsContainer := container.NewHBox(
 		widget.NewButton("Reset to Defaults", pd.resetToDefaults),
+		layout.NewSpacer(),
 		widget.NewButton("Cancel", pd.cancel),
 		widget.NewButton("Apply", pd.apply),
 		widget.NewButton("OK", pd.ok),
@@ -433,19 +431,19 @@ func (pd *PreferencesDialog) resetToDefaults() {
 func (pd *PreferencesDialog) apply() {
 	pd.saveSettings()
 	pd.app.applySettingsToWindows()
-	dialog.ShowInformation("Settings Applied", "Your preferences have been saved.", pd.app.windows[0].fyneWindow)
+	dialog.ShowInformation("Settings Applied", "Your preferences have been saved.", pd.win)
 }
 
 func (pd *PreferencesDialog) ok() {
 	pd.saveSettings()
 	pd.app.applySettingsToWindows()
-	pd.dialog.Hide()
+	pd.win.Close()
 }
 
 func (pd *PreferencesDialog) cancel() {
-	pd.dialog.Hide()
+	pd.win.Close()
 }
 
 func (pd *PreferencesDialog) Show() {
-	pd.dialog.Show()
+	pd.win.Show()
 }

@@ -125,7 +125,7 @@ func (w *MainWindow) setupUI() {
 
 	// Create preview area
 	w.previewArea = widget.NewRichText()
-	w.previewArea.Wrapping = fyne.TextWrapWord
+	w.previewArea.Wrapping = fyne.TextWrapOff // lines are wrapped to the screenplay's columns already
 
 	// Create header bar with toolbar
 	w.tooltips = tooltip.NewLayer()
@@ -447,16 +447,9 @@ func (w *MainWindow) updateTitle() {
 
 func (w *MainWindow) updatePreview() {
 	if w.previewVisible {
-		text := w.textEditor.Text()
-		// Parse with Lexington and generate HTML preview
-		elements, err := w.lexParser.ParseText(text)
-		if err != nil {
-			log.Printf("Error parsing Fountain text: %v", err)
-			return
-		}
-
-		htmlPreview := w.lexParser.FormatForPreview(elements)
-		w.previewArea.ParseMarkdown(htmlPreview)
+		// the screenplay as Lexington prints it (its layout package)
+		w.previewArea.Segments = previewSegments(w.textEditor.Text(), w.lexParser.sceneHeaders)
+		w.previewArea.Refresh()
 	}
 }
 
@@ -609,7 +602,7 @@ func (w *MainWindow) showPreview() {
 		editorScroll,
 		previewScroll,
 	)
-	splitContainer.SetOffset(0.7) // Give more space to editor
+	splitContainer.SetOffset(0.55) // the preview shows a whole page width
 
 	// Update the main layout
 	content := container.NewBorder(

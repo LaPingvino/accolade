@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 )
@@ -48,9 +49,9 @@ func NewTitlePageDialog(window *MainWindow) *TitlePageDialog {
 	tpd.loadDefaults()
 	content := tpd.createContent()
 	
-	tpd.dialog = dialog.NewCustom(
+	// its own buttons (NewCustom would add an empty dismiss button)
+	tpd.dialog = dialog.NewCustomWithoutButtons(
 		"Title Page Configuration",
-		"",
 		content,
 		window.fyneWindow,
 	)
@@ -158,28 +159,16 @@ func (tpd *TitlePageDialog) createContent() fyne.CanvasObject {
 		),
 	)
 	
-	// Button container
+	// the buttons stay below the form, which scrolls
 	buttonContainer := container.NewHBox(
 		tpd.previewButton,
-		widget.NewLabel(""), // Spacer
+		layout.NewSpacer(),
 		tpd.cancelButton,
 		tpd.insertButton,
 	)
-	
-	// Main content
-	content := container.NewVBox(
-		titleSection,
-		contactSection,
-		optionsSection,
-		widget.NewSeparator(),
-		buttonContainer,
-	)
-	
-	// Wrap in scroll container
-	scrollContent := container.NewScroll(content)
-	scrollContent.SetMinSize(fyne.NewSize(480, 580))
-	
-	return scrollContent
+	scrollContent := container.NewVScroll(container.NewVBox(titleSection, contactSection, optionsSection))
+	scrollContent.SetMinSize(fyne.NewSize(480, 480))
+	return container.NewBorder(nil, container.NewVBox(widget.NewSeparator(), buttonContainer), nil, nil, scrollContent)
 }
 
 func (tpd *TitlePageDialog) insertTitlePage() {

@@ -9,6 +9,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -70,9 +71,9 @@ func NewExportDialog(window *MainWindow) *ExportDialog {
 	ed.loadSettings()
 	content := ed.createContent()
 	
-	ed.dialog = dialog.NewCustom(
+	// its own buttons (NewCustom would add an empty dismiss button)
+	ed.dialog = dialog.NewCustomWithoutButtons(
 		"Export Document",
-		"",
 		content,
 		window.fyneWindow,
 	)
@@ -195,26 +196,14 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 	// Buttons
 	buttonContainer := container.NewHBox(
 		ed.previewButton,
-		widget.NewLabel(""), // Spacer
+		layout.NewSpacer(),
 		ed.cancelButton,
 		ed.exportButton,
 	)
-	
-	// Main container
-	// Main content - make it scrollable to prevent cutoff
-	content := container.NewVBox(
-		outputSection,
-		formatSection,
-		fountainSection,
-		progressSection,
-		buttonContainer,
-	)
-	
-	// Wrap in scroll container to prevent dialog cutoff
-	scrollContent := container.NewScroll(content)
-	scrollContent.SetMinSize(fyne.NewSize(580, 650))
-	
-	return scrollContent
+	// the buttons stay below the settings, which scroll
+	scrollContent := container.NewVScroll(container.NewVBox(outputSection, formatSection, fountainSection, progressSection))
+	scrollContent.SetMinSize(fyne.NewSize(580, 560))
+	return container.NewBorder(nil, container.NewVBox(widget.NewSeparator(), buttonContainer), nil, nil, scrollContent)
 }
 
 func (ed *ExportDialog) updateFormatSettings() {
