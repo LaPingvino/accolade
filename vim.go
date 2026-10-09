@@ -46,9 +46,9 @@ func (m vimMode) String() string {
 
 type vim struct {
 	e       *editor.ScriptEditor
-	on      func() bool        // whether vim mode is on (the setting)
-	status  func(string)       // shows the mode
-	search  func()             // "/": the search bar
+	on      func() bool  // whether vim mode is on (the setting)
+	status  func(string) // shows the mode
+	search  func()       // "/": the search bar
 	mode    vimMode
 	count   int  // the count typed so far
 	op      rune // a pending operator: d, c or y
@@ -56,9 +56,10 @@ type vim struct {
 	g       bool // a pending g (gg)
 	replace bool // a pending r
 	reg     string
-	regLine bool // the register holds whole lines
-	anchor  int  // where the visual selection started
-	vcur    int  // the visual cursor (the buffer's is at the selection's end)
+	regLine bool        // the register holds whole lines
+	helix   func() bool // helix keys instead of vim's
+	anchor  int         // where the visual selection started
+	vcur    int         // the visual cursor (the buffer's is at the selection's end)
 }
 
 func newVim(e *editor.ScriptEditor) *vim {
@@ -71,6 +72,12 @@ func (v *vim) active() bool { return v.on != nil && v.on() }
 func (v *vim) setMode(m vimMode) {
 	v.mode = m
 	v.count, v.op, v.g, v.replace = 0, 0, false, false
+	if v.helix != nil && v.helix() && m != vimInsert {
+		if v.status != nil {
+			v.status("-- HELIX NORMAL --")
+		}
+		return // helix keeps its selection
+	}
 	if m == vimNormal { // no selection outside visual mode
 		v.e.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.Cursor(), false) })
 	}
@@ -160,6 +167,10 @@ func (v *vim) rune(r rune) bool {
 		if r == 'g' {
 			v.motion('g')
 		}
+		return true
+	}
+	if v.helix != nil && v.helix() {
+		v.helixKey(r)
 		return true
 	}
 	if v.visual() {
@@ -578,4 +589,116 @@ func (v *vim) edit(f func(b *buffer.Buffer, t []rune, c int)) {
 	v.e.Edit(func(b *buffer.Buffer) {
 		b.Group(func() { f(b, []rune(b.Text()), b.Cursor()) })
 	})
+}
+
+// Helix keys (Preferences > Editor > Keys: helix): selection first.
+// Motions select what they pass over, commands act on the selection:
+//
+//	select      w b e (v: extend)  x (the line; again: the next)  % ;
+//	move        h j k l  gg G
+//	act         d c y  p P  u U  r<c>
+//	insert      i a I A o O
+func (v *vim) helixKey(r rune) {
+	t := []rune(v.e.Text())
+	from, to := v.e.Buffer().Selection()
+	c := v.e.CursorOffset()
+	extend := v.mode == vimVisual
+	sel := func(a, b int) {
+		v.e.Navigate(func(bf *buffer.Buffer) { bf.Select(a, b) })
+	}
+	switch r {
+	case 'w', 'b', 'e':
+		n := v.times()
+		start := c
+		if extend {
+			start = v.anchor
+		}
+		end, _ := target(t, c, r, n)
+		if r == 'e' && end < len(t) {
+			end++
+		}
+		if !extend {
+			// a word: from where the motion starts, past spaces
+			if r == 'w' || r == 'e' {
+				for start < len(t) && start < end && class(t[start]) == 0 {
+					start++
+				}
+			}
+		} else {
+			v.anchor = start
+		}
+		sel(start, end)
+	case 'x':
+		s, _ := lineBounds(t, from)
+		_, e := lineBounds(t, max(to-1, from))
+		if v.e.Buffer().HasSelection() && from == s && to == e+1 && e+1 < len(t) {
+			_, e = lineBounds(t, e+1) // pressed again: the next line too
+		}
+		sel(s, min(e+1, len(t)))
+	case '%':
+		sel(0, len(t))
+	case ';':
+		v.e.Navigate(func(bf *buffer.Buffer) { bf.SetCursor(bf.Cursor(), false) })
+	case 'v':
+		if v.mode == vimVisual {
+			v.mode = vimNormal
+		} else {
+			v.mode, v.anchor = vimVisual, from
+		}
+		v.status(map[bool]string{true: "-- HELIX SELECT --", false: "-- HELIX NORMAL --"}[v.mode == vimVisual])
+	case 'd', 'c', 'y':
+		if from == to { // no selection: the character under the cursor
+			to = min(from+1, len(t))
+		}
+		lines := to > from && t[to-1] == '\n'
+		v.reg, v.regLine = string(t[from:to]), lines
+		if r == 'y' {
+			break
+		}
+		v.edit(func(b *buffer.Buffer, _ []rune, _ int) {
+			b.Replace(from, to, "")
+			b.SetCursor(from, false)
+		})
+		if r == 'c' {
+			v.mode = vimInsert
+			v.status(vimInsert.String())
+		}
+	case 'p', 'P':
+		at := to
+		if r == 'P' {
+			at = from
+		}
+		if v.regLine { // lines go after (or before) the selection's lines
+			if r == 'P' {
+				at, _ = lineBounds(t, from)
+			} else if _, e := lineBounds(t, max(to-1, from)); e < len(t) {
+				at = e + 1
+			}
+		}
+		text := v.reg
+		v.edit(func(b *buffer.Buffer, _ []rune, _ int) {
+			b.Replace(at, at, text)
+			b.Select(at, at+len([]rune(text)))
+		})
+	case 'u':
+		v.e.Undo()
+	case 'U':
+		v.e.Redo()
+	case 'i', 'a':
+		at := from
+		if r == 'a' {
+			at = to
+		}
+		v.e.Navigate(func(bf *buffer.Buffer) { bf.SetCursor(at, false) })
+		v.mode = vimInsert
+		v.status(vimInsert.String())
+	case 'h', 'j', 'k', 'l', '0', '^', '$', 'G', 'I', 'A', 'o', 'O', 'r':
+		if r == 'h' || r == 'l' || r == 'j' || r == 'k' {
+			// moving drops the selection
+			v.e.Navigate(func(bf *buffer.Buffer) { bf.SetCursor(bf.Cursor(), false) })
+		}
+		v.normalKey(r)
+	case 'g':
+		v.g = true
+	}
 }

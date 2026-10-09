@@ -57,7 +57,7 @@ func (s *Settings) loadDefaults() {
 		"page-size":          "", // the script format's (export dialog)
 		
 		"auto-close-brackets": true,
-		"vim-mode":            false,
+		"editor-keys":         "standard", // or vim, helix (vim.go)
 		
 		// Fountain-specific settings
 		"fountain-scene-numbers": false,

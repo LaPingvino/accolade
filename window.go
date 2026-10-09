@@ -240,7 +240,7 @@ func (w *MainWindow) applyEditorSettings() {
 	setVisible(w.headerArea, w.settings.GetBoolean("toolbar-visible"))
 	// vim mode switched on starts in normal mode, switched off types again
 	if w.vim != nil {
-		if on := w.settings.GetBoolean("vim-mode"); on && w.vim.mode == vimInsert {
+		if on := w.editorKeys() != "standard"; on && w.vim.mode == vimInsert {
 			w.vim.setMode(vimNormal)
 		} else if !on && w.vim.mode != vimInsert {
 			w.vim.mode = vimInsert
@@ -482,6 +482,22 @@ func (w *MainWindow) NewFile() {
 	} else {
 		w.createNewFile()
 	}
+}
+
+// editorKeys is how the editor's keys work: "standard", "vim" or
+// "helix" (an older "vim-mode" setting is vim).
+func (w *MainWindow) editorKeys() string {
+	if w == nil || w.settings == nil {
+		return "standard"
+	}
+	switch k := w.settings.GetString("editor-keys"); k {
+	case "vim", "helix":
+		return k
+	}
+	if w.settings.GetBoolean("vim-mode") {
+		return "vim"
+	}
+	return "standard"
 }
 
 // setLanguage makes the script's language lang ("" for the one in the

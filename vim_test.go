@@ -94,3 +94,34 @@ func TestVimUndoAndOff(t *testing.T) {
 }
 
 var desktopCtrlR = desktop.CustomShortcut{KeyName: fyne.KeyR, Modifier: fyne.KeyModifierControl}
+
+func helixOn(text string) *editor.ScriptEditor {
+	e, v := vimOn(text)
+	v.helix = func() bool { return true }
+	v.setMode(vimNormal)
+	return e
+}
+
+func TestHelix(t *testing.T) {
+	const text = "hello world foo\nsecond line\nthird line\n"
+	for _, c := range []struct{ keys, want, sel string }{
+		{"w", text, "hello "},                              // w selects to the next word
+		{"wd", "world foo\nsecond line\nthird line\n", ""}, // and d deletes it
+		{"e", text, "hello"},                               //
+		{"x", text, "hello world foo\n"},                   // the line
+		{"xx", text, "hello world foo\nsecond line\n"},     // and the next
+		{"xd", "second line\nthird line\n", ""},            //
+		{"xyp", "hello world foo\nhello world foo\nsecond line\nthird line\n", "hello world foo\n"},
+		{"ecHi<esc>", "Hi world foo\nsecond line\nthird line\n", ""}, // change the selection
+		{"%d", "", ""},                //
+		{"wdu", text, "hello "},       // undo: the text back, selected
+		{"jx", text, "second line\n"}, // move, then select
+		{"ve", text, "hello"},         // v extends
+	} {
+		e := helixOn(text)
+		vimKeys(e, c.keys)
+		if e.Text() != c.want || e.SelectedText() != c.sel {
+			t.Errorf("%q: %q selected %q, want %q selected %q", c.keys, e.Text(), e.SelectedText(), c.want, c.sel)
+		}
+	}
+}

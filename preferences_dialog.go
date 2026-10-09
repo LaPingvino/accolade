@@ -32,7 +32,7 @@ type PreferencesDialog struct {
 	lineNumbersCheck       *widget.Check
 	autoIndentCheck        *widget.Check
 	autoCloseBracketsCheck *widget.Check
-	vimCheck               *widget.Check
+	keysSelect             *widget.Select
 
 	// Script and export
 	languageSelect        *widget.Select
@@ -91,7 +91,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.lineNumbersCheck = widget.NewCheck("Show line numbers", nil)
 	pd.autoIndentCheck = widget.NewCheck("Format the line and indent the next one on Enter", nil)
 	pd.autoCloseBracketsCheck = widget.NewCheck("Close brackets as you type them: ( and [", nil)
-	pd.vimCheck = widget.NewCheck("Vim keys: Escape for normal mode (hjkl, dd, yy, p, v, ...)", nil)
+	pd.keysSelect = widget.NewSelect([]string{"standard", "vim", "helix"}, nil)
 
 	pd.languageSelect = widget.NewSelect(scriptLanguages(), nil)
 	pd.scriptFormatDesc = widget.NewLabel("")
@@ -151,7 +151,7 @@ func (pd *PreferencesDialog) createEditorTab() fyne.CanvasObject {
 			pd.lineNumbersCheck,
 			pd.autoIndentCheck,
 			pd.autoCloseBracketsCheck,
-			pd.vimCheck,
+			labelled("Keys (vim, helix: Escape for normal mode):", pd.keysSelect),
 		)),
 	)
 }
@@ -194,7 +194,7 @@ func (pd *PreferencesDialog) loadCurrentSettings() {
 	pd.lineNumbersCheck.SetChecked(s.GetBoolean("show-line-numbers"))
 	pd.autoIndentCheck.SetChecked(s.GetBoolean("auto-indent"))
 	pd.autoCloseBracketsCheck.SetChecked(s.GetBoolean("auto-close-brackets"))
-	pd.vimCheck.SetChecked(s.GetBoolean("vim-mode"))
+	pd.keysSelect.SetSelected((&MainWindow{settings: s}).editorKeys())
 
 	selectScriptFormat(pd.scriptFormatSelect, s.GetString("script-format"))
 	pd.languageSelect.SetSelected(s.GetString("script-language"))
@@ -225,7 +225,10 @@ func (pd *PreferencesDialog) saveSettings() {
 	s.SetBoolean("show-line-numbers", pd.lineNumbersCheck.Checked)
 	s.SetBoolean("auto-indent", pd.autoIndentCheck.Checked)
 	s.SetBoolean("auto-close-brackets", pd.autoCloseBracketsCheck.Checked)
-	s.SetBoolean("vim-mode", pd.vimCheck.Checked)
+	if pd.keysSelect.Selected != "" {
+		s.SetString("editor-keys", pd.keysSelect.Selected)
+		s.SetBoolean("vim-mode", false) // the older setting
+	}
 
 	s.SetString("script-format", selectedScriptFormat(pd.scriptFormatSelect))
 	if pd.languageSelect.Selected != "" {
