@@ -109,3 +109,39 @@ jobs:
           path: |
             uia-tree.txt
             accolade.err
+
+  screenreader-macos:
+    # Accolade's macOS bridge (VoiceOver): the Fyne fork's probe of it, and
+    # Accolade read through the accessibility API where the runner allows.
+    name: Screen reader (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build with screen reader support
+        env:
+          CGO_ENABLED: "1"
+        run: |
+          go vet -tags accessibility ./...
+          go build -tags accessibility -o accolade .
+
+      - name: The bridge read as VoiceOver reads it (Fyne fork's probe)
+        env:
+          CGO_ENABLED: "1"
+        run: go test -tags accessibility -count=1 -run 'TestAccessibilityMac|TestUTF16Offsets|TestTextEvents|TestSortByPosition' fyne.io/fyne/v2/internal/driver/glfw
+
+      - name: Read Accolade through the accessibility API (if allowed)
+        run: |
+          printf 'Title: THE BARN\n\nINT. BARN - DAY\n\nRain falls on the roof.\n' > sample.fountain
+          ./accolade sample.fountain > accolade.log 2>&1 &
+          pid=$!
+          sleep 5
+          swift .github/scripts/ax-read.swift $pid || code=$?
+          kill $pid || true
+          tail -20 accolade.log
+          exit ${code:-0}
