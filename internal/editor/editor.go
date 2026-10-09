@@ -627,6 +627,10 @@ func (e *ScriptEditor) Key(name fyne.KeyName, extend bool) {
 	}
 }
 
+// AcceptsTab keeps Tab in the editor (element completion, indenting):
+// without it Fyne moved the focus on, and Tab never reached the script.
+func (e *ScriptEditor) AcceptsTab() bool { return true }
+
 func (e *ScriptEditor) pageRows() int {
 	return max(int(e.Size().Height/e.cellHeight())-1, 1)
 }
@@ -635,6 +639,20 @@ func (e *ScriptEditor) pageRows() int {
 func (e *ScriptEditor) TypedShortcut(s fyne.Shortcut) {
 	if e.OnShortcut != nil && e.OnShortcut(s) {
 		return
+	}
+	// the editor keeps Tab (AcceptsTab): Ctrl+Tab and Ctrl+Shift+Tab move
+	// the focus on, as in other editors that take Tab
+	if cs, ok := s.(*desktop.CustomShortcut); ok && cs.KeyName == fyne.KeyTab {
+		if c := fyne.CurrentApp().Driver().CanvasForObject(e); c != nil {
+			switch cs.Modifier {
+			case fyne.KeyModifierControl:
+				c.FocusNext()
+				return
+			case fyne.KeyModifierControl | fyne.KeyModifierShift:
+				c.FocusPrevious()
+				return
+			}
+		}
 	}
 	switch sc := s.(type) {
 	case *fyne.ShortcutCopy:

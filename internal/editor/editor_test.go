@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 )
 
 func newEditor(t *testing.T, text string, columns int) *ScriptEditor {
@@ -237,5 +239,29 @@ func TestOnlyRowsInViewAreDrawn(t *testing.T) {
 	}
 	if got := strings.TrimSpace(string(e.GridRow(2500).Cells[0].Rune)); got != "l" {
 		t.Errorf("GridRow outside the grid: %q", got)
+	}
+}
+
+// The editor keeps Tab (Fyne otherwise moves the focus on and Tab never
+// arrives); Ctrl+Tab and Ctrl+Shift+Tab leave it.
+func TestTabStaysCtrlTabLeaves(t *testing.T) {
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	e := New("INT. A - DAY\n")
+	other := widget.NewEntry()
+	w := test.NewWindow(container.NewVBox(e, other))
+	t.Cleanup(w.Close)
+	if !e.AcceptsTab() {
+		t.Fatal("the editor does not keep Tab")
+	}
+	w.Canvas().Focus(e)
+	e.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyTab, Modifier: fyne.KeyModifierControl})
+	if w.Canvas().Focused() != other {
+		t.Errorf("Ctrl+Tab: focus on %T", w.Canvas().Focused())
+	}
+	w.Canvas().Focus(e)
+	e.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyTab, Modifier: fyne.KeyModifierControl | fyne.KeyModifierShift})
+	if w.Canvas().Focused() != other { // the only other stop, going back
+		t.Errorf("Ctrl+Shift+Tab: focus on %T", w.Canvas().Focused())
 	}
 }
