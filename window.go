@@ -348,6 +348,7 @@ func (w *MainWindow) importPDFAsync(filePath string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelBtn := widget.NewButton("Cancel", cancel)
 	d := dialog.NewCustomWithoutButtons("Importing PDF", container.NewVBox(label, bar, container.NewCenter(cancelBtn)), w.fyneWindow)
+	d.SetOnEscape(cancel)
 	d.Show()
 	done := make(chan struct{})
 	w.imported = done

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fyne.io/fyne/v2"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -100,5 +101,32 @@ func TestResetToDefaultsWaitsForOK(t *testing.T) {
 	pd.ok()
 	if w.settings.GetString("theme") != "system" || len(w.settings.GetStringSlice("recent-files")) != 1 {
 		t.Errorf("after OK: theme %q, recent %v", w.settings.GetString("theme"), w.settings.GetStringSlice("recent-files"))
+	}
+}
+
+// Keyboard: Ctrl+PageDown / PageUp turn the Preferences pages; Escape in
+// the Export dialog does what its Cancel does.
+func TestKeyboardPagesAndEscape(t *testing.T) {
+	w, app := newDialogTestWindow(t)
+	pd := NewPreferencesDialog(app, w.fyneWindow)
+	pd.turnPage(1)
+	if pd.tabs.SelectedIndex() != 1 {
+		t.Errorf("Ctrl+PageDown: page %d", pd.tabs.SelectedIndex())
+	}
+	pd.turnPage(-1)
+	pd.turnPage(-1)
+	if pd.tabs.SelectedIndex() != len(pd.tabs.Items)-1 {
+		t.Errorf("Ctrl+PageUp from the first: page %d", pd.tabs.SelectedIndex())
+	}
+	pd.cancel()
+
+	ed := NewExportDialog(w)
+	ed.Show()
+	top, ok := w.fyneWindow.Canvas().Overlays().Top().(fyne.EscapeHandler)
+	if !ok || !top.HandleEscape() {
+		t.Fatal("Escape not handled by the Export dialog")
+	}
+	if w.fyneWindow.Canvas().Overlays().Top() != nil {
+		t.Error("Escape left the Export dialog open")
 	}
 }

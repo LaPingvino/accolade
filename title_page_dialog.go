@@ -51,11 +51,13 @@ func NewTitlePageDialog(window *MainWindow) *TitlePageDialog {
 	content := tpd.createContent()
 
 	// its own buttons (NewCustom would add an empty dismiss button)
-	tpd.dialog = dialog.NewCustomWithoutButtons(
+	d := dialog.NewCustomWithoutButtons(
 		"Title Page Configuration",
 		content,
 		window.fyneWindow,
 	)
+	d.SetOnEscape(d.Hide) // as its Cancel button
+	tpd.dialog = d
 
 	tpd.dialog.Resize(fyne.NewSize(500, 600))
 

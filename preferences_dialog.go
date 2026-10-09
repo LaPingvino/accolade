@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fyne.io/fyne/v2/driver/desktop"
 	"strconv"
 	"strings"
 
@@ -17,6 +18,7 @@ import (
 type PreferencesDialog struct {
 	app      *Application
 	win      fyne.Window // a window of its own, not an overlay on the editor
+	tabs     *container.AppTabs
 	settings *Settings
 
 	// General
@@ -71,6 +73,7 @@ func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDial
 
 	pd.win = app.fyneApp.NewWindow("Preferences")
 	pd.win.SetContent(content)
+	pd.keys()
 	pd.win.Resize(fyne.NewSize(640, 540))
 	pd.win.CenterOnScreen()
 	return pd
@@ -111,6 +114,7 @@ func (pd *PreferencesDialog) createContent() *fyne.Container {
 		container.NewTabItem("Editor", container.NewVScroll(pd.createEditorTab())),
 		container.NewTabItem("Script", container.NewVScroll(pd.createScriptTab())),
 	)
+	pd.tabs = tabs
 
 	// below the tabs, which scroll: the buttons never cover a setting
 	buttons := container.NewHBox(
@@ -285,4 +289,32 @@ func (pd *PreferencesDialog) cancel() {
 
 func (pd *PreferencesDialog) Show() {
 	pd.win.Show()
+}
+
+// keys are the window's keys, whatever has the focus: Escape cancels,
+// Ctrl+PageUp and Ctrl+PageDown go to the page before or after.
+func (pd *PreferencesDialog) keys() {
+	c, ok := pd.win.Canvas().(desktop.KeyPreviewCanvas)
+	if !ok {
+		return
+	}
+	c.SetOnKeyPreview(func(key fyne.KeyName, mod fyne.KeyModifier) bool {
+		switch {
+		case key == fyne.KeyEscape && mod == 0:
+			pd.cancel()
+		case key == fyne.KeyPageDown && mod == fyne.KeyModifierControl:
+			pd.turnPage(1)
+		case key == fyne.KeyPageUp && mod == fyne.KeyModifierControl:
+			pd.turnPage(-1)
+		default:
+			return false
+		}
+		return true
+	})
+}
+
+// turnPage shows the page step pages on (wrapping around).
+func (pd *PreferencesDialog) turnPage(step int) {
+	n := len(pd.tabs.Items)
+	pd.tabs.SelectIndex(((pd.tabs.SelectedIndex()+step)%n + n) % n)
 }

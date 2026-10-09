@@ -69,6 +69,7 @@ func NewExportDialog(window *MainWindow) *ExportDialog {
 	)
 
 	ed.dialog.Resize(fyne.NewSize(600, 700))
+	ed.dialog.SetOnEscape(ed.cancel) // as its Cancel button
 
 	return ed
 }
