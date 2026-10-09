@@ -131,17 +131,12 @@ jobs:
           go build -tags accessibility -o accolade .
 
       - name: The bridge read as VoiceOver reads it (Fyne fork's probe)
-        env:
-          CGO_ENABLED: "1"
-        run: go test -tags accessibility -count=1 -run 'TestAccessibilityMac|TestUTF16Offsets|TestTextEvents|TestSortByPosition' fyne.io/fyne/v2/internal/driver/glfw
-
-      - name: Read Accolade through the accessibility API (if allowed)
+        # compiled with clang on its own, as the fork's test does: the runner
+        # has no OpenGL, so neither the GLFW tests nor Accolade itself can
+        # start here (.github/scripts/ax-read.swift reads a running Accolade
+        # on a Mac with accessibility permission)
         run: |
-          printf 'Title: THE BARN\n\nINT. BARN - DAY\n\nRain falls on the roof.\n' > sample.fountain
-          ./accolade sample.fountain > accolade.log 2>&1 &
-          pid=$!
-          sleep 5
-          swift .github/scripts/ax-read.swift $pid || code=$?
-          kill $pid || true
-          tail -20 accolade.log
-          exit ${code:-0}
+          dir=$(go list -m -f '{{.Dir}}' fyne.io/fyne/v2)/internal/driver/glfw
+          clang -Wno-deprecated-declarations -I"$dir" -framework Cocoa \
+            "$dir/testdata/accessibility_text.m" "$dir/accessibility_darwin.m" -o a11y-probe
+          ./a11y-probe

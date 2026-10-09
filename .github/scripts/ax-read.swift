@@ -1,4 +1,5 @@
-// ax-read.swift <pid>: reads a running application through the macOS
+// ax-read.swift <pid> (swift .github/scripts/ax-read.swift <pid>, on a Mac
+// that allows the terminal accessibility access): reads a running application through the macOS
 // accessibility API (what VoiceOver uses): its windows' trees with roles
 // and labels, and for text areas the text, the selected range and the line
 // at the caret. Exits 0 without reading when this process is not trusted
