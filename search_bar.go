@@ -108,6 +108,10 @@ func (sb *SearchBar) createWidgets() {
 }
 
 func (sb *SearchBar) createLayout() {
+	// screen readers: the fields by their labels, the icon button by its use
+	fyne.SetAccessibleLabel(sb.searchEntry, "Find")
+	fyne.SetAccessibleLabel(sb.replaceEntry, "Replace with")
+	fyne.SetAccessibleLabel(sb.closeButton, "Close the search bar")
 	// Search row
 	searchRow := container.NewHBox(
 		widget.NewLabel("Find:"),

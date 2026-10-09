@@ -100,6 +100,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.scriptFormatDesc = widget.NewLabel("")
 	pd.scriptFormatDesc.Wrapping = fyne.TextWrapWord
 	pd.scriptFormatSelect = newScriptFormatSelect(pd.scriptFormatDesc, nil)
+	fyne.SetAccessibleLabel(pd.scriptFormatSelect, "Script format")
 	pd.exportFormatSelect = widget.NewSelect(exportFormats, nil)
 	pd.exportDirEntry = widget.NewEntry()
 	pd.exportDirEntry.SetPlaceHolder("Choose export directory...")
@@ -128,7 +129,14 @@ func (pd *PreferencesDialog) createContent() *fyne.Container {
 }
 
 func labelled(label string, o fyne.CanvasObject) fyne.CanvasObject {
-	return container.NewBorder(nil, nil, widget.NewLabel(label), nil, o)
+	return labelledWith(label, o, nil)
+}
+
+// labelledWith is a field with its label before it and trailing (a button)
+// after it; screen readers call the field by the label.
+func labelledWith(label string, o, trailing fyne.CanvasObject) fyne.CanvasObject {
+	fyne.SetAccessibleLabel(o, strings.TrimSuffix(strings.TrimSpace(label), ":"))
+	return container.NewBorder(nil, nil, widget.NewLabel(label), trailing, o)
 }
 
 func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
@@ -177,7 +185,7 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 		),
 		widget.NewCard("Export", "The Export dialog starts with these", container.NewVBox(
 			labelled("Format:", pd.exportFormatSelect),
-			container.NewBorder(nil, nil, widget.NewLabel("Directory:"), browse, pd.exportDirEntry),
+			labelledWith("Directory:", pd.exportDirEntry, browse),
 			labelled("Paper (PDF, DOCX, ODT):", pd.paperSelect),
 			pd.includeTitlePageCheck,
 			pd.numberScenesCheck,

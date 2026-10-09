@@ -52,4 +52,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.0.0-20261009124730-4b03f261135f
+replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.0.0-20261009125704-336bd9f772ab

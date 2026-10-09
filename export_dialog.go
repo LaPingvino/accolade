@@ -91,6 +91,7 @@ func (ed *ExportDialog) createWidgets() {
 
 	// PDF, HTML, DOCX and ODT: the script format (Lexington's presets)
 	ed.scriptFormatSelect = newScriptFormatSelect(nil, nil)
+	fyne.SetAccessibleLabel(ed.scriptFormatSelect, "Script format")
 	// DOCX and ODT: the paper, or the one the script format suggests
 	ed.documentPageSelect = widget.NewSelect(documentPages, nil)
 	ed.documentPageSelect.SetSelected(documentPages[0])
@@ -116,12 +117,13 @@ func (ed *ExportDialog) createWidgets() {
 func (ed *ExportDialog) createContent() fyne.CanvasObject {
 	// Output section
 	browseButton := widget.NewButtonWithIcon("", theme.FolderOpenIcon(), ed.browseOutputDir)
+	fyne.SetAccessibleLabel(browseButton, "Choose the folder")
 
 	outputSection := widget.NewCard("Output", "",
 		container.NewVBox(
-			container.NewBorder(nil, nil, widget.NewLabel("Format:"), nil, ed.formatSelect),
-			container.NewBorder(nil, nil, widget.NewLabel("Directory:"), browseButton, ed.outputDirEntry),
-			container.NewBorder(nil, nil, widget.NewLabel("Filename:"), nil, ed.filenameEntry),
+			labelled("Format:", ed.formatSelect),
+			labelledWith("Directory:", ed.outputDirEntry, browseButton),
+			labelled("Filename:", ed.filenameEntry),
 		),
 	)
 
@@ -176,7 +178,7 @@ func (ed *ExportDialog) updateFormatSettings() {
 	ed.formatSettingsContainer.Objects = nil
 
 	labelled := func(label string, o fyne.CanvasObject) {
-		ed.formatSettingsContainer.Add(container.NewBorder(nil, nil, widget.NewLabel(label), nil, o))
+		ed.formatSettingsContainer.Add(labelled(label, o))
 	}
 	note := func(text string) {
 		l := widget.NewLabel(text)

@@ -77,6 +77,7 @@ type notesPanel struct {
 func newNotesPanel(w *MainWindow) *notesPanel {
 	n := &notesPanel{w: w}
 	n.entry = widget.NewMultiLineEntry()
+	fyne.SetAccessibleLabel(n.entry, "Notes")
 	n.entry.Wrapping = fyne.TextWrapWord
 	n.entry.SetPlaceHolder("Notes on this script: kept at its end, never printed.")
 	n.entry.OnChanged = func(notes string) {

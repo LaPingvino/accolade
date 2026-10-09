@@ -107,6 +107,7 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 	width := canvas.NewRectangle(color.Transparent) // a nil colour crashes the painter
 	width.SetMinSize(fyne.NewSize(240, 0))
 	heading := widget.NewLabelWithStyle("Outline", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	fyne.SetAccessibleLabel(o.list, "Outline")
 	o.box = container.NewStack(width, container.NewBorder(heading, nil, nil, nil, o.list))
 	return o
 }

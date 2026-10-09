@@ -133,6 +133,7 @@ func newPreviewPane() *previewPane {
 			}
 		})
 	p.list.HideSeparators = true
+	fyne.SetAccessibleLabel(p.list, "Preview")
 	p.list.OnSelected = func(id widget.ListItemID) { p.list.Unselect(id) } // a page, not a choice
 	p.content = container.NewThemeOverride(p.list, previewTheme{})
 	return p

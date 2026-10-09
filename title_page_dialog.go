@@ -138,21 +138,21 @@ func (tpd *TitlePageDialog) createContent() fyne.CanvasObject {
 	// Title information section
 	titleSection := widget.NewCard("Title Information", "",
 		container.NewVBox(
-			container.NewBorder(nil, nil, widget.NewLabel("Title:"), nil, tpd.titleEntry),
-			container.NewBorder(nil, nil, widget.NewLabel("Credit:"), nil, tpd.creditEntry),
-			container.NewBorder(nil, nil, widget.NewLabel("Author:"), nil, tpd.authorEntry),
-			container.NewBorder(nil, nil, widget.NewLabel("Based on:"), nil, tpd.basedOnEntry),
-			container.NewBorder(nil, nil, widget.NewLabel("Draft date:"), nil, tpd.draftDateEntry),
+			labelled("Title:", tpd.titleEntry),
+			labelled("Credit:", tpd.creditEntry),
+			labelled("Author:", tpd.authorEntry),
+			labelled("Based on:", tpd.basedOnEntry),
+			labelled("Draft date:", tpd.draftDateEntry),
 		),
 	)
 
 	// Contact information section
 	contactSection := widget.NewCard("Contact Information", "",
 		container.NewVBox(
-			container.NewBorder(nil, nil, widget.NewLabel("Name:"), nil, tpd.nameEntry),
-			container.NewBorder(nil, nil, widget.NewLabel("Address:"), nil, tpd.addressEntry),
-			container.NewBorder(nil, nil, widget.NewLabel("Phone:"), nil, tpd.phoneEntry),
-			container.NewBorder(nil, nil, widget.NewLabel("Email:"), nil, tpd.emailEntry),
+			labelled("Name:", tpd.nameEntry),
+			labelled("Address:", tpd.addressEntry),
+			labelled("Phone:", tpd.phoneEntry),
+			labelled("Email:", tpd.emailEntry),
 		),
 	)
 
