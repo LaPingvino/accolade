@@ -258,7 +258,10 @@ func (e *ScriptEditor) MinSize() fyne.Size {
 }
 
 func (e *ScriptEditor) cellSize() fyne.Size {
-	size := fyne.MeasureText("M", e.Theme().Size(theme.SizeNameText), fyne.TextStyle{Monospace: true})
+	// in the font the grid draws in (the editor's theme's: MeasureText
+	// measures the app theme's, which is not the editor's font)
+	th, style := e.Theme(), fyne.TextStyle{Monospace: true}
+	size, _ := fyne.CurrentApp().Driver().RenderedTextSize("M", th.Size(theme.SizeNameText), style, th.Font(style))
 	return fyne.NewSize(float32(math.Round(float64(size.Width))), float32(math.Round(float64(size.Height))))
 }
 
