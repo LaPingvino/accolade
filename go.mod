@@ -13,6 +13,7 @@ require (
 	fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/FyshOS/fancyfs v0.0.1 // indirect
+	github.com/LaPingvino/atspi v0.0.0-20261009023205-ced351090bc6 // indirect
 	github.com/anthonynsimon/bild v0.14.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/danlock/gogosseract v0.0.11-0ad3421.0.20250623141706-2521da518be1 // indirect
@@ -51,4 +52,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.0.0-20261009021310-c8e080edab65
+replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.0.0-20261009024814-63616c82a7f4

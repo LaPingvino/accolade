@@ -265,3 +265,32 @@ func TestTabStaysCtrlTabLeaves(t *testing.T) {
 		t.Errorf("Ctrl+Shift+Tab: focus on %T", w.Canvas().Focused())
 	}
 }
+
+// What a screen reader reads of the editor: its text, the caret while it
+// has the focus, the selection and the lines as shown (wrapped).
+func TestAccessibility(t *testing.T) {
+	e := newEditor(t, "INT. BARN - DAY\n\nRain falls on the roof all night long.", 20)
+	if e.AccessibilityLabel() != "Script" || e.AccessibilityRole() != "textArea" {
+		t.Errorf("label %q role %q", e.AccessibilityLabel(), e.AccessibilityRole())
+	}
+	e.AccessibilitySetCaret(5)
+	if e.AccessibilityCaret() != 5 {
+		t.Errorf("caret %d", e.AccessibilityCaret())
+	}
+	e.AccessibilitySetSelection(0, 4)
+	if s, end := e.AccessibilitySelection(); s != 0 || end != 4 || e.SelectedText() != "INT." {
+		t.Errorf("selection %d-%d %q", s, end, e.SelectedText())
+	}
+	lines := e.AccessibilityTextLines()
+	if lines[0] != 0 || len(lines) < 4 { // the long line wraps at 20 columns
+		t.Errorf("lines %v", lines)
+	}
+	text := []rune(e.AccessibilityText())
+	if got := string(text[lines[2]:lines[3]]); !strings.HasPrefix(got, "Rain") {
+		t.Errorf("third line %q", got)
+	}
+	e.FocusLost()
+	if e.AccessibilityCaret() != -1 {
+		t.Error("caret without the focus")
+	}
+}

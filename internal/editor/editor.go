@@ -49,6 +49,8 @@ type ScriptEditor struct {
 	SceneStarts []string
 	// OnCursorChanged is called when the cursor or selection moves.
 	OnCursorChanged func()
+	// AccessibleName is what screen readers call the editor ("Script").
+	AccessibleName string
 
 	buf     *buffer.Buffer
 	layout  wrap.Layout

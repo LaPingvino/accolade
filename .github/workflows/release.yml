@@ -46,9 +46,9 @@ jobs:
           VERSION: "${{ needs.version.outputs.version }}"
         run: |
           mkdir -p dist
-          fyne package --target linux --release --app-version "${VERSION%%-*}"
+          fyne package --target linux --release --tags accessibility --app-version "${VERSION%%-*}"
           mv Accolade.tar.xz "dist/Accolade-${VERSION}-linux-x86_64.tar.xz"
-          go build -trimpath -ldflags="-s -w" -o accolade .
+          go build -trimpath -tags accessibility -ldflags="-s -w" -o accolade .
           packaging/linux/build-appimage.sh ./accolade "$VERSION" dist
       - uses: actions/upload-artifact@v4
         with:

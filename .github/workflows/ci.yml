@@ -37,6 +37,12 @@ jobs:
           CGO_ENABLED: "1"
         run: go vet ./...
 
+      - name: Screen reader build (Linux)
+        if: runner.os == 'Linux'
+        env:
+          CGO_ENABLED: "1"
+        run: go vet -tags accessibility ./...
+
       - name: Test
         env:
           CGO_ENABLED: "1"

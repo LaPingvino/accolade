@@ -208,3 +208,12 @@ func (b *Button) hide() {
 		b.layer.HideTip()
 	}
 }
+
+// AccessibilityLabel is the tip: the button shows only an icon, and a
+// screen reader says what it does.
+func (b *Button) AccessibilityLabel() string {
+	if b.Text != "" {
+		return b.Text
+	}
+	return b.Tip
+}
