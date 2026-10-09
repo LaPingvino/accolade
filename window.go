@@ -36,12 +36,14 @@ type MainWindow struct {
 	app        *Application
 
 	// Core components
-	textEditor  *editor.ScriptEditor
-	editorView  *container.ThemeOverride // the editor with its font settings
-	previewArea *widget.RichText
-	headerBar   *HeaderBar
-	tooltips    *tooltip.Layer
-	searchBar   *SearchBar
+	textEditor   *editor.ScriptEditor
+	editorView   *container.ThemeOverride // the editor with its font settings
+	previewArea  *previewPane
+	previewGen   int         // which rebuild of the preview is current
+	previewTimer *time.Timer // the rebuild waiting for typing to pause
+	headerBar    *HeaderBar
+	tooltips     *tooltip.Layer
+	searchBar    *SearchBar
 
 	// UI layout
 	mainContainer    *container.Split
@@ -140,8 +142,7 @@ func (w *MainWindow) setupUI() {
 	w.editorView = container.NewThemeOverride(editor.NewPageScroll(w.textEditor, pageColumns), newEditorTheme("", 0))
 
 	// Create preview area
-	w.previewArea = widget.NewRichText()
-	w.previewArea.Wrapping = fyne.TextWrapOff // lines are wrapped to the screenplay's columns already
+	w.previewArea = newPreviewPane()
 
 	// Create header bar with toolbar
 	w.tooltips = tooltip.NewLayer()
@@ -592,7 +593,7 @@ func (w *MainWindow) HasUnsavedChanges() bool {
 func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
 	w.updateTitle()
-	w.updatePreview()
+	w.schedulePreview()
 	w.updateStatusBar()
 	w.updateCurrentElement()
 	if w.outlineVisible && w.outline != nil {
@@ -637,9 +638,40 @@ func (w *MainWindow) updateTitle() {
 func (w *MainWindow) updatePreview() {
 	if w.previewVisible {
 		// the screenplay as Lexington prints it (its layout package)
-		w.previewArea.Segments = previewSegments(w.textEditor.Text(), sceneHeaders(w.language), currentScriptFormat())
-		w.previewArea.Refresh()
+		w.previewGen++ // a rebuild still on its way is out of date
+		w.previewArea.SetSegments(previewSegments(w.textEditor.Text(), sceneHeaders(w.language), currentScriptFormat()))
 	}
+}
+
+// previewAsync is false in the tests: Fyne's test driver runs fyne.Do
+// on the calling goroutine, not the UI thread.
+var previewAsync = true
+
+// schedulePreview rebuilds the preview after typing pauses, off the UI
+// thread: on a long script it takes a tenth of a second or more, which
+// every keystroke used to wait for.
+func (w *MainWindow) schedulePreview() {
+	if !w.previewVisible {
+		return
+	}
+	if !previewAsync {
+		w.updatePreview()
+		return
+	}
+	w.previewGen++
+	gen := w.previewGen
+	text, headers, format := w.textEditor.Text(), sceneHeaders(w.language), currentScriptFormat()
+	if w.previewTimer != nil {
+		w.previewTimer.Stop()
+	}
+	w.previewTimer = time.AfterFunc(250*time.Millisecond, func() {
+		segs := previewSegments(text, headers, format)
+		fyne.Do(func() {
+			if gen == w.previewGen && w.previewVisible {
+				w.previewArea.SetSegments(segs)
+			}
+		})
+	})
 }
 
 func (w *MainWindow) setStatus(text string) {
@@ -829,7 +861,7 @@ func (w *MainWindow) toggleNotes() {
 func (w *MainWindow) relayout() {
 	var center fyne.CanvasObject = w.editorView
 	if w.previewVisible {
-		split := container.NewHSplit(w.editorView, container.NewScroll(w.previewArea))
+		split := container.NewHSplit(w.editorView, w.previewArea.content)
 		split.SetOffset(0.55) // the preview shows a whole page width
 		center = split
 	}

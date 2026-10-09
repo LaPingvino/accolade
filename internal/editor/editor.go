@@ -72,7 +72,31 @@ type ScriptEditor struct {
 
 	// onCursorMoved is told where the cursor is (see NewScroll)
 	onCursorMoved func(cursor fyne.Position, height float32)
+
+	// In a scroll (NewScroll) the grid holds only the rows in view, and
+	// some around them: a whole long script's rows took seconds to lay
+	// out at every resize and keystroke. viewTop and viewHeight are the
+	// part of the editor in view; gridFirst is the grid's first row.
+	viewed              bool
+	onView              func() // the view again (after a resize)
+	viewTop, viewHeight float32
+	gridFirst, gridEnd  int
+	draw                drawing // what relayout found, to draw rows with
 }
+
+// drawing is what rows are drawn with: the text, its kinds and styles.
+type drawing struct {
+	text                                     []rune
+	kinds                                    []syntax.Kind
+	th                                       fyne.Theme
+	v                                        fyne.ThemeVariant
+	selected, cursor, highlight, number      *widget.CustomTextGridStyle
+	selStart, selEnd, curRow, curCol, gutter int
+}
+
+// viewMargin is how many rows beyond the view the grid holds, so that
+// scrolling a little needs no redrawing.
+const viewMargin = 60
 
 // New creates an editor holding text.
 func New(text string) *ScriptEditor {
@@ -144,10 +168,10 @@ func (e *ScriptEditor) Replace(start, end int, text string) {
 // GridRow is what the editor shows in a visual row (for tests and
 // inspection).
 func (e *ScriptEditor) GridRow(row int) widget.TextGridRow {
-	if row < 0 || row >= len(e.grid.Rows) {
+	if row < 0 || row >= len(e.layout.Rows) {
 		return widget.TextGridRow{}
 	}
-	return e.grid.Rows[row]
+	return e.row(row)
 }
 
 // SelectedText is the selected text.
@@ -178,9 +202,43 @@ func (e *ScriptEditor) Redo() {
 // Columns is the number of columns the text is wrapped to.
 func (e *ScriptEditor) Columns() int { return e.columns }
 
-// CreateRenderer draws the grid.
+// CreateRenderer draws the grid, where its rows are.
 func (e *ScriptEditor) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(e.grid)
+	return &editorRenderer{e: e}
+}
+
+type editorRenderer struct{ e *ScriptEditor }
+
+func (r *editorRenderer) Layout(size fyne.Size) {
+	h := r.e.cellHeight()
+	r.e.grid.Move(fyne.NewPos(0, float32(r.e.gridFirst)*h))
+	r.e.grid.Resize(fyne.NewSize(size.Width, float32(r.e.gridEnd-r.e.gridFirst)*h))
+}
+func (r *editorRenderer) MinSize() fyne.Size           { return r.e.MinSize() }
+func (r *editorRenderer) Refresh()                     { r.Layout(r.e.Size()); r.e.grid.Refresh() }
+func (r *editorRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.e.grid} }
+func (r *editorRenderer) Destroy()                     {}
+
+// setView tells the editor which part of it is in view (in a scroll);
+// the grid is redrawn when the view leaves the rows it holds.
+func (e *ScriptEditor) setView(top, height float32) {
+	e.viewed, e.viewTop, e.viewHeight = true, top, max(height, 1)
+	first, end := e.viewRows()
+	if first < e.gridFirst || end > e.gridEnd || e.gridEnd-e.gridFirst > end-first+4*viewMargin {
+		e.drawRows()
+	}
+}
+
+// viewRows are the rows in view (all of them without a view).
+func (e *ScriptEditor) viewRows() (first, end int) {
+	n := len(e.layout.Rows)
+	if !e.viewed {
+		return 0, n
+	}
+	h := e.cellHeight()
+	first = min(max(int(e.viewTop/h), 0), n)
+	end = min(max(int((e.viewTop+e.viewHeight)/h)+1, first), n)
+	return first, end
 }
 
 // Resize re-wraps the text to the new width.
@@ -228,6 +286,39 @@ func (e *ScriptEditor) relayout() {
 	}
 	selStart, selEnd := e.buf.Selection()
 	curRow, curCol := e.layout.RowCol(e.buf.Cursor())
+	var kinds []syntax.Kind
+	if e.Syntax {
+		kinds = syntax.ClassifyWith(strings.Split(string(text), "\n"), e.SceneStarts)
+	}
+
+	number := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}
+	e.draw = drawing{text: text, kinds: kinds, th: th, v: v, selected: selected, cursor: cursor,
+		highlight: highlight, number: number, selStart: selStart, selEnd: selEnd,
+		curRow: curRow, curCol: curCol, gutter: g}
+	e.drawRows()
+}
+
+// drawRows puts the rows in view (and viewMargin around them) in the grid.
+func (e *ScriptEditor) drawRows() {
+	first, end := e.viewRows()
+	if e.viewed {
+		first, end = max(first-viewMargin, 0), min(end+viewMargin, len(e.layout.Rows))
+	}
+	rows := make([]widget.TextGridRow, end-first)
+	for i := first; i < end; i++ {
+		rows[i-first] = e.row(i)
+	}
+	e.gridFirst, e.gridEnd = first, end
+	e.grid.Rows = rows
+	e.BaseWidget.Refresh()
+}
+
+// row is the grid row of the wrapped row i.
+func (e *ScriptEditor) row(i int) widget.TextGridRow {
+	d := &e.draw
+	text, kinds, th, v, g := d.text, d.kinds, d.th, d.v, d.gutter
+	selStart, selEnd, curRow, curCol := d.selStart, d.selEnd, d.curRow, d.curCol
+	selected, cursor, highlight, number := d.selected, d.cursor, d.highlight, d.number
 	highlighted := func(off int) bool {
 		for _, h := range e.highlights {
 			if off >= h[0] && off < h[1] {
@@ -236,53 +327,42 @@ func (e *ScriptEditor) relayout() {
 		}
 		return false
 	}
-	var kinds []syntax.Kind
-	if e.Syntax {
-		kinds = syntax.ClassifyWith(strings.Split(string(text), "\n"), e.SceneStarts)
-	}
-
-	number := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}
-	rows := make([]widget.TextGridRow, len(e.layout.Rows))
-	for i, r := range e.layout.Rows {
-		cells := make([]widget.TextGridCell, 0, g+r.Indent+r.End-r.Start+1)
-		if g > 0 {
-			label := ""
-			if i == 0 || e.layout.Rows[i-1].Line != r.Line {
-				label = strconv.Itoa(r.Line + 1)
-			}
-			label = fmt.Sprintf("%*s ", g-1, label)
-			for _, ch := range label {
-				cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
-			}
+	r := e.layout.Rows[i]
+	cells := make([]widget.TextGridCell, 0, g+r.Indent+r.End-r.Start+1)
+	if g > 0 {
+		label := ""
+		if i == 0 || e.layout.Rows[i-1].Line != r.Line {
+			label = strconv.Itoa(r.Line + 1)
 		}
-		for c := 0; c < r.Indent; c++ {
+		label = fmt.Sprintf("%*s ", g-1, label)
+		for _, ch := range label {
+			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
+		}
+	}
+	for c := 0; c < r.Indent; c++ {
+		cells = append(cells, widget.TextGridCell{Rune: ' '})
+	}
+	var lineStyle widget.TextGridStyle
+	if r.Line < len(kinds) {
+		lineStyle = kindStyle(kinds[r.Line], th, v)
+	}
+	for off := r.Start; off < r.End; off++ {
+		cell := widget.TextGridCell{Rune: text[off], Style: lineStyle}
+		switch {
+		case off >= selStart && off < selEnd:
+			cell.Style = withBackground(lineStyle, selected.BGColor)
+		case highlighted(off):
+			cell.Style = withBackground(lineStyle, highlight.BGColor)
+		}
+		cells = append(cells, cell)
+	}
+	if e.focused && i == curRow {
+		for len(cells) <= g+curCol {
 			cells = append(cells, widget.TextGridCell{Rune: ' '})
 		}
-		var lineStyle widget.TextGridStyle
-		if r.Line < len(kinds) {
-			lineStyle = kindStyle(kinds[r.Line], th, v)
-		}
-		for off := r.Start; off < r.End; off++ {
-			cell := widget.TextGridCell{Rune: text[off], Style: lineStyle}
-			switch {
-			case off >= selStart && off < selEnd:
-				cell.Style = withBackground(lineStyle, selected.BGColor)
-			case highlighted(off):
-				cell.Style = withBackground(lineStyle, highlight.BGColor)
-			}
-			cells = append(cells, cell)
-		}
-		if e.focused && i == curRow {
-			for len(cells) <= g+curCol {
-				cells = append(cells, widget.TextGridCell{Rune: ' '})
-			}
-			cells[g+curCol].Style = cursor
-		}
-		rows[i] = widget.TextGridRow{Cells: cells}
+		cells[g+curCol].Style = cursor
 	}
-	e.grid.Rows = rows
-	e.grid.Refresh()
-	e.BaseWidget.Refresh()
+	return widget.TextGridRow{Cells: cells}
 }
 
 // Refresh redraws the editor with the current theme's colours: Fyne
@@ -627,6 +707,18 @@ func (p *page) Tapped(ev *fyne.PointEvent) {
 
 func newScroll(e *ScriptEditor, content fyne.CanvasObject) *container.Scroll {
 	s := container.NewVScroll(content)
+	// the part of the editor in view; a screen's height until the
+	// scroll has a size of its own
+	inView := func() {
+		h := s.Size().Height
+		if h < 1 {
+			h = 2000
+		}
+		e.setView(s.Offset.Y-e.Position().Y, h)
+	}
+	e.viewed, e.viewHeight = true, 2000
+	s.OnScrolled = func(fyne.Position) { inView() }
+	e.onView = inView
 	e.onCursorMoved = func(p fyne.Position, h float32) {
 		view := s.Size().Height
 		y := s.Offset.Y
@@ -639,6 +731,7 @@ func newScroll(e *ScriptEditor, content fyne.CanvasObject) *container.Scroll {
 			return
 		}
 		s.ScrollToOffset(fyne.NewPos(s.Offset.X, max(y, 0)))
+		inView()
 	}
 	return s
 }
@@ -662,6 +755,9 @@ func (l *pageLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	w := l.width(size.Width)
 	l.e.Resize(fyne.NewSize(w, max(size.Height-l.top(), l.e.MinSize().Height)))
 	l.e.Move(fyne.NewPos((size.Width-w)/2, l.top()))
+	if l.e.onView != nil {
+		l.e.onView() // the rows in view, at the new size
+	}
 }
 
 func (l *pageLayout) MinSize([]fyne.CanvasObject) fyne.Size {

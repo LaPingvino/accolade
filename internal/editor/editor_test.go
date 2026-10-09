@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -201,3 +202,40 @@ func TestClickInMarginPlacesCursor(t *testing.T) {
 }
 
 func abs(f float32) float32 { return max(f, -f) }
+
+// In a scroll, the grid holds the rows in view (and a margin), not a
+// whole long script's: those took seconds at every resize and keystroke.
+func TestOnlyRowsInViewAreDrawn(t *testing.T) {
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	var b strings.Builder
+	for i := 0; i < 3000; i++ {
+		fmt.Fprintf(&b, "line %d\n", i)
+	}
+	e := New(b.String())
+	s := NewPageScroll(e, 40)
+	w := test.NewWindow(s)
+	t.Cleanup(w.Close)
+	w.Resize(fyne.NewSize(500, 400))
+	if n := len(e.grid.Rows); n == 0 || n > 400 {
+		t.Fatalf("the grid holds %d of %d rows", n, len(e.layout.Rows))
+	}
+	if got := strings.TrimSpace(e.grid.RowText(0)); got != "line 0" {
+		t.Errorf("first row %q", got)
+	}
+	// scrolled far down: the rows there are drawn, where they belong
+	s.ScrollToOffset(fyne.NewPos(0, e.cellHeight()*2000))
+	s.OnScrolled(s.Offset)
+	if e.gridFirst > 2000 || e.gridEnd <= 2000 {
+		t.Fatalf("row 2000 not in the grid's %d..%d", e.gridFirst, e.gridEnd)
+	}
+	if got := strings.TrimSpace(e.grid.RowText(2000 - e.gridFirst)); got != "line 2000" {
+		t.Errorf("row 2000 is %q", got)
+	}
+	if y := e.grid.Position().Y; y != float32(e.gridFirst)*e.cellHeight() {
+		t.Errorf("grid at %v, want %v", y, float32(e.gridFirst)*e.cellHeight())
+	}
+	if got := strings.TrimSpace(string(e.GridRow(2500).Cells[0].Rune)); got != "l" {
+		t.Errorf("GridRow outside the grid: %q", got)
+	}
+}

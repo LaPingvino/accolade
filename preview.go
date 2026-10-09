@@ -1,9 +1,11 @@
 package main
 
 import (
+	"image/color"
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -101,4 +103,80 @@ func dualSegments(lines []layout.Line) []widget.RichTextSegment {
 		segs = append(segs, lineSegments(pad, spans)...)
 	}
 	return segs
+}
+
+// previewPane shows the preview's printed lines in a list, which makes
+// only the rows in view: a RichText of a whole script (thousands of
+// segments, all laid out and drawn) took seconds to show and froze the
+// window on a long script.
+type previewPane struct {
+	Segments []widget.RichTextSegment // all of them, in order
+	rows     [][]widget.RichTextSegment
+	list     *widget.List
+	content  fyne.CanvasObject
+}
+
+func newPreviewPane() *previewPane {
+	p := &previewPane{}
+	p.list = widget.NewList(
+		func() int { return len(p.rows) },
+		func() fyne.CanvasObject {
+			rt := widget.NewRichText()
+			rt.Wrapping = fyne.TextWrapOff // lines are wrapped to the screenplay's columns already
+			return rt
+		},
+		func(id widget.ListItemID, o fyne.CanvasObject) {
+			rt := o.(*widget.RichText)
+			if id < len(p.rows) {
+				rt.Segments = p.rows[id]
+				rt.Refresh()
+			}
+		})
+	p.list.HideSeparators = true
+	p.list.OnSelected = func(id widget.ListItemID) { p.list.Unselect(id) } // a page, not a choice
+	p.content = container.NewThemeOverride(p.list, previewTheme{})
+	return p
+}
+
+// SetSegments shows segs: one row per printed line (a paragraph's last
+// segment ends it), a page break a row of its own.
+func (p *previewPane) SetSegments(segs []widget.RichTextSegment) {
+	p.Segments = segs
+	p.rows = p.rows[:0]
+	var row []widget.RichTextSegment
+	for _, s := range segs {
+		row = append(row, s)
+		if t, ok := s.(*widget.TextSegment); ok && t.Style.Inline {
+			continue
+		}
+		p.rows = append(p.rows, row)
+		row = nil
+	}
+	if len(row) > 0 {
+		p.rows = append(p.rows, row)
+	}
+	p.list.Refresh()
+}
+
+// previewTheme packs the rows as closely as the lines of a page.
+type previewTheme struct{}
+
+func (previewTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
+	return fyne.CurrentApp().Settings().Theme().Color(n, v)
+}
+func (previewTheme) Font(s fyne.TextStyle) fyne.Resource {
+	if f := fyne.CurrentApp().Settings().Theme().Font(s); f != nil {
+		return f
+	}
+	return theme.DefaultTheme().Font(s) // a theme without bold monospace
+}
+func (previewTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
+	return fyne.CurrentApp().Settings().Theme().Icon(n)
+}
+func (previewTheme) Size(n fyne.ThemeSizeName) float32 {
+	switch n {
+	case theme.SizeNamePadding, theme.SizeNameInnerPadding, theme.SizeNameLineSpacing:
+		return 0
+	}
+	return fyne.CurrentApp().Settings().Theme().Size(n)
 }
