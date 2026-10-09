@@ -167,6 +167,24 @@ func (b *Button) MouseOut() {
 	b.hide()
 }
 
+// FocusGained shows the tip at once: a keyboard user reaching an icon
+// button learns what it does, as a mouse user hovering it does.
+func (b *Button) FocusGained() {
+	b.Button.FocusGained()
+	b.mu.Lock()
+	b.stopLocked()
+	b.mu.Unlock()
+	if b.Tip != "" && b.layer != nil {
+		b.layer.ShowTip(b.Tip, b)
+	}
+}
+
+// FocusLost hides the tip.
+func (b *Button) FocusLost() {
+	b.Button.FocusLost()
+	b.hide()
+}
+
 // Tapped hides the tip and taps the button.
 func (b *Button) Tapped(e *fyne.PointEvent) {
 	b.hide()

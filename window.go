@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"fyne.io/fyne/v2/driver/desktop"
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/tooltip"
 	"log"
@@ -196,6 +197,21 @@ func (w *MainWindow) setupShortcuts() {
 
 	// Keyboard shortcuts are attached to the main menu items (see menus.go)
 	w.fyneWindow.SetMainMenu(w.buildMainMenu())
+	// F6 and Shift+F6: the next or previous pane (editor, outline, notes,
+	// search), whatever has the focus
+	if c, ok := w.fyneWindow.Canvas().(desktop.KeyPreviewCanvas); ok {
+		c.SetOnKeyPreview(func(key fyne.KeyName, mod fyne.KeyModifier) bool {
+			if key != fyne.KeyF6 || (mod != 0 && mod != fyne.KeyModifierShift) {
+				return false
+			}
+			if mod == fyne.KeyModifierShift {
+				w.cyclePane(-1)
+			} else {
+				w.cyclePane(1)
+			}
+			return true
+		})
+	}
 }
 
 func (w *MainWindow) setupCallbacks() {
@@ -1000,4 +1016,35 @@ func defaultScript(now time.Time) string {
 		"",
 		strings.Repeat(" ", TransitionIndent) + "> FADE OUT.",
 	}, "\n")
+}
+
+// panes are the parts of the window that take the keyboard, in order:
+// the editor, and the outline, notes and search bar when shown.
+func (w *MainWindow) panes() []fyne.Focusable {
+	panes := []fyne.Focusable{w.textEditor}
+	// the side panel shows the outline or else the notes (relayout)
+	switch {
+	case w.outlineVisible && w.outline != nil:
+		panes = append(panes, w.outline.list)
+	case w.notesVisible && w.notes != nil:
+		panes = append(panes, w.notes.entry)
+	}
+	if w.searchBar != nil && w.searchBar.IsVisible() {
+		panes = append(panes, w.searchBar.searchEntry)
+	}
+	return panes
+}
+
+// cyclePane moves the focus to the pane step panes on from the one that
+// has it (from anywhere else: the editor's neighbour).
+func (w *MainWindow) cyclePane(step int) {
+	panes := w.panes()
+	at := 0
+	for i, p := range panes {
+		if w.fyneWindow.Canvas().Focused() == p {
+			at = i
+		}
+	}
+	n := len(panes)
+	w.fyneWindow.Canvas().Focus(panes[((at+step)%n+n)%n])
 }

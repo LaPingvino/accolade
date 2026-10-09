@@ -69,3 +69,38 @@ func TestNotesOnlyAtTheEnd(t *testing.T) {
 		t.Error("a boneyard mid-script taken for the notes")
 	}
 }
+
+// F6 / Shift+F6 go round the panes that are shown.
+func TestCyclePanes(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Cleanup(func() {
+		w.settings.SetBoolean("notes-visible", false)
+		w.settings.SetBoolean("outline-visible", false)
+	})
+	c := w.fyneWindow.Canvas()
+	c.Focus(w.textEditor)
+	w.cyclePane(1)
+	if c.Focused() != w.textEditor {
+		t.Errorf("one pane: focus on %T", c.Focused())
+	}
+	w.toggleNotes()
+	w.showFind()
+	t.Cleanup(w.hideFindReplace)
+	c.Focus(w.textEditor)
+	w.cyclePane(1)
+	if c.Focused() != w.notes.entry {
+		t.Errorf("F6 from the editor: %T", c.Focused())
+	}
+	w.cyclePane(1)
+	if c.Focused() != w.searchBar.searchEntry {
+		t.Errorf("F6 again: %T", c.Focused())
+	}
+	w.cyclePane(1)
+	if c.Focused() != w.textEditor {
+		t.Errorf("F6 round: %T", c.Focused())
+	}
+	w.cyclePane(-1)
+	if c.Focused() != w.searchBar.searchEntry {
+		t.Errorf("Shift+F6: %T", c.Focused())
+	}
+}

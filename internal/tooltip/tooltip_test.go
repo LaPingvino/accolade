@@ -62,3 +62,21 @@ func TestTipShowsBelowTheButtonAndHides(t *testing.T) {
 		t.Error("tip shown although the pointer left before the delay")
 	}
 }
+
+// A keyboard user reaching an icon button sees its tip.
+func TestTipOnFocus(t *testing.T) {
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	layer := NewLayer()
+	b := NewButton(nil, "Save (Ctrl+S)", func() {}, layer)
+	w := test.NewWindow(container.NewStack(container.NewVBox(b), layer))
+	t.Cleanup(w.Close)
+	w.Canvas().Focus(b)
+	if layer.Text() != "Save (Ctrl+S)" {
+		t.Errorf("focused: tip %q", layer.Text())
+	}
+	w.Canvas().Unfocus()
+	if layer.Text() == "Save (Ctrl+S)" && layer.Visible() {
+		t.Error("unfocused: the tip stays")
+	}
+}
