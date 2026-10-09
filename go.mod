@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	fyne.io/fyne/v2 v2.8.1
-	github.com/LaPingvino/lexington v1.4.1-0.20261009004219-595b24dcb45f
+	github.com/LaPingvino/lexington v1.4.1-0.20261009013120-8798b7dc745f
 	github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3
 	golang.org/x/text v0.42.0
 )

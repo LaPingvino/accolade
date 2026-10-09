@@ -3,6 +3,8 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"context"
+	"errors"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
 	"io"
@@ -257,5 +259,22 @@ func TestExportDialogFormatAndTarget(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(out); string(b) != text {
 		t.Errorf("Fountain export %q, want the script %q", b, text)
+	}
+}
+
+// Cancelling an import (its dialog's Cancel) stops it.
+func TestImportPDFCancel(t *testing.T) {
+	dir := t.TempDir()
+	pdfPath := filepath.Join(dir, "s.pdf")
+	if err := exportPDF("INT. A - DAY\n\nAction.\n", pdfPath, exportJob{}); err != nil {
+		t.Fatal(err)
+	}
+	if text, _, err := importPDF(context.Background(), pdfPath, nil); err != nil || !strings.Contains(text, "INT. A - DAY") {
+		t.Fatalf("import: %q %v", text, err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, _, err := importPDF(ctx, pdfPath, nil); !errors.Is(err, context.Canceled) {
+		t.Errorf("cancelled import: %v", err)
 	}
 }

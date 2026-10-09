@@ -1,6 +1,8 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/tooltip"
@@ -342,20 +344,30 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 func (w *MainWindow) importPDFAsync(filePath string) {
 	bar := widget.NewProgressBar()
 	label := widget.NewLabel("Reading " + filepath.Base(filePath) + "...")
-	d := dialog.NewCustomWithoutButtons("Importing PDF", container.NewVBox(label, bar), w.fyneWindow)
+	// a long scanned script takes minutes to read: Cancel stops it
+	ctx, cancel := context.WithCancel(context.Background())
+	cancelBtn := widget.NewButton("Cancel", cancel)
+	d := dialog.NewCustomWithoutButtons("Importing PDF", container.NewVBox(label, bar, container.NewCenter(cancelBtn)), w.fyneWindow)
 	d.Show()
 	done := make(chan struct{})
 	w.imported = done
 	go func() {
 		defer close(done)
-		text, skipped, err := importPDF(filePath, func(done, pages int) {
+		defer cancel()
+		text, skipped, err := importPDF(ctx, filePath, func(done, pages int) {
 			fyne.Do(func() {
 				bar.SetValue(float64(done) / float64(max(pages, 1)))
 				label.SetText(fmt.Sprintf("Read %d of %d pages", done, pages))
+				if done == pages {
+					label.SetText("Read all pages; putting the screenplay together...")
+				}
 			})
 		})
 		fyne.Do(func() {
 			d.Hide()
+			if ctx.Err() != nil && errors.Is(err, context.Canceled) {
+				return // cancelled: nothing to show
+			}
 			if err != nil {
 				dialog.ShowError(fmt.Errorf("could not import %s: %v", filepath.Base(filePath), err), w.fyneWindow)
 				return

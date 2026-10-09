@@ -179,8 +179,8 @@ func importFDX(r io.Reader) (string, error) {
 // pages are read with OCR: tesseract if it is installed, else the
 // built-in one (slower). progress (may be nil) is told the pages read;
 // skipped are the pages that could not be read.
-func importPDF(path string, progress func(done, pages int)) (text string, skipped []string, err error) {
-	opts := pdfin.Options{Progress: progress, Skipped: func(page int, err error) {
+func importPDF(ctx context.Context, path string, progress func(done, pages int)) (text string, skipped []string, err error) {
+	opts := pdfin.Options{Context: ctx, Progress: progress, Skipped: func(page int, err error) {
 		skipped = append(skipped, fmt.Sprintf("page %d: %v", page, err))
 	}}
 	if t, ok := pdfin.InstalledTesseract(); ok {
