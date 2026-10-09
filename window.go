@@ -271,6 +271,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	w.textEditor.SetText(string(content))
 	w.currentFile = filePath
 	w.suggestedName = ""
+	w.rememberRecent(filePath)
 	w.setLanguage(languageOf(filePath))
 	w.hasChanges = false
 	w.updateTitle()
@@ -378,6 +379,7 @@ func (w *MainWindow) SaveFileAs() error {
 
 		w.currentFile = filePath
 		w.suggestedName = ""
+		w.rememberRecent(filePath)
 		if l := languageOf(filePath); l != "" {
 			w.setLanguage(l)
 		}

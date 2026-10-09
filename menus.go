@@ -38,6 +38,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("New", shortcut(fyne.KeyN, 0), w.NewFile),
 		menuItem("New Window", shortcut(fyne.KeyN, fyne.KeyModifierShift), func() { w.app.newWindow() }),
 		menuItem("Open…", shortcut(fyne.KeyO, 0), w.OpenFile),
+		w.recentMenu(),
 		fyne.NewMenuItemSeparator(),
 		menuItem("Save", shortcut(fyne.KeyS, 0), w.reportErr(w.SaveFile)),
 		menuItem("Save As…", shortcut(fyne.KeyS, fyne.KeyModifierShift), w.reportErr(w.SaveFileAs)),
