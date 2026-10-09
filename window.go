@@ -54,6 +54,8 @@ type MainWindow struct {
 	headerArea *fyne.Container
 	// the sidebar beside the editor: the outline (View > Outline) or the
 	// notes (View > Notes)
+	// vim is the editor's vim mode (vim.go), on with the setting
+	vim *vim
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
@@ -236,6 +238,14 @@ func (w *MainWindow) applyEditorSettings() {
 	// laid out in columns)
 	w.textEditor.SetLineNumbers(w.settings.GetBoolean("show-line-numbers"))
 	setVisible(w.headerArea, w.settings.GetBoolean("toolbar-visible"))
+	// vim mode switched on starts in normal mode, switched off types again
+	if w.vim != nil {
+		if on := w.settings.GetBoolean("vim-mode"); on && w.vim.mode == vimInsert {
+			w.vim.setMode(vimNormal)
+		} else if !on && w.vim.mode != vimInsert {
+			w.vim.mode = vimInsert
+		}
+	}
 	setVisible(w.statusBar, w.settings.GetBoolean("statusbar-visible"))
 	// auto-indent is read when Enter is pressed (editor.go)
 }

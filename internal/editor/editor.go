@@ -38,6 +38,12 @@ type ScriptEditor struct {
 	// OnTab, when set, handles Tab instead of indenting (Accolade
 	// completes names); it reports whether it did.
 	OnTab func() bool
+	// OnKey, when set, sees every key first (a vim mode: Escape); it
+	// reports whether it handled the key.
+	OnKey func(k *fyne.KeyEvent) bool
+	// OnShortcut, when set, sees shortcuts first (vim's Ctrl+R); it
+	// reports whether it handled the shortcut.
+	OnShortcut func(s fyne.Shortcut) bool
 	// SceneStarts are what scene headings start with in the script's
 	// language, for the colours (nil: English)
 	SceneStarts []string
@@ -453,6 +459,19 @@ func (e *ScriptEditor) TypedRune(r rune) {
 
 // TypedKey handles editing and cursor keys.
 func (e *ScriptEditor) TypedKey(k *fyne.KeyEvent) {
+	if e.OnKey != nil && e.OnKey(k) {
+		return
+	}
+	e.Key(k.Name, e.shift) // Shift as held (selecting)
+}
+
+// Key does what the key does, past OnKey (a vim mode's motions use the
+// cursor keys); with extend, as with Shift held: the selection grows.
+func (e *ScriptEditor) Key(name fyne.KeyName, extend bool) {
+	shift := e.shift
+	e.shift = extend
+	defer func() { e.shift = shift }()
+	k := &fyne.KeyEvent{Name: name}
 	cur := e.buf.Cursor()
 	row, col := e.layout.RowCol(cur)
 	move := func(off int) {
@@ -534,6 +553,9 @@ func (e *ScriptEditor) pageRows() int {
 
 // TypedShortcut handles clipboard, select all, undo and redo.
 func (e *ScriptEditor) TypedShortcut(s fyne.Shortcut) {
+	if e.OnShortcut != nil && e.OnShortcut(s) {
+		return
+	}
 	switch sc := s.(type) {
 	case *fyne.ShortcutCopy:
 		if e.buf.HasSelection() {

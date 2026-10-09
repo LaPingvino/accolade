@@ -19,7 +19,28 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	e.OnEnter = func() bool { return completeLine(w, e) }
 	tab := completer{starts: w.sceneStarts}
 	e.OnTab = func() bool { return tab.tab(e) }
+	// vim mode (Preferences > Editor), before anything else sees a key
+	vi := newVim(e)
+	vi.on = func() bool { return w != nil && w.settings != nil && w.settings.GetBoolean("vim-mode") }
+	vi.status = func(s string) {
+		if w != nil {
+			w.setStatus(s)
+		}
+	}
+	vi.search = func() {
+		if w != nil {
+			w.showFind()
+		}
+	}
+	if w != nil {
+		w.vim = vi
+	}
+	e.OnKey = vi.key
+	e.OnShortcut = vi.shortcut
 	e.OnRune = func(r rune) bool {
+		if vi.rune(r) {
+			return true
+		}
 		if w == nil || w.settings == nil || !w.settings.GetBoolean("auto-close-brackets") {
 			return false
 		}
