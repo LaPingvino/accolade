@@ -9,6 +9,8 @@ param(
     [Parameter(Mandatory = $true)][int]$ProcessId,
     [string]$Title = "",
     [string]$Out = "uia-tree.txt",
+    # fail unless an element's TextPattern holds this text
+    [string]$ExpectText = "",
     [int]$WaitSeconds = 30
 )
 
@@ -34,7 +36,7 @@ if (-not $window) {
 }
 
 $lines = New-Object System.Collections.Generic.List[string]
-$stats = @{ elements = 0; named = 0; text = 0 }
+$stats = @{ elements = 0; named = 0; text = 0; expected = $false }
 
 function Describe($el, $depth) {
     if ($depth -gt 30) { return }
@@ -48,6 +50,8 @@ function Describe($el, $depth) {
     $tp = $null
     if ($el.TryGetCurrentPattern([System.Windows.Automation.TextPattern]::Pattern, [ref]$tp)) {
         $stats.text++
+        $whole = $tp.DocumentRange.GetText(-1)
+        if ($ExpectText -and $whole.Contains($ExpectText)) { $stats.expected = $true }
         $doc = $tp.DocumentRange.GetText(200) -replace "`r?`n", "\n"
         $line += " TEXT='$doc'"
         $sel = $tp.GetSelection()
@@ -73,3 +77,7 @@ Describe $window 0
 $lines | Set-Content -Path $Out -Encoding utf8
 $lines | Select-Object -First 120 | ForEach-Object { Write-Output $_ }
 Write-Output "elements: $($stats.elements), named: $($stats.named), with TextPattern: $($stats.text)"
+if ($ExpectText -and -not $stats.expected) {
+    Write-Output "no TextPattern holds '$ExpectText'"
+    exit 1
+}
