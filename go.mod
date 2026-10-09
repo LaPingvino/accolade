@@ -5,13 +5,14 @@ go 1.26.0
 require (
 	fyne.io/fyne/v2 v2.8.1
 	github.com/LaPingvino/lexington v1.4.1-0.20261008232415-4b30b71d68d3
+	github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3
+	golang.org/x/text v0.42.0
 )
 
 require (
 	fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/FyshOS/fancyfs v0.0.1 // indirect
-	github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3 // indirect
 	github.com/anthonynsimon/bild v0.14.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.2.0 // indirect
 	github.com/danlock/gogosseract v0.0.11-0ad3421.0.20250623141706-2521da518be1 // indirect
@@ -47,6 +48,5 @@ require (
 	golang.org/x/image v0.46.0 // indirect
 	golang.org/x/net v0.35.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
-	golang.org/x/text v0.42.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

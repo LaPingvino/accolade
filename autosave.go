@@ -58,6 +58,10 @@ func (w *MainWindow) cancelAutoSave() {
 // writeFileAtomic writes data to a temporary file next to path and renames
 // it into place, so a crash mid-save never leaves a truncated screenplay.
 func writeFileAtomic(path string, data []byte) error {
+	// through a symlink: the file it points to, the link stays a link
+	if real, err := filepath.EvalSymlinks(path); err == nil {
+		path = real
+	}
 	mode := os.FileMode(0644)
 	if info, err := os.Stat(path); err == nil {
 		mode = info.Mode().Perm()

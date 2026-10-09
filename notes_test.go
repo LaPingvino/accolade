@@ -53,3 +53,19 @@ func TestNotesPanel(t *testing.T) {
 		t.Error("notes in the preview")
 	}
 }
+
+// A boneyard called Notes in the middle of the script is the script's:
+// the notes are the block at the very end.
+func TestNotesOnlyAtTheEnd(t *testing.T) {
+	script := "INT. A - DAY\n\n/* Notes\nold idea\n*/\n\nINT. B - DAY\n\nAction.\n\n/* Notes\nCall Bram.\n*/\n"
+	if got := notesOf(script); got != "Call Bram." {
+		t.Errorf("notes %q", got)
+	}
+	if start := notesStart(script); !strings.HasSuffix(string([]rune(script)[:start]), "Action.") {
+		t.Errorf("notes start at %d", start)
+	}
+	only := "INT. A - DAY\n\n/* Notes\nold idea\n*/\n\nINT. B - DAY\n"
+	if notesOf(only) != "" || notesStart(only) != len([]rune(only)) {
+		t.Error("a boneyard mid-script taken for the notes")
+	}
+}

@@ -20,21 +20,38 @@ import (
 //	...
 //	*/
 
-var notesBlock = regexp.MustCompile(`(?s)\n*/\* Notes\n(.*?)\n?\*/\s*$`)
+var notesBlock = regexp.MustCompile(`(?s)^/\* Notes\n(.*?)\n?\*/\s*$`)
+
+// notesAt finds the notes block: the last "/* Notes" in the script, if
+// it closes at the very end (an earlier boneyard of the same name is
+// the script's, not the notes); its byte offset (with the blank lines
+// before it) and the notes, or -1.
+func notesAt(text string) (int, string) {
+	i := strings.LastIndex(text, "/* Notes\n")
+	if i < 0 || (i > 0 && text[i-1] != '\n') {
+		return -1, ""
+	}
+	m := notesBlock.FindStringSubmatch(text[i:])
+	if m == nil || strings.Contains(m[1], "*/") {
+		return -1, ""
+	}
+	for i > 0 && text[i-1] == '\n' {
+		i--
+	}
+	return i, m[1]
+}
 
 // notesOf are the notes at the end of a script.
 func notesOf(text string) string {
-	if m := notesBlock.FindStringSubmatch(text); m != nil {
-		return m[1]
-	}
-	return ""
+	_, notes := notesAt(text)
+	return notes
 }
 
 // notesStart is where the notes block starts (the text's length if
 // there is none), in runes.
 func notesStart(text string) int {
-	if loc := notesBlock.FindStringIndex(text); loc != nil {
-		return len([]rune(text[:loc[0]]))
+	if i, _ := notesAt(text); i >= 0 {
+		return len([]rune(text[:i]))
 	}
 	return len([]rune(text))
 }

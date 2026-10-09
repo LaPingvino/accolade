@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/tooltip"
-	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -59,6 +58,8 @@ type MainWindow struct {
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
+	// format is how the script's file stores it (encoding.go)
+	format fileFormat
 	// imported is closed when the PDF import under way is in
 	imported       chan struct{}
 	outline        *outlinePanel
@@ -278,7 +279,10 @@ func (w *MainWindow) LoadFile(filePath string) error {
 		return fmt.Errorf("failed to read file: %v", err)
 	}
 
-	w.textEditor.SetText(string(content))
+	// as stored: Windows-1252, a byte order mark, CR LF are kept for saving
+	text, format := decodeScript(content)
+	w.format = format
+	w.textEditor.SetText(text)
 	w.currentFile = filePath
 	w.suggestedName = ""
 	w.rememberRecent(filePath)
@@ -321,6 +325,7 @@ func (w *MainWindow) importFile(filePath string) error {
 // showImported puts an imported script in the window, unsaved.
 func (w *MainWindow) showImported(filePath, text, from string) {
 	w.cancelAutoSave()
+	w.format = fileFormat{}
 	w.textEditor.SetText(text)
 	w.currentFile = ""
 	w.suggestedName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)) + ".fountain"
@@ -378,11 +383,10 @@ func (w *MainWindow) SaveFileAs() error {
 		}
 
 		filePath := closer.URI().Path()
-		defer closer.Close()
-
-		content := w.textEditor.Text()
-		_, err = io.WriteString(closer, content)
-		if err != nil {
+		// written as Save does, safely: not through the dialog's file,
+		// which truncates first
+		closer.Close()
+		if err := w.saveToFile(filePath); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to save file: %v", err), w.fyneWindow)
 			return
 		}
@@ -416,10 +420,13 @@ func (w *MainWindow) SaveFileAs() error {
 }
 
 func (w *MainWindow) saveToFile(filePath string) error {
-	content := w.textEditor.Text()
-	err := writeFileAtomic(filePath, []byte(content))
-	if err != nil {
+	data, utf8Instead := encodeScript(w.textEditor.Text(), w.format)
+	if err := writeFileAtomic(filePath, data); err != nil {
 		return fmt.Errorf("failed to write file: %v", err)
+	}
+	if utf8Instead {
+		w.format.Windows1252 = false
+		w.setStatus("Saved as UTF-8: Windows-1252 cannot hold every character now in the script")
 	}
 
 	w.cancelAutoSave()
@@ -560,6 +567,7 @@ func newScriptTemplate() string {
 }
 
 func (w *MainWindow) createNewFile() {
+	w.format = fileFormat{} // a new script is UTF-8
 	w.textEditor.SetText(newScriptTemplate())
 	w.currentFile = ""
 	w.hasChanges = false
