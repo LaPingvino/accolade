@@ -53,3 +53,58 @@ jobs:
         env:
           CGO_ENABLED: "1"
         run: go test -race ./...
+
+  screenreader-windows:
+    # Accolade read through Windows UI Automation, the API of NVDA, JAWS,
+    # Narrator and braille displays: the window's tree, names and text.
+    name: Screen reader (Windows UI Automation)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build with screen reader support
+        env:
+          CGO_ENABLED: "1"
+        run: go build -tags accessibility -o accolade.exe .
+
+      - name: Software OpenGL (Mesa llvmpipe; the runner has no GPU)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $rel = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN" } https://api.github.com/repos/pal1000/mesa-dist-win/releases/latest
+          $asset = $rel.assets | Where-Object { $_.name -like '*release-msvc.7z' } | Select-Object -First 1
+          Write-Output "Mesa: $($asset.name)"
+          Invoke-WebRequest $asset.browser_download_url -OutFile mesa.7z
+          7z x mesa.7z -omesa | Out-Null
+          Copy-Item mesa/x64/*.dll .
+
+      - name: Read Accolade as a screen reader does
+        shell: pwsh
+        run: |
+          Set-Content sample.fountain "Title: THE BARN`n`nINT. BARN - DAY`n`nRain falls on the roof.`n`nANNA`nIt never stops.`n"
+          $env:GALLIUM_DRIVER = "llvmpipe"
+          $p = Start-Process -FilePath .\accolade.exe -ArgumentList "sample.fountain" -PassThru `
+            -RedirectStandardError accolade.err -RedirectStandardOutput accolade.out
+          try {
+            ./.github/scripts/uia-read.ps1 -Title "Accolade" -Out uia-tree.txt
+            $code = $LASTEXITCODE
+          } finally {
+            Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
+            Write-Output "--- accolade stderr (tail)"
+            Get-Content accolade.err -Tail 30 -ErrorAction SilentlyContinue
+          }
+          exit $code
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: uia-tree
+          path: |
+            uia-tree.txt
+            accolade.err
