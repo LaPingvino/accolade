@@ -1,4 +1,4 @@
-# uia-read.ps1 -Title <part of the window title> [-Out <file>]
+# uia-read.ps1 -ProcessId <pid> [-Title <part of the window title>] [-Out <file>]
 #
 # Reads a running application through Windows UI Automation, the API
 # screen readers (NVDA, JAWS, Narrator) and braille displays use: the
@@ -6,7 +6,8 @@
 # TextPattern gives (the text, the selection, the line at the caret).
 # Exits 1 if the window is not found.
 param(
-    [Parameter(Mandatory = $true)][string]$Title,
+    [Parameter(Mandatory = $true)][int]$ProcessId,
+    [string]$Title = "",
     [string]$Out = "uia-tree.txt",
     [int]$WaitSeconds = 30
 )
@@ -20,14 +21,15 @@ $window = $null
 for ($i = 0; $i -lt $WaitSeconds -and -not $window; $i++) {
     foreach ($w in $AE::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,
             [System.Windows.Automation.Condition]::TrueCondition)) {
-        if ($w.Current.Name -like "*$Title*") { $window = $w }
+        # the application's own window (a terminal's title can name it too)
+        if ($w.Current.ProcessId -eq $ProcessId -and $w.Current.Name -like "*$Title*") { $window = $w }
     }
     if (-not $window) { Start-Sleep -Seconds 1 }
 }
 if (-not $window) {
-    Write-Output "window '$Title' not found; top-level windows:"
+    Write-Output "no window of process $ProcessId named '*$Title*'; top-level windows:"
     foreach ($w in $AE::RootElement.FindAll([System.Windows.Automation.TreeScope]::Children,
-            [System.Windows.Automation.Condition]::TrueCondition)) { Write-Output "  $($w.Current.Name)" }
+            [System.Windows.Automation.Condition]::TrueCondition)) { Write-Output "  [$($w.Current.ProcessId)] $($w.Current.Name)" }
     exit 1
 }
 

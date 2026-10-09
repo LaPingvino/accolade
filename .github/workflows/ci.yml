@@ -92,7 +92,7 @@ jobs:
           $p = Start-Process -FilePath .\accolade.exe -ArgumentList "sample.fountain" -PassThru `
             -RedirectStandardError accolade.err -RedirectStandardOutput accolade.out
           try {
-            ./.github/scripts/uia-read.ps1 -Title "Accolade" -Out uia-tree.txt
+            ./.github/scripts/uia-read.ps1 -ProcessId $p.Id -Title "Accolade" -Out uia-tree.txt
             $code = $LASTEXITCODE
           } finally {
             Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
