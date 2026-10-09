@@ -113,21 +113,14 @@ func (sb *SearchBar) createLayout() {
 	fyne.SetAccessibleLabel(sb.replaceEntry, "Replace with")
 	fyne.SetAccessibleLabel(sb.closeButton, "Close the search bar")
 	// Search row
-	searchRow := container.NewHBox(
-		widget.NewLabel("Find:"),
-		sb.searchEntry,
-		sb.findPrevButton,
-		sb.findNextButton,
-		sb.closeButton,
-	)
+	// the fields take the width between the label and the buttons (in an
+	// HBox they were a few characters wide)
+	searchRow := container.NewBorder(nil, nil, widget.NewLabel("Find:"),
+		container.NewHBox(sb.findPrevButton, sb.findNextButton, sb.closeButton), sb.searchEntry)
 	
 	// Replace row (initially hidden)
-	replaceRow := container.NewHBox(
-		widget.NewLabel("Replace:"),
-		sb.replaceEntry,
-		sb.replaceButton,
-		sb.replaceAllButton,
-	)
+	replaceRow := container.NewBorder(nil, nil, widget.NewLabel("Replace:"),
+		container.NewHBox(sb.replaceButton, sb.replaceAllButton), sb.replaceEntry)
 	
 	// Options row
 	optionsRow := container.NewHBox(
@@ -173,6 +166,7 @@ func (sb *SearchBar) setupCallbacks() {
 func (sb *SearchBar) Show() {
 	sb.container.Show()
 	sb.isVisible = true
+	sb.relayout()
 	sb.window.fyneWindow.Canvas().Focus(sb.searchEntry)
 }
 
@@ -191,6 +185,7 @@ func (sb *SearchBar) highlight(matches []searchMatch) {
 func (sb *SearchBar) Hide() {
 	sb.container.Hide()
 	sb.isVisible = false
+	sb.relayout()
 	sb.window.textEditor.SetHighlights(nil)
 	sb.window.fyneWindow.Canvas().Focus(sb.window.textEditor)
 }
@@ -209,6 +204,7 @@ func (sb *SearchBar) SetReplaceMode(enabled bool) {
 	}
 	
 	sb.container.Refresh()
+	sb.relayout()
 }
 
 func (sb *SearchBar) IsVisible() bool {
@@ -489,4 +485,12 @@ func (sb *SearchBar) SetWholeWords(wholeWords bool) {
 
 func (sb *SearchBar) SetRegularExpression(regex bool) {
 	sb.regexCheck.SetChecked(regex)
+}
+// relayout makes room for the search bar in the window (or gives it
+// back): the window's layout keeps the old height of the top bar until it
+// is refreshed, and the search bar was drawn over the toolbar.
+func (sb *SearchBar) relayout() {
+	if c := sb.window.fyneWindow.Content(); c != nil {
+		c.Refresh()
+	}
 }
