@@ -56,6 +56,9 @@ func TestInsertTitlePage(t *testing.T) {
 			w := newTestWindow(t, doc)
 			titlePageDialog(t, w).insertTitlePage()
 			want := barnTitlePage + "\n\n" + script
+			if name == "replaces old one" { // a field the dialog has none for stays
+				want = barnTitlePage + "\nNotes: keep out\n\n" + script
+			}
 			if w.textEditor.Text() != want {
 				t.Errorf("got:\n%q\nwant:\n%q", w.textEditor.Text(), want)
 			}
@@ -120,5 +123,34 @@ func TestStatusBarElement(t *testing.T) {
 		if w.currentElement != want {
 			t.Errorf("cursor in %q: element %q, want %q", line, w.currentElement, want)
 		}
+	}
+}
+
+// The dialog edits the script's own title page: it shows its fields,
+// keeps the ones it has no field for, and Insert can be undone.
+func TestTitlePageDialogKeepsTheScripts(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	script := "Title: MY FILM\nAuthor: Ann\nCopyright: (c) 2026 Ann\nNotes: second draft\nContact:\n    Ann Smith\n    1 Lane\n    ann@example.com\n\nINT. A - DAY\n\nAction.\n"
+	w.textEditor.SetText(script)
+	d := NewTitlePageDialog(w)
+	if d.titleEntry.Text != "MY FILM" || d.authorEntry.Text != "Ann" || d.nameEntry.Text != "Ann Smith" ||
+		d.emailEntry.Text != "ann@example.com" || d.addressEntry.Text != "1 Lane" {
+		t.Errorf("fields: %q %q %q %q %q", d.titleEntry.Text, d.authorEntry.Text, d.nameEntry.Text, d.emailEntry.Text, d.addressEntry.Text)
+	}
+	d.authorEntry.SetText("Ann Smith")
+	d.insertTitlePage()
+	got := w.textEditor.Text()
+	for _, want := range []string{"Title: MY FILM", "Author: Ann Smith", "Copyright: (c) 2026 Ann", "Notes: second draft",
+		"    ann@example.com", "\n\nINT. A - DAY\n\nAction.\n"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("after Insert, no %q in:\n%s", want, got)
+		}
+	}
+	if strings.Count(got, "INT. A - DAY") != 1 || strings.Contains(got, "UNTITLED") {
+		t.Errorf("after Insert:\n%s", got)
+	}
+	w.textEditor.Undo()
+	if w.textEditor.Text() != script {
+		t.Errorf("undo:\n%s", w.textEditor.Text())
 	}
 }

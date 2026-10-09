@@ -62,7 +62,19 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Find Previous", shortcut(fyne.KeyG, fyne.KeyModifierShift), w.findPrevious),
 	)
 
-	el := func(element string) func() { return func() { setLineElement(w.textEditor, element, w.sceneStarts()) } }
+	// the Format menu acts on the script only while it is being written
+	// in: its shortcuts also fire with the focus in the notes or search
+	inEditor := func(f func()) func() {
+		return func() {
+			if f := w.fyneWindow.Canvas().Focused(); f != nil && f != fyne.Focusable(w.textEditor) {
+				return
+			}
+			f()
+		}
+	}
+	el := func(element string) func() {
+		return inEditor(func() { setLineElement(w.textEditor, element, w.sceneStarts()) })
+	}
 	alt := func(key fyne.KeyName) fyne.Shortcut {
 		return &desktop.CustomShortcut{KeyName: key, Modifier: fyne.KeyModifierAlt}
 	}
@@ -75,12 +87,12 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Transition", shortcut(fyne.Key6, 0), el(elementTransition)),
 		menuItem("Centered", shortcut(fyne.Key7, 0), el(elementCentered)),
 		fyne.NewMenuItemSeparator(),
-		menuItem("Bold", shortcut(fyne.KeyB, 0), func() { toggleEmphasis(w.textEditor, "**") }),
-		menuItem("Italic", shortcut(fyne.KeyI, 0), func() { toggleEmphasis(w.textEditor, "*") }),
-		menuItem("Underline", shortcut(fyne.KeyU, 0), func() { toggleEmphasis(w.textEditor, "_") }),
+		menuItem("Bold", shortcut(fyne.KeyB, 0), inEditor(func() { toggleEmphasis(w.textEditor, "**") })),
+		menuItem("Italic", shortcut(fyne.KeyI, 0), inEditor(func() { toggleEmphasis(w.textEditor, "*") })),
+		menuItem("Underline", shortcut(fyne.KeyU, 0), inEditor(func() { toggleEmphasis(w.textEditor, "_") })),
 		fyne.NewMenuItemSeparator(),
-		menuItem("Move Line Up", alt(fyne.KeyUp), func() { moveLines(w.textEditor, -1) }),
-		menuItem("Move Line Down", alt(fyne.KeyDown), func() { moveLines(w.textEditor, 1) }),
+		menuItem("Move Line Up", alt(fyne.KeyUp), inEditor(func() { moveLines(w.textEditor, -1) })),
+		menuItem("Move Line Down", alt(fyne.KeyDown), inEditor(func() { moveLines(w.textEditor, 1) })),
 	)
 
 	view := fyne.NewMenu("View",

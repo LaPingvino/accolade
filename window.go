@@ -601,6 +601,9 @@ func (w *MainWindow) onTextChanged(text string) {
 	if w.notesVisible && w.notes != nil {
 		w.notes.update(text)
 	}
+	if w.searchBar != nil && w.searchBar.IsVisible() {
+		w.searchBar.updateSearch() // the matches move with the text
+	}
 
 	w.scheduleAutoSave()
 }

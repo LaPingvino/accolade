@@ -76,3 +76,29 @@ func TestAutoCloseBrackets(t *testing.T) {
 		t.Errorf("with the setting off: %q", got)
 	}
 }
+
+// Reset to Defaults shows the defaults; nothing changes before OK or
+// Apply, and the recent files are no preference.
+func TestResetToDefaultsWaitsForOK(t *testing.T) {
+	w, app := newDialogTestWindow(t)
+	w.settings.SetString("theme", "dark")
+	w.settings.SetStringSlice("recent-files", []string{"/tmp/a.fountain"})
+	t.Cleanup(func() {
+		w.settings.SetString("theme", "system")
+		w.settings.SetStringSlice("recent-files", nil)
+	})
+	pd := NewPreferencesDialog(app, w.fyneWindow)
+	defaults := &Settings{data: map[string]interface{}{}}
+	defaults.loadDefaults()
+	pd.loadFrom(defaults) // what the confirmed reset does
+	if pd.themeSelect.Selected != "system" {
+		t.Errorf("shown theme %q", pd.themeSelect.Selected)
+	}
+	if w.settings.GetString("theme") != "dark" {
+		t.Error("reset changed the settings before OK")
+	}
+	pd.ok()
+	if w.settings.GetString("theme") != "system" || len(w.settings.GetStringSlice("recent-files")) != 1 {
+		t.Errorf("after OK: theme %q, recent %v", w.settings.GetString("theme"), w.settings.GetStringSlice("recent-files"))
+	}
+}

@@ -107,3 +107,29 @@ func TestFormatMenu(t *testing.T) {
 		}
 	}
 }
+
+// With the focus in the notes, Ctrl+B does not change the script.
+func TestFormatMenuNeedsTheEditor(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.textEditor.SetText("INT. A - DAY\n")
+	bold := func() {
+		for _, m := range w.buildMainMenu().Items {
+			for _, it := range m.Items {
+				if it.Label == "Bold" {
+					it.Action()
+				}
+			}
+		}
+	}
+	w.toggleNotes()
+	w.fyneWindow.Canvas().Focus(w.notes.entry)
+	bold()
+	if w.textEditor.Text() != "INT. A - DAY\n" {
+		t.Errorf("Ctrl+B in the notes changed the script: %q", w.textEditor.Text())
+	}
+	w.fyneWindow.Canvas().Focus(w.textEditor)
+	bold()
+	if !strings.Contains(w.textEditor.Text(), "****") {
+		t.Errorf("Ctrl+B in the editor: %q", w.textEditor.Text())
+	}
+}

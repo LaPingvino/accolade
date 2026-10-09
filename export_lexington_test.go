@@ -230,3 +230,32 @@ func TestOpenScannedPDF(t *testing.T) {
 		}
 	}
 }
+
+// The Export dialog starts with the format of the preferences, refuses
+// the open script as its target, and the Fountain export is the script.
+func TestExportDialogFormatAndTarget(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.settings.SetString("export-format", "DOCX")
+	t.Cleanup(func() { w.settings.SetString("export-format", "PDF") })
+	ed := NewExportDialog(w)
+	if ed.formatSelect.Selected != "DOCX" {
+		t.Errorf("opens on %q", ed.formatSelect.Selected)
+	}
+	dir := t.TempDir()
+	script := filepath.Join(dir, "film.fountain")
+	text := "INT. A - DAY\n\nANNA\nHello.\n  \nStill Anna.\n"
+	os.WriteFile(script, []byte(text), 0o644)
+	if err := w.LoadFile(script); err != nil {
+		t.Fatal(err)
+	}
+	if !sameFile(filepath.Join(dir, ".", "film.fountain"), script) {
+		t.Error("sameFile")
+	}
+	out := filepath.Join(dir, "copy.fountain")
+	if err := ed.exportToFountain(w.textEditor.Text(), out); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(out); string(b) != text {
+		t.Errorf("Fountain export %q, want the script %q", b, text)
+	}
+}

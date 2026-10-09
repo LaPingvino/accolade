@@ -109,22 +109,20 @@ func (s *Settings) save() error {
 		return err
 	}
 	
-	file, err := os.Create(configFile)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	
 	s.mu.RLock()
 	data := make(map[string]interface{})
 	for k, v := range s.data {
 		data[k] = v
 	}
 	s.mu.RUnlock()
-	
-	encoder := json.NewEncoder(file)
-	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(data); err != nil {
+
+	// written whole or not at all: a crash halfway would leave broken
+	// JSON, and every setting would be back to its default
+	b, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := writeFileAtomic(configFile, append(b, '\n')); err != nil {
 		return err
 	}
 	

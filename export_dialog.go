@@ -128,7 +128,14 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 	ed.formatSettingsContainer = container.NewVBox()
 
 	// Now it's safe to set the selected format which will call updateFormatSettings
-	ed.formatSelect.SetSelected("PDF")
+	// the format of the settings (loadSettings), PDF without one; set
+	// again now that the format settings have their container
+	format := ed.formatSelect.Selected
+	if format == "" {
+		format = "PDF"
+	}
+	ed.formatSelect.SetSelected("")
+	ed.formatSelect.SetSelected(format)
 
 	formatSection := widget.NewCard("Format Settings", "", ed.formatSettingsContainer)
 
@@ -310,8 +317,9 @@ func (ed *ExportDialog) previewExport() {
 	out := filepath.Join(dir, "preview."+format)
 	content := ed.window.textEditor.Text()
 	ed.statusLabel.SetText("Preparing the preview...")
+	job := ed.job() // read on the UI thread
 	go func() {
-		err := ed.performExport(content, out, format)
+		err := ed.performExportJob(content, out, format, job)
 		fyne.Do(func() {
 			if err != nil {
 				ed.statusLabel.SetText("Preview failed")
@@ -336,8 +344,33 @@ func (ed *ExportDialog) exportDocument() {
 		dialog.ShowError(err, ed.window.fyneWindow)
 		return
 	}
-
+	out := filepath.Join(ed.outputDirEntry.Text, ed.filenameEntry.Text)
+	if ed.window.currentFile != "" && sameFile(out, ed.window.currentFile) {
+		dialog.ShowError(fmt.Errorf("%s is the script itself: choose another name or directory", filepath.Base(out)),
+			ed.window.fyneWindow)
+		return
+	}
+	if _, err := os.Stat(out); err == nil {
+		dialog.ShowConfirm("Replace File", fmt.Sprintf("%s exists. Replace it?", filepath.Base(out)), func(ok bool) {
+			if ok {
+				ed.startExport()
+			}
+		}, ed.window.fyneWindow)
+		return
+	}
 	ed.startExport()
+}
+
+// sameFile reports whether two paths name one file.
+func sameFile(a, b string) bool {
+	ia, errA := os.Stat(a)
+	ib, errB := os.Stat(b)
+	if errA == nil && errB == nil {
+		return os.SameFile(ia, ib)
+	}
+	pa, _ := filepath.Abs(a)
+	pb, _ := filepath.Abs(b)
+	return pa == pb
 }
 
 func (ed *ExportDialog) validateInputs() error {
@@ -372,8 +405,9 @@ func (ed *ExportDialog) startExport() {
 	content := ed.window.textEditor.Text()
 
 	// Perform export in goroutine
+	job := ed.job() // the options, read here on the UI thread
 	go func() {
-		err := ed.performExport(content, outputPath, format)
+		err := ed.performExportJob(content, outputPath, format, job)
 
 		// Update UI on main thread
 		fyne.Do(func() { ed.finishExport(err, outputPath) })
@@ -392,15 +426,21 @@ func (ed *ExportDialog) job() exportJob {
 }
 
 func (ed *ExportDialog) performExport(content, outputPath, format string) error {
+	return ed.performExportJob(content, outputPath, format, ed.job())
+}
+
+// performExportJob exports with options read beforehand (off the UI
+// thread it must not read the widgets).
+func (ed *ExportDialog) performExportJob(content, outputPath, format string, job exportJob) error {
 	switch format {
 	case "pdf":
-		return exportPDF(content, outputPath, ed.job())
+		return exportPDF(content, outputPath, job)
 	case "html":
-		return exportHTML(content, outputPath, ed.job())
+		return exportHTML(content, outputPath, job)
 	case "fdx":
-		return exportFDX(content, outputPath, ed.job())
+		return exportFDX(content, outputPath, job)
 	case "docx", "odt":
-		return exportDocument(content, outputPath, format, ed.job())
+		return exportDocument(content, outputPath, format, job)
 	case "txt":
 		return ed.exportToTXT(content, outputPath)
 	case "fountain":
@@ -445,32 +485,16 @@ func (ed *ExportDialog) documentPage() string {
 }
 
 func (ed *ExportDialog) exportToTXT(content, outputPath string) error {
-	return os.WriteFile(outputPath, []byte(content), 0644)
+	return writeFileAtomic(outputPath, []byte(content))
 }
 
+// exportToFountain writes the script as it is: Fountain already. (It
+// used to trim every line, which turned a dialogue's "  " blank line
+// into the end of the speech.)
 func (ed *ExportDialog) exportToFountain(content, outputPath string) error {
-	// Clean up the content for proper Fountain format
-	cleaned := ed.cleanFountainContent(content)
-	return os.WriteFile(outputPath, []byte(cleaned), 0644)
+	return writeFileAtomic(outputPath, []byte(content))
 }
 
-func (ed *ExportDialog) cleanFountainContent(content string) string {
-	// Basic cleaning for Fountain export
-	lines := strings.Split(content, "\n")
-	var cleaned strings.Builder
-
-	for _, line := range lines {
-		// Remove excessive whitespace but preserve structure
-		trimmed := strings.TrimSpace(line)
-		if trimmed == "" {
-			cleaned.WriteString("\n")
-		} else {
-			cleaned.WriteString(trimmed + "\n")
-		}
-	}
-
-	return cleaned.String()
-}
 
 func (ed *ExportDialog) finishExport(err error, outputPath string) {
 	ed.isExporting = false

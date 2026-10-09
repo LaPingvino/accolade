@@ -181,8 +181,10 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 	)
 }
 
-func (pd *PreferencesDialog) loadCurrentSettings() {
-	s := pd.settings
+func (pd *PreferencesDialog) loadCurrentSettings() { pd.loadFrom(pd.settings) }
+
+// loadFrom shows the settings of s in the window.
+func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.themeSelect.SetSelected(s.GetString("theme"))
 	pd.toolbarVisibleCheck.SetChecked(s.GetBoolean("toolbar-visible"))
 	pd.statusbarVisibleCheck.SetChecked(s.GetBoolean("statusbar-visible"))
@@ -253,8 +255,12 @@ func (pd *PreferencesDialog) resetToDefaults() {
 		"Are you sure you want to reset all settings to their defaults? This cannot be undone.",
 		func(confirmed bool) {
 			if confirmed {
-				pd.settings.Reset()
-				pd.loadCurrentSettings()
+				// the defaults shown: saved with OK or Apply, not before,
+				// and the recent files and contact details are not
+				// preferences, so they stay
+				defaults := &Settings{data: map[string]interface{}{}}
+				defaults.loadDefaults()
+				pd.loadFrom(defaults)
 			}
 		},
 		pd.win,
