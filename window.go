@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/tooltip"
 	"log"
@@ -901,7 +902,15 @@ func (w *MainWindow) relayout() {
 	case w.notesVisible && w.notes != nil:
 		left = container.NewHBox(w.notes.box, widget.NewSeparator())
 	}
-	w.setContent(container.NewBorder(w.toolbarContainer, w.statusBar, left, nil, center))
+	// the objects in the order they are seen, which is the order Tab and
+	// screen readers go through them (NewBorder puts the centre first:
+	// Tab went from the editor to the toolbar, the side panel came last)
+	objects := []fyne.CanvasObject{w.toolbarContainer}
+	if left != nil {
+		objects = append(objects, left)
+	}
+	objects = append(objects, center, w.statusBar)
+	w.setContent(container.New(layout.NewBorderLayout(w.toolbarContainer, w.statusBar, left, nil), objects...))
 }
 
 // Find/Replace operations

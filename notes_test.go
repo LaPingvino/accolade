@@ -104,3 +104,29 @@ func TestCyclePanes(t *testing.T) {
 		t.Errorf("Shift+F6: %T", c.Focused())
 	}
 }
+
+// Tab goes through the window in the order it is seen: the toolbar, the
+// side panel, then the editor (which keeps Tab).
+func TestTabOrderFollowsTheScreen(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Cleanup(func() { w.settings.SetBoolean("notes-visible", false) })
+	w.toggleNotes()
+	c := w.fyneWindow.Canvas()
+	c.Unfocus()
+	var order []string
+	for i := 0; i < 12; i++ {
+		c.FocusNext()
+		switch f := c.Focused(); f {
+		case w.textEditor:
+			order = append(order, "editor")
+		case w.notes.entry:
+			order = append(order, "notes")
+		default:
+			order = append(order, "toolbar")
+		}
+	}
+	got := strings.Join(order, " ")
+	if !strings.HasPrefix(got, "toolbar toolbar toolbar toolbar toolbar toolbar toolbar toolbar toolbar notes editor") {
+		t.Errorf("Tab order: %s", got)
+	}
+}
