@@ -27,9 +27,10 @@ import (
 //	Name = "Strip (Franse stijl)"
 //	Elements = "bd"
 //
-// {n} numbers it: one more than the lines up to the cursor that start
-// as Insert does (up to {n}), counting again after a line starting with
-// Restart. A page break (===) starting Insert is left out for number 1.
+// {n} numbers it ({N} in words: ONE, TWO): one more than the lines up to
+// the cursor that start as Insert does (up to the number) with a number,
+// counting again after a line starting with Restart. A page break (===)
+// starting Insert is left out for number 1.
 
 type formatAlias struct {
 	Name     string
@@ -88,16 +89,18 @@ var defaultFormatButtons = map[string][]formatButton{
 		{Label: "Flashback", Insert: "FLASHBACK:"},
 		{Label: "Super", Insert: "SUPER: "},
 	},
+	// as in Lexington's examples/tv-episode.fountain
 	"series": {
 		{Label: "Cold Open", Insert: ">COLD OPEN<"},
-		{Label: "Act", Insert: ">ACT {n}<"},
-		{Label: "End of Act", Insert: ">END OF ACT {n}<"},
+		{Label: "Main Titles", Insert: ">MAIN TITLES<"},
+		{Label: "Act", Insert: ">ACT {N}<"},
+		{Label: "End of Act", Insert: ">END OF ACT {N}<\n\n==="},
 		{Label: "Tag", Insert: ">TAG<"},
-		{Label: "Montage", Insert: "BEGIN MONTAGE:\n\n\n\nEND MONTAGE."},
 		{Label: "Intercut", Insert: "> INTERCUT WITH:"},
 	},
+	// examples/comic.fountain and bd.fountain
 	"comic": {
-		{Label: "Page", Insert: "===\n\n.PAGE {n}"},
+		{Label: "Page", Insert: "===\n\n.PAGE {N}"},
 		{Label: "Panel", Insert: "Panel {n}. ", Restart: ".PAGE"},
 		{Label: "Caption", Insert: "CAPTION\n"},
 		{Label: "SFX", Insert: "SFX\n"},
@@ -108,19 +111,26 @@ var defaultFormatButtons = map[string][]formatButton{
 		{Label: "Récitatif", Insert: "RÉCITATIF\n"},
 		{Label: "Onomatopée", Insert: "ONOMATOPÉE\n"},
 	},
+	// stageplay.fountain, musical.fountain and radio.fountain
 	"stageplay":    stageButtons,
 	"stageplay-uk": stageButtons,
-	"musical":      append(stageButtons, formatButton{Label: "Song", Insert: ">SONG: <"}),
+	"musical": {
+		{Label: "Scene", Insert: ".SCENE {n} - "},
+		{Label: "Song", Insert: "> {n}.  <"},
+		{Label: "Blackout", Insert: "> BLACKOUT."},
+	},
 	"radio": {
-		{Label: "SFX", Insert: "SFX: "},
-		{Label: "Music", Insert: "MUSIC: "},
-		{Label: "Fade", Insert: "FADE OUT."},
+		{Label: "Sound", Insert: "!"},
+		{Label: "Music", Insert: "!MUSIC: "},
+		{Label: "Crossfade", Insert: "> CROSSFADE TO:"},
+		{Label: "Fade Out", Insert: "> FADE OUT."},
 	},
 }
 
 var stageButtons = []formatButton{
+	{Label: "Scene", Insert: ".SCENE {n}"},
 	{Label: "Lights Up", Insert: "LIGHTS UP."},
-	{Label: "Blackout", Insert: "BLACKOUT."},
+	{Label: "Blackout", Insert: "> BLACKOUT."},
 	{Label: "Curtain", Insert: "> CURTAIN."},
 }
 
@@ -136,24 +146,56 @@ func formatButtons(key string) []formatButton {
 	return defaultFormatButtons[elementsKey(key)] // an alias without its own: its set's
 }
 
+var numberWords = strings.Fields("ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN TWENTY")
+
+// numberWord is n in words, as acts and pages are numbered (ONE, TWO),
+// in figures past twenty.
+func numberWord(n int) string {
+	if n >= 1 && n <= len(numberWords) {
+		return numberWords[n-1]
+	}
+	return strconv.Itoa(n)
+}
+
+// numbered reports whether rest (a line after a button's prefix) starts
+// with a number, in figures or words: "> 3. WHO" is a song, "> BLACKOUT."
+// is not.
+func numbered(rest string) bool {
+	word, _, _ := strings.Cut(strings.TrimSpace(rest), " ")
+	word = strings.TrimRight(word, ".:<")
+	if word == "" {
+		return false
+	}
+	if word[0] >= '0' && word[0] <= '9' {
+		return true
+	}
+	for _, w := range numberWords {
+		if strings.EqualFold(word, w) {
+			return true
+		}
+	}
+	return false
+}
+
 // insertButton inserts a button's text as a paragraph of its own at the
 // cursor's line, numbered, with the cursor after it.
 func insertButton(b *buffer.Buffer, fb formatButton) {
 	line, _ := b.Position(b.Cursor())
 	n := 1
-	if i := strings.Index(fb.Insert, "{n}"); i >= 0 {
+	if i := strings.IndexAny(fb.Insert, "{"); i >= 0 && (strings.HasPrefix(fb.Insert[i:], "{n}") || strings.HasPrefix(fb.Insert[i:], "{N}")) {
 		prefix := strings.TrimSpace(strings.TrimPrefix(fb.Insert[:i], "===\n\n"))
 		for l := 0; l <= line; l++ {
 			t := strings.TrimSpace(b.Line(l))
 			switch {
 			case fb.Restart != "" && strings.HasPrefix(t, fb.Restart):
 				n = 1
-			case prefix != "" && strings.HasPrefix(t, prefix):
+			case prefix != "" && strings.HasPrefix(t, prefix) && numbered(t[len(prefix):]):
 				n++
 			}
 		}
 	}
 	text := strings.ReplaceAll(fb.Insert, "{n}", strconv.Itoa(n))
+	text = strings.ReplaceAll(text, "{N}", numberWord(n))
 	if n == 1 {
 		text = strings.TrimPrefix(text, "===\n\n")
 	}
