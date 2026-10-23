@@ -8,10 +8,8 @@ github.com/LaPingvino/atspi v0.0.0-20261009023205-ced351090bc6 h1:g+XX9AQ2Nm2LRN
 github.com/LaPingvino/atspi v0.0.0-20261009023205-ced351090bc6/go.mod h1:x8xnRAIJqrdPCXj/p1H4cRTe0ytSnw9AOyPvU3ZuMCA=
 github.com/LaPingvino/fyne/v2 v2.0.0-20261010154520-e055ee720a40 h1:T4UVx3Av+wcxCHr8lsvK8M0weKdraJ6PWcvz89D4Qzo=
 github.com/LaPingvino/fyne/v2 v2.0.0-20261010154520-e055ee720a40/go.mod h1:VzPfCFW/BNpw/B4LxARIBWZaSEvQxdsqrv0LpWRo+mM=
-github.com/LaPingvino/lexington v1.4.1-0.20261023162110-42e8c46822ca h1:LKfhCed3XzJQeZnCZMCcFRVPxtGa2//hE5dW3Zknc3w=
-github.com/LaPingvino/lexington v1.4.1-0.20261023162110-42e8c46822ca/go.mod h1:06Ri2IjiZWUve9CE5l3/ICTLG5JJLC3kKuOvAZEPxi0=
-github.com/LaPingvino/lexington v1.4.1-0.20261023171133-81808bc88c61 h1:xS9ymAaDKvCAYxlCZ5frexAzMQd92bF1I/G1OqS0rF4=
-github.com/LaPingvino/lexington v1.4.1-0.20261023171133-81808bc88c61/go.mod h1:06Ri2IjiZWUve9CE5l3/ICTLG5JJLC3kKuOvAZEPxi0=
+github.com/LaPingvino/glfw-js v0.4.1-0.20261023172254-66bbf1c04044 h1:0Ls10SoEKwqsXs+yuMreS3RXlUPids/BqBd4FIACaio=
+github.com/LaPingvino/glfw-js v0.4.1-0.20261023172254-66bbf1c04044/go.mod h1:SDchsFZh4n7nVuBoiowOhOgIBdz+qUQVeC1w9fe2yVU=
 github.com/LaPingvino/lexington v1.4.1-0.20261023171432-33da2d261306 h1:ti/SElQt0nWxg5OWanvoCRZO+Xr7jYqJ92Id1qwkKLk=
 github.com/LaPingvino/lexington v1.4.1-0.20261023171432-33da2d261306/go.mod h1:06Ri2IjiZWUve9CE5l3/ICTLG5JJLC3kKuOvAZEPxi0=
 github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3 h1:0pb1fCiKDeV86cIiHBKI67y1tiIAKiFoEojc384GoEs=
@@ -32,8 +30,6 @@ github.com/fsnotify/fsnotify v1.9.0 h1:2Ml+OJNzbYCTzsxtv8vKSFD9PbJjmhYF14k/jKC7S
 github.com/fsnotify/fsnotify v1.9.0/go.mod h1:8jBTzvmWwFyi3Pb8djgCCO5IBqzKJ/Jwo8TRcHyHii0=
 github.com/fyne-io/gl-js v0.2.1-0.20260315212741-029c47fd27e8 h1:0kdPD/GEntpWmZEK5Zu/xE6Tr37jYCVDf9QP8lA/QK8=
 github.com/fyne-io/gl-js v0.2.1-0.20260315212741-029c47fd27e8/go.mod h1:ZcepK8vmOYLu96JoxbCKJy2ybr+g1pTnaBDdl7c3ajI=
-github.com/fyne-io/glfw-js v0.4.0 h1:I9hREBeFyI10cNIqbMKYb1PRidyPDgwob8o2la9SfQo=
-github.com/fyne-io/glfw-js v0.4.0/go.mod h1:SDchsFZh4n7nVuBoiowOhOgIBdz+qUQVeC1w9fe2yVU=
 github.com/fyne-io/image v0.1.1 h1:WH0z4H7qfvNUw5l4p3bC1q70sa5+YWVt6HCj7y4VNyA=
 github.com/fyne-io/image v0.1.1/go.mod h1:xrfYBh6yspc+KjkgdZU/ifUC9sPA5Iv7WYUBzQKK7JM=
 github.com/fyne-io/oksvg v0.2.1-0.20260918172519-a9af55fa95d9 h1:owsdpq6a2KhaAA/hoHGQmFM7kOgKo3srXZVGnbEUzr0=
