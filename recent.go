@@ -30,7 +30,7 @@ func (w *MainWindow) rememberRecent(path string) {
 	w.settings.Save()
 	if w.app != nil { // every window's menu shows the new list
 		for _, win := range w.app.windows {
-			win.fyneWindow.SetMainMenu(win.buildMainMenu())
+			win.refreshMenu()
 		}
 	}
 }
@@ -61,7 +61,7 @@ func (w *MainWindow) recentMenu() *fyne.MenuItem {
 			w.settings.SetStringSlice("recent-files", nil)
 			w.settings.Save()
 			for _, win := range w.app.windows {
-				win.fyneWindow.SetMainMenu(win.buildMainMenu())
+				win.refreshMenu()
 			}
 		}))
 	}

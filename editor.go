@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fyne.io/fyne/v2"
 	"strings"
 	"unicode"
 
@@ -37,7 +38,12 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		w.vim = vi
 	}
 	e.OnKey = vi.key
-	e.OnShortcut = vi.shortcut
+	e.OnShortcut = func(s fyne.Shortcut) bool {
+		if w != nil && w.menuShortcut(s) {
+			return true
+		}
+		return vi.shortcut(s)
+	}
 	e.OnRune = func(r rune) bool {
 		if vi.rune(r) {
 			return true

@@ -9,7 +9,6 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
 	"github.com/LaPingvino/accolade/internal/tooltip"
-	"log"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -62,6 +61,11 @@ type MainWindow struct {
 	currentFile  string
 	hasChanges   bool
 	isFullscreen bool
+	// panesBefore are the outline and notes shown before full screen
+	panesBefore [2]bool
+	// menuShortcuts are the menu's shortcuts in full screen, without the
+	// menu bar: on the canvas, and for the editor (menuShortcut)
+	menuShortcuts map[string]menuShortcut
 
 	// Settings
 	settings *Settings
@@ -827,20 +831,73 @@ func (w *MainWindow) replaceAll() {
 	w.searchBar.replaceAll()
 }
 
-// Focus mode and fullscreen
-func (w *MainWindow) toggleFocusMode() {
-	// TODO: Implement focus mode (hide toolbars, etc.)
-	log.Println("Toggle focus mode")
+// toggleFullscreen switches the distraction-free full screen: only the
+// script, without the menu bar, toolbar, status bar and side panes. The
+// menu's shortcuts keep working (Ctrl+Shift+F leaves).
+func (w *MainWindow) toggleFullscreen() {
+	w.isFullscreen = !w.isFullscreen
+	w.fyneWindow.SetFullScreen(w.isFullscreen)
+	if w.isFullscreen {
+		w.panesBefore = [2]bool{w.outlineVisible, w.notesVisible}
+		w.outlineVisible, w.notesVisible = false, false
+		setVisible(w.headerArea, false)
+		setVisible(w.statusBar, false)
+		w.fyneWindow.SetMainMenu(nil)
+	} else {
+		w.outlineVisible, w.notesVisible = w.panesBefore[0], w.panesBefore[1]
+		w.applyEditorSettings() // the toolbar and status bar as set
+	}
+	w.refreshMenu()
+	w.relayout()
+	w.fyneWindow.Canvas().Focus(w.textEditor)
 }
 
-func (w *MainWindow) toggleFullscreen() {
-	if w.isFullscreen {
-		w.fyneWindow.SetFullScreen(false)
-		w.isFullscreen = false
-	} else {
-		w.fyneWindow.SetFullScreen(true)
-		w.isFullscreen = true
+// refreshMenu builds the menu again (the recent files changed): in the
+// menu bar, or in full screen only its shortcuts.
+func (w *MainWindow) refreshMenu() {
+	c := w.fyneWindow.Canvas()
+	for _, sc := range w.menuShortcuts {
+		c.RemoveShortcut(sc.shortcut)
 	}
+	w.menuShortcuts = nil
+	if !w.isFullscreen {
+		w.fyneWindow.SetMainMenu(w.buildMainMenu())
+		return
+	}
+	w.menuShortcuts = map[string]menuShortcut{}
+	var add func(items []*fyne.MenuItem)
+	add = func(items []*fyne.MenuItem) {
+		for _, item := range items {
+			if item.ChildMenu != nil {
+				add(item.ChildMenu.Items)
+			}
+			if item.Shortcut == nil || item.Action == nil {
+				continue
+			}
+			action := item.Action
+			c.AddShortcut(item.Shortcut, func(fyne.Shortcut) { action() })
+			w.menuShortcuts[item.Shortcut.ShortcutName()] = menuShortcut{item.Shortcut, action}
+		}
+	}
+	for _, m := range w.buildMainMenu().Items {
+		add(m.Items)
+	}
+}
+
+// menuShortcut is a menu item's shortcut and action.
+type menuShortcut struct {
+	shortcut fyne.Shortcut
+	action   func()
+}
+
+// menuShortcut runs the menu item with shortcut s in full screen (the
+// editor gets shortcuts before the canvas does); it reports whether it did.
+func (w *MainWindow) menuShortcut(s fyne.Shortcut) bool {
+	if sc, ok := w.menuShortcuts[s.ShortcutName()]; ok {
+		sc.action()
+		return true
+	}
+	return false
 }
 
 // Export functionality

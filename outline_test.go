@@ -83,3 +83,26 @@ func TestOutlineAndNotesTogether(t *testing.T) {
 		t.Errorf("closing the outline: outline %v, notes %v", w.outlineVisible, w.notesVisible)
 	}
 }
+
+// Full screen shows only the script; the menu's shortcuts still work, and
+// leaving brings everything back.
+func TestFullscreenWithoutDistractions(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.textEditor.SetText(outlineScript)
+	w.toggleOutline()
+	w.toggleFullscreen()
+	if w.headerArea.Visible() || w.statusBar.Visible() || w.outlineVisible || w.fyneWindow.MainMenu() != nil {
+		t.Errorf("full screen shows toolbar %v, status %v, outline %v, menu %v",
+			w.headerArea.Visible(), w.statusBar.Visible(), w.outlineVisible, w.fyneWindow.MainMenu() != nil)
+	}
+	w.fyneWindow.Canvas().Focus(w.textEditor)
+	w.textEditor.TypedShortcut(shortcut(fyne.KeyK, fyne.KeyModifierShift)) // Notes
+	if !w.notesVisible {
+		t.Error("the Notes shortcut did nothing in full screen")
+	}
+	w.textEditor.TypedShortcut(shortcut(fyne.KeyF, fyne.KeyModifierShift))
+	if w.isFullscreen || !w.headerArea.Visible() || !w.statusBar.Visible() || !w.outlineVisible || w.fyneWindow.MainMenu() == nil {
+		t.Errorf("after full screen: %v, toolbar %v, status %v, outline %v",
+			w.isFullscreen, w.headerArea.Visible(), w.statusBar.Visible(), w.outlineVisible)
+	}
+}
