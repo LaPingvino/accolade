@@ -29,3 +29,37 @@ func TestLexingtonSettings(t *testing.T) {
 		t.Errorf("languages: %v", scriptLanguages())
 	}
 }
+
+// An alias is a format under a name of its own on an element set, with
+// buttons of its own; TV series is one of Accolade's.
+func TestFormatAliases(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Cleanup(func() {
+		lexSettings, accoladeConf = readLexingtonSettings(), readAccoladeSettings()
+		sceneConf = lexSettings.Scenes
+	})
+	text := defaultLexingtonSettings() + `
+[Accolade.Formats.strip]
+Name = "Strip (Franse stijl)"
+Elements = "bd"
+
+[[Accolade.Buttons.strip]]
+Label = "Plaat"
+Insert = "===\n\n.PLAAT {n}"
+`
+	if err := saveLexingtonSettings(text); err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Contains(scriptFormatNames(), "Strip (Franse stijl)") || !slices.Contains(scriptFormatNames(), "TV series") {
+		t.Errorf("formats: %v", scriptFormatNames())
+	}
+	if elementsKey("strip") != "bd" || elementsKey("series") != "default" || elementsKey("comic") != "comic" {
+		t.Errorf("elements: %s %s", elementsKey("strip"), elementsKey("series"))
+	}
+	if b := formatButtons("strip"); len(b) != 1 || b[0].Label != "Plaat" {
+		t.Errorf("strip buttons: %v", b)
+	}
+	if b := formatButtons("series"); len(b) == 0 || b[0].Label != "Cold Open" {
+		t.Errorf("series buttons: %v", b)
+	}
+}

@@ -103,7 +103,7 @@ func exportAs(content, outputPath, to string, job exportJob) error {
 		}()
 		return cli.Write(context.Background(), job.script(content), cli.Options{
 			ConfigFile:   lexingtonConfig(),
-			Elements:     job.format,
+			Elements:     elementsKey(job.format),
 			Page:         job.page,
 			To:           to,
 			Output:       tmp,

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/LaPingvino/lexington/cli"
-	"github.com/LaPingvino/lexington/rules"
 	"os"
 	"path/filepath"
 	"strings"
@@ -478,10 +477,7 @@ func (ed *ExportDialog) chosenPage() string {
 // documentPage is the chosen paper's name for Lexington.
 func (ed *ExportDialog) documentPage() string {
 	if ed.documentPageSelect.Selected == documentPages[0] {
-		if p, ok := rules.GetPreset(selectedScriptFormat(ed.scriptFormatSelect)); ok {
-			return p.Page
-		}
-		return ""
+		return scriptFormat(selectedScriptFormat(ed.scriptFormatSelect)).Page
 	}
 	return strings.ToLower(ed.documentPageSelect.Selected)
 }

@@ -19,9 +19,61 @@ import (
 //	Insert = "Panel {n}. "
 //	Restart = ".PAGE"
 //
+// A format can also be an alias: Lexington's element set under a name
+// of its own, with buttons of its own (a TV series is a screenplay with
+// acts; French comics with Dutch labels):
+//
+//	[Accolade.Formats.strip]
+//	Name = "Strip (Franse stijl)"
+//	Elements = "bd"
+//
 // {n} numbers it: one more than the lines up to the cursor that start
 // as Insert does (up to {n}), counting again after a line starting with
 // Restart. A page break (===) starting Insert is left out for number 1.
+
+type formatAlias struct {
+	Name     string
+	Elements string // the element set's key: a preset or one of the settings
+}
+
+var defaultAliases = map[string]formatAlias{
+	"series": {Name: "TV series", Elements: "default"},
+}
+
+// accoladeSettings are Accolade's part of Lexington's settings.
+type accoladeSettings struct {
+	Buttons map[string][]formatButton
+	Formats map[string]formatAlias
+}
+
+var accoladeConf = readAccoladeSettings()
+
+func readAccoladeSettings() accoladeSettings {
+	var conf struct{ Accolade accoladeSettings }
+	_, _ = toml.DecodeFile(lexingtonConfig(), &conf)
+	return conf.Accolade
+}
+
+// aliases are the formats that are aliases, by key: Accolade's and the
+// settings'.
+func aliases() map[string]formatAlias {
+	out := map[string]formatAlias{}
+	for k, a := range defaultAliases {
+		out[k] = a
+	}
+	for k, a := range accoladeConf.Formats {
+		out[k] = a
+	}
+	return out
+}
+
+// elementsKey is the element set a format lays out with, for Lexington.
+func elementsKey(key string) string {
+	if a, ok := aliases()[key]; ok {
+		return a.Elements
+	}
+	return key
+}
 
 type formatButton struct {
 	Label   string
@@ -31,6 +83,12 @@ type formatButton struct {
 
 var defaultFormatButtons = map[string][]formatButton{
 	"default": {
+		{Label: "Montage", Insert: "BEGIN MONTAGE:\n\n\n\nEND MONTAGE."},
+		{Label: "Intercut", Insert: "> INTERCUT WITH:"},
+		{Label: "Flashback", Insert: "FLASHBACK:"},
+		{Label: "Super", Insert: "SUPER: "},
+	},
+	"series": {
 		{Label: "Cold Open", Insert: ">COLD OPEN<"},
 		{Label: "Act", Insert: ">ACT {n}<"},
 		{Label: "End of Act", Insert: ">END OF ACT {n}<"},
@@ -69,15 +127,13 @@ var stageButtons = []formatButton{
 // formatButtons are the buttons of the format with key: from Lexington's
 // settings if they set any, else Accolade's own.
 func formatButtons(key string) []formatButton {
-	var conf struct {
-		Accolade struct{ Buttons map[string][]formatButton }
+	if b, ok := accoladeConf.Buttons[key]; ok {
+		return b
 	}
-	if _, err := toml.DecodeFile(lexingtonConfig(), &conf); err == nil {
-		if b, ok := conf.Accolade.Buttons[key]; ok {
-			return b
-		}
+	if b, ok := defaultFormatButtons[key]; ok {
+		return b
 	}
-	return defaultFormatButtons[key]
+	return defaultFormatButtons[elementsKey(key)] // an alias without its own: its set's
 }
 
 // insertButton inserts a button's text as a paragraph of its own at the

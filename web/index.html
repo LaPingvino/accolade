@@ -56,16 +56,33 @@ function details(what) {
 		"", app, "", "log (last lines):", ...logLines,
 	].join("\n");
 }
-function trouble(title, text, what, canWait) {
+let countdown = 0;
+function trouble(title, text, what, canWait, restarted) {
 	if (troubleShown) return;
 	troubleShown = true;
-	const report = details(what);
+	const report = restarted || details(what);
 	document.getElementById("trouble-title").textContent = title;
 	document.getElementById("trouble-text").textContent = text;
 	document.getElementById("trouble-details").textContent = report;
-	document.getElementById("trouble-wait").hidden = !canWait;
+	document.getElementById("trouble-wait").hidden = !canWait && !restarted;
+	document.getElementById("trouble-wait").textContent = restarted ? "Close" : "Keep waiting";
+	document.getElementById("trouble-restart").hidden = !!restarted;
 	document.getElementById("trouble").hidden = false;
-	document.getElementById("trouble-restart").onclick = () => location.reload();
+	const restart = () => {
+		try { localStorage.setItem("accolade-trouble", JSON.stringify({ title, report })); } catch {}
+		location.reload();
+	};
+	document.getElementById("trouble-restart").onclick = restart;
+	clearInterval(countdown);
+	if (!restarted) { // the dead man's switch: restart unless someone is there to wait
+		let left = 30;
+		const button = document.getElementById("trouble-restart");
+		button.textContent = "Restart (in " + left + " s)";
+		countdown = setInterval(() => {
+			if (--left <= 0) { clearInterval(countdown); restart(); }
+			button.textContent = "Restart (in " + left + " s)";
+		}, 1000);
+	}
 	const copy = () => navigator.clipboard.writeText(report).catch(() => {});
 	document.getElementById("trouble-copy").onclick = copy;
 	document.getElementById("trouble-report").onclick = () => {
@@ -76,11 +93,45 @@ function trouble(title, text, what, canWait) {
 			"&body=" + encodeURIComponent(body), "_blank");
 	};
 	document.getElementById("trouble-wait").onclick = () => {
+		clearInterval(countdown);
+		document.getElementById("trouble-restart").textContent = "Restart";
 		document.getElementById("trouble").hidden = true;
 		troubleShown = false;
 		waitUntil = Date.now() + 30000;
 	};
 }
+// after a restart: the report of what happened, to send
+try {
+	const was = JSON.parse(localStorage.getItem("accolade-trouble") || "null");
+	localStorage.removeItem("accolade-trouble");
+	if (was) addEventListener("load", () => setTimeout(() => trouble("Accolade restarted",
+		"It restarted after this: " + was.title.toLowerCase() + ". Your script was kept. Please report the bug: the report says what happened.",
+		"", false, was.report), 3000));
+} catch {}
+
+// keys pressed that do not reach the app (watchdog_js.go marks those that
+// do) are a freeze too
+let keysWaiting = 0, firstWaiting = 0;
+addEventListener("keydown", (e) => {
+	if (e.isComposing || e.key === "Dead" || e.keyCode === 229 || !globalThis.accoladeAlive ||
+		["Shift", "Control", "Alt", "AltGraph", "Meta", "CapsLock", "Fn"].includes(e.key) ||
+		e.target.closest?.("#trouble, #preview-pane")) return; // not the app's
+	if (!keysWaiting) firstWaiting = Date.now();
+	keysWaiting++;
+	setTimeout(() => {
+		if ((globalThis.accoladeKeyArrived || 0) >= firstWaiting) keysWaiting = 0;
+	}, 1500);
+}, true);
+setInterval(() => {
+	if ((globalThis.accoladeKeyArrived || 0) >= firstWaiting) keysWaiting = 0;
+	if (keysWaiting >= 3 && Date.now() - firstWaiting > 5000 && Date.now() > waitUntil) {
+		trouble("Accolade is not taking keys",
+			"Keys pressed in the last seconds did not reach it. It restarts by itself in 30 seconds (your script is kept in this browser), unless you keep waiting. Please report the bug: the report says where it got stuck.",
+			"keys: " + keysWaiting + " pressed since " + ((Date.now() - firstWaiting) / 1000).toFixed(0) + "s ago did not reach the app; the main loop's last beat was " + ((Date.now() - (globalThis.accoladeAlive || 0)) / 1000).toFixed(0) + "s ago", true);
+		keysWaiting = 0;
+	}
+}, 1000);
+
 // the app's main loop marks itself alive every second (watchdog_js.go);
 // a hidden tab's loop is paused, so the time counts from when it shows
 let visibleSince = Date.now();
@@ -89,7 +140,7 @@ setInterval(() => {
 	const alive = Math.max(globalThis.accoladeAlive || 0, visibleSince, waitUntil);
 	if (globalThis.accoladeAlive && document.visibilityState === "visible" && Date.now() - alive > 10000) {
 		trouble("Accolade is not responding",
-			"It stopped responding over 10 seconds ago. Restart it (your untitled script is kept in this browser; save a named one first if you can), and please report the bug: the report says where it got stuck.",
+			"It stopped responding over 10 seconds ago. It restarts by itself in 30 seconds (your script is kept in this browser), unless you keep waiting. Please report the bug: the report says where it got stuck.",
 			"froze: the main loop's last beat was " + ((Date.now() - globalThis.accoladeAlive) / 1000).toFixed(0) + "s ago", true);
 	}
 }, 2000);
@@ -105,7 +156,7 @@ WebAssembly.instantiateStreaming(fetch("accolade.wasm"), go.importObject)
 	.then((r) => {
 		document.getElementById("loading").remove();
 		return go.run(r.instance).then(() => trouble("Accolade stopped",
-			"Something went wrong and Accolade stopped. Restart it (your untitled script is kept in this browser), and please report the bug: the report says what happened.",
+			"Something went wrong and Accolade stopped. It restarts by itself in 30 seconds (your script is kept in this browser). Please report the bug: the report says what happened.",
 			"stopped: the Go program exited", false));
 	})
 	.catch((e) => { document.getElementById("loading").textContent = "Accolade could not start: " + e; });

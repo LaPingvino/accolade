@@ -31,6 +31,10 @@ func watchdog(app *Application) {
 	js.Global().Set("accoladeReport", js.FuncOf(func(js.Value, []js.Value) any { return report() }))
 }
 
+// keyArrived tells the page a key reached the app: keys pressed that do
+// not are a freeze too, even with the main loop beating.
+func keyArrived() { js.Global().Set("accoladeKeyArrived", js.Global().Get("Date").Call("now")) }
+
 // stateOf is the windows' state, without the script's text.
 func stateOf(app *Application) string {
 	s := fmt.Sprintf("windows: %d\n", len(app.windows))

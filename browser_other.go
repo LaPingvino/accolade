@@ -17,3 +17,4 @@ func draft() (kept, bool)   { return kept{}, false }
 
 func pageLink() string      { return "" }
 func watchdog(*Application) {}
+func keyArrived()           {}

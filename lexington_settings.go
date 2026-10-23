@@ -97,6 +97,7 @@ func saveLexingtonSettings(text string) error {
 	}
 	lexSettings = readLexingtonSettings()
 	sceneConf = lexSettings.Scenes
+	accoladeConf = readAccoladeSettings()
 	return nil
 }
 

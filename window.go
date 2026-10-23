@@ -185,6 +185,7 @@ func (w *MainWindow) setupShortcuts() {
 	// search), whatever has the focus
 	if c, ok := w.fyneWindow.Canvas().(desktop.KeyPreviewCanvas); ok {
 		c.SetOnKeyPreview(func(key fyne.KeyName, mod fyne.KeyModifier) bool {
+			keyArrived()
 			if key != fyne.KeyF6 || (mod != 0 && mod != fyne.KeyModifierShift) {
 				return false
 			}

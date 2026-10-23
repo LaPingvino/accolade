@@ -113,6 +113,7 @@ func previewPane() js.Value {
 		return f
 	}
 	pane := doc.Call("createElement", "div")
+	pane.Set("id", "preview-pane")
 	pane.Get("style").Set("cssText", "position:fixed;top:0;right:0;bottom:0;width:50vw;display:flex;flex-direction:column;background:#fff;box-shadow:0 0 12px rgba(0,0,0,.3);z-index:10")
 	stop := js.FuncOf(func(_ js.Value, args []js.Value) any { args[0].Call("stopPropagation"); return nil })
 	for _, ev := range []string{"mousedown", "mouseup", "keydown", "keyup", "wheel"} {
