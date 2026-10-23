@@ -493,6 +493,9 @@ func (ed *ExportDialog) exportToFountain(content, outputPath string) error {
 }
 
 func (ed *ExportDialog) finishExport(err error, outputPath string) {
+	if err == nil && inBrowser {
+		offerDownload(outputPath)
+	}
 	ed.isExporting = false
 	ed.exportButton.Enable()
 	ed.progressBar.Hide()

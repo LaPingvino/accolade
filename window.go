@@ -392,6 +392,25 @@ func (w *MainWindow) SaveFile() error {
 }
 
 func (w *MainWindow) SaveFileAs() error {
+	if inBrowser { // the browser asks where, for the download
+		name := w.suggestedName
+		if w.currentFile != "" {
+			name = filepath.Base(w.currentFile)
+		}
+		if name == "" {
+			name = "untitled.fountain"
+		}
+		p := filepath.Join("/files", name)
+		if err := os.MkdirAll("/files", 0o755); err != nil {
+			return err
+		}
+		if err := w.saveToFile(p); err != nil {
+			return err
+		}
+		w.currentFile, w.suggestedName = p, ""
+		w.updateTitle()
+		return nil
+	}
 	fileDialog := dialog.NewFileSave(func(closer fyne.URIWriteCloser, err error) {
 		if err != nil || closer == nil {
 			return
@@ -447,10 +466,17 @@ func (w *MainWindow) saveToFile(filePath string) error {
 	w.cancelAutoSave()
 	w.hasChanges = false
 	w.updateTitle()
+	if inBrowser {
+		offerDownload(filePath)
+	}
 	return nil
 }
 
 func (w *MainWindow) OpenFile() {
+	if inBrowser {
+		pickFile(w.openPath)
+		return
+	}
 	fileDialog := dialog.NewFileOpen(func(closer fyne.URIReadCloser, err error) {
 		if err != nil || closer == nil {
 			return

@@ -26,4 +26,4 @@ go.sum
 # Editor temp files
 *.swp
 *.swo
-*~
+*~dist/

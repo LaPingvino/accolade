@@ -2,6 +2,8 @@
 
 ![](screenshots/main.png)
 
+**Try it in your browser:** [lapingvino.github.io/accolade](https://lapingvino.github.io/accolade/), the same editor, with nothing to install; your scripts stay on your computer.
+
 ## About
 
 Accolade is a distraction-free Fountain editor for screenwriters, built with [Fyne](https://fyne.io) in Go. Originally forked from a GTK-based application, Accolade has been completely rewritten to provide faster compilation, better cross-platform support, and easier deployment. It uses lexington as back-end for parsing Fountain and offers a clean, modern user interface optimized for distraction-free writing.

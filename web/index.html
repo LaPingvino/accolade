@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Accolade</title>
+<style>
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1b1b; color: #eee; font: 16px sans-serif; }
+#loading { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; }
+</style>
+</head>
+<body>
+<div id="loading" role="status">Loading Accolade, a screenplay editor…<br><small>Your scripts stay on your computer: Open and Save use your browser's files and downloads.</small></div>
+<script src="memfs.js"></script>
+<script src="wasm_exec.js"></script>
+<script>
+const go = new Go();
+WebAssembly.instantiateStreaming(fetch("accolade.wasm"), go.importObject)
+	.then((r) => { document.getElementById("loading").remove(); go.run(r.instance); })
+	.catch((e) => { document.getElementById("loading").textContent = "Accolade could not start: " + e; });
+</script>
+</body>
+</html>
