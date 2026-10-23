@@ -193,18 +193,40 @@ func (n *Network) newConn() (*webrtc.PeerConnection, error) {
 	return pc, nil
 }
 
-// attach joins an open data channel to the session as peer id.
+// attach joins a data channel to the session as peer id, once it is open
+// (a channel a peer opened may be open already). Its messages are handled
+// in order, outside the channel's callbacks: in the browser those run in
+// a page event, which must not wait.
 func (n *Network) attach(id string, dc *webrtc.DataChannel) {
-	dc.OnOpen(func() {
-		n.mu.Lock()
-		count := len(n.peers)
-		n.mu.Unlock()
-		if n.onPeers != nil {
-			n.onPeers(count)
+	var once sync.Once
+	open := func() {
+		once.Do(func() {
+			n.mu.Lock()
+			count := len(n.peers)
+			n.mu.Unlock()
+			if n.onPeers != nil {
+				go n.onPeers(count)
+			}
+			_ = n.session.AddPeer(id, func(b []byte) error { return dc.Send(b) })
+		})
+	}
+	inbox := make(chan []byte, 1024)
+	go func() {
+		for b := range inbox {
+			_ = n.session.Receive(id, b)
 		}
-		_ = n.session.AddPeer(id, func(b []byte) error { return dc.Send(b) })
+	}()
+	dc.OnMessage(func(m webrtc.DataChannelMessage) {
+		select {
+		case inbox <- m.Data:
+		default:
+			go func() { inbox <- m.Data }() // a full inbox: later, not now
+		}
 	})
-	dc.OnMessage(func(m webrtc.DataChannelMessage) { _ = n.session.Receive(id, m.Data) })
+	dc.OnOpen(open)
+	if dc.ReadyState() == webrtc.DataChannelStateOpen {
+		open()
+	}
 	dc.OnClose(func() {
 		n.session.RemovePeer(id)
 		n.mu.Lock()
@@ -212,7 +234,7 @@ func (n *Network) attach(id string, dc *webrtc.DataChannel) {
 		count := len(n.peers)
 		n.mu.Unlock()
 		if n.onPeers != nil {
-			n.onPeers(count)
+			go n.onPeers(count)
 		}
 	})
 }

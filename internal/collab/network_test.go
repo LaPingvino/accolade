@@ -71,7 +71,7 @@ func fakeTracker(t *testing.T) string {
 }
 
 // Two peers find each other through a tracker, connect over WebRTC and
-// edit together.
+// edit together; a third joins later and catches up.
 func TestNetwork(t *testing.T) {
 	// a virtual network (pion's vnet): the same on every system
 	was, wasNew := ICEServers, newPeerConnection
@@ -93,7 +93,7 @@ func TestNetwork(t *testing.T) {
 		se.SetNet(n)
 		return webrtc.NewAPI(webrtc.WithSettingEngine(se)).NewPeerConnection
 	}
-	peerA, peerB := on("10.0.0.1"), on("10.0.0.2")
+	peerA, peerB, peerC := on("10.0.0.1"), on("10.0.0.2"), on("10.0.0.3")
 	if err := router.Start(); err != nil {
 		t.Fatal(err)
 	}
@@ -124,6 +124,11 @@ func TestNetwork(t *testing.T) {
 	b.Do(func(d *Doc) { ops = d.SetText("INT. BARN - NIGHT\n") })
 	b.Local(ops)
 	waitFor("a gets b's edit", func() bool { return text(a) == "INT. BARN - NIGHT\n" })
+
+	c := NewSession(key, New("c"))
+	newPeerConnection = peerC
+	Join(ctx, c, key, []string{tracker}, nil)
+	waitFor("c catches up", func() bool { return text(c) == "INT. BARN - NIGHT\n" })
 }
 
 // The same through the public trackers (COLLAB_PUBLIC=1: it needs the
