@@ -4,6 +4,7 @@ go 1.26.0
 
 require (
 	fyne.io/fyne/v2 v2.8.1
+	github.com/BurntSushi/toml v1.6.0
 	github.com/LaPingvino/lexington v1.4.1-0.20261023171432-33da2d261306
 	github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3
 	github.com/coder/websocket v1.8.15
@@ -15,7 +16,6 @@ require (
 
 require (
 	fyne.io/systray v1.12.3-0.20260810170012-af4e8e793ec4 // indirect
-	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/FyshOS/fancyfs v0.0.1 // indirect
 	github.com/LaPingvino/atspi v0.0.0-20261009023205-ced351090bc6 // indirect
 	github.com/anthonynsimon/bild v0.14.0 // indirect

@@ -9,13 +9,14 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/accolade/internal/tooltip"
 )
 
-// HeaderBar is the slim bar at the top of the window: the file actions,
-// undo/redo, the line's element and emphasis on the left, the document's
-// name in the middle, and the script format, find, PDF preview, export
-// and preferences on the right, as icon buttons with tooltips.
+// HeaderBar is the bar at the top of the window: the file actions and
+// undo/redo, the document's name, then find, PDF preview, export and
+// preferences, as icon buttons with tooltips; under them the line's
+// element, emphasis, the script format's own buttons and the format.
 type HeaderBar struct {
 	window    *MainWindow
 	container *fyne.Container
@@ -26,6 +27,7 @@ type HeaderBar struct {
 	exportButton, preferencesButton   *tooltip.Button
 	titleLabel                        *widget.Label
 	element, format                   *widget.Select
+	formatBox                         *fyne.Container // the format's own buttons
 	showing                           bool // the selects show, not choose
 }
 
@@ -90,6 +92,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 		}
 	})
 	fyne.SetAccessibleLabel(hb.format, "Script format")
+	hb.formatBox = container.NewHBox()
 	hb.showFormats()
 
 	hb.titleLabel = widget.NewLabel("Untitled")
@@ -97,10 +100,14 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.titleLabel.TextStyle = fyne.TextStyle{Bold: true}
 	hb.titleLabel.Truncation = fyne.TextTruncateEllipsis
 
-	left := container.NewHBox(hb.newButton, hb.openButton, hb.saveButton, gap(), hb.undoButton, hb.redoButton,
-		gap(), hb.element, bold, italic, underline)
-	right := container.NewHBox(hb.format, gap(), hb.findButton, hb.previewButton, hb.exportButton, gap(), hb.preferencesButton)
-	hb.container = container.NewBorder(nil, nil, left, right, hb.titleLabel)
+	left := container.NewHBox(hb.newButton, hb.openButton, hb.saveButton, gap(), hb.undoButton, hb.redoButton)
+	right := container.NewHBox(hb.findButton, hb.previewButton, hb.exportButton, gap(), hb.preferencesButton)
+	// the editing row: what a line is and its emphasis, the format's own
+	// buttons (scrolling when the window is narrow), and the format
+	editing := container.NewHScroll(container.NewHBox(hb.element, bold, italic, underline, gap(), hb.formatBox))
+	hb.container = container.NewVBox(
+		container.NewBorder(nil, nil, left, right, hb.titleLabel),
+		container.NewBorder(nil, nil, nil, hb.format, editing))
 	return hb
 }
 
@@ -135,8 +142,19 @@ func (hb *HeaderBar) showElement(el string) {
 func (hb *HeaderBar) showFormats() {
 	hb.showing = true
 	defer func() { hb.showing = false }()
+	key := hb.window.settings.GetString("script-format")
 	hb.format.SetOptions(scriptFormatNames())
-	selectScriptFormat(hb.format, hb.window.settings.GetString("script-format"))
+	selectScriptFormat(hb.format, key)
+	w := hb.window
+	hb.formatBox.RemoveAll()
+	for _, fb := range formatButtons(key) {
+		b := widget.NewButton(fb.Label, func() {
+			w.textEditor.Edit(func(b *buffer.Buffer) { insertButton(b, fb) })
+			w.fyneWindow.Canvas().Focus(w.textEditor)
+		})
+		b.Importance = widget.LowImportance
+		hb.formatBox.Add(b)
+	}
 }
 
 // SetTitle shows the document's name in the middle of the bar.
