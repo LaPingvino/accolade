@@ -80,20 +80,51 @@ func fileURL(p, kind string) (js.Value, bool) {
 	return js.Global().Get("URL").Call("createObjectURL", blob), true
 }
 
-// openFile shows a file (the PDF preview) in a new tab of the browser,
-// or downloads it if the tab is not allowed.
+// openFile shows a file (the PDF preview) in a pane beside the editor.
 func init() {
 	openFile = func(p string) {
 		url, ok := fileURL(p, mime.TypeByExtension(path.Ext(p)))
 		if !ok {
 			return
 		}
-		if js.Global().Call("open", url, "_blank").Truthy() {
-			return // the link stays: the tab reads it
+		frame := previewPane()
+		if old := frame.Get("src").String(); old != "" {
+			js.Global().Get("URL").Call("revokeObjectURL", old)
 		}
-		js.Global().Get("URL").Call("revokeObjectURL", url)
-		offerDownload(p)
+		frame.Set("src", url)
 	}
+}
+
+// previewPane is the preview's frame, in a pane made the first time.
+func previewPane() js.Value {
+	doc := js.Global().Get("document")
+	if f := doc.Call("getElementById", "preview-frame"); f.Truthy() {
+		f.Get("parentElement").Get("style").Set("display", "flex")
+		return f
+	}
+	pane := doc.Call("createElement", "div")
+	pane.Get("style").Set("cssText", "position:fixed;top:0;right:0;bottom:0;width:50vw;display:flex;flex-direction:column;background:#fff;box-shadow:0 0 12px rgba(0,0,0,.3);z-index:10")
+	stop := js.FuncOf(func(_ js.Value, args []js.Value) any { args[0].Call("stopPropagation"); return nil })
+	for _, ev := range []string{"mousedown", "mouseup", "keydown", "keyup", "wheel"} {
+		pane.Call("addEventListener", ev, stop) // the pane's, not the editor's
+	}
+	bar := doc.Call("createElement", "div")
+	bar.Get("style").Set("cssText", "display:flex;justify-content:space-between;align-items:center;padding:4px 8px;font:14px sans-serif")
+	bar.Set("textContent", "PDF preview")
+	closeBtn := doc.Call("createElement", "button")
+	closeBtn.Set("textContent", "Close")
+	closeBtn.Call("addEventListener", "click", js.FuncOf(func(js.Value, []js.Value) any {
+		pane.Get("style").Set("display", "none")
+		return nil
+	}))
+	bar.Call("appendChild", closeBtn)
+	frame := doc.Call("createElement", "iframe")
+	frame.Set("id", "preview-frame")
+	frame.Get("style").Set("cssText", "flex:1;border:0;width:100%")
+	pane.Call("appendChild", bar)
+	pane.Call("appendChild", frame)
+	doc.Get("body").Call("appendChild", pane)
+	return frame
 }
 
 // offerDownload hands a file in memory to the browser as a download.

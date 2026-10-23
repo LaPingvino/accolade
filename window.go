@@ -793,7 +793,7 @@ func (w *MainWindow) previewPDF() {
 				dialog.ShowError(fmt.Errorf("could not make the PDF: %v", err), w.fyneWindow)
 				return
 			}
-			w.setStatus("PDF preview opened")
+			w.setStatus("PDF preview shown")
 			openFile(out)
 		})
 	}()
