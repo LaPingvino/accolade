@@ -56,8 +56,8 @@ const (
 	elementCentered      = "Centered"
 )
 
-// asElement is the line written as the element, with Accolade's indents
-// and the Fountain markers that make other Fountain apps read it so.
+// asElement is the line written as the element, with the Fountain
+// markers that make other Fountain apps read it so.
 func asElement(line, element string, starts []string) string {
 	bare := strings.TrimSpace(line)
 	for _, m := range []string{".", "!", "@", ">"} { // forcing markers
@@ -70,7 +70,6 @@ func asElement(line, element string, starts []string) string {
 	if element != elementParenthetical && len(bare) > 1 && strings.HasPrefix(bare, "(") && strings.HasSuffix(bare, ")") {
 		bare = strings.TrimSpace(bare[1 : len(bare)-1])
 	}
-	indent := func(n int, s string) string { return strings.Repeat(" ", n) + s }
 	switch element {
 	case elementScene:
 		s := strings.ToUpper(bare)
@@ -83,7 +82,7 @@ func asElement(line, element string, starts []string) string {
 		if !isCharacterCue(s) {
 			s = "@" + s
 		}
-		return indent(CharacterIndent, s)
+		return s
 	case elementParenthetical:
 		if !strings.HasPrefix(bare, "(") {
 			bare = "(" + bare
@@ -91,15 +90,15 @@ func asElement(line, element string, starts []string) string {
 		if !strings.HasSuffix(bare, ")") {
 			bare += ")"
 		}
-		return indent(ParentheticalIndent, bare)
+		return bare
 	case elementDialogue:
-		return indent(DialogueIndent, bare)
+		return bare
 	case elementTransition:
 		s := strings.ToUpper(bare)
 		if !strings.HasSuffix(s, "TO:") {
 			s = "> " + s
 		}
-		return indent(TransitionIndent, s)
+		return s
 	case elementCentered:
 		return "> " + bare + " <"
 	}

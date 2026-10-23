@@ -92,7 +92,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.fontSizeEntry = widget.NewEntry()
 	pd.fontSizeEntry.SetPlaceHolder("12")
 	pd.lineNumbersCheck = widget.NewCheck("Show line numbers", nil)
-	pd.autoIndentCheck = widget.NewCheck("Format the line and indent the next one on Enter", nil)
+	pd.autoIndentCheck = widget.NewCheck("Format the line on Enter (capitals for scene headings and transitions)", nil)
 	pd.autoCloseBracketsCheck = widget.NewCheck("Close brackets as you type them: ( and [", nil)
 	pd.keysSelect = widget.NewSelect([]string{"standard", "vim", "helix"}, nil)
 

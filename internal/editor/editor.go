@@ -47,6 +47,11 @@ type ScriptEditor struct {
 	// SceneStarts are what scene headings start with in the script's
 	// language, for the colours (nil: English)
 	SceneStarts []string
+	// Format, when set, lays out each line as its element (its column,
+	// width and alignment), instead of by its leading spaces.
+	Format func(syntax.Kind) wrap.Format
+	// PageColumns, when set, is the page's width (NewPageScroll's columns).
+	PageColumns int
 	// OnCursorChanged is called when the cursor or selection moves.
 	OnCursorChanged func()
 	// AccessibleName is what screen readers call the editor ("Script").
@@ -272,7 +277,18 @@ func (e *ScriptEditor) cellHeight() float32 { return max(e.cellSize().Height, 1)
 func (e *ScriptEditor) relayout() {
 	text := []rune(e.buf.Text())
 	g := e.gutter()
-	e.layout = wrap.Wrap(text, max(e.columns-g, 1))
+	var kinds []syntax.Kind
+	if e.Format != nil {
+		line, _ := e.buf.Position(e.buf.Cursor())
+		kinds = syntax.ClassifyTyping(strings.Split(string(text), "\n"), e.SceneStarts, line)
+		formats := make([]wrap.Format, len(kinds))
+		for i, k := range kinds {
+			formats[i] = e.Format(k)
+		}
+		e.layout = wrap.WrapFormatted(text, max(e.columns-g, 1), formats)
+	} else {
+		e.layout = wrap.Wrap(text, max(e.columns-g, 1))
+	}
 
 	th := e.Theme()
 	v := theme.VariantLight
@@ -291,8 +307,7 @@ func (e *ScriptEditor) relayout() {
 	}
 	selStart, selEnd := e.buf.Selection()
 	curRow, curCol := e.layout.RowCol(e.buf.Cursor())
-	var kinds []syntax.Kind
-	if e.Syntax {
+	if kinds == nil && e.Syntax {
 		kinds = syntax.ClassifyWith(strings.Split(string(text), "\n"), e.SceneStarts)
 	}
 
@@ -767,7 +782,11 @@ type pageLayout struct {
 }
 
 func (l *pageLayout) width(avail float32) float32 {
-	w := l.e.cellWidth()*float32(l.columns+l.e.gutter()) + 1
+	columns := l.columns
+	if l.e.PageColumns > 0 {
+		columns = l.e.PageColumns
+	}
+	w := l.e.cellWidth()*float32(columns+l.e.gutter()) + 1
 	return min(w, avail)
 }
 

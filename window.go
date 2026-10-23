@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"github.com/LaPingvino/accolade/internal/editor"
+	"github.com/LaPingvino/accolade/internal/editor/syntax"
 	"github.com/LaPingvino/accolade/internal/tooltip"
 	"log"
 	"os"
@@ -19,20 +20,6 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-)
-
-// Screenplay indentation constants (in character spaces)
-// Based on industry standard margins for 12-point Courier font
-const (
-	ActionIndent        = 0  // Action text - left margin (1.5")
-	DialogueIndent      = 25 // Dialogue - 2.5" from left margin
-	ParentheticalIndent = 31 // Parentheticals - 3.1" from left margin
-	CharacterIndent     = 37 // Character names - 3.7" from left margin
-	TransitionIndent    = 60 // Transitions - right aligned (6.0" from left margin)
-
-	// pageColumns is the width of the editor's centred text column: room
-	// for a transition after TransitionIndent
-	pageColumns = 76
 )
 
 type MainWindow struct {
@@ -143,7 +130,7 @@ func (w *MainWindow) setupUI() {
 	// Apply Courier Prime font for screenplay formatting
 	// the editor scrolls to keep the cursor in view; the theme override
 	// carries the font settings
-	w.editorView = container.NewThemeOverride(editor.NewPageScroll(w.textEditor, pageColumns), newEditorTheme("", 0))
+	w.editorView = container.NewThemeOverride(editor.NewPageScroll(w.textEditor, 0), newEditorTheme("", 0))
 
 	// Create preview area
 	w.previewArea = newPreviewPane()
@@ -268,7 +255,14 @@ func (w *MainWindow) applyEditorSettings() {
 		}
 	}
 	setVisible(w.statusBar, w.settings.GetBoolean("statusbar-visible"))
-	// auto-indent is read when Enter is pressed (editor.go)
+	// auto-indent (formatting the line on Enter) is read when Enter is pressed (editor.go)
+	w.applyScriptFormat()
+}
+
+// applyScriptFormat lays the editor out in the script format's columns.
+func (w *MainWindow) applyScriptFormat() {
+	w.textEditor.Format, w.textEditor.PageColumns = editorFormat(currentScriptFormat())
+	w.textEditor.Refresh()
 }
 
 func setVisible(o fyne.CanvasObject, visible bool) {
@@ -302,11 +296,11 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	// as stored: Windows-1252, a byte order mark, CR LF are kept for saving
 	text, format := decodeScript(content)
 	w.format = format
-	w.textEditor.SetText(text)
+	w.setLanguage(languageOf(filePath))
+	w.textEditor.SetText(withoutIndents(text, w.sceneStarts()))
 	w.currentFile = filePath
 	w.suggestedName = ""
 	w.rememberRecent(filePath)
-	w.setLanguage(languageOf(filePath))
 	w.hasChanges = false
 	w.updateTitle()
 	w.updatePreview()
@@ -564,9 +558,8 @@ func (w *MainWindow) sceneStarts() []string {
 }
 
 // newScriptTemplate is what a new script starts with: a title page and
-// a scene to write over, with the indents Accolade gives each element.
+// a scene to write over.
 func newScriptTemplate() string {
-	ind := func(n int, s string) string { return strings.Repeat(" ", n) + s }
 	return strings.Join([]string{
 		"Title: UNTITLED SCREENPLAY",
 		"Credit: Written by",
@@ -586,13 +579,13 @@ func newScriptTemplate() string {
 		"",
 		"JOHN sits at a desk, typing on a laptop. He looks frustrated.",
 		"",
-		ind(CharacterIndent, "JOHN"),
-		ind(ParentheticalIndent, "(sighing)"),
-		ind(DialogueIndent, "This screenplay isn't writing itself."),
+		"JOHN",
+		"(sighing)",
+		"This screenplay isn't writing itself.",
 		"",
 		"He takes a sip of coffee and continues typing.",
 		"",
-		ind(TransitionIndent, "> FADE OUT."),
+		"> FADE OUT.",
 		"",
 	}, "\n")
 }
@@ -739,96 +732,18 @@ func (w *MainWindow) updateCurrentElement() {
 		return
 	}
 
-	// The logical line under the cursor (CursorRow counts wrapped rows),
-	// with its indentation, which tells dialogue from action
-	runes := []rune(text)
-	start, end := lineBounds(runes, min(w.textEditor.CursorOffset(), len(runes)))
-	elementType := w.detectElementType(string(runes[start:end]))
-	w.currentElement = elementType
+	line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
+	kinds := syntax.ClassifyTyping(strings.Split(text, "\n"), w.sceneStarts(), line)
+	w.currentElement = elementNames[kinds[min(line, len(kinds)-1)]]
 }
 
-func (w *MainWindow) detectElementType(line string) string {
-	if line == "" {
-		return "Empty"
-	}
-
-	// Simple pattern matching for better performance
-	upper := strings.ToUpper(strings.TrimSpace(line))
-
-	// Scene headings
-	if strings.HasPrefix(upper, "INT.") || strings.HasPrefix(upper, "EXT.") || strings.HasPrefix(upper, "EST.") {
-		return "Scene Heading"
-	}
-
-	// Transitions (FADE IN: opens a script and stays at the left margin)
-	if isTransition(upper) {
-		return "Transition"
-	}
-
-	// Parentheticals
-	if strings.HasPrefix(line, "(") && strings.HasSuffix(line, ")") {
-		return "Parenthetical"
-	}
-
-	// Character names - all caps, not a "SOMETHING:" cue like FADE IN:
-	if upper == line && len(line) > 1 && !strings.Contains(line, ".") && !strings.HasSuffix(line, ":") && hasLetter(line) {
-		return "Character"
-	}
-
-	// Centered text
-	if strings.HasPrefix(line, ">") && strings.HasSuffix(line, "<") {
-		return "Centered"
-	}
-
-	// Check for character names first (indented at proper character position and uppercase)
-	if strings.HasPrefix(line, strings.Repeat(" ", CharacterIndent)) && upper == strings.TrimSpace(line) {
-		return "Character"
-	}
-
-	// Check for parentheticals (indented at proper position and wrapped in parentheses)
-	if strings.HasPrefix(line, strings.Repeat(" ", ParentheticalIndent)) &&
-		strings.HasPrefix(strings.TrimSpace(line), "(") &&
-		strings.HasSuffix(strings.TrimSpace(line), ")") {
-		return "Parenthetical"
-	}
-
-	// Check for dialogue (indented at dialogue position)
-	if strings.HasPrefix(line, strings.Repeat(" ", DialogueIndent)) && !strings.HasPrefix(line, strings.Repeat(" ", ParentheticalIndent)) {
-		return "Dialogue"
-	}
-
-	// Check for transitions (heavily indented, usually at transition position)
-	if strings.HasPrefix(line, strings.Repeat(" ", TransitionIndent-5)) {
-		return "Transition"
-	}
-
-	// Default to action
-	return "Action"
-}
-
-func (w *MainWindow) getIndentationForNextElement(currentElement string) string {
-	switch currentElement {
-	case "Character":
-		// After character name, expect dialogue
-		return strings.Repeat(" ", DialogueIndent)
-	case "Scene Heading":
-		// After scene heading, expect action (no indent)
-		return ""
-	case "Dialogue":
-		// After dialogue, could be parenthetical or more dialogue
-		return ""
-	case "Parenthetical":
-		// After parenthetical, expect dialogue
-		return strings.Repeat(" ", DialogueIndent)
-	case "Transition":
-		// After transition, expect scene heading
-		return ""
-	case "Action":
-		// After action, could be anything
-		return ""
-	default:
-		return ""
-	}
+// elementNames are the elements' names in the status bar.
+var elementNames = map[syntax.Kind]string{
+	syntax.Action: "Action", syntax.Empty: "Empty", syntax.TitlePage: "Title Page",
+	syntax.SceneHeading: "Scene Heading", syntax.Character: "Character",
+	syntax.Parenthetical: "Parenthetical", syntax.Dialogue: "Dialogue",
+	syntax.Transition: "Transition", syntax.Centered: "Centered", syntax.Section: "Section",
+	syntax.Synopsis: "Synopsis", syntax.Note: "Note", syntax.PageBreak: "Page Break",
 }
 
 // Preview operations
@@ -1024,13 +939,13 @@ func defaultScript(now time.Time) string {
 		"",
 		"JOHN sits at a desk, typing on a laptop. He looks frustrated.",
 		"",
-		strings.Repeat(" ", CharacterIndent) + "JOHN",
-		strings.Repeat(" ", ParentheticalIndent) + "(sighing)",
-		strings.Repeat(" ", DialogueIndent) + "This screenplay isn't writing itself.",
+		"JOHN",
+		"(sighing)",
+		"This screenplay isn't writing itself.",
 		"",
 		"He takes a sip of coffee and continues typing.",
 		"",
-		strings.Repeat(" ", TransitionIndent) + "> FADE OUT.",
+		"> FADE OUT.",
 	}, "\n")
 }
 

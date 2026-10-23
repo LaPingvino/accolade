@@ -92,3 +92,30 @@ func TestWrapPointAndSnapping(t *testing.T) {
 		t.Errorf("click in the indent snaps to the row start: %d", got)
 	}
 }
+
+func TestWrapFormatted(t *testing.T) {
+	text := []rune("Action that wraps here\nANNA\nShe speaks and speaks.\nCUT TO:\n  kept")
+	l := WrapFormatted(text, 20, []Format{{}, {Indent: 8}, {Indent: 4, Width: 11}, {Align: 'R'}})
+	var got []string
+	for i, r := range l.Rows {
+		got = append(got, strings.Repeat(" ", r.Indent)+l.RowText(text, i))
+	}
+	want := []string{
+		"Action that wraps ",
+		"here",
+		"        ANNA",
+		"    She speaks ",
+		"    and speaks.",
+		"             CUT TO:",
+		"  kept",
+	}
+	if strings.Join(got, "|\n") != strings.Join(want, "|\n") {
+		t.Errorf("got\n%s|\nwant\n%s|", strings.Join(got, "|\n"), strings.Join(want, "|\n"))
+	}
+	for _, off := range []int{0, 25, 30, 40, len(text)} {
+		row, col := l.RowCol(off)
+		if back := l.Offset(row, col); back != off {
+			t.Errorf("offset %d -> row %d col %d -> %d", off, row, col, back)
+		}
+	}
+}

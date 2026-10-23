@@ -9,21 +9,20 @@ import (
 )
 
 func TestAsElement(t *testing.T) {
-	ind := func(n int, s string) string { return strings.Repeat(" ", n) + s }
 	for _, c := range []struct{ line, element, want string }{
 		{"int. kitchen - day", elementScene, "INT. KITCHEN - DAY"},
 		{"the kitchen", elementScene, ".THE KITCHEN"},
-		{"anna", elementCharacter, ind(CharacterIndent, "ANNA")},
-		{"Dr. Who", elementCharacter, ind(CharacterIndent, "@DR. WHO")},
-		{"quietly", elementParenthetical, ind(ParentheticalIndent, "(quietly)")},
-		{ind(ParentheticalIndent, "(quietly)"), elementDialogue, ind(DialogueIndent, "quietly")},
-		{"cut to:", elementTransition, ind(TransitionIndent, "CUT TO:")},
-		{"fade out.", elementTransition, ind(TransitionIndent, "> FADE OUT.")},
-		{ind(CharacterIndent, "ANNA"), elementAction, "!ANNA"}, // would read as a name
-		{".THE KITCHEN", elementAction, "!THE KITCHEN"},        // and as a heading, upper case
+		{"anna", elementCharacter, "ANNA"},
+		{"Dr. Who", elementCharacter, "@DR. WHO"},
+		{"quietly", elementParenthetical, "(quietly)"},
+		{"(quietly)", elementDialogue, "quietly"},
+		{"cut to:", elementTransition, "CUT TO:"},
+		{"fade out.", elementTransition, "> FADE OUT."},
+		{"ANNA", elementAction, "!ANNA"},                // would read as a name
+		{".THE KITCHEN", elementAction, "!THE KITCHEN"}, // and as a heading, upper case
 		{"Anna walks in.", elementAction, "Anna walks in."},
 		{"THE END", elementCentered, "> THE END <"},
-		{"> THE END <", elementCharacter, ind(CharacterIndent, "THE END")},
+		{"> THE END <", elementCharacter, "THE END"},
 	} {
 		if got := asElement(c.line, c.element, nil); got != c.want {
 			t.Errorf("asElement(%q, %s) = %q, want %q", c.line, c.element, got, c.want)

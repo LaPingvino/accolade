@@ -109,6 +109,22 @@ body:
 	return kinds
 }
 
+// ClassifyTyping is ClassifyWith for a script being typed: an empty line
+// with the cursor right after a character name or a parenthetical is where
+// its dialogue goes (Fountain's rules wait for the dialogue's text).
+func ClassifyTyping(lines []string, sceneStarts []string, cursorLine int) []Kind {
+	if cursorLine < 1 || cursorLine >= len(lines) || strings.TrimSpace(lines[cursorLine]) != "" {
+		return ClassifyWith(lines, sceneStarts)
+	}
+	typed := append([]string(nil), lines...)
+	typed[cursorLine] = "x"
+	kinds := ClassifyWith(typed, sceneStarts)
+	if k := kinds[cursorLine-1]; k == Character || k == Parenthetical {
+		return kinds
+	}
+	return ClassifyWith(lines, sceneStarts)
+}
+
 func hasAnyPrefix(s string, prefixes []string) bool {
 	for _, p := range prefixes {
 		if strings.HasPrefix(s, p) {

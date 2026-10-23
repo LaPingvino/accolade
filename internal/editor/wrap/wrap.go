@@ -78,6 +78,78 @@ func wrapLine(line []rune, base, number, width int) []Row {
 	}
 }
 
+// Format is how a line is laid out: from column Indent, Width columns
+// wide (0: to the edge), aligned 'L' (or 0), 'C' or 'R' in them.
+type Format struct {
+	Indent, Width int
+	Align         byte
+}
+
+// WrapFormatted lays text out in rows of at most width columns, each line
+// in its format (formats[i] for line i; lines past the end are laid out
+// from column 0). Leading spaces are text here, not an indent.
+func WrapFormatted(text []rune, width int, formats []Format) Layout {
+	width = max(width, 1)
+	l := Layout{Width: width}
+	line, start := 0, 0
+	for i := 0; i <= len(text); i++ {
+		if i < len(text) && text[i] != '\n' {
+			continue
+		}
+		var f Format
+		if line < len(formats) {
+			f = formats[line]
+		}
+		l.Rows = append(l.Rows, formatLine(text[start:i], start, line, width, f)...)
+		line++
+		start = i + 1
+	}
+	return l
+}
+
+func formatLine(line []rune, base, number, width int, f Format) []Row {
+	col, room := f.Indent, f.Width
+	if col < 0 || col >= width {
+		col = 0
+	}
+	if room <= 0 || col+room > width {
+		room = width - col
+	}
+	var rows []Row
+	for pos := 0; ; {
+		end := len(line)
+		if end-pos > room {
+			end = pos + room
+			for b := end; b > pos+1; b-- {
+				if line[b-1] == ' ' {
+					end = b
+					break
+				}
+			}
+			for end < len(line) && line[end] == ' ' && end-pos < room {
+				end++
+			}
+		}
+		shown := end - pos
+		for shown > 0 && line[pos+shown-1] == ' ' {
+			shown--
+		}
+		pad := col
+		switch f.Align {
+		case 'R':
+			pad += max(0, room-shown)
+		case 'C':
+			pad += max(0, room-shown) / 2
+		}
+		last := end == len(line)
+		rows = append(rows, Row{Line: number, Start: base + pos, End: base + end, Indent: pad, Last: last})
+		if last {
+			return rows
+		}
+		pos = end
+	}
+}
+
 // RowCol is where an offset is shown: its row, and its column including
 // the row's indent. An offset at a wrap point is shown at the start of
 // the next row.

@@ -61,3 +61,17 @@ func TestNoTitlePage(t *testing.T) {
 		}
 	}
 }
+
+func TestClassifyTyping(t *testing.T) {
+	lines := []string{"Anna waits.", "", "ANNA", "", "BRAM enters."}
+	if k := ClassifyTyping(lines, nil, 3); k[2] != Character || k[3] != Dialogue {
+		t.Errorf("after a name: %v", k)
+	}
+	if k := ClassifyTyping(lines, nil, 1); k[2] != Action {
+		t.Errorf("elsewhere: %v", k)
+	}
+	lines = []string{"ANNA", "Hi.", ""}
+	if k := ClassifyTyping(lines, nil, 2); k[2] != Empty {
+		t.Errorf("after dialogue: %v", k)
+	}
+}

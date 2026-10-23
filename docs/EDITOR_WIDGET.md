@@ -85,8 +85,10 @@ Each step is one reviewable change with tests.
    and selection as offsets, insert/delete/replace with undo groups
    (one undo step per replace or formatted line), redo. Pure Go.
 2. **Soft wrapping**: logical lines to visual rows for a width in columns,
-   breaking at spaces, keeping leading indentation on continuation rows,
-   with offset <-> (row, column) mapping. Pure Go.
+   breaking at spaces, with offset <-> (row, column) mapping. Pure Go.
+   Accolade lays each line out as its element (column, width, alignment
+   from the script format's Lexington rules: `WrapFormatted`); the text
+   has no layout spaces.
 3. **Widget, keyboard**: a `ScriptEditor` widget rendering wrapped rows
    into a `TextGrid`; focus; typed runes; arrows, Home/End, Page Up/Down
    (with Shift for selection); Backspace/Delete; Enter; clipboard and

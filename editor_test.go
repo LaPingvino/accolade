@@ -17,8 +17,6 @@ func typeScript(w *MainWindow, lines ...string) {
 	}
 }
 
-func pad(n int, s string) string { return strings.Repeat(" ", n) + s }
-
 func TestTypingAScene(t *testing.T) {
 	w := newTestWindow(t, "")
 	typeScript(w,
@@ -41,11 +39,11 @@ func TestTypingAScene(t *testing.T) {
 		"",
 		"Rain hammers the roof.",
 		"",
-		pad(CharacterIndent, "JOHN"),
-		pad(ParentheticalIndent, "(beat)"),
-		pad(DialogueIndent, "It's coming."),
+		"JOHN",
+		"(beat)",
+		"It's coming.",
 		"",
-		pad(TransitionIndent, "CUT TO:"),
+		"CUT TO:",
 		"",
 	}, "\n")
 	if got := w.textEditor.Text(); got != want {
@@ -65,7 +63,7 @@ func TestSpaceAfterSceneHeadingPrefixSurvives(t *testing.T) {
 func TestFormattingKeepsUndoHistory(t *testing.T) {
 	w := newTestWindow(t, "")
 	typeScript(w, "", "john")
-	if got := w.textEditor.Text(); got != "\n"+pad(CharacterIndent, "john")+"\n" {
+	if got := w.textEditor.Text(); got != "\n"+"john"+"\n" {
 		// lowercase is not a character cue: left alone
 		if got != "\njohn\n" {
 			t.Fatalf("text = %q", got)
@@ -130,14 +128,14 @@ func TestFormatCompletedLine(t *testing.T) {
 		{"", "FADE IN:", "FADE IN:", "Action"},
 		{"", "ext. field - night", "EXT. FIELD - NIGHT", "Scene Heading"},
 		{"Some action.", "int. barn", "int. barn", "Action"}, // needs a blank line before
-		{"", "MARY (V.O.)", pad(CharacterIndent, "MARY (V.O.)"), "Character"},
+		{"", "MARY (V.O.)", "MARY (V.O.)", "Character"},
 		{"", "BANG!", "BANG!", "Action"},
 		{"", "OK.", "OK.", "Action"},
 		{"", "I", "I", "Action"},
-		{"", "smash cut to:", pad(TransitionIndent, "SMASH CUT TO:"), "Transition"},
-		{"", "fade out.", pad(TransitionIndent, "> FADE OUT."), "Transition"},
-		{"", "> fade to black.", pad(TransitionIndent, "> FADE TO BLACK."), "Transition"},
-		{pad(CharacterIndent, "JOHN"), "(quietly)", pad(ParentheticalIndent, "(quietly)"), "Parenthetical"},
+		{"", "smash cut to:", "SMASH CUT TO:", "Transition"},
+		{"", "fade out.", "> FADE OUT.", "Transition"},
+		{"", "> fade to black.", "> FADE TO BLACK.", "Transition"},
+		{"JOHN", "(quietly)", "(quietly)", "Parenthetical"},
 		{"", "  He waits.", "  He waits.", "Action"},
 	}
 	for _, c := range cases {

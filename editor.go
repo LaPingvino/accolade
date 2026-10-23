@@ -87,7 +87,7 @@ func closeBracket(e *editor.ScriptEditor, r rune) bool {
 }
 
 // completeLine handles Enter: format the current line if the cursor is at
-// its end, then break the line and indent the new one. It reports false
+// its end, then break the line. It reports false
 // to leave Enter to the editor (auto-indent off, or a selection).
 func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
 	if w != nil && w.settings != nil && !w.settings.GetBoolean("auto-indent") {
@@ -102,7 +102,6 @@ func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
 	start, end := lineBounds(text, cursor)
 	line := string(text[start:end])
 
-	element := "Action"
 	formatted := line
 	if cursor == end {
 		prev := ""
@@ -110,7 +109,7 @@ func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
 			ps, _ := lineBounds(text, start-1)
 			prev = string(text[ps : start-1])
 		}
-		formatted, element = formatCompletedLine(prev, line, w.sceneStarts())
+		formatted, _ = formatCompletedLine(prev, line, w.sceneStarts())
 	}
 
 	e.Edit(func(b *buffer.Buffer) {
@@ -118,7 +117,7 @@ func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
 			if formatted != line {
 				b.Replace(start, end, formatted)
 			}
-			b.Insert("\n" + strings.Repeat(" ", nextLineIndent(element)))
+			b.Insert("\n")
 		})
 	})
 	return true
@@ -157,25 +156,13 @@ func formatCompletedLine(prev, line string, starts []string) (string, string) {
 		if !strings.HasSuffix(upper, "TO:") && !strings.HasPrefix(upper, ">") {
 			upper = "> " + upper
 		}
-		return strings.Repeat(" ", TransitionIndent) + upper, "Transition"
+		return upper, "Transition"
 	case strings.HasPrefix(trimmed, "(") && strings.HasSuffix(trimmed, ")") && !afterBlank:
-		return strings.Repeat(" ", ParentheticalIndent) + trimmed, "Parenthetical"
+		return trimmed, "Parenthetical"
 	case isCharacterCue(trimmed) && afterBlank:
-		return strings.Repeat(" ", CharacterIndent) + trimmed, "Character"
-	case strings.HasPrefix(line, strings.Repeat(" ", DialogueIndent)):
-		return line, "Dialogue"
+		return trimmed, "Character"
 	}
 	return line, "Action"
-}
-
-// nextLineIndent is how far the line after an element of the given kind
-// starts: dialogue follows a character name or a parenthetical.
-func nextLineIndent(element string) int {
-	switch element {
-	case "Character", "Parenthetical":
-		return DialogueIndent
-	}
-	return 0
 }
 
 // isSceneHeading reports whether a line starts like an English scene

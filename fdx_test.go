@@ -51,7 +51,7 @@ func TestOpenFDXConvertsToFountain(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := w.textEditor.Text()
-	for _, s := range []string{"Title: The Barn", "INT. BARN - DAY", "\nJOHN\n(beat)\nIt's coming.\n", "CUT TO:"} {
+	for _, s := range []string{"Title: The Barn", "INT. BARN - DAY", "\n" + "JOHN\n" + "(beat)\n" + "It's coming.\n", "CUT TO:"} {
 		if !strings.Contains(text, s) {
 			t.Errorf("imported text is missing %q:\n%s", s, text)
 		}

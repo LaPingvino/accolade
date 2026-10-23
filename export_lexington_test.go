@@ -34,11 +34,11 @@ var accoladeScript = strings.Join([]string{
 	"",
 	"Rain hammers the roof.",
 	"",
-	pad(CharacterIndent, "JOHN"),
-	pad(ParentheticalIndent, "(beat)"),
-	pad(DialogueIndent, "It's coming."),
+	"JOHN",
+	"(beat)",
+	"It's coming.",
 	"",
-	pad(TransitionIndent, "CUT TO:"),
+	"CUT TO:",
 	"",
 }, "\n")
 
@@ -74,7 +74,7 @@ func TestExportPDF(t *testing.T) {
 		t.Errorf("not a PDF (%d bytes): %q", len(data), data[:min(len(data), 20)])
 	}
 	if text, err := exec.Command("pdftotext", "-layout", out, "-").Output(); err == nil {
-		for _, s := range []string{"The Barn", "1 Writer's Lane", "FADE IN:", "INT. BARN - DAY", pad(26, "JOHN"), "(beat)", "It's coming.", "CUT TO:"} {
+		for _, s := range []string{"The Barn", "1 Writer's Lane", "FADE IN:", "INT. BARN - DAY", strings.Repeat(" ", 26) + "JOHN", "(beat)", "It's coming.", "CUT TO:"} {
 			if !strings.Contains(string(text), s) {
 				t.Errorf("PDF text is missing %q:\n%s", s, text)
 			}
@@ -175,7 +175,7 @@ func TestOpenPDF(t *testing.T) {
 	}
 	text := waitForText(t, w)
 	for _, want := range []string{"Title: The Barn", "Contact: Jane Smith\n    1 Writer's Lane", "INT. BARN - DAY",
-		"Rain hammers the roof.", "\nJOHN\n(beat)\nIt's coming.", "CUT TO:"} {
+		"Rain hammers the roof.", "\n" + "JOHN\n" + "(beat)\n" + "It's coming.", "CUT TO:"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("imported script lacks %q:\n%s", want, text)
 		}
@@ -226,7 +226,7 @@ func TestOpenScannedPDF(t *testing.T) {
 		t.Fatal(err)
 	}
 	text := waitForText(t, w)
-	for _, want := range []string{"Title: BISCUITS", "INT. OFFICE KITCHEN - DAY", "\nANNA\nJust one left.", "BRAM ^"} {
+	for _, want := range []string{"Title: BISCUITS", "INT. OFFICE KITCHEN - DAY", "\n" + "ANNA\n" + "Just one left.", "BRAM ^"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("OCRed script lacks %q:\n%s", want, text)
 		}
