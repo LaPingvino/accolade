@@ -863,7 +863,7 @@ func (w *MainWindow) toggleOutline() {
 	if w.outline == nil {
 		w.outline = newOutlinePanel(w)
 	}
-	w.outlineVisible, w.notesVisible = !w.outlineVisible, false
+	w.outlineVisible = !w.outlineVisible
 	if w.outlineVisible {
 		w.outline.update(w.textEditor.Text())
 	}
@@ -875,7 +875,7 @@ func (w *MainWindow) toggleNotes() {
 	if w.notes == nil {
 		w.notes = newNotesPanel(w)
 	}
-	w.notesVisible, w.outlineVisible = !w.notesVisible, false
+	w.notesVisible = !w.notesVisible
 	if w.notesVisible {
 		w.notes.update(w.textEditor.Text())
 		w.relayout()
@@ -895,12 +895,19 @@ func (w *MainWindow) relayout() {
 		split.SetOffset(0.55) // the preview shows a whole page width
 		center = split
 	}
-	var left fyne.CanvasObject
+	var side fyne.CanvasObject
+	outline, notes := w.outlineVisible && w.outline != nil, w.notesVisible && w.notes != nil
 	switch {
-	case w.outlineVisible && w.outline != nil:
-		left = container.NewHBox(w.outline.box, widget.NewSeparator())
-	case w.notesVisible && w.notes != nil:
-		left = container.NewHBox(w.notes.box, widget.NewSeparator())
+	case outline && notes:
+		side = container.NewVSplit(w.outline.box, w.notes.box)
+	case outline:
+		side = w.outline.box
+	case notes:
+		side = w.notes.box
+	}
+	var left fyne.CanvasObject
+	if side != nil {
+		left = container.NewHBox(side, widget.NewSeparator())
 	}
 	// the objects in the order they are seen, which is the order Tab and
 	// screen readers go through them (NewBorder puts the centre first:
