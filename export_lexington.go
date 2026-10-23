@@ -14,7 +14,6 @@ import (
 	"github.com/LaPingvino/lexington/fdx"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
-	"github.com/LaPingvino/lexington/ocrwasm"
 	"github.com/LaPingvino/lexington/pdfin"
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -139,12 +138,9 @@ func importPDF(ctx context.Context, path string, progress func(done, pages int))
 	opts := pdfin.Options{Context: ctx, Progress: progress, Skipped: func(page int, err error) {
 		skipped = append(skipped, fmt.Sprintf("page %d: %v", page, err))
 	}}
-	if t, ok := pdfin.InstalledTesseract(); ok {
-		opts.OCR = t
-	} else {
-		o := ocrwasm.New()
-		defer o.Close(context.Background())
-		opts.OCR = o
+	if ocr, done := pdfOCR(); ocr != nil {
+		defer done()
+		opts.OCR = ocr
 	}
 	screenplay, err := pdfin.ReadFileWith(path, opts)
 	if err != nil {
