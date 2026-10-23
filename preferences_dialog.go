@@ -175,7 +175,8 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 	})
 	return container.NewVBox(
 		widget.NewCard("Script Format", "How the editor and the exports lay the script out",
-			container.NewVBox(pd.scriptFormatSelect, pd.scriptFormatDesc),
+			container.NewVBox(pd.scriptFormatSelect, pd.scriptFormatDesc,
+				container.NewHBox(widget.NewButton("Edit Lexington Settings…", pd.editLexington))),
 		),
 		widget.NewCard("Language", "Of a new script: its scene headings (INT./EXT., EN./EKST., BIN./BUI., ...). A file named like scene.eo.fountain says its own.",
 			labelled("Language:", pd.languageSelect),
@@ -256,6 +257,19 @@ func (pd *PreferencesDialog) saveSettings() {
 	s.SetBoolean("fountain-scene-numbers", pd.numberScenesCheck.Checked)
 
 	s.Save()
+}
+
+// editLexington edits Lexington's settings: formats and languages of
+// one's own show here and in the windows after saving.
+func (pd *PreferencesDialog) editLexington() {
+	editLexingtonSettings(pd.host, func() {
+		format, lang := selectedScriptFormat(pd.scriptFormatSelect), pd.languageSelect.Selected
+		pd.scriptFormatSelect.SetOptions(scriptFormatNames())
+		selectScriptFormat(pd.scriptFormatSelect, format)
+		pd.languageSelect.SetOptions(scriptLanguages())
+		pd.languageSelect.SetSelected(lang)
+		pd.app.scriptFormatsChanged()
+	})
 }
 
 func (pd *PreferencesDialog) resetToDefaults() {

@@ -750,6 +750,9 @@ func (w *MainWindow) updateCurrentElement() {
 	line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
 	kinds := syntax.ClassifyTyping(strings.Split(text, "\n"), w.sceneStarts(), line)
 	w.currentElement = elementNames[kinds[min(line, len(kinds)-1)]]
+	if w.headerBar != nil {
+		w.headerBar.showElement(w.currentElement)
+	}
 }
 
 // elementNames are the elements' names in the status bar.

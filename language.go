@@ -4,8 +4,6 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
-
-	"github.com/LaPingvino/lexington/rules"
 )
 
 // A script's language decides what its scene headings start with: INT.
@@ -14,7 +12,7 @@ import (
 // from the file's name, as Lexington does (scene.eo.fountain is
 // Esperanto), or for a new script from the preferences.
 
-var sceneConf = rules.DefaultConf().Scenes
+var sceneConf = lexSettings.Scenes
 
 // scriptLanguages are the languages with scene headings, in order.
 func scriptLanguages() []string {

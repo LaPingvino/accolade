@@ -117,7 +117,7 @@ func TestTabOrderFollowsTheScreen(t *testing.T) {
 	c := w.fyneWindow.Canvas()
 	c.Unfocus()
 	var order []string
-	for i := 0; i < 12; i++ {
+	for i := 0; i < 24; i++ {
 		c.FocusNext()
 		switch f := c.Focused(); f {
 		case w.textEditor:
@@ -129,7 +129,7 @@ func TestTabOrderFollowsTheScreen(t *testing.T) {
 		}
 	}
 	got := strings.Join(order, " ")
-	if !strings.HasPrefix(got, "toolbar toolbar toolbar toolbar toolbar toolbar toolbar toolbar toolbar notes editor") {
+	if rest := strings.TrimLeft(strings.ReplaceAll(got, "toolbar ", "t"), "t"); !strings.HasPrefix(got, "toolbar") || !strings.HasPrefix(rest, "notes editor") {
 		t.Errorf("Tab order: %s", got)
 	}
 }

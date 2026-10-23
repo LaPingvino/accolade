@@ -242,10 +242,19 @@ func (app *Application) showAbout() {
 
 // applySettingsToWindows re-applies the editor settings in every window
 // after the preferences changed.
+// scriptFormatsChanged shows the formats (Lexington's settings changed).
+func (app *Application) scriptFormatsChanged() {
+	for _, w := range app.windows {
+		w.headerBar.showFormats()
+		w.applyScriptFormat()
+	}
+}
+
 func (app *Application) applySettingsToWindows() {
 	for _, w := range app.windows {
 		w.applyEditorSettings()
 		w.applyFontSettings()
+		w.headerBar.showFormats()
 	}
 }
 
