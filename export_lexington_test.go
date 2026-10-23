@@ -63,7 +63,7 @@ func TestParseForExportElementTypes(t *testing.T) {
 func TestExportPDF(t *testing.T) {
 	dir := t.TempDir()
 	out := filepath.Join(dir, "barn.pdf")
-	if err := exportPDF(accoladeScript, out, exportJob{elements: rules.Default}); err != nil {
+	if err := exportAs(accoladeScript, out, "pdf", exportJob{format: "default"}); err != nil {
 		t.Fatal(err)
 	}
 	data, err := os.ReadFile(out)
@@ -89,7 +89,7 @@ func TestExportPDF(t *testing.T) {
 
 func TestExportHTML(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "barn.html")
-	if err := exportHTML(accoladeScript, out, exportJob{elements: rules.Default}); err != nil {
+	if err := exportAs(accoladeScript, out, "html", exportJob{format: "default"}); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(out)
@@ -103,7 +103,7 @@ func TestExportHTML(t *testing.T) {
 
 func TestExportToMissingDirectoryFails(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "nope", "barn.pdf")
-	if err := exportPDF(accoladeScript, out, exportJob{elements: rules.Default}); err == nil {
+	if err := exportAs(accoladeScript, out, "pdf", exportJob{format: "default"}); err == nil {
 		t.Error("expected an error writing into a missing directory")
 	}
 }
@@ -117,7 +117,7 @@ func TestExportDocuments(t *testing.T) {
 		{"odt", "styles.xml", `fo:page-width="5.830in"`},    // A5
 	} {
 		out := filepath.Join(t.TempDir(), "script."+c.format)
-		if err := exportDocument(accoladeScript, out, c.format, exportJob{elements: m.Elements, page: m.Page}); err != nil {
+		if err := exportAs(accoladeScript, out, c.format, exportJob{format: "musical", page: m.Page}); err != nil {
 			t.Fatal(err)
 		}
 		z, err := zip.OpenReader(out)
@@ -166,7 +166,7 @@ func TestExportJobScript(t *testing.T) {
 // A PDF opens as its script, imported: unsaved, with a .fountain name.
 func TestOpenPDF(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "script.pdf")
-	if err := exportPDF(accoladeScript, out, exportJob{elements: rules.Default}); err != nil {
+	if err := exportAs(accoladeScript, out, "pdf", exportJob{format: "default"}); err != nil {
 		t.Fatal(err)
 	}
 	w, _ := newDialogTestWindow(t)
@@ -240,7 +240,7 @@ func TestExportDialogFormatAndTarget(t *testing.T) {
 	w.settings.SetString("export-format", "DOCX")
 	t.Cleanup(func() { w.settings.SetString("export-format", "PDF") })
 	ed := NewExportDialog(w)
-	if ed.formatSelect.Selected != "DOCX" {
+	if ed.formatSelect.Selected != exportFormatLabel("docx") {
 		t.Errorf("opens on %q", ed.formatSelect.Selected)
 	}
 	dir := t.TempDir()
@@ -266,7 +266,7 @@ func TestExportDialogFormatAndTarget(t *testing.T) {
 func TestImportPDFCancel(t *testing.T) {
 	dir := t.TempDir()
 	pdfPath := filepath.Join(dir, "s.pdf")
-	if err := exportPDF("INT. A - DAY\n\nAction.\n", pdfPath, exportJob{}); err != nil {
+	if err := exportAs("INT. A - DAY\n\nAction.\n", pdfPath, "pdf", exportJob{}); err != nil {
 		t.Fatal(err)
 	}
 	if text, _, err := importPDF(context.Background(), pdfPath, nil); err != nil || !strings.Contains(text, "INT. A - DAY") {

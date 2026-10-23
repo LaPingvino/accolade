@@ -1,20 +1,23 @@
 package main
 
 import (
-	"runtime/debug"
 	"context"
 	"fmt"
+	"github.com/LaPingvino/lexington/cli"
 	"log"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
+	"syscall"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"fyne.io/fyne/v2/driver/desktop"
 )
 
 const (
@@ -33,10 +36,10 @@ func NewApplication() *Application {
 		windows: make([]*MainWindow, 0),
 		ctx:     context.Background(),
 	}
-	
+
 	app.setupMetadata()
 	app.setupLifecycle()
-	
+
 	return app
 }
 
@@ -55,7 +58,7 @@ func appVersion() string {
 
 func (app *Application) setupLifecycle() {
 	app.fyneApp.SetIcon(nil) // TODO: Set app icon
-	
+
 	// Setup global shortcuts
 	if deskApp, ok := app.fyneApp.(desktop.App); ok {
 		deskApp.SetSystemTrayMenu(app.createSystemTrayMenu())
@@ -66,32 +69,32 @@ func (app *Application) createSystemTrayMenu() *fyne.Menu {
 	newWindow := fyne.NewMenuItem("New Window", func() {
 		app.newWindow()
 	})
-	
+
 	preferences := fyne.NewMenuItem("Preferences", func() {
 		app.showPreferences()
 	})
-	
+
 	about := fyne.NewMenuItem("About", func() {
 		app.showAbout()
 	})
-	
+
 	quit := fyne.NewMenuItem("Quit", func() {
 		app.quit()
 	})
-	
+
 	return fyne.NewMenu("Accolade", newWindow, fyne.NewMenuItemSeparator(), preferences, about, fyne.NewMenuItemSeparator(), quit)
 }
 
 func (app *Application) Run(args []string) {
 	log.Println("Starting Accolade application")
-	
+
 	// Handle file arguments
 	if len(args) > 1 {
 		app.openFiles(args[1:])
 	} else {
 		app.newWindow()
 	}
-	
+
 	// Show and run
 	app.fyneApp.Run()
 }
@@ -104,37 +107,37 @@ func (app *Application) openFiles(filePaths []string) {
 			emptyWindows = append(emptyWindows, window)
 		}
 	}
-	
+
 	// Open files
 	for i, filePath := range filePaths {
 		var window *MainWindow
-		
+
 		if i < len(emptyWindows) {
 			window = emptyWindows[i]
 		} else {
 			window = app.newWindow()
 		}
-		
+
 		err := window.LoadFile(filePath)
 		if err != nil {
 			dialog.ShowError(fmt.Errorf("failed to open file %s: %v", filePath, err), window.fyneWindow)
 		}
-		
+
 		window.Show()
 	}
 }
 
 func (app *Application) newWindow() *MainWindow {
 	log.Println("Creating new window")
-	
+
 	window := NewMainWindow(app)
 	app.windows = append(app.windows, window)
-	
+
 	// Set up window close handler
 	window.fyneWindow.SetOnClosed(func() {
 		app.onWindowClosed(window)
 	})
-	
+
 	window.Show()
 	return window
 }
@@ -149,7 +152,7 @@ func (app *Application) onWindowClosed(window *MainWindow) {
 			break
 		}
 	}
-	
+
 	// If no windows left, quit
 	if len(app.windows) == 0 {
 		app.fyneApp.Quit()
@@ -158,26 +161,26 @@ func (app *Application) onWindowClosed(window *MainWindow) {
 
 func (app *Application) showPreferences() {
 	log.Println("Showing preferences")
-	
+
 	// Get active window as parent
 	var parent fyne.Window
 	if len(app.windows) > 0 {
 		parent = app.windows[0].fyneWindow
 	}
-	
+
 	dialog := NewPreferencesDialog(app, parent)
 	dialog.Show()
 }
 
 func (app *Application) showAbout() {
 	log.Println("Showing about dialog")
-	
+
 	// Get active window as parent
 	var parent fyne.Window
 	if len(app.windows) > 0 {
 		parent = app.windows[0].fyneWindow
 	}
-	
+
 	content := widget.NewRichTextFromMarkdown(`
 # Accolade
 
@@ -191,7 +194,7 @@ A distraction-free Fountain editor for screenwriters.
 **Website:** https://github.com/LaPingvino/accolade  
 **Issues:** https://github.com/LaPingvino/accolade/issues
 `)
-	
+
 	aboutDialog := dialog.NewCustom("About Accolade", "Close", content, parent)
 	aboutDialog.Resize(fyne.NewSize(500, 400))
 	aboutDialog.Show()
@@ -208,7 +211,7 @@ func (app *Application) applySettingsToWindows() {
 
 func (app *Application) setColorScheme(scheme string) {
 	log.Printf("Setting color scheme to: %s", scheme)
-	
+
 	switch scheme {
 	case "light":
 		app.fyneApp.Settings().SetTheme(&LightTheme{})
@@ -224,22 +227,22 @@ func (app *Application) setColorScheme(scheme string) {
 
 func (app *Application) quit() {
 	log.Println("Quitting application")
-	
+
 	// Check for unsaved changes
 	hasUnsaved := false
 	unsavedWindows := make([]*MainWindow, 0)
-	
+
 	for _, window := range app.windows {
 		if window.HasUnsavedChanges() {
 			hasUnsaved = true
 			unsavedWindows = append(unsavedWindows, window)
 		}
 	}
-	
+
 	if hasUnsaved {
 		// Show confirmation dialog for first window with unsaved changes
 		parent := unsavedWindows[0].fyneWindow
-		
+
 		confirmDialog := dialog.NewConfirm(
 			"Unsaved Changes",
 			fmt.Sprintf("You have unsaved changes in %d window(s). Are you sure you want to quit?", len(unsavedWindows)),
@@ -253,14 +256,23 @@ func (app *Application) quit() {
 		confirmDialog.Show()
 		return
 	}
-	
+
 	app.fyneApp.Quit()
 }
 
 func main() {
+	// options (accolade -i script.fountain -o script.pdf): Lexington's
+	// command line, without a window
+	if len(os.Args) > 1 && strings.HasPrefix(os.Args[1], "-") && os.Args[1] != "-" {
+		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		code := cli.Main(ctx, os.Args[1:])
+		cancel()
+		os.Exit(code)
+	}
+
 	// Create application
 	app := NewApplication()
-	
+
 	// Run application
 	app.Run(os.Args)
 }
@@ -298,7 +310,7 @@ func getDebugInfo() string {
 	info := fmt.Sprintf("Accolade %s\n", appVersion())
 	info += fmt.Sprintf("Fyne: %s\n", moduleVersion("fyne.io/fyne/v2"))
 	info += fmt.Sprintf("Lexington: %s (built in)\n", moduleVersion("github.com/LaPingvino/lexington"))
-	
+
 	return info
 }
 
@@ -346,8 +358,6 @@ func isFountainFile(filename string) bool {
 	ext := getFileExtension(filename)
 	return ext == ".fountain" || ext == ".spmd"
 }
-
-
 
 // Resource helpers
 func getResourcePath(path string) string {

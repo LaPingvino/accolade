@@ -10,13 +10,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/LaPingvino/lexington/cli"
 	"github.com/LaPingvino/lexington/fdx"
 	"github.com/LaPingvino/lexington/fountain"
-	"github.com/LaPingvino/lexington/html"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/ocrwasm"
-	"github.com/LaPingvino/lexington/office"
-	"github.com/LaPingvino/lexington/pdf"
 	"github.com/LaPingvino/lexington/pdfin"
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -30,12 +28,14 @@ func parseForExport(content string) lex.Screenplay {
 	return fountain.Parse(englishScenes, strings.NewReader(content))
 }
 
-// exportJob is how to export: the script format's rules, the paper
-// ("letter", "a4", "a5"; "" for the format's suggestion or Letter), and
+// exportJob is how to export: the script format (a Lexington preset's
+// key: its rules), the paper ("letter", "a4", "a5"; "" for the format's
+// suggestion or Letter), a template for the formats that take one, and
 // what to do with the script.
 type exportJob struct {
-	elements      rules.Set
+	format        string
 	page          string
+	template      string
 	omitTitlePage bool     // leave the title page out
 	numberScenes  bool     // number the scenes that have no number
 	scenes        []string // the script language's scene headings (nil: English)
@@ -93,74 +93,30 @@ func numberScenes(s lex.Screenplay) lex.Screenplay {
 	return out
 }
 
-// exportPDF renders the script to a PDF at outputPath.
-func exportPDF(content, outputPath string, job exportJob) (err error) {
+// exportAs writes the script as Lexington's format to (its -to), with
+// Lexington's command line's options: what "accolade -to ..." makes.
+func exportAs(content, outputPath, to string, job exportJob) error {
 	return writeViaTemp(outputPath, func(tmp string) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				err = fmt.Errorf("PDF rendering failed: %v", r)
+				err = fmt.Errorf("%s export failed: %v", to, r)
 			}
 		}()
-		w := &pdf.PDFWriter{OutputFile: tmp, Elements: job.elements, Page: job.paper()}
-		return w.Write(nil, job.script(content))
+		return cli.Write(context.Background(), job.script(content), cli.Options{
+			ConfigFile:   lexingtonConfig(),
+			Elements:     job.format,
+			Page:         job.page,
+			To:           to,
+			Output:       tmp,
+			TemplatePath: job.template,
+		})
 	})
 }
 
-// exportHTML renders the script to a standalone HTML page at outputPath.
-func exportHTML(content, outputPath string, job exportJob) error {
-	return writeViaTemp(outputPath, func(tmp string) error {
-		f, err := os.Create(tmp)
-		if err != nil {
-			return err
-		}
-		w := &html.HTMLWriter{Elements: job.elements}
-		if err := w.Write(io.Writer(f), job.script(content)); err != nil {
-			f.Close()
-			return err
-		}
-		return f.Close()
-	})
-}
-
-// exportDocument writes the script as a Word ("docx") or OpenDocument
-// ("odt") document.
-func exportDocument(content, outputPath, format string, job exportJob) error {
-	return writeViaTemp(outputPath, func(tmp string) error {
-		f, err := os.Create(tmp)
-		if err != nil {
-			return err
-		}
-		var w interface {
-			Write(io.Writer, lex.Screenplay) error
-		} = &office.DOCXWriter{Elements: job.elements, Page: job.paper()}
-		if format == "odt" {
-			w = &office.ODTWriter{Elements: job.elements, Page: job.paper()}
-		}
-		if err := w.Write(f, job.script(content)); err != nil {
-			f.Close()
-			return err
-		}
-		return f.Close()
-	})
-}
-
-// paper is the job's paper for Lexington.
-func (j exportJob) paper() string { return j.page }
-
-// exportFDX writes the script as a Final Draft document.
-func exportFDX(content, outputPath string, job exportJob) error {
-	return writeViaTemp(outputPath, func(tmp string) error {
-		f, err := os.Create(tmp)
-		if err != nil {
-			return err
-		}
-		if err := (&fdx.FDXWriter{}).Write(f, job.script(content)); err != nil {
-			f.Close()
-			return err
-		}
-		return f.Close()
-	})
-}
+// lexingtonConfig is Lexington's settings file in Accolade's settings
+// folder: its element sets and scene headings, as for the lexington
+// command (Lexington's defaults and presets without it).
+func lexingtonConfig() string { return filepath.Join(getConfigDir(), "lexington.toml") }
 
 // importFDX converts a Final Draft document to Fountain text.
 func importFDX(r io.Reader) (string, error) {

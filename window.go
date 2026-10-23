@@ -695,7 +695,7 @@ var elementNames = map[syntax.Kind]string{
 // settings, to a temporary file, and opens it in the PDF viewer.
 func (w *MainWindow) previewPDF() {
 	job := exportJob{
-		elements:      currentScriptFormat(),
+		format:        w.settings.GetString("script-format"),
 		page:          w.settings.GetString("page-size"),
 		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
 		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
@@ -716,7 +716,7 @@ func (w *MainWindow) previewPDF() {
 	content := w.textEditor.Text()
 	w.setStatus("Preparing the PDF...")
 	go func() {
-		err := exportPDF(content, out, job)
+		err := exportAs(content, out, "pdf", job)
 		fyne.Do(func() {
 			if err != nil {
 				w.setStatus("")

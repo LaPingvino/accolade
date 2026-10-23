@@ -47,20 +47,6 @@ type PreferencesDialog struct {
 	numberScenesCheck     *widget.Check
 }
 
-// exportFormats are the Export dialog's formats, as it names them.
-var exportFormats = []string{"PDF", "HTML", "DOCX", "ODT", "FDX", "TXT", "Fountain"}
-
-// exportFormatLabel is the format for an "export-format" setting
-// (older settings have "pdf").
-func exportFormatLabel(setting string) string {
-	for _, f := range exportFormats {
-		if strings.EqualFold(f, setting) {
-			return f
-		}
-	}
-	return exportFormats[0]
-}
-
 func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDialog {
 	pd := &PreferencesDialog{
 		app:      app,

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/LaPingvino/lexington/cli"
 	"github.com/LaPingvino/lexington/rules"
 	"os"
 	"path/filepath"
@@ -22,6 +23,8 @@ type ExportDialog struct {
 
 	// Format selection
 	formatSelect *widget.Select
+	// templateEntry is a template for FDX and LaTeX (Lexington's -template)
+	templateEntry *widget.Entry
 
 	// Output settings
 	outputDirEntry *widget.Entry
@@ -75,10 +78,7 @@ func NewExportDialog(window *MainWindow) *ExportDialog {
 
 func (ed *ExportDialog) createWidgets() {
 	// Format selection
-	ed.formatSelect = widget.NewSelect(
-		[]string{"PDF", "HTML", "DOCX", "ODT", "FDX", "TXT", "Fountain"},
-		ed.onFormatChanged,
-	)
+	ed.formatSelect = widget.NewSelect(exportFormats, ed.onFormatChanged)
 	// Don't set selected yet - wait until after containers are created
 
 	// Output settings
@@ -94,6 +94,11 @@ func (ed *ExportDialog) createWidgets() {
 	// DOCX and ODT: the paper, or the one the script format suggests
 	ed.documentPageSelect = widget.NewSelect(documentPages, nil)
 	ed.documentPageSelect.SetSelected(documentPages[0])
+
+	// FDX and LaTeX take a template (Lexington's -template)
+	ed.templateEntry = widget.NewEntry()
+	ed.templateEntry.SetPlaceHolder("Lexington's own")
+	fyne.SetAccessibleLabel(ed.templateEntry, "Template")
 
 	// Fountain settings
 	ed.includeTitlePageCheck = widget.NewCheck("Include title page", nil)
@@ -134,7 +139,7 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 	// again now that the format settings have their container
 	format := ed.formatSelect.Selected
 	if format == "" {
-		format = "PDF"
+		format = exportFormats[0]
 	}
 	ed.formatSelect.SetSelected("")
 	ed.formatSelect.SetSelected(format)
@@ -184,32 +189,48 @@ func (ed *ExportDialog) updateFormatSettings() {
 		l.Wrapping = fyne.TextWrapWord
 		ed.formatSettingsContainer.Add(l)
 	}
-	switch ed.formatSelect.Selected {
-	case "PDF":
+	f := exportFormatByLabel(ed.formatSelect.Selected)
+	switch f.id {
+	case "pdf", "html", "docx", "odt", "latex", "htmlpdf", "latexpdf":
 		labelled("Script format:", ed.scriptFormatSelect)
-		labelled("Paper:", ed.documentPageSelect)
-	case "HTML":
-		labelled("Script format:", ed.scriptFormatSelect)
-	case "DOCX", "ODT":
-		labelled("Script format:", ed.scriptFormatSelect)
-		labelled("Paper:", ed.documentPageSelect)
-		note("Every element is a paragraph style, to restyle in Word or LibreOffice.")
-	case "FDX":
-		note("Final Draft document (.fdx).")
-	case "TXT":
-		note("Plain text export with Fountain formatting preserved.")
-	case "Fountain":
-		note("Export as standard Fountain format.")
 	}
-	lexington := map[string]bool{"PDF": true, "HTML": true, "DOCX": true, "ODT": true, "FDX": true}[ed.formatSelect.Selected]
+	switch f.id {
+	case "pdf", "docx", "odt":
+		labelled("Paper:", ed.documentPageSelect)
+	}
+	switch f.id {
+	case "fdx", "latex", "latexpdf":
+		labelled("Template:", ed.templateEntry)
+	}
+	switch f.id {
+	case "docx", "odt":
+		note("Every element is a paragraph style, to restyle in Word or LibreOffice.")
+	case "fountain":
+		note("Fountain as Lexington writes it: tidied up, every element marked as it is meant.")
+	case "text-fountain":
+		note("The script's text as it is: a copy of the .fountain file.")
+	case "txt":
+		note("The script's text as it is, as a .txt file.")
+	}
+	available := !f.lexington || f.format.Available()
+	if !available {
+		note(f.format.Name + " is made with " + f.format.Needs + ", which is not installed.")
+	}
 	for _, o := range []fyne.Disableable{ed.includeTitlePageCheck, ed.sceneNumbersCheck, ed.previewButton} {
 		if o == nil {
 			continue
 		}
-		if lexington {
+		if f.lexington && available {
 			o.Enable()
 		} else {
 			o.Disable()
+		}
+	}
+	if ed.exportButton != nil {
+		if available {
+			ed.exportButton.Enable()
+		} else {
+			ed.exportButton.Disable()
 		}
 	}
 
@@ -275,27 +296,7 @@ func (ed *ExportDialog) getDefaultFilename() string {
 
 func (ed *ExportDialog) updateDefaultFilename() {
 	base := ed.getDefaultFilename()
-	var ext string
-
-	switch ed.formatSelect.Selected {
-	case "PDF":
-		ext = ".pdf"
-	case "HTML":
-		ext = ".html"
-	case "DOCX":
-		ext = ".docx"
-	case "ODT":
-		ext = ".odt"
-	case "FDX":
-		ext = ".fdx"
-	case "TXT":
-		ext = ".txt"
-	case "Fountain":
-		ext = ".fountain"
-	default:
-		ext = ".pdf"
-	}
-
+	ext := "." + exportFormatByLabel(ed.formatSelect.Selected).ext
 	ed.filenameEntry.SetText(base + ext)
 }
 
@@ -310,13 +311,14 @@ func (ed *ExportDialog) browseOutputDir() {
 // previewExport writes the export to a temporary file and opens it in
 // the system's viewer for that kind of file.
 func (ed *ExportDialog) previewExport() {
-	format := strings.ToLower(ed.formatSelect.Selected)
+	f := exportFormatByLabel(ed.formatSelect.Selected)
+	format := f.id
 	dir, err := os.MkdirTemp("", "accolade-preview-")
 	if err != nil {
 		dialog.ShowError(err, ed.window.fyneWindow)
 		return
 	}
-	out := filepath.Join(dir, "preview."+format)
+	out := filepath.Join(dir, "preview."+f.ext)
 	content := ed.window.textEditor.Text()
 	ed.statusLabel.SetText("Preparing the preview...")
 	job := ed.job() // read on the UI thread
@@ -401,7 +403,7 @@ func (ed *ExportDialog) startExport() {
 
 	// Get export parameters
 	outputPath := filepath.Join(ed.outputDirEntry.Text, ed.filenameEntry.Text)
-	format := strings.ToLower(ed.formatSelect.Selected)
+	format := exportFormatByLabel(ed.formatSelect.Selected).id
 	content := ed.window.textEditor.Text()
 
 	// Perform export in goroutine
@@ -417,8 +419,9 @@ func (ed *ExportDialog) startExport() {
 // job is the export as the dialog sets it up.
 func (ed *ExportDialog) job() exportJob {
 	return exportJob{
-		elements:      scriptFormatElements(selectedScriptFormat(ed.scriptFormatSelect)),
+		format:        selectedScriptFormat(ed.scriptFormatSelect),
 		page:          ed.documentPage(),
+		template:      strings.TrimSpace(ed.templateEntry.Text),
 		omitTitlePage: !ed.includeTitlePageCheck.Checked,
 		numberScenes:  ed.sceneNumbersCheck.Checked,
 		scenes:        sceneHeaders(ed.window.language),
@@ -433,21 +436,15 @@ func (ed *ExportDialog) performExport(content, outputPath, format string) error 
 // thread it must not read the widgets).
 func (ed *ExportDialog) performExportJob(content, outputPath, format string, job exportJob) error {
 	switch format {
-	case "pdf":
-		return exportPDF(content, outputPath, job)
-	case "html":
-		return exportHTML(content, outputPath, job)
-	case "fdx":
-		return exportFDX(content, outputPath, job)
-	case "docx", "odt":
-		return exportDocument(content, outputPath, format, job)
 	case "txt":
 		return ed.exportToTXT(content, outputPath)
-	case "fountain":
+	case "text-fountain":
 		return ed.exportToFountain(content, outputPath)
-	default:
+	}
+	if _, ok := cli.FormatFor(format); !ok {
 		return fmt.Errorf("unsupported export format: %s", format)
 	}
+	return exportAs(content, outputPath, format, job)
 }
 
 // documentPages are the paper choices for PDF, DOCX and ODT; the first
@@ -494,7 +491,6 @@ func (ed *ExportDialog) exportToTXT(content, outputPath string) error {
 func (ed *ExportDialog) exportToFountain(content, outputPath string) error {
 	return writeFileAtomic(outputPath, []byte(content))
 }
-
 
 func (ed *ExportDialog) finishExport(err error, outputPath string) {
 	ed.isExporting = false
