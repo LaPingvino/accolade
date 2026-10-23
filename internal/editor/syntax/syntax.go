@@ -25,6 +25,7 @@ const (
 	Synopsis
 	Note
 	PageBreak
+	Lyrics // ~ lines: sung
 )
 
 // SceneStarts are the English scene heading starts: Classify's.
@@ -79,6 +80,9 @@ body:
 			continue
 		case strings.HasPrefix(t, "[[") && strings.HasSuffix(t, "]]"):
 			kinds[i] = Note
+		case strings.HasPrefix(t, "~"):
+			kinds[i] = Lyrics // in dialogue or on its own
+			continue
 		case strings.HasPrefix(t, "#"):
 			kinds[i] = Section
 		case strings.HasPrefix(t, "=") && strings.Trim(t, "=") == "" && len(t) >= 3:

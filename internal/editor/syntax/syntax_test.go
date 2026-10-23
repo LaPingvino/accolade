@@ -75,3 +75,15 @@ func TestClassifyTyping(t *testing.T) {
 		t.Errorf("after dialogue: %v", k)
 	}
 }
+
+// Lyrics (~) are sung, under a name or on their own, and dialogue goes on
+// after them.
+func TestLyrics(t *testing.T) {
+	kinds := ClassifyWith([]string{"ANNA", "~Who took the biscuit?", "~Who? Who?", "Not me.", "", "~La la la"}, nil)
+	want := []Kind{Character, Lyrics, Lyrics, Dialogue, Empty, Lyrics}
+	for i, k := range want {
+		if kinds[i] != k {
+			t.Errorf("line %d: %v, want %v", i, kinds[i], k)
+		}
+	}
+}

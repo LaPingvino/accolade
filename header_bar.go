@@ -28,7 +28,7 @@ type HeaderBar struct {
 	titleLabel                        *widget.Label
 	element, format                   *widget.Select
 	formatBox                         *fyne.Container // the format's own buttons
-	showing                           bool // the selects show, not choose
+	showing                           bool            // the selects show, not choose
 }
 
 // The emphasis icons (Material Design, Apache 2.0).

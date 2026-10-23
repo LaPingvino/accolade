@@ -42,3 +42,16 @@ func TestInsertButtonSeries(t *testing.T) {
 		t.Errorf("got %q", b.Text())
 	}
 }
+
+// Lyrics go on the next line, under the singer.
+func TestInsertLyrics(t *testing.T) {
+	lyrics := defaultFormatButtons["musical"][2]
+	b := buffer.New("ANNA")
+	b.SetCursor(b.Len(), false)
+	insertButton(b, lyrics)
+	b.Insert("Who took the biscuit?")
+	insertButton(b, lyrics)
+	if want := "ANNA\n~Who took the biscuit?\n~"; b.Text() != want {
+		t.Errorf("got %q", b.Text())
+	}
+}

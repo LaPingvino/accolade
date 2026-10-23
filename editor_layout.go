@@ -24,6 +24,7 @@ var elementRules = map[syntax.Kind]string{
 	syntax.Dialogue:      "dialog",
 	syntax.Transition:    "trans",
 	syntax.Centered:      "center",
+	syntax.Lyrics:        "lyrics",
 }
 
 // editorFormat is how the editor lays out each element with a set of

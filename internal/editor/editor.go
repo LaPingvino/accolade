@@ -404,6 +404,8 @@ func kindStyle(k syntax.Kind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGri
 		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: fg}
 	case syntax.Parenthetical:
 		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: dim}
+	case syntax.Lyrics:
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: fg}
 	case syntax.Transition, syntax.TitlePage, syntax.PageBreak:
 		return &widget.CustomTextGridStyle{FGColor: dim}
 	case syntax.Note, syntax.Section, syntax.Synopsis:

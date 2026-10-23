@@ -791,6 +791,7 @@ var elementNames = map[syntax.Kind]string{
 	syntax.Parenthetical: "Parenthetical", syntax.Dialogue: "Dialogue",
 	syntax.Transition: "Transition", syntax.Centered: "Centered", syntax.Section: "Section",
 	syntax.Synopsis: "Synopsis", syntax.Note: "Note", syntax.PageBreak: "Page Break",
+	syntax.Lyrics: "Lyrics",
 }
 
 // previewPDF prints the script as the PDF export does, with the export

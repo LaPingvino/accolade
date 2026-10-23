@@ -80,6 +80,9 @@ type formatButton struct {
 	Label   string
 	Insert  string
 	Restart string `toml:",omitempty"`
+	// Line: on the line after the cursor's, not as a paragraph of its own
+	// (lyrics go under the singer's name, line after line)
+	Line bool `toml:",omitempty"`
 }
 
 var defaultFormatButtons = map[string][]formatButton{
@@ -118,11 +121,13 @@ var defaultFormatButtons = map[string][]formatButton{
 	"musical": {
 		{Label: "Scene", Insert: ".SCENE {n} - "},
 		{Label: "Song", Insert: "> {n}.  <"},
+		{Label: "Lyrics", Insert: "~", Line: true},
 		{Label: "Blackout", Insert: "> BLACKOUT."},
 	},
 	"radio": {
 		{Label: "Sound", Insert: "!"},
 		{Label: "Music", Insert: "!MUSIC: "},
+		{Label: "Lyrics", Insert: "~", Line: true},
 		{Label: "Crossfade", Insert: "> CROSSFADE TO:"},
 		{Label: "Fade Out", Insert: "> FADE OUT."},
 	},
@@ -202,6 +207,8 @@ func insertButton(b *buffer.Buffer, fb formatButton) {
 	}
 	at := b.LineEnd(line)
 	switch {
+	case fb.Line && strings.TrimSpace(b.Line(line)) != "":
+		text = "\n" + text
 	case strings.TrimSpace(b.Line(line)) == "":
 		at = b.LineStart(line)
 		if line > 0 && strings.TrimSpace(b.Line(line-1)) != "" {
