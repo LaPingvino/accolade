@@ -1,5 +1,3 @@
-[![Please do not theme this app](https://stopthemingmy.app/badge.svg)](https://stopthemingmy.app)
-
 # Accolade
 
 ![](screenshots/main.png)
