@@ -63,6 +63,8 @@ type Network struct {
 	peerID  string // 20 bytes, as trackers want
 	room    string
 
+	newPC func(webrtc.Configuration) (*webrtc.PeerConnection, error)
+
 	mu      sync.Mutex
 	offers  map[string]*webrtc.PeerConnection // our offers waiting for an answer
 	peers   map[string]bool                   // peer IDs connected (or connecting)
@@ -89,7 +91,7 @@ func Join(ctx context.Context, s *Session, key Key, trackers []string, onPeers f
 	for i, c := range room {
 		r[i] = rune(c)
 	}
-	n := &Network{session: s, key: key, peerID: binary20(), room: string(r),
+	n := &Network{session: s, key: key, peerID: binary20(), room: string(r), newPC: newPeerConnection,
 		offers: map[string]*webrtc.PeerConnection{}, peers: map[string]bool{}, onPeers: onPeers}
 	for _, t := range trackers {
 		go n.tracker(ctx, t)
@@ -181,7 +183,7 @@ func (n *Network) announceLoop(ctx context.Context, url string) error {
 
 // newConn is a peer connection whose data channel joins the session.
 func (n *Network) newConn() (*webrtc.PeerConnection, error) {
-	pc, err := newPeerConnection(webrtc.Configuration{ICEServers: ICEServers})
+	pc, err := n.newPC(webrtc.Configuration{ICEServers: ICEServers})
 	if err != nil {
 		return nil, err
 	}

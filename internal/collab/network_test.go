@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/pion/logging"
+	"github.com/pion/transport/v5/vnet"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -71,14 +73,31 @@ func fakeTracker(t *testing.T) string {
 // Two peers find each other through a tracker, connect over WebRTC and
 // edit together.
 func TestNetwork(t *testing.T) {
+	// a virtual network (pion's vnet): the same on every system
 	was, wasNew := ICEServers, newPeerConnection
-	ICEServers = nil // this machine only: its loopback interface, the same everywhere
-	var se webrtc.SettingEngine
-	se.SetIncludeLoopbackCandidate(true)
-	se.SetNetworkTypes([]webrtc.NetworkType{webrtc.NetworkTypeUDP4})
-	se.SetInterfaceFilter(func(name string) bool { return strings.HasPrefix(name, "lo") })
-	newPeerConnection = webrtc.NewAPI(webrtc.WithSettingEngine(se)).NewPeerConnection
+	ICEServers = nil
 	t.Cleanup(func() { ICEServers, newPeerConnection = was, wasNew })
+	router, err := vnet.NewRouter(&vnet.RouterConfig{CIDR: "10.0.0.0/24", LoggerFactory: logging.NewDefaultLoggerFactory()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	on := func(ip string) func(webrtc.Configuration) (*webrtc.PeerConnection, error) {
+		n, err := vnet.NewNet(&vnet.NetConfig{StaticIPs: []string{ip}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := router.AddNet(n); err != nil {
+			t.Fatal(err)
+		}
+		var se webrtc.SettingEngine
+		se.SetNet(n)
+		return webrtc.NewAPI(webrtc.WithSettingEngine(se)).NewPeerConnection
+	}
+	peerA, peerB := on("10.0.0.1"), on("10.0.0.2")
+	if err := router.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = router.Stop() })
 	tracker := fakeTracker(t)
 	key, _ := NewKey()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -86,8 +105,10 @@ func TestNetwork(t *testing.T) {
 
 	a, b := NewSession(key, New("a")), NewSession(key, New("b"))
 	a.Do(func(d *Doc) { d.SetText("INT. BARN - DAY\n") })
+	newPeerConnection = peerA
 	na := Join(ctx, a, key, []string{tracker}, nil)
 	time.Sleep(time.Second) // a's offers wait at the tracker for b
+	newPeerConnection = peerB
 	nb := Join(ctx, b, key, []string{tracker}, nil)
 
 	text := func(s *Session) (t string) { s.Do(func(d *Doc) { t = d.Text() }); return }
