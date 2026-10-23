@@ -7,11 +7,93 @@
 <style>
 html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1b1b; color: #eee; font: 16px sans-serif; }
 #loading { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; }
+#trouble { position: fixed; inset: 0; z-index: 20; display: grid; place-content: center; background: rgba(0,0,0,.6); }
+#trouble[hidden] { display: none; }
+#trouble > div { max-width: min(36rem, calc(100vw - 32px)); background: #2a2a2a; padding: 1.25rem; border-radius: 8px; box-shadow: 0 8px 32px rgba(0,0,0,.5); }
+#trouble h2 { margin: 0 0 .5rem; font-size: 1.2rem; }
+#trouble p { margin: 0 0 1rem; line-height: 1.4; }
+#trouble button { font: inherit; margin: 0 .5rem .5rem 0; padding: .4rem .8rem; }
+#trouble pre { max-height: 30vh; overflow: auto; font-size: 12px; background: #111; padding: .5rem; }
 </style>
 </head>
 <body>
 <div id="loading" role="status">Loading Accolade, a screenplay editor…<br><small>Your scripts stay on your computer: Open and Save use your browser's files and downloads.</small></div>
+<div id="trouble" role="alertdialog" aria-labelledby="trouble-title" hidden><div>
+<h2 id="trouble-title"></h2>
+<p id="trouble-text"></p>
+<button id="trouble-restart">Restart</button>
+<button id="trouble-report">Report the bug</button>
+<button id="trouble-copy">Copy the details</button>
+<button id="trouble-wait">Keep waiting</button>
+<details><summary>The details (the script's text is not in them)</summary><pre id="trouble-details"></pre></details>
+</div></div>
 <script>
+// When Accolade stops, or stops responding: a restart (the untitled
+// script is kept) and a bug report with what fixing it takes.
+const started = Date.now();
+const logLines = [];
+for (const level of ["log", "warn", "error"]) {
+	const was = console[level].bind(console);
+	console[level] = (...args) => {
+		logLines.push(((Date.now() - started) / 1000).toFixed(1) + "s " + level + ": " + args.join(" "));
+		if (logLines.length > 400) logLines.shift();
+		was(...args);
+	};
+}
+addEventListener("error", (e) => console.error("page error:", e.message, e.filename + ":" + e.lineno));
+addEventListener("unhandledrejection", (e) => console.error("unhandled:", e.reason));
+
+let troubleShown = false, waitUntil = 0;
+function details(what) {
+	let app = "(the app did not answer)";
+	try { if (globalThis.accoladeReport) app = globalThis.accoladeReport(); } catch (e) { app += " " + e; }
+	return [
+		"what: " + what,
+		"page: " + location.origin + location.pathname + (location.hash.startsWith("#k=") ? " (joined a shared script)" : ""),
+		"browser: " + navigator.userAgent,
+		"screen: " + innerWidth + "x" + innerHeight + " at " + devicePixelRatio + "x, language " + navigator.language,
+		"running: " + ((Date.now() - started) / 1000).toFixed(0) + "s",
+		"", app, "", "log (last lines):", ...logLines,
+	].join("\n");
+}
+function trouble(title, text, what, canWait) {
+	if (troubleShown) return;
+	troubleShown = true;
+	const report = details(what);
+	document.getElementById("trouble-title").textContent = title;
+	document.getElementById("trouble-text").textContent = text;
+	document.getElementById("trouble-details").textContent = report;
+	document.getElementById("trouble-wait").hidden = !canWait;
+	document.getElementById("trouble").hidden = false;
+	document.getElementById("trouble-restart").onclick = () => location.reload();
+	const copy = () => navigator.clipboard.writeText(report).catch(() => {});
+	document.getElementById("trouble-copy").onclick = copy;
+	document.getElementById("trouble-report").onclick = () => {
+		copy();
+		const body = "What I was doing:\n\n\n<details><summary>Details</summary>\n\n```\n" + report.slice(0, 5000) +
+			(report.length > 5000 ? "\n…(cut: the full details were copied, paste them here)" : "") + "\n```\n</details>\n";
+		open("https://github.com/LaPingvino/accolade/issues/new?title=" + encodeURIComponent("Web version: " + title) +
+			"&body=" + encodeURIComponent(body), "_blank");
+	};
+	document.getElementById("trouble-wait").onclick = () => {
+		document.getElementById("trouble").hidden = true;
+		troubleShown = false;
+		waitUntil = Date.now() + 30000;
+	};
+}
+// the app's main loop marks itself alive every second (watchdog_js.go);
+// a hidden tab's loop is paused, so the time counts from when it shows
+let visibleSince = Date.now();
+document.addEventListener("visibilitychange", () => { visibleSince = Date.now(); });
+setInterval(() => {
+	const alive = Math.max(globalThis.accoladeAlive || 0, visibleSince, waitUntil);
+	if (globalThis.accoladeAlive && document.visibilityState === "visible" && Date.now() - alive > 10000) {
+		trouble("Accolade is not responding",
+			"It stopped responding over 10 seconds ago. Restart it (your untitled script is kept in this browser; save a named one first if you can), and please report the bug: the report says where it got stuck.",
+			"froze: the main loop's last beat was " + ((Date.now() - globalThis.accoladeAlive) / 1000).toFixed(0) + "s ago", true);
+	}
+}, 2000);
+
 // kept in this browser: Accolade's settings, and the scripts saved here
 globalThis.memfsPersist = ["/tmp/.config/", "/files/"];
 </script>
@@ -20,7 +102,12 @@ globalThis.memfsPersist = ["/tmp/.config/", "/files/"];
 <script>
 const go = new Go();
 WebAssembly.instantiateStreaming(fetch("accolade.wasm"), go.importObject)
-	.then((r) => { document.getElementById("loading").remove(); go.run(r.instance); })
+	.then((r) => {
+		document.getElementById("loading").remove();
+		return go.run(r.instance).then(() => trouble("Accolade stopped",
+			"Something went wrong and Accolade stopped. Restart it (your untitled script is kept in this browser), and please report the bug: the report says what happened.",
+			"stopped: the Go program exited", false));
+	})
 	.catch((e) => { document.getElementById("loading").textContent = "Accolade could not start: " + e; });
 </script>
 </body>

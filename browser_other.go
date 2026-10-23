@@ -16,3 +16,4 @@ func keepDraft(string)      {}
 func draft() (string, bool) { return "", false }
 
 func pageLink() string { return "" }
+func watchdog(*Application) {}

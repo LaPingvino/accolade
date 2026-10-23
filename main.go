@@ -119,7 +119,9 @@ func (app *Application) Run(args []string) {
 		app.newWindow()
 	}
 
-	// Show and run
+	if inBrowser {
+		watchdog(app)
+	}
 	app.fyneApp.Run()
 }
 

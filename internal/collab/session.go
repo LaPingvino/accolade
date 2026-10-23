@@ -2,6 +2,7 @@ package collab
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 )
 
@@ -10,9 +11,14 @@ import (
 // ops.
 type message struct {
 	Hello   bool              `json:"hello,omitempty"`
+	Proto   int               `json:"p,omitempty"` // with a hello: Protocol
 	Version map[string]uint64 `json:"v,omitempty"` // an empty one is omitted: Hello says it is one
 	Runs    []run             `json:"r,omitempty"`
 }
+
+// Protocol is the version of what peers send: peers of another one are
+// told apart (OnMismatch), not half understood.
+const Protocol = 2
 
 // Session shares a Doc with peers over a Key. Transports (WebRTC, or
 // anything carrying bytes) add peers with a send function and pass what
@@ -22,14 +28,18 @@ type Session struct {
 	key   Key
 	doc   *Doc
 	peers map[string]func([]byte) error
+	other map[string]bool // peers of another Protocol, not listened to
 	// OnRemote is called (outside the lock) after ops from peers changed
 	// the text.
 	OnRemote func()
+	// OnMismatch is called when a peer speaks another Protocol (0: one
+	// from before there were versions).
+	OnMismatch func(theirs int)
 }
 
 // NewSession shares doc with the peers that have key.
 func NewSession(key Key, doc *Doc) *Session {
-	return &Session{key: key, doc: doc, peers: map[string]func([]byte) error{}}
+	return &Session{key: key, doc: doc, peers: map[string]func([]byte) error{}, other: map[string]bool{}}
 }
 
 // Doc is the shared document; lock with Do while using it.
@@ -78,7 +88,7 @@ func (s *Session) send(to func([]byte) error, m message) error {
 func (s *Session) AddPeer(id string, send func([]byte) error) error {
 	s.mu.Lock()
 	s.peers[id] = send
-	hello := message{Hello: true, Version: s.doc.Version()}
+	hello := message{Hello: true, Proto: Protocol, Version: s.doc.Version()}
 	s.mu.Unlock()
 	return s.send(send, hello)
 }
@@ -100,6 +110,22 @@ func (s *Session) Receive(from string, sealed []byte) error {
 	var m message
 	if err := json.Unmarshal(b, &m); err != nil {
 		return err
+	}
+	s.mu.Lock()
+	other := s.other[from] || m.Hello && m.Proto != Protocol
+	if other {
+		s.other[from] = true
+		delete(s.peers, from) // nothing more to it, nor from it
+	}
+	s.mu.Unlock()
+	if other && !m.Hello {
+		return nil
+	}
+	if other {
+		if s.OnMismatch != nil {
+			s.OnMismatch(m.Proto)
+		}
+		return fmt.Errorf("a peer speaks protocol %d, not %d", m.Proto, Protocol)
 	}
 	s.mu.Lock()
 	var reply []Op

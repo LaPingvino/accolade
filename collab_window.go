@@ -32,6 +32,7 @@ type shared struct {
 	key     collab.Key
 	stop    context.CancelFunc
 	peers   int
+	other   bool // a peer runs another version of Accolade
 }
 
 func newReplica() string {
@@ -50,6 +51,12 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 	}
 	s := &shared{session: collab.NewSession(key, doc), key: key}
 	s.session.OnRemote = func() { fyne.Do(w.applyRemote) }
+	s.session.OnMismatch = func(int) {
+		fyne.Do(func() {
+			s.other = true
+			w.updateStatusBar()
+		})
+	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s.stop = cancel
 	w.shared = s
@@ -192,6 +199,9 @@ func (w *MainWindow) join(linkOrKey string) {
 func (w *MainWindow) sharingStatus() string {
 	if w.shared == nil {
 		return ""
+	}
+	if w.shared.other {
+		return "Shared · another peer runs another Accolade version: update both"
 	}
 	switch w.shared.peers {
 	case 0:

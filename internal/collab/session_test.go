@@ -87,3 +87,22 @@ func TestSessionsLargeEdits(t *testing.T) {
 		}
 	})
 }
+
+// A peer of another protocol is told apart, and not listened to.
+func TestSessionsMismatch(t *testing.T) {
+	key, _ := NewKey()
+	s := NewSession(key, New("a"))
+	var theirs = -1
+	s.OnMismatch = func(p int) { theirs = p }
+	old, _ := key.Seal([]byte(`{"hello":true}`))
+	if s.Receive("b", old) == nil || theirs != 0 {
+		t.Fatalf("a hello without a protocol: mismatch %d", theirs)
+	}
+	ops, _ := key.Seal([]byte(`{"r":[{"id":{"c":1,"r":"b"},"t":"x"}]}`))
+	_ = s.Receive("b", ops)
+	s.Do(func(d *Doc) {
+		if d.Text() != "" {
+			t.Errorf("listened to it: %q", d.Text())
+		}
+	})
+}
