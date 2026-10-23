@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Accolade</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#d9480f">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <style>
 html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1b1b; color: #eee; font: 16px sans-serif; }
 #loading { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; }
@@ -160,6 +164,10 @@ WebAssembly.instantiateStreaming(fetch("accolade.wasm"), go.importObject)
 			"stopped: the Go program exited", false));
 	})
 	.catch((e) => { document.getElementById("loading").textContent = "Accolade could not start: " + e; });
+</script>
+<script>
+// an app to install, and to use offline (sw.js)
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch((e) => console.warn("no offline use:", e));
 </script>
 </body>
 </html>
