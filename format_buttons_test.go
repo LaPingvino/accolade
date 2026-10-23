@@ -31,7 +31,7 @@ func TestInsertButtonSeries(t *testing.T) {
 	insertButton(b, series[2]) // Act
 	insertButton(b, series[3]) // End of Act
 	insertButton(b, series[2])
-	if want := ">ACT ONE<\n\n>END OF ACT ONE<\n\n===\n\n>ACT TWO<"; b.Text() != want {
+	if want := "# ACT ONE\n\n>ACT ONE<\n\n>END OF ACT ONE<\n\n===\n\n# ACT TWO\n\n>ACT TWO<"; b.Text() != want {
 		t.Errorf("got %q", b.Text())
 	}
 	musical := defaultFormatButtons["musical"]

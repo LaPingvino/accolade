@@ -89,13 +89,14 @@ var defaultFormatButtons = map[string][]formatButton{
 		{Label: "Flashback", Insert: "FLASHBACK:"},
 		{Label: "Super", Insert: "SUPER: "},
 	},
-	// as in Lexington's examples/tv-episode.fountain
+	// as in Lexington's examples/tv-episode.fountain: a section for the
+	// outline, a centred heading for the page
 	"series": {
-		{Label: "Cold Open", Insert: ">COLD OPEN<"},
+		{Label: "Cold Open", Insert: "# COLD OPEN\n\n>COLD OPEN<"},
 		{Label: "Main Titles", Insert: ">MAIN TITLES<"},
-		{Label: "Act", Insert: ">ACT {N}<"},
+		{Label: "Act", Insert: "# ACT {N}\n\n>ACT {N}<"},
 		{Label: "End of Act", Insert: ">END OF ACT {N}<\n\n==="},
-		{Label: "Tag", Insert: ">TAG<"},
+		{Label: "Tag", Insert: "# TAG\n\n>TAG<"},
 		{Label: "Intercut", Insert: "> INTERCUT WITH:"},
 	},
 	// examples/comic.fountain and bd.fountain
