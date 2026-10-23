@@ -60,3 +60,30 @@ func TestSessions(t *testing.T) {
 		})
 	}
 }
+
+// A script replaced, or caught up on, goes in messages a data channel takes.
+func TestSessionsLargeEdits(t *testing.T) {
+	key, _ := NewKey()
+	a, b := NewSession(key, New("a")), NewSession(key, New("b"))
+	small := func(to *Session, from string) func([]byte) error {
+		return func(m []byte) error {
+			if len(m) > 16<<10 {
+				t.Fatalf("a message of %d bytes", len(m))
+			}
+			return to.Receive(from, m)
+		}
+	}
+	text := strings.Repeat("INT. BARN - DAY\n\nRain.\n\n", 400)
+	a.Do(func(d *Doc) { d.SetText(text) })
+	_ = a.AddPeer("b", small(b, "a"))
+	_ = b.AddPeer("a", small(a, "b"))
+	var ops []Op
+	text = strings.Repeat("EXT. FIELD - NIGHT\n\nWind.\n\n", 400)
+	a.Do(func(d *Doc) { ops = d.SetText(text) })
+	a.Local(ops)
+	b.Do(func(d *Doc) {
+		if d.Text() != text {
+			t.Errorf("b has %d runes, want %d", len([]rune(d.Text())), len([]rune(text)))
+		}
+	})
+}

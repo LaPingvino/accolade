@@ -39,6 +39,22 @@ func (s *Session) Do(f func(d *Doc)) {
 	f(s.doc)
 }
 
+// batch is the most ops in one message: browsers drop data channel
+// messages much over 16 KiB.
+const batch = 128
+
+// sendOps sends ops in messages small enough for any data channel.
+func (s *Session) sendOps(to func([]byte) error, ops []Op) error {
+	for len(ops) > 0 {
+		n := min(len(ops), batch)
+		if err := s.send(to, message{Ops: ops[:n]}); err != nil {
+			return err
+		}
+		ops = ops[n:]
+	}
+	return nil
+}
+
 func (s *Session) send(to func([]byte) error, m message) error {
 	b, err := json.Marshal(m)
 	if err != nil {
@@ -94,13 +110,13 @@ func (s *Session) Receive(from string, sealed []byte) error {
 	s.mu.Unlock()
 
 	if len(reply) > 0 && to != nil {
-		if err := s.send(to, message{Ops: reply}); err != nil {
+		if err := s.sendOps(to, reply); err != nil {
 			return err
 		}
 	}
 	if len(fresh) > 0 {
 		for _, p := range others {
-			_ = s.send(p, message{Ops: fresh}) // a peer gone is removed by its transport
+			_ = s.sendOps(p, fresh) // a peer gone is removed by its transport
 		}
 		if s.OnRemote != nil {
 			s.OnRemote()
@@ -128,7 +144,7 @@ func (s *Session) Local(ops []Op) {
 	peers := s.othersThan("")
 	s.mu.Unlock()
 	for _, p := range peers {
-		_ = s.send(p, message{Ops: ops})
+		_ = s.sendOps(p, ops)
 	}
 }
 
