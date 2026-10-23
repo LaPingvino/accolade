@@ -199,8 +199,10 @@ func (n *Network) newConn() (*webrtc.PeerConnection, error) {
 // a page event, which must not wait.
 func (n *Network) attach(id string, dc *webrtc.DataChannel) {
 	var once sync.Once
+	opened := make(chan struct{}) // messages wait for the peer to be added
 	open := func() {
 		once.Do(func() {
+			defer close(opened)
 			n.mu.Lock()
 			count := len(n.peers)
 			n.mu.Unlock()
@@ -212,6 +214,7 @@ func (n *Network) attach(id string, dc *webrtc.DataChannel) {
 	}
 	inbox := make(chan []byte, 1024)
 	go func() {
+		<-opened
 		for b := range inbox {
 			_ = n.session.Receive(id, b)
 		}
