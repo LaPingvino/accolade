@@ -58,11 +58,6 @@ func TestEsperantoScript(t *testing.T) {
 	if scenes != 2 {
 		t.Errorf("exported scenes: %d", scenes)
 	}
-	w.showPreview()
-	t.Cleanup(func() { w.settings.SetBoolean("preview-visible", false) })
-	if p := previewText(w.previewArea.Segments); !strings.Contains(p, "EN. KUIREJO - TAGO") {
-		t.Errorf("preview:\n%s", p)
-	}
 	// a new script has the language of the preferences
 	w.settings.SetString("script-language", "nl")
 	t.Cleanup(func() { w.settings.SetString("script-language", "en") })

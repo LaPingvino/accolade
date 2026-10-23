@@ -177,7 +177,7 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 		}, pd.win)
 	})
 	return container.NewVBox(
-		widget.NewCard("Script Format", "How the preview and the exports lay the script out",
+		widget.NewCard("Script Format", "How the editor and the exports lay the script out",
 			container.NewVBox(pd.scriptFormatSelect, pd.scriptFormatDesc),
 		),
 		widget.NewCard("Language", "Of a new script: its scene headings (INT./EXT., EN./EKST., BIN./BUI., ...). A file named like scene.eo.fountain says its own.",

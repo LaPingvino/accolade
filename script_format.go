@@ -7,7 +7,7 @@ import (
 )
 
 // The script format is one of Lexington's presets (screenplay, stage
-// play, radio, ...): how the preview and the PDF and HTML exports lay
+// play, radio, ...): how the editor and the PDF and HTML exports lay
 // the script out. It is the "script-format" setting, the preset's key.
 
 // scriptFormatElements are the element rules of the format with key.

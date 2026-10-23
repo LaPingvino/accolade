@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/LaPingvino/lexington/layout"
 	"strings"
 	"testing"
 
@@ -47,10 +48,12 @@ func TestNotesPanel(t *testing.T) {
 	if w.outlineVisible {
 		t.Error("outline and notes at once")
 	}
-	// the preview and the exports do not print them
+	// the exports do not print them
 	w.textEditor.SetText("INT. A - DAY\n\nHi.\n\n/* Notes\nsecret\n*/\n")
-	if strings.Contains(previewText(previewSegments(w.textEditor.Text(), []string{"INT"}, nil)), "secret") {
-		t.Error("notes in the preview")
+	for _, l := range layout.Lay(exportJob{}.script(w.textEditor.Text()), nil) {
+		if strings.Contains(l.Text(), "secret") {
+			t.Error("notes printed")
+		}
 	}
 }
 

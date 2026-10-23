@@ -48,7 +48,6 @@ func unnamed(c fyne.Canvas) []string {
 func TestEverythingHasAName(t *testing.T) {
 	w, app := newDialogTestWindow(t)
 	t.Cleanup(func() {
-		w.settings.SetBoolean("preview-visible", false)
 		w.settings.SetBoolean("outline-visible", false)
 		w.settings.SetBoolean("notes-visible", false)
 	})
@@ -58,10 +57,9 @@ func TestEverythingHasAName(t *testing.T) {
 			t.Errorf("%s: no name for\n  %s", what, strings.Join(u, "\n  "))
 		}
 	}
-	w.showPreview()
 	w.toggleOutline()
 	w.showFindReplace()
-	check("window with preview, outline and search", w.fyneWindow.Canvas())
+	check("window with outline and search", w.fyneWindow.Canvas())
 	w.hideFindReplace()
 	w.toggleNotes()
 	check("window with notes", w.fyneWindow.Canvas())

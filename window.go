@@ -10,6 +10,7 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
 	"github.com/LaPingvino/accolade/internal/tooltip"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,14 +28,11 @@ type MainWindow struct {
 	app        *Application
 
 	// Core components
-	textEditor   *editor.ScriptEditor
-	editorView   *container.ThemeOverride // the editor with its font settings
-	previewArea  *previewPane
-	previewGen   int         // which rebuild of the preview is current
-	previewTimer *time.Timer // the rebuild waiting for typing to pause
-	headerBar    *HeaderBar
-	tooltips     *tooltip.Layer
-	searchBar    *SearchBar
+	textEditor *editor.ScriptEditor
+	editorView *container.ThemeOverride // the editor with its font settings
+	headerBar  *HeaderBar
+	tooltips   *tooltip.Layer
+	searchBar  *SearchBar
 
 	// UI layout
 	mainContainer    *container.Split
@@ -68,10 +66,6 @@ type MainWindow struct {
 	// Settings
 	settings *Settings
 
-	// Preview state
-	previewVisible    bool
-	previewRestricted bool
-
 	// Find/Replace
 	findVisible bool
 
@@ -94,13 +88,12 @@ type MainWindow struct {
 
 func NewMainWindow(app *Application) *MainWindow {
 	window := &MainWindow{
-		fyneWindow:     app.fyneApp.NewWindow("Accolade"),
-		app:            app,
-		hasChanges:     false,
-		isFullscreen:   false,
-		previewVisible: false,
-		findVisible:    false,
-		lexParser:      NewLexingtonParser(),
+		fyneWindow:   app.fyneApp.NewWindow("Accolade"),
+		app:          app,
+		hasChanges:   false,
+		isFullscreen: false,
+		findVisible:  false,
+		lexParser:    NewLexingtonParser(),
 	}
 
 	window.settings = GetSettings() // shared with the preferences dialog
@@ -131,9 +124,6 @@ func (w *MainWindow) setupUI() {
 	// the editor scrolls to keep the cursor in view; the theme override
 	// carries the font settings
 	w.editorView = container.NewThemeOverride(editor.NewPageScroll(w.textEditor, 0), newEditorTheme("", 0))
-
-	// Create preview area
-	w.previewArea = newPreviewPane()
 
 	// Create header bar with toolbar
 	w.tooltips = tooltip.NewLayer()
@@ -167,9 +157,6 @@ func (w *MainWindow) setupUI() {
 	)
 
 	w.relayout()
-
-	// Initially hide preview
-	w.previewVisible = false
 
 	// Apply initial settings
 	w.applySettings()
@@ -233,9 +220,6 @@ func (w *MainWindow) applySettings() {
 	w.applyEditorSettings()
 
 	// Apply window settings
-	if w.settings.GetBoolean("preview-visible") {
-		w.showPreview()
-	}
 
 	// Apply font settings
 	w.applyFontSettings()
@@ -303,7 +287,6 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	w.rememberRecent(filePath)
 	w.hasChanges = false
 	w.updateTitle()
-	w.updatePreview()
 	w.updateStatusBar()
 
 	return nil
@@ -345,7 +328,6 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.suggestedName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)) + ".fountain"
 	w.hasChanges = true
 	w.updateTitle()
-	w.updatePreview()
 	w.updateStatusBar()
 	w.setStatus("Imported from " + from)
 }
@@ -533,7 +515,7 @@ func (w *MainWindow) editorKeys() string {
 }
 
 // setLanguage makes the script's language lang ("" for the one in the
-// preferences): its scene headings in the editor, preview and exports.
+// preferences): its scene headings in the editor and exports.
 func (w *MainWindow) setLanguage(lang string) {
 	if lang == "" && w.settings != nil {
 		lang = w.settings.GetString("script-language")
@@ -596,7 +578,6 @@ func (w *MainWindow) createNewFile() {
 	w.currentFile = ""
 	w.hasChanges = false
 	w.updateTitle()
-	w.updatePreview()
 	w.updateStatusBar()
 }
 
@@ -616,7 +597,6 @@ func (w *MainWindow) HasUnsavedChanges() bool {
 func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
 	w.updateTitle()
-	w.schedulePreview()
 	w.updateStatusBar()
 	w.updateCurrentElement()
 	if w.outlineVisible && w.outline != nil {
@@ -656,45 +636,6 @@ func (w *MainWindow) updateTitle() {
 		}
 		w.headerBar.SetTitle(name)
 	}
-}
-
-func (w *MainWindow) updatePreview() {
-	if w.previewVisible {
-		// the screenplay as Lexington prints it (its layout package)
-		w.previewGen++ // a rebuild still on its way is out of date
-		w.previewArea.SetSegments(previewSegments(w.textEditor.Text(), sceneHeaders(w.language), currentScriptFormat()))
-	}
-}
-
-// previewAsync is false in the tests: Fyne's test driver runs fyne.Do
-// on the calling goroutine, not the UI thread.
-var previewAsync = true
-
-// schedulePreview rebuilds the preview after typing pauses, off the UI
-// thread: on a long script it takes a tenth of a second or more, which
-// every keystroke used to wait for.
-func (w *MainWindow) schedulePreview() {
-	if !w.previewVisible {
-		return
-	}
-	if !previewAsync {
-		w.updatePreview()
-		return
-	}
-	w.previewGen++
-	gen := w.previewGen
-	text, headers, format := w.textEditor.Text(), sceneHeaders(w.language), currentScriptFormat()
-	if w.previewTimer != nil {
-		w.previewTimer.Stop()
-	}
-	w.previewTimer = time.AfterFunc(250*time.Millisecond, func() {
-		segs := previewSegments(text, headers, format)
-		fyne.Do(func() {
-			if gen == w.previewGen && w.previewVisible {
-				w.previewArea.SetSegments(segs)
-			}
-		})
-	})
 }
 
 func (w *MainWindow) setStatus(text string) {
@@ -746,31 +687,54 @@ var elementNames = map[syntax.Kind]string{
 	syntax.Synopsis: "Synopsis", syntax.Note: "Note", syntax.PageBreak: "Page Break",
 }
 
-// Preview operations
-func (w *MainWindow) togglePreview() {
-	if w.previewVisible {
-		w.hidePreview()
-	} else {
-		w.showPreview()
+// previewPDF prints the script as the PDF export does, with the export
+// settings, to a temporary file, and opens it in the PDF viewer.
+func (w *MainWindow) previewPDF() {
+	job := exportJob{
+		elements:      currentScriptFormat(),
+		page:          w.settings.GetString("page-size"),
+		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
+		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
+		scenes:        sceneHeaders(w.language),
+	}
+	dir, err := os.MkdirTemp("", "accolade-preview-")
+	if err != nil {
+		dialog.ShowError(err, w.fyneWindow)
+		return
+	}
+	name := "untitled.fountain"
+	if w.currentFile != "" {
+		name = filepath.Base(w.currentFile)
+	} else if w.suggestedName != "" {
+		name = w.suggestedName
+	}
+	out := filepath.Join(dir, strings.TrimSuffix(name, filepath.Ext(name))+".pdf")
+	content := w.textEditor.Text()
+	w.setStatus("Preparing the PDF...")
+	go func() {
+		err := exportPDF(content, out, job)
+		fyne.Do(func() {
+			if err != nil {
+				w.setStatus("")
+				dialog.ShowError(fmt.Errorf("could not make the PDF: %v", err), w.fyneWindow)
+				return
+			}
+			w.setStatus("PDF preview opened")
+			openFile(out)
+		})
+	}()
+}
+
+// openFile opens a file in the system's viewer for that kind of file.
+var openFile = func(path string) {
+	if u, err := url.Parse("file://" + filepath.ToSlash(path)); err == nil {
+		fyne.CurrentApp().OpenURL(u)
 	}
 }
 
 // setContent shows content in the window, with the tooltip layer over it.
 func (w *MainWindow) setContent(content fyne.CanvasObject) {
 	w.fyneWindow.SetContent(container.NewStack(content, w.tooltips))
-}
-
-func (w *MainWindow) showPreview() {
-	w.previewVisible = true
-	w.updatePreview()
-	w.settings.SetBoolean("preview-visible", true)
-	w.relayout()
-}
-
-func (w *MainWindow) hidePreview() {
-	w.previewVisible = false
-	w.settings.SetBoolean("preview-visible", false)
-	w.relayout()
 }
 
 // toggleOutline shows or hides the outline beside the editor.
@@ -801,15 +765,9 @@ func (w *MainWindow) toggleNotes() {
 }
 
 // relayout puts the window together: the toolbar and the status bar,
-// the outline on the left if shown, the editor with the preview beside
-// it if shown.
+// the outline and notes on the left if shown, the editor.
 func (w *MainWindow) relayout() {
-	var center fyne.CanvasObject = w.editorView
-	if w.previewVisible {
-		split := container.NewHSplit(w.editorView, w.previewArea.content)
-		split.SetOffset(0.55) // the preview shows a whole page width
-		center = split
-	}
+	center := w.editorView
 	var side fyne.CanvasObject
 	outline, notes := w.outlineVisible && w.outline != nil, w.notesVisible && w.notes != nil
 	switch {

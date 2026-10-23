@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/rules"
@@ -79,5 +80,39 @@ func TestDialogueColumnWithoutSpaces(t *testing.T) {
 	format, _ := editorFormat(currentScriptFormat())
 	if want := format(syntax.Dialogue).Indent; cell <= 0 || int(x/cell+0.5) != want {
 		t.Errorf("cursor at column %.1f, want the dialogue's %d", x/cell, want)
+	}
+}
+
+// Every script format gives the editor columns on its page (radio's names
+// are left of the action's margin).
+func TestEditorFormatInEveryScriptFormat(t *testing.T) {
+	for _, p := range rules.Presets() {
+		format, page := editorFormat(p.Elements)
+		for k := range elementRules {
+			f := format(k)
+			if f.Indent < 0 || f.Width <= 0 || f.Indent+f.Width > page {
+				t.Errorf("%s, kind %d: %+v on a page of %d", p.Name, k, f, page)
+			}
+		}
+	}
+}
+
+// Preview PDF prints the script and opens the PDF.
+func TestPreviewPDF(t *testing.T) {
+	w := newTestWindow(t, "INT. BARN - DAY\n\nRain falls.\n\nANNA\nHello.\n")
+	opened := make(chan string, 1)
+	was := openFile
+	openFile = func(path string) { opened <- path }
+	t.Cleanup(func() { openFile = was })
+	w.previewPDF()
+	select {
+	case path := <-opened:
+		data, err := os.ReadFile(path)
+		if err != nil || !strings.HasPrefix(string(data), "%PDF") || filepath.Ext(path) != ".pdf" {
+			t.Errorf("%s: %v, starts %q", path, err, string(data[:min(len(data), 8)]))
+		}
+		os.RemoveAll(filepath.Dir(path))
+	case <-time.After(30 * time.Second):
+		t.Fatal("no PDF opened")
 	}
 }

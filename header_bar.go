@@ -14,7 +14,7 @@ import (
 
 // HeaderBar is the slim bar at the top of the window: the file actions
 // and undo/redo on the left, the document's name in the middle, and
-// find, preview, export and preferences on the right, as icon buttons
+// find, PDF preview, export and preferences on the right, as icon buttons
 // with tooltips. Everything else is in the menus.
 type HeaderBar struct {
 	window    *MainWindow
@@ -42,7 +42,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.undoButton = button(theme.ContentUndoIcon(), "Undo"+keys("Z"), window.undo)
 	hb.redoButton = button(theme.ContentRedoIcon(), "Redo"+keys("Shift+Z"), window.redo)
 	hb.findButton = button(theme.SearchIcon(), "Find and replace"+keys("F"), window.showFindReplace)
-	hb.previewButton = button(theme.VisibilityIcon(), "Preview"+keys("Shift+P"), window.togglePreview)
+	hb.previewButton = button(theme.VisibilityIcon(), "Preview PDF"+keys("Shift+P"), window.previewPDF)
 	hb.exportButton = button(theme.DownloadIcon(), "Export to PDF, HTML, FDX…"+keys("E"), window.showExportDialog)
 	hb.preferencesButton = button(theme.SettingsIcon(), "Preferences"+keys(","), func() { window.app.showPreferences() })
 

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/LaPingvino/lexington/rules"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -330,9 +329,7 @@ func (ed *ExportDialog) previewExport() {
 				return
 			}
 			ed.statusLabel.SetText("Ready to export")
-			if u, err := url.Parse("file://" + filepath.ToSlash(out)); err == nil {
-				fyne.CurrentApp().OpenURL(u)
-			}
+			openFile(out)
 		})
 	}()
 }

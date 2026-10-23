@@ -11,58 +11,57 @@ import (
 )
 
 type Settings struct {
-	mu     sync.RWMutex
-	data   map[string]interface{}
-	dirty  bool
+	mu    sync.RWMutex
+	data  map[string]interface{}
+	dirty bool
 }
 
 func NewSettings() *Settings {
 	s := &Settings{
-		data: make(map[string]interface{}),
+		data:  make(map[string]interface{}),
 		dirty: false,
 	}
-	
+
 	s.loadDefaults()
 	s.load()
-	
+
 	return s
 }
 
 func (s *Settings) loadDefaults() {
 	defaults := map[string]interface{}{
 		// Theme settings
-		"theme":                "system",
-		
+		"theme": "system",
+
 		// Editor settings
-		"font-family":          "monospace",
-		"font-size":           12,
-		"auto-indent":         true,
-		"show-line-numbers":   false,
-		
+		"font-family":       "monospace",
+		"font-size":         12,
+		"auto-indent":       true,
+		"show-line-numbers": false,
+
 		// Window settings
-		"preview-visible":     false,
-		"toolbar-visible":     true,
-		"statusbar-visible":   true,
-		
+		"toolbar-visible":   true,
+		"statusbar-visible": true,
+
 		// Editor behavior
-		"auto-save":           true,
-		"auto-save-interval":  30, // seconds
-		
+		"auto-save":          true,
+		"auto-save-interval": 30, // seconds
+
 		// Export settings
-		"export-format":       "PDF",
-		"script-format":       "default", // a Lexington preset (script_format.go)
-		"script-language":     "en",      // of new scripts: their scene headings (language.go)
-		"export-directory":    "",
-		"include-title-page":  true,
+		"export-format":      "PDF",
+		"script-format":      "default", // a Lexington preset (script_format.go)
+		"script-language":    "en",      // of new scripts: their scene headings (language.go)
+		"export-directory":   "",
+		"include-title-page": true,
 		"page-size":          "", // the script format's (export dialog)
-		
+
 		"auto-close-brackets": true,
 		"editor-keys":         "standard", // or vim, helix (vim.go)
-		
+
 		// Fountain-specific settings
 		"fountain-scene-numbers": false,
 	}
-	
+
 	for key, value := range defaults {
 		s.data[key] = value
 	}
@@ -70,7 +69,7 @@ func (s *Settings) loadDefaults() {
 
 func (s *Settings) load() {
 	configFile := filepath.Join(getConfigDir(), "settings.json")
-	
+
 	file, err := os.Open(configFile)
 	if err != nil {
 		// Settings file doesn't exist, use defaults
@@ -78,22 +77,22 @@ func (s *Settings) load() {
 		return
 	}
 	defer file.Close()
-	
+
 	var loadedData map[string]interface{}
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(&loadedData); err != nil {
 		log.Printf("Error decoding settings: %v", err)
 		return
 	}
-	
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	// Merge loaded data with defaults
 	for key, value := range loadedData {
 		s.data[key] = value
 	}
-	
+
 	log.Println("Settings loaded successfully")
 }
 
@@ -101,14 +100,14 @@ func (s *Settings) save() error {
 	if !s.dirty {
 		return nil
 	}
-	
+
 	configFile := filepath.Join(getConfigDir(), "settings.json")
-	
+
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(configFile), 0755); err != nil {
 		return err
 	}
-	
+
 	s.mu.RLock()
 	data := make(map[string]interface{})
 	for k, v := range s.data {
@@ -125,7 +124,7 @@ func (s *Settings) save() error {
 	if err := writeFileAtomic(configFile, append(b, '\n')); err != nil {
 		return err
 	}
-	
+
 	s.dirty = false
 	log.Println("Settings saved successfully")
 	return nil
@@ -139,7 +138,7 @@ func (s *Settings) Save() error {
 func (s *Settings) GetString(key string) string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	if value, exists := s.data[key]; exists {
 		if str, ok := value.(string); ok {
 			return str
@@ -151,7 +150,7 @@ func (s *Settings) GetString(key string) string {
 func (s *Settings) SetString(key, value string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.data[key] = value
 	s.dirty = true
 }
@@ -160,7 +159,7 @@ func (s *Settings) SetString(key, value string) {
 func (s *Settings) GetBoolean(key string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	if value, exists := s.data[key]; exists {
 		if b, ok := value.(bool); ok {
 			return b
@@ -172,7 +171,7 @@ func (s *Settings) GetBoolean(key string) bool {
 func (s *Settings) SetBoolean(key string, value bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.data[key] = value
 	s.dirty = true
 }
@@ -181,7 +180,7 @@ func (s *Settings) SetBoolean(key string, value bool) {
 func (s *Settings) GetInt(key string) int {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	if value, exists := s.data[key]; exists {
 		// Handle both int and float64 (JSON unmarshaling)
 		switch v := value.(type) {
@@ -197,7 +196,7 @@ func (s *Settings) GetInt(key string) int {
 func (s *Settings) SetInt(key string, value int) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.data[key] = value
 	s.dirty = true
 }
@@ -206,7 +205,7 @@ func (s *Settings) SetInt(key string, value int) {
 func (s *Settings) GetFloat(key string) float64 {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	if value, exists := s.data[key]; exists {
 		if f, ok := value.(float64); ok {
 			return f
@@ -221,7 +220,7 @@ func (s *Settings) GetFloat(key string) float64 {
 func (s *Settings) SetFloat(key string, value float64) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.data[key] = value
 	s.dirty = true
 }
@@ -230,7 +229,7 @@ func (s *Settings) SetFloat(key string, value float64) {
 func (s *Settings) GetStringSlice(key string) []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	if value, exists := s.data[key]; exists {
 		if slice, ok := value.([]interface{}); ok {
 			result := make([]string, len(slice))
@@ -251,7 +250,7 @@ func (s *Settings) GetStringSlice(key string) []string {
 func (s *Settings) SetStringSlice(key string, value []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.data[key] = value
 	s.dirty = true
 }
@@ -260,7 +259,7 @@ func (s *Settings) SetStringSlice(key string, value []string) {
 func (s *Settings) AddRecentFile(filePath string) {
 	recentFiles := s.GetStringSlice("recent-files")
 	maxRecent := s.GetInt("max-recent-files")
-	
+
 	// Remove if already exists
 	for i, file := range recentFiles {
 		if file == filePath {
@@ -268,21 +267,21 @@ func (s *Settings) AddRecentFile(filePath string) {
 			break
 		}
 	}
-	
+
 	// Add to beginning
 	recentFiles = append([]string{filePath}, recentFiles...)
-	
+
 	// Limit to max items
 	if len(recentFiles) > maxRecent {
 		recentFiles = recentFiles[:maxRecent]
 	}
-	
+
 	s.SetStringSlice("recent-files", recentFiles)
 }
 
 func (s *Settings) GetRecentFiles() []string {
 	files := s.GetStringSlice("recent-files")
-	
+
 	// Filter out files that no longer exist
 	validFiles := make([]string, 0, len(files))
 	for _, file := range files {
@@ -290,12 +289,12 @@ func (s *Settings) GetRecentFiles() []string {
 			validFiles = append(validFiles, file)
 		}
 	}
-	
+
 	// Update the list if it changed
 	if len(validFiles) != len(files) {
 		s.SetStringSlice("recent-files", validFiles)
 	}
-	
+
 	return validFiles
 }
 
@@ -314,17 +313,17 @@ func (s *Settings) GetWindowState() (fyne.Size, fyne.Position, bool) {
 	width := s.GetInt("window-width")
 	height := s.GetInt("window-height")
 	maximized := s.GetBoolean("window-maximized")
-	
+
 	if width <= 0 {
 		width = 1000
 	}
 	if height <= 0 {
 		height = 600
 	}
-	
+
 	size := fyne.NewSize(float32(width), float32(height))
 	position := fyne.NewPos(0, 0) // Let the OS decide
-	
+
 	return size, position, maximized
 }
 
@@ -332,7 +331,7 @@ func (s *Settings) GetWindowState() (fyne.Size, fyne.Position, bool) {
 func (s *Settings) Reset() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	s.data = make(map[string]interface{})
 	s.loadDefaults()
 	s.dirty = true
@@ -341,11 +340,11 @@ func (s *Settings) Reset() {
 func (s *Settings) ResetKey(key string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	// Create a temporary settings object to get the default value
 	temp := &Settings{data: make(map[string]interface{})}
 	temp.loadDefaults()
-	
+
 	if defaultValue, exists := temp.data[key]; exists {
 		s.data[key] = defaultValue
 		s.dirty = true
@@ -356,7 +355,7 @@ func (s *Settings) ResetKey(key string) {
 func (s *Settings) HasKey(key string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	_, exists := s.data[key]
 	return exists
 }
@@ -365,7 +364,7 @@ func (s *Settings) HasKey(key string) bool {
 func (s *Settings) GetKeys() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	
+
 	keys := make([]string, 0, len(s.data))
 	for key := range s.data {
 		keys = append(keys, key)
@@ -381,13 +380,13 @@ func (s *Settings) ExportToFile(filePath string) error {
 		data[k] = v
 	}
 	s.mu.RUnlock()
-	
+
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	
+
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
@@ -400,21 +399,21 @@ func (s *Settings) ImportFromFile(filePath string) error {
 		return err
 	}
 	defer file.Close()
-	
+
 	var importedData map[string]interface{}
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(&importedData); err != nil {
 		return err
 	}
-	
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	
+
 	for key, value := range importedData {
 		s.data[key] = value
 	}
 	s.dirty = true
-	
+
 	return nil
 }
 

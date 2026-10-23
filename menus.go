@@ -96,7 +96,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	)
 
 	view := fyne.NewMenu("View",
-		menuItem("Preview", shortcut(fyne.KeyP, fyne.KeyModifierShift), w.togglePreview),
+		menuItem("Preview PDF", shortcut(fyne.KeyP, fyne.KeyModifierShift), w.previewPDF),
 		menuItem("Outline", shortcut(fyne.KeyO, fyne.KeyModifierShift), w.toggleOutline),
 		menuItem("Notes", shortcut(fyne.KeyK, fyne.KeyModifierShift), w.toggleNotes),
 		fyne.NewMenuItem("Statistics…", w.showStatistics),
