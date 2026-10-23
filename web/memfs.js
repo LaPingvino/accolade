@@ -24,6 +24,20 @@
 		return "/" + out.join("/");
 	};
 	const parent = (p) => norm(p.replace(/\/[^/]*$/, "") || "/");
+	// files under globalThis.memfsPersist's folders are kept in the
+	// browser's local storage: written, renamed into place, removed
+	const keep = (p) => (globalThis.memfsPersist || []).some((d) => p.startsWith(d));
+	const store = (p) => {
+		if (!keep(p)) return;
+		const n = nodes.get(p);
+		try {
+			if (!n || n.dir) localStorage.removeItem("memfs:" + p);
+			else {
+				let s = ""; for (const b of n.data) s += String.fromCharCode(b);
+				localStorage.setItem("memfs:" + p, btoa(s));
+			}
+		} catch (e) { console.warn("could not keep " + p + ": " + e); }
+	};
 	const stat = (n) => ({
 		dev: 1, ino: n.ino, mode: (n.dir ? S_IFDIR | 0o755 : S_IFREG | 0o644), nlink: 1, uid: 0, gid: 0, rdev: 0,
 		size: n.dir ? 0 : n.data.length, blksize: 4096, blocks: n.dir ? 0 : Math.ceil(n.data.length / 512),
@@ -86,7 +100,11 @@
 			if (!n.dir && (flags & C.O_TRUNC)) n.data = new Uint8Array(0);
 			const fd = nextFd++; fds.set(fd, { path: p, pos: 0, flags }); cb(null, fd);
 		},
-		close(fd, cb) { fds.delete(fd); cb(null); },
+		close(fd, cb) {
+			const f = fds.get(fd); fds.delete(fd);
+			if (f && (f.flags & (C.O_WRONLY | C.O_RDWR))) store(f.path);
+			cb(null);
+		},
 		fstat(fd, cb) { const f = fds.get(fd); if (!f) return cb(err("EBADF")); cb(null, stat(nodes.get(f.path))); },
 		stat(path, cb) { const n = nodes.get(norm(path)); n ? cb(null, stat(n)) : cb(err("ENOENT")); },
 		lstat(path, cb) { fs.stat(path, cb); },
@@ -107,7 +125,7 @@
 		unlink(path, cb) {
 			const p = norm(path); const n = nodes.get(p);
 			if (!n) return cb(err("ENOENT")); if (n.dir) return cb(err("EISDIR"));
-			nodes.delete(p); cb(null);
+			nodes.delete(p); store(p); cb(null);
 		},
 		rmdir(path, cb) {
 			const p = norm(path); const n = nodes.get(p);
@@ -119,7 +137,10 @@
 		rename(from, to, cb) {
 			const a = norm(from), b = norm(to); const n = nodes.get(a); if (!n) return cb(err("ENOENT"));
 			for (const k of [...nodes.keys()]) {
-				if (k === a || k.startsWith(a + "/")) { nodes.set(b + k.slice(a.length), nodes.get(k)); nodes.delete(k); }
+				if (k === a || k.startsWith(a + "/")) {
+					const to = b + k.slice(a.length);
+					nodes.set(to, nodes.get(k)); nodes.delete(k); store(k); store(to);
+				}
 			}
 			cb(null);
 		},
@@ -152,4 +173,20 @@
 			pid: -1, ppid: -1, umask: () => 0o022, cwd: () => "/", chdir: () => {},
 		});
 	}
+	// what was kept, back in place
+	try {
+		for (let i = 0; i < localStorage.length; i++) {
+			const k = localStorage.key(i);
+			if (!k.startsWith("memfs:")) continue;
+			const p = k.slice(6);
+			const parts = p.split("/").slice(1, -1);
+			for (let j = 1; j <= parts.length; j++) {
+				const d = "/" + parts.slice(0, j).join("/");
+				if (!nodes.has(d)) nodes.set(d, { dir: true, mtime: now(), ino: ino++ });
+			}
+			const bin = atob(localStorage.getItem(k));
+			const data = new Uint8Array(bin.length); for (let j = 0; j < bin.length; j++) data[j] = bin.charCodeAt(j);
+			nodes.set(p, { dir: false, data, mtime: now(), ino: ino++ });
+		}
+	} catch (e) { console.warn("could not restore kept files: " + e); }
 })();

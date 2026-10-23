@@ -394,8 +394,13 @@ func (w *MainWindow) SaveFile() error {
 	if w.currentFile == "" {
 		return w.SaveFileAs()
 	}
-
-	return w.saveToFile(w.currentFile)
+	if err := w.saveToFile(w.currentFile); err != nil {
+		return err
+	}
+	if inBrowser { // kept in the browser, and a copy to download
+		offerDownload(w.currentFile)
+	}
+	return nil
 }
 
 func (w *MainWindow) SaveFileAs() error {
@@ -414,6 +419,7 @@ func (w *MainWindow) SaveFileAs() error {
 		if err := w.saveToFile(p); err != nil {
 			return err
 		}
+		offerDownload(p)
 		w.currentFile, w.suggestedName = p, ""
 		w.updateTitle()
 		return nil
@@ -473,9 +479,6 @@ func (w *MainWindow) saveToFile(filePath string) error {
 	w.cancelAutoSave()
 	w.hasChanges = false
 	w.updateTitle()
-	if inBrowser {
-		offerDownload(filePath)
-	}
 	return nil
 }
 
@@ -639,6 +642,9 @@ func (w *MainWindow) HasUnsavedChanges() bool {
 
 func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
+	if inBrowser && w.currentFile == "" {
+		keepDraft(text)
+	}
 	w.updateTitle()
 	w.updateStatusBar()
 	w.updateCurrentElement()

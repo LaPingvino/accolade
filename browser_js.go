@@ -15,6 +15,24 @@ import (
 // also handed to the browser as a download.
 const inBrowser = true
 
+// The File menu says what Open and Save do here.
+const (
+	openLabel = "Open from Your Computer…"
+	saveLabel = "Save (Kept Here, and Downloaded)"
+)
+
+// draftPath keeps an untitled script in this browser (the settings
+// folder is kept: web/index.html), to come back to after a reload.
+func draftPath() string { return path.Join(getConfigDir(), "draft.fountain") }
+
+func keepDraft(text string) { _ = os.WriteFile(draftPath(), []byte(text), 0o644) }
+
+// draft is the untitled script kept, if any.
+func draft() (string, bool) {
+	b, err := os.ReadFile(draftPath())
+	return string(b), err == nil && len(b) > 0
+}
+
 // pickFile lets the user choose a file in the browser; open gets its
 // path in memory.
 func pickFile(open func(path string)) {

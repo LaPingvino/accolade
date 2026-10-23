@@ -156,6 +156,12 @@ func (app *Application) newWindow() *MainWindow {
 
 	window := NewMainWindow(app)
 	app.windows = append(app.windows, window)
+	if len(app.windows) == 1 {
+		if text, ok := draft(); ok { // the browser kept the untitled script
+			window.textEditor.SetText(text)
+			window.setStatus("Your untitled script, as this browser kept it")
+		}
+	}
 
 	// Set up window close handler
 	window.fyneWindow.SetOnClosed(func() {

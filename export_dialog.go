@@ -214,7 +214,12 @@ func (ed *ExportDialog) updateFormatSettings() {
 	}
 	available := !f.lexington || f.format.Available()
 	if !available {
-		note(f.format.Name + " is made with " + f.format.Needs + ", which is not installed.")
+		if inBrowser {
+			note(f.format.Name + " is made with " + f.format.Needs + ": only in Accolade on your computer " +
+				"(github.com/LaPingvino/accolade), with " + f.format.Needs + " installed.")
+		} else {
+			note(f.format.Name + " is made with " + f.format.Needs + ", which is not installed.")
+		}
 	}
 	for _, o := range []fyne.Disableable{ed.includeTitlePageCheck, ed.sceneNumbersCheck, ed.previewButton} {
 		if o == nil {

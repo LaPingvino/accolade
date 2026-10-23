@@ -11,6 +11,10 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1b1b; col
 </head>
 <body>
 <div id="loading" role="status">Loading Accolade, a screenplay editor…<br><small>Your scripts stay on your computer: Open and Save use your browser's files and downloads.</small></div>
+<script>
+// kept in this browser: Accolade's settings, and the scripts saved here
+globalThis.memfsPersist = ["/tmp/.config/", "/files/"];
+</script>
 <script src="memfs.js"></script>
 <script src="wasm_exec.js"></script>
 <script>
