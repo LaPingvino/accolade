@@ -16,8 +16,12 @@ import (
 // that do something: each one is read by the window, the editor or the
 // Export dialog.
 type PreferencesDialog struct {
-	app      *Application
-	win      fyne.Window // a window of its own, not an overlay on the editor
+	app *Application
+	win fyne.Window // a window of its own, not an overlay on the editor
+	// in the web version (one window): a dialog in the page instead
+	dlg dialog.Dialog
+	// host is where its messages show: its window, or the page's
+	host     fyne.Window
 	tabs     *container.AppTabs
 	settings *Settings
 
@@ -57,11 +61,18 @@ func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDial
 	pd.loadCurrentSettings()
 	content := pd.createContent()
 
+	if inBrowser && parent != nil {
+		pd.dlg = dialog.NewCustomWithoutButtons("Preferences", content, parent)
+		pd.dlg.Resize(fyne.NewSize(640, 540))
+		pd.host = parent
+		return pd
+	}
 	pd.win = app.fyneApp.NewWindow("Preferences")
 	pd.win.SetContent(content)
 	pd.keys()
 	pd.win.Resize(fyne.NewSize(640, 540))
 	pd.win.CenterOnScreen()
+	pd.host = pd.win
 	return pd
 }
 
@@ -160,7 +171,7 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 			if err == nil && folder != nil {
 				pd.exportDirEntry.SetText(folder.Path())
 			}
-		}, pd.win)
+		}, pd.host)
 	})
 	return container.NewVBox(
 		widget.NewCard("Script Format", "How the editor and the exports lay the script out",
@@ -261,27 +272,37 @@ func (pd *PreferencesDialog) resetToDefaults() {
 				pd.loadFrom(defaults)
 			}
 		},
-		pd.win,
+		pd.host,
 	)
 }
 
 func (pd *PreferencesDialog) apply() {
 	pd.saveSettings()
 	pd.app.applySettingsToWindows()
-	dialog.ShowInformation("Settings Applied", "Your preferences have been saved.", pd.win)
+	dialog.ShowInformation("Settings Applied", "Your preferences have been saved.", pd.host)
 }
 
 func (pd *PreferencesDialog) ok() {
 	pd.saveSettings()
 	pd.app.applySettingsToWindows()
-	pd.win.Close()
+	pd.close()
 }
 
-func (pd *PreferencesDialog) cancel() {
+func (pd *PreferencesDialog) cancel() { pd.close() }
+
+func (pd *PreferencesDialog) close() {
+	if pd.dlg != nil {
+		pd.dlg.Hide()
+		return
+	}
 	pd.win.Close()
 }
 
 func (pd *PreferencesDialog) Show() {
+	if pd.dlg != nil {
+		pd.dlg.Show()
+		return
+	}
 	pd.win.Show()
 }
 

@@ -36,7 +36,6 @@ func (w *MainWindow) reportErr(action func() error) func() {
 func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	file := fyne.NewMenu("File",
 		menuItem("New", shortcut(fyne.KeyN, 0), w.NewFile),
-		menuItem("New Window", shortcut(fyne.KeyN, fyne.KeyModifierShift), func() { w.app.newWindow() }),
 		menuItem(openLabel, shortcut(fyne.KeyO, 0), w.OpenFile),
 		w.recentMenu(),
 		fyne.NewMenuItemSeparator(),
@@ -52,6 +51,10 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Preferences…", shortcut(fyne.KeyComma, 0), func() { w.app.showPreferences() }),
 		// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 	)
+	if !inBrowser { // the browser has one window
+		newWindow := menuItem("New Window", shortcut(fyne.KeyN, fyne.KeyModifierShift), func() { w.app.newWindow() })
+		file.Items = append([]*fyne.MenuItem{file.Items[0], newWindow}, file.Items[1:]...)
+	}
 
 	edit := fyne.NewMenu("Edit",
 		// Ctrl+Z / Ctrl+Y reach the focused text field directly; the menu adds

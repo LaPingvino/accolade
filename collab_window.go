@@ -182,12 +182,10 @@ func (w *MainWindow) join(linkOrKey string) {
 		dialog.ShowError(err, w.fyneWindow)
 		return
 	}
-	target := w
-	if !(w.currentFile == "" && (!w.hasChanges || w.textEditor.Text() == w.filledWith)) && w.app != nil {
-		target = w.app.newWindow()
-	}
-	target.startSharing(key, true)
-	target.setStatus("Joining the shared script…")
+	w.withTarget(func(target *MainWindow) {
+		target.startSharing(key, true)
+		target.setStatus("Joining the shared script…")
+	})
 }
 
 // sharingStatus is the status bar's word on sharing ("" when not shared).

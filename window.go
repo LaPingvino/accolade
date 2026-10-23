@@ -510,13 +510,32 @@ func (w *MainWindow) OpenFile() {
 // script, an import not edited since), else in a new one, so that
 // nothing unsaved is replaced.
 func (w *MainWindow) openPath(path string) {
-	target := w
+	w.withTarget(func(target *MainWindow) {
+		if err := target.LoadFile(path); err != nil {
+			dialog.ShowError(fmt.Errorf("failed to open %s: %v", filepath.Base(path), err), target.fyneWindow)
+		}
+	})
+}
+
+// withTarget gives the window something new goes in: this one if it
+// holds nothing of its own (no file, no edits beyond what it was filled
+// with), else a new window; in the browser, which has one window, this
+// one after asking.
+func (w *MainWindow) withTarget(then func(*MainWindow)) {
 	replaceable := w.currentFile == "" && (!w.hasChanges || w.textEditor.Text() == w.filledWith)
-	if !replaceable && w.app != nil {
-		target = w.app.newWindow()
-	}
-	if err := target.LoadFile(path); err != nil {
-		dialog.ShowError(fmt.Errorf("failed to open %s: %v", filepath.Base(path), err), target.fyneWindow)
+	switch {
+	case replaceable || w.app == nil:
+		then(w)
+	case inBrowser:
+		dialog.ShowConfirm("Replace the Script?",
+			"The script here has changes not saved. Replace it? (Save first to keep it.)",
+			func(ok bool) {
+				if ok {
+					then(w)
+				}
+			}, w.fyneWindow)
+	default:
+		then(w.app.newWindow())
 	}
 }
 
