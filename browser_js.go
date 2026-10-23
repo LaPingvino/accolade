@@ -153,3 +153,28 @@ func offerDownload(p string) {
 
 // pageLink is the page's address (with a shared script's #k=...).
 func pageLink() string { return js.Global().Get("location").Get("href").String() }
+
+// browserFullscreen puts the page in the browser's full screen, or takes
+// it out; left is called when the browser leaves it on its own (Escape).
+func browserFullscreen(on bool, left func()) {
+	doc := js.Global().Get("document")
+	if on {
+		if !doc.Get("fullscreenElement").Truthy() {
+			doc.Get("documentElement").Call("requestFullscreen").Call("catch", js.FuncOf(func(js.Value, []js.Value) any { return nil }))
+		}
+		var change js.Func
+		change = js.FuncOf(func(js.Value, []js.Value) any {
+			if !doc.Get("fullscreenElement").Truthy() {
+				doc.Call("removeEventListener", "fullscreenchange", change)
+				change.Release()
+				fyne.Do(left)
+			}
+			return nil
+		})
+		doc.Call("addEventListener", "fullscreenchange", change)
+		return
+	}
+	if doc.Get("fullscreenElement").Truthy() {
+		doc.Call("exitFullscreen")
+	}
+}

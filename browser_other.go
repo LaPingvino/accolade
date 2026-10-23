@@ -15,6 +15,7 @@ func offerDownload(string)  {}
 func keepDraft(kept)        {}
 func draft() (kept, bool)   { return kept{}, false }
 
-func pageLink() string      { return "" }
-func watchdog(*Application) {}
-func keyArrived()           {}
+func pageLink() string               { return "" }
+func watchdog(*Application)          {}
+func keyArrived()                    {}
+func browserFullscreen(bool, func()) {}

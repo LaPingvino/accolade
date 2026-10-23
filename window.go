@@ -947,6 +947,11 @@ func (w *MainWindow) replaceAll() {
 func (w *MainWindow) toggleFullscreen() {
 	w.isFullscreen = !w.isFullscreen
 	w.fyneWindow.SetFullScreen(w.isFullscreen)
+	browserFullscreen(w.isFullscreen, func() { // the browser left it (Escape)
+		if w.isFullscreen {
+			w.toggleFullscreen()
+		}
+	})
 	if w.isFullscreen {
 		setVisible(w.headerArea, false)
 		setVisible(w.statusBar, false)
