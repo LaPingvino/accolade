@@ -76,3 +76,18 @@ func TestNewScriptTemplate(t *testing.T) {
 		t.Errorf("template scenes: %d", st.Scenes)
 	}
 }
+
+// A script's language from its scene headings, whatever was there before.
+func TestHeadingsLanguage(t *testing.T) {
+	for _, c := range []struct{ text, preferred, want string }{
+		{"INT. BARN - DAY\n\nRain.\n\nEXT. FIELD - NIGHT\n", "eo", "en"},
+		{"INT. BARN - DAY\n", "de", "de"},
+		{"EN. DOMO - TAGO\n\nEKST. KAMPO - NOKTO\n", "en", "eo"},
+		{"ИНТ. ДОМ - ДЕНЬ\n", "en", "ru"},
+		{"No headings at all.\n", "nl", "nl"},
+	} {
+		if got := headingsLanguage(c.text, c.preferred); got != c.want {
+			t.Errorf("%q (preferring %s): %s, want %s", c.text, c.preferred, got, c.want)
+		}
+	}
+}

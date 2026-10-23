@@ -71,3 +71,40 @@ func isSceneHeadingIn(line string, starts []string) bool {
 	}
 	return false
 }
+
+// allSceneHeaders are every language's scene heading starts.
+func allSceneHeaders() []string {
+	var all []string
+	for _, l := range scriptLanguages() {
+		all = append(all, sceneConf[l]...)
+	}
+	return all
+}
+
+// headingsLanguage is the language most of a script's scene headings are
+// in: of those that tie (INT. is English, German and French), the
+// preferred one, else English.
+func headingsLanguage(text, preferred string) string {
+	count := map[string]int{}
+	for _, line := range strings.Split(text, "\n") {
+		t := strings.TrimPrefix(strings.TrimSpace(line), ".")
+		for _, l := range scriptLanguages() {
+			for _, s := range sceneStarts(l) {
+				if strings.HasPrefix(strings.ToUpper(t), s) {
+					count[l]++
+					break
+				}
+			}
+		}
+	}
+	most := 0
+	for _, n := range count {
+		most = max(most, n)
+	}
+	for _, l := range append([]string{preferred, "en"}, scriptLanguages()...) {
+		if count[l] == most {
+			return l
+		}
+	}
+	return preferred
+}

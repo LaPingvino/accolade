@@ -348,12 +348,13 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 // seconds a page), showing how far it is.
 func (w *MainWindow) importPDFAsync(filePath string) {
 	// the scene headings' language: the file name's (script.ru.pdf), else
-	// the script language set
+	// the one its headings are in (read with every language's, not the
+	// replaced script's)
 	lang := languageOf(filePath)
-	if lang == "" {
-		lang = w.language
-	}
 	scenes := sceneHeaders(lang)
+	if lang == "" {
+		scenes = allSceneHeaders()
+	}
 	bar := widget.NewProgressBar()
 	label := widget.NewLabel("Reading " + filepath.Base(filePath) + "...")
 	// a long scanned script takes minutes to read: Cancel stops it
@@ -385,7 +386,16 @@ func (w *MainWindow) importPDFAsync(filePath string) {
 				dialog.ShowError(fmt.Errorf("could not import %s: %v", filepath.Base(filePath), err), w.fyneWindow)
 				return
 			}
+			named := lang != "" // the file name says it (script.ru.pdf): that first
+			if !named {
+				lang = headingsLanguage(text, w.settings.GetString("script-language"))
+			}
+			w.setLanguage(lang)
 			w.showImported(filePath, text, "a PDF: check the result, a PDF only shows how the script looked")
+			if !named && lang != "en" { // saved, it keeps the language its headings are in
+				w.suggestedName = strings.TrimSuffix(w.suggestedName, ".fountain") + "." + lang + ".fountain"
+				w.updateTitle()
+			}
 			if len(skipped) > 0 {
 				dialog.ShowInformation("Some pages were left out",
 					"These pages could not be read:\n"+strings.Join(skipped, "\n"), w.fyneWindow)
