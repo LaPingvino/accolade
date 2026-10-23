@@ -2,6 +2,8 @@ package main
 
 import (
 	"image/color"
+	"slices"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -90,12 +92,38 @@ func filterOutline(items []outlineItem, query string) []outlineItem {
 	return out
 }
 
+// foldKey names a section across edits (its line moves).
+func foldKey(it outlineItem) string { return strconv.Itoa(it.Level) + " " + it.Text }
+
+// hasInside reports whether the i-th item is a section with something in it.
+func hasInside(items []outlineItem, i int) bool {
+	return !items[i].Scene && i+1 < len(items) && (items[i+1].Scene || items[i+1].Level > items[i].Level)
+}
+
+// unfolded is the items without those inside a folded section.
+func unfolded(items []outlineItem, folded map[string]bool) []outlineItem {
+	var out []outlineItem
+	hiding := 0 // inside a folded section of this level (0: none)
+	for _, it := range items {
+		if hiding > 0 && (it.Scene || it.Level > hiding) {
+			continue
+		}
+		hiding = 0
+		out = append(out, it)
+		if !it.Scene && folded[foldKey(it)] {
+			hiding = it.Level
+		}
+	}
+	return out
+}
+
 // outlinePanel is the outline beside the editor.
 type outlinePanel struct {
 	w      *MainWindow
 	all    []outlineItem // the script's
 	items  []outlineItem // shown: those the filter lets through
 	filter *widget.Entry
+	folded map[string]bool // sections shown without what is in them
 	list   *widget.List
 	box    fyne.CanvasObject
 
@@ -103,7 +131,7 @@ type outlinePanel struct {
 }
 
 func newOutlinePanel(w *MainWindow) *outlinePanel {
-	o := &outlinePanel{w: w}
+	o := &outlinePanel{w: w, folded: map[string]bool{}}
 	o.list = widget.NewList(
 		func() int { return len(o.items) },
 		func() fyne.CanvasObject {
@@ -113,15 +141,19 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			syn.SizeName = theme.SizeNameCaptionText
 			syn.Importance = widget.LowImportance
 			syn.Truncation = fyne.TextTruncateEllipsis
-			return container.NewVBox(title, syn)
+			fold := widget.NewButtonWithIcon("", theme.MenuDropDownIcon(), nil)
+			fold.Importance = widget.LowImportance
+			return container.NewBorder(nil, nil, fold, nil, container.NewVBox(title, syn))
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id >= len(o.items) {
 				return
 			}
 			it := o.items[id]
-			box := obj.(*fyne.Container)
+			row := obj.(*fyne.Container)
+			box, fold := row.Objects[0].(*fyne.Container), row.Objects[1].(*widget.Button)
 			title, syn := box.Objects[0].(*widget.Label), box.Objects[1].(*widget.Label)
+			o.showFold(fold, id)
 			title.SetText(strings.Repeat("  ", max(0, it.Level-1)) + it.Text)
 			title.TextStyle = fyne.TextStyle{Bold: !it.Scene}
 			title.Refresh()
@@ -164,11 +196,17 @@ func (o *outlinePanel) update(text string) {
 
 // show shows the items the filter lets through.
 func (o *outlinePanel) show() {
-	o.items = filterOutline(o.all, o.filter.Text)
+	if o.filter.Text != "" {
+		o.items = filterOutline(o.all, o.filter.Text)
+	} else {
+		o.items = unfolded(o.all, o.folded)
+	}
 	// rows without a synopsis are one line high
 	if o.oneLine == 0 {
-		o.oneLine = widget.NewLabel("X").MinSize().Height
-		o.twoLines = o.list.CreateItem().MinSize().Height
+		row := o.list.CreateItem().(*fyne.Container)
+		o.twoLines = row.MinSize().Height
+		row.Objects[0].(*fyne.Container).Objects[1].Hide()
+		o.oneLine = row.MinSize().Height
 	}
 	for id, it := range o.items {
 		if it.Synopsis == "" {
@@ -178,6 +216,30 @@ func (o *outlinePanel) show() {
 		}
 	}
 	o.list.Refresh()
+}
+
+// showFold makes the item's fold button: shown for a section with
+// something in it (not while filtering, which shows all it finds).
+func (o *outlinePanel) showFold(b *widget.Button, id int) {
+	it := o.items[id]
+	i := slices.IndexFunc(o.all, func(a outlineItem) bool { return a.Line == it.Line })
+	if o.filter.Text != "" || i < 0 || !hasInside(o.all, i) {
+		b.Hide()
+		return
+	}
+	b.Show()
+	key := foldKey(it)
+	if o.folded[key] {
+		b.SetIcon(theme.MenuExpandIcon())
+		fyne.SetAccessibleLabel(b, "Unfold "+it.Text)
+	} else {
+		b.SetIcon(theme.MenuDropDownIcon())
+		fyne.SetAccessibleLabel(b, "Fold "+it.Text)
+	}
+	b.OnTapped = func() {
+		o.folded[key] = !o.folded[key]
+		o.show()
+	}
 }
 
 // goTo puts the cursor at the start of a line and the focus in the editor.

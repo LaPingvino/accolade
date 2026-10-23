@@ -12,8 +12,8 @@ const (
 
 func pickFile(func(string)) {}
 func offerDownload(string)  {}
-func keepDraft(string)      {}
-func draft() (string, bool) { return "", false }
+func keepDraft(kept)        {}
+func draft() (kept, bool)   { return kept{}, false }
 
-func pageLink() string { return "" }
+func pageLink() string      { return "" }
 func watchdog(*Application) {}

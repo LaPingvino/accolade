@@ -661,10 +661,36 @@ func (w *MainWindow) HasUnsavedChanges() bool {
 	return w.hasChanges
 }
 
+// kept is the script in a window as the web version keeps it, for after
+// a reload (browser_js.go).
+type kept struct {
+	Text     string `json:"text"`
+	Language string `json:"language,omitempty"`
+	File     string `json:"file,omitempty"` // in the browser's memory (kept too)
+	Name     string `json:"name,omitempty"` // an import's name to save it as
+}
+
+// restore puts a kept script back: its file again, if it still has it,
+// with the changes not saved.
+func (w *MainWindow) restore(d kept) {
+	if d.File != "" && w.LoadFile(d.File) == nil {
+		if d.Text != w.textEditor.Text() {
+			w.textEditor.SetText(d.Text)
+		}
+		w.setStatus("Your script, as this browser kept it")
+		return
+	}
+	w.setLanguage(d.Language)
+	w.textEditor.SetText(d.Text)
+	w.suggestedName = d.Name
+	w.updateTitle()
+	w.setStatus("Your script not saved yet, as this browser kept it")
+}
+
 func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
-	if inBrowser && w.currentFile == "" {
-		keepDraft(text)
+	if inBrowser {
+		keepDraft(kept{Text: text, Language: w.language, File: w.currentFile, Name: w.suggestedName})
 	}
 	w.shareEdit(text)
 	w.updateTitle()

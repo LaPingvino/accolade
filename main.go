@@ -161,9 +161,8 @@ func (app *Application) newWindow() *MainWindow {
 	if len(app.windows) == 1 {
 		if link := pageLink(); strings.Contains(link, "#k=") { // the web version opened with a shared script's link
 			window.join(link)
-		} else if text, ok := draft(); ok { // the browser kept the untitled script
-			window.textEditor.SetText(text)
-			window.setStatus("Your untitled script, as this browser kept it")
+		} else if d, ok := draft(); ok { // the browser kept the script
+			window.restore(d)
 		}
 	}
 

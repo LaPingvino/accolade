@@ -157,3 +157,29 @@ func TestFilterOutline(t *testing.T) {
 		t.Error("an empty filter hides")
 	}
 }
+
+// A folded section shows without what is in it, up to the next of its
+// level or higher.
+func TestUnfolded(t *testing.T) {
+	items := outlineOf("# Act One\n\n## Morning\n\nINT. BARN - DAY\n\n## Night\n\nEXT. FIELD - NIGHT\n\n# Act Two\n\nINT. BARN - NIGHT\n", []string{"INT", "EXT"})
+	text := func(folded ...string) string {
+		f := map[string]bool{}
+		for _, k := range folded {
+			f[k] = true
+		}
+		var got []string
+		for _, it := range unfolded(items, f) {
+			got = append(got, it.Text)
+		}
+		return strings.Join(got, "|")
+	}
+	if got := text("2 Morning"); got != "Act One|Morning|Night|EXT. FIELD - NIGHT|Act Two|INT. BARN - NIGHT" {
+		t.Errorf("Morning folded: %s", got)
+	}
+	if got := text("1 Act One"); got != "Act One|Act Two|INT. BARN - NIGHT" {
+		t.Errorf("Act One folded: %s", got)
+	}
+	if !hasInside(items, 0) || hasInside(items, 2) {
+		t.Error("hasInside")
+	}
+}

@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"mime"
 	"os"
 	"path"
@@ -22,16 +23,25 @@ const (
 	saveLabel = "Save (Kept Here, and Downloaded)"
 )
 
-// draftPath keeps an untitled script in this browser (the settings
-// folder is kept: web/index.html), to come back to after a reload.
-func draftPath() string { return path.Join(getConfigDir(), "draft.fountain") }
+// The script in the window is kept in this browser (the settings folder
+// is kept: web/index.html), to come back to after a reload: its text,
+// its language and its file, if it has one.
+func draftPath() string { return path.Join(getConfigDir(), "draft.json") }
 
-func keepDraft(text string) { _ = os.WriteFile(draftPath(), []byte(text), 0o644) }
+func keepDraft(d kept) {
+	if b, err := json.Marshal(d); err == nil {
+		_ = os.WriteFile(draftPath(), b, 0o644)
+	}
+}
 
-// draft is the untitled script kept, if any.
-func draft() (string, bool) {
-	b, err := os.ReadFile(draftPath())
-	return string(b), err == nil && len(b) > 0
+// draft is the script kept, if any.
+func draft() (kept, bool) {
+	var d kept
+	if b, err := os.ReadFile(draftPath()); err == nil && json.Unmarshal(b, &d) == nil {
+		return d, d.Text != ""
+	}
+	b, err := os.ReadFile(path.Join(getConfigDir(), "draft.fountain")) // kept before languages were
+	return kept{Text: string(b)}, err == nil && len(b) > 0
 }
 
 // pickFile lets the user choose a file in the browser; open gets its
