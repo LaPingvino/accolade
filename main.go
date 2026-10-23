@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"fmt"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"github.com/LaPingvino/lexington/cli"
 	"log"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -47,11 +50,32 @@ func NewApplication() *Application {
 // FyneApp.toml, which the fyne tool embeds when packaging.
 func (app *Application) setupMetadata() {}
 
-// appVersion is Accolade's version as packaged (FyneApp.toml, set from the
-// release tag), or "dev" for a plain go build.
+// version is set when building (-ldflags "-X main.version=$(git describe
+// --tags)": the package and the web version do).
+var version string
+
+// appVersion is Accolade's version: as built, else the commit and date
+// Go recorded, else "dev".
 func appVersion() string {
-	if a := fyne.CurrentApp(); a != nil && a.Metadata().Version != "" {
-		return a.Metadata().Version
+	if version != "" {
+		return version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		var rev, at string
+		for _, kv := range bi.Settings {
+			switch kv.Key {
+			case "vcs.revision":
+				rev = kv.Value
+			case "vcs.time":
+				at = kv.Value
+			}
+		}
+		if len(rev) >= 7 {
+			if len(at) >= 10 {
+				return "dev " + rev[:7] + " (" + at[:10] + ")"
+			}
+			return "dev " + rev[:7]
+		}
 	}
 	return "dev"
 }
@@ -181,23 +205,29 @@ func (app *Application) showAbout() {
 		parent = app.windows[0].fyneWindow
 	}
 
-	content := widget.NewRichTextFromMarkdown(`
-# Accolade
-
-**Version:** ` + appVersion() + `  
-**Developer:** Joop Kiefte  
-**Copyright:** © 2024 Joop Kiefte  
-**License:** GPL-3.0-or-later  
-
-A distraction-free Fountain editor for screenwriters.
-
-**Website:** https://github.com/LaPingvino/accolade  
-**Issues:** https://github.com/LaPingvino/accolade/issues
-`)
-
-	aboutDialog := dialog.NewCustom("About Accolade", "Close", content, parent)
-	aboutDialog.Resize(fyne.NewSize(500, 400))
-	aboutDialog.Show()
+	title := canvas.NewText("Accolade", theme.Color(theme.ColorNameForeground))
+	title.TextSize, title.TextStyle, title.Alignment = 28, fyne.TextStyle{Bold: true}, fyne.TextAlignCenter
+	centered := func(text string) *widget.Label {
+		l := widget.NewLabel(text)
+		l.Alignment = fyne.TextAlignCenter // lines broken by hand: a wrapping label measures one line
+		return l
+	}
+	link := func(text, to string) fyne.CanvasObject {
+		u, _ := url.Parse(to)
+		return container.NewCenter(widget.NewHyperlink(text, u))
+	}
+	content := container.NewVBox(
+		title,
+		centered("Version "+appVersion()),
+		centered("A screenplay editor for Fountain:\nthe script laid out as it prints, with Lexington's exports."),
+		widget.NewSeparator(),
+		centered("Lexington "+moduleVersion("github.com/LaPingvino/lexington")+"\nFyne "+moduleVersion("fyne.io/fyne/v2")),
+		link("Website", "https://github.com/LaPingvino/accolade"),
+		link("Report an issue", "https://github.com/LaPingvino/accolade/issues"),
+		widget.NewSeparator(),
+		centered("© 2024–2026 Joop Kiefte · GPL-3.0-or-later\nAccolade began as a fork of Apostrophe."),
+	)
+	dialog.NewCustom("About Accolade", "Close", content, parent).Show()
 }
 
 // applySettingsToWindows re-applies the editor settings in every window
@@ -295,8 +325,8 @@ func moduleVersion(path string) string {
 	if bi, ok := debug.ReadBuildInfo(); ok {
 		for _, m := range bi.Deps {
 			if m.Path == path {
-				if m.Replace != nil {
-					return m.Version + " (replaced by " + m.Replace.Path + ")"
+				if m.Replace != nil { // the fork: its version
+					return m.Replace.Version + " (fork)"
 				}
 				return m.Version
 			}

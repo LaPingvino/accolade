@@ -30,7 +30,7 @@ build() {
   export CGO_LDFLAGS="${LDFLAGS}"
   export GOFLAGS="-buildmode=pie -trimpath -modcacherw"
   # accessibility: screen readers (AT-SPI2, Orca) through the Fyne fork
-  go build -tags accessibility -ldflags="-s -w" -o accolade .
+  go build -tags accessibility -ldflags="-s -w -X main.version=$(git describe --tags --always)" -o accolade .
 }
 
 package() {

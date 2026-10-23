@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the version is git describe
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
