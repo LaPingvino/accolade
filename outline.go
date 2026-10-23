@@ -57,12 +57,47 @@ func outlineOf(text string, starts []string) []outlineItem {
 	return items
 }
 
+// filterOutline is the items whose heading or synopsis has query in it
+// (in any case), each with the sections it is in, for where it is.
+func filterOutline(items []outlineItem, query string) []outlineItem {
+	query = strings.ToLower(strings.TrimSpace(query))
+	if query == "" {
+		return items
+	}
+	var out []outlineItem
+	var sections []int // the open sections, outermost first (indexes)
+	shown := map[int]bool{}
+	for i, it := range items {
+		if !it.Scene {
+			for len(sections) > 0 && items[sections[len(sections)-1]].Level >= it.Level {
+				sections = sections[:len(sections)-1]
+			}
+		}
+		if strings.Contains(strings.ToLower(it.Text+"\n"+it.Synopsis), query) {
+			for _, s := range sections {
+				if !shown[s] {
+					shown[s] = true
+					out = append(out, items[s])
+				}
+			}
+			shown[i] = true
+			out = append(out, it)
+		}
+		if !it.Scene {
+			sections = append(sections, i)
+		}
+	}
+	return out
+}
+
 // outlinePanel is the outline beside the editor.
 type outlinePanel struct {
-	w     *MainWindow
-	items []outlineItem
-	list  *widget.List
-	box   fyne.CanvasObject
+	w      *MainWindow
+	all    []outlineItem // the script's
+	items  []outlineItem // shown: those the filter lets through
+	filter *widget.Entry
+	list   *widget.List
+	box    fyne.CanvasObject
 
 	oneLine, twoLines float32 // row heights without and with a synopsis
 }
@@ -108,13 +143,28 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 	width.SetMinSize(fyne.NewSize(240, 0))
 	heading := widget.NewLabelWithStyle("Outline", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	fyne.SetAccessibleLabel(o.list, "Outline")
-	o.box = container.NewStack(width, container.NewBorder(heading, nil, nil, nil, o.list))
+	o.filter = widget.NewEntry()
+	o.filter.SetPlaceHolder("Filter scenes and sections")
+	fyne.SetAccessibleLabel(o.filter, "Filter the outline")
+	o.filter.OnChanged = func(string) { o.show() }
+	o.filter.OnSubmitted = func(string) { // Enter: to the first one shown
+		if len(o.items) > 0 {
+			o.goTo(o.items[0].Line)
+		}
+	}
+	o.box = container.NewStack(width, container.NewBorder(container.NewVBox(heading, o.filter), nil, nil, nil, o.list))
 	return o
 }
 
 // update reads the outline from the script again.
 func (o *outlinePanel) update(text string) {
-	o.items = outlineOf(text, o.w.sceneStarts())
+	o.all = outlineOf(text, o.w.sceneStarts())
+	o.show()
+}
+
+// show shows the items the filter lets through.
+func (o *outlinePanel) show() {
+	o.items = filterOutline(o.all, o.filter.Text)
 	// rows without a synopsis are one line high
 	if o.oneLine == 0 {
 		o.oneLine = widget.NewLabel("X").MinSize().Height

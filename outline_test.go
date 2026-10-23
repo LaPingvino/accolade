@@ -135,3 +135,25 @@ func findButton(o fyne.CanvasObject, text string) *widget.Button {
 	}
 	return nil
 }
+
+// The filter keeps what matches, with the sections it is in.
+func TestFilterOutline(t *testing.T) {
+	items := outlineOf("# Act One\n\n## Morning\n\nINT. BARN - DAY\n\n= Rain.\n\n## Night\n\nEXT. FIELD - NIGHT\n\n# Act Two\n\nINT. BARN - NIGHT\n", []string{"INT", "EXT"})
+	var got []string
+	for _, it := range filterOutline(items, "rain") {
+		got = append(got, it.Text)
+	}
+	if strings.Join(got, "|") != "Act One|Morning|INT. BARN - DAY" {
+		t.Errorf("rain: %q", got)
+	}
+	got = nil
+	for _, it := range filterOutline(items, "barn") {
+		got = append(got, it.Text)
+	}
+	if strings.Join(got, "|") != "Act One|Morning|INT. BARN - DAY|Act Two|INT. BARN - NIGHT" {
+		t.Errorf("barn: %q", got)
+	}
+	if len(filterOutline(items, " ")) != len(items) {
+		t.Error("an empty filter hides")
+	}
+}
