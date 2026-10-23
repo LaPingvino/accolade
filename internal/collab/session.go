@@ -11,7 +11,7 @@ import (
 type message struct {
 	Hello   bool              `json:"hello,omitempty"`
 	Version map[string]uint64 `json:"v,omitempty"` // an empty one is omitted: Hello says it is one
-	Ops     []Op              `json:"ops,omitempty"`
+	Runs    []run             `json:"r,omitempty"`
 }
 
 // Session shares a Doc with peers over a Key. Transports (WebRTC, or
@@ -39,20 +39,27 @@ func (s *Session) Do(f func(d *Doc)) {
 	f(s.doc)
 }
 
-// batch is the most ops in one message: browsers drop data channel
-// messages much over 16 KiB.
-const batch = 128
+// batch is about the most bytes of runs in one message: browsers drop
+// data channel messages much over 16 KiB.
+const batch = 8 << 10
 
-// sendOps sends ops in messages small enough for any data channel.
+// sendOps sends ops as runs, in messages small enough for any data channel.
 func (s *Session) sendOps(to func([]byte) error, ops []Op) error {
-	for len(ops) > 0 {
-		n := min(len(ops), batch)
-		if err := s.send(to, message{Ops: ops[:n]}); err != nil {
-			return err
+	var m message
+	size := 0
+	for _, r := range runsOf(ops) {
+		if size += len(r.Text) + 64; size > batch && len(m.Runs) > 0 {
+			if err := s.send(to, m); err != nil {
+				return err
+			}
+			m, size = message{}, len(r.Text)+64
 		}
-		ops = ops[n:]
+		m.Runs = append(m.Runs, r)
 	}
-	return nil
+	if len(m.Runs) == 0 {
+		return nil
+	}
+	return s.send(to, m)
 }
 
 func (s *Session) send(to func([]byte) error, m message) error {
@@ -100,9 +107,11 @@ func (s *Session) Receive(from string, sealed []byte) error {
 		reply = s.doc.Missing(m.Version)
 	}
 	var fresh []Op
-	for _, op := range m.Ops {
-		if s.doc.Apply(op) {
-			fresh = append(fresh, op)
+	for _, r := range m.Runs {
+		for _, op := range r.ops() {
+			if s.doc.Apply(op) {
+				fresh = append(fresh, op)
+			}
 		}
 	}
 	to := s.peers[from]
