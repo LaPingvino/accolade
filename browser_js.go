@@ -3,6 +3,7 @@
 package main
 
 import (
+	"mime"
 	"os"
 	"path"
 	"syscall/js"
@@ -67,16 +68,40 @@ func pickFile(open func(path string)) {
 	input.Call("click")
 }
 
-// offerDownload hands a file in memory to the browser as a download.
-func offerDownload(p string) {
+// fileURL is a link to a file in memory, for the browser.
+func fileURL(p, kind string) (js.Value, bool) {
 	data, err := os.ReadFile(p)
 	if err != nil {
-		return
+		return js.Undefined(), false
 	}
 	arr := js.Global().Get("Uint8Array").New(len(data))
 	js.CopyBytesToJS(arr, data)
-	blob := js.Global().Get("Blob").New([]any{arr})
-	url := js.Global().Get("URL").Call("createObjectURL", blob)
+	blob := js.Global().Get("Blob").New([]any{arr}, map[string]any{"type": kind})
+	return js.Global().Get("URL").Call("createObjectURL", blob), true
+}
+
+// openFile shows a file (the PDF preview) in a new tab of the browser,
+// or downloads it if the tab is not allowed.
+func init() {
+	openFile = func(p string) {
+		url, ok := fileURL(p, mime.TypeByExtension(path.Ext(p)))
+		if !ok {
+			return
+		}
+		if js.Global().Call("open", url, "_blank").Truthy() {
+			return // the link stays: the tab reads it
+		}
+		js.Global().Get("URL").Call("revokeObjectURL", url)
+		offerDownload(p)
+	}
+}
+
+// offerDownload hands a file in memory to the browser as a download.
+func offerDownload(p string) {
+	url, ok := fileURL(p, "")
+	if !ok {
+		return
+	}
 	a := js.Global().Get("document").Call("createElement", "a")
 	a.Set("href", url)
 	a.Set("download", path.Base(p))
