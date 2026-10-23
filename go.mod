@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	fyne.io/fyne/v2 v2.8.1
-	github.com/LaPingvino/lexington v1.4.1-0.20261023162110-42e8c46822ca
+	github.com/LaPingvino/lexington v1.4.1-0.20261023171432-33da2d261306
 	github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3
 	github.com/coder/websocket v1.8.15
 	github.com/pion/webrtc/v4 v4.2.25

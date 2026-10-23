@@ -134,8 +134,11 @@ func importFDX(r io.Reader) (string, error) {
 // pages are read with OCR: tesseract if it is installed, else the
 // built-in one (slower). progress (may be nil) is told the pages read;
 // skipped are the pages that could not be read.
-func importPDF(ctx context.Context, path string, progress func(done, pages int)) (text string, skipped []string, err error) {
-	opts := pdfin.Options{Context: ctx, Progress: progress, Skipped: func(page int, err error) {
+func importPDF(ctx context.Context, path string, scenes []string, progress func(done, pages int)) (text string, skipped []string, err error) {
+	if scenes == nil {
+		scenes = englishScenes
+	}
+	opts := pdfin.Options{Context: ctx, Progress: progress, Scenes: scenes, Skipped: func(page int, err error) {
 		skipped = append(skipped, fmt.Sprintf("page %d: %v", page, err))
 	}}
 	if ocr, done := pdfOCR(); ocr != nil {
@@ -147,7 +150,7 @@ func importPDF(ctx context.Context, path string, progress func(done, pages int))
 		return "", skipped, err
 	}
 	var buf bytes.Buffer
-	if err := (&fountain.FountainWriter{SceneConfig: englishScenes}).Write(&buf, screenplay); err != nil {
+	if err := (&fountain.FountainWriter{SceneConfig: scenes}).Write(&buf, screenplay); err != nil {
 		return "", skipped, err
 	}
 	return buf.String(), skipped, nil

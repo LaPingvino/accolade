@@ -269,12 +269,33 @@ func TestImportPDFCancel(t *testing.T) {
 	if err := exportAs("INT. A - DAY\n\nAction.\n", pdfPath, "pdf", exportJob{}); err != nil {
 		t.Fatal(err)
 	}
-	if text, _, err := importPDF(context.Background(), pdfPath, nil); err != nil || !strings.Contains(text, "INT. A - DAY") {
+	if text, _, err := importPDF(context.Background(), pdfPath, nil, nil); err != nil || !strings.Contains(text, "INT. A - DAY") {
 		t.Fatalf("import: %q %v", text, err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, _, err := importPDF(ctx, pdfPath, nil); !errors.Is(err, context.Canceled) {
+	if _, _, err := importPDF(ctx, pdfPath, nil, nil); !errors.Is(err, context.Canceled) {
 		t.Errorf("cancelled import: %v", err)
+	}
+}
+
+// A Russian script's PDF reads its ИНТ. headings as scene headings with
+// the Russian scene words (with English ones, as action).
+func TestImportPDFInItsLanguage(t *testing.T) {
+	script := "ИНТ. КУХНЯ - ДЕНЬ\n\nАнна смотрит в окно.\n\nАННА\nОпять дождь.\n"
+	pdfPath := filepath.Join(t.TempDir(), "kitchen.pdf")
+	if err := exportAs(script, pdfPath, "pdf", exportJob{scenes: sceneHeaders("ru")}); err != nil {
+		t.Fatal(err)
+	}
+	ru, _, err := importPDF(context.Background(), pdfPath, sceneHeaders("ru"), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(ru, "\nИНТ. КУХНЯ - ДЕНЬ\n") && !strings.HasPrefix(ru, "ИНТ. КУХНЯ - ДЕНЬ\n") {
+		t.Errorf("no scene heading in Russian:\n%s", ru)
+	}
+	en, _, _ := importPDF(context.Background(), pdfPath, nil, nil)
+	if strings.Contains(en, "\nИНТ. КУХНЯ - ДЕНЬ\n") {
+		t.Logf("English took it as a heading too (uppercase, bold?):\n%s", en)
 	}
 }

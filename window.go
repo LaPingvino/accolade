@@ -343,6 +343,13 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 // importPDFAsync reads a PDF in the background (a scanned one needs OCR,
 // seconds a page), showing how far it is.
 func (w *MainWindow) importPDFAsync(filePath string) {
+	// the scene headings' language: the file name's (script.ru.pdf), else
+	// the script language set
+	lang := languageOf(filePath)
+	if lang == "" {
+		lang = w.language
+	}
+	scenes := sceneHeaders(lang)
 	bar := widget.NewProgressBar()
 	label := widget.NewLabel("Reading " + filepath.Base(filePath) + "...")
 	// a long scanned script takes minutes to read: Cancel stops it
@@ -356,7 +363,7 @@ func (w *MainWindow) importPDFAsync(filePath string) {
 	go func() {
 		defer close(done)
 		defer cancel()
-		text, skipped, err := importPDF(ctx, filePath, func(done, pages int) {
+		text, skipped, err := importPDF(ctx, filePath, scenes, func(done, pages int) {
 			fyne.Do(func() {
 				bar.SetValue(float64(done) / float64(max(pages, 1)))
 				label.SetText(fmt.Sprintf("Read %d of %d pages", done, pages))
