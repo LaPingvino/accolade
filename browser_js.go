@@ -83,3 +83,6 @@ func offerDownload(p string) {
 	a.Call("click")
 	js.Global().Get("URL").Call("revokeObjectURL", url)
 }
+
+// pageLink is the page's address (with a shared script's #k=...).
+func pageLink() string { return js.Global().Get("location").Get("href").String() }

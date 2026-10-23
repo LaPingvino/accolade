@@ -1,3 +1,5 @@
+//go:build !js
+
 package collab
 
 import (
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/coder/websocket"
+	"github.com/pion/webrtc/v4"
 )
 
 // fakeTracker relays offers and answers between the peers of an info
@@ -68,9 +71,14 @@ func fakeTracker(t *testing.T) string {
 // Two peers find each other through a tracker, connect over WebRTC and
 // edit together.
 func TestNetwork(t *testing.T) {
-	was := ICEServers
-	ICEServers = nil // this machine only
-	t.Cleanup(func() { ICEServers = was })
+	was, wasNew := ICEServers, newPeerConnection
+	ICEServers = nil // this machine only: its loopback interface, the same everywhere
+	var se webrtc.SettingEngine
+	se.SetIncludeLoopbackCandidate(true)
+	se.SetNetworkTypes([]webrtc.NetworkType{webrtc.NetworkTypeUDP4})
+	se.SetInterfaceFilter(func(name string) bool { return strings.HasPrefix(name, "lo") })
+	newPeerConnection = webrtc.NewAPI(webrtc.WithSettingEngine(se)).NewPeerConnection
+	t.Cleanup(func() { ICEServers, newPeerConnection = was, wasNew })
 	tracker := fakeTracker(t)
 	key, _ := NewKey()
 	ctx, cancel := context.WithCancel(context.Background())

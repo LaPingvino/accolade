@@ -28,6 +28,10 @@ var Trackers = []string{
 // ICEServers find a way through NAT (STUN only: they see addresses).
 var ICEServers = []webrtc.ICEServer{{URLs: []string{"stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"}}}
 
+// newPeerConnection makes the WebRTC connections (tests use one on this
+// machine only).
+var newPeerConnection = webrtc.NewPeerConnection
+
 // trackerMsg is a WebTorrent tracker message (the fields used here).
 type trackerMsg struct {
 	Action   string    `json:"action"`
@@ -177,7 +181,7 @@ func (n *Network) announceLoop(ctx context.Context, url string) error {
 
 // newConn is a peer connection whose data channel joins the session.
 func (n *Network) newConn() (*webrtc.PeerConnection, error) {
-	pc, err := webrtc.NewPeerConnection(webrtc.Configuration{ICEServers: ICEServers})
+	pc, err := newPeerConnection(webrtc.Configuration{ICEServers: ICEServers})
 	if err != nil {
 		return nil, err
 	}

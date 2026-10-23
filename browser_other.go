@@ -14,3 +14,5 @@ func pickFile(func(string)) {}
 func offerDownload(string)  {}
 func keepDraft(string)      {}
 func draft() (string, bool) { return "", false }
+
+func pageLink() string { return "" }

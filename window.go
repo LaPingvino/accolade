@@ -63,7 +63,9 @@ type MainWindow struct {
 	// filledWith is the text the window was filled with and has no file
 	// for: the sample script, or an import; while the text is that,
 	// opening a file replaces it (openPath)
-	filledWith   string
+	filledWith string
+	// shared: the script edited together with peers (collab_window.go)
+	shared       *shared
 	isFullscreen bool
 	// menuShortcuts are the menu's shortcuts in full screen, without the
 	// menu bar: on the canvas, and for the editor (menuShortcut)
@@ -645,6 +647,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	if inBrowser && w.currentFile == "" {
 		keepDraft(text)
 	}
+	w.shareEdit(text)
 	w.updateTitle()
 	w.updateStatusBar()
 	w.updateCurrentElement()
@@ -700,6 +703,9 @@ func (w *MainWindow) updateStatusBar() {
 	text := computeStats(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()).String()
 	if w.currentElement != "" && w.currentElement != "empty" {
 		text = w.currentElement + " · " + text
+	}
+	if s := w.sharingStatus(); s != "" {
+		text = s + " · " + text
 	}
 	w.statsLabel.SetText(text)
 }
