@@ -8,8 +8,8 @@ github.com/LaPingvino/atspi v0.0.0-20261009023205-ced351090bc6 h1:g+XX9AQ2Nm2LRN
 github.com/LaPingvino/atspi v0.0.0-20261009023205-ced351090bc6/go.mod h1:x8xnRAIJqrdPCXj/p1H4cRTe0ytSnw9AOyPvU3ZuMCA=
 github.com/LaPingvino/fyne/v2 v2.0.0-20261010154520-e055ee720a40 h1:T4UVx3Av+wcxCHr8lsvK8M0weKdraJ6PWcvz89D4Qzo=
 github.com/LaPingvino/fyne/v2 v2.0.0-20261010154520-e055ee720a40/go.mod h1:VzPfCFW/BNpw/B4LxARIBWZaSEvQxdsqrv0LpWRo+mM=
-github.com/LaPingvino/glfw-js v0.4.1-0.20261023220358-b365de72bb19 h1:O5+qE6j+NtJYP9H3DzHAS+1wG6GqNo2b96iRu4j4BaY=
-github.com/LaPingvino/glfw-js v0.4.1-0.20261023220358-b365de72bb19/go.mod h1:SDchsFZh4n7nVuBoiowOhOgIBdz+qUQVeC1w9fe2yVU=
+github.com/LaPingvino/glfw-js v0.4.1-0.20261023220941-759c3c00db67 h1:JG4R++Npty3Auux3JfDMXn2pYS/4r3kqjf1Ptjgjq7M=
+github.com/LaPingvino/glfw-js v0.4.1-0.20261023220941-759c3c00db67/go.mod h1:SDchsFZh4n7nVuBoiowOhOgIBdz+qUQVeC1w9fe2yVU=
 github.com/LaPingvino/lexington v1.4.1-0.20261023171432-33da2d261306 h1:ti/SElQt0nWxg5OWanvoCRZO+Xr7jYqJ92Id1qwkKLk=
 github.com/LaPingvino/lexington v1.4.1-0.20261023171432-33da2d261306/go.mod h1:06Ri2IjiZWUve9CE5l3/ICTLG5JJLC3kKuOvAZEPxi0=
 github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3 h1:0pb1fCiKDeV86cIiHBKI67y1tiIAKiFoEojc384GoEs=

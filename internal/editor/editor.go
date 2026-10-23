@@ -443,10 +443,11 @@ func (e *ScriptEditor) changed(edited bool) {
 	}
 }
 
-// Focus handling.
+// Focus handling: the window's focus can change inside a browser event,
+// so the cursor is redrawn after it, not in it.
 
-func (e *ScriptEditor) FocusGained() { e.focused = true; e.relayout() }
-func (e *ScriptEditor) FocusLost()   { e.focused = false; e.shift = false; e.relayout() }
+func (e *ScriptEditor) FocusGained() { e.focused = true; fyne.Do(e.relayout) }
+func (e *ScriptEditor) FocusLost()   { e.focused = false; e.shift = false; fyne.Do(e.relayout) }
 
 // Tapped focuses the editor and places the cursor at the click (Shift
 // extends the selection).
