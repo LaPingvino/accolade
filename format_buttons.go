@@ -78,7 +78,7 @@ func elementsKey(key string) string {
 type formatButton struct {
 	Label   string
 	Insert  string
-	Restart string
+	Restart string `toml:",omitempty"`
 }
 
 var defaultFormatButtons = map[string][]formatButton{

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -61,5 +62,21 @@ Insert = "===\n\n.PLAAT {n}"
 	}
 	if b := formatButtons("series"); len(b) == 0 || b[0].Label != "Cold Open" {
 		t.Errorf("series buttons: %v", b)
+	}
+}
+
+// The defaults to start from have Accolade's part, and read back as they
+// are built in.
+func TestAccoladeDefaults(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Cleanup(func() {
+		lexSettings, accoladeConf = readLexingtonSettings(), readAccoladeSettings()
+		sceneConf = lexSettings.Scenes
+	})
+	if err := saveLexingtonSettings(defaultLexingtonSettings()); err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(accoladeConf.Buttons, defaultFormatButtons) || !reflect.DeepEqual(accoladeConf.Formats, defaultAliases) {
+		t.Errorf("read back: %v", accoladeConf)
 	}
 }
