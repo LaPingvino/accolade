@@ -33,6 +33,9 @@ type shared struct {
 	stop    context.CancelFunc
 	peers   int
 	other   bool // a peer runs another version of Accolade
+	// synced: the script's language and format are the peers' (joining,
+	// once they sent them), so changes here go to them
+	synced bool
 }
 
 func newReplica() string {
@@ -50,7 +53,13 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 		doc.SetText(w.textEditor.Text())
 	}
 	s := &shared{session: collab.NewSession(key, doc), key: key}
-	s.session.OnRemote = func() { fyne.Do(w.applyRemote) }
+	s.session.OnRemote = func() { fyne.Do(func() { s.synced = true; w.applyRemote() }) }
+	s.session.OnMeta = func(key, value string) {
+		fyne.Do(func() {
+			s.synced = true
+			w.applyShared(key, value)
+		})
+	}
 	s.session.OnMismatch = func(int) {
 		fyne.Do(func() {
 			s.other = true
@@ -63,6 +72,11 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 	if joining {
 		w.textEditor.SetText("")
 		w.filledWith = ""
+	}
+	if !joining {
+		s.synced = true
+		w.shareMeta("language", w.language)
+		w.shareMeta("format", w.settings.GetString("script-format"))
 	}
 	s.network = collab.Join(ctx, s.session, key, collab.Trackers, func(n int) {
 		fyne.Do(func() {
@@ -133,6 +147,31 @@ func (w *MainWindow) applyRemote() {
 			b.Select(from, to)
 		}
 	})
+}
+
+// shareMeta sends a setting of the script (its language, its format) to
+// the peers, if it is shared and has theirs.
+func (w *MainWindow) shareMeta(key, value string) {
+	if w.shared != nil && w.shared.synced {
+		w.shared.session.SetMeta(key, value)
+	}
+}
+
+// applyShared takes a setting of the script from a peer.
+func (w *MainWindow) applyShared(key, value string) {
+	switch key {
+	case "language":
+		if value != w.language {
+			w.setLanguage(value)
+			w.updateStatusBar()
+		}
+	case "format":
+		if value != w.settings.GetString("script-format") {
+			w.settings.SetString("script-format", value)
+			_ = w.settings.Save()
+			w.app.applySettingsToWindows()
+		}
+	}
 }
 
 // shareDialog shares the script: a new key, its link to send.

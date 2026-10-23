@@ -3,6 +3,7 @@ package collab
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"sync"
 )
 
@@ -14,11 +15,27 @@ type message struct {
 	Proto   int               `json:"p,omitempty"` // with a hello: Protocol
 	Version map[string]uint64 `json:"v,omitempty"` // an empty one is omitted: Hello says it is one
 	Runs    []run             `json:"r,omitempty"`
+	Meta    map[string]Value  `json:"m,omitempty"` // with a hello, or when one changed
 }
 
 // Protocol is the version of what peers send: peers of another one are
 // told apart (OnMismatch), not half understood.
-const Protocol = 2
+const Protocol = 3
+
+// Value is one of the script's settings shared with it (its language,
+// its format): the last one set wins, by clock, then by replica.
+type Value struct {
+	Value   string `json:"v"`
+	Clock   uint64 `json:"c"`
+	Replica string `json:"r"`
+}
+
+func (a Value) newer(b Value) bool {
+	if a.Clock != b.Clock {
+		return a.Clock > b.Clock
+	}
+	return a.Replica > b.Replica
+}
 
 // Session shares a Doc with peers over a Key. Transports (WebRTC, or
 // anything carrying bytes) add peers with a send function and pass what
@@ -32,6 +49,9 @@ type Session struct {
 	// OnRemote is called (outside the lock) after ops from peers changed
 	// the text.
 	OnRemote func()
+	meta     map[string]Value
+	// OnMeta is called (outside the lock) after a peer changed a setting.
+	OnMeta func(key, value string)
 	// OnMismatch is called when a peer speaks another Protocol (0: one
 	// from before there were versions).
 	OnMismatch func(theirs int)
@@ -39,7 +59,7 @@ type Session struct {
 
 // NewSession shares doc with the peers that have key.
 func NewSession(key Key, doc *Doc) *Session {
-	return &Session{key: key, doc: doc, peers: map[string]func([]byte) error{}, other: map[string]bool{}}
+	return &Session{key: key, doc: doc, peers: map[string]func([]byte) error{}, other: map[string]bool{}, meta: map[string]Value{}}
 }
 
 // Doc is the shared document; lock with Do while using it.
@@ -88,7 +108,7 @@ func (s *Session) send(to func([]byte) error, m message) error {
 func (s *Session) AddPeer(id string, send func([]byte) error) error {
 	s.mu.Lock()
 	s.peers[id] = send
-	hello := message{Hello: true, Proto: Protocol, Version: s.doc.Version()}
+	hello := message{Hello: true, Proto: Protocol, Version: s.doc.Version(), Meta: maps.Clone(s.meta)}
 	s.mu.Unlock()
 	return s.send(send, hello)
 }
@@ -132,6 +152,16 @@ func (s *Session) Receive(from string, sealed []byte) error {
 	if m.Hello {
 		reply = s.doc.Missing(m.Version)
 	}
+	var changed map[string]Value
+	for k, v := range m.Meta {
+		if v.newer(s.meta[k]) {
+			s.meta[k] = v
+			if changed == nil {
+				changed = map[string]Value{}
+			}
+			changed[k] = v
+		}
+	}
 	var fresh []Op
 	for _, r := range m.Runs {
 		for _, op := range r.ops() {
@@ -140,10 +170,32 @@ func (s *Session) Receive(from string, sealed []byte) error {
 			}
 		}
 	}
+	var newer map[string]Value // with a hello: the settings it lacks
+	for k, v := range s.meta {
+		if m.Hello && v.newer(m.Meta[k]) {
+			if newer == nil {
+				newer = map[string]Value{}
+			}
+			newer[k] = v
+		}
+	}
 	to := s.peers[from]
 	others := s.othersThan(from)
 	s.mu.Unlock()
 
+	if newer != nil && to != nil {
+		_ = s.send(to, message{Meta: newer})
+	}
+	if changed != nil {
+		for _, p := range others {
+			_ = s.send(p, message{Meta: changed})
+		}
+		if s.OnMeta != nil {
+			for k, v := range changed {
+				s.OnMeta(k, v.Value)
+			}
+		}
+	}
 	if len(reply) > 0 && to != nil {
 		if err := s.sendOps(to, reply); err != nil {
 			return err
@@ -168,6 +220,33 @@ func (s *Session) othersThan(id string) []func([]byte) error {
 		}
 	}
 	return out
+}
+
+// Meta is a shared setting's value ("" if none).
+func (s *Session) Meta(key string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.meta[key].Value
+}
+
+// SetMeta sets a shared setting here and sends it to every peer.
+func (s *Session) SetMeta(key, value string) {
+	s.mu.Lock()
+	if s.meta[key].Value == value && s.meta[key].Clock > 0 {
+		s.mu.Unlock()
+		return
+	}
+	var clock uint64
+	for _, v := range s.meta {
+		clock = max(clock, v.Clock)
+	}
+	v := Value{Value: value, Clock: clock + 1, Replica: s.doc.replica}
+	s.meta[key] = v
+	peers := s.othersThan("")
+	s.mu.Unlock()
+	for _, p := range peers {
+		_ = s.send(p, message{Meta: map[string]Value{key: v}})
+	}
 }
 
 // Local sends ops made here to every peer.

@@ -37,14 +37,61 @@ type details struct {
 	Scenes            int
 	Interior          int
 	Exterior          int
+	Tags              []tag  // scenes by what their headings start with, most first
 	Roles             []role // most speeches first
+}
+
+// tag is a scene heading start (INT, EXT, BIN, ИНТ, ...) and how many
+// scenes have it.
+type tag struct {
+	Tag    string
+	Scenes int
 }
 
 // linesAPage is a screenplay page in Courier 12: 55 lines.
 const linesAPage = 55
 
+// insideOutside reports whether a scene heading is inside, outside or
+// both, in the language of scenes (its heading starts): the first one
+// with a slash pairs them (INT./EXT, BIN./BUI, EN/EKST, ИНТ/НАТ), and a
+// heading starting with a slash is both.
+func insideOutside(heading string, scenes []string) (in, out bool) {
+	word, _, _ := strings.Cut(strings.TrimPrefix(strings.ToUpper(strings.TrimSpace(heading)), "."), " ")
+	if strings.Contains(word, "/") {
+		return true, true
+	}
+	clean := func(s string) string { return strings.Trim(s, ". ") }
+	word = clean(word)
+	for _, s := range scenes {
+		if i, o, ok := strings.Cut(strings.ToUpper(s), "/"); ok {
+			like := func(half string) bool {
+				half = clean(half)
+				return half != "" && word != "" && (strings.HasPrefix(word, half) || strings.HasPrefix(half, word))
+			}
+			return like(i), like(o)
+		}
+	}
+	return false, false
+}
+
+// headingTag is the start of a scene heading as written in the script's
+// language (scenes: its starts), without its dot; "" for a heading
+// without one (forced with a dot).
+func headingTag(heading string, scenes []string) string {
+	h := strings.ToUpper(strings.TrimSpace(heading))
+	best := ""
+	for _, s := range scenes {
+		t := strings.TrimRight(strings.ToUpper(s), ".")
+		if len(t) > len(best) && strings.HasPrefix(h, t) && (len(h) == len(t) || strings.ContainsRune(". -", rune(h[len(t)]))) {
+			best = t
+		}
+	}
+	return best
+}
+
 func detailsOf(text string, scenes []string, elements rules.Set) details {
 	var d details
+	tags := map[string]int{}
 	s := fountain.Parse(scenes, strings.NewReader(text))
 	roles := map[string]*role{}
 	var speaker *role
@@ -57,14 +104,15 @@ func detailsOf(text string, scenes []string, elements rules.Set) details {
 			inTitle = false
 		case lex.TypeScene:
 			d.Scenes++
-			h := strings.ToUpper(l.Contents)
-			interior := strings.HasPrefix(h, "INT") || strings.HasPrefix(h, "I/E")
-			exterior := strings.HasPrefix(h, "EXT") || strings.HasPrefix(h, "I/E") || strings.Contains(h, "/EXT")
-			if interior {
+			in, out := insideOutside(l.Contents, scenes)
+			if in {
 				d.Interior++
 			}
-			if exterior {
+			if out {
 				d.Exterior++
+			}
+			if t := headingTag(l.Contents, scenes); t != "" {
+				tags[t]++
 			}
 		case lex.TypeSpeaker:
 			name := strings.TrimSpace(l.Contents)
@@ -129,6 +177,15 @@ func detailsOf(text string, scenes []string, elements rules.Set) details {
 		}
 		return d.Roles[i].Name < d.Roles[j].Name
 	})
+	for t, n := range tags {
+		d.Tags = append(d.Tags, tag{t, n})
+	}
+	sort.Slice(d.Tags, func(i, j int) bool {
+		if d.Tags[i].Scenes != d.Tags[j].Scenes {
+			return d.Tags[i].Scenes > d.Tags[j].Scenes
+		}
+		return d.Tags[i].Tag < d.Tags[j].Tag
+	})
 	return d
 }
 
@@ -165,6 +222,13 @@ func (w *MainWindow) showStatistics() {
 		row("Interior", fmt.Sprint(d.Interior)),
 		row("Exterior", fmt.Sprint(d.Exterior)),
 	))
+	if len(d.Tags) > 0 { // each heading start as written, folded away
+		byTag := container.NewVBox()
+		for _, t := range d.Tags {
+			byTag.Add(row(t.Tag, fmt.Sprint(t.Scenes)))
+		}
+		scenes.Content.(*fyne.Container).Add(widget.NewAccordion(widget.NewAccordionItem("By heading", byTag)))
+	}
 	cast := container.NewVBox()
 	for _, r := range d.Roles {
 		speeches := fmt.Sprintf("%d speeches", r.Speeches)

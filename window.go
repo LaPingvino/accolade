@@ -257,6 +257,7 @@ func (w *MainWindow) applyEditorSettings() {
 func (w *MainWindow) applyScriptFormat() {
 	w.textEditor.Format, w.textEditor.PageColumns = editorFormat(currentScriptFormat())
 	w.textEditor.Refresh()
+	w.shareMeta("format", w.settings.GetString("script-format"))
 }
 
 func setVisible(o fyne.CanvasObject, visible bool) {
@@ -596,6 +597,7 @@ func (w *MainWindow) setLanguage(lang string) {
 		w.textEditor.SceneStarts = sceneStarts(lang)
 		w.textEditor.Refresh()
 	}
+	w.shareMeta("language", lang)
 }
 
 // sceneStarts are what scene headings start with in the script's

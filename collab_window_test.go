@@ -10,7 +10,7 @@ import (
 
 // Two windows editing one script (their sessions connected here, no
 // network): typing in one shows in the other, whose cursor stays with
-// its text.
+// its text; the script's language goes with it.
 func TestEditingTogether(t *testing.T) {
 	was := collab.Trackers
 	collab.Trackers = nil
@@ -18,6 +18,8 @@ func TestEditingTogether(t *testing.T) {
 	_, app := newDialogTestWindow(t)
 	a, b := app.newWindow(), app.newWindow()
 	a.textEditor.SetText("INT. BARN - DAY\n\nRain falls.\n")
+	a.setLanguage("eo")
+	b.setLanguage("en")
 	key, _ := collab.NewKey()
 	a.startSharing(key, false)
 	b.startSharing(key, true)
@@ -28,6 +30,14 @@ func TestEditingTogether(t *testing.T) {
 	if b.textEditor.Text() != a.textEditor.Text() {
 		t.Fatalf("b joined with %q", b.textEditor.Text())
 	}
+	if b.language != "eo" || sb.Meta("format") != a.settings.GetString("script-format") {
+		t.Errorf("b joined in %q, format %q", b.language, sb.Meta("format"))
+	}
+	b.setLanguage("ru")
+	if a.language != "ru" {
+		t.Errorf("a's language stayed %q", a.language)
+	}
+	b.setLanguage("eo")
 	b.textEditor.SetCursorOffset(len([]rune("INT. BARN - DAY\n\nRain"))) // before " falls."
 	a.fyneWindow.Canvas().Focus(a.textEditor)
 	a.textEditor.SetCursorOffset(0)

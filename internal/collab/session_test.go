@@ -106,3 +106,23 @@ func TestSessionsMismatch(t *testing.T) {
 		}
 	})
 }
+
+// The script's settings go with it: the last one set wins, and a peer
+// joining gets them.
+func TestSessionsMeta(t *testing.T) {
+	key, _ := NewKey()
+	a, b := NewSession(key, New("a")), NewSession(key, New("b"))
+	got := map[string]string{}
+	b.OnMeta = func(k, v string) { got[k] = v }
+	a.SetMeta("language", "eo")
+	_ = a.AddPeer("b", func(m []byte) error { return b.Receive("a", m) })
+	_ = b.AddPeer("a", func(m []byte) error { return a.Receive("b", m) })
+	if b.Meta("language") != "eo" || got["language"] != "eo" {
+		t.Fatalf("joining: %q %v", b.Meta("language"), got)
+	}
+	b.SetMeta("language", "ru")
+	a.SetMeta("format", "comic")
+	if a.Meta("language") != "ru" || b.Meta("format") != "comic" || got["format"] != "comic" {
+		t.Errorf("a %q, b %q", a.Meta("language"), b.Meta("format"))
+	}
+}
