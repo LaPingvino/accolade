@@ -88,3 +88,26 @@ func TestDialogsHaveNoEmptyButton(t *testing.T) {
 
 
 
+
+// Opening or importing a file replaces a window that holds only what it
+// was filled with (the sample, an import not edited since); a window with
+// edits stays, and the file opens in a new one.
+func TestImportsReplaceUntouchedWindows(t *testing.T) {
+	_, app := newDialogTestWindow(t)
+	w := app.newWindow()
+	fdx := filepath.Join(t.TempDir(), "barn.fdx")
+	if err := exportAs(accoladeScript, fdx, "fdx", exportJob{}); err != nil {
+		t.Fatal(err)
+	}
+	windows := len(app.windows)
+	w.openPath(fdx) // over the sample
+	w.openPath(fdx) // over the import
+	if len(app.windows) != windows {
+		t.Fatalf("%d new windows for imports over untouched ones", len(app.windows)-windows)
+	}
+	test.Type(w.textEditor, "x") // an edit
+	w.openPath(fdx)
+	if len(app.windows) != windows+1 {
+		t.Errorf("the edited import was replaced")
+	}
+}

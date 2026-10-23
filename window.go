@@ -58,11 +58,13 @@ type MainWindow struct {
 	notesVisible   bool
 
 	// File management
-	currentFile  string
-	hasChanges   bool
+	currentFile string
+	hasChanges  bool
+	// filledWith is the text the window was filled with and has no file
+	// for: the sample script, or an import; while the text is that,
+	// opening a file replaces it (openPath)
+	filledWith   string
 	isFullscreen bool
-	// panesBefore are the outline and notes shown before full screen
-	panesBefore [2]bool
 	// menuShortcuts are the menu's shortcuts in full screen, without the
 	// menu bar: on the canvas, and for the editor (menuShortcut)
 	menuShortcuts map[string]menuShortcut
@@ -123,6 +125,7 @@ func (w *MainWindow) setupUI() {
 
 	// Add some initial content - start with a title page
 	w.textEditor.SetText(defaultScript(time.Now()))
+	w.filledWith = w.textEditor.Text()
 
 	// Apply Courier Prime font for screenplay formatting
 	// the editor scrolls to keep the cursor in view; the theme override
@@ -328,6 +331,7 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.cancelAutoSave()
 	w.format = fileFormat{}
 	w.textEditor.SetText(text)
+	w.filledWith = w.textEditor.Text()
 	w.currentFile = ""
 	w.suggestedName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)) + ".fountain"
 	w.hasChanges = true
@@ -464,11 +468,13 @@ func (w *MainWindow) OpenFile() {
 }
 
 // openPath opens a file (a script, a Final Draft document, a PDF): in
-// this window if it is empty and unchanged, else in a new one, so that
+// this window if it holds only what it was filled with (the sample
+// script, an import not edited since), else in a new one, so that
 // nothing unsaved is replaced.
 func (w *MainWindow) openPath(path string) {
 	target := w
-	if (w.hasChanges || w.currentFile != "") && w.app != nil {
+	replaceable := w.currentFile == "" && (!w.hasChanges || w.textEditor.Text() == w.filledWith)
+	if !replaceable && w.app != nil {
 		target = w.app.newWindow()
 	}
 	if err := target.LoadFile(path); err != nil {
@@ -794,7 +800,14 @@ func (w *MainWindow) relayout() {
 		objects = append(objects, left)
 	}
 	objects = append(objects, center, w.statusBar)
-	w.setContent(container.New(layout.NewBorderLayout(w.toolbarContainer, w.statusBar, left, nil), objects...))
+	var content fyne.CanvasObject = container.New(layout.NewBorderLayout(w.toolbarContainer, w.statusBar, left, nil), objects...)
+	if w.isFullscreen {
+		// the way back, in sight (not only Ctrl+Shift+F)
+		leave := widget.NewButtonWithIcon("Leave full screen", theme.ViewRestoreIcon(), w.toggleFullscreen)
+		leave.Importance = widget.LowImportance
+		content = container.NewStack(content, container.NewVBox(container.NewHBox(layout.NewSpacer(), leave)))
+	}
+	w.setContent(content)
 }
 
 // Find/Replace operations
@@ -831,20 +844,18 @@ func (w *MainWindow) replaceAll() {
 	w.searchBar.replaceAll()
 }
 
-// toggleFullscreen switches the distraction-free full screen: only the
-// script, without the menu bar, toolbar, status bar and side panes. The
-// menu's shortcuts keep working (Ctrl+Shift+F leaves).
+// toggleFullscreen switches the distraction-free full screen: the script
+// (and the outline and notes, if open), without the menu bar, toolbar
+// and status bar; a button in the corner leaves it, as Ctrl+Shift+F
+// does. The menu's shortcuts keep working.
 func (w *MainWindow) toggleFullscreen() {
 	w.isFullscreen = !w.isFullscreen
 	w.fyneWindow.SetFullScreen(w.isFullscreen)
 	if w.isFullscreen {
-		w.panesBefore = [2]bool{w.outlineVisible, w.notesVisible}
-		w.outlineVisible, w.notesVisible = false, false
 		setVisible(w.headerArea, false)
 		setVisible(w.statusBar, false)
 		w.fyneWindow.SetMainMenu(nil)
 	} else {
-		w.outlineVisible, w.notesVisible = w.panesBefore[0], w.panesBefore[1]
 		w.applyEditorSettings() // the toolbar and status bar as set
 	}
 	w.refreshMenu()

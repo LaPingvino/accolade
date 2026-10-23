@@ -2,6 +2,8 @@ package main
 
 import (
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 	"strings"
 	"testing"
 )
@@ -84,25 +86,52 @@ func TestOutlineAndNotesTogether(t *testing.T) {
 	}
 }
 
-// Full screen shows only the script; the menu's shortcuts still work, and
-// leaving brings everything back.
+// Full screen hides the menu bar, toolbar and status bar, keeps the
+// outline and notes open, and has a button to leave; the menu's shortcuts
+// still work.
 func TestFullscreenWithoutDistractions(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.textEditor.SetText(outlineScript)
 	w.toggleOutline()
 	w.toggleFullscreen()
-	if w.headerArea.Visible() || w.statusBar.Visible() || w.outlineVisible || w.fyneWindow.MainMenu() != nil {
-		t.Errorf("full screen shows toolbar %v, status %v, outline %v, menu %v",
-			w.headerArea.Visible(), w.statusBar.Visible(), w.outlineVisible, w.fyneWindow.MainMenu() != nil)
+	if w.headerArea.Visible() || w.statusBar.Visible() || w.fyneWindow.MainMenu() != nil {
+		t.Errorf("full screen shows toolbar %v, status %v, menu %v",
+			w.headerArea.Visible(), w.statusBar.Visible(), w.fyneWindow.MainMenu() != nil)
+	}
+	if !w.outlineVisible {
+		t.Error("the outline closed")
 	}
 	w.fyneWindow.Canvas().Focus(w.textEditor)
 	w.textEditor.TypedShortcut(shortcut(fyne.KeyK, fyne.KeyModifierShift)) // Notes
 	if !w.notesVisible {
 		t.Error("the Notes shortcut did nothing in full screen")
 	}
-	w.textEditor.TypedShortcut(shortcut(fyne.KeyF, fyne.KeyModifierShift))
-	if w.isFullscreen || !w.headerArea.Visible() || !w.statusBar.Visible() || !w.outlineVisible || w.fyneWindow.MainMenu() == nil {
-		t.Errorf("after full screen: %v, toolbar %v, status %v, outline %v",
-			w.isFullscreen, w.headerArea.Visible(), w.statusBar.Visible(), w.outlineVisible)
+	leave := findButton(w.fyneWindow.Content(), "Leave full screen")
+	if leave == nil {
+		t.Fatal("no button to leave full screen")
 	}
+	test.Tap(leave)
+	if w.isFullscreen || !w.headerArea.Visible() || !w.statusBar.Visible() || w.fyneWindow.MainMenu() == nil {
+		t.Errorf("after full screen: %v, toolbar %v, status %v", w.isFullscreen, w.headerArea.Visible(), w.statusBar.Visible())
+	}
+	if findButton(w.fyneWindow.Content(), "Leave full screen") != nil {
+		t.Error("the button stayed")
+	}
+}
+
+// findButton is the button with text in o.
+func findButton(o fyne.CanvasObject, text string) *widget.Button {
+	switch x := o.(type) {
+	case *widget.Button:
+		if x.Text == text {
+			return x
+		}
+	case *fyne.Container:
+		for _, c := range x.Objects {
+			if b := findButton(c, text); b != nil {
+				return b
+			}
+		}
+	}
+	return nil
 }
