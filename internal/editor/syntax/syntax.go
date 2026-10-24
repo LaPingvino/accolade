@@ -32,6 +32,11 @@ const (
 var SceneStarts = []string{"INT.", "EXT.", "EST.", "INT./EXT.", "INT/EXT.", "I/E.", "INT ", "EXT ", "EST ", "INT/EXT ", "I/E "}
 
 // Classify returns the kind of each line, with English scene headings.
+// spaceOrMark: a space, or a direction mark (a line's left-to-right or
+// right-to-left override, see editor.RTL), which does not change what
+// element a line is.
+func spaceOrMark(r rune) bool { return unicode.IsSpace(r) || r == '\u200E' || r == '\u200F' }
+
 func Classify(lines []string) []Kind { return ClassifyWith(lines, SceneStarts) }
 
 // ClassifyWith returns the kind of each line, with the scene headings of
@@ -45,7 +50,7 @@ func ClassifyWith(lines []string, sceneStarts []string) []Kind {
 		if i < 0 || i >= len(lines) {
 			return ""
 		}
-		return strings.TrimSpace(lines[i])
+		return strings.TrimFunc(lines[i], spaceOrMark)
 	}
 
 	i := 0

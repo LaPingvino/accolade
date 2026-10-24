@@ -112,15 +112,47 @@ func asElement(line, element string, starts []string) string {
 	return bare
 }
 
-// setLineElement makes the line with the cursor the element.
+// setLineElement makes the line with the cursor the element (keeping its
+// direction mark).
 func setLineElement(e *editor.ScriptEditor, element string, starts []string) {
 	e.Edit(func(b *buffer.Buffer) {
 		b.Group(func() {
 			line, _ := b.Position(b.Cursor())
 			start, end := b.LineStart(line), b.LineEnd(line)
-			to := asElement(b.Slice(start, end), element, starts)
+			text := b.Slice(start, end)
+			bare := strings.TrimLeft(text, directionMarks)
+			to := text[:len(text)-len(bare)] + asElement(bare, element, starts)
 			b.Replace(start, end, to)
 			b.SetCursor(start+len([]rune(to)), false)
+		})
+	})
+}
+
+// directionMarks are the marks that set a line's direction (editor.RTL).
+const directionMarks = "\u200E\u200F"
+
+// toggleDirection turns the line with the cursor around: right to left if
+// it read left to right, and back. A mark at its start says so when its
+// letters would not (an Arabic line starting with a name in Latin).
+func toggleDirection(e *editor.ScriptEditor) {
+	e.Edit(func(b *buffer.Buffer) {
+		b.Group(func() {
+			cur := b.Cursor()
+			line, _ := b.Position(cur)
+			start, end := b.LineStart(line), b.LineEnd(line)
+			text := b.Slice(start, end)
+			bare := strings.TrimLeft(text, directionMarks)
+			want := !editor.RTL(text)
+			to := bare
+			if editor.RTL(bare) != want {
+				to = string(editor.LRM) + bare
+				if want {
+					to = string(editor.RLM) + bare
+				}
+			}
+			b.Replace(start, end, to)
+			shift := len([]rune(to)) - len([]rune(text))
+			b.SetCursor(max(cur+shift, start), false)
 		})
 	})
 }

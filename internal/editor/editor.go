@@ -289,10 +289,18 @@ func (e *ScriptEditor) relayout() {
 	var kinds []syntax.Kind
 	if e.Format != nil {
 		line, _ := e.buf.Position(e.buf.Cursor())
-		kinds = syntax.ClassifyTyping(strings.Split(string(text), "\n"), e.SceneStarts, line)
+		lines := strings.Split(string(text), "\n")
+		kinds = syntax.ClassifyTyping(lines, e.SceneStarts, line)
 		formats := make([]wrap.Format, len(kinds))
+		page := e.PageColumns
+		if page <= 0 {
+			page = max(e.columns-g, 1)
+		}
 		for i, k := range kinds {
 			formats[i] = e.Format(k)
+			if RTL(lines[i]) {
+				formats[i] = mirrored(formats[i], page)
+			}
 		}
 		e.layout = wrap.WrapFormatted(text, max(e.columns-g, 1), formats)
 	} else {

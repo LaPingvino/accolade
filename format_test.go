@@ -134,3 +134,26 @@ func TestFormatMenuNeedsTheEditor(t *testing.T) {
 		t.Errorf("Ctrl+B in the editor: %q", w.textEditor.Text())
 	}
 }
+
+// Right to Left Line turns a line around with a mark only where its
+// letters do not already say so; making it another element keeps the mark.
+func TestToggleDirection(t *testing.T) {
+	e := editor.New("John قال\nسلام")
+	toggleDirection(e)
+	if got := e.Text(); got != "‏John قال\nسلام" {
+		t.Errorf("to right to left: %q", got)
+	}
+	setLineElement(e, elementCharacter, nil)
+	if got := strings.Split(e.Text(), "\n")[0]; got != "‏JOHN قال" {
+		t.Errorf("as character: %q", got)
+	}
+	toggleDirection(e)
+	if got := e.Text(); got != "JOHN قال\nسلام" {
+		t.Errorf("back: %q", got)
+	}
+	e.Buffer().SetCursor(len([]rune(e.Text())), false)
+	toggleDirection(e)
+	if got := strings.Split(e.Text(), "\n")[1]; got != "‎سلام" {
+		t.Errorf("Arabic to left to right: %q", got)
+	}
+}
