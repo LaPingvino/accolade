@@ -235,7 +235,8 @@ func isCharacterCue(trimmed string) bool {
 	if len(name) < 2 || strings.HasSuffix(name, ":") || strings.ContainsAny(name, ".!?") {
 		return false
 	}
-	return name == strings.ToUpper(name) && hasLetter(name)
+	// capitals only, and at least one (Hebrew, Arabic: no cue without @)
+	return name == strings.ToUpper(name) && strings.IndexFunc(name, unicode.IsUpper) >= 0
 }
 
 func hasLetter(s string) bool {

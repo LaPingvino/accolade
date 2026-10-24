@@ -150,7 +150,10 @@ func isCharacterCue(t string) bool {
 	if i := strings.Index(name, "("); i > 0 && strings.HasSuffix(name, ")") {
 		name = strings.TrimSpace(name[:i])
 	}
-	if name == "" || name != strings.ToUpper(name) || strings.ContainsAny(name, ":!?") {
+	// capitals only, and at least one: scripts without capitals (Hebrew,
+	// Arabic, Chinese) count as small letters, so their cues take an @
+	if name == "" || name != strings.ToUpper(name) || strings.IndexFunc(name, unicode.IsUpper) < 0 ||
+		strings.ContainsAny(name, ":!?") {
 		return false
 	}
 	for _, r := range name {

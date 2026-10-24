@@ -87,3 +87,12 @@ func TestLyrics(t *testing.T) {
 		}
 	}
 }
+
+// Scripts without capitals count as small letters: a cue in Hebrew or
+// Arabic is marked with @.
+func TestUncasedCues(t *testing.T) {
+	kinds := ClassifyWith([]string{"سارة", "مرحبا", "", "@سارة", "مرحبا", "", "SARA (V.O.)", "Hi."}, nil)
+	if kinds[0] == Character || kinds[3] != Character || kinds[6] != Character {
+		t.Errorf("cues: %v", kinds)
+	}
+}
