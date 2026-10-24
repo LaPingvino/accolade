@@ -28,8 +28,11 @@ type HeaderBar struct {
 	fullscreenButton                  *tooltip.Button
 	titleLabel                        *widget.Label
 	element, format                   *widget.Select
-	formatBox                         *fyne.Container // the format's own buttons
-	showing                           bool            // the selects show, not choose
+	elementBox                        *fyne.Container           // the list, or the buttons
+	elementMarks                      *fyne.Container           // the buttons
+	elementButtons                    map[string]*widget.Button // by element
+	formatBox                         *fyne.Container           // the format's own buttons
+	showing                           bool                      // the selects show, not choose
 }
 
 // The emphasis icons (Material Design, Apache 2.0).
@@ -43,6 +46,27 @@ var (
 	italicIcon    = icon("italic", "M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z")
 	underlineIcon = icon("underline", "M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z")
 )
+
+// elementMarks are the elements' marks in Fountain, as the buttons show
+// them (dialogue has none: an opening quote).
+var elementMarks = map[string]string{
+	elementScene: ".", elementAction: "!", elementCharacter: "@", elementParenthetical: "()",
+	elementDialogue: "“", elementTransition: ">", elementCentered: "><",
+}
+
+// showElementKind shows the elements as a list or as buttons (the
+// element-buttons setting).
+func (hb *HeaderBar) showElementKind() {
+	var shown fyne.CanvasObject = hb.element
+	if hb.window.settings.GetBoolean("element-buttons") {
+		shown = hb.elementMarks
+	}
+	hb.elementBox.Objects = []fyne.CanvasObject{shown}
+	hb.elementBox.Refresh()
+	if hb.container != nil {
+		hb.container.Refresh() // the row's widths again
+	}
+}
 
 // toolbarElements are the elements the bar can make a line.
 var toolbarElements = []string{elementScene, elementAction, elementCharacter, elementParenthetical, elementDialogue, elementTransition, elementCentered}
@@ -86,6 +110,23 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	})
 	hb.element.PlaceHolder = "Element"
 	fyne.SetAccessibleLabel(hb.element, "The line's element")
+	hb.elementButtons = map[string]*widget.Button{}
+	marks := container.NewHBox()
+	for _, el := range toolbarElements {
+		b := widget.NewButton(elementMarks[el], inEditor(func() { setLineElement(window.textEditor, el, window.sceneStarts()) }))
+		b.Importance = widget.LowImportance
+		fyne.SetAccessibleLabel(b, el)
+		hb.elementButtons[el] = b
+		marks.Add(b)
+	}
+	hb.elementMarks = marks
+	hb.elementBox = container.NewStack()
+	hb.showElementKind()
+	toggle := button(theme.ViewRestoreIcon(), "Elements as a list or as buttons", func() {
+		window.settings.SetBoolean("element-buttons", !window.settings.GetBoolean("element-buttons"))
+		_ = window.settings.Save()
+		hb.showElementKind()
+	})
 	hb.format = newScriptFormatSelect(nil, func(key string) {
 		if !hb.showing {
 			window.settings.SetString("script-format", key)
@@ -106,7 +147,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	right := container.NewHBox(hb.findButton, hb.previewButton, hb.exportButton, gap(), hb.fullscreenButton, hb.preferencesButton)
 	// the editing row: what a line is and its emphasis, the format's own
 	// buttons (scrolling when the window is narrow), and the format
-	editing := container.NewHScroll(container.NewHBox(hb.element, bold, italic, underline, gap(), hb.formatBox))
+	editing := container.NewHScroll(container.NewHBox(toggle, hb.elementBox, bold, italic, underline, gap(), hb.formatBox))
 	hb.container = container.NewVBox(
 		container.NewBorder(nil, nil, left, right, hb.titleLabel),
 		container.NewBorder(nil, nil, nil, hb.format, editing))
@@ -131,6 +172,14 @@ func keys(k string) string {
 func (hb *HeaderBar) showElement(el string) {
 	hb.showing = true
 	defer func() { hb.showing = false }()
+	for e, b := range hb.elementButtons { // the line's own stands out
+		if e == el {
+			b.Importance = widget.HighImportance
+		} else {
+			b.Importance = widget.LowImportance
+		}
+		b.Refresh()
+	}
 	for _, e := range toolbarElements {
 		if e == el {
 			hb.element.SetSelected(el)
