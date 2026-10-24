@@ -1,6 +1,8 @@
 package editor
 
 import (
+	"fyne.io/fyne/v2"
+
 	"testing"
 
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
@@ -37,5 +39,32 @@ func TestRTLLayout(t *testing.T) {
 	}
 	if r := e.layout.Rows[2]; r.Indent != 26 {
 		t.Errorf("Arabic row indent %d, want 26", r.Indent)
+	}
+}
+
+// A right-to-left row is drawn mirrored: its first letter at the right,
+// the cursor drawn where its letter is, a click there lands there, and
+// the arrows move the way the text is drawn.
+func TestRTLMirrored(t *testing.T) {
+	e := newEditor(t, "abc\nשלום", 40)
+	e.FocusGained()
+	e.Buffer().SetCursor(5, false) // before ל
+	e.changed(false)
+	if m := e.mirrored(1); m != [2]int{e.gutter(), e.gutter() + 4} {
+		t.Errorf("mirrored cells %v", m)
+	}
+	if e.mirrored(0) != [2]int{} {
+		t.Error("left-to-right row mirrored")
+	}
+	if c := e.visualCol(1, 1); c != 2 { // ל: second from the right of 4
+		t.Errorf("ל drawn at column %d", c)
+	}
+	pos := e.CursorPosition()
+	if off := e.offsetAt(fyne.NewPos(pos.X+e.cellWidth()-1, pos.Y+1)); off != 5 {
+		t.Errorf("click on the cursor's right edge: offset %d, want 5", off)
+	}
+	key(e, fyne.KeyLeft) // left on screen: on in the text
+	if c := e.Buffer().Cursor(); c != 6 {
+		t.Errorf("left arrow: cursor %d, want 6", c)
 	}
 }

@@ -64,6 +64,7 @@ type ScriptEditor struct {
 
 	buf     *buffer.Buffer
 	layout  wrap.Layout
+	rtl     []bool // per line: it reads right to left (drawn mirrored)
 	grid    *runGrid
 	columns int
 	focused bool
@@ -287,9 +288,13 @@ func (e *ScriptEditor) relayout() {
 	text := []rune(e.buf.Text())
 	g := e.gutter()
 	var kinds []syntax.Kind
+	lines := strings.Split(string(text), "\n")
+	e.rtl = make([]bool, len(lines))
+	for i, l := range lines {
+		e.rtl[i] = RTL(l)
+	}
 	if e.Format != nil {
 		line, _ := e.buf.Position(e.buf.Cursor())
-		lines := strings.Split(string(text), "\n")
 		kinds = syntax.ClassifyTyping(lines, e.SceneStarts, line)
 		formats := make([]wrap.Format, len(kinds))
 		page := e.PageColumns
@@ -298,7 +303,7 @@ func (e *ScriptEditor) relayout() {
 		}
 		for i, k := range kinds {
 			formats[i] = e.Format(k)
-			if RTL(lines[i]) {
+			if e.rtl[i] {
 				formats[i] = mirrored(formats[i], page)
 			}
 		}
@@ -352,11 +357,13 @@ func (e *ScriptEditor) drawRows() {
 		first, end = max(first-viewMargin, 0), min(end+viewMargin, len(e.layout.Rows))
 	}
 	rows := make([]widget.TextGridRow, end-first)
+	mirror := make([][2]int, end-first)
 	for i := first; i < end; i++ {
 		rows[i-first] = e.row(i)
+		mirror[i-first] = e.mirrored(i)
 	}
 	e.gridFirst, e.gridEnd = first, end
-	e.grid.Rows = rows
+	e.grid.Rows, e.grid.Mirror = rows, mirror
 	e.BaseWidget.Refresh()
 }
 
@@ -632,6 +639,11 @@ func (e *ScriptEditor) offsetAt(p fyne.Position) int {
 	if row >= len(e.layout.Rows) {
 		return e.buf.Len()
 	}
+	if e.rowRTL(row) { // between two cells, counted from the right
+		r := e.layout.Rows[max(row, 0)]
+		w := e.layout.RowWidth(max(row, 0))
+		col = r.Indent + w - min(max(col-r.Indent, 0), w)
+	}
 	return e.layout.Offset(max(row, 0), max(col, 0))
 }
 
@@ -661,7 +673,52 @@ func (e *ScriptEditor) wordAt(off int) (start, end int) {
 // CursorPosition is where the cursor cell is drawn, relative to the editor.
 func (e *ScriptEditor) CursorPosition() fyne.Position {
 	row, col := e.layout.RowCol(e.buf.Cursor())
-	return fyne.NewPos(float32(e.gutter()+col)*e.cellWidth(), float32(row)*e.cellHeight())
+	return fyne.NewPos(float32(e.gutter()+e.visualCol(row, col))*e.cellWidth(), float32(row)*e.cellHeight())
+}
+
+// rowRTL reports whether a visual row reads right to left: its cells are
+// drawn mirrored, the start of its text at the right.
+func (e *ScriptEditor) rowRTL(row int) bool {
+	if row < 0 || row >= len(e.layout.Rows) {
+		return false
+	}
+	l := e.layout.Rows[row].Line
+	return l < len(e.rtl) && e.rtl[l]
+}
+
+// mirrored is the cells of a right-to-left row's text, to draw right to
+// left (none for other rows).
+func (e *ScriptEditor) mirrored(row int) [2]int {
+	if !e.rowRTL(row) {
+		return [2]int{}
+	}
+	r := e.layout.Rows[row]
+	from := e.gutter() + r.Indent
+	n := r.End - r.Start
+	if text := e.draw.text; r.End <= len(text) {
+		for _, ch := range text[r.Start:r.End] {
+			if wrap.Width(ch) == 2 {
+				n++ // its second cell
+			}
+		}
+	}
+	return [2]int{from, from + n}
+}
+
+// visualCol is where column col of a row is drawn: mirrored in a
+// right-to-left row (its end left of its text).
+func (e *ScriptEditor) visualCol(row, col int) int {
+	if !e.rowRTL(row) {
+		return col
+	}
+	r := e.layout.Rows[row]
+	w := e.layout.RowWidth(row)
+	if t := col - r.Indent; t >= 0 && t < w {
+		return r.Indent + w - 1 - t
+	} else if t >= w {
+		return max(r.Indent-1-(t-w), 0)
+	}
+	return col
 }
 
 // KeyDown and KeyUp track Shift for selecting with the arrow keys.
@@ -770,7 +827,16 @@ func (e *ScriptEditor) Key(name fyne.KeyName, extend bool) {
 	}
 	e.goalCol = -1
 
-	switch k.Name {
+	key := k.Name
+	if e.rowRTL(row) { // the arrows move the way the text is drawn
+		switch key {
+		case fyne.KeyLeft:
+			key = fyne.KeyRight
+		case fyne.KeyRight:
+			key = fyne.KeyLeft
+		}
+	}
+	switch key {
 	case fyne.KeyLeft:
 		if s, _ := e.buf.Selection(); e.buf.HasSelection() && !e.shift {
 			move(s)

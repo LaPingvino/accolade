@@ -4,11 +4,13 @@ import (
 	"image"
 	"image/color"
 	"strings"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"golang.org/x/image/font/sfnt"
 
 	"github.com/LaPingvino/accolade/internal/editor/wrap"
 )
@@ -21,7 +23,11 @@ import (
 type runGrid struct {
 	widget.BaseWidget
 	Rows []widget.TextGridRow
-	e    *ScriptEditor // its theme and cell size
+	// Mirror, for a right-to-left row, is the cells of its text [from, end)
+	// drawn right to left; cells after them (the cursor at the line's end)
+	// go left of them
+	Mirror [][2]int
+	e      *ScriptEditor // its theme and cell size
 }
 
 func newRunGrid(e *ScriptEditor) *runGrid {
@@ -75,18 +81,42 @@ func (r *runRenderer) Refresh() {
 		for i, c := range cells {
 			x[i+1] = x[i] + float32(cellWidth(c.Rune))*cw
 		}
+		var m [2]int
+		if y < len(r.g.Mirror) {
+			m = r.g.Mirror[y]
+			m[1] = min(m[1], len(cells))
+		}
+		left := func(i int) float32 { // where cell i is drawn
+			switch {
+			case m[1] <= m[0] || i < m[0]:
+				return x[i]
+			case i < m[1]:
+				return x[m[0]] + x[m[1]] - x[i+1]
+			}
+			return x[m[0]] - (x[i+1] - x[m[1]])
+		}
+		span := func(i, j int) (float32, float32) { // where cells [i, j) are drawn
+			l, rt := left(i), left(i)+x[i+1]-x[i]
+			for k := i + 1; k < j; k++ {
+				l, rt = min(l, left(k)), max(rt, left(k)+x[k+1]-x[k])
+			}
+			return l, rt - l
+		}
+		// runs do not cross into or out of the mirrored cells
+		boundary := func(j int) bool { return m[1] > m[0] && (j == m[0] || j == m[1]) }
 		for i := 0; i < len(cells); { // backgrounds
 			bg := backgroundOf(cells[i].Style)
 			j := i + 1
-			for j < len(cells) && sameColor(backgroundOf(cells[j].Style), bg) {
+			for j < len(cells) && !boundary(j) && sameColor(backgroundOf(cells[j].Style), bg) {
 				j++
 			}
 			if bg != nil {
 				rect := r.rect(nr)
 				nr++
 				rect.FillColor = bg
-				rect.Move(fyne.NewPos(x[i], top))
-				rect.Resize(fyne.NewSize(x[j]-x[i], ch))
+				at, w := span(i, j)
+				rect.Move(fyne.NewPos(at, top))
+				rect.Resize(fyne.NewSize(w, ch))
 			}
 			i = j
 		}
@@ -94,7 +124,7 @@ func (r *runRenderer) Refresh() {
 			style, col := styleOf(cells[i].Style), colorOf(cells[i].Style, fg)
 			var b strings.Builder
 			j := i
-			for j < len(cells) && narrow(cells[j].Rune) && cells[j].Rune != wideFill && styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col) {
+			for j < len(cells) && (j == i || !boundary(j)) && narrow(cells[j].Rune) && cells[j].Rune != wideFill && styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col) {
 				b.WriteRune(cells[j].Rune)
 				j++
 			}
@@ -121,9 +151,10 @@ func (r *runRenderer) Refresh() {
 				if wideGlyph != nil && b.Len() > 0 {
 					img := r.image(ni)
 					ni++
-					img.Image = wideGlyph(b.String(), col, style.Bold, size, x[j]-x[i], ch)
-					img.Move(fyne.NewPos(x[i], top))
-					img.Resize(fyne.NewSize(x[j]-x[i], ch))
+					at, w := span(i, j)
+					img.Image = wideGlyph(b.String(), col, style.Bold, size, w, ch)
+					img.Move(fyne.NewPos(at, top))
+					img.Resize(fyne.NewSize(w, ch))
 					img.Refresh()
 					i = j
 					continue
@@ -135,8 +166,9 @@ func (r *runRenderer) Refresh() {
 				t.Text, t.Color, t.TextSize = text, col, size
 				t.TextStyle = style
 				t.FontSource = th.Font(style)
-				t.Move(fyne.NewPos(x[i], top))
-				t.Resize(fyne.NewSize(x[j]-x[i], ch))
+				at, w := span(i, j)
+				t.Move(fyne.NewPos(at, top))
+				t.Resize(fyne.NewSize(w, ch))
 			}
 			i = j
 		}
@@ -187,9 +219,49 @@ func (r *runRenderer) rect(i int) *canvas.Rectangle {
 	return r.rects[i]
 }
 
-// narrow: a character as wide as a cell, or a mark on one (wider ones,
-// from the CJK ranges on, are drawn one by one).
-func narrow(r rune) bool { return r < 0x1100 || wrap.Width(r) == 0 }
+// narrow: a character as wide as a cell, or a mark on one, that the
+// editor's font has (wider ones, from the CJK ranges on, and those the
+// font lacks, drawn in another, are drawn one by one, each in its cells).
+func narrow(r rune) bool {
+	return wrap.Width(r) == 0 || (r < 0x1100 && (r < 0x250 || inFont(r)))
+}
+
+var (
+	fontRunes   = map[rune]bool{}
+	fontParsed  *sfnt.Font
+	fontOf      fyne.Resource
+	fontRunesMu sync.Mutex
+)
+
+// inFont reports whether the editor's font (the theme's monospace one)
+// has a character.
+func inFont(r rune) bool {
+	fontRunesMu.Lock()
+	defer fontRunesMu.Unlock()
+	res := theme.TextMonospaceFont()
+	if app := fyne.CurrentApp(); app != nil {
+		res = app.Settings().Theme().Font(fyne.TextStyle{Monospace: true})
+	}
+	if res != fontOf {
+		fontOf, fontParsed = res, nil
+		clear(fontRunes)
+		if res != nil {
+			fontParsed, _ = sfnt.Parse(res.Content())
+		}
+	}
+	has, ok := fontRunes[r]
+	if !ok {
+		has = true // unknown: as the font draws it
+		if fontParsed != nil {
+			var buf sfnt.Buffer
+			if g, err := fontParsed.GlyphIndex(&buf, r); err == nil {
+				has = g != 0
+			}
+		}
+		fontRunes[r] = has
+	}
+	return has
+}
 
 func styleOf(s widget.TextGridStyle) fyne.TextStyle {
 	st := fyne.TextStyle{Monospace: true}

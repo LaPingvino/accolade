@@ -218,6 +218,12 @@ func (l Layout) RowCol(offset int) (row, col int) {
 	return last, l.Rows[last].Indent + l.cols(l.Rows[last].Start, l.Rows[last].End)
 }
 
+// RowWidth is how many columns row's text takes (without its indent).
+func (l Layout) RowWidth(row int) int {
+	r := l.Rows[row]
+	return l.cols(r.Start, r.End)
+}
+
 // cols is how many columns the text [start, end) takes.
 func (l Layout) cols(start, end int) int {
 	if l.text == nil || end > len(l.text) {
