@@ -64,7 +64,7 @@ type ScriptEditor struct {
 
 	buf     *buffer.Buffer
 	layout  wrap.Layout
-	grid    *widget.TextGrid
+	grid    *runGrid
 	columns int
 	focused bool
 	shift   bool
@@ -115,8 +115,8 @@ const viewMargin = 60
 
 // New creates an editor holding text.
 func New(text string) *ScriptEditor {
-	e := &ScriptEditor{buf: buffer.New(text), grid: widget.NewTextGrid(), columns: 80, goalCol: -1}
-	e.grid.Scroll = fyne.ScrollNone
+	e := &ScriptEditor{buf: buffer.New(text), columns: 80, goalCol: -1}
+	e.grid = newRunGrid(e)
 	e.ExtendBaseWidget(e)
 	e.relayout()
 	return e
@@ -275,7 +275,8 @@ func (e *ScriptEditor) cellSize() fyne.Size {
 	// measures the app theme's, which is not the editor's font)
 	th, style := e.Theme(), fyne.TextStyle{Monospace: true}
 	size, _ := fyne.CurrentApp().Driver().RenderedTextSize("M", th.Size(theme.SizeNameText), style, th.Font(style))
-	return fyne.NewSize(float32(math.Round(float64(size.Width))), float32(math.Round(float64(size.Height))))
+	// the width as the font has it: a run of text is that wide a character
+	return fyne.NewSize(size.Width, float32(math.Round(float64(size.Height))))
 }
 
 func (e *ScriptEditor) cellWidth() float32  { return max(e.cellSize().Width, 1) }
