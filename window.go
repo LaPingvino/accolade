@@ -856,6 +856,41 @@ func (w *MainWindow) previewPDF() {
 	}()
 }
 
+// printFile prints an HTML file: in the browser's print dialog (the web
+// version), or opened in the system's browser to print from there.
+var printFile = func(path string) { openFile(path) }
+
+// printScript prints the script as Lexington's HTML lays it out, through
+// the browser: its fonts have every script, and its print dialog saves a
+// PDF too.
+func (w *MainWindow) printScript() {
+	dir, err := os.MkdirTemp("", "accolade-print-")
+	if err != nil {
+		dialog.ShowError(err, w.fyneWindow)
+		return
+	}
+	out := filepath.Join(dir, "script.html")
+	job := exportJob{
+		format:        w.settings.GetString("script-format"),
+		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
+		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
+		scenes:        sceneHeaders(w.language),
+	}
+	content := w.textEditor.Text()
+	w.setStatus("Preparing to print...")
+	go func() {
+		err := exportAs(content, out, "html", job)
+		fyne.Do(func() {
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("could not prepare the script to print: %v", err), w.fyneWindow)
+				return
+			}
+			w.setStatus("Print: choose a printer, or Save as PDF")
+			printFile(out)
+		})
+	}()
+}
+
 // openFile opens a file in the system's viewer for that kind of file.
 var openFile = func(path string) {
 	if u, err := url.Parse("file://" + filepath.ToSlash(path)); err == nil {

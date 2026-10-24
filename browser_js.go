@@ -105,6 +105,21 @@ func init() {
 		}
 		frame.Set("src", url)
 	}
+	// printFile shows an HTML file in the pane and opens the browser's
+	// print dialog for it (Save as PDF among its printers): the browser's
+	// fonts, so every script prints
+	printFile = func(p string) {
+		openFile(p)
+		frame := previewPane()
+		var loaded js.Func
+		loaded = js.FuncOf(func(js.Value, []js.Value) any {
+			frame.Call("removeEventListener", "load", loaded)
+			loaded.Release()
+			frame.Get("contentWindow").Call("print")
+			return nil
+		})
+		frame.Call("addEventListener", "load", loaded)
+	}
 }
 
 // previewPane is the preview's frame, in a pane made the first time.

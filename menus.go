@@ -47,6 +47,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItemSeparator(),
 		menuItem("Title Page…", shortcut(fyne.KeyT, fyne.KeyModifierShift), w.showTitlePageDialog),
 		menuItem("Export…", shortcut(fyne.KeyE, 0), w.showExportDialog),
+		menuItem("Print…", shortcut(fyne.KeyP, 0), w.printScript),
 		fyne.NewMenuItemSeparator(),
 		menuItem("Preferences…", shortcut(fyne.KeyComma, 0), func() { w.app.showPreferences() }),
 		// Fyne appends Quit (Ctrl+Q) to the first menu itself.
