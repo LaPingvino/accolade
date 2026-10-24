@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"image"
 	"image/color"
 	"strings"
 
@@ -8,6 +9,8 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/accolade/internal/editor/wrap"
 )
 
 // runGrid draws rows of styled cells as runs: a text for each stretch of
@@ -37,6 +40,7 @@ type runRenderer struct {
 	g       *runGrid
 	texts   []*canvas.Text
 	rects   []*canvas.Rectangle
+	images  []*canvas.Image
 	objects []fyne.CanvasObject
 }
 
@@ -62,10 +66,15 @@ func (r *runRenderer) Refresh() {
 	fg := th.Color(theme.ColorNameForeground, v)
 	size := th.Size(theme.SizeNameText)
 	cw, ch := r.g.e.cellWidth(), r.g.e.cellHeight()
-	nt, nr := 0, 0
+	nt, nr, ni := 0, 0, 0
 	for y, row := range r.g.Rows {
 		cells := row.Cells
 		top := float32(y) * ch
+		// x[i] is cell i's column: marks take none
+		x := make([]float32, len(cells)+1)
+		for i, c := range cells {
+			x[i+1] = x[i] + float32(cellWidth(c.Rune))*cw
+		}
 		for i := 0; i < len(cells); { // backgrounds
 			bg := backgroundOf(cells[i].Style)
 			j := i + 1
@@ -76,8 +85,8 @@ func (r *runRenderer) Refresh() {
 				rect := r.rect(nr)
 				nr++
 				rect.FillColor = bg
-				rect.Move(fyne.NewPos(float32(i)*cw, top))
-				rect.Resize(fyne.NewSize(float32(j-i)*cw, ch))
+				rect.Move(fyne.NewPos(x[i], top))
+				rect.Resize(fyne.NewSize(x[j]-x[i], ch))
 			}
 			i = j
 		}
@@ -85,13 +94,40 @@ func (r *runRenderer) Refresh() {
 			style, col := styleOf(cells[i].Style), colorOf(cells[i].Style, fg)
 			var b strings.Builder
 			j := i
-			for j < len(cells) && narrow(cells[j].Rune) && styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col) {
+			for j < len(cells) && narrow(cells[j].Rune) && cells[j].Rune != wideFill && styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col) {
 				b.WriteRune(cells[j].Rune)
 				j++
 			}
-			if j == i { // a wide character, alone in its cell
-				b.WriteRune(cells[i].Rune)
-				j = i + 1
+			if j == i { // a wide character, alone in its cells
+				if cells[i].Rune != wideFill {
+					b.WriteRune(cells[i].Rune)
+				}
+				j++
+				// with its marks (a variation selector), what a joiner joins
+				// to it (👩‍💻) and a flag's second letter: one picture
+				prev := cells[i].Rune
+				for j < len(cells) {
+					c := cells[j].Rune
+					joined := prev == 0x200D || (isFlagLetter(prev) && isFlagLetter(c) && j == i+1)
+					if c != wideFill && cellWidth(c) != 0 && !joined {
+						break
+					}
+					if c != wideFill {
+						b.WriteRune(c)
+						prev = c
+					}
+					j++
+				}
+				if wideGlyph != nil && b.Len() > 0 {
+					img := r.image(ni)
+					ni++
+					img.Image = wideGlyph(b.String(), col, style.Bold, size, x[j]-x[i], ch)
+					img.Move(fyne.NewPos(x[i], top))
+					img.Resize(fyne.NewSize(x[j]-x[i], ch))
+					img.Refresh()
+					i = j
+					continue
+				}
 			}
 			if text := b.String(); strings.TrimSpace(text) != "" {
 				t := r.text(nt)
@@ -99,8 +135,8 @@ func (r *runRenderer) Refresh() {
 				t.Text, t.Color, t.TextSize = text, col, size
 				t.TextStyle = style
 				t.FontSource = th.Font(style)
-				t.Move(fyne.NewPos(float32(i)*cw, top))
-				t.Resize(fyne.NewSize(float32(j-i)*cw, ch))
+				t.Move(fyne.NewPos(x[i], top))
+				t.Resize(fyne.NewSize(x[j]-x[i], ch))
 			}
 			i = j
 		}
@@ -112,6 +148,27 @@ func (r *runRenderer) Refresh() {
 	for _, o := range r.texts[:nt] {
 		r.objects = append(r.objects, o)
 	}
+	for _, o := range r.images[:ni] {
+		r.objects = append(r.objects, o)
+	}
+}
+
+// wideGlyph, when set, draws a wide character as a picture w by h of
+// size, in color: in the browser, whose fonts have the CJK the bundled
+// one lacks (glyph_js.go). The desktop's fonts fall back by themselves.
+var wideGlyph func(s string, c color.Color, bold bool, size, w, h float32) image.Image
+
+// isFlagLetter: a regional indicator, two of which make a flag (🇳🇱).
+func isFlagLetter(r rune) bool { return r >= 0x1F1E6 && r <= 0x1F1FF }
+
+func (r *runRenderer) image(i int) *canvas.Image {
+	if i == len(r.images) {
+		img := canvas.NewImageFromImage(nil)
+		img.FillMode = canvas.ImageFillStretch
+		img.ScaleMode = canvas.ImageScaleSmooth
+		r.images = append(r.images, img)
+	}
+	return r.images[i]
 }
 
 // text and rect are the i-th text and rectangle, made when there are not
@@ -130,9 +187,9 @@ func (r *runRenderer) rect(i int) *canvas.Rectangle {
 	return r.rects[i]
 }
 
-// narrow: a character as wide as a cell (wider ones, from the CJK
-// ranges on, are drawn one by one).
-func narrow(r rune) bool { return r < 0x1100 }
+// narrow: a character as wide as a cell, or a mark on one (wider ones,
+// from the CJK ranges on, are drawn one by one).
+func narrow(r rune) bool { return r < 0x1100 || wrap.Width(r) == 0 }
 
 func styleOf(s widget.TextGridStyle) fyne.TextStyle {
 	st := fyne.TextStyle{Monospace: true}
@@ -170,7 +227,9 @@ func sameColor(a, b color.Color) bool {
 func (g *runGrid) RowText(i int) string {
 	var b strings.Builder
 	for _, c := range g.Rows[i].Cells {
-		b.WriteRune(c.Rune)
+		if c.Rune != wideFill {
+			b.WriteRune(c.Rune)
+		}
 	}
 	return b.String()
 }

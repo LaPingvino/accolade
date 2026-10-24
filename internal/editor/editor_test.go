@@ -294,3 +294,33 @@ func TestAccessibility(t *testing.T) {
 		t.Error("caret without the focus")
 	}
 }
+
+// A wide character takes two cells, a combining accent none of its own:
+// the cursor after them is drawn where wrap counts its column, and a click
+// there puts it back.
+func TestWideAndCombining(t *testing.T) {
+	e := newEditor(t, "田永望 êt", 40)
+	e.FocusGained()
+	e.Buffer().SetCursor(2, false) // before 望
+	e.changed(false)
+	cells := e.grid.Rows[0].Cells
+	if cells[1].Rune != wideFill || cells[4].Rune != '望' || cells[4].Style == nil || cells[5].Style == nil {
+		t.Errorf("cursor on 望: %+v", cells[:6])
+	}
+	if got := e.grid.RowText(0); !strings.HasPrefix(got, "田永望 êt") {
+		t.Errorf("row %q", got)
+	}
+	e.Buffer().SetCursor(6, false) // before t, after ê (e + U+0302)
+	e.changed(false)
+	cells = e.grid.Rows[0].Cells
+	if cells[9].Rune != 't' || cells[9].Style == nil || cells[8].Style != nil {
+		t.Errorf("cursor on t: %+v", cells[7:10])
+	}
+	pos := e.CursorPosition()
+	if want := float32(e.gutter()+8) * e.cellWidth(); pos.X != want {
+		t.Errorf("cursor at %v, want %v", pos.X, want)
+	}
+	if off := e.offsetAt(fyne.NewPos(pos.X+1, 1)); off != 6 {
+		t.Errorf("click at the cursor: offset %d", off)
+	}
+}

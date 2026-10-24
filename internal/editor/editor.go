@@ -394,6 +394,9 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 			cell.Style = withBackground(lineStyle, highlight.BGColor)
 		}
 		cells = append(cells, cell)
+		if wrap.Width(cell.Rune) == 2 { // a wide character's second column
+			cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: cell.Style})
+		}
 	}
 	if r.Last && e.foldAt[r.Line] { // a folded heading: what it holds is hidden
 		for _, ch := range " …" {
@@ -401,20 +404,54 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		}
 	}
 	if e.focused && i == curRow {
-		for len(cells) <= g+curCol {
-			cells = append(cells, widget.TextGridCell{Rune: ' '})
-		}
-		cells[g+curCol].Style = cursor
+		setCursor(&cells, g+curCol, cursor)
 	}
 	for _, c := range d.otherCursors[i] {
 		if e.focused {
-			for len(cells) <= g+c {
-				cells = append(cells, widget.TextGridCell{Rune: ' '})
-			}
-			cells[g+c].Style = cursor
+			setCursor(&cells, g+c, cursor)
 		}
 	}
 	return widget.TextGridRow{Cells: cells}
+}
+
+// wideFill is the cell after a wide character, which it is drawn over.
+const wideFill = rune(0)
+
+// setCursor shows the cursor at column col (both columns of a wide
+// character), past the row's end in a space.
+func setCursor(cells *[]widget.TextGridCell, col int, cursor widget.TextGridStyle) {
+	i := cellAt(*cells, col)
+	for len(*cells) <= i {
+		*cells = append(*cells, widget.TextGridCell{Rune: ' '})
+	}
+	c := *cells
+	c[i].Style = cursor
+	if i+1 < len(c) && c[i+1].Rune == wideFill {
+		c[i+1].Style = cursor
+	}
+}
+
+// cellAt is the cell shown at column col: marks drawn on the character
+// before them (wrap.Width 0) take no column of their own.
+func cellAt(cells []widget.TextGridCell, col int) int {
+	i, c := 0, 0
+	for ; i < len(cells); i++ {
+		w := cellWidth(cells[i].Rune)
+		if c+w > col && w > 0 {
+			return i
+		}
+		c += w
+	}
+	return i + (col - c)
+}
+
+// cellWidth is how many columns a cell takes (the wide character's second
+// column is its own cell).
+func cellWidth(r rune) int {
+	if r == wideFill {
+		return 1
+	}
+	return min(wrap.Width(r), 1)
 }
 
 // fold leaves the folded lines out of the layout (one the cursor is in

@@ -1,8 +1,60 @@
 // Package wrap lays the lines of a text out in rows of a fixed number of
 // columns, for Accolade's grid-based editor (docs/EDITOR_WIDGET.md, step
-// 2). Every rune takes one column (the editor uses a monospace font;
-// double-width characters are not accounted for).
+// 2). A rune takes one column (the editor uses a monospace font), a wide
+// one (CJK, emoji) two: see Width.
 package wrap
+
+import "unicode"
+
+// Width is how many columns r takes: 2 for East Asian wide and fullwidth
+// characters and emoji, 0 for marks drawn on the character before them
+// (combining accents, joiners, variation selectors, Hangul's medial and
+// final jamo), 1 for the others.
+func Width(r rune) int {
+	switch {
+	case r < 0x300:
+		return 1
+	case zeroWidth(r):
+		return 0
+	case r < 0x1100:
+		return 1
+	case r <= 0x115F, // Hangul jamo
+		r >= 0x2E80 && r <= 0xA4CF && r != 0x303F,              // CJK, kana, Yi
+		r >= 0xAC00 && r <= 0xD7A3,                             // Hangul
+		r >= 0xF900 && r <= 0xFAFF,                             // CJK compatibility
+		r >= 0xFE30 && r <= 0xFE4F,                             // CJK compatibility forms
+		r >= 0xFF00 && r <= 0xFF60, r >= 0xFFE0 && r <= 0xFFE6, // fullwidth
+		r >= 0x1F300 && r <= 0x1F64F, r >= 0x1F900 && r <= 0x1F9FF, // emoji
+		r >= 0x20000 && r <= 0x3FFFD: // CJK extensions
+		return 2
+	}
+	return 1
+}
+
+func zeroWidth(r rune) bool {
+	return unicode.In(r, unicode.Mn, unicode.Me) || r == 0x200B || r == 0x200C || r == 0x200D ||
+		(r >= 0x1160 && r <= 0x11FF)
+}
+
+// cols is how many columns runes take.
+func cols(runes []rune) int {
+	n := 0
+	for _, r := range runes {
+		n += Width(r)
+	}
+	return n
+}
+
+// fit is the end of the runes from pos that fit in room columns (at least
+// one rune).
+func fit(line []rune, pos, room int) int {
+	end, used := pos, 0
+	for end < len(line) && used+Width(line[end]) <= room {
+		used += Width(line[end])
+		end++
+	}
+	return max(end, pos+1)
+}
 
 // Row is one visual row: the runes [Start, End) of logical line Line,
 // shown after Indent columns of padding. Offsets are into the whole text.
@@ -18,6 +70,7 @@ type Row struct {
 type Layout struct {
 	Rows  []Row
 	Width int
+	text  []rune // for the columns of wide characters
 }
 
 // Wrap lays text out in rows of at most width columns. A line breaks after
@@ -27,7 +80,7 @@ type Layout struct {
 // unless that indentation takes more than half the width.
 func Wrap(text []rune, width int) Layout {
 	width = max(width, 1)
-	l := Layout{Width: width}
+	l := Layout{Width: width, text: text}
 	line, start := 0, 0
 	for i := 0; i <= len(text); i++ {
 		if i < len(text) && text[i] != '\n' {
@@ -55,10 +108,10 @@ func wrapLine(line []rune, base, number, width int) []Row {
 	pos, pad := 0, 0
 	for {
 		room := width - pad
-		if len(line)-pos <= room {
+		if cols(line[pos:]) <= room {
 			return append(rows, Row{Line: number, Start: base + pos, End: base + len(line), Indent: pad, Last: true})
 		}
-		end := pos + room
+		end := fit(line, pos, room)
 		// break after the last space that fits; keep at least one rune
 		for b := end; b > pos; b-- {
 			if line[b-1] == ' ' && b-1 > pos && b-1 >= leading {
@@ -67,7 +120,7 @@ func wrapLine(line []rune, base, number, width int) []Row {
 			}
 		}
 		// spaces right at the break stay on this row
-		for end < len(line) && line[end] == ' ' && end-pos < room {
+		for end < len(line) && line[end] == ' ' && cols(line[pos:end]) < room {
 			end++
 		}
 		rows = append(rows, Row{Line: number, Start: base + pos, End: base + end, Indent: pad})
@@ -90,7 +143,7 @@ type Format struct {
 // from column 0). Leading spaces are text here, not an indent.
 func WrapFormatted(text []rune, width int, formats []Format) Layout {
 	width = max(width, 1)
-	l := Layout{Width: width}
+	l := Layout{Width: width, text: text}
 	line, start := 0, 0
 	for i := 0; i <= len(text); i++ {
 		if i < len(text) && text[i] != '\n' {
@@ -118,22 +171,23 @@ func formatLine(line []rune, base, number, width int, f Format) []Row {
 	var rows []Row
 	for pos := 0; ; {
 		end := len(line)
-		if end-pos > room {
-			end = pos + room
+		if cols(line[pos:]) > room {
+			end = fit(line, pos, room)
 			for b := end; b > pos+1; b-- {
 				if line[b-1] == ' ' {
 					end = b
 					break
 				}
 			}
-			for end < len(line) && line[end] == ' ' && end-pos < room {
+			for end < len(line) && line[end] == ' ' && cols(line[pos:end]) < room {
 				end++
 			}
 		}
-		shown := end - pos
-		for shown > 0 && line[pos+shown-1] == ' ' {
-			shown--
+		last := end
+		for last > pos && line[last-1] == ' ' {
+			last--
 		}
+		shown := cols(line[pos:last])
 		pad := col
 		switch f.Align {
 		case 'R':
@@ -141,9 +195,9 @@ func formatLine(line []rune, base, number, width int, f Format) []Row {
 		case 'C':
 			pad += max(0, room-shown) / 2
 		}
-		last := end == len(line)
-		rows = append(rows, Row{Line: number, Start: base + pos, End: base + end, Indent: pad, Last: last})
-		if last {
+		done := end == len(line)
+		rows = append(rows, Row{Line: number, Start: base + pos, End: base + end, Indent: pad, Last: done})
+		if done {
 			return rows
 		}
 		pos = end
@@ -156,11 +210,19 @@ func formatLine(line []rune, base, number, width int, f Format) []Row {
 func (l Layout) RowCol(offset int) (row, col int) {
 	for i, r := range l.Rows {
 		if offset >= r.Start && (offset < r.End || (offset == r.End && r.Last)) {
-			return i, r.Indent + offset - r.Start
+			return i, r.Indent + l.cols(r.Start, offset)
 		}
 	}
 	last := len(l.Rows) - 1
-	return last, l.Rows[last].Indent + l.Rows[last].End - l.Rows[last].Start
+	return last, l.Rows[last].Indent + l.cols(l.Rows[last].Start, l.Rows[last].End)
+}
+
+// cols is how many columns the text [start, end) takes.
+func (l Layout) cols(start, end int) int {
+	if l.text == nil || end > len(l.text) {
+		return end - start
+	}
+	return cols(l.text[start:end])
 }
 
 // Offset is the text offset for a row and column (clicking or moving the
@@ -174,7 +236,13 @@ func (l Layout) Offset(row, col int) int {
 		return l.Rows[len(l.Rows)-1].End
 	}
 	r := l.Rows[row]
-	off := r.Start + max(0, col-r.Indent)
+	off := r.Start
+	for c := r.Indent; off < r.End && off < len(l.text) && c+Width(l.text[off]) <= col; off++ {
+		c += Width(l.text[off])
+	}
+	if l.text == nil {
+		off = r.Start + max(0, col-r.Indent)
+	}
 	end := r.End
 	if !r.Last {
 		// the last position of a wrapped row belongs to the next row

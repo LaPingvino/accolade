@@ -119,3 +119,25 @@ func TestWrapFormatted(t *testing.T) {
 		}
 	}
 }
+
+// Wide characters take two columns: a row of 6 holds three of them, and
+// columns and offsets count them so.
+func TestWide(t *testing.T) {
+	text := []rune("日本語のテキスト")
+	l := Wrap(text, 6)
+	if len(l.Rows) != 3 || l.Rows[0].End != 3 || l.Rows[1].End != 6 {
+		t.Fatalf("rows %+v", l.Rows)
+	}
+	if r, c := l.RowCol(2); r != 0 || c != 4 {
+		t.Errorf("offset 2 at %d,%d", r, c)
+	}
+	if off := l.Offset(0, 4); off != 2 {
+		t.Errorf("column 4 is offset %d", off)
+	}
+	if off := l.Offset(0, 3); off != 1 { // the right half of 本
+		t.Errorf("column 3 is offset %d", off)
+	}
+	if Width('a') != 1 || Width('語') != 2 || Width('한') != 2 {
+		t.Error("widths")
+	}
+}
