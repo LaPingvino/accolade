@@ -143,14 +143,16 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			syn.Truncation = fyne.TextTruncateEllipsis
 			fold := widget.NewButtonWithIcon("", theme.MenuDropDownIcon(), nil)
 			fold.Importance = widget.LowImportance
-			return container.NewBorder(nil, nil, fold, nil, container.NewVBox(title, syn))
+			return newDragRow(o, container.NewBorder(nil, nil, fold, nil, container.NewVBox(title, syn)))
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id >= len(o.items) {
 				return
 			}
 			it := o.items[id]
-			row := obj.(*fyne.Container)
+			drag := obj.(*dragRow)
+			drag.id = id
+			row := drag.content
 			box, fold := row.Objects[0].(*fyne.Container), row.Objects[1].(*widget.Button)
 			title, syn := box.Objects[0].(*widget.Label), box.Objects[1].(*widget.Label)
 			o.showFold(fold, id)
@@ -184,7 +186,10 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			o.goTo(o.items[0].Line)
 		}
 	}
-	o.box = container.NewStack(width, container.NewBorder(container.NewVBox(heading, o.filter), nil, nil, nil, o.list))
+	cards := widget.NewButtonWithIcon("", theme.GridIcon(), w.toggleCards)
+	cards.Importance = widget.LowImportance
+	fyne.SetAccessibleLabel(cards, "Cards: the outline as index cards")
+	o.box = container.NewStack(width, container.NewBorder(container.NewVBox(container.NewBorder(nil, nil, nil, cards, heading), o.filter), nil, nil, nil, o.list))
 	return o
 }
 
@@ -203,7 +208,7 @@ func (o *outlinePanel) show() {
 	}
 	// rows without a synopsis are one line high
 	if o.oneLine == 0 {
-		row := o.list.CreateItem().(*fyne.Container)
+		row := o.list.CreateItem().(*dragRow).content
 		o.twoLines = row.MinSize().Height
 		row.Objects[0].(*fyne.Container).Objects[1].Hide()
 		o.oneLine = row.MinSize().Height
@@ -247,4 +252,97 @@ func (o *outlinePanel) goTo(line int) {
 	e := o.w.textEditor
 	e.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
 	o.w.fyneWindow.Canvas().Focus(e)
+}
+
+// dragRow is an outline row that can be dragged to move its scene or
+// section: dropped, it goes before the row it is dropped on.
+type dragRow struct {
+	widget.BaseWidget
+	o       *outlinePanel
+	content *fyne.Container
+	id      int
+	dy      float32
+}
+
+func newDragRow(o *outlinePanel, content *fyne.Container) *dragRow {
+	r := &dragRow{o: o, content: content}
+	r.ExtendBaseWidget(r)
+	return r
+}
+
+func (r *dragRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(r.content) }
+
+func (r *dragRow) Dragged(e *fyne.DragEvent) {
+	r.dy += e.Dragged.DY
+	if to := r.o.dropIndex(r.id, r.dy); to >= 0 && to < len(r.o.items) {
+		r.o.w.setStatus("Move before " + r.o.items[to].Text)
+	} else if to >= 0 {
+		r.o.w.setStatus("Move to the end")
+	}
+}
+
+func (r *dragRow) DragEnd() {
+	to := r.o.dropIndex(r.id, r.dy)
+	r.dy = 0
+	if to < 0 {
+		return
+	}
+	r.o.move(r.id, to)
+}
+
+// dropIndex is where a row dragged dy from row id goes: before the row
+// shown there (len(items): the end), -1 if it stays.
+func (o *outlinePanel) dropIndex(id int, dy float32) int {
+	height := func(i int) float32 {
+		if o.items[i].Synopsis == "" {
+			return o.oneLine
+		}
+		return o.twoLines
+	}
+	if id < 0 || id >= len(o.items) {
+		return -1
+	}
+	at := id
+	if dy > 0 {
+		y := dy - height(id)/2
+		for at+1 < len(o.items) && y >= height(at+1)/2 {
+			y -= height(at + 1)
+			at++
+		}
+		if at == id {
+			return -1
+		}
+		if at+1 >= len(o.items) && y > 0 {
+			return len(o.items)
+		}
+		return at + 1
+	}
+	y := -dy - height(id)/2
+	for at > 0 && y >= height(at-1)/2 {
+		y -= height(at - 1)
+		at--
+	}
+	if at == id {
+		return -1
+	}
+	return at
+}
+
+// move moves the shown item from before the shown item to (len: the end)
+// in the script.
+func (o *outlinePanel) move(from, to int) {
+	index := func(shown int) int { // in the script's whole outline
+		if shown >= len(o.items) {
+			return len(o.all)
+		}
+		for i, it := range o.all {
+			if it.Line == o.items[shown].Line {
+				return i
+			}
+		}
+		return -1
+	}
+	if f, t := index(from), index(to); f >= 0 && t >= 0 {
+		o.w.moveOutlineItem(f, t)
+	}
 }

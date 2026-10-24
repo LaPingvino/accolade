@@ -52,6 +52,9 @@ type MainWindow struct {
 	exLabel  *widget.Label
 	exPrompt func(string) // the line is a prompt's (helix s), not a command
 	exVisual [2]int
+	// the card view in the editor's place (cards.go)
+	cardsVisible bool
+	cards        *cardsView
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
@@ -719,6 +722,9 @@ func (w *MainWindow) onTextChanged(text string) {
 	if w.outlineVisible && w.outline != nil {
 		w.outline.update(text)
 	}
+	if w.cardsVisible && w.cards != nil {
+		w.cards.update(text)
+	}
 	if w.notesVisible && w.notes != nil {
 		w.notes.update(text)
 	}
@@ -891,7 +897,10 @@ func (w *MainWindow) toggleNotes() {
 // relayout puts the window together: the toolbar and the status bar,
 // the outline and notes on the left if shown, the editor.
 func (w *MainWindow) relayout() {
-	center := w.editorView
+	var center fyne.CanvasObject = w.editorView
+	if w.cardsVisible && w.cards != nil {
+		center = w.cards.box
+	}
 	var side fyne.CanvasObject
 	outline, notes := w.outlineVisible && w.outline != nil, w.notesVisible && w.notes != nil
 	switch {
