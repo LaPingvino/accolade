@@ -36,6 +36,7 @@ type shared struct {
 	// synced: the script's language and format are the peers' (joining,
 	// once they sent them), so changes here go to them
 	synced bool
+	paused bool // let go of the peers while the page is hidden
 }
 
 func newReplica() string {
@@ -78,13 +79,38 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 		w.shareMeta("language", w.language)
 		w.shareMeta("format", w.settings.GetString("script-format"))
 	}
-	s.network = collab.Join(ctx, s.session, key, collab.Trackers, func(n int) {
+	w.connect(ctx, s)
+	w.updateStatusBar()
+}
+
+// connect finds the script's peers until ctx ends.
+func (w *MainWindow) connect(ctx context.Context, s *shared) {
+	s.network = collab.Join(ctx, s.session, s.key, collab.Trackers, func(n int) {
 		fyne.Do(func() {
 			s.peers = n
 			w.updateStatusBar()
 		})
 	})
-	w.updateStatusBar()
+}
+
+// pauseSharing lets go of the peers while nobody looks (a hidden page),
+// keeping the script shared; resumeSharing finds them again, and each side
+// gets what the other changed meanwhile (the hello's catch-up).
+func (w *MainWindow) pauseSharing() {
+	if s := w.shared; s != nil && !s.paused {
+		s.stop()
+		s.paused, s.peers = true, 0
+		w.updateStatusBar()
+	}
+}
+
+func (w *MainWindow) resumeSharing() {
+	if s := w.shared; s != nil && s.paused {
+		ctx, cancel := context.WithCancel(context.Background())
+		s.stop, s.paused = cancel, false
+		w.connect(ctx, s)
+		w.updateStatusBar()
+	}
 }
 
 // stopSharing leaves the peers (the script stays as it is).
@@ -238,6 +264,9 @@ func (w *MainWindow) join(linkOrKey string) {
 func (w *MainWindow) sharingStatus() string {
 	if w.shared == nil {
 		return ""
+	}
+	if w.shared.paused {
+		return "Shared · paused while away"
 	}
 	if w.shared.other {
 		return "Shared · another peer runs another Accolade version: update both"

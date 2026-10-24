@@ -28,6 +28,9 @@ var Trackers = []string{
 // ICEServers find a way through NAT (STUN only: they see addresses).
 var ICEServers = []webrtc.ICEServer{{URLs: []string{"stun:stun.cloudflare.com:3478", "stun:stun.l.google.com:19302"}}}
 
+// offerLife is how long an offer waits for its answer.
+var offerLife = 30 * time.Second
+
 // newPeerConnection makes the WebRTC connections (tests use one on this
 // machine only).
 var newPeerConnection = webrtc.NewPeerConnection
@@ -274,6 +277,16 @@ func (n *Network) makeOffers(count int) []offerIn {
 		n.mu.Lock()
 		n.offers[id] = pc
 		n.mu.Unlock()
+		time.AfterFunc(offerLife, func() { // not answered: closed, not kept
+			n.mu.Lock()
+			_, waiting := n.offers[id]
+			delete(n.offers, id)
+			n.mu.Unlock()
+			if waiting {
+				channels.Delete(id)
+				_ = pc.Close()
+			}
+		})
 		pc.OnDataChannel(func(*webrtc.DataChannel) {})
 		pc.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
 			if st == webrtc.PeerConnectionStateFailed {

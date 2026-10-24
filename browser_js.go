@@ -65,10 +65,12 @@ func pickFile(open func(path string)) {
 			then.Release()
 			data := make([]byte, args[0].Get("byteLength").Int())
 			js.CopyBytesToGo(data, js.Global().Get("Uint8Array").New(args[0]))
-			p := path.Join("/files", name)
-			if os.MkdirAll("/files", 0o755) == nil && os.WriteFile(p, data, 0o644) == nil {
-				fyne.Do(func() { open(p) })
-			}
+			go func() { // not in the page's event: file writes wait
+				p := path.Join("/files", name)
+				if os.MkdirAll("/files", 0o755) == nil && os.WriteFile(p, data, 0o644) == nil {
+					fyne.Do(func() { open(p) })
+				}
+			}()
 			return nil
 		})
 		file.Call("arrayBuffer").Call("then", then)
@@ -167,7 +169,7 @@ func browserFullscreen(on bool, left func()) {
 			if !doc.Get("fullscreenElement").Truthy() {
 				doc.Call("removeEventListener", "fullscreenchange", change)
 				change.Release()
-				fyne.Do(left)
+				go fyne.Do(left)
 			}
 			return nil
 		})
@@ -177,4 +179,22 @@ func browserFullscreen(on bool, left func()) {
 	if doc.Get("fullscreenElement").Truthy() {
 		doc.Call("exitFullscreen")
 	}
+}
+
+// onPresence calls away when the page is hidden, back when it shows or
+// gets the focus again.
+func onPresence(away, back func()) {
+	doc := js.Global().Get("document")
+	doc.Call("addEventListener", "visibilitychange", js.FuncOf(func(js.Value, []js.Value) any {
+		if doc.Get("visibilityState").String() == "hidden" {
+			go away() // not in the page's event
+		} else {
+			go back()
+		}
+		return nil
+	}))
+	js.Global().Call("addEventListener", "focus", js.FuncOf(func(js.Value, []js.Value) any {
+		go back()
+		return nil
+	}))
 }

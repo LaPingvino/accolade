@@ -14,6 +14,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"syscall"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -122,6 +123,7 @@ func (app *Application) Run(args []string) {
 	writeBuiltinFormats(filepath.Join(getConfigDir(), "formats-builtin")) // this version's
 	if inBrowser {
 		watchdog(app)
+		app.pauseWhenAway()
 	}
 	app.fyneApp.Run()
 }
@@ -242,6 +244,33 @@ func (app *Application) showAbout() {
 
 // applySettingsToWindows re-applies the editor settings in every window
 // after the preferences changed.
+// awayPause is how long a hidden page keeps its shared scripts' peers.
+const awayPause = 2 * time.Minute
+
+// pauseWhenAway lets go of the peers of shared scripts while the page is
+// hidden a while, and finds them again when it is back.
+func (app *Application) pauseWhenAway() {
+	var timer *time.Timer
+	onPresence(func() {
+		timer = time.AfterFunc(awayPause, func() {
+			fyne.Do(func() {
+				for _, w := range app.windows {
+					w.pauseSharing()
+				}
+			})
+		})
+	}, func() {
+		if timer != nil {
+			timer.Stop()
+		}
+		fyne.Do(func() {
+			for _, w := range app.windows {
+				w.resumeSharing()
+			}
+		})
+	})
+}
+
 // scriptFormatsChanged shows the formats (Lexington's settings changed).
 func (app *Application) scriptFormatsChanged() {
 	for _, w := range app.windows {

@@ -19,3 +19,4 @@ func pageLink() string               { return "" }
 func watchdog(*Application)          {}
 func keyArrived()                    {}
 func browserFullscreen(bool, func()) {}
+func onPresence(func(), func())      {}
