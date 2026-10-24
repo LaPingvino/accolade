@@ -91,7 +91,9 @@ func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
 // formatButtons are the buttons of the format with key, from its file.
 func formatButtons(key string) []formatButton {
-	var f struct{ Accolade struct{ Buttons []formatButton } }
+	var f struct {
+		Accolade struct{ Buttons []formatButton }
+	}
 	if p := formatFile(key); p != "" {
 		_, _ = toml.DecodeFile(p, &f)
 	}
