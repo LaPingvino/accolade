@@ -93,7 +93,7 @@ func TestLineNumbersPreference(t *testing.T) {
 	}
 	w.settings.SetBoolean("show-line-numbers", false)
 	w.app.applySettingsToWindows()
-	if got := w.textEditor.GridRow(0).Cells[0].Rune; got != 'o' {
+	if got := w.textEditor.GridRow(0).Cells[w.textEditor.GutterWidth()].Rune; got != 'o' {
 		t.Errorf("first cell %q without line numbers", got)
 	}
 }

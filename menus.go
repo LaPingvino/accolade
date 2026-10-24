@@ -109,6 +109,8 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Outline", shortcut(fyne.KeyO, fyne.KeyModifierShift), w.toggleOutline),
 		menuItem("Cards", shortcut(fyne.KeyD, fyne.KeyModifierShift), w.toggleCards),
 		menuItem("Fold or Unfold Here", shortcut(fyne.KeyPeriod, fyne.KeyModifierShift), func() { w.fold(false, true) }),
+		menuItem("Fold All (Sections Only)", nil, func() { w.foldOverview(outlineOf(w.textEditor.Text(), w.sceneStarts())) }),
+		menuItem("Headings Only", nil, w.foldHeadings),
 		menuItem("Unfold All", nil, func() { w.foldAll(true) }),
 		menuItem("Notes", shortcut(fyne.KeyK, fyne.KeyModifierShift), w.toggleNotes),
 		fyne.NewMenuItem("Statistics…", w.showStatistics),

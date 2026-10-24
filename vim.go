@@ -52,6 +52,7 @@ type vim struct {
 	ex      func(visual [2]int)                   // ":": the command line ('<,'> the lines given, -1 none)
 	prompt  func(label string, done func(string)) // asks for a line (helix s and S)
 	fold    func(cmd rune)                        // z a, c, o, R, M: folds
+	org     func(cmd string) bool                 // evil-org keys: tab, stab, gj gk gh gl, M-j M-k M-h M-l
 	z       bool                                  // a pending z
 	mode    vimMode
 	count   int  // the count typed so far
@@ -120,7 +121,14 @@ func (v *vim) key(k *fyne.KeyEvent) bool {
 	case fyne.KeyBackspace:
 		v.e.Key(fyne.KeyLeft, v.visual())
 		return true
-	case fyne.KeyTab:
+	case fyne.KeyTab: // evil-org: Tab cycles the heading's fold, Shift+Tab all
+		if v.org != nil && !v.visual() {
+			if v.e.ShiftHeld() {
+				v.org("stab")
+			} else {
+				v.org("tab")
+			}
+		}
 		return true
 	}
 	return false // arrows and the like do what they do
@@ -134,9 +142,18 @@ func (v *vim) shortcut(s fyne.Shortcut) bool {
 	if v.helix != nil && v.helix() && v.multiShortcut(s) {
 		return true
 	}
-	if c, ok := s.(*desktop.CustomShortcut); ok && c.KeyName == fyne.KeyR && c.Modifier&fyne.KeyModifierControl != 0 {
+	c, ok := s.(*desktop.CustomShortcut)
+	if ok && c.KeyName == fyne.KeyR && c.Modifier&fyne.KeyModifierControl != 0 {
 		v.e.Redo()
 		return true
+	}
+	// evil-org: Alt+j and Alt+k move the scene or section, Alt+h and Alt+l
+	// promote and demote a section
+	if ok && c.Modifier == fyne.KeyModifierAlt && v.org != nil && !v.visual() {
+		switch c.KeyName {
+		case fyne.KeyJ, fyne.KeyK, fyne.KeyH, fyne.KeyL:
+			return v.org("M-" + strings.ToLower(string(c.KeyName)))
+		}
 	}
 	return false
 }
@@ -171,8 +188,11 @@ func (v *vim) rune(r rune) bool {
 	}
 	if v.g {
 		v.g = false
-		if r == 'g' {
+		switch {
+		case r == 'g':
 			v.motion('g')
+		case strings.ContainsRune("jkhl", r) && v.org != nil && !v.visual(): // evil-org: headings
+			v.org("g" + string(r))
 		}
 		return true
 	}

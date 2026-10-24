@@ -75,11 +75,13 @@ func TestDialogueColumnWithoutSpaces(t *testing.T) {
 		t.Fatalf("text %q", got)
 	}
 	x := w.textEditor.CursorPosition().X
+	w.textEditor.SetCursorOffset(len("INT. BARN - DAY\n\n")) // the action's first column
+	base := w.textEditor.CursorPosition().X
 	w.textEditor.SetCursorOffset(len("INT. BARN - DAY\n\nJ"))
-	cell := w.textEditor.CursorPosition().X
+	cell := w.textEditor.CursorPosition().X - base
 	format, _ := editorFormat(currentScriptFormat())
-	if want := format(syntax.Dialogue).Indent; cell <= 0 || int(x/cell+0.5) != want {
-		t.Errorf("cursor at column %.1f, want the dialogue's %d", x/cell, want)
+	if want := format(syntax.Dialogue).Indent; cell <= 0 || int((x-base)/cell+0.5) != want {
+		t.Errorf("cursor at column %.1f, want the dialogue's %d", (x-base)/cell, want)
 	}
 }
 

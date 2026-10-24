@@ -166,7 +166,8 @@ func TestSearchHighlightsAllMatches(t *testing.T) {
 	// highlighted cells carry a background on row 0, columns 0-3 and 6-9
 	cells := editorRowCells(w, 0)
 	for _, col := range []int{0, 3, 6, 9} {
-		if cells[col].Style == nil || cells[col].Style.BackgroundColor() == nil {
+		c := cells[col+w.textEditor.GutterWidth()] // after the fold marks
+		if c.Style == nil || c.Style.BackgroundColor() == nil {
 			t.Errorf("column %d not highlighted", col)
 		}
 	}

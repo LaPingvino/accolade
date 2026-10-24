@@ -55,6 +55,12 @@ type ScriptEditor struct {
 	// heading's line (from-1) goes to OnUnfold.
 	Folds    func() [][2]int
 	OnUnfold func(heading int)
+	// Headings, when set, are the lines that can fold: a gutter column
+	// shows ▾ on them (▸ folded), and a tap there goes to OnFoldTapped.
+	Headings     func() map[int]bool
+	OnFoldTapped func(line int)
+	// OnShiftTab handles Shift+Tab, and reports whether it did.
+	OnShiftTab func() bool
 	// PageColumns, when set, is the page's width (NewPageScroll's columns).
 	PageColumns int
 	// OnCursorChanged is called when the cursor or selection moves.
@@ -96,6 +102,7 @@ type ScriptEditor struct {
 	gridFirst, gridEnd  int
 	draw                drawing      // what relayout found, to draw rows with
 	foldAt              map[int]bool // the folded headings' lines
+	headings            map[int]bool // the lines that can fold (Headings)
 }
 
 // drawing is what rows are drawn with: the text, its kinds and styles.
@@ -145,10 +152,27 @@ func (e *ScriptEditor) SetLineNumbers(on bool) {
 // gutter is the number of columns the line numbers take (0 when hidden):
 // the digits of the highest line number and a space.
 func (e *ScriptEditor) gutter() int {
+	return e.numbersWidth() + e.foldWidth()
+}
+
+// GutterWidth is how many columns come before the text: the line numbers
+// and the fold marks.
+func (e *ScriptEditor) GutterWidth() int { return e.gutter() }
+
+// numbersWidth is the line numbers' part of the gutter.
+func (e *ScriptEditor) numbersWidth() int {
 	if !e.lineNumbers {
 		return 0
 	}
 	return len(strconv.Itoa(e.buf.LineCount())) + 1
+}
+
+// foldWidth is the fold marks' part of the gutter, after the numbers.
+func (e *ScriptEditor) foldWidth() int {
+	if e.Headings == nil {
+		return 0
+	}
+	return 2
 }
 
 // SetHighlights marks ranges of the text, such as all search matches, with
@@ -312,6 +336,10 @@ func (e *ScriptEditor) relayout() {
 		e.layout = wrap.Wrap(text, max(e.columns-g, 1))
 	}
 	e.foldAt = e.fold()
+	e.headings = nil
+	if e.Headings != nil {
+		e.headings = e.Headings()
+	}
 
 	th := e.Theme()
 	v := theme.VariantLight
@@ -383,13 +411,26 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 	}
 	r := e.layout.Rows[i]
 	cells := make([]widget.TextGridCell, 0, g+r.Indent+r.End-r.Start+1)
-	if g > 0 {
+	first := i == 0 || e.layout.Rows[i-1].Line != r.Line // the line's first row
+	if n := e.numbersWidth(); n > 0 {
 		label := ""
-		if i == 0 || e.layout.Rows[i-1].Line != r.Line {
+		if first {
 			label = strconv.Itoa(r.Line + 1)
 		}
-		label = fmt.Sprintf("%*s ", g-1, label)
+		label = fmt.Sprintf("%*s ", n-1, label)
 		for _, ch := range label {
+			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
+		}
+	}
+	if e.foldWidth() > 0 {
+		mark := "  "
+		switch {
+		case first && e.foldAt[r.Line]:
+			mark = "▸ "
+		case first && e.headings[r.Line]:
+			mark = "▾ "
+		}
+		for _, ch := range mark {
 			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
 		}
 	}
@@ -589,10 +630,30 @@ func (e *ScriptEditor) FocusLost()   { e.focused = false; e.shift = false; fyne.
 // Tapped focuses the editor and places the cursor at the click (Shift
 // extends the selection).
 func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
+	if line, ok := e.foldMarkAt(ev.Position); ok {
+		e.OnFoldTapped(line)
+		return
+	}
 	e.focus()
 	e.buf.SetCursor(e.offsetAt(ev.Position), e.shift)
 	e.goalCol = -1
 	e.changed(false)
+}
+
+// foldMarkAt is the heading whose fold mark is at p, if p is on one.
+func (e *ScriptEditor) foldMarkAt(p fyne.Position) (int, bool) {
+	if e.OnFoldTapped == nil || e.foldWidth() == 0 || len(e.layout.Rows) == 0 {
+		return 0, false
+	}
+	row, col := int(p.Y/e.cellHeight()), int(p.X/e.cellWidth())
+	if row < 0 || row >= len(e.layout.Rows) || col < e.numbersWidth() || col >= e.gutter() {
+		return 0, false
+	}
+	line := e.layout.Rows[row].Line
+	if !e.headings[line] && !e.foldAt[line] {
+		return 0, false
+	}
+	return line, true
 }
 
 // DoubleTapped selects the word under the pointer.
@@ -720,6 +781,9 @@ func (e *ScriptEditor) visualCol(row, col int) int {
 	}
 	return col
 }
+
+// ShiftHeld reports whether Shift is held (a vim mode's Tab and Shift+Tab).
+func (e *ScriptEditor) ShiftHeld() bool { return e.shift }
 
 // KeyDown and KeyUp track Shift for selecting with the arrow keys.
 func (e *ScriptEditor) KeyDown(k *fyne.KeyEvent) {
@@ -866,6 +930,9 @@ func (e *ScriptEditor) Key(name fyne.KeyName, extend bool) {
 		e.insert("\n")
 		e.changed(true)
 	case fyne.KeyTab:
+		if e.shift && e.OnShiftTab != nil && e.OnShiftTab() {
+			return
+		}
 		if e.OnTab != nil && e.OnTab() {
 			return
 		}

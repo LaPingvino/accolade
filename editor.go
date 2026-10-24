@@ -19,7 +19,7 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	e.Syntax = true
 	e.OnEnter = func() bool { return completeLine(w, e) }
 	tab := completer{starts: w.sceneStarts}
-	e.OnTab = func() bool { return tab.tab(e) }
+	e.OnTab = func() bool { return w != nil && w.cycleHere() || tab.tab(e) }
 	// vim mode (Preferences > Editor), before anything else sees a key
 	vi := newVim(e)
 	vi.on = func() bool { return w != nil && w.editorKeys() != "standard" }
@@ -42,7 +42,11 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	if w != nil {
 		e.Folds = w.editorFoldRanges
 		e.OnUnfold = w.unfoldAt
+		e.Headings = w.headingLines
+		e.OnFoldTapped = w.foldLine
+		e.OnShiftTab = w.cycleAll
 	}
+	vi.org = func(cmd string) bool { return w != nil && w.org(cmd) }
 	vi.fold = func(cmd rune) {
 		if w == nil {
 			return
