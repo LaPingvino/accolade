@@ -30,6 +30,7 @@ type HeaderBar struct {
 	element, format                   *widget.Select
 	elementBox                        *fyne.Container           // the list, or the buttons
 	elementMarks                      *fyne.Container           // the buttons
+	place                             *widget.Button            // inside, outside or both
 	elementButtons                    map[string]*widget.Button // by element
 	formatBox                         *fyne.Container           // the format's own buttons
 	showing                           bool                      // the selects show, not choose
@@ -150,7 +151,11 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	var character *widget.Button
 	character = widget.NewButtonWithIcon("Character", theme.AccountIcon(), func() { window.pickCharacter(character) })
 	character.Importance = widget.LowImportance
-	editing := container.NewHScroll(container.NewHBox(toggle, hb.elementBox, character, bold, italic, underline, gap(), hb.formatBox))
+	var place *widget.Button
+	place = widget.NewButtonWithIcon("INT./EXT.", theme.HomeIcon(), func() { window.pickPlace(place) })
+	place.Importance = widget.LowImportance
+	hb.place = place
+	editing := container.NewHScroll(container.NewHBox(toggle, hb.elementBox, place, character, bold, italic, underline, gap(), hb.formatBox))
 	hb.container = container.NewVBox(
 		container.NewBorder(nil, nil, left, right, hb.titleLabel),
 		container.NewBorder(nil, nil, nil, hb.format, editing))

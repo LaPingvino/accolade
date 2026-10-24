@@ -614,6 +614,12 @@ func (w *MainWindow) setLanguage(lang string) {
 		lang = "en"
 	}
 	w.language = lang
+	if w.headerBar != nil && w.headerBar.place != nil {
+		// the place button in the language: BIN./BUI. in Dutch
+		if _, _, both, ok := placeWords(sceneHeaders(lang)); ok {
+			w.headerBar.place.SetText(both)
+		}
+	}
 	if w.textEditor != nil {
 		w.textEditor.SceneStarts = sceneStarts(lang)
 		w.textEditor.Refresh()
