@@ -872,6 +872,7 @@ func (w *MainWindow) printScript() {
 	out := filepath.Join(dir, "script.html")
 	job := exportJob{
 		format:        w.settings.GetString("script-format"),
+		page:          w.settings.GetString("page-size"),
 		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
 		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
 		scenes:        sceneHeaders(w.language),
