@@ -144,10 +144,8 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.titleLabel.TextStyle = fyne.TextStyle{Bold: true}
 	hb.titleLabel.Truncation = fyne.TextTruncateEllipsis
 
-	left := container.NewHBox(hb.newButton, hb.openButton, hb.saveButton, gap(), hb.undoButton, hb.redoButton)
-	right := container.NewHBox(hb.findButton, hb.previewButton, hb.exportButton, gap(), hb.fullscreenButton, hb.preferencesButton)
 	// the editing row: what a line is and its emphasis, the format's own
-	// buttons (scrolling when the window is narrow), and the format
+	// buttons, and the format; both rows put what does not fit in a menu
 	var character *widget.Button
 	character = widget.NewButtonWithIcon("Character", theme.AccountIcon(), func() { window.pickCharacter(character) })
 	character.Importance = widget.LowImportance
@@ -155,11 +153,42 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	place = widget.NewButtonWithIcon("INT./EXT.", theme.HomeIcon(), func() { window.pickPlace(place) })
 	place.Importance = widget.LowImportance
 	hb.place = place
-	editing := container.NewHScroll(container.NewHBox(toggle, hb.elementBox, place, character, bold, italic, underline, gap(), hb.formatBox))
-	// both rows scroll when the window is narrower than they are (a phone)
-	hb.container = container.NewVBox(
-		container.NewHScroll(container.NewBorder(nil, nil, left, right, hb.titleLabel)),
-		container.NewBorder(nil, nil, nil, hb.format, editing))
+	top := newOverflowRow(tips, []overflowItem{
+		buttonItem(hb.newButton), buttonItem(hb.openButton), buttonItem(hb.saveButton), gapItem(),
+		buttonItem(hb.undoButton), buttonItem(hb.redoButton),
+		buttonItem(hb.findButton), buttonItem(hb.previewButton), buttonItem(hb.exportButton), gapItem(),
+		buttonItem(hb.fullscreenButton), buttonItem(hb.preferencesButton),
+	}, hb.titleLabel, 6)
+	elements := overflowItem{obj: hb.elementBox, menu: func(fyne.CanvasObject) []*fyne.MenuItem {
+		var items []*fyne.MenuItem
+		for _, el := range toolbarElements {
+			items = append(items, fyne.NewMenuItem(el, inEditor(func() { setLineElement(window.textEditor, el, window.sceneStarts()) })))
+		}
+		menu := fyne.NewMenuItem("Element", nil)
+		menu.ChildMenu = fyne.NewMenu("", items...)
+		return []*fyne.MenuItem{menu}
+	}}
+	picker := func(b *widget.Button, pick func(fyne.CanvasObject)) overflowItem {
+		return overflowItem{obj: b, menu: func(anchor fyne.CanvasObject) []*fyne.MenuItem {
+			item := fyne.NewMenuItem(b.Text, func() { pick(anchor) })
+			item.Icon = b.Icon
+			return []*fyne.MenuItem{item}
+		}}
+	}
+	formatButtons := overflowItem{obj: hb.formatBox, menu: func(fyne.CanvasObject) []*fyne.MenuItem {
+		var items []*fyne.MenuItem
+		for _, o := range hb.formatBox.Objects {
+			if b, ok := o.(*widget.Button); ok {
+				items = append(items, fyne.NewMenuItem(b.Text, b.OnTapped))
+			}
+		}
+		return items
+	}}
+	editing := newOverflowRow(tips, []overflowItem{
+		buttonItem(toggle), elements, picker(place, window.pickPlace), picker(character, window.pickCharacter),
+		buttonItem(bold), buttonItem(italic), buttonItem(underline), gapItem(), formatButtons,
+	}, nil, 0)
+	hb.container = container.NewVBox(top.Container, container.NewBorder(nil, nil, nil, hb.format, editing.Container))
 	return hb
 }
 
