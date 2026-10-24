@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 // A script's language decides what its scene headings start with: INT.
@@ -52,6 +54,10 @@ func sceneStarts(lang string) []string {
 	var out []string
 	for _, h := range sceneHeaders(lang) {
 		h = strings.TrimSuffix(strings.ToUpper(h), ".")
+		if last, _ := utf8.DecodeLastRuneInString(h); h != "" && !unicode.IsLetter(last) && !unicode.IsDigit(last) {
+			out = append(out, h) // a sign needs nothing after it: ○喫茶店
+			continue
+		}
 		out = append(out, h+".", h+" ")
 	}
 	return out
