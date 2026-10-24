@@ -54,7 +54,9 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 		doc.SetText(w.textEditor.Text())
 	}
 	s := &shared{session: collab.NewSession(key, doc), key: key}
-	s.session.OnRemote = func() { fyne.Do(func() { s.synced = true; w.applyRemote() }) }
+	s.session.OnRemote = func(by string) { fyne.Do(func() { s.synced = true; w.applyRemote(by) }) }
+	// who this is, for the others' history of changes (changes.go)
+	s.session.SetMeta(nameKey(doc.Replica()), w.yourName())
 	s.session.OnMeta = func(key, value string) {
 		fyne.Do(func() {
 			s.synced = true
@@ -134,7 +136,8 @@ func (w *MainWindow) shareEdit(text string) {
 
 // applyRemote puts the peers' changes in the editor: only the part that
 // changed is replaced, and the cursor and selection move with the text.
-func (w *MainWindow) applyRemote() {
+// The change goes in the history, as replica by's.
+func (w *MainWindow) applyRemote(by string) {
 	if w.shared == nil {
 		return
 	}
@@ -153,6 +156,7 @@ func (w *MainWindow) applyRemote() {
 		return
 	}
 	oldEnd, newEnd := len(old)-end, len(nw)-end
+	defer w.recordChange(by, string(old[start:oldEnd]), string(nw[start:newEnd]), strings.Count(string(nw[:start]), "\n"))
 	move := func(p int) int {
 		switch {
 		case p <= start:

@@ -126,3 +126,35 @@ func TestSessionsMeta(t *testing.T) {
 		t.Errorf("a %q, b %q", a.Meta("language"), b.Meta("format"))
 	}
 }
+
+// An edit says whose it is, also relayed: in a chain a-b-c, c hears a's
+// edit as a's; a catch-up on joining as nobody's in particular.
+func TestEditsSayWhose(t *testing.T) {
+	key, _ := NewKey()
+	s := map[string]*Session{}
+	heard := map[string][]string{}
+	for _, n := range []string{"a", "b", "c"} {
+		s[n] = NewSession(key, New(n))
+		s[n].OnRemote = func(by string) { heard[n] = append(heard[n], by) }
+	}
+	link := func(x, y string) {
+		s[x].AddPeer(y, func(b []byte) error { return s[y].Receive(x, b) })
+		s[y].AddPeer(x, func(b []byte) error { return s[x].Receive(y, b) })
+	}
+	s["a"].Do(func(d *Doc) { d.SetText("INT. BARN - DAY\n") })
+	link("a", "b")
+	link("b", "c")
+	if got := strings.Join(heard["c"], ","); got != "" {
+		t.Errorf("catch-up heard as %q", got)
+	}
+	heard = map[string][]string{}
+	var ops []Op
+	s["a"].Do(func(d *Doc) { ops = d.SetText("INT. BARN - NIGHT\n") })
+	s["a"].Local(ops)
+	if got := strings.Join(heard["c"], ","); got != "a" {
+		t.Errorf("c heard a's edit as %q", got)
+	}
+	if got := strings.Join(heard["b"], ","); got != "a" {
+		t.Errorf("b heard a's edit as %q", got)
+	}
+}

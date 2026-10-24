@@ -2,6 +2,7 @@ package main
 
 import (
 	"fyne.io/fyne/v2/driver/desktop"
+	"os"
 	"strconv"
 	"strings"
 
@@ -49,6 +50,7 @@ type PreferencesDialog struct {
 	removeFormatButton    *widget.Button
 	exportFormatSelect    *widget.Select
 	exportDirEntry        *widget.Entry
+	yourNameEntry         *widget.Entry
 	paperSelect           *widget.Select
 	includeTitlePageCheck *widget.Check
 	numberScenesCheck     *widget.Check
@@ -102,6 +104,8 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.scriptFormatSelect = newScriptFormatSelect(pd.scriptFormatDesc, func(string) { pd.showFormatButtons() })
 	fyne.SetAccessibleLabel(pd.scriptFormatSelect, "Script format")
 	pd.exportFormatSelect = widget.NewSelect(exportFormats, nil)
+	pd.yourNameEntry = widget.NewEntry()
+	pd.yourNameEntry.SetPlaceHolder(os.Getenv("USER"))
 	pd.exportDirEntry = widget.NewEntry()
 	pd.exportDirEntry.SetPlaceHolder("Choose export directory...")
 	pd.paperSelect = widget.NewSelect(documentPages, nil)
@@ -139,6 +143,14 @@ func labelledWith(label string, o, trailing fyne.CanvasObject) fyne.CanvasObject
 	return container.NewBorder(nil, nil, widget.NewLabel(label), trailing, o)
 }
 
+// hint is a quiet line of explanation under a setting.
+func hint(text string) *widget.Label {
+	l := widget.NewLabel(text)
+	l.Wrapping = fyne.TextWrapWord
+	l.Importance = widget.LowImportance
+	return l
+}
+
 func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
 	return container.NewVBox(
 		widget.NewCard("Appearance", "", container.NewVBox(
@@ -149,6 +161,10 @@ func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
 		widget.NewCard("Saving", "", container.NewVBox(
 			pd.autoSaveCheck,
 			labelled("Auto-save interval (seconds):", pd.autoSaveInterval),
+		)),
+		widget.NewCard("Writing Together", "", container.NewVBox(
+			labelled("Your name:", pd.yourNameEntry),
+			hint("What the others see by your changes when you share a script."),
 		)),
 	)
 }
@@ -217,6 +233,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.languageSelect.SetSelected(s.GetString("script-language"))
 	pd.exportFormatSelect.SetSelected(exportFormatLabel(s.GetString("export-format")))
 	pd.exportDirEntry.SetText(s.GetString("export-directory"))
+	pd.yourNameEntry.SetText(s.GetString("your-name"))
 	pd.paperSelect.SetSelected(documentPageLabel(s.GetString("page-size")))
 	pd.includeTitlePageCheck.SetChecked(s.GetBoolean("include-title-page"))
 	pd.numberScenesCheck.SetChecked(s.GetBoolean("fountain-scene-numbers"))
@@ -253,6 +270,7 @@ func (pd *PreferencesDialog) saveSettings() {
 	}
 	s.SetString("export-format", exportFormatLabel(pd.exportFormatSelect.Selected))
 	s.SetString("export-directory", pd.exportDirEntry.Text)
+	s.SetString("your-name", strings.TrimSpace(pd.yourNameEntry.Text))
 	page := ""
 	if pd.paperSelect.Selected != documentPages[0] {
 		page = strings.ToLower(pd.paperSelect.Selected)

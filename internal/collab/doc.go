@@ -55,6 +55,9 @@ func New(replica string) *Doc {
 	return &Doc{replica: replica, nodes: map[ID]*node{}, dels: map[ID]bool{}, version: map[string]uint64{}}
 }
 
+// Replica is the replica's name.
+func (d *Doc) Replica() string { return d.replica }
+
 // Text is the document's text.
 func (d *Doc) Text() string {
 	var b strings.Builder

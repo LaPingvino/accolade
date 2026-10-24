@@ -56,9 +56,13 @@ type MainWindow struct {
 	exVisual [2]int
 	// the card view in the editor's place (cards.go)
 	cardsVisible bool
-	cards        *cardsView
-	editorFolds  map[string]bool // folded in the editor, by foldKey (editor_folds.go)
-	foldState    int             // where Shift+Tab is: foldShown, foldOverview or foldContents
+	// the others' changes to a shared script (changes.go)
+	changes        []change
+	changesVisible bool
+	changesPanel   *changesPanel
+	cards          *cardsView
+	editorFolds    map[string]bool // folded in the editor, by foldKey (editor_folds.go)
+	foldState      int             // where Shift+Tab is: foldShown, foldOverview or foldContents
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
@@ -968,15 +972,23 @@ func (w *MainWindow) relayout() {
 	if w.cardsVisible && w.cards != nil {
 		center = w.cards.box
 	}
+	var panels []fyne.CanvasObject // one above the other
+	if w.outlineVisible && w.outline != nil {
+		panels = append(panels, w.outline.box)
+	}
+	if w.notesVisible && w.notes != nil {
+		panels = append(panels, w.notes.box)
+	}
+	if w.changesVisible && w.changesPanel != nil {
+		panels = append(panels, w.changesPanel.box)
+	}
 	var side fyne.CanvasObject
-	outline, notes := w.outlineVisible && w.outline != nil, w.notesVisible && w.notes != nil
-	switch {
-	case outline && notes:
-		side = container.NewVSplit(w.outline.box, w.notes.box)
-	case outline:
-		side = w.outline.box
-	case notes:
-		side = w.notes.box
+	for i := len(panels) - 1; i >= 0; i-- {
+		if side == nil {
+			side = panels[i]
+		} else {
+			side = container.NewVSplit(panels[i], side)
+		}
 	}
 	var left fyne.CanvasObject
 	if side != nil {

@@ -55,6 +55,7 @@ func (s *Settings) loadDefaults() {
 		"include-title-page": true,
 		"page-size":          "", // the script format's (export dialog)
 
+		"your-name":           "", // what others sharing a script see (changes.go); "" the login's
 		"auto-close-brackets": true,
 		"editor-keys":         "standard", // or vim, helix (vim.go)
 

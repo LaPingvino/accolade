@@ -16,6 +16,9 @@ type message struct {
 	Version map[string]uint64 `json:"v,omitempty"` // an empty one is omitted: Hello says it is one
 	Runs    []run             `json:"r,omitempty"`
 	Meta    map[string]Value  `json:"m,omitempty"` // with a hello, or when one changed
+	// By is the replica whose edit the runs are, passed on as it is when
+	// relayed ("": a catch-up of several peers' edits)
+	By string `json:"by,omitempty"`
 }
 
 // Protocol is the version of what peers send: peers of another one are
@@ -47,8 +50,9 @@ type Session struct {
 	peers map[string]func([]byte) error
 	other map[string]bool // peers of another Protocol, not listened to
 	// OnRemote is called (outside the lock) after ops from peers changed
-	// the text.
-	OnRemote func()
+	// the text: by is the replica whose edit it is ("": not known, a
+	// catch-up of several peers' edits).
+	OnRemote func(by string)
 	meta     map[string]Value
 	// OnMeta is called (outside the lock) after a peer changed a setting.
 	OnMeta func(key, value string)
@@ -73,16 +77,17 @@ func (s *Session) Do(f func(d *Doc)) {
 // data channel messages much over 16 KiB.
 const batch = 8 << 10
 
-// sendOps sends ops as runs, in messages small enough for any data channel.
-func (s *Session) sendOps(to func([]byte) error, ops []Op) error {
-	var m message
+// sendOps sends ops, the edit of replica by, as runs, in messages small
+// enough for any data channel.
+func (s *Session) sendOps(to func([]byte) error, ops []Op, by string) error {
+	m := message{By: by}
 	size := 0
 	for _, r := range runsOf(ops) {
 		if size += len(r.Text) + 64; size > batch && len(m.Runs) > 0 {
 			if err := s.send(to, m); err != nil {
 				return err
 			}
-			m, size = message{}, len(r.Text)+64
+			m, size = message{By: by}, len(r.Text)+64
 		}
 		m.Runs = append(m.Runs, r)
 	}
@@ -197,16 +202,16 @@ func (s *Session) Receive(from string, sealed []byte) error {
 		}
 	}
 	if len(reply) > 0 && to != nil {
-		if err := s.sendOps(to, reply); err != nil {
+		if err := s.sendOps(to, reply, ""); err != nil {
 			return err
 		}
 	}
 	if len(fresh) > 0 {
 		for _, p := range others {
-			_ = s.sendOps(p, fresh) // a peer gone is removed by its transport
+			_ = s.sendOps(p, fresh, m.By) // a peer gone is removed by its transport
 		}
 		if s.OnRemote != nil {
-			s.OnRemote()
+			s.OnRemote(m.By)
 		}
 	}
 	return nil
@@ -256,9 +261,10 @@ func (s *Session) Local(ops []Op) {
 	}
 	s.mu.Lock()
 	peers := s.othersThan("")
+	by := s.doc.replica
 	s.mu.Unlock()
 	for _, p := range peers {
-		_ = s.sendOps(p, ops)
+		_ = s.sendOps(p, ops, by)
 	}
 }
 

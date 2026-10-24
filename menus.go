@@ -113,6 +113,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Headings Only", nil, w.foldHeadings),
 		menuItem("Unfold All", nil, func() { w.foldAll(true) }),
 		menuItem("Notes", shortcut(fyne.KeyK, fyne.KeyModifierShift), w.toggleNotes),
+		menuItem("Changes", shortcut(fyne.KeyH, fyne.KeyModifierShift), w.toggleChanges),
 		fyne.NewMenuItem("Statistics…", w.showStatistics),
 		menuItem("Fullscreen", shortcut(fyne.KeyF, fyne.KeyModifierShift), w.toggleFullscreen),
 	)
