@@ -1,0 +1,28 @@
+Base = "radio" # Lexington's preset, as it is
+
+# Accolade's buttons in the toolbar for this format (Lexington skips them):
+# Insert goes in as a paragraph of its own ({n} numbers it, {N} in words,
+# counting again after a line starting with Restart); Line = true puts it
+# on the next line instead.
+[Accolade]
+
+  [[Accolade.Buttons]]
+    Label = "Sound"
+    Insert = "!"
+
+  [[Accolade.Buttons]]
+    Label = "Music"
+    Insert = "!MUSIC: "
+
+  [[Accolade.Buttons]]
+    Label = "Lyrics"
+    Insert = "~"
+    Line = true
+
+  [[Accolade.Buttons]]
+    Label = "Crossfade"
+    Insert = "> CROSSFADE TO:"
+
+  [[Accolade.Buttons]]
+    Label = "Fade Out"
+    Insert = "> FADE OUT."

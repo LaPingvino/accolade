@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	fyne.io/fyne/v2 v2.8.1
 	github.com/BurntSushi/toml v1.6.0
-	github.com/LaPingvino/lexington v1.4.1-0.20261023235739-52e603aa4df9
+	github.com/LaPingvino/lexington v1.4.1-0.20261024000213-3a7e1e0ef163
 	github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3
 	github.com/coder/websocket v1.8.15
 	github.com/pion/logging v0.2.4

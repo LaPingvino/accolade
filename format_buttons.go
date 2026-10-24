@@ -1,6 +1,9 @@
 package main
 
 import (
+	"embed"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -9,71 +12,59 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
-// A script format's own buttons in the toolbar insert what that kind of
-// script uses often: pages and panels in a comic, acts in a series,
-// blackouts in a play. Lexington's settings can set them per format, in a
-// table Lexington itself skips:
+// A script format is a file like Lexington's presets (name.toml): its
+// name, the format it starts from (Base) and the elements that differ,
+// and Accolade's part, which Lexington skips: the buttons the toolbar
+// shows for it, inserting what that kind of script uses often (pages and
+// panels in a comic, acts in a series, blackouts in a play):
 //
-//	[[Accolade.Buttons.comic]]
+//	[[Accolade.Buttons]]
 //	Label = "Panel"
 //	Insert = "Panel {n}. "
 //	Restart = ".PAGE"
 //
-// A format can also be an alias: Lexington's element set under a name
-// of its own, with buttons of its own (a TV series is a screenplay with
-// acts; French comics with Dutch labels):
-//
-//	[Accolade.Formats.strip]
-//	Name = "Strip (Franse stijl)"
-//	Elements = "bd"
-//
 // {n} numbers it ({N} in words: ONE, TWO): one more than the lines up to
 // the cursor that start as Insert does (up to the number) with a number,
 // counting again after a line starting with Restart. A page break (===)
-// starting Insert is left out for number 1.
+// starting Insert is left out for number 1. Line = true puts it on the
+// next line, not in a paragraph of its own.
+//
+// Accolade's own formats (formats/) are written to builtinFormatDir; one's
+// own, and changed copies of those, are in userFormatDir, over them.
 
-type formatAlias struct {
-	Name     string
-	Elements string // the element set's key: a preset or one of the settings
-}
+//go:embed formats/*.toml
+var builtinFormats embed.FS
 
-var defaultAliases = map[string]formatAlias{
-	"series": {Name: "TV series", Elements: "default"},
-}
-
-// accoladeSettings are Accolade's part of Lexington's settings.
-type accoladeSettings struct {
-	Buttons map[string][]formatButton
-	Formats map[string]formatAlias
-}
-
-var accoladeConf = readAccoladeSettings()
-
-func readAccoladeSettings() accoladeSettings {
-	var conf struct{ Accolade accoladeSettings }
-	_, _ = toml.DecodeFile(lexingtonConfig(), &conf)
-	return conf.Accolade
-}
-
-// aliases are the formats that are aliases, by key: Accolade's and the
-// settings'.
-func aliases() map[string]formatAlias {
-	out := map[string]formatAlias{}
-	for k, a := range defaultAliases {
-		out[k] = a
+// builtinFormatDir is where Accolade's formats are, as files for Lexington
+// (written there if they are not yet).
+func builtinFormatDir() string {
+	dir := filepath.Join(getConfigDir(), "formats-builtin")
+	if !fileExists(dir) {
+		writeBuiltinFormats(dir)
 	}
-	for k, a := range accoladeConf.Formats {
-		out[k] = a
-	}
-	return out
+	return dir
 }
 
-// elementsKey is the element set a format lays out with, for Lexington.
-func elementsKey(key string) string {
-	if a, ok := aliases()[key]; ok {
-		return a.Elements
+// userFormatDir is where one's own formats are.
+func userFormatDir() string { return filepath.Join(getConfigDir(), "formats") }
+
+// formatDirs are the format folders as Lexington takes them (a path list).
+func formatDirs() string {
+	return builtinFormatDir() + string(os.PathListSeparator) + userFormatDir()
+}
+
+// writeBuiltinFormats puts Accolade's formats where Lexington reads them
+// (again each start: they change with Accolade).
+func writeBuiltinFormats(dir string) {
+	if os.MkdirAll(dir, 0o755) != nil {
+		return
 	}
-	return key
+	files, _ := builtinFormats.ReadDir("formats")
+	for _, f := range files {
+		if b, err := builtinFormats.ReadFile("formats/" + f.Name()); err == nil {
+			_ = os.WriteFile(filepath.Join(dir, f.Name()), b, 0o644)
+		}
+	}
 }
 
 type formatButton struct {
@@ -85,71 +76,26 @@ type formatButton struct {
 	Line bool `toml:",omitempty"`
 }
 
-var defaultFormatButtons = map[string][]formatButton{
-	"default": {
-		{Label: "Montage", Insert: "BEGIN MONTAGE:\n\n\n\nEND MONTAGE."},
-		{Label: "Intercut", Insert: "> INTERCUT WITH:"},
-		{Label: "Flashback", Insert: "FLASHBACK:"},
-		{Label: "Super", Insert: "SUPER: "},
-	},
-	// as in Lexington's examples/tv-episode.fountain: a section for the
-	// outline, a centred heading for the page
-	"series": {
-		{Label: "Cold Open", Insert: "# COLD OPEN\n\n>COLD OPEN<"},
-		{Label: "Main Titles", Insert: ">MAIN TITLES<"},
-		{Label: "Act", Insert: "# ACT {N}\n\n>ACT {N}<"},
-		{Label: "End of Act", Insert: ">END OF ACT {N}<\n\n==="},
-		{Label: "Tag", Insert: "# TAG\n\n>TAG<"},
-		{Label: "Intercut", Insert: "> INTERCUT WITH:"},
-	},
-	// examples/comic.fountain and bd.fountain
-	"comic": {
-		{Label: "Page", Insert: "===\n\n.PAGE {N}"},
-		{Label: "Panel", Insert: "Panel {n}. ", Restart: ".PAGE"},
-		{Label: "Caption", Insert: "CAPTION\n"},
-		{Label: "SFX", Insert: "SFX\n"},
-	},
-	"bd": {
-		{Label: "Planche", Insert: "===\n\n.PLANCHE {n}"},
-		{Label: "Case", Insert: "Case {n}. ", Restart: ".PLANCHE"},
-		{Label: "Récitatif", Insert: "RÉCITATIF\n"},
-		{Label: "Onomatopée", Insert: "ONOMATOPÉE\n"},
-	},
-	// stageplay.fountain, musical.fountain and radio.fountain
-	"stageplay":    stageButtons,
-	"stageplay-uk": stageButtons,
-	"musical": {
-		{Label: "Scene", Insert: ".SCENE {n} - "},
-		{Label: "Song", Insert: "> {n}.  <"},
-		{Label: "Lyrics", Insert: "~", Line: true},
-		{Label: "Blackout", Insert: "> BLACKOUT."},
-	},
-	"radio": {
-		{Label: "Sound", Insert: "!"},
-		{Label: "Music", Insert: "!MUSIC: "},
-		{Label: "Lyrics", Insert: "~", Line: true},
-		{Label: "Crossfade", Insert: "> CROSSFADE TO:"},
-		{Label: "Fade Out", Insert: "> FADE OUT."},
-	},
+// formatFile is the file of a format: one's own, else Accolade's ("" if
+// neither has one).
+func formatFile(key string) string {
+	for _, dir := range []string{userFormatDir(), builtinFormatDir()} {
+		if p := filepath.Join(dir, key+".toml"); fileExists(p) {
+			return p
+		}
+	}
+	return ""
 }
 
-var stageButtons = []formatButton{
-	{Label: "Scene", Insert: ".SCENE {n}"},
-	{Label: "Lights Up", Insert: "LIGHTS UP."},
-	{Label: "Blackout", Insert: "> BLACKOUT."},
-	{Label: "Curtain", Insert: "> CURTAIN."},
-}
+func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
-// formatButtons are the buttons of the format with key: from Lexington's
-// settings if they set any, else Accolade's own.
+// formatButtons are the buttons of the format with key, from its file.
 func formatButtons(key string) []formatButton {
-	if b, ok := accoladeConf.Buttons[key]; ok {
-		return b
+	var f struct{ Accolade struct{ Buttons []formatButton } }
+	if p := formatFile(key); p != "" {
+		_, _ = toml.DecodeFile(p, &f)
 	}
-	if b, ok := defaultFormatButtons[key]; ok {
-		return b
-	}
-	return defaultFormatButtons[elementsKey(key)] // an alias without its own: its set's
+	return f.Accolade.Buttons
 }
 
 var numberWords = strings.Fields("ONE TWO THREE FOUR FIVE SIX SEVEN EIGHT NINE TEN ELEVEN TWELVE THIRTEEN FOURTEEN FIFTEEN SIXTEEN SEVENTEEN EIGHTEEN NINETEEN TWENTY")

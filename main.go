@@ -119,6 +119,7 @@ func (app *Application) Run(args []string) {
 		app.newWindow()
 	}
 
+	writeBuiltinFormats(filepath.Join(getConfigDir(), "formats-builtin")) // this version's
 	if inBrowser {
 		watchdog(app)
 	}

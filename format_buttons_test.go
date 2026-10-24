@@ -8,7 +8,7 @@ import (
 
 // A format's buttons insert a paragraph of their own, numbered.
 func TestInsertButton(t *testing.T) {
-	comic := defaultFormatButtons["comic"]
+	comic := formatButtons("comic")
 	page, panel := comic[0], comic[1]
 	b := buffer.New("")
 	insertButton(b, page)
@@ -26,7 +26,7 @@ func TestInsertButton(t *testing.T) {
 // Series acts as Lexington's example has them; a song counts songs, not
 // every transition.
 func TestInsertButtonSeries(t *testing.T) {
-	series := defaultFormatButtons["series"]
+	series := formatButtons("series")
 	b := buffer.New("")
 	insertButton(b, series[2]) // Act
 	insertButton(b, series[3]) // End of Act
@@ -34,7 +34,7 @@ func TestInsertButtonSeries(t *testing.T) {
 	if want := "# ACT ONE\n\n>ACT ONE<\n\n>END OF ACT ONE<\n\n===\n\n# ACT TWO\n\n>ACT TWO<"; b.Text() != want {
 		t.Errorf("got %q", b.Text())
 	}
-	musical := defaultFormatButtons["musical"]
+	musical := formatButtons("musical")
 	b = buffer.New("> 1. OPENING <\n\n> BLACKOUT.")
 	b.SetCursor(b.Len(), false)
 	insertButton(b, musical[1])
@@ -45,7 +45,7 @@ func TestInsertButtonSeries(t *testing.T) {
 
 // Lyrics go on the next line, under the singer.
 func TestInsertLyrics(t *testing.T) {
-	lyrics := defaultFormatButtons["musical"][2]
+	lyrics := formatButtons("musical")[2]
 	b := buffer.New("ANNA")
 	b.SetCursor(b.Len(), false)
 	insertButton(b, lyrics)

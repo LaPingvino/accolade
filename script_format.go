@@ -1,7 +1,6 @@
 package main
 
 import (
-	"maps"
 	"slices"
 
 	"fyne.io/fyne/v2/widget"
@@ -13,32 +12,17 @@ import (
 // play, radio, ...): how the editor and the PDF and HTML exports lay
 // the script out. It is the "script-format" setting, the preset's key.
 
-// scriptFormats are the presets, then the formats of one's own from
-// Lexington's settings (lexington_settings.go).
+// scriptFormats are the formats: Lexington's presets, Accolade's and
+// one's own (format files, format_buttons.go), then the element sets of
+// Lexington's settings.
 func scriptFormats() []rules.Preset {
-	out := rules.Presets()
+	out, _ := rules.PresetsIn(builtinFormatDir(), userFormatDir())
 	for _, k := range customFormats() {
-		out = append(out, rules.Preset{Key: k, Name: k, Description: "Your own, from the Lexington settings.", Elements: lexSettings.Elements[k]})
-	}
-	as := aliases()
-	keys := slices.Sorted(maps.Keys(as))
-	for _, k := range keys {
-		base := baseFormat(out, as[k].Elements)
-		out = append(out, rules.Preset{Key: k, Name: as[k].Name, Elements: base.Elements, Page: base.Page,
-			Description: "Laid out as " + base.Name + ", with buttons of its own."})
-	}
-	return out
-}
-
-// baseFormat is the format with key among formats (the screenplay's if none).
-func baseFormat(formats []rules.Preset, key string) rules.Preset {
-	for _, p := range formats {
-		if p.Key == key {
-			return p
+		if !slices.ContainsFunc(out, func(p rules.Preset) bool { return p.Key == k }) {
+			out = append(out, rules.Preset{Key: k, Name: k, Description: "Your own, from the Lexington settings.", Elements: lexSettings.Elements[k]})
 		}
 	}
-	p, _ := rules.GetPreset(rules.ScreenplayPreset)
-	return p
+	return out
 }
 
 // scriptFormat is the format with key, or the screenplay's.

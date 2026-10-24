@@ -5,15 +5,12 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-
-	"github.com/BurntSushi/toml"
 
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -76,24 +73,7 @@ func defaultLexingtonSettings() string {
 		return ""
 	}
 	b, _ := os.ReadFile(p)
-	return string(b) + accoladeDefaults()
-}
-
-// accoladeDefaults are Accolade's part of the settings, to change: its
-// format aliases and each format's buttons (format_buttons.go).
-func accoladeDefaults() string {
-	var buf strings.Builder
-	buf.WriteString(`
-# Accolade's part (Lexington skips it): formats that are aliases of an
-# element set, with a name of their own, and each format's buttons in the
-# toolbar. Insert is put in as a paragraph of its own; {n} numbers it,
-# counting again after a line starting with Restart.
-`)
-	conf := struct{ Accolade accoladeSettings }{accoladeSettings{Formats: defaultAliases, Buttons: defaultFormatButtons}}
-	if err := toml.NewEncoder(&buf).Encode(conf); err != nil {
-		return ""
-	}
-	return buf.String()
+	return string(b)
 }
 
 // saveLexingtonSettings checks text as Lexington's settings and keeps it.
@@ -117,7 +97,6 @@ func saveLexingtonSettings(text string) error {
 	}
 	lexSettings = readLexingtonSettings()
 	sceneConf = lexSettings.Scenes
-	accoladeConf = readAccoladeSettings()
 	return nil
 }
 
@@ -127,7 +106,7 @@ func editLexingtonSettings(parent fyne.Window, saved func()) {
 	entry := widget.NewMultiLineEntry()
 	entry.TextStyle = fyne.TextStyle{Monospace: true}
 	entry.SetText(lexingtonSettingsText())
-	help := widget.NewLabel("Element sets here are script formats of your own (Preferences > Script format, the toolbar);\nScenes are what scene headings start with, by language. The exports use them too.")
+	help := widget.NewLabel("Scenes are what scene headings start with, by language; the exports use these settings too.\nFormats are files of their own: Preferences > Script > Edit Format…")
 	var d dialog.Dialog
 	save := widget.NewButton("Save", func() {
 		if err := saveLexingtonSettings(entry.Text); err != nil {

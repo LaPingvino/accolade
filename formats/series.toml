@@ -1,0 +1,33 @@
+Name = "TV series"
+Description = "A screenplay for television: cold open, acts in centred headings (with sections for the outline), a tag."
+Base = "default"
+
+# Accolade's buttons in the toolbar for this format (Lexington skips them):
+# Insert goes in as a paragraph of its own ({n} numbers it, {N} in words,
+# counting again after a line starting with Restart); Line = true puts it
+# on the next line instead.
+[Accolade]
+
+  [[Accolade.Buttons]]
+    Label = "Cold Open"
+    Insert = "# COLD OPEN\n\n>COLD OPEN<"
+
+  [[Accolade.Buttons]]
+    Label = "Main Titles"
+    Insert = ">MAIN TITLES<"
+
+  [[Accolade.Buttons]]
+    Label = "Act"
+    Insert = "# ACT {N}\n\n>ACT {N}<"
+
+  [[Accolade.Buttons]]
+    Label = "End of Act"
+    Insert = ">END OF ACT {N}<\n\n==="
+
+  [[Accolade.Buttons]]
+    Label = "Tag"
+    Insert = "# TAG\n\n>TAG<"
+
+  [[Accolade.Buttons]]
+    Label = "Intercut"
+    Insert = "> INTERCUT WITH:"
