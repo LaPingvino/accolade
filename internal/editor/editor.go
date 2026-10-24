@@ -50,6 +50,11 @@ type ScriptEditor struct {
 	// Format, when set, lays out each line as its element (its column,
 	// width and alignment), instead of by its leading spaces.
 	Format func(syntax.Kind) wrap.Format
+	// Folds are the line ranges hidden, each [from, to): the lines under a
+	// folded heading (nil: none). A fold the cursor gets into opens: its
+	// heading's line (from-1) goes to OnUnfold.
+	Folds    func() [][2]int
+	OnUnfold func(heading int)
 	// PageColumns, when set, is the page's width (NewPageScroll's columns).
 	PageColumns int
 	// OnCursorChanged is called when the cursor or selection moves.
@@ -88,7 +93,8 @@ type ScriptEditor struct {
 	onView              func() // the view again (after a resize)
 	viewTop, viewHeight float32
 	gridFirst, gridEnd  int
-	draw                drawing // what relayout found, to draw rows with
+	draw                drawing      // what relayout found, to draw rows with
+	foldAt              map[int]bool // the folded headings' lines
 }
 
 // drawing is what rows are drawn with: the text, its kinds and styles.
@@ -291,6 +297,7 @@ func (e *ScriptEditor) relayout() {
 	} else {
 		e.layout = wrap.Wrap(text, max(e.columns-g, 1))
 	}
+	e.foldAt = e.fold()
 
 	th := e.Theme()
 	v := theme.VariantLight
@@ -387,6 +394,11 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		}
 		cells = append(cells, cell)
 	}
+	if r.Last && e.foldAt[r.Line] { // a folded heading: what it holds is hidden
+		for _, ch := range " …" {
+			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
+		}
+	}
 	if e.focused && i == curRow {
 		for len(cells) <= g+curCol {
 			cells = append(cells, widget.TextGridCell{Rune: ' '})
@@ -402,6 +414,47 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		}
 	}
 	return widget.TextGridRow{Cells: cells}
+}
+
+// fold leaves the folded lines out of the layout (one the cursor is in
+// opens) and returns the folded headings' lines.
+func (e *ScriptEditor) fold() map[int]bool {
+	if e.Folds == nil {
+		return nil
+	}
+	ranges := e.Folds()
+	if len(ranges) == 0 {
+		return nil
+	}
+	line, _ := e.buf.Position(e.buf.Cursor())
+	var shut [][2]int // the cursor's fold opens
+	headings := map[int]bool{}
+	for _, r := range ranges {
+		if line >= r[0] && line < r[1] {
+			if e.OnUnfold != nil {
+				e.OnUnfold(r[0] - 1)
+			}
+			continue
+		}
+		shut = append(shut, r)
+		headings[r[0]-1] = true
+	}
+	hidden := func(l int) bool {
+		for _, r := range shut {
+			if l >= r[0] && l < r[1] {
+				return true
+			}
+		}
+		return false
+	}
+	rows := e.layout.Rows[:0:0]
+	for _, r := range e.layout.Rows {
+		if !hidden(r.Line) {
+			rows = append(rows, r)
+		}
+	}
+	e.layout.Rows = rows
+	return headings
 }
 
 // inOther reports whether off is in one of the other selections.

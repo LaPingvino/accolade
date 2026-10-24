@@ -39,6 +39,27 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 			w.showEx(visual)
 		}
 	}
+	if w != nil {
+		e.Folds = w.editorFoldRanges
+		e.OnUnfold = w.unfoldAt
+	}
+	vi.fold = func(cmd rune) {
+		if w == nil {
+			return
+		}
+		switch cmd {
+		case 'a':
+			w.fold(false, true)
+		case 'c':
+			w.fold(false, false)
+		case 'o':
+			w.fold(true, false)
+		case 'R':
+			w.foldAll(true)
+		case 'M':
+			w.foldAll(false)
+		}
+	}
 	vi.prompt = func(label string, done func(string)) {
 		if w != nil {
 			w.showPrompt(label, done)

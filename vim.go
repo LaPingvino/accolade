@@ -51,6 +51,8 @@ type vim struct {
 	search  func()                                // "/": the search bar
 	ex      func(visual [2]int)                   // ":": the command line ('<,'> the lines given, -1 none)
 	prompt  func(label string, done func(string)) // asks for a line (helix s and S)
+	fold    func(cmd rune)                        // z a, c, o, R, M: folds
+	z       bool                                  // a pending z
 	mode    vimMode
 	count   int  // the count typed so far
 	op      rune // a pending operator: d, c or y
@@ -172,6 +174,17 @@ func (v *vim) rune(r rune) bool {
 		if r == 'g' {
 			v.motion('g')
 		}
+		return true
+	}
+	if v.z { // za zc zo zR zM: folds
+		v.z = false
+		if v.fold != nil {
+			v.fold(r)
+		}
+		return true
+	}
+	if r == 'z' && v.op == 0 && !v.visual() {
+		v.z = true
 		return true
 	}
 	if v.helix != nil && v.helix() {

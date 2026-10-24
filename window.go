@@ -55,6 +55,7 @@ type MainWindow struct {
 	// the card view in the editor's place (cards.go)
 	cardsVisible bool
 	cards        *cardsView
+	editorFolds  map[string]bool // folded in the editor, by foldKey (editor_folds.go)
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
