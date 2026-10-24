@@ -396,7 +396,17 @@ func (ed *ExportDialog) validateInputs() error {
 	return nil
 }
 
+// startExport exports, a PDF only once it is clear it can print the
+// script (pdfOrPrint).
 func (ed *ExportDialog) startExport() {
+	if exportFormatByLabel(ed.formatSelect.Selected).id == "pdf" {
+		ed.window.pdfOrPrint(ed.window.textEditor.Text(), ed.runExport)
+		return
+	}
+	ed.runExport()
+}
+
+func (ed *ExportDialog) runExport() {
 	ed.isExporting = true
 	ed.exportButton.Disable()
 	ed.progressBar.Show()

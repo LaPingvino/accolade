@@ -827,6 +827,10 @@ var elementNames = map[syntax.Kind]string{
 // previewPDF prints the script as the PDF export does, with the export
 // settings, to a temporary file, and opens it in the PDF viewer.
 func (w *MainWindow) previewPDF() {
+	w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
+}
+
+func (w *MainWindow) makePreviewPDF() {
 	job := exportJob{
 		format:        w.settings.GetString("script-format"),
 		page:          w.settings.GetString("page-size"),
