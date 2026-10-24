@@ -26,6 +26,8 @@ type HeaderBar struct {
 	findButton, previewButton         *tooltip.Button
 	exportButton, preferencesButton   *tooltip.Button
 	fullscreenButton                  *tooltip.Button
+	outlineButton, cardsButton        *tooltip.Button
+	notesButton                       *tooltip.Button
 	titleLabel                        *widget.Label
 	element, format                   *widget.Select
 	elementBox                        *fyne.Container           // the list, or the buttons
@@ -89,6 +91,9 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.findButton = button(theme.SearchIcon(), "Find and replace"+keys("F"), window.showFindReplace)
 	hb.previewButton = button(theme.VisibilityIcon(), "Preview PDF"+keys("Shift+P"), window.previewPDF)
 	hb.exportButton = button(theme.DownloadIcon(), "Export to PDF, HTML, FDX…"+keys("E"), window.showExportDialog)
+	hb.outlineButton = button(theme.ListIcon(), "Outline"+keys("Shift+O"), window.toggleOutline)
+	hb.cardsButton = button(theme.GridIcon(), "Cards"+keys("Shift+D"), window.toggleCards)
+	hb.notesButton = button(theme.FileTextIcon(), "Notes"+keys("Shift+K"), window.toggleNotes)
 	hb.fullscreenButton = button(theme.ViewFullScreenIcon(), "Full screen, without distractions"+keys("Shift+F"), window.toggleFullscreen)
 	hb.preferencesButton = button(theme.SettingsIcon(), "Preferences"+keys(","), func() { window.app.showPreferences() })
 
@@ -156,6 +161,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	top := newOverflowRow(tips, []overflowItem{
 		buttonItem(hb.newButton), buttonItem(hb.openButton), buttonItem(hb.saveButton), gapItem(),
 		buttonItem(hb.undoButton), buttonItem(hb.redoButton),
+		buttonItem(hb.outlineButton), buttonItem(hb.cardsButton), buttonItem(hb.notesButton), gapItem(),
 		buttonItem(hb.findButton), buttonItem(hb.previewButton), buttonItem(hb.exportButton), gapItem(),
 		buttonItem(hb.fullscreenButton), buttonItem(hb.preferencesButton),
 	}, hb.titleLabel, 6)

@@ -30,6 +30,7 @@ func TestHeaderButtonsHaveTips(t *testing.T) {
 		"new": hb.newButton.Tip, "open": hb.openButton.Tip, "save": hb.saveButton.Tip,
 		"undo": hb.undoButton.Tip, "redo": hb.redoButton.Tip, "find": hb.findButton.Tip,
 		"preview": hb.previewButton.Tip, "export": hb.exportButton.Tip, "preferences": hb.preferencesButton.Tip,
+		"outline": hb.outlineButton.Tip, "cards": hb.cardsButton.Tip, "notes": hb.notesButton.Tip,
 	} {
 		if !strings.Contains(tip, "(") {
 			t.Errorf("%s button tip %q has no shortcut", name, tip)
