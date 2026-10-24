@@ -147,7 +147,10 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	right := container.NewHBox(hb.findButton, hb.previewButton, hb.exportButton, gap(), hb.fullscreenButton, hb.preferencesButton)
 	// the editing row: what a line is and its emphasis, the format's own
 	// buttons (scrolling when the window is narrow), and the format
-	editing := container.NewHScroll(container.NewHBox(toggle, hb.elementBox, bold, italic, underline, gap(), hb.formatBox))
+	var character *widget.Button
+	character = widget.NewButtonWithIcon("Character", theme.AccountIcon(), func() { window.pickCharacter(character) })
+	character.Importance = widget.LowImportance
+	editing := container.NewHScroll(container.NewHBox(toggle, hb.elementBox, character, bold, italic, underline, gap(), hb.formatBox))
 	hb.container = container.NewVBox(
 		container.NewBorder(nil, nil, left, right, hb.titleLabel),
 		container.NewBorder(nil, nil, nil, hb.format, editing))
