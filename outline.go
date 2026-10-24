@@ -143,7 +143,11 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			syn.Truncation = fyne.TextTruncateEllipsis
 			fold := widget.NewButtonWithIcon("", theme.MenuDropDownIcon(), nil)
 			fold.Importance = widget.LowImportance
-			return newDragRow(o, container.NewBorder(nil, nil, fold, nil, container.NewVBox(title, syn)))
+			// the button's room stays when it is hidden (a scene), so the
+			// rows' text does not move as rows are reused and redrawn
+			room := canvas.NewRectangle(color.Transparent)
+			room.SetMinSize(fold.MinSize())
+			return newDragRow(o, container.NewBorder(nil, nil, container.NewStack(room, fold), nil, container.NewVBox(title, syn)))
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id >= len(o.items) {
@@ -153,7 +157,7 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			drag := obj.(*dragRow)
 			drag.id = id
 			row := drag.content
-			box, fold := row.Objects[0].(*fyne.Container), row.Objects[1].(*widget.Button)
+			box, fold := row.Objects[0].(*fyne.Container), row.Objects[1].(*fyne.Container).Objects[1].(*widget.Button)
 			title, syn := box.Objects[0].(*widget.Label), box.Objects[1].(*widget.Label)
 			o.showFold(fold, id)
 			title.SetText(strings.Repeat("  ", max(0, it.Level-1)) + it.Text)
