@@ -20,6 +20,8 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/lexington/pdfin"
 )
 
 type MainWindow struct {
@@ -359,12 +361,27 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 }
 
 // importPDFAsync reads a PDF in the background (a scanned one needs OCR,
-// seconds a page), showing how far it is.
+// seconds a page), showing how far it is. Before scanned pages are read,
+// it asks what language they are in, showing the one it guesses.
 func (w *MainWindow) importPDFAsync(filePath string) {
 	// the scene headings' language: the file name's (script.ru.pdf), else
 	// the one its headings are in (read with every language's, not the
 	// replaced script's)
 	lang := languageOf(filePath)
+	if scanned, pages, err := pdfin.ScannedPages(filePath); err == nil && scanned > 0 {
+		if langs, tesseract := ocrLanguages(); len(langs) > 0 {
+			w.askOCRLanguage(filePath, scanned, pages, w.guessOCRLanguage(lang, langs), langs, tesseract, func(chosen string) {
+				w.readPDF(filePath, chosen, chosen)
+			})
+			return
+		}
+	}
+	w.readPDF(filePath, lang, "")
+}
+
+// readPDF reads a PDF in the background, its scene headings in lang ("":
+// whichever they are in), scanned pages read in ocrLang.
+func (w *MainWindow) readPDF(filePath, lang, ocrLang string) {
 	scenes := sceneHeaders(lang)
 	if lang == "" {
 		scenes = allSceneHeaders()
@@ -382,7 +399,7 @@ func (w *MainWindow) importPDFAsync(filePath string) {
 	go func() {
 		defer close(done)
 		defer cancel()
-		text, skipped, err := importPDF(ctx, filePath, scenes, func(done, pages int) {
+		text, skipped, err := importPDF(ctx, filePath, scenes, ocrLang, func(done, pages int) {
 			fyne.Do(func() {
 				bar.SetValue(float64(done) / float64(max(pages, 1)))
 				label.SetText(fmt.Sprintf("Read %d of %d pages", done, pages))

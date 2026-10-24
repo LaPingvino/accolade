@@ -149,17 +149,18 @@ func importFDX(r io.Reader) (string, error) {
 }
 
 // importPDF reads a screenplay from a PDF as Fountain text. Scanned
-// pages are read with OCR: tesseract if it is installed, else the
-// built-in one (slower). progress (may be nil) is told the pages read;
-// skipped are the pages that could not be read.
-func importPDF(ctx context.Context, path string, scenes []string, progress func(done, pages int)) (text string, skipped []string, err error) {
+// pages are read with OCR in ocrLang (Lexington's code, "" English):
+// tesseract if it is installed, else the built-in one (slower, English).
+// progress (may be nil) is told the pages read; skipped are the pages that
+// could not be read.
+func importPDF(ctx context.Context, path string, scenes []string, ocrLang string, progress func(done, pages int)) (text string, skipped []string, err error) {
 	if scenes == nil {
 		scenes = englishScenes
 	}
 	opts := pdfin.Options{Context: ctx, Progress: progress, Scenes: scenes, Skipped: func(page int, err error) {
 		skipped = append(skipped, fmt.Sprintf("page %d: %v", page, err))
 	}}
-	if ocr, done := pdfOCR(); ocr != nil {
+	if ocr, done := pdfOCR(ocrLang); ocr != nil {
 		defer done()
 		opts.OCR = ocr
 	}
