@@ -11,6 +11,7 @@ require (
 	github.com/pion/logging v0.2.4
 	github.com/pion/transport/v5 v5.1.1
 	github.com/pion/webrtc/v4 v4.2.25
+	golang.org/x/image v0.46.0
 	golang.org/x/text v0.42.0
 )
 
@@ -65,7 +66,6 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
-	golang.org/x/image v0.46.0 // indirect
 	golang.org/x/net v0.50.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
@@ -73,4 +73,4 @@ require (
 
 replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261024175256-1ec26e7c7c6b
 
-replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261023233018-417147fe2f4d
+replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261024183800-8f334da0a1e3
