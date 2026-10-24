@@ -46,9 +46,9 @@ func (m vimMode) String() string {
 
 type vim struct {
 	e       *editor.ScriptEditor
-	on      func() bool  // whether vim mode is on (the setting)
-	status  func(string) // shows the mode
-	search  func()       // "/": the search bar
+	on      func() bool         // whether vim mode is on (the setting)
+	status  func(string)        // shows the mode
+	search  func()              // "/": the search bar
 	ex      func(visual [2]int) // ":": the command line ('<,'> the lines given, -1 none)
 	mode    vimMode
 	count   int  // the count typed so far
