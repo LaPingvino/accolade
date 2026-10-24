@@ -25,6 +25,7 @@ type HeaderBar struct {
 	undoButton, redoButton            *tooltip.Button
 	findButton, previewButton         *tooltip.Button
 	exportButton, preferencesButton   *tooltip.Button
+	fullscreenButton                  *tooltip.Button
 	titleLabel                        *widget.Label
 	element, format                   *widget.Select
 	formatBox                         *fyne.Container // the format's own buttons
@@ -63,6 +64,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.findButton = button(theme.SearchIcon(), "Find and replace"+keys("F"), window.showFindReplace)
 	hb.previewButton = button(theme.VisibilityIcon(), "Preview PDF"+keys("Shift+P"), window.previewPDF)
 	hb.exportButton = button(theme.DownloadIcon(), "Export to PDF, HTML, FDX…"+keys("E"), window.showExportDialog)
+	hb.fullscreenButton = button(theme.ViewFullScreenIcon(), "Full screen, without distractions"+keys("Shift+F"), window.toggleFullscreen)
 	hb.preferencesButton = button(theme.SettingsIcon(), "Preferences"+keys(","), func() { window.app.showPreferences() })
 
 	inEditor := func(f func()) func() {
@@ -101,7 +103,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.titleLabel.Truncation = fyne.TextTruncateEllipsis
 
 	left := container.NewHBox(hb.newButton, hb.openButton, hb.saveButton, gap(), hb.undoButton, hb.redoButton)
-	right := container.NewHBox(hb.findButton, hb.previewButton, hb.exportButton, gap(), hb.preferencesButton)
+	right := container.NewHBox(hb.findButton, hb.previewButton, hb.exportButton, gap(), hb.fullscreenButton, hb.preferencesButton)
 	// the editing row: what a line is and its emphasis, the format's own
 	// buttons (scrolling when the window is narrow), and the format
 	editing := container.NewHScroll(container.NewHBox(hb.element, bold, italic, underline, gap(), hb.formatBox))
