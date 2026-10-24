@@ -10,13 +10,21 @@ import (
 	"github.com/LaPingvino/lexington/fountain"
 )
 
+// pdfWarning says what the PDF writer cannot print of a script ("" if
+// it prints well).
+func pdfWarning(content string, scenes []string) string {
+	return cli.PDFWarning(fountain.Parse(scenes, strings.NewReader(content)))
+}
+
 // pdfOrPrint makes a PDF with makePDF, unless the script has text the
 // PDF cannot print as written (Hebrew, CJK: boxes; right to left: the
 // wrong way round): then it offers to print instead, through the browser,
-// whose fonts and layout have them, or to make the PDF anyway.
+// whose fonts and layout have them, or to make the PDF anyway. With a
+// Chromium browser on the computer there is no need to ask: exportAs has
+// it make the PDF.
 func (w *MainWindow) pdfOrPrint(content string, makePDF func()) {
-	warning := cli.PDFWarning(fountain.Parse(sceneHeaders(w.language), strings.NewReader(content)))
-	if warning == "" {
+	warning := pdfWarning(content, sceneHeaders(w.language))
+	if warning == "" || localBrowser() != "" { // a browser makes it (exportAs)
 		makePDF()
 		return
 	}

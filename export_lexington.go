@@ -95,6 +95,23 @@ func numberScenes(s lex.Screenplay) lex.Screenplay {
 // exportAs writes the script as Lexington's format to (its -to), with
 // Lexington's command line's options: what "accolade -to ..." makes.
 func exportAs(content, outputPath, to string, job exportJob) error {
+	if to == "pdf" {
+		// a script the PDF writer cannot print as written (Hebrew, CJK,
+		// right to left): a browser on the computer prints Lexington's
+		// HTML (browser_pdf.go)
+		if b := localBrowser(); b != "" && pdfWarning(content, job.scenes) != "" {
+			dir, err := os.MkdirTemp("", "accolade-pdf-")
+			if err != nil {
+				return err
+			}
+			defer os.RemoveAll(dir)
+			page := filepath.Join(dir, "script.html")
+			if err := exportAs(content, page, "html", job); err != nil {
+				return err
+			}
+			return browserPDF(b, page, outputPath)
+		}
+	}
 	return writeViaTemp(outputPath, func(tmp string) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
