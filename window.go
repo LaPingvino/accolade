@@ -49,6 +49,8 @@ type MainWindow struct {
 	exState  exState
 	exBar    *fyne.Container
 	exEntry  *exLine
+	exLabel  *widget.Label
+	exPrompt func(string) // the line is a prompt's (helix s), not a command
 	exVisual [2]int
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)

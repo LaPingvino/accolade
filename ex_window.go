@@ -28,6 +28,11 @@ func newExLine(w *MainWindow) *exLine {
 	l.ExtendBaseWidget(l)
 	l.OnSubmitted = func(cmd string) {
 		w.hideEx()
+		if run := w.exPrompt; run != nil { // a prompt's, not a command
+			w.exPrompt = nil
+			run(cmd)
+			return
+		}
 		w.runEx(cmd)
 	}
 	fyne.SetAccessibleLabel(l, "Command")
@@ -57,15 +62,25 @@ func (l *exLine) TypedKey(k *fyne.KeyEvent) {
 	}
 }
 
+// showPrompt asks for a line in the command line's place (helix's s and
+// S), done gets it.
+func (w *MainWindow) showPrompt(label string, done func(string)) {
+	w.showEx([2]int{-1, -1})
+	w.exLabel.SetText(label)
+	w.exPrompt = done
+}
+
 // showEx opens the command line, with '<,'> for the lines given.
 func (w *MainWindow) showEx(visual [2]int) {
 	if w.exBar == nil {
 		w.exEntry = newExLine(w)
-		prompt := widget.NewLabel(":")
-		prompt.TextStyle = fyne.TextStyle{Monospace: true}
-		w.exBar = container.NewBorder(nil, nil, prompt, nil, w.exEntry)
+		w.exLabel = widget.NewLabel(":")
+		w.exLabel.TextStyle = fyne.TextStyle{Monospace: true}
+		w.exBar = container.NewBorder(nil, nil, w.exLabel, nil, w.exEntry)
 		w.statusBar.Add(w.exBar)
 	}
+	w.exLabel.SetText(":")
+	w.exPrompt = nil
 	w.exVisual = visual
 	w.exEntry.back = 0
 	w.exEntry.SetText("")

@@ -99,6 +99,8 @@ type drawing struct {
 	v                                        fyne.ThemeVariant
 	selected, cursor, highlight, number      *widget.CustomTextGridStyle
 	selStart, selEnd, curRow, curCol, gutter int
+	others                                   []buffer.Span // more selections
+	otherCursors                             map[int][]int // their cursors' columns by row
 }
 
 // viewMargin is how many rows beyond the view the grid holds, so that
@@ -312,9 +314,18 @@ func (e *ScriptEditor) relayout() {
 	}
 
 	number := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}
+	others := e.buf.Spans()[1:]
+	var otherCursors map[int][]int
+	for _, o := range others {
+		if otherCursors == nil {
+			otherCursors = map[int][]int{}
+		}
+		r, c := e.layout.RowCol(o.Cursor)
+		otherCursors[r] = append(otherCursors[r], c)
+	}
 	e.draw = drawing{text: text, kinds: kinds, th: th, v: v, selected: selected, cursor: cursor,
 		highlight: highlight, number: number, selStart: selStart, selEnd: selEnd,
-		curRow: curRow, curCol: curCol, gutter: g}
+		curRow: curRow, curCol: curCol, gutter: g, others: others, otherCursors: otherCursors}
 	e.drawRows()
 }
 
@@ -369,7 +380,7 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 	for off := r.Start; off < r.End; off++ {
 		cell := widget.TextGridCell{Rune: text[off], Style: lineStyle}
 		switch {
-		case off >= selStart && off < selEnd:
+		case off >= selStart && off < selEnd, d.inOther(off):
 			cell.Style = withBackground(lineStyle, selected.BGColor)
 		case highlighted(off):
 			cell.Style = withBackground(lineStyle, highlight.BGColor)
@@ -382,7 +393,25 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		}
 		cells[g+curCol].Style = cursor
 	}
+	for _, c := range d.otherCursors[i] {
+		if e.focused {
+			for len(cells) <= g+c {
+				cells = append(cells, widget.TextGridCell{Rune: ' '})
+			}
+			cells[g+c].Style = cursor
+		}
+	}
 	return widget.TextGridRow{Cells: cells}
+}
+
+// inOther reports whether off is in one of the other selections.
+func (d drawing) inOther(off int) bool {
+	for _, o := range d.others {
+		if off >= o.Start() && off < o.End() {
+			return true
+		}
+	}
+	return false
 }
 
 // Refresh redraws the editor with the current theme's colours: Fyne
@@ -555,9 +584,39 @@ func (e *ScriptEditor) TypedRune(r rune) {
 		e.goalCol = -1
 		return
 	}
-	e.buf.Insert(string(r))
+	e.insert(string(r))
 	e.goalCol = -1
 	e.changed(true)
+}
+
+// insert types text at the selection, or at every one there is.
+func (e *ScriptEditor) insert(text string) {
+	if !e.buf.HasOthers() {
+		e.buf.Insert(text)
+		return
+	}
+	e.buf.EditSpans(func(s buffer.Span) (int, int, string) { return s.Start(), s.End(), text })
+}
+
+// deleteAt deletes the selection, else the character before (or after)
+// the cursor: at every selection there is.
+func (e *ScriptEditor) deleteAt(before bool) {
+	switch {
+	case !e.buf.HasOthers() && before:
+		e.buf.DeleteBackward()
+	case !e.buf.HasOthers():
+		e.buf.DeleteForward()
+	default:
+		e.buf.EditSpans(func(s buffer.Span) (int, int, string) {
+			switch {
+			case s.Start() != s.End():
+				return s.Start(), s.End(), ""
+			case before:
+				return max(s.Start()-1, 0), s.End(), ""
+			}
+			return s.Start(), s.End() + 1, ""
+		})
+	}
 }
 
 // TypedKey handles editing and cursor keys.
@@ -630,16 +689,16 @@ func (e *ScriptEditor) Key(name fyne.KeyName, extend bool) {
 	case fyne.KeyEnd:
 		move(e.layout.Offset(row, math.MaxInt32))
 	case fyne.KeyBackspace:
-		e.buf.DeleteBackward()
+		e.deleteAt(true)
 		e.changed(true)
 	case fyne.KeyDelete:
-		e.buf.DeleteForward()
+		e.deleteAt(false)
 		e.changed(true)
 	case fyne.KeyReturn, fyne.KeyEnter:
-		if e.OnEnter != nil && e.OnEnter() {
+		if !e.buf.HasOthers() && e.OnEnter != nil && e.OnEnter() {
 			return
 		}
-		e.buf.Insert("\n")
+		e.insert("\n")
 		e.changed(true)
 	case fyne.KeyTab:
 		if e.OnTab != nil && e.OnTab() {

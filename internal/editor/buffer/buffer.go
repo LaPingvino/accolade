@@ -29,6 +29,8 @@ type Buffer struct {
 	text []rune
 	// the selection runs between anchor and cursor; equal means none
 	cursor, anchor int
+	// others are more selections than that one, the primary (spans.go)
+	others []Span
 
 	undo, redo []step
 	group      *step // the step being built by Group
@@ -82,6 +84,7 @@ func (b *Buffer) SelectedText() string { s, e := b.Selection(); return string(b.
 // SetCursor moves the cursor; with extend the selection grows from its
 // anchor, otherwise the selection is dropped.
 func (b *Buffer) SetCursor(offset int, extend bool) {
+	b.others = nil // moving keeps the primary selection only
 	b.cursor = b.clamp(offset)
 	if !extend {
 		b.anchor = b.cursor
@@ -91,6 +94,7 @@ func (b *Buffer) SetCursor(offset int, extend bool) {
 
 // Select selects [start, end) with the cursor at end.
 func (b *Buffer) Select(start, end int) {
+	b.others = nil
 	b.anchor, b.cursor = b.clamp(start), b.clamp(end)
 	b.breakTyping()
 }
@@ -180,6 +184,7 @@ func (b *Buffer) Undo() bool {
 		b.splice(c.pos, c.pos+len(c.inserted), c.removed)
 	}
 	b.cursor, b.anchor = s.beforeCursor, s.beforeAnchor
+	b.others = nil
 	b.redo = append(b.redo, s)
 	return true
 }
@@ -195,6 +200,7 @@ func (b *Buffer) Redo() bool {
 		b.splice(c.pos, c.pos+len(c.removed), c.inserted)
 	}
 	b.cursor, b.anchor = s.afterCursor, s.afterAnchor
+	b.others = nil
 	s.typing = false
 	b.undo = append(b.undo, s)
 	return true
@@ -254,6 +260,10 @@ func (b *Buffer) breakTyping() {
 
 func (b *Buffer) splice(start, end int, inserted []rune) {
 	b.text = append(b.text[:start], append(append([]rune(nil), inserted...), b.text[end:]...)...)
+	for i := range b.others { // the other selections move with the text
+		b.others[i].Anchor = shifted(b.others[i].Anchor, start, end, len(inserted))
+		b.others[i].Cursor = shifted(b.others[i].Cursor, start, end, len(inserted))
+	}
 }
 
 func (b *Buffer) clamp(off int) int { return max(0, min(off, len(b.text))) }

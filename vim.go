@@ -46,10 +46,11 @@ func (m vimMode) String() string {
 
 type vim struct {
 	e       *editor.ScriptEditor
-	on      func() bool         // whether vim mode is on (the setting)
-	status  func(string)        // shows the mode
-	search  func()              // "/": the search bar
-	ex      func(visual [2]int) // ":": the command line ('<,'> the lines given, -1 none)
+	on      func() bool                           // whether vim mode is on (the setting)
+	status  func(string)                          // shows the mode
+	search  func()                                // "/": the search bar
+	ex      func(visual [2]int)                   // ":": the command line ('<,'> the lines given, -1 none)
+	prompt  func(label string, done func(string)) // asks for a line (helix s and S)
 	mode    vimMode
 	count   int  // the count typed so far
 	op      rune // a pending operator: d, c or y
@@ -94,7 +95,7 @@ func (v *vim) key(k *fyne.KeyEvent) bool {
 		return false
 	}
 	if k.Name == fyne.KeyEscape {
-		if v.mode == vimInsert {
+		if v.mode == vimInsert && !v.e.Buffer().HasOthers() {
 			// as vim: back onto the character typed last
 			v.e.Navigate(func(b *buffer.Buffer) {
 				t := []rune(b.Text())
@@ -127,6 +128,9 @@ func (v *vim) key(k *fyne.KeyEvent) bool {
 func (v *vim) shortcut(s fyne.Shortcut) bool {
 	if !v.active() || v.mode == vimInsert {
 		return false
+	}
+	if v.helix != nil && v.helix() && v.multiShortcut(s) {
+		return true
 	}
 	if c, ok := s.(*desktop.CustomShortcut); ok && c.KeyName == fyne.KeyR && c.Modifier&fyne.KeyModifierControl != 0 {
 		v.e.Redo()
@@ -623,6 +627,9 @@ func (v *vim) edit(f func(b *buffer.Buffer, t []rune, c int)) {
 //	act         d c y  p P  u U  r<c>
 //	insert      i a I A o O
 func (v *vim) helixKey(r rune) {
+	if v.multiKey(r) {
+		return
+	}
 	t := []rune(v.e.Text())
 	from, to := v.e.Buffer().Selection()
 	c := v.e.CursorOffset()

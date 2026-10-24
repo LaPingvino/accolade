@@ -39,6 +39,11 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 			w.showEx(visual)
 		}
 	}
+	vi.prompt = func(label string, done func(string)) {
+		if w != nil {
+			w.showPrompt(label, done)
+		}
+	}
 	if w != nil {
 		w.vim = vi
 	}
