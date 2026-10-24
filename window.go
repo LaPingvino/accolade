@@ -171,9 +171,11 @@ func (w *MainWindow) setupUI() {
 	}
 	w.statusLabel = small("")
 	w.statsLabel = small("")
+	w.statsLabel.Alignment = fyne.TextAlignTrailing
+	w.statsLabel.Truncation = fyne.TextTruncateEllipsis // a narrow window shows what fits
 	w.statusBar = container.NewVBox(
 		widget.NewSeparator(),
-		container.NewBorder(nil, nil, w.statusLabel, w.statsLabel),
+		container.NewBorder(nil, nil, w.statusLabel, nil, w.statsLabel),
 	)
 
 	w.relayout()

@@ -156,8 +156,9 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	place.Importance = widget.LowImportance
 	hb.place = place
 	editing := container.NewHScroll(container.NewHBox(toggle, hb.elementBox, place, character, bold, italic, underline, gap(), hb.formatBox))
+	// both rows scroll when the window is narrower than they are (a phone)
 	hb.container = container.NewVBox(
-		container.NewBorder(nil, nil, left, right, hb.titleLabel),
+		container.NewHScroll(container.NewBorder(nil, nil, left, right, hb.titleLabel)),
 		container.NewBorder(nil, nil, nil, hb.format, editing))
 	return hb
 }
