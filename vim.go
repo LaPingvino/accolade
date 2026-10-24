@@ -49,6 +49,7 @@ type vim struct {
 	on      func() bool  // whether vim mode is on (the setting)
 	status  func(string) // shows the mode
 	search  func()       // "/": the search bar
+	ex      func(visual [2]int) // ":": the command line ('<,'> the lines given, -1 none)
 	mode    vimMode
 	count   int  // the count typed so far
 	op      rune // a pending operator: d, c or y
@@ -277,6 +278,10 @@ func (v *vim) normalKey(r rune) {
 	case '/':
 		if v.search != nil {
 			v.search()
+		}
+	case ':':
+		if v.ex != nil {
+			v.ex([2]int{-1, -1})
 		}
 	case 'g':
 		v.g = true
@@ -548,11 +553,30 @@ func (v *vim) visualKey(r rune) {
 		v.apply(op, t, from, to, v.mode == vimVisualLine)
 	case 'v', 'V':
 		v.setMode(vimNormal)
+	case ':': // the selected lines as '<,'>
+		t := []rune(v.e.Text())
+		from, to := v.selection(t)
+		if v.mode != vimVisualLine {
+			to = max(from, to-1) // to is past the selection; in line mode, the last line's end
+		}
+		lines := v.selectedLines(from, to)
+		v.setMode(vimNormal)
+		if v.ex != nil {
+			v.ex(lines)
+		}
 	case 'g':
 		v.g = true
 	default:
 		v.motion(r)
 	}
+}
+
+// selectedLines are the lines of offsets from and to.
+func (v *vim) selectedLines(from, to int) [2]int {
+	b := v.e.Buffer()
+	a, _ := b.Position(from)
+	z, _ := b.Position(to)
+	return [2]int{a, z}
 }
 
 // selection is the visual selection: from the anchor to the cursor, the
@@ -637,6 +661,14 @@ func (v *vim) helixKey(r rune) {
 		sel(s, min(e+1, len(t)))
 	case '%':
 		sel(0, len(t))
+	case ':': // a selection's lines as '<,'>
+		if v.ex != nil {
+			lines := [2]int{-1, -1}
+			if v.e.Buffer().HasSelection() {
+				lines = v.selectedLines(from, max(from, to-1))
+			}
+			v.ex(lines)
+		}
 	case ';':
 		v.e.Navigate(func(bf *buffer.Buffer) { bf.SetCursor(bf.Cursor(), false) })
 	case 'v':

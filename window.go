@@ -45,6 +45,11 @@ type MainWindow struct {
 	// notes (View > Notes)
 	// vim is the editor's vim mode (vim.go), on with the setting
 	vim *vim
+	// the ex command line (ex_window.go)
+	exState  exState
+	exBar    *fyne.Container
+	exEntry  *exLine
+	exVisual [2]int
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string

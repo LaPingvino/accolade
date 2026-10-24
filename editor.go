@@ -34,6 +34,11 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 			w.showFind()
 		}
 	}
+	vi.ex = func(visual [2]int) {
+		if w != nil {
+			w.showEx(visual)
+		}
+	}
 	if w != nil {
 		w.vim = vi
 	}
