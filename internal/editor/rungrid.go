@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"golang.org/x/image/font/sfnt"
+	"golang.org/x/text/unicode/bidi"
 
 	"github.com/LaPingvino/accolade/internal/editor/wrap"
 )
@@ -124,7 +125,9 @@ func (r *runRenderer) Refresh() {
 			style, col := styleOf(cells[i].Style), colorOf(cells[i].Style, fg)
 			var b strings.Builder
 			j := i
-			for j < len(cells) && (j == i || !boundary(j)) && narrow(cells[j].Rune) && cells[j].Rune != wideFill && styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col) {
+			inMirror := m[1] > m[0] && i >= m[0] && i < m[1]
+			for j < len(cells) && (j == i || !boundary(j)) && (!inMirror || j == i || sameWay(cells[i].Rune, cells[j].Rune)) &&
+				narrow(cells[j].Rune) && cells[j].Rune != wideFill && styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col) {
 				b.WriteRune(cells[j].Rune)
 				j++
 			}
@@ -189,6 +192,26 @@ func (r *runRenderer) Refresh() {
 // size, in color: in the browser, whose fonts have the CJK the bundled
 // one lacks (glyph_js.go). The desktop's fonts fall back by themselves.
 var wideGlyph func(s string, c color.Color, bold bool, size, w, h float32) image.Image
+
+// sameWay reports whether two characters of a right-to-left row are drawn
+// in one piece: both written left to right (numbers, Latin) or both right
+// to left (Arabic, joined); spaces and signs stand each in its own cell.
+func sameWay(a, b rune) bool {
+	way := func(r rune) int {
+		p, _ := bidi.LookupRune(r)
+		switch p.Class() {
+		case bidi.L, bidi.EN, bidi.AN:
+			return 1
+		case bidi.R, bidi.AL:
+			return 2
+		case bidi.NSM:
+			return 3 // a mark goes with what it is on
+		}
+		return 0
+	}
+	wa, wb := way(a), way(b)
+	return wa != 0 && (wb == wa || wb == 3)
+}
 
 // isFlagLetter: a regional indicator, two of which make a flag (🇳🇱).
 func isFlagLetter(r rune) bool { return r >= 0x1F1E6 && r <= 0x1F1FF }
