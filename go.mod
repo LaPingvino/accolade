@@ -71,6 +71,6 @@ require (
 	golang.org/x/time v0.14.0 // indirect
 )
 
-replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.0.0-20261023233001-91b3726ed3d7
+replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261024175256-1ec26e7c7c6b
 
 replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261023233018-417147fe2f4d
