@@ -103,13 +103,21 @@ func saveLexingtonSettings(text string) error {
 // editLexingtonSettings edits the settings file; saved is called after a
 // save.
 func editLexingtonSettings(parent fyne.Window, saved func()) {
+	editTOML(parent, "Lexington Settings", lexingtonSettingsText(),
+		"Scenes are what scene headings start with, by language; the exports use these settings too.\nFormats are files of their own: Preferences > Script > Edit Format…",
+		defaultLexingtonSettings, saveLexingtonSettings, saved)
+}
+
+// editTOML edits a TOML file's text in a dialog: save checks and keeps it
+// (its error is shown, the dialog stays), then saved is called; defaults
+// (nil for none) is the text to start again from.
+func editTOML(parent fyne.Window, title, text, help string, defaults func() string, save func(string) error, saved func()) {
 	entry := widget.NewMultiLineEntry()
 	entry.TextStyle = fyne.TextStyle{Monospace: true}
-	entry.SetText(lexingtonSettingsText())
-	help := widget.NewLabel("Scenes are what scene headings start with, by language; the exports use these settings too.\nFormats are files of their own: Preferences > Script > Edit Format…")
+	entry.SetText(text)
 	var d dialog.Dialog
-	save := widget.NewButton("Save", func() {
-		if err := saveLexingtonSettings(entry.Text); err != nil {
+	saveBtn := widget.NewButton("Save", func() {
+		if err := save(entry.Text); err != nil {
 			dialog.ShowError(err, parent)
 			return
 		}
@@ -118,11 +126,15 @@ func editLexingtonSettings(parent fyne.Window, saved func()) {
 			saved()
 		}
 	})
-	save.Importance = widget.HighImportance
-	defaults := widget.NewButton("Start from the Defaults", func() { entry.SetText(defaultLexingtonSettings()) })
+	saveBtn.Importance = widget.HighImportance
 	cancel := widget.NewButton("Cancel", func() { d.Hide() })
-	buttons := container.NewHBox(defaults, layout.NewSpacer(), cancel, save)
-	d = dialog.NewCustomWithoutButtons("Lexington Settings", container.NewBorder(help, buttons, nil, nil, entry), parent)
+	buttons := container.NewHBox(layout.NewSpacer(), cancel, saveBtn)
+	if defaults != nil {
+		buttons.Objects = append([]fyne.CanvasObject{widget.NewButton("Start from the Defaults", func() { entry.SetText(defaults()) })}, buttons.Objects...)
+	}
+	label := widget.NewLabel(help)
+	label.Wrapping = fyne.TextWrapWord
+	d = dialog.NewCustomWithoutButtons(title, container.NewBorder(label, buttons, nil, nil, entry), parent)
 	d.Resize(fyne.NewSize(720, 560))
 	d.Show()
 }
