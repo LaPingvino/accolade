@@ -51,7 +51,7 @@ var (
 // them (dialogue has none: an opening quote).
 var elementMarks = map[string]string{
 	elementScene: ".", elementAction: "!", elementCharacter: "@", elementParenthetical: "()",
-	elementDialogue: "“", elementTransition: ">", elementCentered: "><",
+	elementDialogue: "“", elementTransition: ">", elementCentered: "><", elementLyrics: "~",
 }
 
 // showElementKind shows the elements as a list or as buttons (the
@@ -69,7 +69,7 @@ func (hb *HeaderBar) showElementKind() {
 }
 
 // toolbarElements are the elements the bar can make a line.
-var toolbarElements = []string{elementScene, elementAction, elementCharacter, elementParenthetical, elementDialogue, elementTransition, elementCentered}
+var toolbarElements = []string{elementScene, elementAction, elementCharacter, elementParenthetical, elementDialogue, elementTransition, elementCentered, elementLyrics}
 
 func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb := &HeaderBar{window: window}

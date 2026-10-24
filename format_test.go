@@ -22,6 +22,8 @@ func TestAsElement(t *testing.T) {
 		{".THE KITCHEN", elementAction, "!THE KITCHEN"}, // and as a heading, upper case
 		{"Anna walks in.", elementAction, "Anna walks in."},
 		{"THE END", elementCentered, "> THE END <"},
+		{"la la la", elementLyrics, "~la la la"},
+		{"~la la la", elementDialogue, "la la la"},
 		{"> THE END <", elementCharacter, "THE END"},
 	} {
 		if got := asElement(c.line, c.element, nil); got != c.want {

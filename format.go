@@ -54,13 +54,14 @@ const (
 	elementDialogue      = "Dialogue"
 	elementTransition    = "Transition"
 	elementCentered      = "Centered"
+	elementLyrics        = "Lyrics"
 )
 
 // asElement is the line written as the element, with the Fountain
 // markers that make other Fountain apps read it so.
 func asElement(line, element string, starts []string) string {
 	bare := strings.TrimSpace(line)
-	for _, m := range []string{".", "!", "@", ">"} { // forcing markers
+	for _, m := range []string{".", "!", "@", ">", "~"} { // forcing markers
 		if strings.HasPrefix(bare, m) && !strings.HasPrefix(bare, "...") {
 			bare = strings.TrimSpace(bare[len(m):])
 			break
@@ -101,6 +102,8 @@ func asElement(line, element string, starts []string) string {
 		return s
 	case elementCentered:
 		return "> " + bare + " <"
+	case elementLyrics:
+		return "~" + bare
 	}
 	// action: forced if it would read as something else
 	if isSceneHeadingIn(bare, starts) || isCharacterCue(bare) || isTransition(bare) {
