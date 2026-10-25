@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"fyne.io/fyne/v2"
 )
 
 func TestHeaderShowsDocumentState(t *testing.T) {
@@ -35,5 +37,21 @@ func TestHeaderButtonsHaveTips(t *testing.T) {
 		if !strings.Contains(tip, "(") {
 			t.Errorf("%s button tip %q has no shortcut", name, tip)
 		}
+	}
+}
+
+// Alt+Enter toggles full screen, beside Ctrl+Shift+F; Enter alone is the
+// editor's.
+func TestAltEnterFullScreen(t *testing.T) {
+	w := newTestWindow(t, "")
+	if w.keyPreview(fyne.KeyReturn, 0) {
+		t.Error("Enter alone was taken from the editor")
+	}
+	if !w.keyPreview(fyne.KeyReturn, fyne.KeyModifierAlt) || !w.isFullscreen {
+		t.Fatal("Alt+Enter: not full screen")
+	}
+	w.keyPreview(fyne.KeyReturn, fyne.KeyModifierAlt)
+	if w.isFullscreen {
+		t.Error("Alt+Enter again: still full screen")
 	}
 }

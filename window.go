@@ -204,19 +204,28 @@ func (w *MainWindow) setupShortcuts() {
 	// F6 and Shift+F6: the next or previous pane (editor, outline, notes,
 	// search), whatever has the focus
 	if c, ok := w.fyneWindow.Canvas().(desktop.KeyPreviewCanvas); ok {
-		c.SetOnKeyPreview(func(key fyne.KeyName, mod fyne.KeyModifier) bool {
-			keyArrived()
-			if key != fyne.KeyF6 || (mod != 0 && mod != fyne.KeyModifierShift) {
-				return false
-			}
-			if mod == fyne.KeyModifierShift {
-				w.cyclePane(-1)
-			} else {
-				w.cyclePane(1)
-			}
-			return true
-		})
+		c.SetOnKeyPreview(w.keyPreview)
 	}
+}
+
+// keyPreview sees each key before the focused widget: Alt+Enter for full
+// screen (as in many programs, beside Ctrl+Shift+F), F6 and Shift+F6 for
+// the panes; it reports whether it took the key.
+func (w *MainWindow) keyPreview(key fyne.KeyName, mod fyne.KeyModifier) bool {
+	keyArrived()
+	if (key == fyne.KeyReturn || key == fyne.KeyEnter) && mod == fyne.KeyModifierAlt {
+		w.toggleFullscreen()
+		return true
+	}
+	if key != fyne.KeyF6 || (mod != 0 && mod != fyne.KeyModifierShift) {
+		return false
+	}
+	if mod == fyne.KeyModifierShift {
+		w.cyclePane(-1)
+	} else {
+		w.cyclePane(1)
+	}
+	return true
 }
 
 func (w *MainWindow) setupCallbacks() {
