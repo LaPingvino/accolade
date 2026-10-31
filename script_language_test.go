@@ -82,3 +82,14 @@ func TestWithLanguageName(t *testing.T) {
 		}
 	}
 }
+
+func TestLanguageLabels(t *testing.T) {
+	for _, l := range scriptLanguages() {
+		if languageLabel(l) == l {
+			t.Errorf("%s has no name", l)
+		}
+	}
+	if got := languageLabel("tok"); got != "toki pona (tok)" {
+		t.Errorf("tok: %q", got)
+	}
+}

@@ -24,8 +24,14 @@ func (w *MainWindow) guessOCRLanguage(fromName string, langs []string) string {
 	return langs[0]
 }
 
+// selfNames are languages' own names that the display tables lack.
+var selfNames = map[string]string{"tok": "toki pona"}
+
 // languageLabel names a language in itself, with its code: "עברית (he)".
 func languageLabel(code string) string {
+	if name := selfNames[code]; name != "" {
+		return fmt.Sprintf("%s (%s)", name, code)
+	}
 	if name := display.Self.Name(language.Make(code)); name != "" {
 		return fmt.Sprintf("%s (%s)", name, code)
 	}
