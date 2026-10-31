@@ -13,7 +13,8 @@ func TestChangedLine(t *testing.T) {
 		{"EKST. ĜARDENO - NOKTO", "eo", "en", translateHeadings, "EXT. ĜARDENO - NOKTO"},
 		{"INT. КУХНЯ", "en", "ru", translateHeadings, "ИНТ. КУХНЯ"},
 		{"EST. CITY - DAY", "en", "de", translateHeadings, "ETABL. CITY - DAY"},
-		{"EST. CITY - DAY", "en", "nl", translateHeadings, ".EST. CITY - DAY"}, // no word: dotted
+		{"EST. CITY - DAY", "en", "nl", translateHeadings, "BUI. CITY - DAY"}, // no word for it: outside
+		{"EST. CITY - DAY", "en", "ja", translateHeadings, ".EST. CITY - DAY"},  // no words at all: dotted
 		{"EST. GIARDINO", "it", "en", translateHeadings, "EXT. GIARDINO"},
 		{"EN. KUIRO - TAGO", "eo", "en", fountainForm, ".EN. KUIRO - TAGO"},
 		{".EN. KUIRO - TAGO", "en", "eo", fountainForm, "EN. KUIRO - TAGO"},
@@ -30,8 +31,8 @@ func TestChangedLine(t *testing.T) {
 
 func TestHeadingChanges(t *testing.T) {
 	text := "Title: X\n\nINT. ROOM - DAY\n\nHe waits.\n\nEXT. ROAD - NIGHT\n\nEST. CITY - DAY\n"
-	if changed, kept := headingChanges(text, "en", "nl", translateHeadings); changed != 3 || kept != 1 {
-		t.Errorf("got %d changed, %d kept; want 3 (one dotted), 1", changed, kept)
+	if changed, kept := headingChanges(text, "en", "nl", translateHeadings); changed != 3 || kept != 0 {
+		t.Errorf("got %d changed, %d kept; want 3, 0", changed, kept)
 	}
 }
 
