@@ -45,18 +45,18 @@ func withPlace(line, word string, scenes []string) string {
 }
 
 // pickPlace offers inside, outside and both in the script's language, to
-// start the cursor's line, a scene heading, with.
+// start the cursor's line, a scene heading, with; and the script's
+// language itself, to change (script_language.go).
 func (w *MainWindow) pickPlace(at fyne.CanvasObject) {
 	scenes := sceneHeaders(w.language)
-	in, out, both, ok := placeWords(scenes)
-	if !ok {
-		w.setStatus("This language has no words for inside and outside")
-		return
-	}
 	var items []*fyne.MenuItem
-	for _, word := range []string{in, out, both} {
-		items = append(items, fyne.NewMenuItem(word, func() { w.setPlace(word) }))
+	if in, out, both, ok := placeWords(scenes); ok {
+		for _, word := range []string{in, out, both} {
+			items = append(items, fyne.NewMenuItem(word, func() { w.setPlace(word) }))
+		}
+		items = append(items, fyne.NewMenuItemSeparator())
 	}
+	items = append(items, fyne.NewMenuItem("Script language: "+languageLabel(w.language)+"…", w.pickLanguage))
 	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(at).Add(fyne.NewPos(0, at.Size().Height))
 	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", items...), w.fyneWindow.Canvas(), pos)
 }

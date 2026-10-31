@@ -37,6 +37,9 @@ func readLexingtonSettings() rules.TOMLConf {
 	for k, v := range file.Scenes {
 		conf.Scenes[k] = v
 	}
+	for k, v := range file.Matchups {
+		conf.Matchups[k] = v
+	}
 	return conf
 }
 
