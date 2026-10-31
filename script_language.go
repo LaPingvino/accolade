@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
@@ -25,8 +26,8 @@ import (
 //     the new language does not know get a dot (EN. KUIRO in an English
 //     script is .EN. KUIRO, standard Fountain), and dotted ones it knows
 //     lose theirs.
-//   - translate: the headings' words become the new language's (INT. to
-//     BIN.), as Lexington's matchups pair them.
+//   - translate: the headings' words become what is chosen for each, from
+//     a proposal by Lexington's matchups (INT. to BIN.).
 //
 // Each way the file's name takes the language (scene.nl.fountain, an
 // English one none), which is where it is kept.
@@ -55,16 +56,17 @@ func headingLine(line, lang string) (marks string, forced bool, bare string, ok 
 
 // changedLine is a line of a script in language from as it is after the
 // change to language to, and whether that changed a heading; kept is a
-// heading that could not be changed (no word for it in to).
-func changedLine(line, from, to string, how languageChange) (out string, changed, kept bool) {
+// heading that stays as it is. Translating, words are what each heading
+// word (as headingTag has it: INT, I/E) becomes: "" or none keeps it.
+func changedLine(line, from, to string, how languageChange, words map[string]string) (out string, changed, kept bool) {
 	marks, forced, bare, ok := headingLine(line, from)
 	if !ok || how == markLanguage {
 		return line, false, false
 	}
-	known := isSceneHeadingIn(bare, sceneStarts(to))
+	heading := func(s string) bool { return isSceneHeadingIn(s, sceneStarts(to)) }
 	switch how {
 	case fountainForm:
-		switch {
+		switch known := heading(bare); {
 		case forced && known:
 			return marks + bare, true, false
 		case !forced && !known:
@@ -72,29 +74,58 @@ func changedLine(line, from, to string, how languageChange) (out string, changed
 		}
 		return line, false, false
 	case translateHeadings:
-		dot := ""
-		if forced {
-			dot = "."
+		t, tag := bare, headingTag(bare, sceneHeaders(from))
+		if word := strings.TrimSpace(words[tag]); tag != "" && word != "" {
+			t = withPlace(bare, word, sceneHeaders(from))
+		} else {
+			kept = true
 		}
-		if tag := headingTag(bare, sceneHeaders(from)); tag != "" {
-			if word, found := lexSettings.Translate(tag, from, to); found {
-				t := marks + dot + withPlace(bare, word, sceneHeaders(from))
-				return t, t != line, false
-			}
+		if forced || !heading(t) { // not a heading there by itself: dotted, it stays one
+			t = "." + t
 		}
-		if !forced && !known { // no word for it there: dotted, it stays a heading
-			return marks + "." + bare, true, true
-		}
-		return line, false, true
+		return marks + t, marks+t != line, kept
 	}
 	return line, false, false
 }
 
+// A wordProposal is a heading word a script uses, how often, and what
+// translating proposes it becomes ("" for none: it stays).
+type wordProposal struct {
+	tag   string
+	count int
+	word  string
+}
+
+// proposedWords are the heading words a text in language from uses, in
+// the order they first come, each with Lexington's matchup in language to.
+func proposedWords(text, from, to string) []wordProposal {
+	var out []wordProposal
+	at := map[string]int{}
+	for _, line := range strings.Split(text, "\n") {
+		_, _, bare, ok := headingLine(line, from)
+		if !ok {
+			continue
+		}
+		tag := headingTag(bare, sceneHeaders(from))
+		if tag == "" {
+			continue
+		}
+		if i, seen := at[tag]; seen {
+			out[i].count++
+			continue
+		}
+		word, _ := lexSettings.Translate(tag, from, to)
+		at[tag] = len(out)
+		out = append(out, wordProposal{tag: tag, count: 1, word: word})
+	}
+	return out
+}
+
 // headingChanges counts a text's headings in language from that changing
 // to language to would change, and those it would leave as they are.
-func headingChanges(text, from, to string, how languageChange) (changed, kept int) {
+func headingChanges(text, from, to string, how languageChange, words map[string]string) (changed, kept int) {
 	for _, line := range strings.Split(text, "\n") {
-		_, c, k := changedLine(line, from, to, how)
+		_, c, k := changedLine(line, from, to, how, words)
 		if c {
 			changed++
 		}
@@ -107,12 +138,12 @@ func headingChanges(text, from, to string, how languageChange) (changed, kept in
 
 // changeHeadings rewrites the script's headings for language lang, as one
 // undo step, and counts them.
-func (w *MainWindow) changeHeadings(lang string, how languageChange) int {
+func (w *MainWindow) changeHeadings(lang string, how languageChange, words map[string]string) int {
 	from, n := w.language, 0
 	w.textEditor.Edit(func(b *buffer.Buffer) {
 		b.Group(func() {
 			for i := 0; i < b.LineCount(); i++ {
-				if c, changed, _ := changedLine(b.Line(i), from, lang, how); changed {
+				if c, changed, _ := changedLine(b.Line(i), from, lang, how, words); changed {
 					b.Replace(b.LineStart(i), b.LineEnd(i), c)
 					n++
 				}
@@ -174,9 +205,9 @@ func (w *MainWindow) nameLanguage(lang string) error {
 }
 
 // changeLanguage makes the script's language lang, its headings changed
-// for it as how says.
-func (w *MainWindow) changeLanguage(lang string, how languageChange) {
-	n := w.changeHeadings(lang, how)
+// for it as how says (translating: into words).
+func (w *MainWindow) changeLanguage(lang string, how languageChange, words map[string]string) {
+	n := w.changeHeadings(lang, how, words)
 	w.setLanguage(lang)
 	if err := w.nameLanguage(lang); err != nil {
 		dialog.ShowError(fmt.Errorf("the script is now in %s, but its file could not be renamed: %v", languageLabel(lang), err), w.fyneWindow)
@@ -227,19 +258,15 @@ func (w *MainWindow) pickLanguage() {
 		mark.Enable()
 		form.Enable()
 		translate.Enable()
-		f, _ := headingChanges(text, w.language, lang, fountainForm)
-		t, k := headingChanges(text, w.language, lang, translateHeadings)
-		s := "Only mark: the text stays, its headings read in " + languageLabel(lang) + ".\n" +
+		f, _ := headingChanges(text, w.language, lang, fountainForm, nil)
+		info.SetText("Only mark: the text stays, its headings read in " + languageLabel(lang) + ".\n" +
 			fmt.Sprintf("Keep words: %d headings get or lose a dot so they stay headings (EN. KUIRO in English is .EN. KUIRO).\n", f) +
-			fmt.Sprintf("Translate: %d headings get %s's words", t, languageLabel(lang))
-		if k > 0 {
-			s += fmt.Sprintf("; %d have none there and stay as they are", k)
-		}
-		info.SetText(s + ".")
+			"Translate: choose what each heading word becomes, from a proposal.")
 	}
 	var d dialog.Dialog
-	do := func(how languageChange) func() { return func() { d.Hide(); w.changeLanguage(chosen(), how) } }
-	mark.OnTapped, form.OnTapped, translate.OnTapped = do(markLanguage), do(fountainForm), do(translateHeadings)
+	do := func(how languageChange) func() { return func() { d.Hide(); w.changeLanguage(chosen(), how, nil) } }
+	mark.OnTapped, form.OnTapped = do(markLanguage), do(fountainForm)
+	translate.OnTapped = func() { d.Hide(); w.pickTranslation(chosen()) }
 	cancel := widget.NewButton("Cancel", func() { d.Hide() })
 	content := container.NewVBox(
 		widget.NewLabel("The script is in "+languageLabel(w.language)+". Change it to:"),
@@ -249,5 +276,41 @@ func (w *MainWindow) pickLanguage() {
 	d = dialog.NewCustomWithoutButtons("Script Language", content, w.fyneWindow)
 	choose.SetSelected(languageLabel(w.language))
 	d.Resize(fyne.NewSize(520, 300))
+	d.Show()
+}
+
+// pickTranslation shows the heading words the script uses with what
+// translating to lang proposes for each, to change or clear (cleared, a
+// word stays as it is), and then translates.
+func (w *MainWindow) pickTranslation(lang string) {
+	props := proposedWords(w.textEditor.Text(), w.language, lang)
+	if len(props) == 0 {
+		dialog.ShowInformation("Translate Headings", "The script has no scene headings with words to translate; marking it as "+languageLabel(lang)+" is enough.", w.fyneWindow)
+		return
+	}
+	form := container.New(layout.NewFormLayout())
+	entries := make([]*widget.Entry, len(props))
+	for i, p := range props {
+		e := widget.NewEntry()
+		e.SetText(p.word)
+		e.SetPlaceHolder("stays " + p.tag + ".")
+		entries[i] = e
+		form.Add(widget.NewLabel(fmt.Sprintf("%s. (%d×)", p.tag, p.count)))
+		form.Add(e)
+	}
+	note := widget.NewLabel("Proposed from Lexington's matchups; change any, or clear one to keep it. A heading that is no heading in " + languageLabel(lang) + " gets a dot.")
+	note.Wrapping = fyne.TextWrapWord
+	d := dialog.NewCustomConfirm("Translate Headings to "+languageLabel(lang), "Translate", "Cancel",
+		container.NewBorder(note, nil, nil, nil, container.NewVScroll(form)), func(ok bool) {
+			if !ok {
+				return
+			}
+			words := map[string]string{}
+			for i, p := range props {
+				words[p.tag] = entries[i].Text
+			}
+			w.changeLanguage(lang, translateHeadings, words)
+		}, w.fyneWindow)
+	d.Resize(fyne.NewSize(480, 200+float32(min(len(props), 8))*44))
 	d.Show()
 }
