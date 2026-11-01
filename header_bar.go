@@ -29,7 +29,7 @@ type HeaderBar struct {
 	fullscreenButton                  *tooltip.Button
 	outlineButton, cardsButton        *tooltip.Button
 	notesButton                       *tooltip.Button
-	titleLabel                        *widget.Label
+	titleLabel                        *scriptTitle // the file's name; click to rename it
 	element, format                   *widget.Select
 	elementBox                        *fyne.Container           // the list, or the buttons
 	elementMarks                      *fyne.Container           // the buttons
@@ -160,7 +160,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.formatBox = container.NewHBox()
 	hb.showFormats()
 
-	hb.titleLabel = widget.NewLabel("Untitled")
+	hb.titleLabel = newScriptTitle("Untitled", window.renameScript)
 	hb.titleLabel.Alignment = fyne.TextAlignCenter
 	hb.titleLabel.TextStyle = fyne.TextStyle{Bold: true}
 	hb.titleLabel.Truncation = fyne.TextTruncateEllipsis

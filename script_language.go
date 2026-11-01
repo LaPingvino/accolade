@@ -213,6 +213,7 @@ func (w *MainWindow) changeLanguage(lang string, how languageChange, words map[s
 		dialog.ShowError(fmt.Errorf("the script is now in %s, but its file could not be renamed: %v", languageLabel(lang), err), w.fyneWindow)
 		return
 	}
+	w.updateTitle() // the name says the language, saved or not
 	status := "Script language: " + languageLabel(lang)
 	switch how {
 	case fountainForm:
