@@ -121,36 +121,78 @@ func proposedWords(text, from, to string) []wordProposal {
 	return out
 }
 
-// headingChanges counts a text's headings in language from that changing
-// to language to would change, and those it would leave as they are.
-func headingChanges(text, from, to string, how languageChange, words map[string]string) (changed, kept int) {
-	for _, line := range strings.Split(text, "\n") {
-		_, c, k := changedLine(line, from, to, how, words)
-		if c {
-			changed++
-		}
+// changedLines are a script's lines in language from as changing to
+// language to makes them, and how many headings and action lines that
+// changed. Headings change as how says; an action line the new language
+// would read as a heading ("En la domo..." in Esperanto) gets a ! to stay
+// action, and a ! only the old language needed is dropped.
+func changedLines(lines []string, from, to string, how languageChange, words map[string]string) (out []string, headings, kept, actions int) {
+	out = make([]string, len(lines))
+	for i, line := range lines {
+		c, changed, k := changedLine(line, from, to, how, words)
 		if k {
 			kept++
 		}
+		if changed {
+			headings++
+		}
+		if _, _, _, heading := headingLine(line, from); !heading && (i == 0 || strings.TrimSpace(lines[i-1]) == "") {
+			c = actionLine(line, from, to)
+			if c != line {
+				actions++
+			}
+		}
+		out[i] = c
 	}
-	return changed, kept
+	return out, headings, kept, actions
 }
 
-// changeHeadings rewrites the script's headings for language lang, as one
-// undo step, and counts them.
-func (w *MainWindow) changeHeadings(lang string, how languageChange, words map[string]string) int {
-	from, n := w.language, 0
+// actionLine is an action line after a blank one, as it is in language
+// to: with a ! if to would read it as a scene heading, without the one it
+// had only because from would have.
+func actionLine(line, from, to string) string {
+	bare := strings.TrimLeft(line, directionMarks)
+	marks := line[:len(line)-len(bare)]
+	if rest, bang := strings.CutPrefix(bare, "!"); bang {
+		if isSceneHeadingIn(rest, sceneStarts(from)) && !isSceneHeadingIn(rest, sceneStarts(to)) {
+			return marks + rest
+		}
+		return line
+	}
+	if strings.TrimSpace(bare) != "" && isSceneHeadingIn(bare, sceneStarts(to)) {
+		return marks + "!" + bare
+	}
+	return line
+}
+
+// headingChanges counts a text's headings in language from that changing
+// to language to would change, those it would leave as they are, and the
+// action lines that would get or lose a !.
+func headingChanges(text, from, to string, how languageChange, words map[string]string) (changed, kept, actions int) {
+	_, changed, kept, actions = changedLines(strings.Split(text, "\n"), from, to, how, words)
+	return changed, kept, actions
+}
+
+// changeHeadings rewrites the script's lines for language lang, as one
+// undo step, and counts the headings and action lines it changed.
+func (w *MainWindow) changeHeadings(lang string, how languageChange, words map[string]string) (headings, actions int) {
+	from := w.language
 	w.textEditor.Edit(func(b *buffer.Buffer) {
 		b.Group(func() {
-			for i := 0; i < b.LineCount(); i++ {
-				if c, changed, _ := changedLine(b.Line(i), from, lang, how, words); changed {
-					b.Replace(b.LineStart(i), b.LineEnd(i), c)
-					n++
+			lines := make([]string, b.LineCount())
+			for i := range lines {
+				lines[i] = b.Line(i)
+			}
+			out, h, _, a := changedLines(lines, from, lang, how, words)
+			headings, actions = h, a
+			for i := len(out) - 1; i >= 0; i-- { // from the end: earlier offsets stay
+				if out[i] != lines[i] {
+					b.Replace(b.LineStart(i), b.LineEnd(i), out[i])
 				}
 			}
 		})
 	})
-	return n
+	return headings, actions
 }
 
 // withLanguageName is a file's name saying it is in lang: its language
@@ -207,7 +249,7 @@ func (w *MainWindow) nameLanguage(lang string) error {
 // changeLanguage makes the script's language lang, its headings changed
 // for it as how says (translating: into words).
 func (w *MainWindow) changeLanguage(lang string, how languageChange, words map[string]string) {
-	n := w.changeHeadings(lang, how, words)
+	n, actions := w.changeHeadings(lang, how, words)
 	w.setLanguage(lang)
 	if err := w.nameLanguage(lang); err != nil {
 		dialog.ShowError(fmt.Errorf("the script is now in %s, but its file could not be renamed: %v", languageLabel(lang), err), w.fyneWindow)
@@ -220,6 +262,9 @@ func (w *MainWindow) changeLanguage(lang string, how languageChange, words map[s
 		status += fmt.Sprintf("; %d headings dotted or undotted", n)
 	case translateHeadings:
 		status += fmt.Sprintf("; %d headings translated", n)
+	}
+	if actions > 0 {
+		status += fmt.Sprintf("; %d action lines got or lost a ! (to stay action)", actions)
 	}
 	w.setStatus(status)
 }
@@ -259,10 +304,17 @@ func (w *MainWindow) pickLanguage() {
 		mark.Enable()
 		form.Enable()
 		translate.Enable()
-		f, _ := headingChanges(text, w.language, lang, fountainForm, nil)
-		info.SetText("Only mark: the text stays, its headings read in " + languageLabel(lang) + ".\n" +
-			fmt.Sprintf("Keep words: %d headings get or lose a dot so they stay headings (EN. KUIRO in English is .EN. KUIRO).\n", f) +
-			"Translate: choose what each heading word becomes, from a proposal.")
+		f, _, a := headingChanges(text, w.language, lang, fountainForm, nil)
+		_, _, ma := headingChanges(text, w.language, lang, markLanguage, nil)
+		bangs := func(n int) string {
+			if n == 0 {
+				return ""
+			}
+			return fmt.Sprintf(" %d action lines get or lose a ! so they stay action.", n)
+		}
+		info.SetText("Only mark: the headings are read in " + languageLabel(lang) + "." + bangs(ma) + "\n" +
+			fmt.Sprintf("Keep words: %d headings get or lose a dot so they stay headings (EN. KUIRO in English is .EN. KUIRO).", f) + bangs(a) + "\n" +
+			"Translate: choose what each heading word becomes, from a proposal; action lines get or lose a ! as needed.")
 	}
 	var d dialog.Dialog
 	do := func(how languageChange) func() { return func() { d.Hide(); w.changeLanguage(chosen(), how, nil) } }

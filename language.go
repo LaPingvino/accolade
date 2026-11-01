@@ -52,10 +52,14 @@ func sceneHeaders(lang string) []string {
 // telling them apart while typing: each word with a dot or a space.
 func sceneStarts(lang string) []string {
 	var out []string
-	for _, h := range sceneHeaders(lang) {
-		h = strings.TrimSuffix(strings.ToUpper(h), ".")
+	for _, w := range sceneHeaders(lang) {
+		h := strings.TrimSuffix(strings.ToUpper(w), ".")
 		if last, _ := utf8.DecodeLastRuneInString(h); h != "" && !unicode.IsLetter(last) && !unicode.IsDigit(last) {
 			out = append(out, h) // a sign needs nothing after it: ○喫茶店
+			continue
+		}
+		if strings.HasSuffix(w, ".") {
+			out = append(out, h+".") // EN. only with its dot: "En la domo" is action
 			continue
 		}
 		out = append(out, h+".", h+" ")

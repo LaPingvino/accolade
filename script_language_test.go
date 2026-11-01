@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/LaPingvino/lexington/rules"
@@ -67,7 +68,7 @@ func TestProposedWords(t *testing.T) {
 			t.Errorf("%q: got %q, want %q", line, got, want)
 		}
 	}
-	if changed, kept := headingChanges(text, "en", "nl", translateHeadings, words); changed != 4 || kept != 2 {
+	if changed, kept, _ := headingChanges(text, "en", "nl", translateHeadings, words); changed != 4 || kept != 2 {
 		t.Errorf("got %d changed, %d kept; want 4, 2", changed, kept)
 	}
 }
@@ -95,5 +96,34 @@ func TestLanguageLabels(t *testing.T) {
 	}
 	if got := languageLabel("tok"); got != "toki pona (tok)" {
 		t.Errorf("tok: %q", got)
+	}
+}
+
+func TestSceneStartsKeepTheDot(t *testing.T) {
+	starts := sceneStarts("eo")
+	if isSceneHeadingIn("En la domo li dormas.", starts) {
+		t.Error("En la domo... is a heading in Esperanto")
+	}
+	if !isSceneHeadingIn("EN. KUIRO - TAGO", starts) {
+		t.Error("EN. KUIRO is no heading in Esperanto")
+	}
+}
+
+func TestActionLinesKeepAction(t *testing.T) {
+	text := "EXT./INT. CAR - DAY\n\nEne de la aŭto li dormas.\n\nINT. ROOM\n\nEk al la laboro!\nEne de tio, nenio.\n"
+	out, headings, _, actions := changedLines(strings.Split(text, "\n"), "en", "eo", translateHeadings,
+		map[string]string{"EXT./INT": "EKST./EN.", "INT": "EN."})
+	want := "EKST./EN. CAR - DAY\n\n!Ene de la aŭto li dormas.\n\nEN. ROOM\n\n!Ek al la laboro!\nEne de tio, nenio.\n"
+	if got := strings.Join(out, "\n"); got != want || headings != 2 || actions != 2 {
+		t.Errorf("got %d headings, %d actions:\n%s\nwant:\n%s", headings, actions, got, want)
+	}
+	// back to English: the !s are no longer needed, and go
+	back, _, _, actions := changedLines(out, "eo", "en", markLanguage, nil)
+	if got := strings.Join(back, "\n"); !strings.Contains(got, "\n\nEne de la aŭto") || !strings.Contains(got, "\n\nEk al la laboro!") || actions != 2 {
+		t.Errorf("back, %d actions:\n%s", actions, got)
+	}
+	// a ! that is there for another reason stays
+	if got := actionLine("!SHOUTING IN CAPS", "eo", "en"); got != "!SHOUTING IN CAPS" {
+		t.Errorf("other !: %q", got)
 	}
 }
