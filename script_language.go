@@ -21,7 +21,7 @@ import (
 // translated. Script Language (the place button's menu, Format > Script
 // Language…) does one of three:
 //
-//   - mark: the text stays; its headings are read in the new language.
+//   - mark: the text stays as written; it is read in the new language.
 //   - Fountain form: the words stay, and the headings stay headings: those
 //     the new language does not know get a dot (EN. KUIRO in an English
 //     script is .EN. KUIRO, standard Fountain), and dotted ones it knows
@@ -123,9 +123,11 @@ func proposedWords(text, from, to string) []wordProposal {
 
 // changedLines are a script's lines in language from as changing to
 // language to makes them, and how many headings and action lines that
-// changed. Headings change as how says; an action line the new language
-// would read as a heading ("En la domo..." in Esperanto) gets a ! to stay
-// action, and a ! only the old language needed is dropped.
+// changed. Headings change as how says. Keeping words or translating, an
+// action line the new language would read as a heading ("Ene de..." in
+// Esperanto) gets a ! to stay action, and a ! only the old language
+// needed is dropped; marking leaves the text as written, to be read in
+// the new language.
 func changedLines(lines []string, from, to string, how languageChange, words map[string]string) (out []string, headings, kept, actions int) {
 	out = make([]string, len(lines))
 	for i, line := range lines {
@@ -136,7 +138,7 @@ func changedLines(lines []string, from, to string, how languageChange, words map
 		if changed {
 			headings++
 		}
-		if _, _, _, heading := headingLine(line, from); !heading && (i == 0 || strings.TrimSpace(lines[i-1]) == "") {
+		if _, _, _, heading := headingLine(line, from); how != markLanguage && !heading && (i == 0 || strings.TrimSpace(lines[i-1]) == "") {
 			c = actionLine(line, from, to)
 			if c != line {
 				actions++
@@ -305,14 +307,13 @@ func (w *MainWindow) pickLanguage() {
 		form.Enable()
 		translate.Enable()
 		f, _, a := headingChanges(text, w.language, lang, fountainForm, nil)
-		_, _, ma := headingChanges(text, w.language, lang, markLanguage, nil)
 		bangs := func(n int) string {
 			if n == 0 {
 				return ""
 			}
 			return fmt.Sprintf(" %d action lines get or lose a ! so they stay action.", n)
 		}
-		info.SetText("Only mark: the headings are read in " + languageLabel(lang) + "." + bangs(ma) + "\n" +
+		info.SetText("Only mark: the text stays as written, read in " + languageLabel(lang) + ".\n" +
 			fmt.Sprintf("Keep words: %d headings get or lose a dot so they stay headings (EN. KUIRO in English is .EN. KUIRO).", f) + bangs(a) + "\n" +
 			"Translate: choose what each heading word becomes, from a proposal; action lines get or lose a ! as needed.")
 	}

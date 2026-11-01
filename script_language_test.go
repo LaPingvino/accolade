@@ -118,7 +118,11 @@ func TestActionLinesKeepAction(t *testing.T) {
 		t.Errorf("got %d headings, %d actions:\n%s\nwant:\n%s", headings, actions, got, want)
 	}
 	// back to English: the !s are no longer needed, and go
-	back, _, _, actions := changedLines(out, "eo", "en", markLanguage, nil)
+	// marking changes nothing: the text is read as written
+	if marked, _, _, n := changedLines(out, "eo", "en", markLanguage, nil); strings.Join(marked, "\n") != strings.Join(out, "\n") || n != 0 {
+		t.Errorf("marking changed %d lines", n)
+	}
+	back, _, _, actions := changedLines(out, "eo", "en", fountainForm, nil)
 	if got := strings.Join(back, "\n"); !strings.Contains(got, "\n\nEne de la aŭto") || !strings.Contains(got, "\n\nEk al la laboro!") || actions != 2 {
 		t.Errorf("back, %d actions:\n%s", actions, got)
 	}
