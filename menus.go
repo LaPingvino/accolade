@@ -54,8 +54,9 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 	)
 	if !inBrowser { // the browser has one window
-		newWindow := menuItem("New Window", shortcut(fyne.KeyN, fyne.KeyModifierShift), func() { w.app.newWindow() })
-		file.Items = append([]*fyne.MenuItem{file.Items[0], file.Items[1], newWindow}, file.Items[2:]...)
+		newWindow := menuItem("New Window", shortcut(fyne.KeyN, fyne.KeyModifierShift), func() { w.app.newScriptWindow(false) })
+		newEmptyWindow := menuItem("New Empty Window", shortcut(fyne.KeyN, fyne.KeyModifierShift|fyne.KeyModifierAlt), func() { w.app.newScriptWindow(true) })
+		file.Items = append([]*fyne.MenuItem{file.Items[0], file.Items[1], newWindow, newEmptyWindow}, file.Items[2:]...)
 	}
 
 	edit := fyne.NewMenu("Edit",

@@ -84,12 +84,21 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 		return b
 	}
 
-	hb.newButton = button(theme.DocumentCreateIcon(), "New"+keys("N")+"; with Shift, empty"+keys("Alt+N"), func() {
-		if shiftHeld() {
+	newTip := "New" + keys("N") + "; with Alt, empty" + keys("Alt+N")
+	if !inBrowser {
+		newTip += "; with Shift, a new window" + keys("Shift+N")
+	}
+	hb.newButton = button(theme.DocumentCreateIcon(), newTip, func() {
+		mods := heldModifiers()
+		empty := mods&fyne.KeyModifierAlt != 0
+		switch {
+		case mods&fyne.KeyModifierShift != 0 && !inBrowser:
+			window.app.newScriptWindow(empty)
+		case empty:
 			window.NewEmptyFile()
-			return
+		default:
+			window.NewFile()
 		}
-		window.NewFile()
 	})
 	hb.openButton = button(theme.FolderOpenIcon(), "Open"+keys("O"), window.OpenFile)
 	hb.saveButton = button(theme.DocumentSaveIcon(), "Save"+keys("S"), window.reportErr(window.SaveFile))
@@ -273,10 +282,11 @@ func (hb *HeaderBar) SetVisible(visible bool) {
 	}
 }
 
-// shiftHeld reports whether Shift is down (on a desktop: a Shift+click).
-func shiftHeld() bool {
+// heldModifiers are the keys held down, as for an Alt+click (none
+// without a desktop keyboard).
+func heldModifiers() fyne.KeyModifier {
 	if d, ok := fyne.CurrentApp().Driver().(desktop.Driver); ok {
-		return d.CurrentKeyModifiers()&fyne.KeyModifierShift != 0
+		return d.CurrentKeyModifiers()
 	}
-	return false
+	return 0
 }

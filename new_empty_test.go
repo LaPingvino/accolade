@@ -13,3 +13,14 @@ func TestNewEmptyFile(t *testing.T) {
 		t.Error("New: no sample script")
 	}
 }
+
+func TestNewEmptyWindow(t *testing.T) {
+	w := newTestWindow(t, "")
+	app := w.app
+	if got := app.newScriptWindow(true).textEditor.Text(); got != "" {
+		t.Errorf("New Empty Window: the script has %q", got)
+	}
+	if app.newScriptWindow(false).IsEmpty() {
+		t.Error("New Window: no sample script")
+	}
+}

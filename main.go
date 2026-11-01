@@ -178,6 +178,16 @@ func (app *Application) newWindow() *MainWindow {
 	return window
 }
 
+// newScriptWindow opens a window with a new script: the sample one, or
+// with nothing in it if empty (Ctrl+Shift+N, Ctrl+Shift+Alt+N).
+func (app *Application) newScriptWindow(empty bool) *MainWindow {
+	w := app.newWindow()
+	if empty {
+		w.createNewFile(true)
+	}
+	return w
+}
+
 func (app *Application) onWindowClosed(window *MainWindow) {
 	window.cancelAutoSave()
 

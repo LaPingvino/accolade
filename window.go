@@ -607,7 +607,7 @@ func (w *MainWindow) onDropped(_ fyne.Position, uris []fyne.URI) {
 func (w *MainWindow) NewFile() { w.newFile(false) }
 
 // NewEmptyFile starts a script with nothing in it, not even the sample
-// (Ctrl+Alt+N, or Shift and the New button).
+// (Ctrl+Alt+N, or Alt and the New button).
 func (w *MainWindow) NewEmptyFile() { w.newFile(true) }
 
 // newFile starts a new script, the sample one or an empty one, asking
