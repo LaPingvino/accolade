@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -83,7 +84,13 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 		return b
 	}
 
-	hb.newButton = button(theme.DocumentCreateIcon(), "New"+keys("N"), window.NewFile)
+	hb.newButton = button(theme.DocumentCreateIcon(), "New"+keys("N")+"; with Shift, empty"+keys("Alt+N"), func() {
+		if shiftHeld() {
+			window.NewEmptyFile()
+			return
+		}
+		window.NewFile()
+	})
 	hb.openButton = button(theme.FolderOpenIcon(), "Open"+keys("O"), window.OpenFile)
 	hb.saveButton = button(theme.DocumentSaveIcon(), "Save"+keys("S"), window.reportErr(window.SaveFile))
 	hb.undoButton = button(theme.ContentUndoIcon(), "Undo"+keys("Z"), window.undo)
@@ -264,4 +271,12 @@ func (hb *HeaderBar) SetVisible(visible bool) {
 	} else {
 		hb.container.Hide()
 	}
+}
+
+// shiftHeld reports whether Shift is down (on a desktop: a Shift+click).
+func shiftHeld() bool {
+	if d, ok := fyne.CurrentApp().Driver().(desktop.Driver); ok {
+		return d.CurrentKeyModifiers()&fyne.KeyModifierShift != 0
+	}
+	return false
 }

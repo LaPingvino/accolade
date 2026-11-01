@@ -36,6 +36,7 @@ func (w *MainWindow) reportErr(action func() error) func() {
 func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	file := fyne.NewMenu("File",
 		menuItem("New", shortcut(fyne.KeyN, 0), w.NewFile),
+		menuItem("New Empty", shortcut(fyne.KeyN, fyne.KeyModifierAlt), w.NewEmptyFile),
 		menuItem(openLabel, shortcut(fyne.KeyO, 0), w.OpenFile),
 		w.recentMenu(),
 		fyne.NewMenuItemSeparator(),
@@ -54,7 +55,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	)
 	if !inBrowser { // the browser has one window
 		newWindow := menuItem("New Window", shortcut(fyne.KeyN, fyne.KeyModifierShift), func() { w.app.newWindow() })
-		file.Items = append([]*fyne.MenuItem{file.Items[0], newWindow}, file.Items[1:]...)
+		file.Items = append([]*fyne.MenuItem{file.Items[0], file.Items[1], newWindow}, file.Items[2:]...)
 	}
 
 	edit := fyne.NewMenu("Edit",

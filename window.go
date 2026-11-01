@@ -604,20 +604,28 @@ func (w *MainWindow) onDropped(_ fyne.Position, uris []fyne.URI) {
 	}
 }
 
-func (w *MainWindow) NewFile() {
+func (w *MainWindow) NewFile() { w.newFile(false) }
+
+// NewEmptyFile starts a script with nothing in it, not even the sample
+// (Ctrl+Alt+N, or Shift and the New button).
+func (w *MainWindow) NewEmptyFile() { w.newFile(true) }
+
+// newFile starts a new script, the sample one or an empty one, asking
+// first if the script has unsaved changes.
+func (w *MainWindow) newFile(empty bool) {
 	if w.hasChanges {
 		dialog.ShowConfirm(
 			"Unsaved Changes",
 			"You have unsaved changes. Create a new file anyway?",
 			func(confirmed bool) {
 				if confirmed {
-					w.createNewFile()
+					w.createNewFile(empty)
 				}
 			},
 			w.fyneWindow,
 		)
 	} else {
-		w.createNewFile()
+		w.createNewFile(empty)
 	}
 }
 
@@ -702,9 +710,13 @@ func newScriptTemplate() string {
 	}, "\n")
 }
 
-func (w *MainWindow) createNewFile() {
+func (w *MainWindow) createNewFile(empty bool) {
 	w.format = fileFormat{} // a new script is UTF-8
-	w.textEditor.SetText(newScriptTemplate())
+	text := newScriptTemplate()
+	if empty {
+		text = ""
+	}
+	w.textEditor.SetText(text)
 	w.currentFile = ""
 	w.hasChanges = false
 	w.updateTitle()
