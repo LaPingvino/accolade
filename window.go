@@ -1233,6 +1233,8 @@ func (w *MainWindow) savedExportJob() exportJob {
 		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
 		colors:        w.settings.GetBoolean("export-colors"),
 		colorStyle:    lex.ColorStyle(w.settings.GetString("export-color-style")),
+		colorBlock:    w.settings.GetBoolean("export-color-block"),
+		colorTint:     w.settings.GetBoolean("export-color-tint"),
 		scenes:        sceneHeaders(w.language),
 	}
 }

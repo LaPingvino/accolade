@@ -55,6 +55,8 @@ func (s *Settings) loadDefaults() {
 		"include-title-page": true,
 		"export-colors":      false,  // headings in their notes' colors
 		"export-color-style": "line", // and how (export_dialog.go's colorStyles)
+		"export-color-block": false,  // a marker or background over the whole block
+		"export-color-tint":  false,  // a line's block tinted
 		"page-size":          "",     // the script format's (export dialog)
 
 		"your-name":           "", // what others sharing a script see (changes.go); "" the login's
