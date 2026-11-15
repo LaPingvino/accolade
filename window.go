@@ -881,6 +881,7 @@ func (w *MainWindow) makePreviewPDF() {
 		page:          w.settings.GetString("page-size"),
 		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
 		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
+		colors:        w.settings.GetBoolean("export-colors"), // the Export dialog's Colors, saved
 		scenes:        sceneHeaders(w.language),
 	}
 	dir, err := os.MkdirTemp("", "accolade-preview-")
@@ -930,6 +931,7 @@ func (w *MainWindow) printScript() {
 		page:          w.settings.GetString("page-size"),
 		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
 		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
+		colors:        w.settings.GetBoolean("export-colors"), // the Export dialog's Colors, saved
 		scenes:        sceneHeaders(w.language),
 	}
 	content := w.textEditor.Text()
