@@ -53,8 +53,9 @@ func (s *Settings) loadDefaults() {
 		"script-language":    "en",      // of new scripts: their scene headings (language.go)
 		"export-directory":   "",
 		"include-title-page": true,
-		"export-colors":      false, // headings in their notes' colors
-		"page-size":          "",    // the script format's (export dialog)
+		"export-colors":      false,  // headings in their notes' colors
+		"export-color-style": "line", // and how (export_dialog.go's colorStyles)
+		"page-size":          "",     // the script format's (export dialog)
 
 		"your-name":           "", // what others sharing a script see (changes.go); "" the login's
 		"auto-close-brackets": true,

@@ -21,6 +21,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/pdfin"
 )
 
@@ -876,14 +877,7 @@ func (w *MainWindow) previewPDF() {
 }
 
 func (w *MainWindow) makePreviewPDF() {
-	job := exportJob{
-		format:        w.settings.GetString("script-format"),
-		page:          w.settings.GetString("page-size"),
-		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
-		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
-		colors:        w.settings.GetBoolean("export-colors"), // the Export dialog's Colors, saved
-		scenes:        sceneHeaders(w.language),
-	}
+	job := w.savedExportJob()
 	dir, err := os.MkdirTemp("", "accolade-preview-")
 	if err != nil {
 		dialog.ShowError(err, w.fyneWindow)
@@ -926,14 +920,7 @@ func (w *MainWindow) printScript() {
 		return
 	}
 	out := filepath.Join(dir, "script.html")
-	job := exportJob{
-		format:        w.settings.GetString("script-format"),
-		page:          w.settings.GetString("page-size"),
-		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
-		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
-		colors:        w.settings.GetBoolean("export-colors"), // the Export dialog's Colors, saved
-		scenes:        sceneHeaders(w.language),
-	}
+	job := w.savedExportJob()
 	content := w.textEditor.Text()
 	w.setStatus("Preparing to print...")
 	go func() {
@@ -1234,4 +1221,18 @@ func (w *MainWindow) cyclePane(step int) {
 	}
 	n := len(panes)
 	w.fyneWindow.Canvas().Focus(panes[((at+step)%n+n)%n])
+}
+
+// savedExportJob is an export as the Export dialog last saved its
+// settings, for the preview and printing.
+func (w *MainWindow) savedExportJob() exportJob {
+	return exportJob{
+		format:        w.settings.GetString("script-format"),
+		page:          w.settings.GetString("page-size"),
+		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
+		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
+		colors:        w.settings.GetBoolean("export-colors"),
+		colorStyle:    lex.ColorStyle(w.settings.GetString("export-color-style")),
+		scenes:        sceneHeaders(w.language),
+	}
 }

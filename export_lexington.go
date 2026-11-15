@@ -35,10 +35,11 @@ type exportJob struct {
 	format        string
 	page          string
 	template      string
-	omitTitlePage bool     // leave the title page out
-	numberScenes  bool     // number the scenes that have no number
-	scenes        []string // the script language's scene headings (nil: English)
-	colors        bool     // headings and sections in their notes' colors
+	omitTitlePage bool           // leave the title page out
+	numberScenes  bool           // number the scenes that have no number
+	scenes        []string       // the script language's scene headings (nil: English)
+	colors        bool           // headings and sections in their notes' colors
+	colorStyle    lex.ColorStyle // how they show ("": Lexington's, a line in the margin)
 
 	// the filters, which compose: the scenes and sections with one of the
 	// tags (lex.FilterTags), then a character's sides (lex.Sides, in mode
@@ -61,6 +62,9 @@ func (j exportJob) options(to, output string) cli.Options {
 		TemplatePath: j.template,
 		Colors:       j.colors,
 		Tags:         j.tags,
+	}
+	if j.colors { // (a style alone would switch colors on)
+		o.ColorStyle = string(j.colorStyle)
 	}
 	if j.character != "" {
 		o.Character, o.Sides, o.CueWords = j.character, string(j.sides), j.cueWords

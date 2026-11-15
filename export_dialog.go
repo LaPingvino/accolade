@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/LaPingvino/lexington/cli"
+	"github.com/LaPingvino/lexington/lex"
 	"os"
 	"path/filepath"
 	"strings"
@@ -35,6 +36,10 @@ type ExportDialog struct {
 	scriptFormatSelect    *widget.Select
 	documentPageSelect    *widget.Select
 	colorsCheck           *widget.Check
+	colorStyleSelect      *widget.Select // how the colors show, with Colors on
+	// colorOptions holds how colors show, under Colors: the style, and
+	// room for what goes with a style (a marker's scope, a line's tint)
+	colorOptions *fyne.Container
 
 	// Filters (export_filters.go)
 	tagChecks        []*widget.Check // one per tag, its Text the tag
@@ -114,7 +119,14 @@ func (ed *ExportDialog) createWidgets() {
 	ed.includeTitlePageCheck.SetChecked(true)
 
 	ed.sceneNumbersCheck = widget.NewCheck("Number the scenes (those without a number)", nil)
-	ed.colorsCheck = widget.NewCheck("Colors: headings and sections in their notes' colors", nil)
+	ed.colorsCheck = widget.NewCheck("Colors: headings and sections in their notes' colors", func(bool) { ed.enableColorStyle() })
+	var styles []string
+	for _, s := range colorStyles {
+		styles = append(styles, s.label)
+	}
+	ed.colorStyleSelect = widget.NewSelect(styles, func(string) { ed.enableColorStyle() })
+	ed.colorStyleSelect.SetSelected(styles[0])
+	ed.colorOptions = container.NewVBox(labelled("Style:", ed.colorStyleSelect))
 
 	ed.createFilterWidgets()
 
@@ -164,6 +176,7 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 			ed.includeTitlePageCheck,
 			ed.sceneNumbersCheck,
 			ed.colorsCheck,
+			ed.colorOptions,
 		),
 	)
 	filterSection := widget.NewCard("Part of the Script", "", ed.filterContent())
@@ -246,6 +259,7 @@ func (ed *ExportDialog) updateFormatSettings() {
 			o.Disable()
 		}
 	}
+	ed.enableColorStyle()
 	if ed.exportButton != nil {
 		if available {
 			ed.exportButton.Enable()
@@ -276,6 +290,8 @@ func (ed *ExportDialog) loadSettings() {
 	ed.includeTitlePageCheck.SetChecked(ed.settings.GetBoolean("include-title-page"))
 	ed.sceneNumbersCheck.SetChecked(ed.settings.GetBoolean("fountain-scene-numbers"))
 	ed.colorsCheck.SetChecked(ed.settings.GetBoolean("export-colors"))
+	ed.colorStyleSelect.SetSelected(colorStyleLabel(ed.settings.GetString("export-color-style")))
+	ed.enableColorStyle()
 }
 
 func (ed *ExportDialog) saveSettings() {
@@ -287,6 +303,7 @@ func (ed *ExportDialog) saveSettings() {
 	ed.settings.SetBoolean("include-title-page", ed.includeTitlePageCheck.Checked)
 	ed.settings.SetBoolean("fountain-scene-numbers", ed.sceneNumbersCheck.Checked)
 	ed.settings.SetBoolean("export-colors", ed.colorsCheck.Checked)
+	ed.settings.SetString("export-color-style", string(ed.chosenColorStyle()))
 
 	ed.settings.Save()
 }
@@ -468,6 +485,7 @@ func (ed *ExportDialog) job() exportJob {
 		numberScenes:  ed.sceneNumbersCheck.Checked,
 		scenes:        sceneHeaders(ed.window.language),
 		colors:        ed.colorsCheck.Checked,
+		colorStyle:    ed.chosenColorStyle(),
 		tags:          ed.chosenTags(),
 		character:     ed.chosenCharacter(),
 		sides:         ed.chosenSides(),
@@ -583,4 +601,49 @@ func (ed *ExportDialog) cancel() {
 
 func (ed *ExportDialog) Show() {
 	ed.dialog.Show()
+}
+
+// colorStyles are how colors can show (Lexington's color styles).
+var colorStyles = []struct {
+	label string
+	style lex.ColorStyle
+}{
+	{"Line in the margin", lex.ColorLine},
+	{"Marker", lex.ColorMarker},
+	{"Background", lex.ColorBackground},
+	{"Text color", lex.ColorText},
+}
+
+// colorStyleLabel is the choice for an "export-color-style" setting (a
+// line in the margin for one it does not know).
+func colorStyleLabel(name string) string {
+	for _, s := range colorStyles {
+		if string(s.style) == name {
+			return s.label
+		}
+	}
+	return colorStyles[0].label
+}
+
+// chosenColorStyle is the color style chosen.
+func (ed *ExportDialog) chosenColorStyle() lex.ColorStyle {
+	for _, s := range colorStyles {
+		if s.label == ed.colorStyleSelect.Selected {
+			return s.style
+		}
+	}
+	return lex.ColorLine
+}
+
+// enableColorStyle lets the style be chosen while Colors is on (and can
+// be); what goes with one style only is enabled with that style.
+func (ed *ExportDialog) enableColorStyle() {
+	if ed.colorStyleSelect == nil {
+		return
+	}
+	if ed.colorsCheck.Checked && !ed.colorsCheck.Disabled() {
+		ed.colorStyleSelect.Enable()
+	} else {
+		ed.colorStyleSelect.Disable()
+	}
 }

@@ -159,8 +159,9 @@ func TestExportFiltered(t *testing.T) {
 			}
 		}
 	}
-	has("plain", export(exportJob{}), []string{"INT. BARN", "EXT. FIELD", "Dinner."}, []string{`style="color: #`})
-	has("colors", export(exportJob{colors: true}), []string{`style="color: #ef0049"`}, nil)
+	has("plain", export(exportJob{}), []string{"INT. BARN", "EXT. FIELD", "Dinner."}, []string{`<div class="colorbar"`})
+	red, _ := lex.ColorFor(lex.ColorLine, "red")
+	has("colors", export(exportJob{colors: true}), []string{`<div class="colorbar"`, lex.HexOf(red)}, nil)
 	has("tags", export(exportJob{tags: []string{"red"}}), []string{"EXT. FIELD"}, []string{"INT. BARN", "Dinner."})
 	has("london", export(exportJob{tags: []string{"LONDON"}}), []string{"INT. BARN", "INT. KITCHEN"}, []string{"EXT. FIELD"})
 	has("full", export(exportJob{character: "EDWARD", sides: lex.SidesFull}), []string{"INT. BARN", "It always rains"}, []string{"EXT. FIELD", "Dinner."})
