@@ -107,28 +107,31 @@ func TestExportColorScopeAndTint(t *testing.T) {
 	for _, s := range colorStyles {
 		for _, block := range []bool{false, true} {
 			for _, tint := range []bool{false, true} {
-				job := exportJob{format: "default", colors: true, colorStyle: s.style, colorBlock: block, colorTint: tint}
-				o := job.options("html", "x.html")
-				wantScope := block && (s.style == lex.ColorMarker || s.style == lex.ColorBackground)
-				wantTint := tint && s.style == lex.ColorLine
-				if (o.ColorScope == "block") != wantScope || o.ColorTint != wantTint || (o.ColorScope != "" && o.ColorScope != "block") {
-					t.Errorf("%s block %v tint %v: scope %q tint %v", s.style, block, tint, o.ColorScope, o.ColorTint)
-				}
-				if err := exportAs(script, filepath.Join(t.TempDir(), "s.html"), "html", job); err != nil {
-					t.Errorf("%s block %v tint %v: %v", s.style, block, tint, err)
-				}
-				job.colors = false
-				if o := job.options("html", "x.html"); o.ColorStyle != "" || o.ColorScope != "" || o.ColorTint {
-					t.Errorf("colors off, %s: %+v", s.style, o)
+				for _, patterns := range []bool{false, true} {
+					job := exportJob{format: "default", colors: true, colorStyle: s.style, colorBlock: block, colorTint: tint, colorPatterns: patterns}
+					o := job.options("html", "x.html")
+					wantScope := block && (s.style == lex.ColorMarker || s.style == lex.ColorBackground)
+					wantTint := tint && s.style == lex.ColorLine
+					wantPatterns := patterns && s.style == lex.ColorLine
+					if (o.ColorScope == "block") != wantScope || o.ColorTint != wantTint || o.ColorPatterns != wantPatterns || (o.ColorScope != "" && o.ColorScope != "block") {
+						t.Errorf("%s block %v tint %v patterns %v: %+v", s.style, block, tint, patterns, o)
+					}
+					if err := exportAs(script, filepath.Join(t.TempDir(), "s.html"), "html", job); err != nil {
+						t.Errorf("%s block %v tint %v patterns %v: %v", s.style, block, tint, patterns, err)
+					}
+					job.colors = false
+					if o := job.options("html", "x.html"); o.ColorStyle != "" || o.ColorScope != "" || o.ColorTint || o.ColorPatterns {
+						t.Errorf("colors off, %s: %+v", s.style, o)
+					}
 				}
 			}
 		}
 	}
 	// the ones kept back would fail
-	for _, o := range []cli.Options{{Colors: true, ColorStyle: "text", ColorScope: "block"}, {Colors: true, ColorStyle: "marker", ColorTint: true}} {
+	for _, o := range []cli.Options{{Colors: true, ColorStyle: "text", ColorScope: "block"}, {Colors: true, ColorStyle: "marker", ColorTint: true}, {Colors: true, ColorStyle: "background", ColorPatterns: true}} {
 		o.Elements, o.To, o.Output, o.ConfigFile = "default", "html", filepath.Join(t.TempDir(), "x.html"), lexingtonConfig()
 		if err := cli.Write(context.Background(), exportJob{}.script(script), o); err == nil {
-			t.Errorf("Lexington takes %s with scope %q, tint %v", o.ColorStyle, o.ColorScope, o.ColorTint)
+			t.Errorf("Lexington takes %s with scope %q, tint %v, patterns %v", o.ColorStyle, o.ColorScope, o.ColorTint, o.ColorPatterns)
 		}
 	}
 }
@@ -142,10 +145,11 @@ func TestExportDialogScopeAndTint(t *testing.T) {
 		w.settings.SetString("export-color-style", "line")
 		w.settings.SetBoolean("export-color-block", false)
 		w.settings.SetBoolean("export-color-tint", false)
+		w.settings.SetBoolean("export-color-patterns", false)
 	})
 	ed := NewExportDialog(w)
 	ed.Show()
-	if !ed.colorBlockCheck.Disabled() || !ed.colorTintCheck.Disabled() {
+	if !ed.colorBlockCheck.Disabled() || !ed.colorTintCheck.Disabled() || !ed.colorPatternsCheck.Disabled() {
 		t.Error("block or tint without colors")
 	}
 	ed.colorsCheck.SetChecked(true)
@@ -159,7 +163,7 @@ func TestExportDialogScopeAndTint(t *testing.T) {
 		{"Text color", false, false},
 	} {
 		ed.colorStyleSelect.SetSelected(c.style)
-		if ed.colorBlockCheck.Disabled() == c.block || ed.colorTintCheck.Disabled() == c.tint {
+		if ed.colorBlockCheck.Disabled() == c.block || ed.colorTintCheck.Disabled() == c.tint || ed.colorPatternsCheck.Disabled() == c.tint {
 			t.Errorf("%s: block enabled %v, tint enabled %v", c.style, !ed.colorBlockCheck.Disabled(), !ed.colorTintCheck.Disabled())
 		}
 	}
@@ -179,5 +183,36 @@ func TestExportDialogScopeAndTint(t *testing.T) {
 	ed = NewExportDialog(w)
 	if !ed.colorBlockCheck.Checked || !ed.colorTintCheck.Checked || ed.colorBlockCheck.Disabled() || !ed.colorTintCheck.Disabled() {
 		t.Error("block and tint not kept")
+	}
+}
+
+// Patterns go with the line, as Joop (color blind) reads it; saved for
+// the preview and printing.
+func TestExportDialogPatterns(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Cleanup(func() {
+		w.settings.SetBoolean("export-colors", false)
+		w.settings.SetBoolean("export-color-tint", false)
+		w.settings.SetBoolean("export-color-patterns", false)
+	})
+	w.textEditor.SetText("# Act One [[blue]]\n\nINT. BARN - DAY\n\nRain.\n")
+	ed := NewExportDialog(w)
+	ed.Show()
+	ed.colorsCheck.SetChecked(true)
+	ed.colorStyleSelect.SetSelected("Line in the margin")
+	ed.colorTintCheck.SetChecked(true)
+	ed.colorPatternsCheck.SetChecked(true)
+	ed.scroll.ScrollToBottom()
+	capture(t, w.fyneWindow.Canvas(), "export-color-patterns.png")
+	ed.saveSettings()
+	if o := w.savedExportJob().options("pdf", "x.pdf"); o.ColorStyle != "line" || !o.ColorTint || !o.ColorPatterns {
+		t.Errorf("preview and print: %+v", o)
+	}
+	ed.cancel()
+	if err := exportAs(w.textEditor.Text(), filepath.Join(t.TempDir(), "s.pdf"), "pdf", w.savedExportJob()); err != nil {
+		t.Error(err)
+	}
+	if !NewExportDialog(w).colorPatternsCheck.Checked {
+		t.Error("patterns not kept")
 	}
 }

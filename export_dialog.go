@@ -41,6 +41,7 @@ type ExportDialog struct {
 	// room for what goes with a style (a marker's scope, a line's tint)
 	colorOptions                    *fyne.Container
 	colorBlockCheck, colorTintCheck *widget.Check // with marker or background, with the line
+	colorPatternsCheck              *widget.Check // with the line
 
 	// Filters (export_filters.go)
 	tagChecks        []*widget.Check // one per tag, its Text the tag
@@ -129,8 +130,9 @@ func (ed *ExportDialog) createWidgets() {
 	ed.colorStyleSelect.SetSelected(styles[0])
 	ed.colorBlockCheck = widget.NewCheck("Whole block, not only the heading", nil)
 	ed.colorTintCheck = widget.NewCheck("Tint the block", nil)
+	ed.colorPatternsCheck = widget.NewCheck("Patterns on the line (for colour blindness)", nil)
 	ed.colorOptions = container.NewVBox(labelled("Style:", ed.colorStyleSelect),
-		container.NewHBox(ed.colorBlockCheck, ed.colorTintCheck))
+		container.NewHBox(ed.colorBlockCheck, ed.colorTintCheck), ed.colorPatternsCheck)
 
 	ed.createFilterWidgets()
 
@@ -297,6 +299,7 @@ func (ed *ExportDialog) loadSettings() {
 	ed.colorStyleSelect.SetSelected(colorStyleLabel(ed.settings.GetString("export-color-style")))
 	ed.colorBlockCheck.SetChecked(ed.settings.GetBoolean("export-color-block"))
 	ed.colorTintCheck.SetChecked(ed.settings.GetBoolean("export-color-tint"))
+	ed.colorPatternsCheck.SetChecked(ed.settings.GetBoolean("export-color-patterns"))
 	ed.enableColorStyle()
 }
 
@@ -312,6 +315,7 @@ func (ed *ExportDialog) saveSettings() {
 	ed.settings.SetString("export-color-style", string(ed.chosenColorStyle()))
 	ed.settings.SetBoolean("export-color-block", ed.colorBlockCheck.Checked)
 	ed.settings.SetBoolean("export-color-tint", ed.colorTintCheck.Checked)
+	ed.settings.SetBoolean("export-color-patterns", ed.colorPatternsCheck.Checked)
 
 	ed.settings.Save()
 }
@@ -496,6 +500,7 @@ func (ed *ExportDialog) job() exportJob {
 		colorStyle:    ed.chosenColorStyle(),
 		colorBlock:    ed.colorBlockCheck.Checked,
 		colorTint:     ed.colorTintCheck.Checked,
+		colorPatterns: ed.colorPatternsCheck.Checked,
 		tags:          ed.chosenTags(),
 		character:     ed.chosenCharacter(),
 		sides:         ed.chosenSides(),
@@ -664,5 +669,6 @@ func (ed *ExportDialog) enableColorStyle() {
 	if ed.colorBlockCheck != nil {
 		enable(ed.colorBlockCheck, on && (style == lex.ColorMarker || style == lex.ColorBackground))
 		enable(ed.colorTintCheck, on && style == lex.ColorLine)
+		enable(ed.colorPatternsCheck, on && style == lex.ColorLine)
 	}
 }

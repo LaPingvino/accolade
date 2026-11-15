@@ -48,16 +48,17 @@ func (s *Settings) loadDefaults() {
 		"auto-save-interval": 30, // seconds
 
 		// Export settings
-		"export-format":      "PDF",
-		"script-format":      "default", // a Lexington preset (script_format.go)
-		"script-language":    "en",      // of new scripts: their scene headings (language.go)
-		"export-directory":   "",
-		"include-title-page": true,
-		"export-colors":      false,  // headings in their notes' colors
-		"export-color-style": "line", // and how (export_dialog.go's colorStyles)
-		"export-color-block": false,  // a marker or background over the whole block
-		"export-color-tint":  false,  // a line's block tinted
-		"page-size":          "",     // the script format's (export dialog)
+		"export-format":         "PDF",
+		"script-format":         "default", // a Lexington preset (script_format.go)
+		"script-language":       "en",      // of new scripts: their scene headings (language.go)
+		"export-directory":      "",
+		"include-title-page":    true,
+		"export-colors":         false,  // headings in their notes' colors
+		"export-color-style":    "line", // and how (export_dialog.go's colorStyles)
+		"export-color-block":    false,  // a marker or background over the whole block
+		"export-color-tint":     false,  // a line's block tinted
+		"export-color-patterns": false,  // a line's bar patterned, for color blindness
+		"page-size":             "",     // the script format's (export dialog)
 
 		"your-name":           "", // what others sharing a script see (changes.go); "" the login's
 		"auto-close-brackets": true,

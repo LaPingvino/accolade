@@ -42,6 +42,7 @@ type exportJob struct {
 	colorStyle    lex.ColorStyle // how they show ("": Lexington's, a line in the margin)
 	colorBlock    bool           // a marker or background over the whole block, not the heading
 	colorTint     bool           // a line's block lightly tinted
+	colorPatterns bool           // a line's bar in its color's pattern (for color blindness)
 
 	// the filters, which compose: the scenes and sections with one of the
 	// tags (lex.FilterTags), then a character's sides (lex.Sides, in mode
@@ -74,7 +75,7 @@ func (j exportJob) options(to, output string) cli.Options {
 				o.ColorScope = "block"
 			}
 		case lex.ColorLine, "":
-			o.ColorTint = j.colorTint
+			o.ColorTint, o.ColorPatterns = j.colorTint, j.colorPatterns
 		}
 	}
 	if j.character != "" {
