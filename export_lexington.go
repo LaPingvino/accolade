@@ -38,6 +38,34 @@ type exportJob struct {
 	omitTitlePage bool     // leave the title page out
 	numberScenes  bool     // number the scenes that have no number
 	scenes        []string // the script language's scene headings (nil: English)
+	colors        bool     // headings and sections in their notes' colors
+
+	// the filters, which compose: the scenes and sections with one of the
+	// tags (lex.FilterTags), then a character's sides (lex.Sides, in mode
+	// sides, a cue's last cueWords words or all of it with 0)
+	tags      []string
+	character string
+	sides     lex.SidesMode
+	cueWords  int
+}
+
+// options are Lexington's options for the job, writing as to to output.
+func (j exportJob) options(to, output string) cli.Options {
+	o := cli.Options{
+		ConfigFile:   lexingtonConfig(),
+		FormatDir:    formatDirs(),
+		Elements:     j.format,
+		Page:         j.page,
+		To:           to,
+		Output:       output,
+		TemplatePath: j.template,
+		Colors:       j.colors,
+		Tags:         j.tags,
+	}
+	if j.character != "" {
+		o.Character, o.Sides, o.CueWords = j.character, string(j.sides), j.cueWords
+	}
+	return o
 }
 
 // script is the content parsed and prepared for the job.
@@ -118,15 +146,7 @@ func exportAs(content, outputPath, to string, job exportJob) error {
 				err = fmt.Errorf("%s export failed: %v", to, r)
 			}
 		}()
-		return cli.Write(context.Background(), job.script(content), cli.Options{
-			ConfigFile:   lexingtonConfig(),
-			FormatDir:    formatDirs(),
-			Elements:     job.format,
-			Page:         job.page,
-			To:           to,
-			Output:       tmp,
-			TemplatePath: job.template,
-		})
+		return cli.Write(context.Background(), job.script(content), job.options(to, tmp))
 	})
 }
 

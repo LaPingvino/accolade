@@ -34,6 +34,15 @@ type ExportDialog struct {
 	sceneNumbersCheck     *widget.Check
 	scriptFormatSelect    *widget.Select
 	documentPageSelect    *widget.Select
+	colorsCheck           *widget.Check
+
+	// Filters (export_filters.go)
+	tagChecks        []*widget.Check // one per tag, its Text the tag
+	characterSelect  *widget.Select  // whose sides; noSides for none
+	sidesRadio       *widget.RadioGroup
+	cueRadio         *widget.RadioGroup // the cue: the whole speech or its last words
+	cueWordsEntry    *widget.Entry
+	sidesBox, cueBox *fyne.Container // shown with a character, with cue lines
 
 	// Progress
 	progressBar *widget.ProgressBar
@@ -46,6 +55,7 @@ type ExportDialog struct {
 
 	// Format settings container
 	formatSettingsContainer *fyne.Container
+	scroll                  *container.Scroll // the settings
 
 	// State
 	isExporting bool
@@ -104,6 +114,9 @@ func (ed *ExportDialog) createWidgets() {
 	ed.includeTitlePageCheck.SetChecked(true)
 
 	ed.sceneNumbersCheck = widget.NewCheck("Number the scenes (those without a number)", nil)
+	ed.colorsCheck = widget.NewCheck("Colors: headings and sections in their notes' colors", nil)
+
+	ed.createFilterWidgets()
 
 	// Progress
 	ed.progressBar = widget.NewProgressBar()
@@ -150,8 +163,10 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 		container.NewVBox(
 			ed.includeTitlePageCheck,
 			ed.sceneNumbersCheck,
+			ed.colorsCheck,
 		),
 	)
+	filterSection := widget.NewCard("Part of the Script", "", ed.filterContent())
 
 	// Progress section
 	progressSection := container.NewVBox(
@@ -167,8 +182,9 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 		ed.exportButton,
 	)
 	// the buttons stay below the settings, which scroll
-	scrollContent := container.NewVScroll(container.NewVBox(outputSection, formatSection, fountainSection, progressSection))
+	scrollContent := container.NewVScroll(container.NewVBox(outputSection, formatSection, fountainSection, filterSection, progressSection))
 	scrollContent.SetMinSize(fyne.NewSize(580, 560))
+	ed.scroll = scrollContent
 	return container.NewBorder(nil, container.NewVBox(widget.NewSeparator(), buttonContainer), nil, nil, scrollContent)
 }
 
@@ -220,7 +236,7 @@ func (ed *ExportDialog) updateFormatSettings() {
 			note(f.format.Name + " is made with " + f.format.Needs + ", which is not installed.")
 		}
 	}
-	for _, o := range []fyne.Disableable{ed.includeTitlePageCheck, ed.sceneNumbersCheck, ed.previewButton} {
+	for _, o := range append([]fyne.Disableable{ed.includeTitlePageCheck, ed.sceneNumbersCheck, ed.colorsCheck, ed.previewButton}, ed.filterWidgets()...) {
 		if o == nil {
 			continue
 		}
@@ -259,6 +275,7 @@ func (ed *ExportDialog) loadSettings() {
 
 	ed.includeTitlePageCheck.SetChecked(ed.settings.GetBoolean("include-title-page"))
 	ed.sceneNumbersCheck.SetChecked(ed.settings.GetBoolean("fountain-scene-numbers"))
+	ed.colorsCheck.SetChecked(ed.settings.GetBoolean("export-colors"))
 }
 
 func (ed *ExportDialog) saveSettings() {
@@ -269,6 +286,7 @@ func (ed *ExportDialog) saveSettings() {
 	ed.settings.SetString("script-format", selectedScriptFormat(ed.scriptFormatSelect))
 	ed.settings.SetBoolean("include-title-page", ed.includeTitlePageCheck.Checked)
 	ed.settings.SetBoolean("fountain-scene-numbers", ed.sceneNumbersCheck.Checked)
+	ed.settings.SetBoolean("export-colors", ed.colorsCheck.Checked)
 
 	ed.settings.Save()
 }
@@ -300,6 +318,9 @@ func (ed *ExportDialog) getDefaultFilename() string {
 
 func (ed *ExportDialog) updateDefaultFilename() {
 	base := ed.getDefaultFilename()
+	if ed.characterSelect != nil { // (not yet while the widgets are made)
+		base += filterSuffix(ed.chosenTags(), ed.chosenCharacter())
+	}
 	ext := "." + exportFormatByLabel(ed.formatSelect.Selected).ext
 	ed.filenameEntry.SetText(base + ext)
 }
@@ -315,6 +336,10 @@ func (ed *ExportDialog) browseOutputDir() {
 // previewExport writes the export to a temporary file and opens it in
 // the system's viewer for that kind of file.
 func (ed *ExportDialog) previewExport() {
+	if err := ed.validateFilters(); err != nil {
+		dialog.ShowError(err, ed.window.fyneWindow)
+		return
+	}
 	f := exportFormatByLabel(ed.formatSelect.Selected)
 	format := f.id
 	dir, err := os.MkdirTemp("", "accolade-preview-")
@@ -387,6 +412,9 @@ func (ed *ExportDialog) validateInputs() error {
 	if ed.filenameEntry.Text == "" {
 		return fmt.Errorf("please enter a filename")
 	}
+	if err := ed.validateFilters(); err != nil {
+		return err
+	}
 
 	// Check if output directory exists
 	if _, err := os.Stat(ed.outputDirEntry.Text); os.IsNotExist(err) {
@@ -439,6 +467,11 @@ func (ed *ExportDialog) job() exportJob {
 		omitTitlePage: !ed.includeTitlePageCheck.Checked,
 		numberScenes:  ed.sceneNumbersCheck.Checked,
 		scenes:        sceneHeaders(ed.window.language),
+		colors:        ed.colorsCheck.Checked,
+		tags:          ed.chosenTags(),
+		character:     ed.chosenCharacter(),
+		sides:         ed.chosenSides(),
+		cueWords:      ed.chosenCueWords(),
 	}
 }
 
