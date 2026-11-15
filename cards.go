@@ -220,10 +220,10 @@ func newCard(c *cardsView, i int, it outlineItem, preview string) *card {
 		p.Importance = widget.LowImportance
 		bottom = p
 	}
-	k := &card{body: container.NewStack(canvasCard(), container.NewPadded(container.NewBorder(title, bottom, nil, nil, syn)))}
+	k := &card{body: container.NewStack(canvasCard(), container.NewPadded(container.NewBorder(withSwatch(title, it.Color), bottom, nil, nil, syn)))}
 	k.dragged = dragged{c: c, i: i, self: k}
 	k.ExtendBaseWidget(k)
-	fyne.SetAccessibleLabel(k, it.Text)
+	fyne.SetAccessibleLabel(k, withColorName(it.Text, it.Color))
 	return k
 }
 
@@ -258,7 +258,7 @@ func newSectionHeader(c *cardsView, i int, it outlineItem) *sectionHeader {
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Importance = widget.HighImportance
 	title.Truncation = fyne.TextTruncateEllipsis
-	rows := []fyne.CanvasObject{widget.NewSeparator(), title}
+	rows := []fyne.CanvasObject{widget.NewSeparator(), withSwatch(title, it.Color)}
 	if it.Synopsis != "" {
 		syn := widget.NewLabel(it.Synopsis)
 		syn.TextStyle = fyne.TextStyle{Italic: true}
@@ -273,7 +273,7 @@ func newSectionHeader(c *cardsView, i int, it outlineItem) *sectionHeader {
 	h := &sectionHeader{body: container.NewBorder(nil, nil, indent, nil, container.NewVBox(rows...))}
 	h.dragged = dragged{c: c, i: i, self: h}
 	h.ExtendBaseWidget(h)
-	fyne.SetAccessibleLabel(h, "Section "+it.Text)
+	fyne.SetAccessibleLabel(h, withColorName("Section "+it.Text, it.Color))
 	return h
 }
 
@@ -358,4 +358,24 @@ func canvasCard() fyne.CanvasObject {
 	r.StrokeWidth = 1
 	r.CornerRadius = theme.InputRadiusSize()
 	return r
+}
+
+// withSwatch is a card's or section header's title with its color's mark
+// after it, if it has a color.
+func withSwatch(title fyne.CanvasObject, name string) fyne.CanvasObject {
+	if _, ok := noteRGB(name); !ok {
+		return title
+	}
+	r := newSwatch()
+	showSwatch(r, name)
+	return container.NewBorder(nil, nil, nil, container.NewCenter(r), title)
+}
+
+// withColorName is a screen reader's name for something with a color:
+// "INT. BARN - DAY, red".
+func withColorName(label, name string) string {
+	if n := colorName(name); n != "" {
+		return label + ", " + n
+	}
+	return label
 }

@@ -12,6 +12,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/lexington/lex"
+
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
@@ -21,8 +23,9 @@ import (
 // outlineItem is a section or scene of the script.
 type outlineItem struct {
 	Line     int    // where it is
-	Text     string // the heading, without markers
+	Text     string // the heading, without markers, notes or scene number
 	Synopsis string // Fountain's "= ..." lines under it
+	Color    string // the heading's color note, as lex.NoteColor reads it
 	Level    int    // a section's level (# 1, ## 2); scenes are one deeper
 	Scene    bool
 }
@@ -44,13 +47,10 @@ func outlineOf(text string, starts []string) []outlineItem {
 		case strings.HasPrefix(t, "#"):
 			level := len(t) - len(strings.TrimLeft(t, "#"))
 			section = level
-			items = append(items, outlineItem{Line: i, Text: strings.TrimSpace(t[level:]), Level: level})
+			items = append(items, outlineItem{Line: i, Text: lex.SectionText(t), Level: level, Color: lex.NoteColor(t)})
 		case prevBlank && (isSceneHeadingIn(t, starts) || (strings.HasPrefix(t, ".") && !strings.HasPrefix(t, ".."))):
-			heading := strings.TrimPrefix(t, ".")
-			if j := strings.Index(heading, " #"); j > 0 && strings.HasSuffix(heading, "#") {
-				heading = strings.TrimSpace(heading[:j]) // without its number
-			}
-			items = append(items, outlineItem{Line: i, Text: strings.ToUpper(heading), Level: section + 1, Scene: true})
+			heading, _ := lex.SceneNumber(strings.TrimPrefix(t, "."))
+			items = append(items, outlineItem{Line: i, Text: strings.ToUpper(strings.TrimSpace(heading)), Level: section + 1, Scene: true, Color: lex.NoteColor(t)})
 		case strings.HasPrefix(t, "=") && !strings.HasPrefix(t, "==") && len(items) > 0:
 			it := &items[len(items)-1]
 			it.Synopsis = strings.TrimSpace(it.Synopsis + " " + strings.TrimSpace(t[1:]))
@@ -147,7 +147,8 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			// rows' text does not move as rows are reused and redrawn
 			room := canvas.NewRectangle(color.Transparent)
 			room.SetMinSize(fold.MinSize())
-			return newDragRow(o, container.NewBorder(nil, nil, container.NewStack(room, fold), nil, container.NewVBox(title, syn)))
+			swatch := container.NewCenter(newSwatch())
+			return newDragRow(o, container.NewBorder(nil, nil, container.NewStack(room, fold), swatch, container.NewVBox(title, syn)))
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id >= len(o.items) {
@@ -160,6 +161,7 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			box, fold := row.Objects[0].(*fyne.Container), row.Objects[1].(*fyne.Container).Objects[1].(*widget.Button)
 			title, syn := box.Objects[0].(*widget.Label), box.Objects[1].(*widget.Label)
 			o.showFold(fold, id)
+			showSwatch(row.Objects[2].(*fyne.Container).Objects[0].(*canvas.Rectangle), it.Color)
 			title.SetText(strings.Repeat("  ", max(0, it.Level-1)) + it.Text)
 			title.TextStyle = fyne.TextStyle{Bold: !it.Scene}
 			title.Refresh()

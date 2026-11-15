@@ -1,7 +1,10 @@
 package main
 
 import (
+	"image/color"
+
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 	"strings"
@@ -181,5 +184,43 @@ func TestUnfolded(t *testing.T) {
 	}
 	if !hasInside(items, 0) || hasInside(items, 2) {
 		t.Error("hasInside")
+	}
+}
+
+// Colored headings: the outline and the cards show the color, not the
+// note; a color Accolade does not know shows nothing.
+func TestOutlineColors(t *testing.T) {
+	script := "# ACT ONE [[color BLUE]]\n\nINT. BARN - DAY #12# [[red]] [[a note]]\n\nRain.\n\nEXT. FIELD - DAY [[#zzzzzz]]\n\nWind.\n\n.MONTAGE [[#00ff00]]\n"
+	items := outlineOf(script, nil)
+	var got []string
+	for _, it := range items {
+		got = append(got, it.Text+"|"+it.Color)
+	}
+	if want := "ACT ONE|blue\nINT. BARN - DAY|red\nEXT. FIELD - DAY|#zzzzzz\nMONTAGE|#00ff00"; strings.Join(got, "\n") != want {
+		t.Errorf("outline:\n%s", strings.Join(got, "\n"))
+	}
+
+	w, _ := newDialogTestWindow(t)
+	w.textEditor.SetText(script)
+	w.toggleOutline()
+	o := w.outline
+	for id, want := range []color.Color{beatPalette["blue"], beatPalette["red"], color.Transparent, color.NRGBA{0, 255, 0, 255}} {
+		row := o.list.CreateItem()
+		o.list.UpdateItem(id, row)
+		r := row.(*dragRow).content.Objects[2].(*fyne.Container).Objects[0].(*canvas.Rectangle)
+		if r.FillColor != want {
+			t.Errorf("row %d: swatch %v, want %v", id, r.FillColor, want)
+		}
+	}
+
+	w.toggleCards()
+	if h := w.cards.list.Objects[0]; fyne.AccessibleLabel(h) != "Section ACT ONE, blue" {
+		t.Errorf("section header: %q", fyne.AccessibleLabel(h))
+	}
+	grid := w.cards.list.Objects[1].(*fyne.Container)
+	for i, want := range []string{"INT. BARN - DAY, red", "EXT. FIELD - DAY", "MONTAGE, #00ff00"} {
+		if got := fyne.AccessibleLabel(grid.Objects[i]); got != want {
+			t.Errorf("card %d: %q, want %q", i, got, want)
+		}
 	}
 }

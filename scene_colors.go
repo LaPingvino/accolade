@@ -6,6 +6,9 @@ import (
 	"strings"
 	"unicode"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+
 	"github.com/LaPingvino/lexington/lex"
 )
 
@@ -104,4 +107,39 @@ func setItemColor(text string, starts []string, i int, c string) string {
 	lines := strings.Split(text, "\n")
 	lines[items[i].Line] = withColor(lines[items[i].Line], c)
 	return strings.Join(lines, "\n")
+}
+
+// swatchSize is the size of a color's mark in the outline and the cards.
+const swatchSize = 10
+
+// newSwatch is a mark that shows a scene's or section's color (see
+// showSwatch).
+func newSwatch() *canvas.Rectangle {
+	r := canvas.NewRectangle(color.Transparent)
+	r.SetMinSize(fyne.NewSize(swatchSize, swatchSize))
+	r.CornerRadius = swatchSize / 2
+	return r
+}
+
+// showSwatch shows the color name (lex.NoteColor's) on r: nothing for no
+// color, or one it does not know.
+func showSwatch(r *canvas.Rectangle, name string) {
+	if c, ok := noteRGB(name); ok {
+		r.FillColor = c
+	} else {
+		r.FillColor = color.Transparent
+	}
+	r.Refresh()
+}
+
+// colorName is how the color name reads, for a screen reader: "" for no
+// color, or one Accolade does not know.
+func colorName(name string) string {
+	if _, ok := noteRGB(name); !ok {
+		return ""
+	}
+	if name == "grey" {
+		return "gray"
+	}
+	return name // a name, or "#rrggbb"
 }
