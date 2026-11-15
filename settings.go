@@ -58,6 +58,7 @@ func (s *Settings) loadDefaults() {
 		"export-color-block":    false,  // a marker or background over the whole block
 		"export-color-tint":     false,  // a line's block tinted
 		"export-color-patterns": false,  // a line's bar patterned, for color blindness
+		"export-pagination":     "",     // page breaks: Lexington's (export_pagination.go)
 		"page-size":             "",     // the script format's (export dialog)
 
 		"your-name":           "", // what others sharing a script see (changes.go); "" the login's

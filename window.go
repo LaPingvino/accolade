@@ -1236,6 +1236,7 @@ func (w *MainWindow) savedExportJob() exportJob {
 		colorBlock:    w.settings.GetBoolean("export-color-block"),
 		colorTint:     w.settings.GetBoolean("export-color-tint"),
 		colorPatterns: w.settings.GetBoolean("export-color-patterns"),
+		pagination:    w.settings.GetString("export-pagination"),
 		scenes:        sceneHeaders(w.language),
 	}
 }

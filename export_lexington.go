@@ -43,6 +43,7 @@ type exportJob struct {
 	colorBlock    bool           // a marker or background over the whole block, not the heading
 	colorTint     bool           // a line's block lightly tinted
 	colorPatterns bool           // a line's bar in its color's pattern (for color blindness)
+	pagination    string         // page breaks: Lexington's -pagination ("": the format's)
 
 	// the filters, which compose: the scenes and sections with one of the
 	// tags (lex.FilterTags), then a character's sides (lex.Sides, in mode
@@ -65,6 +66,7 @@ func (j exportJob) options(to, output string) cli.Options {
 		TemplatePath: j.template,
 		Colors:       j.colors,
 		Tags:         j.tags,
+		Pagination:   j.pagination,
 	}
 	if j.colors { // (a style alone would switch colors on)
 		o.ColorStyle = string(j.colorStyle)

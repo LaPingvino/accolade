@@ -43,6 +43,11 @@ type ExportDialog struct {
 	colorBlockCheck, colorTintCheck *widget.Check // with marker or background, with the line
 	colorPatternsCheck              *widget.Check // with the line
 
+	// page breaks (export_pagination.go)
+	paginationSelect                                 *widget.Select
+	paginationKeep, paginationWidows, paginationMore *widget.Check
+	paginationBox                                    fyne.CanvasObject
+
 	// Filters (export_filters.go)
 	tagChecks        []*widget.Check // one per tag, its Text the tag
 	characterSelect  *widget.Select  // whose sides; noSides for none
@@ -134,6 +139,7 @@ func (ed *ExportDialog) createWidgets() {
 	ed.colorOptions = container.NewVBox(labelled("Style:", ed.colorStyleSelect),
 		container.NewHBox(ed.colorBlockCheck, ed.colorTintCheck), ed.colorPatternsCheck)
 
+	ed.paginationBox = ed.paginationWidgets()
 	ed.createFilterWidgets()
 
 	// Progress
@@ -183,6 +189,7 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 			ed.sceneNumbersCheck,
 			ed.colorsCheck,
 			ed.colorOptions,
+			ed.paginationBox,
 		),
 	)
 	filterSection := widget.NewCard("Part of the Script", "", ed.filterContent())
@@ -265,6 +272,7 @@ func (ed *ExportDialog) updateFormatSettings() {
 			o.Disable()
 		}
 	}
+	ed.enablePagination()
 	ed.enableColorStyle()
 	if ed.exportButton != nil {
 		if available {
@@ -300,6 +308,7 @@ func (ed *ExportDialog) loadSettings() {
 	ed.colorBlockCheck.SetChecked(ed.settings.GetBoolean("export-color-block"))
 	ed.colorTintCheck.SetChecked(ed.settings.GetBoolean("export-color-tint"))
 	ed.colorPatternsCheck.SetChecked(ed.settings.GetBoolean("export-color-patterns"))
+	ed.setPagination(ed.settings.GetString("export-pagination"))
 	ed.enableColorStyle()
 }
 
@@ -316,6 +325,7 @@ func (ed *ExportDialog) saveSettings() {
 	ed.settings.SetBoolean("export-color-block", ed.colorBlockCheck.Checked)
 	ed.settings.SetBoolean("export-color-tint", ed.colorTintCheck.Checked)
 	ed.settings.SetBoolean("export-color-patterns", ed.colorPatternsCheck.Checked)
+	ed.settings.SetString("export-pagination", ed.chosenPagination())
 
 	ed.settings.Save()
 }
@@ -501,6 +511,7 @@ func (ed *ExportDialog) job() exportJob {
 		colorBlock:    ed.colorBlockCheck.Checked,
 		colorTint:     ed.colorTintCheck.Checked,
 		colorPatterns: ed.colorPatternsCheck.Checked,
+		pagination:    ed.chosenPagination(),
 		tags:          ed.chosenTags(),
 		character:     ed.chosenCharacter(),
 		sides:         ed.chosenSides(),
