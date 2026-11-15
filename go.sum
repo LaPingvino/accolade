@@ -32,6 +32,8 @@ github.com/LaPingvino/lexington v1.4.1-0.20261115042354-71e1a32f3b3a h1:70e/wIQW
 github.com/LaPingvino/lexington v1.4.1-0.20261115042354-71e1a32f3b3a/go.mod h1:xA/flf+q56XHh2Y2Y19BOLed1YQ+DjJwLc0gB1vZLOA=
 github.com/LaPingvino/lexington v1.4.1-0.20261115042958-90b372a47dd3 h1:jeT3cNADPlPhFcXilt/NdrqiIluVNPvDJM0ABrzYyEY=
 github.com/LaPingvino/lexington v1.4.1-0.20261115042958-90b372a47dd3/go.mod h1:xA/flf+q56XHh2Y2Y19BOLed1YQ+DjJwLc0gB1vZLOA=
+github.com/LaPingvino/lexington v1.4.1-0.20261115044645-5c7a73b6eb2e h1:jwl7QFcNl+Yf3uH3bRKCB8ZEihxuXqZ5UspvwWgo9u8=
+github.com/LaPingvino/lexington v1.4.1-0.20261115044645-5c7a73b6eb2e/go.mod h1:xA/flf+q56XHh2Y2Y19BOLed1YQ+DjJwLc0gB1vZLOA=
 github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3 h1:0pb1fCiKDeV86cIiHBKI67y1tiIAKiFoEojc384GoEs=
 github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3/go.mod h1:ydoIgOjNEF8pHdgWfCX68l+XfHSV5CfNzyKUGLfAvGA=
 github.com/anthonynsimon/bild v0.14.0 h1:IFRkmKdNdqmexXHfEU7rPlAmdUZ8BDZEGtGHDnGWync=
