@@ -77,7 +77,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $rel = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN" } https://api.github.com/repos/pal1000/mesa-dist-win/releases/latest
+          # Pinned: Mesa 26.2.6 (2026-11) fails here with Fyne's "window
+          # creation error"; 26.2.5 works. Try a newer one before moving on.
+          $rel = Invoke-RestMethod -Headers @{ Authorization = "Bearer $env:GH_TOKEN" } https://api.github.com/repos/pal1000/mesa-dist-win/releases/tags/26.2.5
           $asset = $rel.assets | Where-Object { $_.name -like '*release-msvc.7z' } | Select-Object -First 1
           Write-Output "Mesa: $($asset.name)"
           Invoke-WebRequest $asset.browser_download_url -OutFile mesa.7z
