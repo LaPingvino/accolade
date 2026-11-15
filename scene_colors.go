@@ -207,6 +207,10 @@ func (w *MainWindow) pickColorHere(at fyne.CanvasObject) {
 		w.pickColor(w.cards.items[s.i], below(at), nil)
 		return
 	}
+	if w.cardsVisible { // the editor is not shown: no cursor to go by
+		w.setStatus("Right-click a card to color it, or write in its synopsis first")
+		return
+	}
 	e := w.textEditor
 	items := outlineOf(e.Text(), w.sceneStarts())
 	i := w.cursorItem(items)

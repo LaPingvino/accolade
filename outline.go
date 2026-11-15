@@ -278,6 +278,10 @@ func newDragRow(o *outlinePanel, content *fyne.Container) *dragRow {
 
 func (r *dragRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(r.content) }
 
+// Tapped selects the row, as the list's own item does: a row that takes
+// a secondary tap is what Fyne gives the tap to.
+func (r *dragRow) Tapped(*fyne.PointEvent) { r.o.list.Select(r.id) }
+
 // TappedSecondary picks the row's scene or section's color.
 func (r *dragRow) TappedSecondary(e *fyne.PointEvent) {
 	if r.id >= 0 && r.id < len(r.o.items) {

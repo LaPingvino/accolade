@@ -156,7 +156,12 @@ func TestColorPicker(t *testing.T) {
 	w.toggleOutline()
 	row := w.outline.list.CreateItem().(*dragRow)
 	w.outline.list.UpdateItem(2, row)
+	row.Tapped(&fyne.PointEvent{}) // a tap still goes there
+	if line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset()); line != 6 {
+		t.Errorf("tapped the field's row: cursor on line %d", line)
+	}
 	row.TappedSecondary(&fyne.PointEvent{})
+	capture(t, w.fyneWindow.Canvas(), "color-picker.png")
 	m := w.colorMenu(w.outline.items[2], nil)
 	if m.Items[0].Checked || !menuChecked(m, "Blue") {
 		t.Errorf("the field's blue is not checked")
@@ -176,6 +181,7 @@ func TestColorPicker(t *testing.T) {
 	if got := w.textEditor.Text(); got != want {
 		t.Fatalf("section: %q", got)
 	}
+	capture(t, w.fyneWindow.Canvas(), "color-cards.png")
 	field := w.cards.list.Objects[1].(*fyne.Container).Objects[1].(*card)
 	w.fyneWindow.Canvas().Focus(synopsisOf(t, field))
 	item.Action()
@@ -198,7 +204,8 @@ func menuChecked(m *fyne.Menu, label string) bool {
 	return false
 }
 
-// Before the first heading there is nothing to color.
+// Before the first heading there is nothing to color, nor in the cards
+// without a card to go by.
 func TestColorPickerNothingHere(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.textEditor.SetText("Title: X\n\nINT. BARN - DAY\n")
@@ -209,5 +216,13 @@ func TestColorPickerNothingHere(t *testing.T) {
 	}
 	if got := w.statusLabel.Text; !strings.Contains(got, "No scene or section") {
 		t.Errorf("status %q", got)
+	}
+	// the cards, no synopsis being written: not the hidden editor's scene
+	w.textEditor.SetCursorOffset(len("Title: X\n\nINT"))
+	w.toggleCards()
+	w.fyneWindow.Canvas().Unfocus()
+	w.pickColorHere(nil)
+	if shownColorMenu(w) != nil {
+		t.Error("a picker for the hidden editor's scene")
 	}
 }

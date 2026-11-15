@@ -389,14 +389,14 @@ func canvasCard() fyne.CanvasObject {
 }
 
 // withSwatch is a card's or section header's title with its color's mark
-// after it, if it has a color.
+// before it, if it has a color.
 func withSwatch(title fyne.CanvasObject, name string) fyne.CanvasObject {
 	if _, ok := noteRGB(name); !ok {
 		return title
 	}
 	r := newSwatch()
 	showSwatch(r, name)
-	return container.NewBorder(nil, nil, nil, container.NewCenter(r), title)
+	return container.NewBorder(nil, nil, container.NewCenter(r), nil, title)
 }
 
 // withColorName is a screen reader's name for something with a color:
