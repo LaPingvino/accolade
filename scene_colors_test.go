@@ -61,7 +61,7 @@ func TestSetItemColor(t *testing.T) {
 func TestNoteRGB(t *testing.T) {
 	for name, ok := range map[string]bool{
 		"red": true, "grey": true, "brown": true, "#ff8800": true, "#FF8800": true,
-		"#zzzzzz": false, "#ff88": false, "chartreuse": false, "": false, "#+12345": false,
+		"#zzzzzz": false, "#ff88": false, "chartreuse": false, "goldenrod": true, "": false, "#+12345": false,
 	} {
 		if _, got := noteRGB(name); got != ok {
 			t.Errorf("noteRGB(%q): %v", name, got)

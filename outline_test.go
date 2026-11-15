@@ -204,7 +204,7 @@ func TestOutlineColors(t *testing.T) {
 	w.textEditor.SetText(script)
 	w.toggleOutline()
 	o := w.outline
-	for id, want := range []color.Color{beatPalette["blue"], beatPalette["red"], color.Transparent, color.NRGBA{0, 255, 0, 255}} {
+	for id, want := range []color.Color{color.NRGBA{0, 129, 239, 255}, color.NRGBA{239, 0, 73, 255}, color.Transparent, color.NRGBA{0, 255, 0, 255}} {
 		row := o.list.CreateItem()
 		o.list.UpdateItem(id, row)
 		r := row.(*dragRow).content.Objects[2].(*fyne.Container).Objects[0].(*canvas.Rectangle)

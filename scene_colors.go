@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"slices"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -25,38 +24,12 @@ import (
 // beatColorNames are the colors the picker offers, in Beat's order.
 var beatColorNames = []string{"red", "blue", "green", "pink", "magenta", "gray", "purple", "cyan", "teal", "yellow", "orange", "brown"}
 
-// beatPalette is Beat's own RGB for its color names: BeatColors.m in
-// lmparppei/Beat (Frameworks/BeatCore/BeatCore/BeatColors, commit
-// 521fb62), with its "grey" for gray.
-var beatPalette = map[string]color.NRGBA{
-	"red":     {239, 0, 73, 255},
-	"blue":    {0, 129, 239, 255},
-	"green":   {0, 223, 121, 255},
-	"pink":    {254, 131, 223, 255},
-	"magenta": {236, 0, 140, 255},
-	"gray":    {128, 128, 128, 255},
-	"grey":    {128, 128, 128, 255},
-	"purple":  {181, 32, 218, 255},
-	"cyan":    {7, 189, 235, 255},
-	"teal":    {12, 224, 227, 255},
-	"yellow":  {251, 200, 45, 255},
-	"orange":  {255, 161, 13, 255},
-	"brown":   {169, 106, 7, 255},
-}
-
 // noteRGB is the color a lex.NoteColor color stands for: one of Beat's
-// names or "#rrggbb". Anything else (an unknown name, "#zzzzzz") is no
-// color.
+// names, in Beat's own RGB (lex.ColorRGB, from Beat's BeatColors.m), or
+// "#rrggbb". Anything else (an unknown name, "#zzzzzz") is no color.
 func noteRGB(name string) (color.NRGBA, bool) {
-	if c, ok := beatPalette[name]; ok {
-		return c, true
-	}
-	if len(name) == 7 && name[0] == '#' {
-		if v, err := strconv.ParseUint(name[1:], 16, 32); err == nil {
-			return color.NRGBA{uint8(v >> 16), uint8(v >> 8), uint8(v), 255}, true
-		}
-	}
-	return color.NRGBA{}, false
+	c, ok := lex.ColorRGB(name)
+	return color.NRGBA{c[0], c[1], c[2], 255}, ok
 }
 
 // withColor is a heading or section line with the color c, written as
@@ -156,7 +129,7 @@ func colorName(name string) string {
 
 // swatchIcon is a color's mark for the picker's menu.
 func swatchIcon(name string) fyne.Resource {
-	c := beatPalette[name]
+	c, _ := noteRGB(name)
 	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#%02x%02x%02x"/></svg>`, c.R, c.G, c.B)
 	return fyne.NewStaticResource("swatch-"+name, []byte(svg))
 }
