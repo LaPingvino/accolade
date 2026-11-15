@@ -4,6 +4,8 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/LaPingvino/lexington/lex"
+
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
@@ -105,15 +107,13 @@ func characterNames(text string) map[string]int {
 	return names
 }
 
-// sceneHeadings are the script's scene headings (without scene numbers)
-// and how often they come back.
+// sceneHeadings are the script's scene headings (without scene numbers
+// or notes, such as a color) and how often they come back.
 func sceneHeadings(text string, starts []string) map[string]int {
 	heads := map[string]int{}
 	for _, l := range strings.Split(text, "\n") {
-		t := strings.TrimSpace(l)
-		if i := strings.Index(t, " #"); i > 0 && strings.HasSuffix(t, "#") {
-			t = strings.TrimSpace(t[:i])
-		}
+		t, _ := lex.SceneNumber(l)
+		t = strings.TrimSpace(t)
 		if isSceneHeadingIn(t, starts) || (strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..")) {
 			heads[strings.ToUpper(t)]++
 		}

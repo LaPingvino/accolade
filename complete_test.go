@@ -19,7 +19,7 @@ Hi.
 ANNA
 Again.
 
-EXT. GARDEN - NIGHT #2#
+EXT. GARDEN - NIGHT #2# [[red]]
 
 Anna walks out.
 
