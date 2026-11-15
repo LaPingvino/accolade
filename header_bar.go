@@ -174,6 +174,10 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	place = widget.NewButtonWithIcon("INT./EXT.", theme.HomeIcon(), func() { window.pickPlace(place) })
 	place.Importance = widget.LowImportance
 	hb.place = place
+	var sceneColor *widget.Button
+	sceneColor = widget.NewButtonWithIcon("Color", theme.ColorPaletteIcon(), func() { window.pickColorHere(sceneColor) })
+	sceneColor.Importance = widget.LowImportance
+	fyne.SetAccessibleLabel(sceneColor, "Color of the scene or section"+keys("Shift+L"))
 	top := newOverflowRow(tips, []overflowItem{
 		buttonItem(hb.newButton), buttonItem(hb.openButton), buttonItem(hb.saveButton), gapItem(),
 		buttonItem(hb.undoButton), buttonItem(hb.redoButton),
@@ -207,7 +211,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 		return items
 	}}
 	editing := newOverflowRow(tips, []overflowItem{
-		buttonItem(toggle), elements, picker(place, window.pickPlace), picker(character, window.pickCharacter),
+		buttonItem(toggle), elements, picker(place, window.pickPlace), picker(character, window.pickCharacter), picker(sceneColor, window.pickColorHere),
 		buttonItem(bold), buttonItem(italic), buttonItem(underline), gapItem(), formatButtons,
 	}, nil, 0)
 	hb.container = container.NewVBox(top.Container, container.NewBorder(nil, nil, nil, hb.format, editing.Container))

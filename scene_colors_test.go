@@ -4,6 +4,11 @@ import (
 	"strings"
 	"testing"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
+
 	"github.com/LaPingvino/lexington/lex"
 )
 
@@ -69,5 +74,140 @@ func TestNoteRGB(t *testing.T) {
 		if _, ok := noteRGB(n); !ok {
 			t.Errorf("no RGB for the picker's %q", n)
 		}
+	}
+}
+
+// shownColorMenu is the color picker shown over the window (it has the
+// focus, for the keyboard), nil if none.
+func shownColorMenu(w *MainWindow) *widget.PopUpMenu {
+	m, _ := w.fyneWindow.Canvas().Focused().(*widget.PopUpMenu)
+	return m
+}
+
+// pickShown picks the color with the label in the picker shown.
+func pickShown(t *testing.T, w *MainWindow, label string) {
+	t.Helper()
+	m := shownColorMenu(w)
+	if m == nil {
+		t.Fatal("no color picker shown")
+	}
+	for _, o := range m.Items {
+		if tap, ok := o.(fyne.Tappable); ok && hasText(o, label) {
+			tap.Tapped(&fyne.PointEvent{})
+			return
+		}
+	}
+	t.Fatalf("no %q in the picker", label)
+}
+
+// hasText reports whether o shows the text label.
+func hasText(o fyne.CanvasObject, label string) bool {
+	switch o := o.(type) {
+	case *canvas.Text:
+		return o.Text == label
+	case fyne.Widget:
+		for _, k := range test.WidgetRenderer(o).Objects() {
+			if hasText(k, label) {
+				return true
+			}
+		}
+	case *fyne.Container:
+		for _, k := range o.Objects {
+			if hasText(k, label) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// The picker from the editor (Format > Scene or Section Color…), the
+// outline and the cards writes the note as one undo step.
+func TestColorPicker(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	script := "# ACT ONE\n\nINT. BARN - DAY #1# [[a note]]\n\nRain.\n\nEXT. FIELD - DAY [[blue]]\n\nWind.\n"
+	w.textEditor.SetText(script)
+
+	item := menuItemByLabel(t, w, "Scene or Section Color…")
+	if item.Shortcut == nil || item.Shortcut.ShortcutName() != shortcut(fyne.KeyL, fyne.KeyModifierShift).ShortcutName() {
+		t.Errorf("shortcut %v, want Ctrl+Shift+L", item.Shortcut)
+	}
+	w.fyneWindow.Canvas().Focus(w.textEditor)
+	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(4)) // in the barn
+	item.Action()
+	pickShown(t, w, "Red")
+	want := strings.Replace(script, "[[a note]]", "[[a note]] [[red]]", 1)
+	if got := w.textEditor.Text(); got != want {
+		t.Fatalf("picked red: %q", got)
+	}
+	if w.fyneWindow.Canvas().Focused() != fyne.Focusable(w.textEditor) {
+		t.Error("the editor lost the focus")
+	}
+	w.undo()
+	if got := w.textEditor.Text(); got != script {
+		t.Fatalf("undone: %q", got)
+	}
+	w.redo()
+	if got := w.textEditor.Text(); got != want {
+		t.Fatalf("redone: %q", got)
+	}
+
+	// the outline's right click; None takes the field's blue out
+	w.toggleOutline()
+	row := w.outline.list.CreateItem().(*dragRow)
+	w.outline.list.UpdateItem(2, row)
+	row.TappedSecondary(&fyne.PointEvent{})
+	m := w.colorMenu(w.outline.items[2], nil)
+	if m.Items[0].Checked || !menuChecked(m, "Blue") {
+		t.Errorf("the field's blue is not checked")
+	}
+	pickShown(t, w, "None")
+	want = strings.Replace(want, " [[blue]]", "", 1)
+	if got := w.textEditor.Text(); got != want {
+		t.Fatalf("outline, none: %q", got)
+	}
+
+	// the cards: right click on the section, and Ctrl+Shift+L while
+	// writing a card's synopsis is for that card
+	w.toggleCards()
+	w.cards.list.Objects[0].(*sectionHeader).TappedSecondary(&fyne.PointEvent{})
+	pickShown(t, w, "Teal")
+	want = strings.Replace(want, "# ACT ONE", "# ACT ONE [[teal]]", 1)
+	if got := w.textEditor.Text(); got != want {
+		t.Fatalf("section: %q", got)
+	}
+	field := w.cards.list.Objects[1].(*fyne.Container).Objects[1].(*card)
+	w.fyneWindow.Canvas().Focus(synopsisOf(t, field))
+	item.Action()
+	pickShown(t, w, "Brown")
+	want = strings.Replace(want, "EXT. FIELD - DAY", "EXT. FIELD - DAY [[brown]]", 1)
+	if got := w.textEditor.Text(); got != want {
+		t.Fatalf("card: %q", got)
+	}
+	if got := fyne.AccessibleLabel(w.cards.list.Objects[1].(*fyne.Container).Objects[1]); got != "EXT. FIELD - DAY, brown" {
+		t.Errorf("the card after picking: %q", got)
+	}
+}
+
+func menuChecked(m *fyne.Menu, label string) bool {
+	for _, it := range m.Items {
+		if it.Label == label {
+			return it.Checked
+		}
+	}
+	return false
+}
+
+// Before the first heading there is nothing to color.
+func TestColorPickerNothingHere(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.textEditor.SetText("Title: X\n\nINT. BARN - DAY\n")
+	w.textEditor.SetCursorOffset(0)
+	w.pickColorHere(nil)
+	if shownColorMenu(w) != nil {
+		t.Error("a picker without a scene")
+	}
+	if got := w.statusLabel.Text; !strings.Contains(got, "No scene or section") {
+		t.Errorf("status %q", got)
 	}
 }

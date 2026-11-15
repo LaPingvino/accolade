@@ -188,16 +188,20 @@ type card struct {
 	widget.BaseWidget
 	dragged
 	body fyne.CanvasObject
+	syn  *synopsisEntry
 }
 
 // synopsisEntry is where a card's synopsis is written.
-type synopsisEntry struct{ widget.Entry }
+type synopsisEntry struct {
+	widget.Entry
+	i int // the card's item
+}
 
 func newCard(c *cardsView, i int, it outlineItem, preview string) *card {
 	title := widget.NewLabel(it.Text)
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Truncation = fyne.TextTruncateEllipsis
-	syn := &synopsisEntry{}
+	syn := &synopsisEntry{i: i}
 	syn.MultiLine = true
 	syn.Wrapping = fyne.TextWrapWord
 	syn.ExtendBaseWidget(syn)
@@ -220,7 +224,7 @@ func newCard(c *cardsView, i int, it outlineItem, preview string) *card {
 		p.Importance = widget.LowImportance
 		bottom = p
 	}
-	k := &card{body: container.NewStack(canvasCard(), container.NewPadded(container.NewBorder(withSwatch(title, it.Color), bottom, nil, nil, syn)))}
+	k := &card{syn: syn, body: container.NewStack(canvasCard(), container.NewPadded(container.NewBorder(withSwatch(title, it.Color), bottom, nil, nil, syn)))}
 	k.dragged = dragged{c: c, i: i, self: k}
 	k.ExtendBaseWidget(k)
 	fyne.SetAccessibleLabel(k, withColorName(it.Text, it.Color))
@@ -231,6 +235,25 @@ func (k *card) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRen
 
 // Tapped opens the card's scene in the editor.
 func (k *card) Tapped(*fyne.PointEvent) { k.c.open(k.i) }
+
+// TappedSecondary picks the scene's color.
+func (k *card) TappedSecondary(e *fyne.PointEvent) {
+	k.c.w.pickColor(k.c.items[k.i], e.AbsolutePosition, nil)
+}
+
+// card is item i's card, nil if it has none.
+func (c *cardsView) card(i int) *card {
+	for _, g := range c.list.Objects {
+		if grid, ok := g.(*fyne.Container); ok {
+			for _, o := range grid.Objects {
+				if k, ok := o.(*card); ok && k.i == i {
+					return k
+				}
+			}
+		}
+	}
+	return nil
+}
 
 // open shows item i in the editor.
 func (c *cardsView) open(i int) {
@@ -280,6 +303,11 @@ func newSectionHeader(c *cardsView, i int, it outlineItem) *sectionHeader {
 func (h *sectionHeader) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(h.body) }
 
 func (h *sectionHeader) Tapped(*fyne.PointEvent) { h.c.open(h.i) }
+
+// TappedSecondary picks the section's color.
+func (h *sectionHeader) TappedSecondary(e *fyne.PointEvent) {
+	h.c.w.pickColor(h.c.items[h.i], e.AbsolutePosition, nil)
+}
 
 // addCard ends a group of cards: tapped, it asks for a new scene's heading
 // and synopsis and puts the scene there.

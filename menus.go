@@ -98,6 +98,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Lyrics", shortcut(fyne.Key8, 0), el(elementLyrics)),
 		menuItem("Right to Left Line", nil, inEditor(func() { toggleDirection(w.textEditor) })),
 		menuItem("Script Language…", nil, w.pickLanguage),
+		menuItem("Scene or Section Color…", shortcut(fyne.KeyL, fyne.KeyModifierShift), func() { w.pickColorHere(nil) }),
 		fyne.NewMenuItemSeparator(),
 		menuItem("Bold", shortcut(fyne.KeyB, 0), inEditor(func() { toggleEmphasis(w.textEditor, "**") })),
 		menuItem("Italic", shortcut(fyne.KeyI, 0), inEditor(func() { toggleEmphasis(w.textEditor, "*") })),

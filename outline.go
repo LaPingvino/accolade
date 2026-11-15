@@ -278,6 +278,13 @@ func newDragRow(o *outlinePanel, content *fyne.Container) *dragRow {
 
 func (r *dragRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(r.content) }
 
+// TappedSecondary picks the row's scene or section's color.
+func (r *dragRow) TappedSecondary(e *fyne.PointEvent) {
+	if r.id >= 0 && r.id < len(r.o.items) {
+		r.o.w.pickColor(r.o.items[r.id], e.AbsolutePosition, nil)
+	}
+}
+
 func (r *dragRow) Dragged(e *fyne.DragEvent) {
 	r.dy += e.Dragged.DY
 	if to := r.o.dropIndex(r.id, r.dy); to >= 0 && to < len(r.o.items) {

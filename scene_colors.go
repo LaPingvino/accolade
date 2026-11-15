@@ -1,13 +1,17 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/lexington/lex"
 )
@@ -142,4 +146,112 @@ func colorName(name string) string {
 		return "gray"
 	}
 	return name // a name, or "#rrggbb"
+}
+
+// The color picker: Beat's colors and None, for a scene or section. The
+// outline's and the cards' secondary tap (right click) opens it for theirs;
+// Format > Color… (Ctrl+Shift+L) and the editing row's Color button for
+// the one the cursor is in, or the card whose synopsis is being written.
+// Picking writes the note in the script as any edit does: one undo step.
+
+// swatchIcon is a color's mark for the picker's menu.
+func swatchIcon(name string) fyne.Resource {
+	c := beatPalette[name]
+	svg := fmt.Sprintf(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="#%02x%02x%02x"/></svg>`, c.R, c.G, c.B)
+	return fyne.NewStaticResource("swatch-"+name, []byte(svg))
+}
+
+// colorMenu is the picker for item it: None and Beat's colors, its own
+// checked; then (if not nil) runs after picking one.
+func (w *MainWindow) colorMenu(it outlineItem, then func()) *fyne.Menu {
+	pick := func(c string) func() {
+		return func() {
+			w.setOutlineColor(it, c)
+			if then != nil {
+				then()
+			}
+		}
+	}
+	none := fyne.NewMenuItem("None", pick("none"))
+	none.Checked = it.Color == ""
+	items := []*fyne.MenuItem{none, fyne.NewMenuItemSeparator()}
+	for _, name := range beatColorNames {
+		item := fyne.NewMenuItem(strings.ToUpper(name[:1])+name[1:], pick(name))
+		item.Icon = swatchIcon(name)
+		item.Checked = it.Color == name || (name == "gray" && it.Color == "grey")
+		items = append(items, item)
+	}
+	return fyne.NewMenu("", items...)
+}
+
+// pickColor shows the picker for item it at pos (absolute); then as for
+// colorMenu.
+func (w *MainWindow) pickColor(it outlineItem, pos fyne.Position, then func()) {
+	m := widget.NewPopUpMenu(w.colorMenu(it, then), w.fyneWindow.Canvas())
+	fyne.SetAccessibleLabel(m, "Color of "+it.Text)
+	m.ShowAtPosition(pos)
+}
+
+// pickColorHere shows the picker for the card whose synopsis is being
+// written, or the scene or section the editor's cursor is in, under at
+// (nil: at the cursor or the card).
+func (w *MainWindow) pickColorHere(at fyne.CanvasObject) {
+	d := fyne.CurrentApp().Driver()
+	below := func(o fyne.CanvasObject) fyne.Position {
+		return d.AbsolutePositionForObject(o).Add(fyne.NewPos(0, o.Size().Height))
+	}
+	if s, ok := w.fyneWindow.Canvas().Focused().(*synopsisEntry); ok && w.cardsVisible && s.i < len(w.cards.items) {
+		if at == nil {
+			at = s
+		}
+		w.pickColor(w.cards.items[s.i], below(at), nil)
+		return
+	}
+	e := w.textEditor
+	items := outlineOf(e.Text(), w.sceneStarts())
+	i := w.cursorItem(items)
+	if i < 0 {
+		w.setStatus("No scene or section here to color")
+		return
+	}
+	var pos fyne.Position
+	if at != nil {
+		pos = below(at)
+	} else {
+		pos = d.AbsolutePositionForObject(e).Add(e.CursorPosition()).Add(fyne.NewPos(0, theme.TextSize()*1.5))
+	}
+	w.pickColor(items[i], pos, func() { w.fyneWindow.Canvas().Focus(e) }) // back to writing
+}
+
+// setOutlineColor gives item it, if it is still in the script, the color
+// c ("none": none), as one undo step.
+func (w *MainWindow) setOutlineColor(it outlineItem, c string) {
+	text := w.textEditor.Text()
+	items := outlineOf(text, w.sceneStarts())
+	i := slices.IndexFunc(items, func(o outlineItem) bool { return o.Line == it.Line && o.Text == it.Text })
+	if i < 0 { // moved (an edit together, say): by its heading
+		i = slices.IndexFunc(items, func(o outlineItem) bool { return o.Text == it.Text && o.Level == it.Level })
+	}
+	if i < 0 {
+		w.setStatus("That heading is gone")
+		return
+	}
+	if nw := setItemColor(text, w.sceneStarts(), i, c); nw != text {
+		w.replaceText(text, nw)
+		// the cards wait while a synopsis is written: shown again, the
+		// synopsis keeps the focus
+		cv := w.fyneWindow.Canvas()
+		if s, ok := cv.Focused().(*synopsisEntry); ok && w.cardsVisible {
+			cv.Unfocus()
+			w.cards.update(nw)
+			if k := w.cards.card(s.i); k != nil {
+				cv.Focus(k.syn)
+			}
+		}
+	}
+	if c == "none" {
+		w.setStatus("No color: " + it.Text)
+	} else {
+		w.setStatus("Color " + c + ": " + it.Text)
+	}
 }

@@ -61,6 +61,10 @@ func TestEverythingHasAName(t *testing.T) {
 	w.showFindReplace()
 	check("window with outline and search", w.fyneWindow.Canvas())
 	w.hideFindReplace()
+	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(2))
+	w.pickColorHere(nil)
+	check("color picker", w.fyneWindow.Canvas())
+	w.fyneWindow.Canvas().Overlays().Top().Hide()
 	w.toggleNotes()
 	check("window with notes", w.fyneWindow.Canvas())
 
