@@ -40,7 +40,7 @@ type exportJob struct {
 	scenes        []string       // the script language's scene headings (nil: English)
 	colors        bool           // headings and sections in their notes' colors
 	colorStyle    lex.ColorStyle // how they show ("": Lexington's, a line in the margin)
-	colorBlock    bool           // a marker or background over the whole block, not the heading
+	colorBlock    bool           // a marker, background or text color over the whole block, not the heading
 	colorTint     bool           // a line's block lightly tinted
 	colorPatterns bool           // a line's bar in its color's pattern (for color blindness)
 	pagination    string         // page breaks: Lexington's -pagination ("": the format's)
@@ -72,7 +72,7 @@ func (j exportJob) options(to, output string) cli.Options {
 		o.ColorStyle = string(j.colorStyle)
 		// only what goes with the style: Lexington refuses the rest
 		switch j.colorStyle {
-		case lex.ColorMarker, lex.ColorBackground:
+		case lex.ColorMarker, lex.ColorBackground, lex.ColorText:
 			if j.colorBlock {
 				o.ColorScope = "block"
 			}

@@ -100,8 +100,8 @@ func pdfStreams(b []byte) string {
 }
 
 // Every style with and without its block and tint: only what goes with
-// the style reaches Lexington (text with a block, a marker with a tint,
-// which it refuses, never do), and each export works.
+// the style reaches Lexington (a marker with a tint, a background with
+// patterns, which it refuses, never do), and each export works.
 func TestExportColorScopeAndTint(t *testing.T) {
 	script := "# Act One [[blue]]\n\nINT. BARN - DAY\n\nRain.\n"
 	for _, s := range colorStyles {
@@ -110,7 +110,7 @@ func TestExportColorScopeAndTint(t *testing.T) {
 				for _, patterns := range []bool{false, true} {
 					job := exportJob{format: "default", colors: true, colorStyle: s.style, colorBlock: block, colorTint: tint, colorPatterns: patterns}
 					o := job.options("html", "x.html")
-					wantScope := block && (s.style == lex.ColorMarker || s.style == lex.ColorBackground)
+					wantScope := block && (s.style == lex.ColorMarker || s.style == lex.ColorBackground || s.style == lex.ColorText)
 					wantTint := tint && s.style == lex.ColorLine
 					wantPatterns := patterns && s.style == lex.ColorLine
 					if (o.ColorScope == "block") != wantScope || o.ColorTint != wantTint || o.ColorPatterns != wantPatterns || (o.ColorScope != "" && o.ColorScope != "block") {
@@ -128,7 +128,7 @@ func TestExportColorScopeAndTint(t *testing.T) {
 		}
 	}
 	// the ones kept back would fail
-	for _, o := range []cli.Options{{Colors: true, ColorStyle: "text", ColorScope: "block"}, {Colors: true, ColorStyle: "marker", ColorTint: true}, {Colors: true, ColorStyle: "background", ColorPatterns: true}} {
+	for _, o := range []cli.Options{{Colors: true, ColorStyle: "text", ColorTint: true}, {Colors: true, ColorStyle: "marker", ColorTint: true}, {Colors: true, ColorStyle: "background", ColorPatterns: true}} {
 		o.Elements, o.To, o.Output, o.ConfigFile = "default", "html", filepath.Join(t.TempDir(), "x.html"), lexingtonConfig()
 		if err := cli.Write(context.Background(), exportJob{}.script(script), o); err == nil {
 			t.Errorf("Lexington takes %s with scope %q, tint %v, patterns %v", o.ColorStyle, o.ColorScope, o.ColorTint, o.ColorPatterns)
@@ -136,7 +136,7 @@ func TestExportColorScopeAndTint(t *testing.T) {
 	}
 }
 
-// The dialog: Whole block with a marker or background, Tint with the
+// The dialog: Whole block with a marker, background or text color, Tint with the
 // line, neither without Colors; saved for the preview and printing.
 func TestExportDialogScopeAndTint(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
@@ -160,7 +160,7 @@ func TestExportDialogScopeAndTint(t *testing.T) {
 		{"Line in the margin", false, true},
 		{"Marker", true, false},
 		{"Background", true, false},
-		{"Text color", false, false},
+		{"Text color", true, false},
 	} {
 		ed.colorStyleSelect.SetSelected(c.style)
 		if ed.colorBlockCheck.Disabled() == c.block || ed.colorTintCheck.Disabled() == c.tint || ed.colorPatternsCheck.Disabled() == c.tint {

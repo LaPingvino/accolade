@@ -55,7 +55,7 @@ func (s *Settings) loadDefaults() {
 		"include-title-page":    true,
 		"export-colors":         false,  // headings in their notes' colors
 		"export-color-style":    "line", // and how (export_dialog.go's colorStyles)
-		"export-color-block":    false,  // a marker or background over the whole block
+		"export-color-block":    false,  // a marker, background or text color over the whole block
 		"export-color-tint":     false,  // a line's block tinted
 		"export-color-patterns": false,  // a line's bar patterned, for color blindness
 		"export-pagination":     "",     // page breaks: Lexington's (export_pagination.go)

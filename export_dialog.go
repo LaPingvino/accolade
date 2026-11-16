@@ -40,7 +40,7 @@ type ExportDialog struct {
 	// colorOptions holds how colors show, under Colors: the style, and
 	// room for what goes with a style (a marker's scope, a line's tint)
 	colorOptions                    *fyne.Container
-	colorBlockCheck, colorTintCheck *widget.Check // with marker or background, with the line
+	colorBlockCheck, colorTintCheck *widget.Check // with marker, background or text; with the line
 	colorPatternsCheck              *widget.Check // with the line
 
 	// page breaks (export_pagination.go)
@@ -678,7 +678,7 @@ func (ed *ExportDialog) enableColorStyle() {
 	}
 	enable(ed.colorStyleSelect, on)
 	if ed.colorBlockCheck != nil {
-		enable(ed.colorBlockCheck, on && (style == lex.ColorMarker || style == lex.ColorBackground))
+		enable(ed.colorBlockCheck, on && (style == lex.ColorMarker || style == lex.ColorBackground || style == lex.ColorText))
 		enable(ed.colorTintCheck, on && style == lex.ColorLine)
 		enable(ed.colorPatternsCheck, on && style == lex.ColorLine)
 	}
