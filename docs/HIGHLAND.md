@@ -99,17 +99,20 @@ These come from the teardown and are worth knowing for Lexington:
   "markdown"). Failing those, a `.highland` is Fountain and other bundles are Markdown, the spec's default.
   The text file is picked as caotang picks it (`text.fountain`, then `.md`, `.markdown`, `.txt`, then any other
   `text.*`).
-- **Saving:** writes only the text file and Accolade's own key in info.json. Every other entry (assets, sidecar
+- **Saving:** for the same file, the bundle is re-read from disk first, so what another app changed in it since
+  it was opened is kept. If the file is gone, emptied (a Save As dialog empties it), or now has another layout
+  or text file, the bytes as read are used instead. Writes only the text file and Accolade's own key in info.json. Every other entry (assets, sidecar
   JSON, unknown files) is copied through byte for byte, in its original order. Zip entries go through
-  `zip.Writer.Copy`, raw and not recompressed, and the archive comment is kept. A saved zip is built from the
-  bytes as read, not re-read from disk, since a Save As dialog may already have emptied the file.
+  `zip.Writer.Copy`, raw and not recompressed, and the archive comment is kept.
 - **Accolade's key**, `"io.github.lapingvino.accolade"`: `{"version":1}` plus `documentType` ("markdown" or
   "screenplay"), written only when the document is not what the bundle says, and `source`, the entry holding
   the adaptation source. When there is nothing to say the key is removed, or never written, so a plain
   open-and-save of a Highland file changes only its text.
 - **The adaptation source:** layer 2 of source_file.go, after the script's own block and before Accolade's kept
   copy and the file beside it. It is `assets/source.md` (or the entry the key names, or a `source.md` beside
-  the text). assets/ was chosen because it is the one part of a bundle Highland promises to keep. The
+  the text). assets/ is a guess, not tested: the developer's page names assets/ as part of the format, so Highland
+  seems likelier to keep it than an unknown file at the root, though the spec means assets/ for files the text
+  refers to. Check this with a real Highland when one is at hand. The
   source is written into the bundle at once (Choose Source, the pane's Done, Keep Source in the Script off),
   with the text in the bundle as last saved. Saving the bundle as a plain file keeps the source as a copy
   Accolade keeps.
@@ -118,7 +121,8 @@ These come from the teardown and are worth knowing for Lexington:
   false, `creatorIdentifier`), `text.fountain` or `text.md`, and `assets/`.
 - **.textbundle** is a folder, so it works on the desktop only. Open goes into the folder and opens its text
   file (or opens the folder's path from a drop, the command line or Open Recent). Save As writes a new folder
-  whole and then moves it into place. The browser's picker offers `.highland` and `.textpack` only.
+  whole and then moves it into place. Fyne's save dialog refuses an existing folder's name ("Files cannot
+  replace a directory"), so a .textbundle can't be overwritten by Save As. Save it in place, or pick a new name. The browser's picker offers `.highland` and `.textpack` only.
 - **No samples from others:** none is committed unless its licence allows it. Test fixtures are made by us, in both
   layouts. Real `.highland` files dropped into testdata/highland are picked up by `TestHighlandFiles`: each is
   opened and saved, and every entry but the text is compared byte for byte. That folder's .gitignore keeps

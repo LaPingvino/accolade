@@ -72,5 +72,6 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   plain Fountain; a bundle with no text is an error. Save As from plain makes a minimal bundle. The source is a new
   layer 2: assets/source.md in the bundle, written at once by Choose Source and the pane. Tests: generated bundles
   (both layouts, assets, sidecars, unknown file, __MACOSX); TextBundle's MIT samples in testdata/textbundle; any real
-  files in testdata/highland (gitignored). Rough: no real .highland tested yet; Save As onto an existing .textbundle
-  folder depends on Fyne's dialog. Next: step 4, statuses and Next passage.
+  files in testdata/highland (gitignored). A same-path save re-reads the bundle first, so other apps' changes are kept.
+  Rough: no real .highland tested yet; assets/ for the source is a guess. Fyne's save dialog refuses an existing
+  folder's name, so Save As can't overwrite a .textbundle. Each save, autosave too, rewrites the whole zip. Next: step 4, statuses and Next passage.

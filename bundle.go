@@ -358,6 +358,9 @@ func saveBundleText(b *textBundle, dst string, text []byte, markdown bool) (*tex
 		files := []bundleFile{{"info.json", newBundleInfo(markdown)}, {textName, text}, {"assets/", nil}}
 		return writeBundle(nil, dst, files)
 	}
+	if sameFile(dst, b.path) {
+		b = b.fresh()
+	}
 	ours := b.ours
 	ours.DocumentType = ""
 	if markdown != b.natural {
@@ -373,6 +376,7 @@ func saveBundleText(b *textBundle, dst string, text []byte, markdown bool) (*tex
 // saveBundleSource writes md as the bundle's source, in place, the text
 // as it is in the bundle.
 func saveBundleSource(b *textBundle, md []byte) (*textBundle, error) {
+	b = b.fresh()
 	name := cmp.Or(b.source, bundleSourceName)
 	ours := b.ours
 	ours.Source = name
@@ -381,6 +385,17 @@ func saveBundleSource(b *textBundle, md []byte) (*textBundle, error) {
 		files = append(files, bundleFile{b.infoName(), info})
 	}
 	return writeBundle(b, b.path, files)
+}
+
+// fresh is the bundle as it is on disk now, if it is still the same
+// bundle (its layout and text file): what another app changed in it since
+// is kept. Else (gone, emptied by a save dialog, made over) as read.
+func (b *textBundle) fresh() *textBundle {
+	nb, _, err := readBundle(b.path)
+	if err != nil || nb.zipped != b.zipped || nb.prefix != b.prefix || nb.textName != b.textName {
+		return b
+	}
+	return nb
 }
 
 // infoName is info.json's name as the bundle has it.
@@ -542,7 +557,10 @@ func zipBundle(b *textBundle, prefix string, files []bundleFile) ([]byte, error)
 			h.SetMode(0o644)
 		}
 		if like != nil {
-			h.Method, h.CreatorVersion, h.ExternalAttrs = like.Method, like.CreatorVersion, like.ExternalAttrs
+			h.CreatorVersion, h.ExternalAttrs = like.CreatorVersion, like.ExternalAttrs
+			if like.Method == zip.Store && !strings.HasSuffix(name, "/") {
+				h.Method = zip.Store // stored as it was; any other method: deflated
+			}
 		}
 		w, err := zw.CreateHeader(h)
 		if err != nil {

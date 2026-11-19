@@ -654,3 +654,73 @@ func TestBundleRename(t *testing.T) {
 		t.Errorf("renamed into a bundle: %q", got)
 	}
 }
+
+// What another app changed in the bundle since it was opened is kept
+// when it is saved (the same bundle still: its layout and text file).
+func TestBundleKeepsOthersChanges(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	p := filepath.Join(t.TempDir(), "Script.highland")
+	os.WriteFile(p, makeZip(t, bundleItems("Script.textbundle/")), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	items := bundleItems("Script.textbundle/")
+	for i := range items {
+		if strings.HasSuffix(items[i].name, "characters.json") {
+			items[i].data = `{"BRAM":{"color":"#00ff00"}}`
+		}
+	}
+	changed := makeZip(t, items)
+	os.WriteFile(p, changed, 0o644) // Highland saved it meanwhile
+	w.textEditor.SetText(bundleScript + "Later.\n")
+	if err := w.SaveFile(); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := os.ReadFile(p)
+	sameExceptText(t, changed, after, "Script.textbundle/text.fountain", false)
+}
+
+// TextBundle's sample with an image (not committed: 160 KB), from a
+// checkout of github.com/shinyfrog/TextBundle named by
+// ACCOLADE_TEXTBUNDLE_SAMPLES (its "TextBundleTests/Sample TextBundles").
+func TestTextBundleSampleWithImage(t *testing.T) {
+	dir := os.Getenv("ACCOLADE_TEXTBUNDLE_SAMPLES")
+	if dir == "" {
+		t.Skip("ACCOLADE_TEXTBUNDLE_SAMPLES not set")
+	}
+	src := filepath.Join(dir, "text plus attachments.textbundle")
+	jpg, err := os.ReadFile(filepath.Join(src, "assets", "oh no.jpg"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmp := t.TempDir()
+	bundle := filepath.Join(tmp, "attachments.textbundle")
+	os.MkdirAll(filepath.Join(bundle, "assets"), 0o755)
+	for _, n := range []string{"info.json", "text.md", "assets/oh no.jpg"} {
+		b, _ := os.ReadFile(filepath.Join(src, n))
+		os.WriteFile(filepath.Join(bundle, n), b, 0o644)
+	}
+	w, _ := newDialogTestWindow(t)
+	if err := w.LoadFile(bundle); err != nil || !w.markdown {
+		t.Fatalf("%v, markdown %v", err, w.markdown)
+	}
+	w.textEditor.SetText(w.textEditor.Text() + "\nMore.\n")
+	if err := w.SaveFile(); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(bundle, "assets", "oh no.jpg")); !bytes.Equal(b, jpg) {
+		t.Error("the image changed")
+	}
+	pack := filepath.Join(tmp, "attachments.textpack")
+	if err := w.saveToFile(pack); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(pack)
+	if got, _ := zipFile(t, data, "attachments.textbundle/assets/oh no.jpg"); got != string(jpg) {
+		t.Error("the image in the .textpack differs")
+	}
+	w2, _ := newDialogTestWindow(t)
+	if err := w2.LoadFile(pack); err != nil || !strings.HasSuffix(w2.textEditor.Text(), "More.\n") {
+		t.Errorf("the .textpack reopened: %v", err)
+	}
+}
