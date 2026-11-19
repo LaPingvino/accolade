@@ -19,7 +19,12 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	e.Syntax = true
 	e.OnEnter = func() bool { return completeLine(w, e) }
 	tab := completer{starts: w.sceneStarts}
-	e.OnTab = func() bool { return w != nil && w.cycleHere() || tab.tab(e) }
+	e.OnTab = func() bool {
+		if w != nil && w.cycleHere() {
+			return true
+		}
+		return (w == nil || !w.markdown) && tab.tab(e) // names and headings: a screenplay's
+	}
 	// vim mode (Preferences > Editor), before anything else sees a key
 	vi := newVim(e)
 	vi.on = func() bool { return w != nil && w.editorKeys() != "standard" }
@@ -133,6 +138,9 @@ func closeBracket(e *editor.ScriptEditor, r rune) bool {
 func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
 	if w != nil && w.settings != nil && !w.settings.GetBoolean("auto-indent") {
 		return false
+	}
+	if w != nil && w.markdown { // no screenplay elements: lists go on
+		return continueList(e)
 	}
 	if e.SelectedText() != "" {
 		return false

@@ -56,7 +56,7 @@ func newCardsView(w *MainWindow) *cardsView {
 // update shows the script's outline as cards. While a synopsis is being
 // written on a card, the cards stay (they would lose the typing).
 func (c *cardsView) update(text string) {
-	c.items = outlineOf(text, c.w.sceneStarts())
+	c.items = c.w.outlineItems(text)
 	if _, typing := c.w.fyneWindow.Canvas().Focused().(*synopsisEntry); typing {
 		return
 	}
@@ -366,6 +366,10 @@ func newHeadingHint(w *MainWindow) string {
 
 // toggleCards shows the card view in the editor's place, or the editor.
 func (w *MainWindow) toggleCards() {
+	if w.markdown && !w.cardsVisible {
+		w.setStatus("Cards are a screenplay's scenes")
+		return
+	}
 	w.cardsVisible = !w.cardsVisible
 	if w.cardsVisible {
 		if w.cards == nil {

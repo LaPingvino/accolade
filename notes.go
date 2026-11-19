@@ -14,56 +14,86 @@ import (
 )
 
 // The notepad (View > Notes) keeps notes with the script: at its end, in
-// a Fountain boneyard block, which no Fountain app prints:
+// a Fountain boneyard block, which no Fountain app prints (in Markdown, an
+// HTML comment: <!-- Notes ... -->):
 //
 //	/* Notes
 //	...
 //	*/
 
-var notesBlock = regexp.MustCompile(`(?s)^/\* Notes\n(.*?)\n?\*/\s*$`)
+// notesMarks are how a kind of file keeps its notes block: Fountain's
+// boneyard, Markdown's HTML comment (neither shows in what is printed).
+type notesMarks struct {
+	open, close, escaped string // escaped: close, when it is in the notes
+	block                *regexp.Regexp
+}
 
-// notesAt finds the notes block: the last "/* Notes" in the script, if
+func newNotesMarks(open, close, escaped string) notesMarks {
+	return notesMarks{open, close, escaped,
+		regexp.MustCompile(`(?s)^` + regexp.QuoteMeta(open) + `\n(.*?)\n?` + regexp.QuoteMeta(close) + `\s*$`)}
+}
+
+var (
+	fountainNotes = newNotesMarks("/* Notes", "*/", "* /")
+	markdownNotes = newNotesMarks("<!-- Notes", "-->", "-- >")
+)
+
+// at finds the notes block: the last "/* Notes" in the script, if
 // it closes at the very end (an earlier boneyard of the same name is
 // the script's, not the notes); its byte offset (with the blank lines
 // before it) and the notes, or -1.
-func notesAt(text string) (int, string) {
-	i := strings.LastIndex(text, "/* Notes\n")
+func (m notesMarks) at(text string) (int, string) {
+	i := strings.LastIndex(text, m.open+"\n")
 	if i < 0 || (i > 0 && text[i-1] != '\n') {
 		return -1, ""
 	}
-	m := notesBlock.FindStringSubmatch(text[i:])
-	if m == nil || strings.Contains(m[1], "*/") {
+	found := m.block.FindStringSubmatch(text[i:])
+	if found == nil || strings.Contains(found[1], m.close) {
 		return -1, ""
 	}
 	for i > 0 && text[i-1] == '\n' {
 		i--
 	}
-	return i, m[1]
+	return i, found[1]
 }
 
-// notesOf are the notes at the end of a script.
-func notesOf(text string) string {
-	_, notes := notesAt(text)
+// of are the notes at the end of a script.
+func (m notesMarks) of(text string) string {
+	_, notes := m.at(text)
 	return notes
 }
 
-// notesStart is where the notes block starts (the text's length if
-// there is none), in runes.
-func notesStart(text string) int {
-	if i, _ := notesAt(text); i >= 0 {
+// start is where the notes block starts (the text's length if there is
+// none), in runes.
+func (m notesMarks) start(text string) int {
+	if i, _ := m.at(text); i >= 0 {
 		return len([]rune(text[:i]))
 	}
 	return len([]rune(text))
 }
 
-// notesText is the block for notes ("" for none); a "*/" in them would
-// end it, so it becomes "* /".
-func notesText(notes string) string {
+// text is the block for notes ("" for none); a "*/" (Markdown: "-->")
+// in them would end it, so it becomes "* /" ("-- >").
+func (m notesMarks) text(notes string) string {
 	notes = strings.TrimRight(notes, "\n")
 	if strings.TrimSpace(notes) == "" {
 		return ""
 	}
-	return "\n\n/* Notes\n" + strings.ReplaceAll(notes, "*/", "* /") + "\n*/\n"
+	return "\n\n" + m.open + "\n" + strings.ReplaceAll(notes, m.close, m.escaped) + "\n" + m.close + "\n"
+}
+
+// A Fountain script's notes.
+func notesAt(text string) (int, string) { return fountainNotes.at(text) }
+func notesOf(text string) string        { return fountainNotes.of(text) }
+func notesStart(text string) int        { return fountainNotes.start(text) }
+func notesText(notes string) string     { return fountainNotes.text(notes) }
+
+// notesMarks are the window's document's kind's.
+func (w *MainWindow) notesMarks() notesMarks {
+	if w.markdown {
+		return markdownNotes
+	}
+	return fountainNotes
 }
 
 // notesPanel is the notepad beside the editor.
@@ -94,7 +124,7 @@ func newNotesPanel(w *MainWindow) *notesPanel {
 
 // update shows the script's notes, unless they are being typed.
 func (n *notesPanel) update(text string) {
-	notes := notesOf(text)
+	notes := n.w.notesMarks().of(text)
 	if notes == n.entry.Text {
 		return
 	}
@@ -107,8 +137,8 @@ func (n *notesPanel) update(text string) {
 func (n *notesPanel) save(notes string) {
 	e := n.w.textEditor
 	text := e.Text()
-	from := notesStart(text)
-	block := notesText(notes)
+	from := n.w.notesMarks().start(text)
+	block := n.w.notesMarks().text(notes)
 	if from == len([]rune(text)) && block != "" {
 		// no block yet: after the script, without its trailing new lines
 		from = len([]rune(strings.TrimRight(text, "\n")))

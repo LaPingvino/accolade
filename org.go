@@ -15,7 +15,7 @@ import (
 func (w *MainWindow) org(cmd string) bool {
 	e := w.textEditor
 	text := e.Text()
-	items := outlineOf(text, w.sceneStarts())
+	items := w.outlineItems(text)
 	line, _ := e.Buffer().Position(e.CursorOffset())
 	i := w.cursorItem(items)
 	goTo := func(j int) bool {
@@ -90,7 +90,7 @@ func (w *MainWindow) org(cmd string) bool {
 		}
 		heading := items[i]
 		w.moveOutlineItem(i, to)
-		for _, it := range outlineOf(e.Text(), w.sceneStarts()) { // the cursor goes with it
+		for _, it := range w.outlineItems(e.Text()) { // the cursor goes with it
 			if it.Text == heading.Text && it.Level == heading.Level {
 				l := it.Line
 				e.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(l), false) })

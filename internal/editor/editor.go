@@ -86,6 +86,9 @@ type ScriptEditor struct {
 	highlights [][2]int
 	// Syntax colours the text by Fountain element
 	Syntax bool
+	// Markdown: the text is Markdown, coloured as such and wrapped as
+	// prose (Format is not used)
+	Markdown bool
 	// lineNumbers shows each line's number in a gutter (SetLineNumbers)
 	lineNumbers bool
 
@@ -109,6 +112,8 @@ type ScriptEditor struct {
 type drawing struct {
 	text                                     []rune
 	kinds                                    []syntax.Kind
+	inline                                   map[int][]syntax.Span // Markdown's emphasis, by line
+	lineStart                                []int                 // each line's first offset
 	th                                       fyne.Theme
 	v                                        fyne.ThemeVariant
 	selected, cursor, highlight, number      *widget.CustomTextGridStyle
@@ -317,7 +322,7 @@ func (e *ScriptEditor) relayout() {
 	for i, l := range lines {
 		e.rtl[i] = RTL(l)
 	}
-	if e.Format != nil {
+	if e.Format != nil && !e.Markdown {
 		line, _ := e.buf.Position(e.buf.Cursor())
 		kinds = syntax.ClassifyTyping(lines, e.SceneStarts, line)
 		formats := make([]wrap.Format, len(kinds))
@@ -358,8 +363,25 @@ func (e *ScriptEditor) relayout() {
 	}
 	selStart, selEnd := e.buf.Selection()
 	curRow, curCol := e.layout.RowCol(e.buf.Cursor())
-	if kinds == nil && e.Syntax {
-		kinds = syntax.ClassifyWith(strings.Split(string(text), "\n"), e.SceneStarts)
+	var inline map[int][]syntax.Span
+	var lineStart []int
+	switch {
+	case e.Markdown && e.Syntax:
+		kinds = syntax.ClassifyMarkdown(lines)
+		inline, lineStart = map[int][]syntax.Span{}, make([]int, len(lines))
+		off := 0
+		for i, l := range lines {
+			lineStart[i] = off
+			off += len([]rune(l)) + 1
+			switch kinds[i] {
+			case syntax.Action, syntax.MdHeading, syntax.MdQuote, syntax.MdListItem:
+				if s := syntax.MarkdownInline(l); s != nil {
+					inline[i] = s
+				}
+			}
+		}
+	case kinds == nil && e.Syntax:
+		kinds = syntax.ClassifyWith(lines, e.SceneStarts)
 	}
 
 	number := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}
@@ -372,7 +394,7 @@ func (e *ScriptEditor) relayout() {
 		r, c := e.layout.RowCol(o.Cursor)
 		otherCursors[r] = append(otherCursors[r], c)
 	}
-	e.draw = drawing{text: text, kinds: kinds, th: th, v: v, selected: selected, cursor: cursor,
+	e.draw = drawing{text: text, kinds: kinds, inline: inline, lineStart: lineStart, th: th, v: v, selected: selected, cursor: cursor,
 		highlight: highlight, number: number, selStart: selStart, selEnd: selEnd,
 		curRow: curRow, curCol: curCol, gutter: g, others: others, otherCursors: otherCursors}
 	e.drawRows()
@@ -441,13 +463,19 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 	if r.Line < len(kinds) {
 		lineStyle = kindStyle(kinds[r.Line], th, v)
 	}
+	spans := d.inline[r.Line]
 	for off := r.Start; off < r.End; off++ {
 		cell := widget.TextGridCell{Rune: text[off], Style: lineStyle}
+		for _, s := range spans {
+			if at := off - d.lineStart[r.Line]; at >= s.Start && at < s.End {
+				cell.Style = inlineStyle(lineStyle, s.Kind, th, v)
+			}
+		}
 		switch {
 		case off >= selStart && off < selEnd, d.inOther(off):
-			cell.Style = withBackground(lineStyle, selected.BGColor)
+			cell.Style = withBackground(cell.Style, selected.BGColor)
 		case highlighted(off):
-			cell.Style = withBackground(lineStyle, highlight.BGColor)
+			cell.Style = withBackground(cell.Style, highlight.BGColor)
 		}
 		cells = append(cells, cell)
 		if wrap.Width(cell.Rune) == 2 { // a wide character's second column
@@ -586,8 +614,37 @@ func kindStyle(k syntax.Kind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGri
 		return &widget.CustomTextGridStyle{FGColor: dim}
 	case syntax.Note, syntax.Section, syntax.Synopsis:
 		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: dim}
+	// Markdown: headings are its landmarks, as scene headings are a script's
+	case syntax.MdHeading:
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: th.Color(theme.ColorNamePrimary, v)}
+	case syntax.MdQuote:
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: fg}
+	case syntax.MdCode, syntax.MdCodeFence, syntax.MdRule, syntax.MdFrontMatter:
+		return &widget.CustomTextGridStyle{FGColor: dim}
+	case syntax.MdComment:
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: dim}
 	}
 	return nil
+}
+
+// inlineStyle is a line's style with Markdown's emphasis on it: bold,
+// italic, code dimmed, links in the accent colour.
+func inlineStyle(line widget.TextGridStyle, k syntax.InlineKind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGridStyle {
+	out := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNameForeground, v)}
+	if line != nil {
+		out.TextStyle, out.FGColor = line.Style(), line.TextColor()
+	}
+	switch k {
+	case syntax.Strong:
+		out.TextStyle.Bold = true
+	case syntax.Emphasis:
+		out.TextStyle.Italic = true
+	case syntax.CodeSpan:
+		out.FGColor = mix(th.Color(theme.ColorNameForeground, v), th.Color(theme.ColorNameBackground, v), 0.45)
+	case syntax.Link:
+		out.FGColor = th.Color(theme.ColorNamePrimary, v)
+	}
+	return out
 }
 
 // mix blends a towards b by the fraction t.

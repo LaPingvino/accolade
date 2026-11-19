@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -80,6 +81,7 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 		s.synced = true
 		w.shareMeta("language", w.language)
 		w.shareMeta("format", w.settings.GetString("script-format"))
+		w.shareMeta("markdown", strconv.FormatBool(w.markdown))
 	}
 	w.connect(ctx, s)
 	w.updateStatusBar()
@@ -194,6 +196,10 @@ func (w *MainWindow) applyShared(key, value string) {
 		if value != w.language {
 			w.setLanguage(value)
 			w.updateStatusBar()
+		}
+	case "markdown":
+		if on := value == "true"; on != w.markdown {
+			w.setMarkdown(on)
 		}
 	case "format":
 		if value != w.settings.GetString("script-format") {

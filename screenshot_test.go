@@ -44,3 +44,43 @@ func TestScreenshots(t *testing.T) {
 		f.Close()
 	}
 }
+
+// TestMarkdownScreenshots renders a Markdown document open, with its
+// outline and preview, in the light and dark schemes (SHOT_DIR as above).
+func TestMarkdownScreenshots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	w := NewMainWindow(&Application{fyneApp: a})
+	w.fyneWindow.Resize(fyne.NewSize(1200, 700))
+	md := filepath.Join(t.TempDir(), "story.md")
+	if err := os.WriteFile(md, []byte(story), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.LoadFile(md); err != nil {
+		t.Fatal(err)
+	}
+	w.textEditor.SetCursorOffset(len([]rune(story)) / 3)
+	w.toggleOutline()
+	w.preview()
+	for _, scheme := range []string{"light", "dark"} {
+		w.app.setColorScheme(scheme)
+		w.fyneWindow.Content().Refresh()
+		f, err := os.Create(filepath.Join(dir, "accolade-markdown-"+scheme+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, w.fyneWindow.Canvas().Capture()); err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+	}
+}

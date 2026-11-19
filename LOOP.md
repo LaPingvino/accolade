@@ -20,3 +20,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
 ## Tick log
 
 - 2026-11-19: added to the loop. Plan in docs/ADAPTATION.md. Next: step 1, the Markdown mode.
+- 2026-11-19: step 1, Markdown mode (branch markdown, not merged). A .md/.markdown file opens with Markdown colouring
+  (syntax/markdown.go: line kinds and inline emphasis), an outline of its headings, a live preview beside the editor
+  (Fyne's RichText, goldmark inside; Ctrl+Shift+P), notes in `<!-- Notes -->`, list continuation on Enter, Print as a
+  goldmark web page. Elements, completion, title page, export, cards and colours are put away in Markdown. File > New
+  Markdown Document; Open offers .md (browser too). Next: step 2, import and export.

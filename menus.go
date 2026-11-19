@@ -1,6 +1,8 @@
 package main
 
 import (
+	"slices"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
@@ -37,6 +39,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	file := fyne.NewMenu("File",
 		menuItem("New", shortcut(fyne.KeyN, 0), w.NewFile),
 		menuItem("New Empty", shortcut(fyne.KeyN, fyne.KeyModifierAlt), w.NewEmptyFile),
+		fyne.NewMenuItem("New Markdown Document", w.NewMarkdownFile),
 		menuItem(openLabel, shortcut(fyne.KeyO, 0), w.OpenFile),
 		w.recentMenu(),
 		fyne.NewMenuItemSeparator(),
@@ -48,7 +51,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItemSeparator(),
 		menuItem("Title Page…", shortcut(fyne.KeyT, fyne.KeyModifierShift), w.showTitlePageDialog),
 		menuItem("Export…", shortcut(fyne.KeyE, 0), w.showExportDialog),
-		menuItem("Print…", shortcut(fyne.KeyP, 0), w.printScript),
+		menuItem("Print…", shortcut(fyne.KeyP, 0), w.print),
 		fyne.NewMenuItemSeparator(),
 		menuItem("Preferences…", shortcut(fyne.KeyComma, 0), func() { w.app.showPreferences() }),
 		// Fyne appends Quit (Ctrl+Q) to the first menu itself.
@@ -57,6 +60,9 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		newWindow := menuItem("New Window", shortcut(fyne.KeyN, fyne.KeyModifierShift), func() { w.app.newScriptWindow(false) })
 		newEmptyWindow := menuItem("New Empty Window", shortcut(fyne.KeyN, fyne.KeyModifierShift|fyne.KeyModifierAlt), func() { w.app.newScriptWindow(true) })
 		file.Items = append([]*fyne.MenuItem{file.Items[0], file.Items[1], newWindow, newEmptyWindow}, file.Items[2:]...)
+	}
+	if w.markdown { // the title page and the export formats are a screenplay's
+		file.Items = withoutItems(file.Items, "Title Page…", "Export…")
 	}
 
 	edit := fyne.NewMenu("Edit",
@@ -107,13 +113,17 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Move Line Up", alt(fyne.KeyUp), inEditor(func() { moveLines(w.textEditor, -1) })),
 		menuItem("Move Line Down", alt(fyne.KeyDown), inEditor(func() { moveLines(w.textEditor, 1) })),
 	)
+	if w.markdown { // a screenplay's elements, language and colours
+		format.Items = withoutItems(format.Items, "Scene Heading", "Action", "Character", "Parenthetical",
+			"Dialogue", "Transition", "Centered", "Lyrics", "Script Language…", "Scene or Section Color…", "Underline")
+	}
 
 	view := fyne.NewMenu("View",
-		menuItem("Preview PDF", shortcut(fyne.KeyP, fyne.KeyModifierShift), w.previewPDF),
+		menuItem("Preview PDF", shortcut(fyne.KeyP, fyne.KeyModifierShift), w.preview),
 		menuItem("Outline", shortcut(fyne.KeyO, fyne.KeyModifierShift), w.toggleOutline),
 		menuItem("Cards", shortcut(fyne.KeyD, fyne.KeyModifierShift), w.toggleCards),
 		menuItem("Fold or Unfold Here", shortcut(fyne.KeyPeriod, fyne.KeyModifierShift), func() { w.fold(false, true) }),
-		menuItem("Fold All (Sections Only)", nil, func() { w.foldOverview(outlineOf(w.textEditor.Text(), w.sceneStarts())) }),
+		menuItem("Fold All (Sections Only)", nil, func() { w.foldOverview(w.outlineItems(w.textEditor.Text())) }),
 		menuItem("Headings Only", nil, w.foldHeadings),
 		menuItem("Unfold All", nil, func() { w.foldAll(true) }),
 		menuItem("Notes", shortcut(fyne.KeyK, fyne.KeyModifierShift), w.toggleNotes),
@@ -121,12 +131,37 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItem("Statistics…", w.showStatistics),
 		menuItem("Fullscreen", shortcut(fyne.KeyF, fyne.KeyModifierShift), w.toggleFullscreen),
 	)
+	if w.markdown {
+		view.Items[0].Label = "Preview"
+		view.Items = withoutItems(view.Items, "Cards", "Statistics…") // a screenplay's scenes
+	}
 
 	help := fyne.NewMenu("Help",
 		fyne.NewMenuItem("About Accolade", func() { w.app.showAbout() }),
 	)
 
 	return fyne.NewMainMenu(file, edit, format, view, help)
+}
+
+// withoutItems is a menu's items without those labelled so.
+func withoutItems(items []*fyne.MenuItem, labels ...string) []*fyne.MenuItem {
+	var out []*fyne.MenuItem
+	for _, it := range items {
+		if !slices.Contains(labels, it.Label) {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+// print prints the document: a screenplay as Lexington lays it out, a
+// Markdown document as a web page.
+func (w *MainWindow) print() {
+	if w.markdown {
+		w.printMarkdown()
+		return
+	}
+	w.printScript()
 }
 
 // escEntry is the entry used in the search bar: Escape closes the bar

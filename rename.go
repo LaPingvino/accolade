@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -71,7 +72,7 @@ func (w *MainWindow) renameScript() {
 	entry := widget.NewEntry()
 	entry.SetText(old)
 	if old == "" {
-		entry.SetPlaceHolder("untitled.fountain")
+		entry.SetPlaceHolder(w.untitledName())
 	}
 	where := "It is not saved yet: this is the name it will be saved by."
 	if w.currentFile != "" {
@@ -84,7 +85,7 @@ func (w *MainWindow) renameScript() {
 		if !ok {
 			return
 		}
-		if err := w.renameTo(renamedName(entry.Text, old)); err != nil {
+		if err := w.renameTo(renamedName(entry.Text, cmp.Or(old, w.untitledName()))); err != nil {
 			dialog.ShowError(err, w.fyneWindow)
 		}
 	}, w.fyneWindow)
@@ -114,6 +115,7 @@ func (w *MainWindow) renameTo(name string) error {
 	if l := languageOf(name); l != "" && l != w.language {
 		w.setLanguage(l)
 	}
+	w.modeFromName(name)
 	w.updateTitle()
 	return nil
 }

@@ -8,6 +8,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/accolade/internal/editor/syntax"
+	"github.com/LaPingvino/accolade/internal/editor/wrap"
 )
 
 func bg(c widget.TextGridCell) bool {
@@ -104,5 +107,34 @@ func TestSyntaxColoursFollowTheTheme(t *testing.T) {
 		if got := e.grid.Rows[2].Cells[0].Style.TextColor(); got != want {
 			t.Errorf("character name colour %v, want the theme's foreground %v", got, want)
 		}
+	}
+}
+
+// Markdown: headings bold, emphasis inside a line, and no screenplay
+// layout even with a Format.
+func TestMarkdownStyles(t *testing.T) {
+	e := newEditor(t, "# One\n\nSome **bold** and *it*.\n\nJOHN\nHi.", 40)
+	e.FocusLost()
+	e.Syntax, e.Markdown = true, true
+	e.Format = func(k syntax.Kind) wrap.Format { return wrap.Format{Indent: 10} }
+	e.changed(false)
+	cell := func(row, col int) widget.TextGridStyle { return e.grid.Rows[row].Cells[col].Style }
+	if s := cell(0, 2); s == nil || !s.Style().Bold {
+		t.Error("heading not bold")
+	}
+	if cell(2, 0) != nil {
+		t.Error("plain text styled")
+	}
+	if s := cell(2, 7); s == nil || !s.Style().Bold {
+		t.Error("**bold** not bold")
+	}
+	if s := cell(2, 19); s == nil || !s.Style().Italic {
+		t.Error("*it* not italic")
+	}
+	if s := cell(4, 0); s != nil && s.Style().Bold {
+		t.Error("a name in capitals is a character cue in Markdown")
+	}
+	if r := e.layout.Rows[4]; r.Indent != 0 {
+		t.Errorf("laid out as a screenplay: indent %d", r.Indent)
 	}
 }

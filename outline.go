@@ -123,6 +123,7 @@ type outlinePanel struct {
 	all    []outlineItem // the script's
 	items  []outlineItem // shown: those the filter lets through
 	filter *widget.Entry
+	cards  *widget.Button
 	folded map[string]bool // sections shown without what is in them
 	list   *widget.List
 	box    fyne.CanvasObject
@@ -192,16 +193,23 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			o.goTo(o.items[0].Line)
 		}
 	}
-	cards := widget.NewButtonWithIcon("", theme.GridIcon(), w.toggleCards)
-	cards.Importance = widget.LowImportance
-	fyne.SetAccessibleLabel(cards, "Cards: the outline as index cards")
-	o.box = container.NewStack(width, container.NewBorder(container.NewVBox(container.NewBorder(nil, nil, nil, cards, heading), o.filter), nil, nil, nil, o.list))
+	o.cards = widget.NewButtonWithIcon("", theme.GridIcon(), w.toggleCards)
+	o.cards.Importance = widget.LowImportance
+	fyne.SetAccessibleLabel(o.cards, "Cards: the outline as index cards")
+	o.box = container.NewStack(width, container.NewBorder(container.NewVBox(container.NewBorder(nil, nil, nil, o.cards, heading), o.filter), nil, nil, nil, o.list))
 	return o
 }
 
 // update reads the outline from the script again.
 func (o *outlinePanel) update(text string) {
-	o.all = outlineOf(text, o.w.sceneStarts())
+	o.all = o.w.outlineItems(text)
+	if o.w.markdown { // headings only: no scenes, no cards
+		o.filter.SetPlaceHolder("Filter headings")
+		o.cards.Hide()
+	} else {
+		o.filter.SetPlaceHolder("Filter scenes and sections")
+		o.cards.Show()
+	}
 	o.show()
 }
 

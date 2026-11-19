@@ -36,6 +36,7 @@ type HeaderBar struct {
 	place                             *widget.Button            // inside, outside or both
 	elementButtons                    map[string]*widget.Button // by element
 	formatBox                         *fyne.Container           // the format's own buttons
+	screenplayRow, markdownRow        fyne.CanvasObject         // the editing row for each
 	showing                           bool                      // the selects show, not choose
 }
 
@@ -105,7 +106,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.undoButton = button(theme.ContentUndoIcon(), "Undo"+keys("Z"), window.undo)
 	hb.redoButton = button(theme.ContentRedoIcon(), "Redo"+keys("Shift+Z"), window.redo)
 	hb.findButton = button(theme.SearchIcon(), "Find and replace"+keys("F"), window.showFindReplace)
-	hb.previewButton = button(theme.VisibilityIcon(), "Preview PDF"+keys("Shift+P"), window.previewPDF)
+	hb.previewButton = button(theme.VisibilityIcon(), "Preview PDF"+keys("Shift+P"), window.preview)
 	hb.exportButton = button(theme.DownloadIcon(), "Export to PDF, HTML, FDX…"+keys("E"), window.showExportDialog)
 	hb.outlineButton = button(theme.ListIcon(), "Outline"+keys("Shift+O"), window.toggleOutline)
 	hb.cardsButton = button(theme.GridIcon(), "Cards"+keys("Shift+D"), window.toggleCards)
@@ -214,8 +215,31 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 		buttonItem(toggle), elements, picker(place, window.pickPlace), picker(character, window.pickCharacter), picker(sceneColor, window.pickColorHere),
 		buttonItem(bold), buttonItem(italic), buttonItem(underline), gapItem(), formatButtons,
 	}, nil, 0)
-	hb.container = container.NewVBox(top.Container, container.NewBorder(nil, nil, nil, hb.format, editing.Container))
+	hb.screenplayRow = container.NewBorder(nil, nil, nil, hb.format, editing.Container)
+	// Markdown's: its emphasis (_ is italic there, not underline)
+	hb.markdownRow = newOverflowRow(tips, []overflowItem{
+		buttonItem(button(boldIcon, "Bold"+keys("B"), emphasis("**"))),
+		buttonItem(button(italicIcon, "Italic"+keys("I"), emphasis("*"))),
+	}, nil, 0).Container
+	hb.container = container.NewVBox(top.Container, hb.screenplayRow)
 	return hb
+}
+
+// setMarkdown shows the bar for a Markdown document or a screenplay: the
+// editing row, the preview's tip; the export is a screenplay's.
+func (hb *HeaderBar) setMarkdown(on bool) {
+	row, tip := hb.screenplayRow, "Preview PDF"
+	if on {
+		row, tip = hb.markdownRow, "Preview"
+		hb.exportButton.Disable()
+		hb.cardsButton.Disable()
+	} else {
+		hb.exportButton.Enable()
+		hb.cardsButton.Enable()
+	}
+	hb.previewButton.Tip = tip + keys("Shift+P")
+	hb.container.Objects[1] = row
+	hb.container.Refresh()
 }
 
 // gap is a little space between groups of buttons.

@@ -225,7 +225,7 @@ func (w *MainWindow) nameLanguage(lang string) error {
 	if w.currentFile == "" {
 		name := w.suggestedName
 		if name == "" {
-			name = "untitled.fountain"
+			name = w.untitledName()
 		}
 		if n := filepath.Base(withLanguageName(name, lang)); n != name || w.suggestedName != "" {
 			w.suggestedName = n

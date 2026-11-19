@@ -20,7 +20,11 @@ func outlineExtent(items []outlineItem, i, lines int) (from, to int) {
 // moveOutline moves item from (with what it holds) before item to, or to
 // the end when to is len(items); it reports whether the text changed.
 func moveOutline(text string, starts []string, from, to int) (string, bool) {
-	items := outlineOf(text, starts)
+	return moveItems(text, outlineOf(text, starts), from, to)
+}
+
+// moveItems is moveOutline with the text's outline items.
+func moveItems(text string, items []outlineItem, from, to int) (string, bool) {
 	if from < 0 || from >= len(items) || to < 0 || to > len(items) {
 		return text, false
 	}
@@ -56,7 +60,7 @@ func trailingNewlines(text string) string { return text[len(strings.TrimRight(te
 // step; to is an index in the outline (len: the end).
 func (w *MainWindow) moveOutlineItem(from, to int) {
 	text := w.textEditor.Text()
-	if nw, ok := moveOutline(text, w.sceneStarts(), from, to); ok {
+	if nw, ok := moveItems(text, w.outlineItems(text), from, to); ok {
 		w.replaceText(text, nw)
 		w.setStatus("Moved")
 	}

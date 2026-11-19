@@ -7,6 +7,7 @@ import (
 	"mime"
 	"os"
 	"path"
+	"strings"
 	"syscall/js"
 
 	"fyne.io/fyne/v2"
@@ -50,7 +51,7 @@ func pickFile(open func(path string)) {
 	doc := js.Global().Get("document")
 	input := doc.Call("createElement", "input")
 	input.Set("type", "file")
-	input.Set("accept", ".fountain,.spmd,.txt,.fdx,.pdf")
+	input.Set("accept", strings.Join(openExtensions, ","))
 	var onChange js.Func
 	onChange = js.FuncOf(func(js.Value, []js.Value) any {
 		onChange.Release()

@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -75,6 +76,10 @@ type MainWindow struct {
 	outlineVisible bool
 	notes          *notesPanel
 	notesVisible   bool
+	// markdown: the document is Markdown, not a screenplay (markdown.go)
+	markdown       bool
+	previewPane    *previewPanel // a Markdown document's preview
+	previewVisible bool
 
 	// File management
 	currentFile string
@@ -286,6 +291,9 @@ func (w *MainWindow) applyEditorSettings() {
 // applyScriptFormat lays the editor out in the script format's columns.
 func (w *MainWindow) applyScriptFormat() {
 	w.textEditor.Format, w.textEditor.PageColumns = editorFormat(currentScriptFormat())
+	if w.markdown { // prose: a column of text, no screenplay layout
+		w.textEditor.Format, w.textEditor.PageColumns = nil, markdownColumns
+	}
 	w.textEditor.Refresh()
 	w.shareMeta("format", w.settings.GetString("script-format"))
 }
@@ -322,7 +330,11 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	text, format := decodeScript(content)
 	w.format = format
 	w.setLanguage(languageOf(filePath))
-	w.textEditor.SetText(withoutIndents(text, w.sceneStarts()))
+	w.setMarkdown(isMarkdownFile(filePath))
+	if !w.markdown { // Markdown's indents are its own (lists, code)
+		text = withoutIndents(text, w.sceneStarts())
+	}
+	w.textEditor.SetText(text)
 	w.currentFile = filePath
 	w.suggestedName = ""
 	w.rememberRecent(filePath)
@@ -364,6 +376,7 @@ func (w *MainWindow) importFile(filePath string) error {
 func (w *MainWindow) showImported(filePath, text, from string) {
 	w.cancelAutoSave()
 	w.format = fileFormat{}
+	w.setMarkdown(false)
 	w.textEditor.SetText(text)
 	w.filledWith = w.textEditor.Text()
 	w.currentFile = ""
@@ -469,7 +482,7 @@ func (w *MainWindow) SaveFileAs() error {
 			name = filepath.Base(w.currentFile)
 		}
 		if name == "" {
-			name = "untitled.fountain"
+			name = w.untitledName()
 		}
 		p := filepath.Join("/files", name)
 		if err := os.MkdirAll("/files", 0o755); err != nil {
@@ -500,6 +513,7 @@ func (w *MainWindow) SaveFileAs() error {
 		w.currentFile = filePath
 		w.suggestedName = ""
 		w.rememberRecent(filePath)
+		w.modeFromName(filePath)
 		if l := languageOf(filePath); l != "" {
 			w.setLanguage(l)
 		}
@@ -515,11 +529,8 @@ func (w *MainWindow) SaveFileAs() error {
 	} else if w.suggestedName != "" {
 		fileDialog.SetFileName(w.suggestedName)
 	} else {
-		fileDialog.SetFileName("untitled.fountain")
+		fileDialog.SetFileName(w.untitledName())
 	}
-
-	// TODO: Set file filter when Fyne supports it
-	// fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{".fountain", ".spmd"}))
 
 	fileDialog.Show()
 	return nil
@@ -556,8 +567,8 @@ func (w *MainWindow) OpenFile() {
 		w.openPath(filePath)
 	}, w.fyneWindow)
 
-	// TODO: Set file filter when Fyne supports it
-	// fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{".fountain", ".spmd", ".txt"}))
+	// what Accolade opens: scripts, Markdown, Final Draft, PDF
+	fileDialog.SetFilter(storage.NewExtensionFileFilter(openExtensions))
 
 	fileDialog.Show()
 }
@@ -712,6 +723,7 @@ func newScriptTemplate() string {
 }
 
 func (w *MainWindow) createNewFile(empty bool) {
+	w.setMarkdown(false)
 	w.format = fileFormat{} // a new script is UTF-8
 	text := newScriptTemplate()
 	if empty {
@@ -744,6 +756,7 @@ type kept struct {
 	Language string `json:"language,omitempty"`
 	File     string `json:"file,omitempty"` // in the browser's memory (kept too)
 	Name     string `json:"name,omitempty"` // an import's name to save it as
+	Markdown bool   `json:"markdown,omitempty"`
 }
 
 // restore puts a kept script back: its file again, if it still has it,
@@ -757,6 +770,7 @@ func (w *MainWindow) restore(d kept) {
 		return
 	}
 	w.setLanguage(d.Language)
+	w.setMarkdown(d.Markdown)
 	w.textEditor.SetText(d.Text)
 	w.suggestedName = d.Name
 	w.updateTitle()
@@ -766,7 +780,7 @@ func (w *MainWindow) restore(d kept) {
 func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
 	if inBrowser {
-		keepDraft(kept{Text: text, Language: w.language, File: w.currentFile, Name: w.suggestedName})
+		keepDraft(kept{Text: text, Language: w.language, File: w.currentFile, Name: w.suggestedName, Markdown: w.markdown})
 	}
 	w.shareEdit(text)
 	w.updateTitle()
@@ -780,6 +794,9 @@ func (w *MainWindow) onTextChanged(text string) {
 	}
 	if w.notesVisible && w.notes != nil {
 		w.notes.update(text)
+	}
+	if w.previewVisible && w.previewPane != nil {
+		w.previewPane.update(text)
 	}
 	if w.searchBar != nil && w.searchBar.IsVisible() {
 		w.searchBar.updateSearch() // the matches move with the text
@@ -824,7 +841,12 @@ func (w *MainWindow) updateStatusBar() {
 	if w.statsLabel == nil {
 		return // called while the window is being built
 	}
-	text := computeStats(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()).String()
+	var text string
+	if w.markdown {
+		text = markdownStats(w.textEditor.Text())
+	} else {
+		text = computeStats(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()).String()
+	}
 	if w.currentElement != "" && w.currentElement != "empty" {
 		text = w.currentElement + " · " + text
 	}
@@ -838,6 +860,9 @@ func (w *MainWindow) onCursorChanged() {
 	w.updateCurrentElement()
 	w.updateStatusBar() // the scene under the cursor
 	// what Tab would complete, or nothing once it no longer applies
+	if w.markdown {
+		return
+	}
 	if h := completionHint(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()); h != "" {
 		w.setStatus(h)
 	} else if w.statusLabel != nil && strings.HasPrefix(w.statusLabel.Text, "Tab: ") {
@@ -853,6 +878,11 @@ func (w *MainWindow) updateCurrentElement() {
 	}
 
 	line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
+	if w.markdown {
+		kinds := syntax.ClassifyMarkdown(strings.Split(text, "\n"))
+		w.currentElement = markdownNames[kinds[min(line, len(kinds)-1)]]
+		return
+	}
 	kinds := syntax.ClassifyTyping(strings.Split(text, "\n"), w.sceneStarts(), line)
 	w.currentElement = elementNames[kinds[min(line, len(kinds)-1)]]
 	if w.headerBar != nil {
@@ -883,7 +913,7 @@ func (w *MainWindow) makePreviewPDF() {
 		dialog.ShowError(err, w.fyneWindow)
 		return
 	}
-	name := "untitled.fountain"
+	name := w.untitledName()
 	if w.currentFile != "" {
 		name = filepath.Base(w.currentFile)
 	} else if w.suggestedName != "" {
@@ -981,6 +1011,10 @@ func (w *MainWindow) relayout() {
 	var center fyne.CanvasObject = w.editorView
 	if w.cardsVisible && w.cards != nil {
 		center = w.cards.box
+	} else if w.previewVisible && w.previewPane != nil {
+		split := container.NewHSplit(w.editorView, w.previewPane.box)
+		split.Offset = 0.55
+		center = split
 	}
 	var panels []fyne.CanvasObject // one above the other
 	if w.outlineVisible && w.outline != nil {

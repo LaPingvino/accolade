@@ -160,6 +160,10 @@ func (w *MainWindow) colorMenu(it outlineItem, then func()) *fyne.Menu {
 // pickColor shows the picker for item it at pos (absolute); then as for
 // colorMenu.
 func (w *MainWindow) pickColor(it outlineItem, pos fyne.Position, then func()) {
+	if w.markdown { // colours are Fountain notes
+		w.setStatus("Colors are for a screenplay's scenes and sections")
+		return
+	}
 	m := widget.NewPopUpMenu(w.colorMenu(it, then), w.fyneWindow.Canvas())
 	fyne.SetAccessibleLabel(m, "Color of "+it.Text)
 	m.ShowAtPosition(pos)
@@ -169,6 +173,10 @@ func (w *MainWindow) pickColor(it outlineItem, pos fyne.Position, then func()) {
 // written, or the scene or section the editor's cursor is in, under at
 // (nil: at the cursor or the card).
 func (w *MainWindow) pickColorHere(at fyne.CanvasObject) {
+	if w.markdown {
+		w.pickColor(outlineItem{}, fyne.Position{}, nil)
+		return
+	}
 	d := fyne.CurrentApp().Driver()
 	below := func(o fyne.CanvasObject) fyne.Position {
 		return d.AbsolutePositionForObject(o).Add(fyne.NewPos(0, o.Size().Height))
@@ -185,7 +193,7 @@ func (w *MainWindow) pickColorHere(at fyne.CanvasObject) {
 		return
 	}
 	e := w.textEditor
-	items := outlineOf(e.Text(), w.sceneStarts())
+	items := w.outlineItems(e.Text())
 	i := w.cursorItem(items)
 	if i < 0 {
 		w.setStatus("No scene or section here to color")
@@ -204,7 +212,7 @@ func (w *MainWindow) pickColorHere(at fyne.CanvasObject) {
 // c ("none": none), as one undo step.
 func (w *MainWindow) setOutlineColor(it outlineItem, c string) {
 	text := w.textEditor.Text()
-	items := outlineOf(text, w.sceneStarts())
+	items := w.outlineItems(text)
 	i := slices.IndexFunc(items, func(o outlineItem) bool { return o.Line == it.Line && o.Text == it.Text })
 	if i < 0 { // moved (an edit together, say): by its heading
 		i = slices.IndexFunc(items, func(o outlineItem) bool { return o.Text == it.Text && o.Level == it.Level })

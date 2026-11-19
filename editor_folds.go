@@ -23,7 +23,7 @@ func (w *MainWindow) editorFoldRanges() [][2]int {
 	}
 	text := w.textEditor.Text()
 	lines := strings.Count(text, "\n") + 1
-	items := outlineOf(text, w.sceneStarts())
+	items := w.outlineItems(text)
 	all := strings.Split(text, "\n")
 	var out [][2]int
 	for i, it := range items {
@@ -56,7 +56,7 @@ func (w *MainWindow) cursorItem(items []outlineItem) int {
 // fold folds (or with open false, opens; toggle: either) the section or
 // scene the cursor is in.
 func (w *MainWindow) fold(open, toggle bool) {
-	items := outlineOf(w.textEditor.Text(), w.sceneStarts())
+	items := w.outlineItems(w.textEditor.Text())
 	i := w.cursorItem(items)
 	if i < 0 {
 		w.setStatus("Nothing to fold here: no section or scene above")
@@ -85,10 +85,10 @@ func (w *MainWindow) foldAll(open bool) {
 	w.foldState = foldShown
 	if !open {
 		w.editorFolds = map[string]bool{}
-		for _, it := range outlineOf(w.textEditor.Text(), w.sceneStarts()) {
+		for _, it := range w.outlineItems(w.textEditor.Text()) {
 			w.editorFolds[foldKey(it)] = true
 		}
-		items := outlineOf(w.textEditor.Text(), w.sceneStarts())
+		items := w.outlineItems(w.textEditor.Text())
 		if i := w.cursorItem(items); i >= 0 {
 			line := items[i].Line
 			w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
@@ -99,7 +99,7 @@ func (w *MainWindow) foldAll(open bool) {
 
 // unfoldAt opens the fold of the heading on line (the cursor went in).
 func (w *MainWindow) unfoldAt(line int) {
-	for _, it := range outlineOf(w.textEditor.Text(), w.sceneStarts()) {
+	for _, it := range w.outlineItems(w.textEditor.Text()) {
 		if it.Line == line {
 			delete(w.editorFolds, foldKey(it))
 		}
@@ -110,7 +110,7 @@ func (w *MainWindow) unfoldAt(line int) {
 // something under them.
 func (w *MainWindow) headingLines() map[int]bool {
 	text := w.textEditor.Text()
-	items := outlineOf(text, w.sceneStarts())
+	items := w.outlineItems(text)
 	lines := strings.Count(text, "\n") + 1
 	out := map[int]bool{}
 	for i, it := range items {
@@ -123,7 +123,7 @@ func (w *MainWindow) headingLines() map[int]bool {
 
 // foldLine folds or opens the heading on line (its fold mark tapped).
 func (w *MainWindow) foldLine(line int) {
-	for _, it := range outlineOf(w.textEditor.Text(), w.sceneStarts()) {
+	for _, it := range w.outlineItems(w.textEditor.Text()) {
 		if it.Line != line {
 			continue
 		}
@@ -158,7 +158,7 @@ func (w *MainWindow) cycleHere() bool {
 func (w *MainWindow) cycleAt(line int) bool {
 	e := w.textEditor
 	text := e.Text()
-	items := outlineOf(text, w.sceneStarts())
+	items := w.outlineItems(text)
 	i := slices.IndexFunc(items, func(it outlineItem) bool { return it.Line == line })
 	if i < 0 || !w.headingLines()[line] {
 		return false
@@ -200,7 +200,7 @@ func (w *MainWindow) cycleAt(line int) bool {
 // cycleAll is Shift+Tab, as in org-mode: the sections only (the scenes
 // when there are none), then all headings, then everything.
 func (w *MainWindow) cycleAll() bool {
-	items := outlineOf(w.textEditor.Text(), w.sceneStarts())
+	items := w.outlineItems(w.textEditor.Text())
 	switch {
 	case len(w.editorFolds) == 0:
 		w.foldOverview(items)
@@ -245,7 +245,7 @@ func (w *MainWindow) foldOverview(items []outlineItem) {
 // foldHeadings shows every heading with what they hold folded: the
 // scenes folded, the sections open.
 func (w *MainWindow) foldHeadings() {
-	items := outlineOf(w.textEditor.Text(), w.sceneStarts())
+	items := w.outlineItems(w.textEditor.Text())
 	w.editorFolds = map[string]bool{}
 	for _, it := range items {
 		if it.Scene {
