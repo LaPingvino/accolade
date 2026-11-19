@@ -10,10 +10,10 @@ const (
 	saveLabel = "Save"
 )
 
-func pickFile(func(string)) {}
-func offerDownload(string)  {}
-func keepDraft(kept)        {}
-func draft() (kept, bool)   { return kept{}, false }
+func pickFile([]string, func(string)) {}
+func offerDownload(string)            {}
+func keepDraft(kept)                  {}
+func draft() (kept, bool)             { return kept{}, false }
 
 func pageLink() string               { return "" }
 func watchdog(*Application)          {}

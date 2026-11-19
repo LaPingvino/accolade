@@ -42,7 +42,7 @@ require (
 	github.com/mattn/go-runewidth v0.0.24 // indirect
 	github.com/nfnt/resize v0.0.0-20180221191011-83c6a9932646 // indirect
 	github.com/nicksnyder/go-i18n/v2 v2.5.1 // indirect
-	github.com/phpdave11/gofpdf v1.4.3 // indirect
+	github.com/phpdave11/gofpdf v1.4.3
 	github.com/pion/datachannel v1.6.3 // indirect
 	github.com/pion/dtls/v3 v3.1.15 // indirect
 	github.com/pion/ice/v4 v4.4.8 // indirect
@@ -66,7 +66,7 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.50.0
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 )
@@ -74,3 +74,5 @@ require (
 replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261024175256-1ec26e7c7c6b
 
 replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4
+
+replace github.com/LaPingvino/lexington => ../lexington

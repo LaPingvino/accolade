@@ -31,3 +31,13 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   change). The choice is kept per file in settings.json ("document-types", only where it differs from the extension;
   the browser keeps its settings folder too) and wins over the extension on reopen. Renaming to .md/.fountain still
   switches; a rename to .txt or another name keeps the type. Peers get the mode as before. Next: step 2.
+- 2026-11-19: step 2, import and export (branch mdimport, not merged). File > Import as Markdown: DOCX, ODT, HTML and
+  text read by internal/prose (pure Go: one block/span model, readers and writers together; headings by style name or
+  outline level, lists from numbering, quotes, tables, bold/italic/strike/code, links, footnotes as [^n], images left
+  out with an `<!-- image left out -->` comment), HTML through golang.org/x/net/html; PDF as prose through Lexington's
+  new pdfin.ReadProse (OCR included). Export in Markdown mode is its own dialog: HTML (goldmark, footnotes now on),
+  DOCX and ODT (Word's/LibreOffice's own styles, real lists and footnotes), PDF (headless Chromium, else the print
+  dialog's Save as PDF; the browser prints), Markdown as written, plain text. With pandoc on the desktop: File >
+  Import with pandoc (EPUB, RTF, LaTeX, Org, RST, DOCX/ODT/HTML too) and EPUB/RTF/LaTeX/DOCX/ODT/Org exports; hidden
+  in the browser and without pandoc. go.mod has `replace github.com/LaPingvino/lexington => ../lexington` until
+  Lexington's v1.6.0 tag is pushed (then go get it and drop the replace). Next: step 3, the source pane.

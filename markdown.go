@@ -15,12 +15,11 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
 
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
+	"github.com/LaPingvino/accolade/internal/prose"
 )
 
 // Markdown mode (docs/ADAPTATION.md, step 1): a .md file opens with
@@ -255,8 +254,7 @@ func (w *MainWindow) preview() {
 // markdownHTML is a Markdown document as a web page, for printing.
 func markdownHTML(text, title string) ([]byte, error) {
 	var body bytes.Buffer
-	md := goldmark.New(goldmark.WithExtensions(extension.GFM))
-	if err := md.Convert([]byte(markdownBody(text)), &body); err != nil {
+	if err := prose.Markdown.Convert([]byte(markdownBody(text)), &body); err != nil {
 		return nil, err
 	}
 	var out bytes.Buffer

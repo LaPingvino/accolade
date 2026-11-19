@@ -129,3 +129,67 @@ func TestDocumentTypeScreenshot(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestImportExportScreenshots renders, for a Markdown document, the File
+// menu with Import, and the Export dialog (SHOT_DIR as above); the
+// Export dialog with pandoc's formats too, and without them.
+func TestImportExportScreenshots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	shot := func(w *MainWindow, name string) {
+		f, err := os.Create(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if err := png.Encode(f, w.fyneWindow.Canvas().Capture()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	open := func() *MainWindow {
+		w, _ := newDialogTestWindow(t)
+		w.fyneWindow.Resize(fyne.NewSize(1000, 650))
+		p := filepath.Join(t.TempDir(), "story.md")
+		if err := os.WriteFile(p, []byte(story), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.LoadFile(p); err != nil {
+			t.Fatal(err)
+		}
+		return w
+	}
+	w := open()
+	for _, m := range w.fyneWindow.MainMenu().Items {
+		if m.Label == "File" {
+			widget.NewPopUpMenu(m, w.fyneWindow.Canvas()).ShowAtPosition(fyne.NewPos(4, 4))
+		}
+	}
+	shot(w, "accolade-markdown-import-menu.png")
+
+	w = open()
+	ed := newMarkdownExportDialog(w)
+	ed.format.SetSelected("Word (DOCX)")
+	ed.Show()
+	shot(w, "accolade-markdown-export.png")
+	ed.dialog.Hide()
+	ed.format.OnChanged = nil
+	ed.format.SetSelected("PDF")
+	ed.formatChanged()
+	ed.Show()
+	ed.format.Tapped(&fyne.PointEvent{}) // its list open
+	shot(w, "accolade-markdown-export-formats.png")
+
+	old := pandocPath
+	pandocPath = func() string { return "" }
+	defer func() { pandocPath = old }()
+	w = open()
+	ed = newMarkdownExportDialog(w)
+	ed.Show()
+	ed.format.Tapped(&fyne.PointEvent{})
+	shot(w, "accolade-markdown-export-no-pandoc.png")
+}

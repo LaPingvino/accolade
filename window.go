@@ -415,25 +415,47 @@ func (w *MainWindow) readPDF(filePath, lang, ocrLang string) {
 	if lang == "" {
 		scenes = allSceneHeaders()
 	}
+	read := func(ctx context.Context, progress func(done, pages int)) (string, []string, error) {
+		return importPDF(ctx, filePath, scenes, ocrLang, progress)
+	}
+	w.readPDFInBackground(filePath, "the screenplay", read, func(text string) {
+		named := lang != "" // the file name says it (script.ru.pdf): that first
+		if !named {
+			lang = headingsLanguage(text, w.settings.GetString("script-language"))
+		}
+		w.setLanguage(lang)
+		w.showImported(filePath, text, "a PDF: check the result, a PDF only shows how the script looked")
+		if !named && lang != "en" { // saved, it keeps the language its headings are in
+			w.suggestedName = strings.TrimSuffix(w.suggestedName, ".fountain") + "." + lang + ".fountain"
+			w.updateTitle()
+		}
+	})
+}
+
+// readPDFInBackground reads a PDF with read in the background, showing
+// how far it is with a Cancel button (a long scanned one takes minutes),
+// then gives done what it read and tells which pages were left out.
+// what is what is put together at the end ("the screenplay").
+func (w *MainWindow) readPDFInBackground(filePath, what string,
+	read func(ctx context.Context, progress func(done, pages int)) (string, []string, error), done func(text string)) {
 	bar := widget.NewProgressBar()
 	label := widget.NewLabel("Reading " + filepath.Base(filePath) + "...")
-	// a long scanned script takes minutes to read: Cancel stops it
 	ctx, cancel := context.WithCancel(context.Background())
 	cancelBtn := widget.NewButton("Cancel", cancel)
 	d := dialog.NewCustomWithoutButtons("Importing PDF", container.NewVBox(label, bar, container.NewCenter(cancelBtn)), w.fyneWindow)
 	d.SetOnEscape(cancel)
 	d.Show()
-	done := make(chan struct{})
-	w.imported = done
+	finished := make(chan struct{})
+	w.imported = finished
 	go func() {
-		defer close(done)
+		defer close(finished)
 		defer cancel()
-		text, skipped, err := importPDF(ctx, filePath, scenes, ocrLang, func(done, pages int) {
+		text, skipped, err := read(ctx, func(n, pages int) {
 			fyne.Do(func() {
-				bar.SetValue(float64(done) / float64(max(pages, 1)))
-				label.SetText(fmt.Sprintf("Read %d of %d pages", done, pages))
-				if done == pages {
-					label.SetText("Read all pages; putting the screenplay together...")
+				bar.SetValue(float64(n) / float64(max(pages, 1)))
+				label.SetText(fmt.Sprintf("Read %d of %d pages", n, pages))
+				if n == pages {
+					label.SetText("Read all pages; putting " + what + " together...")
 				}
 			})
 		})
@@ -446,16 +468,7 @@ func (w *MainWindow) readPDF(filePath, lang, ocrLang string) {
 				dialog.ShowError(fmt.Errorf("could not import %s: %v", filepath.Base(filePath), err), w.fyneWindow)
 				return
 			}
-			named := lang != "" // the file name says it (script.ru.pdf): that first
-			if !named {
-				lang = headingsLanguage(text, w.settings.GetString("script-language"))
-			}
-			w.setLanguage(lang)
-			w.showImported(filePath, text, "a PDF: check the result, a PDF only shows how the script looked")
-			if !named && lang != "en" { // saved, it keeps the language its headings are in
-				w.suggestedName = strings.TrimSuffix(w.suggestedName, ".fountain") + "." + lang + ".fountain"
-				w.updateTitle()
-			}
+			done(text)
 			if len(skipped) > 0 {
 				dialog.ShowInformation("Some pages were left out",
 					"These pages could not be read:\n"+strings.Join(skipped, "\n"), w.fyneWindow)
@@ -558,7 +571,7 @@ func (w *MainWindow) saveToFile(filePath string) error {
 
 func (w *MainWindow) OpenFile() {
 	if inBrowser {
-		pickFile(w.openPath)
+		pickFile(openExtensions, w.openPath)
 		return
 	}
 	fileDialog := dialog.NewFileOpen(func(closer fyne.URIReadCloser, err error) {
@@ -1168,6 +1181,10 @@ func (w *MainWindow) menuShortcut(s fyne.Shortcut) bool {
 
 // Export functionality
 func (w *MainWindow) showExportDialog() {
+	if w.markdown { // a document's formats, not a screenplay's
+		newMarkdownExportDialog(w).Show()
+		return
+	}
 	dialog := NewExportDialog(w)
 	dialog.Show()
 }

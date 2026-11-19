@@ -45,13 +45,13 @@ func draft() (kept, bool) {
 	return kept{Text: string(b)}, err == nil && len(b) > 0
 }
 
-// pickFile lets the user choose a file in the browser; open gets its
-// path in memory.
-func pickFile(open func(path string)) {
+// pickFile lets the user choose a file with one of exts in the browser;
+// open gets its path in memory.
+func pickFile(exts []string, open func(path string)) {
 	doc := js.Global().Get("document")
 	input := doc.Call("createElement", "input")
 	input.Set("type", "file")
-	input.Set("accept", strings.Join(openExtensions, ","))
+	input.Set("accept", strings.Join(exts, ","))
 	var onChange js.Func
 	onChange = js.FuncOf(func(js.Value, []js.Value) any {
 		onChange.Release()

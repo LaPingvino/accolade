@@ -42,6 +42,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItem("New Markdown Document", w.NewMarkdownFile),
 		menuItem(openLabel, shortcut(fyne.KeyO, 0), w.OpenFile),
 		w.recentMenu(),
+		fyne.NewMenuItem("Import as Markdown…", w.ImportDocument),
 		fyne.NewMenuItemSeparator(),
 		menuItem(saveLabel, shortcut(fyne.KeyS, 0), w.reportErr(w.SaveFile)),
 		menuItem("Save As…", shortcut(fyne.KeyS, fyne.KeyModifierShift), w.reportErr(w.SaveFileAs)),
@@ -61,8 +62,16 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		newEmptyWindow := menuItem("New Empty Window", shortcut(fyne.KeyN, fyne.KeyModifierShift|fyne.KeyModifierAlt), func() { w.app.newScriptWindow(true) })
 		file.Items = append([]*fyne.MenuItem{file.Items[0], file.Items[1], newWindow, newEmptyWindow}, file.Items[2:]...)
 	}
-	if w.markdown { // the title page and the export formats are a screenplay's
-		file.Items = withoutItems(file.Items, "Title Page…", "Export…")
+	if hasPandoc() { // more formats to import, with pandoc
+		for i, it := range file.Items {
+			if it.Label == "Import as Markdown…" {
+				file.Items = slices.Insert(file.Items, i+1, fyne.NewMenuItem("Import with pandoc…", w.ImportWithPandoc))
+				break
+			}
+		}
+	}
+	if w.markdown { // the title page is a screenplay's
+		file.Items = withoutItems(file.Items, "Title Page…")
 	}
 
 	edit := fyne.NewMenu("Edit",

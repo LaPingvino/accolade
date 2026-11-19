@@ -228,16 +228,15 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 // setMarkdown shows the bar for a Markdown document or a screenplay: the
 // editing row, the preview's tip; the export is a screenplay's.
 func (hb *HeaderBar) setMarkdown(on bool) {
-	row, tip := hb.screenplayRow, "Preview PDF"
+	row, tip, export := hb.screenplayRow, "Preview PDF", "Export to PDF, HTML, FDX…"
 	if on {
-		row, tip = hb.markdownRow, "Preview"
-		hb.exportButton.Disable()
+		row, tip, export = hb.markdownRow, "Preview", "Export to Word, ODT, HTML, PDF…"
 		hb.cardsButton.Disable()
 	} else {
-		hb.exportButton.Enable()
 		hb.cardsButton.Enable()
 	}
 	hb.previewButton.Tip = tip + keys("Shift+P")
+	hb.exportButton.Tip = export + keys("E")
 	hb.container.Objects[1] = row
 	hb.container.Refresh()
 }
