@@ -130,6 +130,8 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Changes", shortcut(fyne.KeyH, fyne.KeyModifierShift), w.toggleChanges),
 		fyne.NewMenuItem("Statistics…", w.showStatistics),
 		menuItem("Fullscreen", shortcut(fyne.KeyF, fyne.KeyModifierShift), w.toggleFullscreen),
+		fyne.NewMenuItemSeparator(),
+		w.documentTypeMenu(),
 	)
 	if w.markdown {
 		view.Items[0].Label = "Preview"

@@ -26,3 +26,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   goldmark web page. Elements, completion, title page, export, cards and colours are put away in Markdown. File > New
   Markdown Document; Open offers .md (browser too). Next: step 2, import and export.
 - 2026-11-19 (Joop): renaming to .md / .fountain switches the mode (checked by him) — fine as a last resort. To add: a direct switch (View > Document type: Screenplay / Markdown) that keeps the file name, saved per file. Small; before step 2.
+- 2026-11-19: done, the direct switch (branch doctype, not merged): View > Document Type > Screenplay / Markdown (checked
+  items), keeping the name and the text as they are; a notes block in the other form is carried over (only its marks
+  change). The choice is kept per file in settings.json ("document-types", only where it differs from the extension;
+  the browser keeps its settings folder too) and wins over the extension on reopen. Renaming to .md/.fountain still
+  switches; a rename to .txt or another name keeps the type. Peers get the mode as before. Next: step 2.

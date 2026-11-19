@@ -8,6 +8,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 )
 
 // TestScreenshots renders the main window in each colour scheme to PNG
@@ -82,5 +83,49 @@ func TestMarkdownScreenshots(t *testing.T) {
 			t.Fatal(err)
 		}
 		f.Close()
+	}
+}
+
+// TestDocumentTypeScreenshot renders View > Document Type open over a
+// Markdown document (SHOT_DIR as above). The test window draws no main
+// menu, so the View menu and its submenu are shown as pop-ups where they
+// would open.
+func TestDocumentTypeScreenshot(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	w, _ := newDialogTestWindow(t)
+	w.fyneWindow.Resize(fyne.NewSize(1000, 650))
+	p := filepath.Join(t.TempDir(), "story.txt")
+	if err := os.WriteFile(p, []byte(story), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	w.setDocumentType(true)
+	c := w.fyneWindow.Canvas()
+	var view *fyne.Menu
+	for _, m := range w.fyneWindow.MainMenu().Items {
+		if m.Label == "View" {
+			view = m
+		}
+	}
+	main := widget.NewPopUpMenu(view, c)
+	main.ShowAtPosition(fyne.NewPos(120, 4))
+	types := documentTypeItems(t, w)
+	sub := widget.NewPopUpMenu(fyne.NewMenu("", types...), c)
+	sub.ShowAtPosition(fyne.NewPos(120+main.MinSize().Width, main.MinSize().Height-40)) // beside its row
+	f, err := os.Create(filepath.Join(dir, "accolade-document-type.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, c.Capture()); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -100,6 +100,7 @@ func (w *MainWindow) renameTo(name string) error {
 	if name == "" {
 		return fmt.Errorf("that is no name for a file")
 	}
+	oldPath, oldName := w.currentFile, cmp.Or(w.currentFile, w.suggestedName, w.untitledName())
 	if w.currentFile == "" {
 		w.suggestedName = name
 	} else if to := filepath.Join(filepath.Dir(w.currentFile), name); to != w.currentFile {
@@ -115,7 +116,7 @@ func (w *MainWindow) renameTo(name string) error {
 	if l := languageOf(name); l != "" && l != w.language {
 		w.setLanguage(l)
 	}
-	w.modeFromName(name)
+	w.typeAfterRename(oldPath, oldName, w.currentFile, name)
 	w.updateTitle()
 	return nil
 }

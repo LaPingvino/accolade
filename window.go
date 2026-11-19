@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -330,7 +331,8 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	text, format := decodeScript(content)
 	w.format = format
 	w.setLanguage(languageOf(filePath))
-	w.setMarkdown(isMarkdownFile(filePath))
+	// as chosen for it (View > Document Type), else as its extension says
+	w.setMarkdown(w.typeOf(filePath))
 	if !w.markdown { // Markdown's indents are its own (lists, code)
 		text = withoutIndents(text, w.sceneStarts())
 	}
@@ -492,6 +494,7 @@ func (w *MainWindow) SaveFileAs() error {
 			return err
 		}
 		offerDownload(p)
+		w.typeAfterRename(w.currentFile, cmp.Or(w.currentFile, name), p, p)
 		w.currentFile, w.suggestedName = p, ""
 		w.updateTitle()
 		return nil
@@ -510,10 +513,11 @@ func (w *MainWindow) SaveFileAs() error {
 			return
 		}
 
+		oldPath, oldName := w.currentFile, cmp.Or(w.currentFile, w.suggestedName, w.untitledName())
 		w.currentFile = filePath
 		w.suggestedName = ""
 		w.rememberRecent(filePath)
-		w.modeFromName(filePath)
+		w.typeAfterRename(oldPath, oldName, filePath, filePath)
 		if l := languageOf(filePath); l != "" {
 			w.setLanguage(l)
 		}
