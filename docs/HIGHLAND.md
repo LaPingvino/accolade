@@ -64,7 +64,7 @@ FDX work had them: put them in testdata/highland (never committed), where the te
 
 The standard TextBundle keys sit at the top level, and the app's own state goes under a reverse-DNS key.
 
-- **Our state:** Accolade keeps its own under `"io.github.lapingvino.accolade"` and never touches the other keys.
+- **Our state:** Accolade keeps its own under `"eu.kiefte.Accolade"` and never touches the other keys.
   Possible candidates: the document type, and the adaptation source when it is kept in the bundle.
 - **`type`:** gives Fountain or Markdown, alongside the text file's extension.
 
@@ -104,7 +104,7 @@ These come from the teardown and are worth knowing for Lexington:
   or text file, the bytes as read are used instead. Writes only the text file and Accolade's own key in info.json. Every other entry (assets, sidecar
   JSON, unknown files) is copied through byte for byte, in its original order. Zip entries go through
   `zip.Writer.Copy`, raw and not recompressed, and the archive comment is kept.
-- **Accolade's key**, `"io.github.lapingvino.accolade"`: `{"version":1}` plus `documentType` ("markdown" or
+- **Accolade's key**, `"eu.kiefte.Accolade"`: `{"version":1}` plus `documentType` ("markdown" or
   "screenplay"), written only when the document is not what the bundle says, and `source`, the entry holding
   the adaptation source. When there is nothing to say the key is removed, or never written, so a plain
   open-and-save of a Highland file changes only its text.

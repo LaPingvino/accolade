@@ -429,7 +429,7 @@ func TestBundleDocumentType(t *testing.T) {
 	data, _ := os.ReadFile(p)
 	info, _ := zipFile(t, data, "info.json")
 	want := strings.TrimSuffix(highlandInfo, "\n}") + `,
-  "io.github.lapingvino.accolade": {"version":1,"documentType":"markdown"}
+  "eu.kiefte.Accolade": {"version":1,"documentType":"markdown"}
 }`
 	if info != want {
 		t.Errorf("info.json:\n%s\nwant\n%s", info, want)
@@ -505,7 +505,7 @@ func TestBundleSource(t *testing.T) {
 		t.Errorf("source in the bundle: %q", got)
 	}
 	info, _ := zipFile(t, data, "Script.textbundle/info.json")
-	if !strings.Contains(info, `"io.github.lapingvino.accolade": {"version":1,"source":"assets/source.md"}`) {
+	if !strings.Contains(info, `"eu.kiefte.Accolade": {"version":1,"source":"assets/source.md"}`) {
 		t.Errorf("info.json: %s", info)
 	}
 	// the pane edits it there

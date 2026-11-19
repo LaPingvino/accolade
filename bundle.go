@@ -31,7 +31,7 @@ import (
 // layers): assets/source.md, named in Accolade's key.
 
 // accoladeInfoKey is Accolade's key in info.json.
-const accoladeInfoKey = "io.github.lapingvino.accolade"
+const accoladeInfoKey = "eu.kiefte.Accolade"
 
 // fountainUTI and markdownUTI are info.json's "type" for a new bundle.
 const (
