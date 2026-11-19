@@ -43,3 +43,22 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Lexington's v1.6.0 tag is pushed (then go get it and drop the replace). Next: step 3, the source pane.
 - 2026-11-19 (Joop): support the TextBundle family for Markdown and Fountain — .textbundle (a folder: info.json, text.md / text.fountain, assets/; desktop only), .textpack (the same zipped) and Highland 2 / Pro's .highland (a zipped, customised TextBundle: text.fountain / .markdown / .txt, info.json, assets/, maybe sprints.json, characters.json — https://quoteunquoteapps.com/highland-2/highland-format; no published spec, so keep unknown files as they were on save). Open, save and Save As; the text file's extension sets the document type; assets/ kept untouched; info.json's keys preserved. A natural home for the adaptation source (assets/ or a second text file) — decide with step 3's layers. Browser: zips only. Next after the source pane.
   Research for it: docs/HIGHLAND.md (layouts seen, info.json, readers to compare; samples wanted from Joop).
+- 2026-11-19: step 3, the source pane and its links (merged). Where the source is, in
+  layers, looked for in this order (Joop: the browser has no folder beside the script): (1) in the script, a
+  `/* Source … */` boneyard block before the notes (Format > Keep Source in the Script moves it in or out, off by
+  default); (2) a copy Accolade keeps: File > Choose Source… reads .md/.txt/.docx/.odt/.html (internal/prose) and keeps
+  it as Markdown in the data folder (~/.local/share/accolade/sources; the browser: the kept settings folder),
+  remembered per script in settings.json "source-files", following a rename/Save As; File > Save Source As… gets it
+  out (the browser downloads it); (3) story.md beside story.fountain. The pane names the one in use. The Notes pane
+  has two tabs, Notes and Source (View > Source): the source as passages (paragraphs, headings, quotes, each list
+  item); Edit opens it as text in the pane, Done saves it where it is kept; a kept/beside file changed elsewhere is
+  read again when its time or size changes, checked as the pane follows the cursor. Links are
+  `[[from: "first eight words…"]]`, quoting more until unique, written by Format > Link to Source Passage at the
+  cursor (an empty line, inline after dialogue, a line below a heading). Matching: normalised words (case, quotes,
+  punctuation), exact prefix; else near (word edit distance ≤ a quarter of the words, link ≥ 4 words, one best);
+  ties ambiguous, none missing — said in the pane, candidates tinted. The cursor's scene lights its passages
+  (scrolled to if none in sight); a tap on a passage picks it and goes to its scene, the next on each tap. Format >
+  Source Headings as Sections: all at the cursor as an outline, or the missing ones in their places, never twice,
+  one undo step. Passages are keyed by their words so statuses can attach. Rough: the editor colours the source
+  block as Fountain (boneyard has no colour of its own yet, the notes block neither). Next: TextBundle / .highland (above), then step 4, statuses and
+  Next passage.

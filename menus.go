@@ -43,6 +43,8 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem(openLabel, shortcut(fyne.KeyO, 0), w.OpenFile),
 		w.recentMenu(),
 		fyne.NewMenuItem("Import as Markdown…", w.ImportDocument),
+		fyne.NewMenuItem("Choose Source…", w.chooseSource),
+		fyne.NewMenuItem("Save Source As…", w.saveSourceAs),
 		fyne.NewMenuItemSeparator(),
 		menuItem(saveLabel, shortcut(fyne.KeyS, 0), w.reportErr(w.SaveFile)),
 		menuItem("Save As…", shortcut(fyne.KeyS, fyne.KeyModifierShift), w.reportErr(w.SaveFileAs)),
@@ -70,8 +72,8 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 			}
 		}
 	}
-	if w.markdown { // the title page is a screenplay's
-		file.Items = withoutItems(file.Items, "Title Page…")
+	if w.markdown { // the title page and the source are a screenplay's
+		file.Items = withoutItems(file.Items, "Title Page…", "Choose Source…", "Save Source As…")
 	}
 
 	edit := fyne.NewMenu("Edit",
@@ -121,9 +123,13 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItemSeparator(),
 		menuItem("Move Line Up", alt(fyne.KeyUp), inEditor(func() { moveLines(w.textEditor, -1) })),
 		menuItem("Move Line Down", alt(fyne.KeyDown), inEditor(func() { moveLines(w.textEditor, 1) })),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Link to Source Passage", w.linkToSource),
+		fyne.NewMenuItem("Source Headings as Sections", w.sectionsFromSourceHere),
+		w.sourceInsideItem(),
 	)
-	if w.markdown { // a screenplay's elements, language and colours
-		format.Items = withoutItems(format.Items, "Scene Heading", "Action", "Character", "Parenthetical",
+	if w.markdown { // a screenplay's elements, language, colours and source
+		format.Items = withoutItems(format.Items, "Link to Source Passage", "Source Headings as Sections", "Keep Source in the Script", "Scene Heading", "Action", "Character", "Parenthetical",
 			"Dialogue", "Transition", "Centered", "Lyrics", "Script Language…", "Scene or Section Color…", "Underline")
 	}
 
@@ -136,6 +142,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Headings Only", nil, w.foldHeadings),
 		menuItem("Unfold All", nil, func() { w.foldAll(true) }),
 		menuItem("Notes", shortcut(fyne.KeyK, fyne.KeyModifierShift), w.toggleNotes),
+		fyne.NewMenuItem("Source", w.toggleSource),
 		menuItem("Changes", shortcut(fyne.KeyH, fyne.KeyModifierShift), w.toggleChanges),
 		fyne.NewMenuItem("Statistics…", w.showStatistics),
 		menuItem("Fullscreen", shortcut(fyne.KeyF, fyne.KeyModifierShift), w.toggleFullscreen),
@@ -144,7 +151,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	)
 	if w.markdown {
 		view.Items[0].Label = "Preview"
-		view.Items = withoutItems(view.Items, "Cards", "Statistics…") // a screenplay's scenes
+		view.Items = withoutItems(view.Items, "Cards", "Statistics…", "Source") // a screenplay's
 	}
 
 	help := fyne.NewMenu("Help",

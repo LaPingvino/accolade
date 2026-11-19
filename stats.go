@@ -33,6 +33,10 @@ func computeStats(text string, cursor int, starts []string) scriptStats {
 		return st
 	}
 	runes := []rune(text)
+	if start, _, _, ok := sourceBlock(text); ok { // the source kept in it is not the script
+		runes = runes[:start]
+		text = string(runes)
+	}
 	cursorLine := strings.Count(string(runes[:min(max(cursor, 0), len(runes))]), "\n")
 	lines := strings.Split(text, "\n")
 	rows := 0

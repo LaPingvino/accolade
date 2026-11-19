@@ -108,6 +108,7 @@ func decisiveExtension(name string) bool {
 // names (an unsaved document's too), oldPath and newPath the files ("" for
 // none).
 func (w *MainWindow) typeAfterRename(oldPath, oldName, newPath, newName string) {
+	w.sourceAfterRename(oldPath, newPath) // and its source with it (source.go)
 	if oldPath != "" && absPath(oldPath) != absPath(newPath) {
 		w.rememberType(oldPath, isMarkdownFile(oldPath)) // forgotten
 	}

@@ -193,3 +193,54 @@ func TestImportExportScreenshots(t *testing.T) {
 	ed.format.Tapped(&fyne.PointEvent{})
 	shot(w, "accolade-markdown-export-no-pandoc.png")
 }
+
+// TestSourceScreenshots renders a script with its source beside it, the
+// cursor in a scene whose linked passage is lit, another picked, in the
+// light and dark schemes (SHOT_DIR as above).
+func TestSourceScreenshots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	w, _ := sourceWindow(t, sourceScript, sourceStory)
+	w.fyneWindow.Resize(fyne.NewSize(1200, 700))
+	s := w.sourcePane()
+	s.selected = passageNamed(t, s.passages, "The next morning")
+	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(lineWith(t, w, "ANNA")))
+	for _, scheme := range []string{"light", "dark"} {
+		w.app.setColorScheme(scheme)
+		w.fyneWindow.Content().Refresh()
+		s.list.Refresh()
+		f, err := os.Create(filepath.Join(dir, "accolade-source-"+scheme+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, w.fyneWindow.Canvas().Capture()); err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+	}
+	// a scene with an ambiguous and a missing link
+	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(lineWith(t, w, "EXT. GARDEN - DAY")))
+	f, err := os.Create(filepath.Join(dir, "accolade-source-doubt.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	png.Encode(f, w.fyneWindow.Canvas().Capture())
+	// the source kept in the script
+	if err := w.keepSourceInside(true); err != nil {
+		t.Fatal(err)
+	}
+	w.textEditor.SetCursorOffset(len([]rune(w.textEditor.Text())) - 40)
+	s.follow()
+	g, err := os.Create(filepath.Join(dir, "accolade-source-inside.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer g.Close()
+	png.Encode(g, w.fyneWindow.Canvas().Capture())
+}

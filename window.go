@@ -77,6 +77,7 @@ type MainWindow struct {
 	outlineVisible bool
 	notes          *notesPanel
 	notesVisible   bool
+	unsavedSource  string // the source chosen for a script not saved yet (source.go)
 	// markdown: the document is Markdown, not a screenplay (markdown.go)
 	markdown       bool
 	previewPane    *previewPanel // a Markdown document's preview
@@ -811,6 +812,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	}
 	if w.notesVisible && w.notes != nil {
 		w.notes.update(text)
+		w.notes.source.follow()
 	}
 	if w.previewVisible && w.previewPane != nil {
 		w.previewPane.update(text)
@@ -876,6 +878,9 @@ func (w *MainWindow) updateStatusBar() {
 func (w *MainWindow) onCursorChanged() {
 	w.updateCurrentElement()
 	w.updateStatusBar() // the scene under the cursor
+	if w.notes != nil {
+		w.notes.source.follow() // the scene's passages
+	}
 	// what Tab would complete, or nothing once it no longer applies
 	if w.markdown {
 		return
@@ -1016,7 +1021,8 @@ func (w *MainWindow) toggleNotes() {
 	if w.notesVisible {
 		w.notes.update(w.textEditor.Text())
 		w.relayout()
-		w.fyneWindow.Canvas().Focus(w.notes.entry)
+		w.fyneWindow.Canvas().Focus(w.notes.focusTarget())
+		w.notes.source.follow()
 		return
 	}
 	w.relayout()
@@ -1038,7 +1044,7 @@ func (w *MainWindow) relayout() {
 		panels = append(panels, w.outline.box)
 	}
 	if w.notesVisible && w.notes != nil {
-		panels = append(panels, w.notes.box)
+		panels = append(panels, w.notes.box())
 	}
 	if w.changesVisible && w.changesPanel != nil {
 		panels = append(panels, w.changesPanel.box)
@@ -1256,7 +1262,7 @@ func (w *MainWindow) panes() []fyne.Focusable {
 	case w.outlineVisible && w.outline != nil:
 		panes = append(panes, w.outline.list)
 	case w.notesVisible && w.notes != nil:
-		panes = append(panes, w.notes.entry)
+		panes = append(panes, w.notes.focusTarget())
 	}
 	if w.searchBar != nil && w.searchBar.IsVisible() {
 		panes = append(panes, w.searchBar.searchEntry)

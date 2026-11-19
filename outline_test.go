@@ -74,12 +74,12 @@ func TestOutlineAndNotesTogether(t *testing.T) {
 	if !w.outlineVisible || !w.notesVisible {
 		t.Fatalf("outline %v, notes %v", w.outlineVisible, w.notesVisible)
 	}
-	for name, box := range map[string]fyne.CanvasObject{"outline": w.outline.box, "notes": w.notes.box} {
+	for name, box := range map[string]fyne.CanvasObject{"outline": w.outline.box, "notes": w.notes.box()} {
 		if !box.Visible() || box.Size().Height < 50 {
 			t.Errorf("%s: shown %v, %v", name, box.Visible(), box.Size())
 		}
 	}
-	if w.outline.box.Position().Y >= w.notes.box.Position().Y {
+	if w.outline.box.Position().Y >= w.notes.box().Position().Y {
 		t.Error("the notes are not below the outline")
 	}
 	capture(t, w.fyneWindow.Canvas(), "outline-notes.png")

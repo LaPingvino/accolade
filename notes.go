@@ -96,12 +96,19 @@ func (w *MainWindow) notesMarks() notesMarks {
 	return fountainNotes
 }
 
-// notesPanel is the notepad beside the editor.
+// notesPanel is the notepad beside the editor; for a screenplay, with a
+// second tab, its source (source_pane.go).
 type notesPanel struct {
 	w        *MainWindow
 	entry    *widget.Entry
-	box      fyne.CanvasObject
 	updating bool // the entry is being set from the script
+
+	plain     fyne.CanvasObject // the notes alone (Markdown)
+	tabs      *container.AppTabs
+	notesTab  *container.TabItem
+	sourceTab *container.TabItem
+	tabbed    fyne.CanvasObject // notes and source
+	source    *sourcePane
 }
 
 func newNotesPanel(w *MainWindow) *notesPanel {
@@ -118,8 +125,38 @@ func newNotesPanel(w *MainWindow) *notesPanel {
 	width := canvas.NewRectangle(color.Transparent) // a nil colour crashes the painter
 	width.SetMinSize(fyne.NewSize(240, 0))
 	heading := widget.NewLabelWithStyle("Notes", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	n.box = container.NewStack(width, container.NewBorder(heading, nil, nil, nil, n.entry))
+	n.plain = container.NewStack(width, container.NewBorder(heading, nil, nil, nil, n.entry))
+	n.source = newSourcePane(w)
+	n.notesTab = container.NewTabItem("Notes", n.entry)
+	n.sourceTab = container.NewTabItem("Source", n.source.box)
+	n.tabs = container.NewAppTabs(n.notesTab, n.sourceTab)
+	n.tabs.OnSelected = func(t *container.TabItem) {
+		if t == n.sourceTab {
+			n.source.follow()
+		}
+	}
+	wide := canvas.NewRectangle(color.Transparent)
+	wide.SetMinSize(fyne.NewSize(sourceWidth, 0))
+	n.tabbed = container.NewStack(wide, n.tabs)
 	return n
+}
+
+// box is the pane as the document has it: a Markdown document's notes,
+// a screenplay's notes and source.
+func (n *notesPanel) box() fyne.CanvasObject {
+	if n.w.markdown {
+		return n.plain
+	}
+	return n.tabbed
+}
+
+// focusTarget is what takes the keyboard in the pane: the notes, or the
+// source if its tab is open.
+func (n *notesPanel) focusTarget() fyne.Focusable {
+	if !n.w.markdown && n.tabs.Selected() == n.sourceTab {
+		return n.source.focusTarget()
+	}
+	return n.entry
 }
 
 // update shows the script's notes, unless they are being typed.
