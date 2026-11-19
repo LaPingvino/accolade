@@ -107,8 +107,32 @@ func (w *MainWindow) renameTo(name string) error {
 		if _, err := os.Stat(to); err == nil && !strings.EqualFold(to, w.currentFile) {
 			return fmt.Errorf("%s already exists", name)
 		}
-		if err := os.Rename(w.currentFile, to); err != nil {
-			return fmt.Errorf("could not rename the file: %v", err)
+		// a bundle's name for a plain file, or another kind of bundle's
+		from, into := bundleKindOf(w.currentFile), bundleKindOf(to)
+		if w.bundle == nil && from == bundleZip && w.isPlainBundle(w.currentFile) {
+			from = notBundle // a .highland holding plain text, and staying so
+			if strings.EqualFold(filepath.Ext(to), ".highland") {
+				into = notBundle
+				w.plainBundle = to
+			}
+		}
+		switch {
+		case from == into || (from == bundleZip && into == bundleZip):
+			if err := os.Rename(w.currentFile, to); err != nil {
+				return fmt.Errorf("could not rename the file: %v", err)
+			}
+			if w.bundle != nil {
+				w.bundle.path = to
+			}
+		case from == notBundle && into == bundleZip:
+			// a plain script made a .highland or .textpack: written as
+			// one, the plain file gone (its text is all in the bundle)
+			if err := w.saveToFile(to); err != nil {
+				return err
+			}
+			_ = os.Remove(w.currentFile)
+		default:
+			return fmt.Errorf("a bundle's kind changes with File > Save As, not a rename")
 		}
 		w.currentFile = to
 		w.rememberRecent(to)

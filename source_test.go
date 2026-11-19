@@ -222,11 +222,11 @@ func lineWith(t *testing.T, w *MainWindow, s string) int {
 	return -1
 }
 
-// Layer 3: story.md (or .markdown) beside story.fountain is its source.
+// Layer 4: story.md (or .markdown) beside story.fountain is its source.
 func TestSourceBeside(t *testing.T) {
 	w, p := sourceWindow(t, sourceScript, sourceStory)
 	dir := filepath.Dir(p)
-	if r := w.sourceRef(); r != (sourceRef{sourceBeside, filepath.Join(dir, "story.md")}) {
+	if r := w.sourceRef(); r != (sourceRef{Origin: sourceBeside, Path: filepath.Join(dir, "story.md")}) {
 		t.Fatalf("source %+v", r)
 	}
 	s := w.sourcePane()
@@ -259,7 +259,7 @@ func TestSourceBeside(t *testing.T) {
 	}
 }
 
-// Layer 2: Choose Source keeps a copy (converted to Markdown) in
+// Layer 3: Choose Source keeps a copy (converted to Markdown) in
 // Accolade's folder, remembered for the script; it wins over the file
 // beside the script, is edited in place, and Save Source As gets it out.
 func TestSourceKept(t *testing.T) {

@@ -180,7 +180,7 @@ func (s *sourcePane) load() {
 	}
 	var src string
 	var err error
-	if ref.Origin == sourceInside {
+	if ref.Origin == sourceInside || ref.Origin == sourceBundle { // in memory
 		src, _ = s.w.sourceText(ref)
 		if ref == s.ref && src == s.src {
 			return
@@ -412,6 +412,11 @@ func (s *sourcePane) toggleEdit() {
 			e := s.w.textEditor
 			start, end, block := withSourceBlock(e.Text(), s.editor.Text)
 			e.Replace(start, end, block)
+		} else if s.ref.Origin == sourceBundle {
+			if err := s.w.saveBundleSource(s.editor.Text); err != nil {
+				dialog.ShowError(err, s.w.fyneWindow)
+				return
+			}
 		} else if err := writeFileAtomic(s.ref.Path, []byte(s.editor.Text)); err != nil {
 			dialog.ShowError(fmt.Errorf("could not save the source: %v", err), s.w.fyneWindow)
 			return
@@ -498,7 +503,11 @@ func (w *MainWindow) chooseSource() {
 			return
 		}
 		w.showSource()
-		w.setStatus("Source: " + filepath.Base(path) + ", kept by Accolade")
+		if w.bundle != nil {
+			w.setStatus("Source: " + filepath.Base(path) + ", put in " + filepath.Base(w.bundle.path))
+		} else {
+			w.setStatus("Source: " + filepath.Base(path) + ", kept by Accolade")
+		}
 	})
 }
 

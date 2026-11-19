@@ -59,10 +59,20 @@ func (w *MainWindow) chosenType(path string) (markdown, chosen bool) {
 }
 
 // typeOf tells whether a file opens as Markdown: as chosen for it, else
-// as its extension says.
+// as its extension says (a bundle's: as it says, bundle.go).
 func (w *MainWindow) typeOf(path string) bool {
 	if md, ok := w.chosenType(path); ok {
 		return md
+	}
+	return w.naturalType(path)
+}
+
+// naturalType is the type a file is without a choice: its extension's,
+// or for the window's bundle what the bundle says (its text file's name,
+// info.json's "type", Accolade's key).
+func (w *MainWindow) naturalType(path string) bool {
+	if b := w.bundle; b != nil && path != "" && absPath(b.path) == absPath(path) {
+		return b.markdown()
 	}
 	return isMarkdownFile(path)
 }
@@ -75,7 +85,7 @@ func (w *MainWindow) rememberType(path string, markdown bool) {
 	}
 	path = absPath(path)
 	var list []string
-	if markdown != isMarkdownFile(path) {
+	if markdown != w.naturalType(path) {
 		list = append(list, documentTypeEntry(path, markdown))
 	}
 	old := w.settings.GetStringSlice("document-types")

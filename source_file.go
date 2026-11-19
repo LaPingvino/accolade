@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -17,7 +18,12 @@ import (
 //     "/* Source … */" (Format > Keep Source in the Script, off by
 //     default). Other Fountain apps ignore a boneyard, so one .fountain
 //     file carries the script and its source anywhere.
-//  2. A copy Accolade keeps: File > Choose Source… reads a Markdown file
+//  2. In the bundle, when the script is a TextBundle (.textbundle,
+//     .textpack, .highland; bundle.go): assets/source.md (or the entry
+//     Accolade's key in info.json names, or a source.md beside the text).
+//     The bundle carries it wherever it goes; Choose Source puts the
+//     source there for such a script, and edits are written into it.
+//  3. A copy Accolade keeps: File > Choose Source… reads a Markdown file
 //     (or a Word, OpenDocument, web page or text file, through
 //     internal/prose) and keeps it as Markdown in Accolade's own folder,
 //     remembered per script in settings.json ("source-files", as
@@ -26,7 +32,7 @@ import (
 //     user's (an opened file is an upload), the settings folder, which
 //     the page keeps (web/index.html's memfsPersist). File > Save Source
 //     As… gets it out again.
-//  3. Beside the script, on the desktop: story.md (or .markdown) next to
+//  4. Beside the script, on the desktop: story.md (or .markdown) next to
 //     story.fountain.
 //
 // The pane says which one is in use.
@@ -37,15 +43,17 @@ type sourceOrigin int
 const (
 	sourceNone   sourceOrigin = iota
 	sourceInside              // in the script
+	sourceBundle              // in the script's bundle
 	sourceKept                // a copy Accolade keeps (or a file chosen for the script)
 	sourceBeside              // the file beside the script
 )
 
 // sourceRef is a script's source: where it is, and its file (for
-// sourceKept and sourceBeside).
+// sourceKept and sourceBeside) or its entry in the bundle (sourceBundle).
 type sourceRef struct {
 	Origin sourceOrigin
 	Path   string
+	Entry  string
 }
 
 // describe is how the pane names it.
@@ -53,6 +61,8 @@ func (r sourceRef) describe() string {
 	switch r.Origin {
 	case sourceInside:
 		return "Kept in the script"
+	case sourceBundle:
+		return path.Base(r.Entry) + " · in the bundle"
 	case sourceKept:
 		if strings.HasPrefix(r.Path, keptSourcesDir()+string(filepath.Separator)) {
 			return filepath.Base(r.Path) + " · kept by Accolade"
@@ -177,6 +187,9 @@ func (w *MainWindow) sourceRef() sourceRef {
 	if _, _, _, ok := sourceBlock(w.textEditor.Text()); ok {
 		return sourceRef{Origin: sourceInside}
 	}
+	if b := w.bundle; b != nil && b.source != "" {
+		return sourceRef{Origin: sourceBundle, Entry: b.source}
+	}
 	if s := w.chosenSource(w.currentFile); s != "" {
 		if _, err := os.Stat(s); err == nil {
 			return sourceRef{Origin: sourceKept, Path: s}
@@ -241,11 +254,15 @@ func (w *MainWindow) sourceAfterRename(oldPath, newPath string) {
 
 // useSource makes a file the script's source: read as Markdown
 // (toMarkdown: Markdown and text as they are, Word, OpenDocument and web
-// pages converted), kept in Accolade's folder and remembered.
+// pages converted), put in the script's bundle, else kept in Accolade's
+// folder and remembered.
 func (w *MainWindow) useSource(path string) error {
 	md, _, _, err := toMarkdown(path)
 	if err != nil {
 		return err
+	}
+	if w.bundle != nil {
+		return w.saveBundleSource(md)
 	}
 	kept, err := keepSourceCopy(filepath.Base(path), md)
 	if err != nil {
@@ -261,6 +278,9 @@ func (w *MainWindow) sourceText(r sourceRef) (string, error) {
 	case sourceInside:
 		_, _, md, _ := sourceBlock(w.textEditor.Text())
 		return md, nil
+	case sourceBundle:
+		text, _ := decodeScript(w.bundle.srcText)
+		return text, nil
 	case sourceKept, sourceBeside:
 		data, err := os.ReadFile(r.Path)
 		text, _ := decodeScript(data)
@@ -269,10 +289,24 @@ func (w *MainWindow) sourceText(r sourceRef) (string, error) {
 	return "", nil
 }
 
+// saveBundleSource writes md as the source in the script's bundle, now
+// (the text in the bundle as it was saved last).
+func (w *MainWindow) saveBundleSource(md string) error {
+	b, err := saveBundleSource(w.bundle, []byte(md))
+	if err != nil {
+		return fmt.Errorf("could not write the source into %s: %v", filepath.Base(w.bundle.path), err)
+	}
+	w.bundle = b
+	return nil
+}
+
 // sourceName is the name Save Source As offers.
 func (w *MainWindow) sourceName(r sourceRef) string {
 	if r.Path != "" {
 		return filepath.Base(r.Path)
+	}
+	if r.Entry != "" {
+		return path.Base(r.Entry)
 	}
 	name := cmp.Or(w.currentFile, w.suggestedName, w.untitledName())
 	return strings.TrimSuffix(filepath.Base(name), filepath.Ext(name)) + ".md"
@@ -304,7 +338,11 @@ func (w *MainWindow) keepSourceInside(on bool) error {
 	}
 	md, _ := w.sourceText(r)
 	kept := w.chosenSource(w.currentFile)
-	if !strings.HasPrefix(kept, keptSourcesDir()+string(filepath.Separator)) { // a copy of its own
+	if w.bundle != nil { // out into the bundle
+		if err := w.saveBundleSource(md); err != nil {
+			return err
+		}
+	} else if !strings.HasPrefix(kept, keptSourcesDir()+string(filepath.Separator)) { // a copy of its own
 		var err error
 		if kept, err = keepSourceCopy(w.sourceName(r), md); err != nil {
 			return fmt.Errorf("could not keep the source: %v", err)
@@ -312,7 +350,9 @@ func (w *MainWindow) keepSourceInside(on bool) error {
 	} else if err := writeFileAtomic(kept, []byte(md)); err != nil {
 		return err
 	}
-	w.rememberSource(w.currentFile, kept)
+	if w.bundle == nil {
+		w.rememberSource(w.currentFile, kept)
+	}
 	start, end, _, _ := sourceBlock(e.Text())
 	tail := ""
 	if end == len([]rune(e.Text())) {

@@ -37,14 +37,16 @@ func kindOfName(name string) (markdown, known bool) {
 	switch strings.ToLower(filepath.Ext(name)) {
 	case ".md", ".markdown":
 		return true, true
-	case ".fountain", ".spmd", ".txt", ".fdx", ".pdf":
+	case ".fountain", ".spmd", ".txt", ".fdx", ".pdf", ".highland":
 		return false, true
 	}
 	return false, false
 }
 
-// openExtensions are the files Open offers (the browser's file picker too).
-var openExtensions = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", ".fdx", ".pdf"}
+// openExtensions are the files Open offers (the browser's file picker
+// too). A .textbundle is a folder: Open goes into it and opens its text
+// (bundleOf), so it is not among them.
+var openExtensions = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", ".highland", ".textpack", ".fdx", ".pdf"}
 
 func isMarkdownFile(name string) bool {
 	md, _ := kindOfName(name)
@@ -109,6 +111,7 @@ func (w *MainWindow) NewMarkdownFile() {
 		w.textEditor.SetText("# Untitled\n\n")
 		w.textEditor.SetCursorOffset(len([]rune(w.textEditor.Text())))
 		w.currentFile, w.suggestedName = "", ""
+		w.bundle, w.plainBundle = nil, ""
 		w.hasChanges = false
 		w.updateTitle()
 		w.updateStatusBar()

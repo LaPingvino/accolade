@@ -62,3 +62,15 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   one undo step. Passages are keyed by their words so statuses can attach. Rough: the editor colours the source
   block as Fountain (boneyard has no colour of its own yet, the notes block neither). Next: TextBundle / .highland (above), then step 4, statuses and
   Next passage.
+- 2026-11-19: the TextBundle family (branch textbundle, not merged; bundle.go, docs/HIGHLAND.md). Open, Save, Save As,
+  Open Recent, rename, autosave and the browser's picker take .highland and .textpack (zips) and .textbundle (a
+  folder, desktop only: Open goes into it and opens its text). The type comes from the text file's name, then
+  info.json's `type`. Both zip layouts are read (root, or one Name.textbundle/) and written back as read. A new zip
+  gets the folder layout, for .textpack too: TextBundle's own sample, writer and reader all use it (the spec is
+  silent). Saving changes only the text and Accolade's key; every other entry is copied raw in order, the zip comment
+  kept. info.json is edited as text, so its trailing commas, `\/` and key order survive. A non-zip .highland is
+  plain Fountain; a bundle with no text is an error. Save As from plain makes a minimal bundle. The source is a new
+  layer 2: assets/source.md in the bundle, written at once by Choose Source and the pane. Tests: generated bundles
+  (both layouts, assets, sidecars, unknown file, __MACOSX); TextBundle's MIT samples in testdata/textbundle; any real
+  files in testdata/highland (gitignored). Rough: no real .highland tested yet; Save As onto an existing .textbundle
+  folder depends on Fyne's dialog. Next: step 4, statuses and Next passage.

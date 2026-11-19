@@ -1,0 +1,4 @@
+# Real Highland files to test against (bundle_test.go opens, saves and compares
+# each). Others' scripts: kept here, never committed.
+*
+!.gitignore

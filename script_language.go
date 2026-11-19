@@ -242,6 +242,12 @@ func (w *MainWindow) nameLanguage(lang string) error {
 	if err := os.Rename(w.currentFile, to); err != nil {
 		return err
 	}
+	if w.bundle != nil { // the same kind of bundle, named anew
+		w.bundle.path = to
+	}
+	if w.plainBundle == w.currentFile {
+		w.plainBundle = to
+	}
 	w.currentFile = to
 	w.rememberRecent(to)
 	w.updateTitle()

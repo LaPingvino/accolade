@@ -71,6 +71,12 @@ type MainWindow struct {
 	language string
 	// format is how the script's file stores it (encoding.go)
 	format fileFormat
+	// bundle is the TextBundle (.textbundle, .textpack, .highland) the
+	// script is the text of, nil for a plain file (bundle.go)
+	bundle *textBundle
+	// plainBundle is a file with a bundle's name holding plain text (a
+	// .highland that is no zip), saved as plain text again
+	plainBundle string
 	// imported is closed when the PDF import under way is in
 	imported       chan struct{}
 	outline        *outlinePanel
@@ -323,10 +329,29 @@ func (w *MainWindow) LoadFile(filePath string) error {
 		return w.importFile(filePath)
 	}
 
-	content, err := os.ReadFile(filePath)
+	// the text of a .textbundle folder opens the bundle
+	if b, ok := bundleOf(filePath); ok {
+		filePath = b
+	}
+	// all read before anything changes: a file that cannot be read
+	// leaves the window as it was
+	var bundle *textBundle
+	plain := ""
+	var content []byte
+	var err error
+	if bundleKindOf(filePath) != notBundle {
+		bundle, content, err = readBundle(filePath)
+		if errors.Is(err, errNotZip) && strings.EqualFold(filepath.Ext(filePath), ".highland") {
+			bundle, plain = nil, filePath // Fountain with Highland's name
+			content, err = os.ReadFile(filePath)
+		}
+	} else {
+		content, err = os.ReadFile(filePath)
+	}
 	if err != nil {
 		return fmt.Errorf("failed to read file: %v", err)
 	}
+	w.bundle, w.plainBundle = bundle, plain
 
 	// as stored: Windows-1252, a byte order mark, CR LF are kept for saving
 	text, format := decodeScript(content)
@@ -382,7 +407,7 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.setMarkdown(false)
 	w.textEditor.SetText(text)
 	w.filledWith = w.textEditor.Text()
-	w.currentFile = ""
+	w.currentFile, w.bundle, w.plainBundle = "", nil, ""
 	w.suggestedName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)) + ".fountain"
 	w.hasChanges = true
 	w.updateTitle()
@@ -556,7 +581,7 @@ func (w *MainWindow) SaveFileAs() error {
 
 func (w *MainWindow) saveToFile(filePath string) error {
 	data, utf8Instead := encodeScript(w.textEditor.Text(), w.format)
-	if err := writeFileAtomic(filePath, data); err != nil {
+	if err := w.writeScript(filePath, data); err != nil {
 		return fmt.Errorf("failed to write file: %v", err)
 	}
 	if utf8Instead {
@@ -567,6 +592,39 @@ func (w *MainWindow) saveToFile(filePath string) error {
 	w.cancelAutoSave()
 	w.hasChanges = false
 	w.updateTitle()
+	return nil
+}
+
+// writeScript writes the script's text to filePath: into the bundle it
+// came from or a new one for a bundle's name (bundle.go), else as a plain
+// file (a bundle saved under a plain name leaves the bundle, its source
+// kept by Accolade).
+func (w *MainWindow) writeScript(filePath string, data []byte) error {
+	if bundleKindOf(filePath) != notBundle && (w.bundle != nil || !w.isPlainBundle(filePath)) {
+		if inBrowser && bundleKindOf(filePath) == bundleFolder {
+			return fmt.Errorf("a .textbundle is a folder, which the browser cannot save: use .textpack")
+		}
+		b, err := saveBundleText(w.bundle, filePath, data, w.markdown)
+		if err != nil {
+			return err
+		}
+		w.bundle, w.plainBundle = b, ""
+		return nil
+	}
+	if err := writeFileAtomic(filePath, data); err != nil {
+		return err
+	}
+	if b := w.bundle; b != nil {
+		w.bundle = nil
+		if b.source != "" && w.chosenSource(filePath) == "" {
+			if kept, err := keepSourceCopy(w.sourceName(sourceRef{}), string(b.srcText)); err == nil {
+				w.rememberSource(filePath, kept)
+			}
+		}
+	}
+	if bundleKindOf(filePath) != notBundle {
+		w.plainBundle = filePath
+	}
 	return nil
 }
 
@@ -748,7 +806,7 @@ func (w *MainWindow) createNewFile(empty bool) {
 		text = ""
 	}
 	w.textEditor.SetText(text)
-	w.currentFile = ""
+	w.currentFile, w.bundle, w.plainBundle = "", nil, ""
 	w.hasChanges = false
 	w.updateTitle()
 	w.updateStatusBar()
@@ -1300,4 +1358,10 @@ func (w *MainWindow) savedExportJob() exportJob {
 		pagination:    w.settings.GetString("export-pagination"),
 		scenes:        sceneHeaders(w.language),
 	}
+}
+
+// isPlainBundle tells whether p is the bundle-named file of plain text
+// the window has (a .highland that is no zip).
+func (w *MainWindow) isPlainBundle(p string) bool {
+	return w.plainBundle != "" && sameFile(p, w.plainBundle)
 }
