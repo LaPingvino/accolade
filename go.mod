@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	fyne.io/fyne/v2 v2.8.1
 	github.com/BurntSushi/toml v1.6.0
-	github.com/LaPingvino/lexington v1.5.2-0.20261116131002-da5e12cac4a8
+	github.com/LaPingvino/lexington v1.6.0
 	github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3
 	github.com/coder/websocket v1.8.15
 	github.com/pion/logging v0.2.4
@@ -74,5 +74,3 @@ require (
 replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261024175256-1ec26e7c7c6b
 
 replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4
-
-replace github.com/LaPingvino/lexington => ../lexington
