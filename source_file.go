@@ -272,8 +272,14 @@ func (w *MainWindow) useSource(path string) error {
 	return w.useSourceText(path, md)
 }
 
-// useSourceText makes md, read from path, the script's source.
-func (w *MainWindow) useSourceText(path, md string) error {
+// useSourceText makes md, read from path, the script's source (the
+// ribbon's Adaptation tab comes with it).
+func (w *MainWindow) useSourceText(path, md string) (err error) {
+	defer func() {
+		if err == nil {
+			w.ribbonRefresh()
+		}
+	}()
 	if w.bundle != nil {
 		return w.saveBundleSource(md)
 	}

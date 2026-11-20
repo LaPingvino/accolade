@@ -335,8 +335,10 @@ func newRegistry() *registry {
 	// Cut, Copy, Paste and Select All act on the text field with the focus
 	// (the editor, a search field), the editor if none: their keys (shown,
 	// not on the menu items) stay the field's own, so a search field's
-	// Ctrl+C copies its text. In the browser Fyne's clipboard is the
-	// page's: Paste from the menu gives what the page may read.
+	// Ctrl+C copies its text. In the browser the clipboard is the page's
+	// (navigator.clipboard, glfw-js): Paste from a menu or button asks the
+	// browser to read it, which it may ask the user about or refuse (then
+	// nothing is pasted); Ctrl+V is the sure way there.
 	clip := func(s func(c fyne.Clipboard) fyne.Shortcut) func(w *MainWindow) {
 		return func(w *MainWindow) { w.editShortcut(s(w.clipboard())) }
 	}

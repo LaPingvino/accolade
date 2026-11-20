@@ -493,6 +493,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   submenus by their items, greyed when it cannot be given; Enter/click runs with the editor's focus back; Ctrl+K/F1
   again focuses it, no second one. Goldens: testdata/ribbon/*.golden (UPDATE_RIBBON_GOLDEN=1); the commands goldens
   unchanged, regroupMoves spells out every move. Shots: SHOT_DIR=… go test -run TestRibbonScreenshots. Rough: Alt
-  alone is seen through the editor's (or a ribbon widget's) key-up only, so with the focus elsewhere it is F10; the
-  Schedule stage's Open Stripboard stays the pane's own (the registry's Stripboard toggles); key tips sit over a
+  alone is seen by the menu bar Fyne opens for it (watched 3 s after Alt goes down; Alt+Tab opens none), tested with a
+  stand-in for Fyne's unexported menu item, so on a Mac (native menus) it is F10 only; the Write tab is wider than
+  1000 px with a format's buttons (its row scrolls); the Schedule stage's Open Stripboard stays the pane's own (the registry's Stripboard toggles); key tips sit over a
   small button's icon. Next: the sample file.

@@ -160,7 +160,6 @@ func TestRibbonEnablement(t *testing.T) {
 		t.Error("Unlock disabled after the lock")
 	}
 	w.undo() // the text's change: the ribbon follows when typing pauses
-	w.onTextChanged(w.textEditor.Text())
 	if !buttonOf(r, "production.unlockNumbers").Disabled() {
 		t.Error("Unlock enabled after the lock was undone")
 	}
@@ -178,7 +177,25 @@ func TestRibbonEnablement(t *testing.T) {
 	}
 }
 
-// The Adaptation tab comes when a source does, its commands enabled.
+// The Adaptation tab comes when a source does (the ribbon on first),
+// its commands enabled.
+func TestRibbonSourceArrives(t *testing.T) {
+	w, _ := scriptWindow(t, suggestScript)
+	r := ribbonOnFor(t, w)
+	if r.tabs[3].Visible() {
+		t.Fatal("an Adaptation tab without a source")
+	}
+	dir := t.TempDir()
+	p := filepath.Join(dir, "story.md")
+	os.WriteFile(p, []byte(suggestStory), 0o644)
+	if err := w.useSource(p); err != nil {
+		t.Fatal(err)
+	}
+	if !r.tabs[3].Visible() {
+		t.Error("no Adaptation tab once the source came")
+	}
+}
+
 func TestRibbonSourceTab(t *testing.T) {
 	w := suggestWindow(t, suggestScript)
 	r := ribbonOnFor(t, w)
@@ -199,25 +216,22 @@ func TestRibbonProductionStages(t *testing.T) {
 	r := ribbonOnFor(t, w)
 	r.selectTab("Production")
 	first := func() string {
-		return r.groupBox.Objects[0].(*fyne.Container).Objects[1].(*widget.Label).Text
+		return r.groupBox.Objects[1].(*fyne.Container).Objects[1].(*widget.Label).Text // after the strut
 	}
 	if first() != "Lock" {
 		t.Fatalf("first group %q", first())
 	}
 	issueNow(t, w, "White", time.Date(2026, 11, 1, 0, 0, 0, 0, time.Local))
-	w.ribbonRefresh()
 	if first() != "Revise" || buttonOf(r, "production.revisedPages") == nil {
 		t.Fatalf("after White: %q", first())
 	}
 	ribbonGolden(t, "screenplay-production-revise", dumpRibbon(r))
 	tagNow(t, w, "Mud", 0, "Props")
-	w.ribbonRefresh()
 	if first() != "Break Down" {
 		t.Fatalf("after a tag: %q", first())
 	}
 	ribbonGolden(t, "screenplay-production-breakdown", dumpRibbon(r))
 	w.addShootDay()
-	w.ribbonRefresh()
 	if first() != "Schedule" {
 		t.Fatalf("after a day: %q", first())
 	}
@@ -356,25 +370,44 @@ func TestRibbonKeyTips(t *testing.T) {
 	if r.tipsOn || c.Focused() != fyne.Focusable(w.textEditor) {
 		t.Error("Esc did not leave the key tips")
 	}
-	// Alt alone shows them; Alt with a key does not
+	// Alt alone: Fyne opens the menu bar when it is let go (its first
+	// menu focused, the test's stand-in here); the key tips show instead.
+	// Alt with a key opens no menu; Alt+Tab neither.
+	menuOpen := false
+	old := menuBarFocus
+	menuBarFocus = func(fyne.Focusable) bool { return menuOpen }
+	t.Cleanup(func() { menuBarFocus = old })
+	c.Focus(w.textEditor)
 	w.keyPreview(desktop.KeyAltLeft, 0)
-	w.textEditor.KeyUp(&fyne.KeyEvent{Name: desktop.KeyAltLeft})
-	if !r.tipsOn {
+	if w.altOpenedMenu() || r.tipsOn {
+		t.Error("key tips before Alt was let go")
+	}
+	menuOpen = true
+	if !w.altOpenedMenu() || !r.tipsOn {
 		t.Error("Alt alone: no key tips")
 	}
+	menuOpen = false
 	c.Focused().TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+	if r.tipsOn || c.Focused() != fyne.Focusable(w.textEditor) {
+		t.Error("Esc after Alt: tips still on, or the focus not back")
+	}
 	w.keyPreview(desktop.KeyAltLeft, 0)
 	w.keyPreview(fyne.KeyJ, fyne.KeyModifierAlt)
-	w.textEditor.KeyUp(&fyne.KeyEvent{Name: desktop.KeyAltLeft})
-	if r.tipsOn {
+	menuOpen = true
+	if w.altOpenedMenu() || r.tipsOn {
 		t.Error("Alt with a key showed the key tips")
 	}
+	menuOpen = false
+	// a click in the script while they show takes them away
+	w.keyPreview(fyne.KeyF10, 0)
+	c.Focus(w.textEditor)
+	waitFor(t, "the key tips gone", func() bool { return !r.tipsOn })
 	// in Menus mode, Alt is the menu bar's
 	w.settings.SetString(lookPref, "menus")
 	w.applyEditorSettings()
 	w.keyPreview(desktop.KeyAltLeft, 0)
-	w.textEditor.KeyUp(&fyne.KeyEvent{Name: desktop.KeyAltLeft})
-	if r.tipsOn {
+	menuOpen = true
+	if w.altOpenedMenu() || r.tipsOn {
 		t.Error("key tips in Menus mode")
 	}
 }
@@ -452,6 +485,18 @@ func TestRibbonFocusVisible(t *testing.T) {
 	}
 }
 
+// Everything on the ribbon has a name for a screen reader.
+func TestRibbonNames(t *testing.T) {
+	w := suggestWindow(t, suggestScript)
+	r := ribbonOnFor(t, w)
+	for _, tab := range r.shownTabs() {
+		r.selectTab(tab.title)
+		if u := unnamed(w.fyneWindow.Canvas()); len(u) > 0 {
+			t.Errorf("%s: no name for\n  %s", tab.title, strings.Join(u, "\n  "))
+		}
+	}
+}
+
 // Menus mode is as it was: the header's rows, no ribbon.
 func TestMenusModeUnchanged(t *testing.T) {
 	w := newTestWindow(t, "")
@@ -476,7 +521,7 @@ func TestRibbonScreenshots(t *testing.T) {
 	os.MkdirAll(dir, 0o755)
 	w := suggestWindow(t, suggestScript)
 	r := ribbonOnFor(t, w)
-	w.fyneWindow.Resize(fyne.NewSize(1100, 520))
+	w.fyneWindow.Resize(fyne.NewSize(1000, 600))
 	snap := func(name string) {
 		t.Helper()
 		w.fyneWindow.Content().Refresh()

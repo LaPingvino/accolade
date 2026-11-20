@@ -212,7 +212,6 @@ func (w *MainWindow) setupUI() {
 	// Create main text editor with Courier Prime font
 	w.textEditor = newScriptEditor(w)
 	w.textEditor.OnCursorChanged = w.onCursorChanged
-	w.textEditor.OnKeyUp = func(k *fyne.KeyEvent) { w.altKey(k.Name, false) }
 
 	// Add some initial content - start with a title page
 	w.textEditor.SetText(defaultScript(time.Now()))
@@ -286,7 +285,7 @@ func (w *MainWindow) setupShortcuts() {
 // Shift+F6 for the panes; commands.go); it reports whether it took the key.
 func (w *MainWindow) keyPreview(key fyne.KeyName, mod fyne.KeyModifier) bool {
 	keyArrived()
-	w.altKey(key, true) // Alt alone shows the ribbon's key tips
+	w.altKey(key) // Alt alone shows the ribbon's key tips
 	return w.previewKey(key, mod)
 }
 

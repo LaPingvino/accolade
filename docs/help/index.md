@@ -5,7 +5,7 @@ Accolade is a screenplay editor that writes plain Fountain. These pages are in t
 ## Menus, ribbon and palette
 
 - **Menus:** File (new, open, import, save, export, print), Edit (undo, the clipboard, find, moving lines, the title page, the script's language, Preferences), Format, Adaptation and Production (a screenplay's), Collaboration (writing together, drafts and comparing them), View and Help.
-- **Ribbon:** Preferences > General > Look: Ribbon puts tabs of large buttons in the toolbar's place — File, Write, Edit, Adaptation (once the script has a source, or for a story to start a screenplay from), Production (its first group is the stage the script is at: Lock, Revise, Break down or Schedule), Collaboration and View. The menu bar stays. F10, or Alt alone, shows a letter on each tab and button to press it from the keyboard. On a phone the buttons are one row that scrolls sideways.
+- **Ribbon:** Preferences > General > Look: Ribbon puts tabs of large buttons in the toolbar's place — File, Write, Edit, Adaptation (once the script has a source, or for a story to start a screenplay from), Production (its first group is the stage the script is at: Lock, Revise, Break down or Schedule), Collaboration and View. The menu bar stays. F10, or Alt alone (not on a Mac), shows a letter on each tab and button to press it from the keyboard. On a phone the buttons are one row that scrolls sideways.
 - **Command palette:** Ctrl+K or F1 (Help > Command Palette…, or the keyboard button on the toolbar): type part of any command's name, Enter runs it. It shows each command's shortcut and where it lives.
 
 ## Pages

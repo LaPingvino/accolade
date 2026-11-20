@@ -78,8 +78,6 @@ type ScriptEditor struct {
 	PageColumns int
 	// OnCursorChanged is called when the cursor or selection moves.
 	OnCursorChanged func()
-	// OnKeyUp, if set, sees each key let go (Alt alone: the ribbon's key tips)
-	OnKeyUp func(*fyne.KeyEvent)
 	// AccessibleName is what screen readers call the editor ("Script").
 	AccessibleName string
 
@@ -118,12 +116,12 @@ type ScriptEditor struct {
 	onView              func() // the view again (after a resize)
 	viewTop, viewHeight float32
 	gridFirst, gridEnd  int
-	draw                drawing                             // what relayout found, to draw rows with
-	foldAt              map[int]bool                        // the folded headings' lines
-	headings            map[int]bool                        // the lines that can fold (Headings)
+	draw                drawing      // what relayout found, to draw rows with
+	foldAt              map[int]bool // the folded headings' lines
+	headings            map[int]bool // the lines that can fold (Headings)
 	marks               map[int]*widget.CustomTextGridStyle // the lines' marks (Marks), as drawn
 	inks                map[int][]Ink                       // the lines' inked words (Inks)
-	laid                laidOut                             // the last layout, for its key
+	laid                laidOut      // the last layout, for its key
 }
 
 // Ink is words of a line drawn in Color and underlined: the line's
@@ -995,9 +993,6 @@ func (e *ScriptEditor) KeyDown(k *fyne.KeyEvent) {
 func (e *ScriptEditor) KeyUp(k *fyne.KeyEvent) {
 	if k.Name == desktop.KeyShiftLeft || k.Name == desktop.KeyShiftRight {
 		e.shift = false
-	}
-	if e.OnKeyUp != nil {
-		e.OnKeyUp(k)
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"strings"
 	"time"
@@ -33,7 +34,8 @@ import (
 // At a phone's width the tabs are one row and the groups one row that
 // scrolls sideways, every button at least 44 px high.
 //
-// Keyboard: F10, or Alt pressed and let go alone, shows key tips: a
+// Keyboard: F10, or Alt pressed and let go alone (where Fyne's in-window
+// menu bar opens for it: Linux, Windows, the browser), shows key tips: a
 // letter on each tab, then (a tab chosen by its letter) on each button
 // of its groups; the letter runs it. Esc goes back a level, then leaves.
 // Tab and the arrow keys move between the tabs and buttons; Enter or
@@ -115,12 +117,13 @@ type ribbonBar struct {
 	showing  bool                       // the format select shows, not chooses
 	byID     map[string][]*ribbonButton // the buttons by command id
 
-	tipsOn    bool
-	tipLevel  int    // 1: the tabs', 2: the buttons'
-	typed     string // the key tip's letters typed so far
-	tipsFrom  fyne.Focusable
-	altAlone  bool // Alt went down with no other key yet
-	lastShown string
+	tipsOn   bool
+	tipLevel int    // 1: the tabs', 2: the buttons'
+	typed    string // the key tip's letters typed so far
+	tipsFrom fyne.Focusable
+	altAlone bool           // Alt went down with no other key yet
+	altFrom  fyne.Focusable // the focus then
+	altPolls int
 }
 
 func newRibbon(w *MainWindow) *ribbonBar {
@@ -264,6 +267,23 @@ func (r *ribbonBar) build() {
 	r.buttons, r.byID, r.elements = nil, map[string][]*ribbonButton{}, map[string]*ribbonButton{}
 	r.groupBox.Objects = nil
 	t, _ := tabOf(r.selected)
+	// every tab the same height (three small buttons and a title), so the
+	// script does not jump when another is chosen
+	title := widget.NewLabel("X")
+	title.SizeName = theme.SizeNameCaptionText
+	rows := ribbonPhoneHeight
+	if !r.phone {
+		rows = 3 * ribbonSmallHeight
+	}
+	cell := canvas.NewRectangle(color.Transparent)
+	cell.SetMinSize(fyne.NewSize(1, float32(rows)))
+	h := container.NewBorder(nil, title, nil, nil, container.NewVBox(cell)).MinSize().Height
+	if !r.phone {
+		h += 2 * theme.Padding() // the VBox's gaps between three
+	}
+	strut := canvas.NewRectangle(color.Transparent)
+	strut.SetMinSize(fyne.NewSize(0, h))
+	r.groupBox.Add(strut)
 	first := true
 	for _, g := range t.groups {
 		content := r.groupContent(g)
@@ -567,6 +587,22 @@ func (r *ribbonBar) assignTips(level int) {
 	}
 }
 
+// focusLeft takes the key tips away once the focus is out of the ribbon
+// (a click in the script, Tab out of it): looked at after the focus
+// moved, as the widget losing it does not know where it goes.
+func (r *ribbonBar) focusLeft() {
+	if !r.tipsOn {
+		return
+	}
+	r.w.after(0, func() {
+		switch r.w.fyneWindow.Canvas().Focused().(type) {
+		case *ribbonTabButton, *ribbonButton:
+		default:
+			r.leaveKeyTips(false)
+		}
+	})
+}
+
 // keyTipTyped takes a letter typed while key tips show; it reports
 // whether it was one.
 func (r *ribbonBar) keyTipTyped(ch rune) bool {
@@ -666,31 +702,68 @@ func (r *ribbonBar) leaveKeyTips(restore bool) {
 	r.tipsFrom = nil
 }
 
-// altKey sees Alt go down (down) and up: Alt alone, in Ribbon mode,
-// shows the key tips (or takes them away), and the menu bar Fyne opened
-// for it closes again.
-func (w *MainWindow) altKey(name fyne.KeyName, down bool) {
+// altKey sees each key go down (keyPreview): Alt alone, in Ribbon mode,
+// shows the key tips (or takes them away). Fyne opens the menu bar when
+// Alt is let go alone, giving its first menu the focus; that is how
+// Alt alone is seen (a key with Alt cancels both), and the menu closes
+// again. A window left with Alt+Tab opens no menu, so no key tips.
+func (w *MainWindow) altKey(name fyne.KeyName) {
 	if !w.ribbonShown() {
 		return
 	}
 	r := w.ribbon
-	alt := name == desktop.KeyAltLeft || name == desktop.KeyAltRight
-	if down {
-		r.altAlone = alt
+	if name != desktop.KeyAltLeft && name != desktop.KeyAltRight {
+		r.altAlone = false
 		return
 	}
-	if !alt || !r.altAlone {
-		return
+	if r.altAlone {
+		return // held: the key repeats
+	}
+	r.altAlone, r.altFrom, r.altPolls = true, w.fyneWindow.Canvas().Focused(), 0
+	w.watchAlt()
+}
+
+// watchAlt looks for the menu bar Alt opened, a while (3 s).
+func (w *MainWindow) watchAlt() {
+	w.after(40*time.Millisecond, func() {
+		r := w.ribbon
+		if r == nil || !r.altAlone {
+			return
+		}
+		if !w.altOpenedMenu() && r.altPolls < 75 {
+			r.altPolls++
+			w.watchAlt()
+		}
+	})
+}
+
+// menuBarFocus reports whether f is the in-window menu bar's (Fyne's own
+// type, not exported).
+var menuBarFocus = func(f fyne.Focusable) bool {
+	return f != nil && strings.HasSuffix(fmt.Sprintf("%T", f), ".menuBarItem")
+}
+
+// altOpenedMenu shows the key tips (or takes them away) if Alt alone
+// opened the menu bar, closing it; it reports whether it had.
+func (w *MainWindow) altOpenedMenu() bool {
+	r := w.ribbon
+	c := w.fyneWindow.Canvas()
+	if r == nil || !r.altAlone || !menuBarFocus(c.Focused()) {
+		return false
 	}
 	r.altAlone = false
-	if m, ok := w.fyneWindow.Canvas().(interface{ DismissMenu() bool }); ok {
+	if m, ok := c.(interface{ DismissMenu() bool }); ok {
 		m.DismissMenu()
 	}
 	if r.tipsOn {
 		r.leaveKeyTips(true)
-	} else {
-		r.showKeyTips()
+		return true
 	}
+	if r.altFrom != nil {
+		c.Focus(r.altFrom)
+	}
+	r.showKeyTips()
+	return true
 }
 
 // The tabs and buttons.
@@ -742,6 +815,7 @@ func (t *ribbonTabButton) FocusGained() {
 func (t *ribbonTabButton) FocusLost() {
 	t.focused = false
 	t.Refresh()
+	t.r.focusLeft()
 }
 func (t *ribbonTabButton) TypedRune(ch rune) {
 	if ch == ' ' && !t.r.tipsOn {
@@ -768,8 +842,6 @@ func (t *ribbonTabButton) TypedKey(k *fyne.KeyEvent) {
 		}
 	}
 }
-func (t *ribbonTabButton) KeyDown(k *fyne.KeyEvent) { t.r.w.altKey(k.Name, true) }
-func (t *ribbonTabButton) KeyUp(k *fyne.KeyEvent)   { t.r.w.altKey(k.Name, false) }
 
 func (t *ribbonTabButton) AccessibilityLabel() string             { return t.title + " tab" }
 func (t *ribbonTabButton) AccessibilityRole() fyne.AccessibleRole { return fyne.AccessibleRoleTab }
@@ -956,6 +1028,7 @@ func (b *ribbonButton) FocusGained() {
 func (b *ribbonButton) FocusLost() {
 	b.focused = false
 	b.Refresh()
+	b.r.focusLeft()
 }
 func (b *ribbonButton) TypedRune(ch rune) {
 	if ch == ' ' && !b.r.tipsOn {
@@ -987,8 +1060,6 @@ func (b *ribbonButton) TypedKey(k *fyne.KeyEvent) {
 		}
 	}
 }
-func (b *ribbonButton) KeyDown(k *fyne.KeyEvent) { b.r.w.altKey(k.Name, true) }
-func (b *ribbonButton) KeyUp(k *fyne.KeyEvent)   { b.r.w.altKey(k.Name, false) }
 
 func (b *ribbonButton) AccessibilityLabel() string {
 	if b.name != "" {
