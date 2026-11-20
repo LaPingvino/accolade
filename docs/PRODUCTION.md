@@ -567,9 +567,10 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
 - `pdf.PDFWriter.Measure` lays the script out as the PDF prints it (rules, paper, pagination; nothing written) and
   gives each scene heading its page (numbered as printed: the first after the title page is 1) and its length. A
   scene runs from the top of its heading to the top of the next heading, the last to the foot of the script's last
-  line. The room a page break leaves at a page's foot (a heading kept with what follows, a forced `===`) is the scene
-  before it, as a ruler on the printed page measures it. A page is the lines that fit on it (55 on Letter), so a
-  page of scenes adds up to 8/8 before rounding.
+  line. The room the pagination leaves at a page's foot (a heading kept with what follows it) is the scene's before
+  it, as a ruler on the printed page measures it; the rest of a page after a forced `===` (an act's end) is no one's,
+  as the scene's lines are what count. A page is the lines that fit on it (55 on Letter), so a full page of scenes
+  adds up to 8/8 before rounding.
 - `lex.EighthsOf` / `lex.Eighths`: the eighths rule (below). Written as productions write it: `3/8`, `1`, `1 3/8`,
   never reduced (`4/8`, not `1/2`; https://anonymousproductionassistant.com/2016/08/29/long-will-scene-take/: "A
   scene isn't 2 1/2 pages; it's 2 4/8").
@@ -621,7 +622,8 @@ use `eighths` to compute). Empty means none.
 
 The order of rows is the report's own in Lexington's CLI; Accolade writes them as sorted on screen.
 
-Rough: an unlocked script whose new scene counts on into a number an OMITTED scene keeps gets that number twice
+Rough: the summary names the paper only when Export's page size is set (else "the script format's paper"); an
+unlocked script whose new scene counts on into a number an OMITTED scene keeps gets that number twice
 (Export's count numbering does the same; lock the numbers first); Lexington's PDF prints no page numbers without a
 title page (measured pages still count from 1); the PDF of a report was checked as HTML only here (Chromium can't
 run in the agent's sandbox).

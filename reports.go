@@ -42,7 +42,12 @@ var reportKinds = []struct{ kind, label string }{
 // counted on as Export's "Number the scenes" does, so each has a number;
 // the characters' other names (the adaptation block's characters: line)
 // merged into the cue's.
-func scriptReport(content string, job exportJob) (lexreport.Report, error) {
+func scriptReport(content string, job exportJob) (r lexreport.Report, err error) {
+	defer func() { // as exportAs: Lexington failing is an error, not the app's end
+		if p := recover(); p != nil {
+			err = fmt.Errorf("the reports failed: %v", p)
+		}
+	}()
 	s := job.script(content)
 	if !sceneLockOf(content).locked {
 		s = lex.NumberScenes(s, lex.NumberOptions{})
@@ -139,7 +144,7 @@ func newReportsDialog(w *MainWindow, r lexreport.Report) *reportsDialog {
 	rd.dialog = dialog.NewCustomWithoutButtons("Reports", sized, w.fyneWindow)
 	rd.dialog.SetOnEscape(func() { rd.dialog.Hide() })
 	rd.dialog.Resize(size.AddWidthHeight(dialogMargin, dialogMargin))
-	kind := GetSettings().GetString("report-kind")
+	kind := w.settings.GetString("report-kind")
 	label := labels[0]
 	for _, k := range reportKinds {
 		if k.kind == kind {
@@ -164,7 +169,10 @@ func (rd *reportsDialog) kindOf() string {
 // its own order.
 func (rd *reportsDialog) kindChanged() {
 	kind := rd.kindOf()
-	GetSettings().SetString("report-kind", kind)
+	if rd.w.settings.GetString("report-kind") != kind {
+		rd.w.settings.SetString("report-kind", kind)
+		_ = rd.w.settings.Save()
+	}
 	t, _ := rd.rep.Table(kind)
 	options := []string{ownOrder(kind)}
 	for _, i := range t.Shown() {
@@ -250,8 +258,10 @@ func reportSummary(r lexreport.Report, kind, page string) string {
 	default:
 		parts = append(parts, plural(len(r.Characters), "speaking character"), scenes)
 	}
-	paper := "Letter"
+	paper := "the script format's paper"
 	switch strings.ToLower(page) {
+	case "letter":
+		paper = "Letter"
 	case "a4":
 		paper = "A4"
 	case "a5":
@@ -396,10 +406,12 @@ func (rd *reportsDialog) saveFile(name string, write func(p string) error) {
 			dialog.ShowError(fmt.Errorf("could not save the report: %v", err), w.fyneWindow)
 			return
 		}
-		w.setStatus("Report saved as " + filepath.Base(p))
+		if !strings.HasSuffix(p, ".pdf") { // the PDF says so itself, once made
+			w.setStatus("Report saved as " + filepath.Base(p))
+		}
 	}, w.fyneWindow)
 	d.SetFileName(name)
-	if dir := cmp.Or(GetSettings().GetString("export-directory"), defaultExportDir()); dir != "" {
+	if dir := cmp.Or(rd.w.settings.GetString("export-directory"), defaultExportDir()); dir != "" {
 		if l, err := storage.ListerForURI(storage.NewFileURI(dir)); err == nil {
 			d.SetLocation(l)
 		}
@@ -438,9 +450,20 @@ func (rd *reportsDialog) savePDF() {
 		printFile(htmlPath)
 		return
 	}
-	browser := localBrowser()
+	browser, w := localBrowser(), rd.w
 	rd.saveFile(rd.reportFileName("pdf"), func(p string) error {
-		defer os.RemoveAll(dir)
-		return writeViaTemp(p, func(tmp string) error { return browserPDF(browser, htmlPath, tmp) })
+		w.setStatus("Making the PDF...")
+		go func() { // Chromium takes a moment: not on the window's thread
+			defer os.RemoveAll(dir)
+			err := writeViaTemp(p, func(tmp string) error { return browserPDF(browser, htmlPath, tmp) })
+			fyne.Do(func() {
+				if err != nil {
+					dialog.ShowError(fmt.Errorf("could not make the PDF: %v", err), w.fyneWindow)
+					return
+				}
+				w.setStatus("Report saved as " + filepath.Base(p))
+			})
+		}()
+		return nil
 	})
 }

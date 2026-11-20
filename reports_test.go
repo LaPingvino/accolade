@@ -185,7 +185,7 @@ func TestReportsDialog(t *testing.T) {
 	if err != nil || !strings.Contains(string(page), "<td>TOM</td>") {
 		t.Errorf("page %v:\n%s", err, page)
 	}
-	if GetSettings().GetString("report-kind") != lexreport.KindCast {
+	if w.settings.GetString("report-kind") != lexreport.KindCast {
 		t.Error("the report shown is not remembered")
 	}
 	// in the menu
@@ -240,6 +240,24 @@ func TestReportsScreenshots(t *testing.T) {
 				t.Fatal(err)
 			}
 			f.Close()
+		}
+	}
+}
+
+// A script the PDF writer cannot print as written (Hebrew; Russian scene
+// words): the reports are made all the same, or fail as an error.
+func TestScriptReportOtherScripts(t *testing.T) {
+	for _, c := range []struct{ lang, script string }{
+		{"ru", "ИНТ. КУХНЯ - ДЕНЬ\n\nАННА\nПривет.\n\nНАТ. САД - НОЧЬ\n\nБОРИС\nПока.\n"},
+		{"en", "INT. מטבח - DAY\n\n@שרה\nשלום, מה שלומך?\n\nEXT. גן - NIGHT\n\n@漢字\n你好。\n"},
+	} {
+		r, err := scriptReport(c.script, exportJob{scenes: sceneHeaders(c.lang)})
+		if err != nil {
+			t.Errorf("%s: %v", c.lang, err)
+			continue
+		}
+		if len(r.Scenes) != 2 || len(r.Characters) != 2 || r.Scenes[0].Eighths == 0 {
+			t.Errorf("%s: %+v", c.lang, r)
 		}
 	}
 }
