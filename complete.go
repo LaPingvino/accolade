@@ -164,6 +164,12 @@ func (k *completer) tab(e *editor.ScriptEditor) bool {
 		runes := []rune(text)
 		cur := k.c.candidates[k.index]
 		if k.c.start+len([]rune(cur)) == cursor && cursor <= len(runes) && string(runes[k.c.start:cursor]) == cur {
+			if len(k.c.candidates) < 2 {
+				// nothing to go through: the line after it comes next
+				// (the keyboard flow's: a cue's dialogue)
+				k.c = nil
+				return false
+			}
 			k.index = (k.index + 1) % len(k.c.candidates)
 			k.replace(e, cur, k.c.candidates[k.index])
 			return true

@@ -173,6 +173,7 @@ type MainWindow struct {
 
 	// Current cursor position for element detection
 	currentElement string
+	flow           keyFlow // the Final Draft keyboard flow (keyflow.go)
 }
 
 func NewMainWindow(app *Application) *MainWindow {
@@ -1087,6 +1088,7 @@ func (w *MainWindow) updateStatusBar() {
 }
 
 func (w *MainWindow) onCursorChanged() {
+	w.flowCursorMoved()
 	w.updateCurrentElement()
 	w.breakdownFollowCursor()
 	w.scheduleSceneNumbers() // the heading just left
@@ -1117,6 +1119,9 @@ func (w *MainWindow) updateCurrentElement() {
 		kinds = syntax.ClassifyTyping(strings.Split(text, "\n"), w.sceneStarts(), line)
 	}
 	w.currentElement = elementNames[kinds[min(line, len(kinds)-1)]]
+	if w.cueHere() { // Tab made it a cue (keyflow.go)
+		w.currentElement = elementNames[syntax.Character]
+	}
 	if w.headerBar != nil {
 		w.headerBar.showElement(w.currentElement)
 	}

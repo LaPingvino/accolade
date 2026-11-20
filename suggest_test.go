@@ -215,8 +215,8 @@ func TestSuggestUsed(t *testing.T) {
 		t.Errorf("all used, still: %q", h)
 	}
 	tabKey(w2)
-	if got := w2.textEditor.Text(); got != all+"    " {
-		t.Errorf("Tab with nothing to offer indents: %q", got[len(all):])
+	if got := w2.textEditor.Text(); got != all || !w2.cueHere() {
+		t.Errorf("Tab with nothing to offer on an empty line starts a cue (keyflow.go): %q", got[len(all):])
 	}
 	typeText(w2, "\nTOM")
 	if h := status(w2); strings.HasPrefix(h, "Tab: TOM’s") {
@@ -241,8 +241,8 @@ func TestSuggestDismiss(t *testing.T) {
 		t.Errorf("came back: %q", h)
 	}
 	tabKey(w)
-	if got := tail(w); got != "    " {
-		t.Errorf("Tab after Esc: %q", got)
+	if got := tail(w); got != "" || !w.cueHere() {
+		t.Errorf("Tab after Esc: %q, not a cue started (keyflow.go)", got)
 	}
 	w.textEditor.Undo()
 	// typing on: action being written has nothing to take
@@ -268,8 +268,8 @@ func TestSuggestPreference(t *testing.T) {
 		t.Errorf("off, a hint: %q", h)
 	}
 	tabKey(w)
-	if got := tail(w); got != "    " {
-		t.Errorf("off, Tab: %q", got)
+	if got := tail(w); got != "" || !w.cueHere() {
+		t.Errorf("off, Tab: %q, not a cue started (keyflow.go)", got)
 	}
 	w.textEditor.Undo()
 	typeText(w, "AN")
@@ -294,8 +294,8 @@ func TestSuggestNoSource(t *testing.T) {
 		t.Errorf("no source, a hint: %q", h)
 	}
 	tabKey(w)
-	if got := tail(w); got != "    " {
-		t.Errorf("no source, Tab: %q", got)
+	if got := tail(w); got != "" || !w.cueHere() {
+		t.Errorf("no source, Tab: %q, not a cue started (keyflow.go)", got)
 	}
 
 	w2, p := scriptWindow(t, suggestScript)

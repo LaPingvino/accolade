@@ -76,7 +76,7 @@ func TestFormattingKeepsUndoHistory(t *testing.T) {
 
 	w2 := newTestWindow(t, "")
 	typeScript(w2, "int. barn")
-	if got := w2.textEditor.Text(); got != "INT. BARN\n" {
+	if got := w2.textEditor.Text(); got != "INT. BARN\n\n" { // the blank line after it too (keyflow.go)
 		t.Fatalf("text = %q", got)
 	}
 	// formatting the line and the line break are one undo step: one

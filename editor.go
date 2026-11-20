@@ -30,7 +30,10 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		if w != nil && !w.markdown && w.suggester().tab() { // from the source (suggest.go)
 			return true
 		}
-		return (w == nil || !w.markdown) && tab.tab(e) // names and headings: a screenplay's
+		if (w == nil || !w.markdown) && tab.tab(e) { // names and headings: a screenplay's
+			return true
+		}
+		return w.flowTab() // the Final Draft flow (keyflow.go)
 	}
 	// vim mode (Preferences > Editor), before anything else sees a key
 	vi := newVim(e)
@@ -104,6 +107,10 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		if vi.rune(r) {
 			return true
 		}
+		if unicode.IsLower(r) && w.cueHere() { // a cue Tab started: in capitals
+			e.Edit(func(b *buffer.Buffer) { b.Insert(string(unicode.ToUpper(r))) })
+			return true
+		}
 		if w == nil || w.settings == nil || !w.settings.GetBoolean("auto-close-brackets") {
 			return false
 		}
@@ -161,20 +168,28 @@ func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
 	if e.SelectedText() != "" {
 		return false
 	}
+	if w.flowEnter() { // the Final Draft flow (keyflow.go)
+		return true
+	}
 
 	text := []rune(e.Text())
 	cursor := e.CursorOffset()
 	start, end := lineBounds(text, cursor)
 	line := string(text[start:end])
 
-	formatted := line
+	formatted, kind := line, ""
 	if cursor == end {
 		prev := ""
 		if start > 0 {
 			ps, _ := lineBounds(text, start-1)
 			prev = string(text[ps : start-1])
 		}
-		formatted, _ = formatCompletedLine(prev, line, w.sceneStarts())
+		formatted, kind = formatCompletedLine(prev, line, w.sceneStarts())
+	}
+	// after a scene heading, the blank line Fountain wants and the action
+	breaks := "\n"
+	if kind == "Scene Heading" && w != nil {
+		breaks = "\n\n"
 	}
 
 	e.Edit(func(b *buffer.Buffer) {
@@ -182,9 +197,12 @@ func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
 			if formatted != line {
 				b.Replace(start, end, formatted)
 			}
-			b.Insert("\n")
+			b.Insert(breaks)
 		})
 	})
+	if len(breaks) == 2 {
+		w.flowHeadingDone()
+	}
 	return true
 }
 
