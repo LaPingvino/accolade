@@ -151,6 +151,7 @@ type MainWindow struct {
 	breakdownTimer   *uiTimer       // the tags found again, after typing (breakdown_view.go)
 	breakdown        breakdownState // the script's breakdown and its tags as found
 	breakdownGen     int            // the breakdown read again (an import)
+	numbers          numbersSeen    // the scene numbers the extras follow (renumber_follow.go)
 	breakdownRun     int            // the tags being found
 	schedule         scheduleState  // the shooting schedule (schedule_state.go)
 	stripsVisible    bool           // the stripboard in the editor's place (stripboard.go)

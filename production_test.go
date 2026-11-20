@@ -29,7 +29,7 @@ func TestLockAndUnlockSceneNumbers(t *testing.T) {
 	if got := strings.Join(headsOf(w), "|"); got != "INT. HOUSE - DAY #1#|EXT. GARDEN - DAY #2# [[red]]|INT. HOUSE - NIGHT #3#" {
 		t.Errorf("headings %q", got)
 	}
-	if !strings.Contains(text, "Dry.\n\n/* Production\nscene numbers: locked, 10A\n*/\n\n/* Notes\nkeep\n*/\n") {
+	if !strings.Contains(text, "Dry.\n\n/* Production\nscene numbers: locked, 10A\nnumbered before the lock: none\n*/\n\n/* Notes\nkeep\n*/\n") {
 		t.Errorf("the block:\n%s", text)
 	}
 	if l := sceneLockOf(text); !l.locked || l.style != lex.NumberAfter {
@@ -48,7 +48,7 @@ func TestLockAndUnlockSceneNumbers(t *testing.T) {
 	}
 	w.redo()
 	// Unlock: the lock goes, the numbers stay
-	w.unlockNow()
+	w.unlockNow(false)
 	text = w.textEditor.Text()
 	if sceneLockOf(text).locked || strings.Contains(text, "Production") {
 		t.Errorf("still locked:\n%s", text)

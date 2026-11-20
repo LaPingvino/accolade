@@ -558,9 +558,9 @@ Branch scenelock (Accolade), Lexington v1.7.0 (tagged locally).
   as the learned notes): Undo takes the heading and its number together. Not while Redo is possible, text is
   selected, before any edit (a script written elsewhere is numbered at the first edit), or while shared (each peer
   would number it). Export and print number a locked script's unnumbered scene the same way, always.
-- **Unlock Scene Numbers…** asks, then takes the lock line out (the block too if empty), nothing else: the numbers
-  stay, as they went out with the script. Lock's own Undo takes its numbers away again; a later "remove the numbers"
-  would need to know which were Lock's, which nothing records.
+- **Unlock Scene Numbers…** asks, then takes the lock line out (the block too if empty). Since §15 it asks Keep the
+  numbers / Remove the numbers, and Lock records which numbers were there before it, so Remove takes out only
+  Lock's.
 - **Omit Scene** (cursor in a numbered scene): the heading becomes `.OMITTED #12#` with the scene in a boneyard under
   it. Unnumbered: it says to lock first. **Restore Scene** (cursor on the OMITTED heading) puts it back exactly. One
   undo step each. The outline and cards skip boneyard, so the old heading is no scene there.
@@ -1331,3 +1331,90 @@ schedule-dood.pdf, schedule-oneliner.pdf).
 - A drag on the desktop is checked by drop positions in the tests, not by a pointer; on a phone the board is moved with
   the buttons only.
 - Lexington's command line has no schedule flags (the schedule is Accolade's file).
+
+## 15. Taking a lock back, and Renumber (2026-11-20)
+
+Branch renumber (Accolade; renumber.go, renumber_follow.go). Joop: "locking scene numbers must be easy to take back
+for a writer who plays around".
+
+**Which numbers were Lock's.** Lock Scene Numbers now writes a second line in the production block, the numbers the
+headings had before it (`none` if none):
+
+```
+/* Production
+scene numbers: locked, 10A
+numbered before the lock: 3, 7A
+*/
+```
+
+Everything else numbered while locked, Lock's numbers and the letters new scenes got, is Lock's. A lock written before
+this line existed has no record; Remove then takes every number out, and the dialog says so.
+
+**Unlock Scene Numbers…** asks, in a dialog of its own (buttons one under the other on a phone):
+
+- *Keep the Numbers*: the numbers stay; the lock's two lines go.
+- *Remove the Numbers*: the numbers Lock wrote go, the ones typed before the lock stay (named in the dialog: "the
+  ones you typed before locking stay (7)"). With none typed by hand the script is byte for byte what it was before
+  the lock (tested). Decision: keep the typed ones. They are the writer's own text; Remove means "take the lock
+  back", and Lock never wrote them.
+- Remove is the default (the highlighted button) while the drafts store holds no issue, and Keep once it does. An
+  issue means the numbers went out ("The script was issued: White (1 Nov 2026)…"). An FDX kept as an imported issue
+  counts too.
+- One undo step either way. The page lock's scene numbers follow in the same step (a page's scene whose number went
+  is "none": Lexington then looks for its words after the page before).
+
+**Production > Renumber Scenes** (and the pane's button) numbers every scene 1…n in script order, so A-numbers and
+gaps go. One undo step, the locked pages following. The lock stays, and its "numbered before" line becomes `none`
+(every number is the lock's now). Before the first issue it just renumbers, with a status line that Undo takes it
+back. After an issue it warns that sides, schedules and printed pages that went out use the old numbers, and that
+Accolade's own breakdown, schedule and locked pages follow but nothing printed does. It offers *Save a Draft, Then
+Renumber* (the default: a draft named "Before renumbering" in the drafts store, then the renumber), *Renumber*, or
+*Cancel*.
+
+**OMITTED when renumbering.** An OMITTED scene loses its number, and its heading goes. The scene's text stays where it
+was as boneyard, `/* Omitted scene` with the old heading inside without its number. Remove does the same to an
+OMITTED scene whose number goes. Why:
+
+- OMITTED exists to retire a number that went out with the script, so that no other scene is given it (Wikipedia,
+  [Shooting script](https://en.wikipedia.org/wiki/Shooting_script): its number "is preserved in the script along
+  with the phrase (OMITTED)").
+- Once the numbers are out, continuity is the rule: "With rare exception, you always maintain scene number
+  continuity" (John August, [Renumbering when moving a scene](https://johnaugust.com/?p=730), 2007).
+- Renumbering is what closes those gaps. StudioBinder, [Scene numbering](https://studiobinder.com/blog/scene-numbering):
+  omitted scenes leave gaps, and renumbering makes sense "after a rewrite leaves gaps and lettered scenes". It also
+  warns that renumbering assigns the breakdown, shot lists and schedules "to a different scene", which is why Accolade's
+  sidecars follow (below) and why the warning after an issue exists.
+- Final Draft's own help page on Scene Numbers (Number/Renumber, Remove Numbers) refused the fetch (403). It is not
+  cited further.
+
+So a renumbered script starts its numbers afresh, and no placeholder keeps one. A numberless `.OMITTED` heading was
+rejected: the lock would give it a letter at the next pause, and export would print it with a number.
+
+**The breakdown and the schedule follow** (renumber_follow.go). Tags, scenes marked done and strips name their scene
+by number first, and are kept outside the text's undo. The window keeps the scene numbers it last saw. When only the
+numbers changed (the same headings in the same order, OMITTED ones aside), the sidecars follow. This happens after
+Lock, Remove, Renumber, Undo and Redo (the menu's, and the editor's own Ctrl+Z once typing pauses), and when a writer
+retypes a number. Each tag or strip found in the text before (by its anchors, as shown) gets the number its scene has
+now. A lost one is renamed only from a number (old → new). A done mark is renamed by number, else by heading and
+which of those it is. A strip's words sum (it counts the heading's number) is taken over when its scene was
+unchanged, so Renumber or Lock does not flag every strip "changed". The board's own Undo snapshot follows too. Before
+this change, Renumber would have pointed a strip numbered 3 at the scene now numbered 3.
+
+**The pane.** The Lock stage shows *Unlock…* and *Renumber* beside *Scene Numbers Locked* ("Locked" on a phone). The
+count line says "Numbers locked, not issued" between the lock and White.
+
+**Tests** (renumber_test.go): Remove byte for byte, then Undo and Redo; Keep; an old lock without the line; the
+dialog's default before and after an issue, Cancel; Renumber with an A-scene, a gap and OMITTED, Undo, Remove with
+OMITTED, Restore after Undo; Renumber after an issue (Cancel, then Save a Draft, Then Renumber with the draft stored);
+a tag on a word in two scenes, a done mark and two strips through Renumber, Undo, Redo, the editor's own Undo,
+Remove, and Undo of Remove (stored numbers, nothing flagged changed); the locked pages' scene numbers through
+Renumber and Undo; the pane's buttons. Shots: `SHOT_DIR=… go test -run TestUnlockDialogScreenshots` (unlock-wide.png,
+unlock-phone.png, combo-prodpane-locked-wide/phone.png).
+
+**Rough**
+
+- The pre-lock check's rows do not offer Unlock / Renumber, only the pane's buttons do.
+- A tag's anchor keeps the old number among its words before and after (`NIGHT #3# The-`). These only rank places,
+  so it is still found, a little less surely.
+- After an issue, Renumber marks every renumbered heading as revised in the next colour. That is correct (the
+  headings changed), but it is a lot of asterisks.

@@ -168,6 +168,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	production := fyne.NewMenu("Production",
 		fyne.NewMenuItem("Lock Scene Numbers", w.lockSceneNumbers),
 		fyne.NewMenuItem("Unlock Scene Numbers…", w.unlockSceneNumbers),
+		fyne.NewMenuItem("Renumber Scenes", w.renumberScenes),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Omit Scene", w.omitScene),
 		fyne.NewMenuItem("Restore Scene", w.restoreScene),
@@ -253,5 +254,5 @@ func (w *MainWindow) editTarget() undoer {
 	return w.textEditor
 }
 
-func (w *MainWindow) undo() { w.editTarget().Undo() }
-func (w *MainWindow) redo() { w.editTarget().Redo() }
+func (w *MainWindow) undo() { w.followSceneNumbers(); w.editTarget().Undo(); w.followSceneNumbers() }
+func (w *MainWindow) redo() { w.followSceneNumbers(); w.editTarget().Redo(); w.followSceneNumbers() }

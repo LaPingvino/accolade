@@ -71,6 +71,7 @@ func (w *MainWindow) updateBreakdown() {
 	if w.markdown || w.textEditor == nil {
 		return
 	}
+	w.followSceneNumbers() // an Undo of Renumber, say
 	f := w.breakdownNow()
 	text, starts, key := w.textEditor.Text(), w.sceneStarts(), w.breakdown.key
 	if len(f.Tags) == 0 && len(f.Done) == 0 && !w.productionShowsBreakdown() {
@@ -113,8 +114,11 @@ func (w *MainWindow) updateBreakdown() {
 // breakdownNowFound is the breakdown found in the text as it is now
 // (found at once if the last finding is of another text).
 func (w *MainWindow) breakdownNowFound() (*breakdownFile, *bdText, []placed) {
-	f := w.breakdownNow()
 	text := w.textEditor.Text()
+	if w.breakdown.bt == nil || !sameString(w.breakdown.text, text) {
+		w.followSceneNumbers()
+	}
+	f := w.breakdownNow()
 	if w.breakdown.bt == nil || !sameString(w.breakdown.text, text) {
 		bt := readBdText(text, w.sceneStarts())
 		w.breakdown.text, w.breakdown.bt, w.breakdown.placed = text, bt, bt.place(f)

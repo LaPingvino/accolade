@@ -6,7 +6,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"fyne.io/fyne/v2/dialog"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/lexington/fountain"
@@ -30,10 +29,9 @@ import (
 // put more there. While locked, a scene written between two numbered ones
 // gets its letter (10A, A11) once the cursor has left its heading and
 // typing pauses, as part of the writer's last undo step (the learned
-// notes' way, buffer.Amend). Unlock takes the lock out, nothing else: the
-// numbers stay as they are in the script (they went out with it), and a
-// new scene gets none until the next lock; Undo of the lock takes the
-// numbers it wrote away too.
+// notes' way, buffer.Amend). Unlock asks whether to keep the numbers or
+// take out those the lock wrote, and Renumber numbers the scenes again
+// (renumber.go); a new scene gets none until the next lock.
 //
 // Omit Scene makes the cursor's scene's heading OMITTED with its number
 // and puts the scene in a boneyard under it (fountain.OmitScene), so
@@ -228,10 +226,13 @@ func (w *MainWindow) lockSceneNumbers() {
 		w.setStatus("No scenes to number: lock the numbers once the script has scene headings")
 		return
 	}
+	w.followSceneNumbers() // the extras in line with the text before
 	lock := sceneLock{locked: true, style: w.sceneNumberStyle()}
 	nums := sceneNumbersFor(heads, lex.NumberOptions{Locked: true, Style: lock.style})
 	inside, _ := productionBlock(text)
-	start, end, block := withProductionBlock(text, withSceneLock(inside, &lock))
+	// which numbers were there before it: Unlock's Remove leaves them (renumber.go)
+	hand := handNumbersLine(heads)
+	start, end, block := withProductionBlock(text, withBlockLine(withSceneLock(inside, &lock), handNumbersKey, hand))
 	e.Edit(func(b *buffer.Buffer) {
 		line, col := b.Position(b.Cursor())
 		edits := numberEdits(b, heads, nums, -1)
@@ -248,45 +249,7 @@ func (w *MainWindow) lockSceneNumbers() {
 		}
 	}
 	w.setStatus("Scene numbers locked: " + plural(len(heads), "scene") + ", " + plural(n, "number") + " written. A new scene gets a letter (" + lock.style.String() + ")")
-}
-
-// unlockSceneNumbers asks, then takes the lock out: the numbers stay.
-func (w *MainWindow) unlockSceneNumbers() {
-	if w.markdown || w.textEditor == nil {
-		return
-	}
-	if !sceneLockOf(w.textEditor.Text()).locked {
-		w.setStatus("The scene numbers are not locked")
-		return
-	}
-	dialog.ShowConfirm("Unlock Scene Numbers",
-		"The numbers stay in the script as they are. New scenes get no number until you lock again.\nUnlock?",
-		func(ok bool) {
-			if ok {
-				w.unlockNow()
-			}
-		}, w.fyneWindow)
-}
-
-// unlockNow takes the lock's line out of the production block (the
-// block too if nothing else is in it): one undo step.
-func (w *MainWindow) unlockNow() {
-	e := w.textEditor
-	text := e.Text()
-	inside, _ := productionBlock(text)
-	start, end, block := withProductionBlock(text, withSceneLock(inside, nil))
-	if strings.TrimSpace(withSceneLock(inside, nil)) == "" {
-		block = ""
-		if end == utf8.RuneCountInString(text) {
-			block = "\n"
-		}
-	}
-	e.Edit(func(b *buffer.Buffer) {
-		c := b.Cursor()
-		b.Replace(start, end, block)
-		b.SetCursor(min(c, utf8.RuneCountInString(b.Text())), false)
-	})
-	w.setStatus("Scene numbers unlocked; the numbers stay in the script")
+	w.followSceneNumbers()
 }
 
 // sceneNumberPause is how long typing pauses before a new scene in a

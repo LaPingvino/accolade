@@ -64,6 +64,8 @@ type productionPane struct {
 	narrow  bool            // the buttons are in the list (a phone: the list has the room)
 
 	lockNumbers, lockPages, issueWhite *widget.Button // Lock's
+	unlockNumbers, renumber            *widget.Button // beside Lock once locked
+	numbersRow                         *fyne.Container
 	issueNext, revisedPDF, compare     *widget.Button // Revise's
 	bd                                 breakdownStage // Break down's
 	sched                              scheduleStage  // Schedule's
@@ -114,6 +116,11 @@ func newProductionPane(w *MainWindow) *productionPane {
 		return b
 	}
 	p.lockNumbers = button("Lock Scene Numbers", theme.ListIcon(), w.lockSceneNumbers)
+	p.unlockNumbers = widget.NewButtonWithIcon("Unlock…", theme.ContentUndoIcon(), w.unlockSceneNumbers)
+	fyne.SetAccessibleLabel(p.unlockNumbers, "Unlock Scene Numbers…")
+	p.renumber = widget.NewButtonWithIcon("Renumber", theme.ViewRefreshIcon(), w.renumberScenes)
+	fyne.SetAccessibleLabel(p.renumber, "Renumber Scenes")
+	p.numbersRow = container.NewBorder(nil, nil, nil, container.NewHBox(p.unlockNumbers, p.renumber), p.lockNumbers)
 	p.lockPages = button("Lock Pages", theme.FileIcon(), w.lockPages)
 	p.issueWhite = button("Issue White…", theme.ConfirmIcon(), w.showIssueDraft)
 	p.issueWhite.Importance = widget.HighImportance
@@ -300,6 +307,8 @@ func (p *productionPane) showLock(text string, chain *revisionChain, issued bool
 			parts = append(parts, "~"+plural(computeStats(text, 0, starts).Pages, "page"))
 		}
 		parts = append(parts, plural(scenes, "scene"))
+	} else if sceneLockOf(text).locked {
+		parts = append(parts, "Numbers locked, not issued", plural(scenes, "scene"))
 	} else {
 		parts = append(parts, "Not locked yet", plural(scenes, "scene"))
 	}
@@ -333,11 +342,18 @@ func (p *productionPane) showLock(text string, chain *revisionChain, issued bool
 	})
 
 	locked := sceneLockOf(text).locked
+	numbers := fyne.CanvasObject(p.lockNumbers)
 	if locked {
 		p.lockNumbers.SetText("Scene Numbers Locked")
+		if p.narrow {
+			p.lockNumbers.SetText("Locked")
+		}
+		fyne.SetAccessibleLabel(p.lockNumbers, "Scene Numbers Locked")
 		p.lockNumbers.Disable()
+		numbers = p.numbersRow // Unlock and Renumber beside it
 	} else {
 		p.lockNumbers.SetText("Lock Scene Numbers")
+		fyne.SetAccessibleLabel(p.lockNumbers, "Lock Scene Numbers")
 		p.lockNumbers.Enable()
 	}
 	if pageLockOf(text) != nil {
@@ -352,7 +368,7 @@ func (p *productionPane) showLock(text string, chain *revisionChain, issued bool
 		p.issueWhite.SetText("Issue White…")
 		p.issueWhite.Enable()
 	}
-	p.setButtons(p.lockNumbers, p.lockPages, p.issueWhite)
+	p.setButtons(numbers, p.lockPages, p.issueWhite)
 }
 
 // showRevise is the Revise stage: the current revision, its changed
