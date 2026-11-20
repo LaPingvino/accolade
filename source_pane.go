@@ -73,7 +73,8 @@ type sourcePane struct {
 	measuring        int                         // the measuring under way (a new one stops it)
 	scanned          int                         // rows before it are measured, in the measuring's order
 	measureT, widthT *uiTimer                    // the measuring's next stretch; a width change waited out
-	shownMD          map[*widget.RichText]string // what each row shows
+	shownMD          map[*widget.RichText]string // what each row shows (rowKey)
+	full             map[int]bool                // rows shown in full (Show All)
 	measureRow       *fyne.Container
 	loading          *sourceRead // the source being read in the background
 	hideRows         bool        // the list is told it has none (setHeights)
@@ -130,6 +131,7 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.count = widget.NewLabel("")
 	s.count.SizeName = theme.SizeNameCaptionText
 	s.count.TextStyle.Bold = true
+	s.count.Wrapping = fyne.TextWrapWord // a phone's width: on two lines, not under the buttons
 	s.next = widget.NewButtonWithIcon("Next", theme.MediaSkipNextIcon(), s.nextPassage)
 	s.next.Importance = widget.LowImportance
 	fyne.SetAccessibleLabel(s.next, "Next passage to adapt")
@@ -152,7 +154,9 @@ func newSourcePane(w *MainWindow) *sourcePane {
 }
 
 // newPassageRow is a passage's row: its background (lit), a bar on its
-// left (picked), its status mark (adaptation_pane.go) and its text.
+// left (picked), its status mark (adaptation_pane.go), its text, and
+// under a long one Show All (source_rows.go). Nothing in it scrolls, so
+// a drag over it scrolls the list.
 func newPassageRow() *fyne.Container {
 	bg := canvas.NewRectangle(color.Transparent)
 	bg.CornerRadius = 4
@@ -160,8 +164,79 @@ func newPassageRow() *fyne.Container {
 	bar.SetMinSize(fyne.NewSize(4, 0))
 	text := widget.NewRichText()
 	text.Wrapping = fyne.TextWrapWord
+	more := newMoreButton()
+	more.Hide()
 	left := container.NewHBox(bar, newStatusMark()) // clear of the list's scroll bar on the right
-	return container.NewStack(bg, container.NewBorder(nil, nil, left, nil, text))
+	return container.NewStack(bg, container.NewBorder(nil, more, left, nil, text))
+}
+
+// passageRow is a row's parts.
+type passageRow struct {
+	bg, bar *canvas.Rectangle
+	mark    *statusMark
+	text    *widget.RichText
+	more    *widget.Button
+}
+
+func rowParts(row *fyne.Container) passageRow {
+	inner := row.Objects[1].(*fyne.Container)
+	left := inner.Objects[2].(*fyne.Container)
+	return passageRow{
+		bg: row.Objects[0].(*canvas.Rectangle), bar: left.Objects[0].(*canvas.Rectangle),
+		mark: left.Objects[1].(*statusMark), text: inner.Objects[0].(*widget.RichText),
+		more: inner.Objects[1].(*widget.Button),
+	}
+}
+
+// fill puts md in a row, shown in full or short; it reports whether it
+// was cut.
+func fill(r passageRow, md string, full bool) bool {
+	segs, cut := rowSegments(md, !full)
+	r.text.Segments = segs
+	r.text.Refresh()
+	switch {
+	case cut:
+		r.more.SetText("Show All")
+		r.more.Show()
+	case full && md != "":
+		if _, short := rowSegments(md, true); short {
+			r.more.SetText("Show Less")
+			r.more.Show()
+		} else {
+			r.more.Hide()
+		}
+	default:
+		r.more.Hide()
+	}
+	return cut
+}
+
+// rowKey is what a row shows, to tell whether it has to be filled again.
+func rowKey(md string, full bool) string {
+	if full {
+		return "full\x00" + md
+	}
+	return "short\x00" + md
+}
+
+// toggleFull is Show All / Show Less on row id.
+func (s *sourcePane) toggleFull(id int) {
+	if id < 0 || id >= len(s.passages) {
+		return
+	}
+	if s.full == nil {
+		s.full = map[int]bool{}
+	}
+	s.full[id] = !s.full[id]
+	if id < len(s.heights) && s.width > 0 {
+		s.heights[id] = s.measured(s.passages[id].Markdown, s.full[id], s.width)
+		s.exact[id] = true
+		s.list.SetItemHeight(id, s.heights[id])
+	}
+	s.list.RefreshItem(id)
+	if !s.full[id] {
+		s.list.ScrollTo(id) // back to the row's start, not far below it
+	}
 }
 
 // tint is a theme colour, see-through.
@@ -173,11 +248,10 @@ func tint(name fyne.ThemeColorName, alpha uint8) color.Color {
 // show fills a row with passage id.
 func (s *sourcePane) show(row *fyne.Container, id int) {
 	p := s.passages[id]
-	bg := row.Objects[0].(*canvas.Rectangle)
-	inner := row.Objects[1].(*fyne.Container)
-	left := inner.Objects[1].(*fyne.Container)
-	text, bar := inner.Objects[0].(*widget.RichText), left.Objects[0].(*canvas.Rectangle)
-	left.Objects[1].(*statusMark).setStatus(s.statusOf(id))
+	r := rowParts(row)
+	bg, bar, text := r.bg, r.bar, r.text
+	r.mark.setStatus(s.statusOf(id))
+	r.more.OnTapped = func() { s.toggleFull(id) }
 	switch {
 	case s.lit[id]:
 		bg.FillColor = tint(theme.ColorNamePrimary, 0x38)
@@ -195,9 +269,10 @@ func (s *sourcePane) show(row *fyne.Container, id int) {
 	if s.shownMD == nil {
 		s.shownMD = map[*widget.RichText]string{}
 	}
-	if md, ok := s.shownMD[text]; !ok || md != p.Markdown { // wrapping it again is what takes the time
-		text.ParseMarkdown(p.Markdown)
-		s.shownMD[text] = p.Markdown
+	key := rowKey(p.Markdown, s.full[id])
+	if k, ok := s.shownMD[text]; !ok || k != key { // wrapping it again is what takes the time
+		fill(r, p.Markdown, s.full[id])
+		s.shownMD[text] = key
 	}
 }
 
@@ -231,14 +306,13 @@ type rowEstimate struct {
 	width, one, step, perLine float32
 }
 
-// measured is the height of a row showing md at the width.
-func (s *sourcePane) measured(md string, width float32) float32 {
+// measured is the height of a row showing md (in full or short) at the
+// width.
+func (s *sourcePane) measured(md string, full bool, width float32) float32 {
 	if s.measureRow == nil {
 		s.measureRow = newPassageRow()
 	}
-	inner := s.measureRow.Objects[1].(*fyne.Container)
-	text := inner.Objects[0].(*widget.RichText)
-	text.ParseMarkdown(md)
+	fill(rowParts(s.measureRow), md, full)
 	s.measureRow.Resize(fyne.NewSize(width, 1))
 	return s.measureRow.MinSize().Height
 }
@@ -247,9 +321,8 @@ func (s *sourcePane) measured(md string, width float32) float32 {
 // and a two lines' row measured, and the characters of the source's
 // opening that fit on a line.
 func (s *sourcePane) estimateFor(width float32) rowEstimate {
-	e := rowEstimate{width: width, one: s.measured("x", width)}
-	inner := s.measureRow.Objects[1].(*fyne.Container)
-	text := inner.Objects[0].(*widget.RichText)
+	e := rowEstimate{width: width, one: s.measured("x", true, width)}
+	text := rowParts(s.measureRow).text
 	pad := theme.InnerPadding()
 	lineW := max(text.Size().Width-2*pad, 10)
 	var sample strings.Builder
@@ -267,15 +340,20 @@ func (s *sourcePane) estimateFor(width float32) rowEstimate {
 	charW := max(sz.Width/float32(max(utf8.RuneCountInString(str), 1)), 1)
 	e.perLine = max(lineW/charW*0.92, 1) // words wrap a little before the edge
 	two := strings.Repeat("x ", int(e.perLine*1.5)/2+1)
-	e.step = max(s.measured(two, width)-e.one, 1)
+	e.step = max(s.measured(two, true, width)-e.one, 1)
 	return e
 }
 
-// estimate is a passage's row's height, by its length.
-func (e rowEstimate) estimate(p passage) float32 {
+// estimate is a passage's row's height, by its length (in full or
+// short, Show All under it).
+func (e rowEstimate) estimate(p passage, full bool) float32 {
 	n := utf8.RuneCountInString(p.Plain)
+	more := float32(0)
+	if !full && n > rowBudget {
+		n, more = shortRunes(p), e.one
+	}
 	lines := max(1, int(math.Ceil(float64(float32(n)/e.perLine))))
-	return e.one + float32(lines-1)*e.step
+	return e.one + float32(lines-1)*e.step + more
 }
 
 // measure sets the rows' heights for the list's width: estimated now,
@@ -291,7 +369,7 @@ func (s *sourcePane) measure(width float32) {
 	s.heights = make([]float32, len(s.passages))
 	s.exact = make([]bool, len(s.passages))
 	for id, p := range s.passages {
-		s.heights[id] = s.est.estimate(p)
+		s.heights[id] = s.est.estimate(p, s.full[id])
 	}
 	s.setHeights(0, len(s.passages))
 	gen := s.measuring
@@ -330,7 +408,7 @@ func (s *sourcePane) measureStretch(gen int) bool {
 			return
 		}
 		s.exact[id] = true
-		if h := s.measured(s.passages[id].Markdown, s.width); h != s.heights[id] {
+		if h := s.measured(s.passages[id].Markdown, s.full[id], s.width); h != s.heights[id] {
 			s.heights[id] = h
 			s.list.SetItemHeight(id, h)
 		}
@@ -445,6 +523,7 @@ func (s *sourcePane) use(r *sourceRead, ps []passage) {
 		s.selected = -1
 	}
 	s.lit, s.doubt = map[int]bool{}, map[int]bool{}
+	s.full = nil
 	s.statuses = nil
 	s.offeredPassage() // found again by its words, or none
 	if s.offered < 0 {

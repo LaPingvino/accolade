@@ -85,6 +85,8 @@ type MainWindow struct {
 	outlineVisible bool
 	notes          *notesPanel
 	notesVisible   bool
+	narrow         bool             // a phone's width: the panes under the script (relayout)
+	paneSplit      *container.Split // the script over the panes, while narrow
 	unsavedSource  string // the source chosen for a script not saved yet (source.go)
 	// markdown: the document is Markdown, not a screenplay (markdown.go)
 	markdown       bool
@@ -1078,7 +1080,7 @@ var openFile = func(path string) {
 
 // setContent shows content in the window, with the tooltip layer over it.
 func (w *MainWindow) setContent(content fyne.CanvasObject) {
-	w.fyneWindow.SetContent(container.NewStack(content, w.tooltips))
+	w.fyneWindow.SetContent(container.New(&windowLayout{w: w}, content, w.tooltips))
 }
 
 // toggleOutline shows or hides the outline beside the editor.
@@ -1139,7 +1141,17 @@ func (w *MainWindow) relayout() {
 		}
 	}
 	var left fyne.CanvasObject
-	if side != nil {
+	if side != nil && w.narrow {
+		// a phone: the panes under the script, both in sight, the split
+		// dragged where it was (a pane beside the script left it no room)
+		offset := 0.5
+		if w.paneSplit != nil {
+			offset = w.paneSplit.Offset
+		}
+		w.paneSplit = container.NewVSplit(center, narrowFit(side))
+		w.paneSplit.Offset = offset
+		center = w.paneSplit
+	} else if side != nil {
 		left = container.NewHBox(side, widget.NewSeparator())
 	}
 	// the objects in the order they are seen, which is the order Tab and
@@ -1158,6 +1170,55 @@ func (w *MainWindow) relayout() {
 		content = container.NewStack(content, container.NewVBox(container.NewHBox(layout.NewSpacer(), leave)))
 	}
 	w.setContent(content)
+}
+
+// narrowWidth is the window's width under which the panes go under the
+// script rather than beside it.
+const narrowWidth = 600
+
+// onWindowWidth lays the window out again when it turns narrow or wide.
+func (w *MainWindow) onWindowWidth(width float32) {
+	if narrow := width < narrowWidth; narrow != w.narrow {
+		w.narrow = narrow
+		w.relayout()
+	}
+}
+
+// windowLayout stacks the window's content and the tooltips, and tells
+// onWindowWidth the width.
+type windowLayout struct {
+	w     *MainWindow
+	width float32
+}
+
+func (l *windowLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	return layout.NewStackLayout().MinSize(objects)
+}
+
+func (l *windowLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	layout.NewStackLayout().Layout(objects, size)
+	if size.Width != l.width {
+		l.width = size.Width
+		l.w.onWindowWidth(size.Width)
+	}
+}
+
+// narrowFit lays a pane out to the width it is given, below its least
+// (the panes' widths are for beside the script; under it, the window's
+// width is all there is).
+func narrowFit(o fyne.CanvasObject) fyne.CanvasObject {
+	return container.New(fitWidth{}, o)
+}
+
+type fitWidth struct{}
+
+func (fitWidth) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	return fyne.NewSize(0, objects[0].MinSize().Height)
+}
+
+func (fitWidth) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	objects[0].Move(fyne.Position{})
+	objects[0].Resize(size)
 }
 
 // Find/Replace operations

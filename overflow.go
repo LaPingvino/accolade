@@ -17,11 +17,16 @@ import (
 type overflowItem struct {
 	obj  fyne.CanvasObject
 	menu func(anchor fyne.CanvasObject) []*fyne.MenuItem
+	keep bool // stays on the row however narrow (a pane's toggle)
 }
+
+// hidden reports whether item i is in the menu, not on the row.
+func (r *overflowRow) hidden(i int) bool { return i >= r.first && !r.items[i].keep }
 
 // overflowRow puts its items left to right, as many as fit, and the rest
 // in the menu of a "more" button at its end, so a narrow window (a phone)
-// shows a row of buttons without scrolling it sideways. A fill object,
+// shows a row of buttons without scrolling it sideways; an item kept stays
+// on the row, the others before it going first. A fill object,
 // if any, takes the room left over (the document's name) and is the
 // first to go.
 type overflowRow struct {
@@ -39,8 +44,8 @@ func newOverflowRow(tips *tooltip.Layer, items []overflowItem, fill fyne.CanvasO
 	r.more.Importance = widget.LowImportance
 	r.more.OnTapped = func() {
 		var menu []*fyne.MenuItem
-		for _, it := range r.items[r.first:] {
-			if it.menu != nil {
+		for i, it := range r.items {
+			if r.hidden(i) && it.menu != nil {
 				menu = append(menu, it.menu(r.more)...)
 			}
 		}
@@ -82,13 +87,27 @@ func (r *overflowRow) Layout(_ []fyne.CanvasObject, size fyne.Size) {
 	r.first = len(r.items)
 	if all > room+pad { // some go in the menu
 		room -= width(r.more)
+		kept := float32(0) // the kept items' room
+		for _, it := range r.items {
+			if it.keep {
+				kept += width(it.obj)
+			}
+		}
 		used := float32(0)
 		for i, it := range r.items {
-			if used+width(it.obj) > room+pad {
+			if it.keep {
+				kept -= width(it.obj)
+			}
+			if used+width(it.obj)+kept > room+pad {
 				r.first = i
 				break
 			}
 			used += width(it.obj)
+		}
+		for _, it := range r.items[r.first:] {
+			if it.keep {
+				used += width(it.obj)
+			}
 		}
 		all = used
 	}
@@ -107,8 +126,8 @@ func (r *overflowRow) Layout(_ []fyne.CanvasObject, size fyne.Size) {
 			r.fill.Resize(fyne.NewSize(leftover-pad, size.Height))
 			x += leftover
 		}
-		showIf(it.obj, i < r.first)
-		if i >= r.first {
+		showIf(it.obj, !r.hidden(i))
+		if r.hidden(i) {
 			continue
 		}
 		w := it.obj.MinSize().Width
@@ -146,3 +165,10 @@ func buttonItem(b *tooltip.Button) overflowItem {
 
 // gapItem is a little space between groups, nothing in the menu.
 func gapItem() overflowItem { return overflowItem{obj: gap()} }
+
+// keptItem is a tooltip button that stays on the row however narrow.
+func keptItem(b *tooltip.Button) overflowItem {
+	it := buttonItem(b)
+	it.keep = true
+	return it
+}

@@ -249,7 +249,7 @@ func TestMarkAsCut(t *testing.T) {
 func rowMark(s *sourcePane, id int) *statusMark {
 	row := newPassageRow()
 	s.show(row, id)
-	return row.Objects[1].(*fyne.Container).Objects[1].(*fyne.Container).Objects[1].(*statusMark)
+	return rowParts(row).mark
 }
 
 const nextScript = "Title: The Garden\n\nINT. HOUSE - NIGHT\n\nAnna at the door. [[from: \"She opened the door to the garden and…\"]]\n\nINT. LATER - DAY\n\nStuff.\n\n/* Notes\nkeep\n*/\n"

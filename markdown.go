@@ -235,7 +235,12 @@ func newPreviewPanel() *previewPanel {
 	return p
 }
 
-func (p *previewPanel) update(text string) { p.text.ParseMarkdown(markdownBody(text)) }
+// update shows text; a table as lines, not in a scroller of its own that
+// would catch a drag meant for the preview's (source_rows.go).
+func (p *previewPanel) update(text string) {
+	p.text.Segments, _ = markdownSegments(markdownBody(text), -1)
+	p.text.Refresh()
+}
 
 // preview shows the document as it will look: a screenplay as a PDF, a
 // Markdown document in the preview beside the editor (or hides it).

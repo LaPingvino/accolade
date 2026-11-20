@@ -131,3 +131,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   auto-save race). Per keystroke with the pane shown: 173→20 ms, with the source in the script 799→60 ms. Cursor
   move: 39→6 ms, inside 365→9 ms. First open: 3.2 s→29 ms on the UI goroutine. Numbers: docs/PERF-SOURCE.md.
   Left: incremental wrap in the editor; bundle zipping off the UI goroutine.
+- 2026-11-20: branch srctable (not merged). Phone fixes. A wide table stopped the source pane scrolling: Fyne puts a
+  Markdown table in a scroller of its own, and a touch drag (a wheel scroll in the browser, turned sideways) went to it.
+  Rows (and the Markdown preview) show a table as lines now, "Column: cell · …", with its size; a long row is cut
+  with Show All; no row holds a scroller or is wider than the pane. Under 600 px wide the panes go under the script
+  in a split (half each, the drag kept); a toolbar button toggles the source and stays on the row however narrow.
