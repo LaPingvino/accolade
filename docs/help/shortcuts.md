@@ -1,0 +1,88 @@
+# Keyboard Shortcuts
+
+Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so no shortcut is missing; the app shows the ones for the document open. See also the [cheat sheet](cheat-shortcuts.md), and for a Final Draft writer's habits [Coming from Final Draft](final-draft.md).
+
+## While writing
+
+- **Tab** on an empty line — start a character cue (screenplay)
+- **Tab** or **Enter** after a cue — its dialogue
+- **Tab** in dialogue — a parenthetical, (|)
+- **Tab** or **Enter** in a parenthetical — back to the dialogue
+- **Enter** on an empty dialogue line — action
+- **Enter** after a scene heading — action, the blank line written
+- **Tab** while the status bar shows “Tab: …” — take the name, heading or suggestion; again for the next
+- **Esc** — put a suggestion away
+- **Enter** in a list or quote — the next item (Markdown)
+- **Tab** at a heading's start — fold or unfold it; **Shift+Tab** — all
+- **Ctrl+Z** — undo; **Ctrl+Y** — redo
+- **Ctrl+A** — select all; **Ctrl+C**, **Ctrl+X**, **Ctrl+V** — copy, cut, paste
+- **Ctrl+Tab**, **Ctrl+Shift+Tab** — out of the editor to the next or previous field
+- **Ctrl+Q** — quit (not in the browser)
+
+## File menu
+
+- **New** — Ctrl+N
+- **New Empty** — Ctrl+Alt+N
+- **New Window** — Ctrl+Shift+N (not in the browser)
+- **New Empty Window** — Ctrl+Shift+Alt+N (not in the browser)
+- **Open** — Ctrl+O
+- **Save** — Ctrl+S
+- **Save As** — Ctrl+Shift+S
+- **Title Page** — Ctrl+Shift+T (screenplay)
+- **Export** — Ctrl+E
+- **Print** — Ctrl+P
+- **Preferences** — Ctrl+,
+
+## Edit menu
+
+- **Undo** — Ctrl+Z
+- **Redo** — Ctrl+Shift+Z
+- **Find** — Ctrl+F
+- **Replace** — Ctrl+H
+- **Find Next** — Ctrl+G
+- **Find Previous** — Ctrl+Shift+G
+
+## Format menu
+
+- **Scene Heading** — Ctrl+1 (screenplay)
+- **Action** — Ctrl+2 (screenplay)
+- **Character** — Ctrl+3 (screenplay)
+- **Parenthetical** — Ctrl+4 (screenplay)
+- **Dialogue** — Ctrl+5 (screenplay)
+- **Transition** — Ctrl+6 (screenplay)
+- **Centered** — Ctrl+7 (screenplay)
+- **Lyrics** — Ctrl+8 (screenplay)
+- **Scene or Section Color** — Ctrl+Shift+L (screenplay)
+- **Bold** — Ctrl+B
+- **Italic** — Ctrl+I
+- **Underline** — Ctrl+U (screenplay)
+- **Move Line Up** — Alt+Up
+- **Move Line Down** — Alt+Down
+
+## Adaptation menu
+
+- **Next Source Passage** — Ctrl+Alt+J (screenplay)
+
+## Production menu
+
+- **Tag Selection** — Ctrl+Shift+B (screenplay)
+
+## View menu
+
+- **Preview PDF** — Ctrl+Shift+P (“Preview” in Markdown)
+- **Outline** — Ctrl+Shift+O
+- **Cards** — Ctrl+Shift+D (screenplay)
+- **Fold or Unfold Here** — Ctrl+Shift+.
+- **Notes** — Ctrl+Shift+K
+- **Changes** — Ctrl+Shift+H
+- **Fullscreen** — Ctrl+Shift+F, Alt+Enter
+
+## Not in a menu
+
+- **Find and replace** — Ctrl+F
+- **Next Pane** — F6
+- **Previous Pane** — Shift+F6
+
+## Vim and helix
+
+Preferences > Editor gives the editor vim's or helix's keys; the menus' shortcuts stay. Their own keys are not documented yet: [Vim and Helix Modes](vim.md).

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/LaPingvino/accolade/docs/help"
+
 	"image/png"
 	"os"
 	"path/filepath"
@@ -65,6 +67,9 @@ func TestRegistryIsWhole(t *testing.T) {
 	}
 	for _, pk := range r.previewKeys {
 		placed[pk.c.id] = true
+	}
+	for _, p := range help.Cheats() { // Help > Cheat Sheets, made with the menu
+		placed["help."+p.Slug] = true
 	}
 	for _, c := range r.commands {
 		if !placed[c.id] {

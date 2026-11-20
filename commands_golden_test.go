@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/accolade/docs/help"
 	"github.com/LaPingvino/accolade/internal/tooltip"
 )
 
@@ -332,7 +333,7 @@ func TestCommandsGolden(t *testing.T) {
 		return
 	}
 	for name, s := range got {
-		want := adaptationMoves(name, readCommandsGolden(t, name))
+		want := helpMoves(name, adaptationMoves(name, readCommandsGolden(t, name)))
 		if s != want {
 			t.Errorf("%s differs from the golden (with the Adaptation moves):\n%s", name, lineDiff(want, s))
 		}
@@ -385,6 +386,33 @@ func adaptationMoves(name, golden string) string {
 `, "", 1)
 	golden = strings.Replace(golden, "  Renumber Scenes\n", "  Renumber Scenes…\n", 1) // a dialog since its strategies
 	return strings.Replace(golden, "# Production\n", adaptationMenu+"# Production\n", 1)
+}
+
+// helpMoves applies the Help menu's pages, cheat sheets, Online Help and
+// Send Feedback (help_pane.go), and View > Help, to a menu golden.
+func helpMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-") {
+		return golden
+	}
+	var b strings.Builder
+	b.WriteString("# Help\n")
+	for _, p := range help.Pages() {
+		label := p.Title
+		switch p.Slug {
+		case "index":
+			label = "Help Contents"
+		case "production":
+			label = "Production Help"
+		}
+		b.WriteString("  " + label + "\n")
+	}
+	b.WriteString("  Cheat Sheets\n")
+	for _, p := range help.CheatsFor(strings.HasPrefix(name, "menu-markdown")) {
+		b.WriteString("    " + p.Title + "\n")
+	}
+	b.WriteString("  ---\n  Online Help\n  Send Feedback…\n  ---\n  About Accolade\n")
+	golden = strings.Replace(golden, "# Help\n  About Accolade\n", b.String(), 1)
+	return strings.Replace(golden, "  Changes [Primary+Shift+H]\n", "  Help\n  Changes [Primary+Shift+H]\n", 1)
 }
 
 // lineDiff shows the lines only in want (-) and only in got (+), in order.

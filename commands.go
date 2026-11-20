@@ -459,6 +459,7 @@ func newRegistry() *registry {
 	)
 
 	add(&command{id: "help.about", label: "About Accolade", run: func(w *MainWindow) { w.app.showAbout() }})
+	add(helpCommands()...) // help_pane.go
 
 	elements := make([]home, len(toolbarElements))
 	for i, el := range toolbarElements {
@@ -499,10 +500,10 @@ func newRegistry() *registry {
 		{title: "View", homes: []home{
 			at("view.preview"), at("view.outline"), at("view.cards"), at("view.foldHere"), at("view.foldSections"),
 			at("view.headingsOnly"), at("view.unfoldAll"), at("view.notes"), at("view.source"), at("view.production"),
-			at("view.changes"), at("view.statistics"), at("view.fullscreen"),
+			at("view.help"), at("view.changes"), at("view.statistics"), at("view.fullscreen"),
 			sep(), at("view.documentType"),
 		}},
-		{title: "Help", homes: []home{at("help.about")}},
+		{title: "Help", homes: helpMenu()},
 	}
 	r.topRow = []home{
 		at("file.new"), at("file.open"), at("file.save"), sep(),
