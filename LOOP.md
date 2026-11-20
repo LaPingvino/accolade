@@ -425,7 +425,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   read as its scenes (Lexington's reader) and rewritten by Accolade on Renumber/Unlock/Save (one undo step, setting
   on, status note); Restore still splits it. Shots: SHOT_DIR=… go test -run TestRenumberDialogScreenshots. Rough: a
   merged run's page can anchor a page lock to "12-14"; the one-line form is unverified against a source.
-- 2026-11-20 (Joop): drop the v1.13.0 compatibility entirely — "nobody used that in production, and the undoing could cause legitimate - usage in scene numbers to break down the road". Lexington: remove lex.OmittedRange, lex.SplitOmittedRanges, fountain.SplitOmitted's range splitting and the reader's defer that runs it, and NumberScenes' reading of 12-14 as a run; a heading .OMITTED #12-14# is then simply a scene labelled "12-14" (a fixed label) like any other dashed label; CHANGELOG notes the removal; tag v1.15.0. Accolade: remove omitted_runs.go's rewrite on Renumber/Unlock/Save, its status note, the page-lock "12-14" move, and the old "Last used" merge mapping; Restore Scene no longer splits runs; tests that asserted the old form go. FIRST after the help/keyboard item.
+- 2026-11-20 (Joop), DONE (branch dropcompat, see the tick log): drop the v1.13.0 compatibility entirely — "nobody used that in production, and the undoing could cause legitimate - usage in scene numbers to break down the road". Lexington: remove lex.OmittedRange, lex.SplitOmittedRanges, fountain.SplitOmitted's range splitting and the reader's defer that runs it, and NumberScenes' reading of 12-14 as a run; a heading .OMITTED #12-14# is then simply a scene labelled "12-14" (a fixed label) like any other dashed label; CHANGELOG notes the removal; tag v1.15.0. Accolade: remove omitted_runs.go's rewrite on Renumber/Unlock/Save, its status note, the page-lock "12-14" move, and the old "Last used" merge mapping; Restore Scene no longer splits runs; tests that asserted the old form go. FIRST after the help/keyboard item.
 - 2026-11-20: the Final Draft keyboard flow, the help and the cheat sheets (branch helpflow, not merged; keyflow.go,
   help_pane.go, shortcuts_help.go, docs/help/). Flow, only ordinary Fountain: Tab on an empty line outside a speech
   starts a cue (blank line above put in; typed in capitals, header says Character; @ for a script without capitals);
@@ -451,3 +451,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   so the pages use lists; Lexington exports no flag set (the test reads -help from stderr; an exported cli.Flags()
   would be cleaner); no "revised pages only" or breakdown-CSV flag in Lexington v1.14.0, so those examples are
   -lock/-lockpages and -report. Next: the vim/helix/ex help with the keyboard pass.
+- 2026-11-20: v1.13.0's merged OMITTED form dropped (branch dropcompat, not merged; Lexington v1.15.0, local tag, not
+  pushed; go.mod `replace => ../lexington` until it is). Lexington: lex.OmittedRange, lex.SplitOmittedRanges,
+  fountain.SplitOmitted, the Fountain reader's split and NumberOptions.Omitted (12-14 read as a run) gone;
+  `.OMITTED #12-14#` is one scene labelled "12-14", a fixed label (test: read, numbered, FDX, Fountain). Accolade:
+  omitted_runs.go keeps only the print setting; no rewrite on Renumber/Unlock/Save/Save As, no status note, no page-lock
+  move, Restore Scene no longer splits; the old-form tests went. PRODUCTION.md §15. Next: push Lexington v1.15.0, drop
+  the replace, merge.

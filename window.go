@@ -580,7 +580,6 @@ func (w *MainWindow) SaveFile() error {
 	if w.currentFile == "" {
 		return w.SaveFileAs()
 	}
-	w.splitOldRunsOnSave()
 	if err := w.saveToFile(w.currentFile); err != nil {
 		return err
 	}

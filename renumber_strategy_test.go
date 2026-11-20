@@ -219,81 +219,12 @@ func TestRenumberHandNumbers(t *testing.T) {
 	}
 }
 
-// oldRunScript is strategyScript as Accolade v1.13.0's Renumber merged
-// its OMITTED run: one heading, ".OMITTED #4-5#", both blocks under it.
-func oldRunScript() string {
-	s := strategyScript()
-	s = strings.Replace(s, ".OMITTED #4#", ".OMITTED #4-5#", 1)
-	return strings.Replace(s, ".OMITTED #5#\n\n", "", 1)
-}
-
-// v1.13.0's merged run is read as its scenes and written as one heading
-// a scene on the next Renumber (one undo step of its own, the setting on
-// so it prints as before) or Save; Restore Scene on it splits it too.
-func TestOldOmittedRunRewritten(t *testing.T) {
-	holdUI(t)
-	old := oldRunScript()
-	w, _ := scriptWindow(t, old)
-	// a new scene in the locked script never gets a number in the run
+// ".OMITTED #4-5#" is one scene labelled "4-5", a fixed label: a new
+// scene after 3 in a locked script gets 4.
+func TestOmittedDashedLabelIsFixed(t *testing.T) {
 	heads := []sceneHead{{num: "3", text: "INT. C - DAY #3#"}, {num: "4-5", text: ".OMITTED #4-5#"}, {}}
-	if got := sceneNumbersFor(heads, lex.NumberOptions{Locked: true}); got[2] != "6" {
-		t.Errorf("a new scene after 4-5 got %s", got[2])
-	}
-	w.textEditor.SetCursorOffset(offsetOf(t, w, "Aitch."))
-	w.renumberScenes()
-	if w.textEditor.CursorOffset() != offsetOf(t, w, "Aitch.") {
-		t.Errorf("the cursor left its text: at %d", w.textEditor.CursorOffset())
-	}
-	text := w.textEditor.Text()
-	if !strings.Contains(text, ".OMITTED #4#\n\n/* Omitted 4\n") || !strings.Contains(text, ".OMITTED #5#\n\n/* Omitted 5\n") ||
-		strings.Contains(text, "4-5") || !omittedRunsPrinted(text) {
-		t.Fatalf("not rewritten:\n%s", text)
-	}
-	if !strings.Contains(w.statusText(), "OMITTED 4-5 written as one OMITTED heading a scene") {
-		t.Errorf("status %q", w.statusText())
-	}
-	if got := w.renumbering.choice(); got.Scope != scopeAll || got.List != listNone || got.Omitted != omitDrop || got.KeepLetters {
-		t.Errorf("the dialog's choice %+v", got)
-	}
-	// Apply says so too
-	test.Tap(overlayButton(t, w, "Renumber"))
-	if st := w.statusText(); !strings.Contains(st, "OMITTED 4-5 written as one") || !strings.Contains(st, "Scenes renumbered") {
-		t.Errorf("status after Apply %q", st)
-	}
-	w.undo()
-	w.undo()
-	if w.textEditor.Text() != old {
-		t.Fatalf("the rewrite is not one undo step:\n%s", w.textEditor.Text())
-	}
-	w.settings.SetString(renumberLastPref, "")
-	// autosave leaves it; Save rewrites it
-	file := t.TempDir() + "/old.fountain"
-	if err := w.saveToFile(file); err != nil {
-		t.Fatal(err)
-	}
-	if data, _ := os.ReadFile(file); !strings.Contains(string(data), "4-5") {
-		t.Errorf("autosave rewrote it")
-	}
-	w.currentFile = file
-	if err := w.SaveFile(); err != nil {
-		t.Fatal(err)
-	}
-	w.afterBundleWrites(func() {})
-	if data, _ := os.ReadFile(file); strings.Contains(string(data), "4-5") || !strings.Contains(string(data), ".OMITTED #5#") {
-		t.Errorf("saved:\n%s", data)
-	}
-	w.undo()
-	// Restore Scene on the old heading splits it; then each comes back
-	w.textEditor.SetCursorOffset(offsetOf(t, w, ".OMITTED #4-5#"))
-	w.restoreScene()
-	text = w.textEditor.Text()
-	if !strings.Contains(text, ".OMITTED #4#\n\n/* Omitted 4\n") || !strings.Contains(text, ".OMITTED #5#\n\n/* Omitted 5\n") {
-		t.Fatalf("split:\n%s", text)
-	}
-	w.textEditor.SetCursorOffset(offsetOf(t, w, ".OMITTED #5#"))
-	w.restoreScene()
-	if !strings.Contains(w.textEditor.Text(), "INT. E - DAY #5#\n\nEe.\n\nINT. F") {
-		t.Errorf("restored:\n%s", w.textEditor.Text())
+	if got := sceneNumbersFor(heads, lex.NumberOptions{Locked: true}); strings.Join(got, " ") != "3 4-5 4" {
+		t.Errorf("numbers %q", got)
 	}
 }
 

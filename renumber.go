@@ -299,7 +299,6 @@ func (w *MainWindow) unlockSceneNumbers() {
 		w.setStatus("The scene numbers are not locked")
 		return
 	}
-	w.splitOldOmittedRuns() // v1.13.0's OMITTED #12-14#: one heading a scene first
 	w.afterBundleWrites(func() { w.unlockDialog().Show() })
 }
 
@@ -423,7 +422,6 @@ func (w *MainWindow) renumberScenes() {
 	if w.markdown || w.textEditor == nil {
 		return
 	}
-	note := w.splitOldOmittedRuns() // v1.13.0's OMITTED #12-14#: one heading a scene first
 	text := w.textEditor.Text()
 	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
 	numbered := false
@@ -436,7 +434,6 @@ func (w *MainWindow) renumberScenes() {
 	}
 	w.afterBundleWrites(func() {
 		w.renumbering = w.newRenumberDialog()
-		w.renumbering.note = note
 		w.renumbering.d.Show()
 	})
 }
@@ -454,7 +451,6 @@ func (w *MainWindow) renumberNow() string {
 // the breakdown and the schedule following. It says what it did in the
 // status bar, and returns that.
 func (w *MainWindow) renumberWith(c renumberChoice, ctx renumberContext) string {
-	w.splitOldOmittedRuns() // v1.13.0's OMITTED #12-14#: one heading a scene first
 	text := w.textEditor.Text()
 	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
 	if bad := c.problems(heads); len(bad) > 0 {

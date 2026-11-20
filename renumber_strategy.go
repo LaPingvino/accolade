@@ -37,9 +37,7 @@ const (
 // omittedChoice is what Renumber does with the OMITTED scenes in its
 // scope: drop them (the gaps close), keep them, or keep them and print a
 // run as one ("12-14 OMITTED": the production block's setting,
-// omitted_runs.go). The text keeps one heading a scene either way. A
-// "Last used" kept before the setting had 2 for v1.13.0's merge into one
-// heading: it is the third now.
+// omitted_runs.go). The text keeps one heading a scene either way.
 type omittedChoice int
 
 const (

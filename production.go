@@ -161,12 +161,7 @@ func sceneHeads(text string, starts []string) []sceneHead {
 // sceneNumbersFor are the headings' numbers with the missing ones filled in as
 // a locked script (or, unlocked, by counting) does.
 func sceneNumbersFor(heads []sceneHead, o lex.NumberOptions) []string {
-	nums := make([]string, len(heads))
-	o.Omitted = make([]bool, len(heads))
-	for i, h := range heads {
-		nums[i], o.Omitted[i] = h.num, isOmitted(h)
-	}
-	return lex.NumberLabels(nums, o)
+	return lex.NumberLabels(sceneLabelsOf(heads), o)
 }
 
 // lineEdit is a line written anew: its range in runes and its text.
@@ -388,21 +383,6 @@ func (w *MainWindow) restoreScene() {
 	n, omitted := lex.OmittedNumber(heading)
 	if !omitted {
 		w.setStatus("This scene is not omitted")
-		return
-	}
-	if _, _, isRange := lex.OmittedRange(heading); isRange { // v1.13.0's merged run: one OMITTED a scene again
-		out, ok := fountain.SplitOmitted(scene)
-		if !ok {
-			w.setStatus("OMITTED " + n + " has no scenes under it (no /* Omitted … */ blocks) to restore")
-			return
-		}
-		w.textEditor.Edit(func(b *buffer.Buffer) {
-			b.Group(func() {
-				b.Replace(start, end, out)
-				b.SetCursor(start, false)
-			})
-		})
-		w.setStatus("OMITTED " + n + " split into its scenes: Restore Scene on one brings it back")
 		return
 	}
 	out, ok := fountain.RestoreScene(scene)

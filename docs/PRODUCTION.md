@@ -1439,7 +1439,8 @@ it, and no number is given twice (a property test over 3000 random scripts and s
 
 **OMITTED 12-14 (v1.13.0, superseded).** The first strategies merged a run of OMITTED headings into one,
 `.OMITTED #12-14#`. Joop: "using numbers in sequence is a bit of a hack, technically I think a scene number can be
-anything", and "ranges are ill-defined — useful in dialogs, not in the document itself". See below.
+anything", and "ranges are ill-defined — useful in dialogs, not in the document itself". Reading that form back was
+dropped too (Lexington v1.15.0, below).
 
 **The breakdown and the schedule follow** (renumber_follow.go). Tags, scenes marked done and strips name their scene
 by number first, and are kept outside the text's undo. The window keeps the scene numbers it last saw. When only the
@@ -1470,8 +1471,7 @@ retyped through a duplicate, and Renumber from a duplicate; the pane's buttons. 
 unlock-phone.png, combo-prodpane-locked-wide/phone.png).
 Strategies (renumber_strategy_test.go, and lex/renumber_test.go in Lexington): each scope, keep (a number, two, a
 range), only, letters folded and kept, each OMITTED mode, keep with a range, a range typed backwards, the selection and
-the cursor; for each the preview equals the result and Undo is one step; the "numbered before" line; merge, then
-Restore splits and restores; the presets (Clean before an issue, Keep sent scenes after one with a scene cut and one
+the cursor; for each the preview equals the result and Undo is one step; the "numbered before" line; the presets (Clean before an issue, Keep sent scenes after one with a scene cut and one
 written since, Your own, Last used); tags, a done mark and a strip through a range-with-keep strategy, Undo and Redo;
 the locked pages through a from-the-cursor strategy and Undo. Shots: `SHOT_DIR=… go test -run
 TestRenumberDialogScreenshots` (renumber-wide/phone.png, renumber-wide/phone-issued.png).
@@ -1520,32 +1520,27 @@ change of the setting alone). With it, Lexington (`lex.MergeOmittedRuns`, `-merg
 them as one, `12-14   OMITTED   12-14` in both margins (checked with pdftotext), the first and last label in script
 order joined by `-` (an en dash when a label has a dash: `I-1-A–I-1-C`); HTML, DOCX, ODT and the print the same; the
 PDF's pages, their lock and the scenes' lengths are the merged print's (each OMITTED heading of a run gets the run's
-page). FDX, Fountain and lex keep one heading a number. A "Last used" saved with v1.13.0's merge (2) is read as print
-runs as one.
+page). FDX, Fountain and lex keep one heading a number.
 
-**v1.13.0's `.OMITTED #12-14#`.** Read as its scenes: only on an OMITTED heading whose number is two scheme numbers
-joined by a dash, in order (`lex.OmittedRange`; `I-1-A` on an OMITTED heading, or `12-14` on any other, is a label).
-Lexington's Fountain reader splits it into one OMITTED heading a `/* Omitted n` block under it, keeping the run's
-first and last where their block is gone (a number between them without a block is lost: nothing says what it was);
-until rewritten, locked numbering never gives a number inside it. Accolade rewrites it in the text
-(`fountain.SplitOmitted`) on the next Renumber (when its dialog opens, so Cancel keeps the rewrite), Unlock or Save
-(File > Save and Save As; not autosave, which would add an undo step while the writer types; not in a shared
-session: the next Renumber does it): one undo step of its own, the cursor kept on its text, the print setting switched on so that it prints as before, a page of the lock
-starting at the run now starting at its first, and a status note ("OMITTED 4-5 written as one OMITTED heading a
-scene …", repeated in front of Renumber's own message on Apply). Restore Scene on such a heading still splits it,
-then each restores. The run's ends are scheme numbers, so this check orders two of them: the one comparison of labels
-outside the letter generator. A stray number typed inside a heading (`INT. A #1-A# - DAY`) is any label now.
+**`.OMITTED #12-14#` is a label** (2026-11-20, Lexington v1.15.0, branch dropcompat). Joop dropped the v1.13.0
+compatibility entirely: "nobody used that in production, and the undoing could cause legitimate - usage in scene
+numbers to break down the road". Lexington no longer reads such a heading as a run (`lex.OmittedRange`,
+`lex.SplitOmittedRanges`, `fountain.SplitOmitted`, the Fountain reader's split and `NumberOptions.Omitted` are gone);
+Accolade no longer rewrites it on Renumber, Unlock, Save or Save As, moves a page lock off it, or splits it on Restore
+Scene. It is one scene labelled "12-14", fixed like any dashed label: never split, renumbered, dropped or a
+neighbour (a new scene after 3 and an OMITTED 4-5 gets 4). Restore Scene on it looks for a `/* Omitted 12-14` block
+like any other. Printing a run of OMITTED headings as one stays: a print setting, not a text form. A stray number
+typed inside a heading (`INT. A #1-A# - DAY`) is any label.
 
 **Tests.** Lexington: the scheme (every Fountain example form), fixed labels through locked and unlocked numbering
 and every Renumber strategy (table and the 3000-script property test: a fixed label never changes, is never dropped
-or given; nothing given out of the scheme), the v1.13.0 run taking its numbers, the lists (4-2 forward, 2-4 an error,
-separators, a label winning over a split, an ambiguous dash, unknown labels, Read), `MergeOmittedRuns` and
-`SplitOmittedRanges` (a run with a missing block, sources), `SplitOmitted` (no block, one block), and through the
-command line for v1.13.0's form and today's: one `12-14 OMITTED 12-14` line in the PDF (pdftotext), one OMITTED in
+or given; nothing given out of the scheme), `.OMITTED #12-14#` a fixed label through reading, numbering, FDX and
+Fountain, the lists (4-2 forward, 2-4 an error,
+separators, a label winning over a split, an ambiguous dash, unknown labels, Read), `MergeOmittedRuns`, and through the
+command line: one `12-14 OMITTED 12-14` line in the PDF (pdftotext), one OMITTED in
 HTML, DOCX and ODT, three without the flag, FDX one heading a number with five SceneProperties, Fountain never merged.
 Accolade: fixed labels through Lock, seven strategies, Clean and Remove; the backwards scope and list, and an end no
-scene has, refused; a keep range by script order; the v1.13.0 run rewritten on Renumber (one undo step, status) and on
-Save, and split by Restore; print runs as one in the preview, the read and error lines under the field, Apply for the
+scene has, refused; a keep range by script order; an OMITTED 4-5 a fixed label; print runs as one in the preview, the read and error lines under the field, Apply for the
 setting alone, the HTML print, the FDX and the PDF (pdftotext), Keep taking it out, Undo. Shots: `SHOT_DIR=… go test
 -run TestRenumberDialogScreenshots` (renumber-wide.png shows print runs as one and a read list).
 
@@ -1562,7 +1557,5 @@ setting alone, the HTML print, the FDX and the PDF (pdftotext), Keep taking it o
   then finds that page by its words.
 - "OMITTED 12-14" as one line is the form I know from shooting scripts (*unverified*: no source checked).
 - The scheme is narrower than the old engine: `01`, `10a`, `12b` are fixed labels now (never renumbered).
-- In a v1.13.0 run a number between its ends without a block (an FDX round trip has no blocks) is lost, so after the
-  rewrite a new scene can get it.
 - After an issue, Renumber marks every renumbered heading as revised in the next colour. That is correct (the
   headings changed), but it is a lot of asterisks.
