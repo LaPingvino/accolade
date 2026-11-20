@@ -41,9 +41,11 @@ func invisibleFocus(c fyne.Canvas) []string {
 		// times before calling the focus invisible.
 		var focused, unfocused image.Image
 		changed := 0
-		for try := 0; try < 10 && changed == 0; try++ {
+		// Up to ~5 s in all: CI's race run on a shared runner has been seen to
+		// lag more than half a second (2026-11-20); a passing check never waits.
+		for try := 0; try < 25 && changed == 0; try++ {
 			if try > 0 {
-				time.Sleep(50 * time.Millisecond)
+				time.Sleep(time.Duration(try) * 15 * time.Millisecond)
 				c.Focus(f)
 			}
 			focused = c.Capture()
