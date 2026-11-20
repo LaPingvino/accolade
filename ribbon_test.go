@@ -15,6 +15,8 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/accolade/internal/tooltip"
 )
 
 // ribbonWindow is w in Ribbon mode.
@@ -591,4 +593,120 @@ func TestRibbonScreenshots(t *testing.T) {
 	w.showPalette()
 	snap("palette-phone")
 	w.palette.close()
+}
+
+// TestRibbonShotMatrix renders every tab as it can show (SHOT_DIR, names
+// SHOT_PREFIX…): both roles, a screenplay with a source and a Markdown
+// document, each Production stage, at 1000 px and a phone's 380 — for a
+// before/after look at the ribbon.
+func TestRibbonShotMatrix(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	prefix := os.Getenv("SHOT_PREFIX")
+	if prefix == "" {
+		prefix = "ribbon-"
+	}
+	holdUI(t)
+	os.MkdirAll(dir, 0o755)
+	w := suggestWindow(t, suggestScript)
+	r := ribbonOnFor(t, w)
+	snap := func(name string) {
+		t.Helper()
+		w.fyneWindow.Content().Refresh()
+		f, err := os.Create(filepath.Join(dir, prefix+name+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		png.Encode(f, w.fyneWindow.Canvas().Capture())
+	}
+	stages := []string{"lock", "revise", "breakdown", "schedule"}
+	for _, width := range []float32{1000, 380} {
+		size := "desktop"
+		if width < 600 {
+			size = "phone"
+		}
+		w.fyneWindow.Resize(fyne.NewSize(width, map[bool]float32{true: 800, false: 600}[width < 600]))
+		w.fyneWindow.Canvas().Capture()
+		for _, role := range []string{roleProduction, roleWriter} {
+			w.workAs(role)
+			for _, md := range []bool{false, true} {
+				w.setDocumentType(md)
+				doc := "screenplay"
+				if md {
+					doc = "markdown"
+				}
+				for _, tab := range commands().ribbon {
+					if !tabShown(tab, w.cmdEnv()) {
+						continue
+					}
+					r.selectTab(tab.title)
+					name := strings.Join([]string{size, role, doc, strings.ToLower(tab.title)}, "-")
+					if tab.title != "Production" {
+						snap(name)
+						continue
+					}
+					p := w.notes.production
+					if !p.shown() {
+						w.toggleProduction()
+					}
+					for i, s := range stages {
+						p.pick(stageLock + i)
+						r.refresh()
+						snap(name + "-" + s)
+					}
+					w.toggleProduction()
+				}
+			}
+		}
+	}
+	w.workAs(roleProduction)
+	w.setDocumentType(false)
+	w.settings.SetBoolean("notes-visible", false)
+}
+
+// Short labels: the group says the rest, no "…" on the ribbon, the full
+// label (and keys) the button's name and its tooltip; a Markdown
+// document's labels say what its commands do there.
+func TestRibbonShortLabels(t *testing.T) {
+	w := suggestWindow(t, suggestScript)
+	r := ribbonOnFor(t, w)
+	for _, md := range []bool{false, true} {
+		w.setDocumentType(md)
+		for _, tab := range r.shownTabs() {
+			r.selectTab(tab.title)
+			for _, b := range r.buttons {
+				if strings.HasSuffix(b.label, "…") {
+					t.Errorf("%s: %q shows its …", tab.title, b.label)
+				}
+				if b.c != nil && b.homeLabel == "" && b.mark == "" && !strings.HasPrefix(b.AccessibilityLabel(), b.c.labelIn(r.env)) {
+					t.Errorf("%s: %q is named %q, not its full label %q", tab.title, b.label, b.AccessibilityLabel(), b.c.labelIn(r.env))
+				}
+			}
+		}
+	}
+	r.selectTab("View")
+	if p := buttonOf(r, "view.preview"); p == nil || p.label != "Preview" || !strings.HasPrefix(p.AccessibilityLabel(), "Live Preview") {
+		t.Errorf("Markdown's preview button: %+v", p)
+	}
+	old := tooltip.Delay
+	tooltip.Delay = time.Millisecond
+	t.Cleanup(func() { tooltip.Delay = old })
+	w.setDocumentType(false)
+	r.selectTab("Adaptation")
+	next := buttonOf(r, "source.next")
+	if next.label != "Next" {
+		t.Fatalf("Next Source Passage shows %q", next.label)
+	}
+	next.MouseIn(nil)
+	waitFor(t, "the tooltip", func() bool { return w.tooltips.Text() == next.AccessibilityLabel() })
+	if !strings.HasPrefix(w.tooltips.Text(), "Next Source Passage") {
+		t.Errorf("tooltip %q", w.tooltips.Text())
+	}
+	next.MouseOut()
+	if w.tooltips.Text() != "" {
+		t.Error("the tooltip stayed")
+	}
 }

@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))) // the moves write Linux keys too
+		want := modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -706,6 +706,25 @@ func roleMoves(name, golden string) string {
 	}
 	return strings.Replace(golden, "    Markdown\n# Help\n",
 		"    Markdown\n  Working As\n    Writer\n    Production (checked)\n    ---\n    Only for This Script\n# Help\n", 1)
+}
+
+// modeLabelMoves: a Markdown document's labels say what the command
+// does there (ribbon polish): New and New Empty make a screenplay, and
+// the preview is the live one beside the editor, not the PDF.
+func modeLabelMoves(name, golden string) string {
+	if !strings.Contains(name, "-markdown") {
+		return golden
+	}
+	for _, r := range [][2]string{
+		{"  New [", "  New Screenplay ["}, {"  New Empty [", "  New Empty Screenplay ["},
+		{"= New\n", "= New Screenplay\n"}, {"= New Empty\n", "= New Empty Screenplay\n"},
+		{"  Preview [", "  Live Preview ["}, {"= Preview\n", "= Live Preview\n"},
+		{"tip=New (", "tip=New screenplay ("}, {"menu:New icon=", "menu:New screenplay icon="},
+		{"tip=Preview (", "tip=Live Preview ("}, {"menu:Preview icon=", "menu:Live Preview icon="},
+	} {
+		golden = strings.ReplaceAll(golden, r[0], r[1])
+	}
+	return golden
 }
 
 // writerMoves is a Production golden as a writer sees it (role.go): the

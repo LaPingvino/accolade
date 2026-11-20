@@ -80,7 +80,7 @@ func TestMarkdownModeSwitches(t *testing.T) {
 			t.Errorf("Format has %s", gone)
 		}
 	}
-	if !slices.Contains(format, "Bold") || !slices.Contains(view, "Preview") || slices.Contains(view, "Cards") {
+	if !slices.Contains(format, "Bold") || !slices.Contains(view, "Live Preview") || slices.Contains(view, "Cards") {
 		t.Errorf("menus: %v %v", format, view)
 	}
 	if got := w.statsLabel.Text; !strings.Contains(got, "words") || strings.Contains(got, "cene") {

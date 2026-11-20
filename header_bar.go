@@ -188,13 +188,13 @@ func (hb *HeaderBar) rowItems(homes []home, env cmdEnv, tracked bool) []overflow
 		b.Importance = widget.LowImportance
 		if c.tip != "" { // its accessible name: the tip, else the label
 			fyne.SetAccessibleLabel(b, c.tipIn(env))
-		} else if c.label != c.text {
-			fyne.SetAccessibleLabel(b, c.label)
+		} else if c.labelIn(env) != c.text {
+			fyne.SetAccessibleLabel(b, c.labelIn(env))
 		}
 		if c.id == "write.place" {
 			hb.place = b
 		}
-		label := c.label // in the menu: a picker as its button says, opening by the menu
+		label := c.labelIn(env) // in the menu: a picker as its button says, opening by the menu
 		if c.pick != nil {
 			label = c.text
 		}

@@ -70,7 +70,7 @@ func TestDocumentTypeSwitch(t *testing.T) {
 	if !w.markdown || !w.textEditor.Markdown || checkedType(t, w) != "Markdown" {
 		t.Fatal("not Markdown")
 	}
-	if !slices.Contains(menuLabels(w, "View"), "Preview") {
+	if !slices.Contains(menuLabels(w, "View"), "Live Preview") {
 		t.Error("the menu is still a screenplay's")
 	}
 	if w.currentFile != p || w.textEditor.Text() != text || w.hasChanges {

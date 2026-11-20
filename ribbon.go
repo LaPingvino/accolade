@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/tooltip"
 )
 
 // The ribbon (Preferences > General > Look: Ribbon) is the header bar's
@@ -337,11 +338,15 @@ func (r *ribbonBar) build() {
 			r.groupBox.Add(widget.NewSeparator())
 		}
 		first = false
-		title := widget.NewLabel(g.title)
+		caption := g.title
+		if r.env.markdown && g.mdTitle != "" {
+			caption = g.mdTitle
+		}
+		title := widget.NewLabel(caption)
 		title.SizeName = theme.SizeNameCaptionText
 		title.Importance = widget.LowImportance
 		title.Alignment = fyne.TextAlignCenter
-		fyne.SetAccessibleLabel(title, g.title+" group")
+		fyne.SetAccessibleLabel(title, caption+" group")
 		r.groupBox.Add(container.NewBorder(nil, title, nil, nil, content))
 	}
 	r.groupBox.Refresh()
@@ -610,7 +615,7 @@ func (r *ribbonBar) assignTips(level int) {
 		for _, t := range tabs {
 			labels = append(labels, t.title)
 		}
-		labels = append(labels, "Command Palette", "Menus")
+		labels = append(labels, r.palette.label, "Menus")
 		tips := keyTipsFor(labels)
 		for i, t := range tabs {
 			t.setTip(tips[i])
@@ -964,17 +969,19 @@ type ribbonButton struct {
 	onTap     func()
 
 	disabled, selected, checked, hovered, focused bool
-	tip                                           string
+	tip                                           string // the key tip
 	name                                          string // the screen reader's
+	hover                                         tooltip.Hover
 }
+
+// hoverTip is b's tooltip: its full name and keys, as a screen reader
+// says it (the label may be a short one).
+func (b *ribbonButton) hoverTip() string { return b.AccessibilityLabel() }
 
 func newRibbonButton(r *ribbonBar, c *command, large bool) *ribbonButton {
 	b := &ribbonButton{r: r, c: c, large: large}
 	if c != nil {
-		b.label = c.label
-		if c.text != "" {
-			b.label = c.text
-		}
+		b.label = c.ribbonLabelIn(r.env)
 		if c.id == "write.place" { // in the script's language: BIN./BUI. in Dutch
 			if _, _, both, ok := placeWords(r.w.sceneHeaders()); ok {
 				b.label = both
@@ -1049,23 +1056,32 @@ func (b *ribbonButton) Disable() {
 	b.Refresh()
 }
 
-func (b *ribbonButton) Tapped(*fyne.PointEvent) { b.press() }
+func (b *ribbonButton) Tapped(*fyne.PointEvent) {
+	b.hover.Out(b.r.w.tooltips, b.hoverTip())
+	b.press()
+}
 func (b *ribbonButton) MouseIn(*desktop.MouseEvent) {
 	b.hovered = true
 	b.Refresh()
+	b.hover.In(b.r.w.tooltips, b, b.hoverTip)
 }
 func (b *ribbonButton) MouseMoved(*desktop.MouseEvent) {}
 func (b *ribbonButton) MouseOut() {
 	b.hovered = false
 	b.Refresh()
+	b.hover.Out(b.r.w.tooltips, b.hoverTip())
 }
 func (b *ribbonButton) FocusGained() {
 	b.focused = true
 	b.Refresh()
+	if !b.r.tipsOn { // the key tips say enough
+		b.hover.Now(b.r.w.tooltips, b, b.hoverTip())
+	}
 }
 func (b *ribbonButton) FocusLost() {
 	b.focused = false
 	b.Refresh()
+	b.hover.Out(b.r.w.tooltips, b.hoverTip())
 	b.r.focusLeft()
 	b.r.w.altCancel()
 }

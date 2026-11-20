@@ -5,13 +5,13 @@ tabs: File Write Edit Adaptation Collaboration [View]
   S Help icon=foreground_help.svg name=Help
   S Changes icon=foreground_history.svg name=Changes (Ctrl+Shift+H)
 ## Preview
-  L Preview PDF icon=foreground_visibility.svg name=Preview (Ctrl+Shift+P)
+  L Preview icon=foreground_visibility.svg name=Live Preview (Ctrl+Shift+P)
 ## Folding
-  S Fold or Unfold Here icon=foreground_arrow-drop-down.svg name=Fold or Unfold Here (Ctrl+Shift+.)
-  S Fold All (Sections Only) icon=foreground_arrow-drop-up.svg name=Fold All (Sections Only)
+  S Fold Here icon=foreground_arrow-drop-down.svg name=Fold or Unfold Here (Ctrl+Shift+.)
+  S Fold Sections icon=foreground_arrow-drop-up.svg name=Fold All (Sections Only)
   S Headings Only icon=foreground_heading.svg name=Headings Only
   S Unfold All icon=foreground_menu-expand.svg name=Unfold All
 ## Window
   L Fullscreen icon=foreground_view-fullscreen.svg name=Fullscreen (Ctrl+Shift+F)
   S Document Type icon=foreground_file.svg name=Document Type
-  S Command Palette… icon=foreground_palette.svg name=Command Palette… (Ctrl+K)
+  S Commands icon=foreground_palette.svg name=Command Palette… (Ctrl+K)

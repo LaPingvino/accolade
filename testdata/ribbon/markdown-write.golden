@@ -4,18 +4,18 @@ tabs: File [Write] Edit Adaptation Collaboration View
 ## Emphasis
   S Bold icon=foreground_bold.svg name=Bold (Ctrl+B)
   S Italic icon=foreground_italic.svg name=Italic (Ctrl+I)
-  S Strikethrough icon=foreground_strikethrough.svg name=Strikethrough
-  S Inline Code icon=foreground_code.svg name=Inline Code
-  S Right to Left Line icon=foreground_rtl.svg name=Right to Left Line
+  S Strike icon=foreground_strikethrough.svg name=Strikethrough
+  S Code icon=foreground_code.svg name=Inline Code
+  S Right to Left icon=foreground_rtl.svg name=Right to Left Line
 ## Insert
-  L Link… icon=foreground_link.svg name=Link… (Ctrl+L)
-  S Image… icon=foreground_image.svg name=Image…
+  L Link icon=foreground_link.svg name=Link… (Ctrl+L)
+  S Image icon=foreground_image.svg name=Image…
   S Footnote icon=foreground_footnote.svg name=Footnote
-  S Table… icon=foreground_table.svg name=Table…
-  S Horizontal Rule icon=foreground_rule.svg name=Horizontal Rule
+  S Table icon=foreground_table.svg name=Table…
+  S Rule icon=foreground_rule.svg name=Horizontal Rule
   S Code Block icon=foreground_code-block.svg name=Code Block
 ## Lists
-  S Bulleted List icon=foreground_bullets.svg name=Bulleted List
-  S Numbered List icon=foreground_numbers.svg name=Numbered List
-  S Task List icon=foreground_tasks.svg name=Task List
+  S Bullets icon=foreground_bullets.svg name=Bulleted List
+  S Numbered icon=foreground_numbers.svg name=Numbered List
+  S Tasks icon=foreground_tasks.svg name=Task List
   S Quote icon=foreground_quote.svg name=Quote

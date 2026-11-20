@@ -16,7 +16,7 @@ tabs: File [Write] Edit Production Collaboration View
   S Bold icon=foreground_bold.svg name=Bold (Ctrl+B)
   S Italic icon=foreground_italic.svg name=Italic (Ctrl+I)
   S Underline icon=foreground_underline.svg name=Underline (Ctrl+U)
-  S Right to Left Line icon=foreground_rtl.svg name=Right to Left Line
+  S Right to Left icon=foreground_rtl.svg name=Right to Left Line
 ## Script Format
   select Script format
   S Montage icon=foreground_content-add.svg name=Montage
@@ -24,4 +24,4 @@ tabs: File [Write] Edit Production Collaboration View
   S Flashback icon=foreground_content-add.svg name=Flashback
   S Super icon=foreground_content-add.svg name=Super
 ## Title Page
-  L Title Page… icon=foreground_document.svg name=Title Page… (Ctrl+Shift+T)
+  L Title Page icon=foreground_document.svg name=Title Page… (Ctrl+Shift+T)

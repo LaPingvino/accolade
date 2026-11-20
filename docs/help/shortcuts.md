@@ -21,8 +21,8 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 
 ## File menu
 
-- **New** — Ctrl+N
-- **New Empty** — Ctrl+Alt+N
+- **New** — Ctrl+N (“New Screenplay” in Markdown)
+- **New Empty** — Ctrl+Alt+N (“New Empty Screenplay” in Markdown)
 - **New Window** — Ctrl+Shift+N (not in the browser)
 - **New Empty Window** — Ctrl+Shift+Alt+N (not in the browser)
 - **Open** — Ctrl+O
@@ -81,7 +81,7 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 
 ## View menu
 
-- **Preview PDF** — Ctrl+Shift+P (“Preview” in Markdown)
+- **Preview PDF** — Ctrl+Shift+P (“Live Preview” in Markdown)
 - **Outline** — Ctrl+Shift+O
 - **Cards** — Ctrl+Shift+D (screenplay)
 - **Fold or Unfold Here** — Ctrl+Shift+.

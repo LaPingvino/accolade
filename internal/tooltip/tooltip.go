@@ -122,15 +122,69 @@ func (r *layerRenderer) Refresh() {
 	r.l.text.Refresh()
 }
 
+// Hover shows a widget's tip on a Layer: after Delay once the pointer
+// rests on it (In), at once when it gets the keyboard focus (Now), and
+// takes it away again (Out). Any widget can keep one.
+type Hover struct {
+	mu    sync.Mutex // guards timer and gen
+	timer *time.Timer
+	gen   int // which hover a pending timer belongs to
+}
+
+// In shows tip(), as it is then, below obj after Delay, unless Out or
+// another In comes first.
+func (h *Hover) In(layer *Layer, obj fyne.CanvasObject, tip func() string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.stopLocked()
+	gen := h.gen
+	h.timer = time.AfterFunc(Delay, func() {
+		fyne.Do(func() {
+			h.mu.Lock()
+			current := h.gen == gen && h.timer != nil
+			h.mu.Unlock()
+			if t := tip(); current && t != "" && layer != nil {
+				layer.ShowTip(t, obj)
+			}
+		})
+	})
+}
+
+// Now shows tip below obj at once (a pending one cancelled).
+func (h *Hover) Now(layer *Layer, obj fyne.CanvasObject, tip string) {
+	h.mu.Lock()
+	h.stopLocked()
+	h.mu.Unlock()
+	if tip != "" && layer != nil {
+		layer.ShowTip(tip, obj)
+	}
+}
+
+// Out cancels a pending tip and hides tip if it is the one shown.
+func (h *Hover) Out(layer *Layer, tip string) {
+	h.mu.Lock()
+	h.stopLocked()
+	h.mu.Unlock()
+	if layer != nil && tip != "" && layer.Text() == tip {
+		layer.HideTip()
+	}
+}
+
+// stopLocked cancels a pending tip; h.mu must be held.
+func (h *Hover) stopLocked() {
+	h.gen++
+	if h.timer != nil {
+		h.timer.Stop()
+		h.timer = nil
+	}
+}
+
 // Button is a button that shows a tip when the pointer rests on it.
 type Button struct {
 	widget.Button
 	Tip   string
 	layer *Layer
-
-	mu    sync.Mutex // guards timer and gen
-	timer *time.Timer
-	gen   int // which hover a pending timer belongs to
+	hover Hover
 }
 
 // NewButton creates an icon button with a tip shown on layer.
@@ -145,68 +199,32 @@ func NewButton(icon fyne.Resource, tip string, tapped func(), layer *Layer) *But
 // MouseIn starts the tip's delay.
 func (b *Button) MouseIn(e *desktop.MouseEvent) {
 	b.Button.MouseIn(e)
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.stopLocked()
-	gen := b.gen
-	b.timer = time.AfterFunc(Delay, func() {
-		fyne.Do(func() {
-			b.mu.Lock()
-			current := b.gen == gen && b.timer != nil
-			b.mu.Unlock()
-			if current && b.Tip != "" && b.layer != nil {
-				b.layer.ShowTip(b.Tip, b)
-			}
-		})
-	})
+	b.hover.In(b.layer, b, func() string { return b.Tip })
 }
 
 // MouseOut hides the tip.
 func (b *Button) MouseOut() {
 	b.Button.MouseOut()
-	b.hide()
+	b.hover.Out(b.layer, b.Tip)
 }
 
 // FocusGained shows the tip at once: a keyboard user reaching an icon
 // button learns what it does, as a mouse user hovering it does.
 func (b *Button) FocusGained() {
 	b.Button.FocusGained()
-	b.mu.Lock()
-	b.stopLocked()
-	b.mu.Unlock()
-	if b.Tip != "" && b.layer != nil {
-		b.layer.ShowTip(b.Tip, b)
-	}
+	b.hover.Now(b.layer, b, b.Tip)
 }
 
 // FocusLost hides the tip.
 func (b *Button) FocusLost() {
 	b.Button.FocusLost()
-	b.hide()
+	b.hover.Out(b.layer, b.Tip)
 }
 
 // Tapped hides the tip and taps the button.
 func (b *Button) Tapped(e *fyne.PointEvent) {
-	b.hide()
+	b.hover.Out(b.layer, b.Tip)
 	b.Button.Tapped(e)
-}
-
-// stopLocked cancels a pending tip; b.mu must be held.
-func (b *Button) stopLocked() {
-	b.gen++
-	if b.timer != nil {
-		b.timer.Stop()
-		b.timer = nil
-	}
-}
-
-func (b *Button) hide() {
-	b.mu.Lock()
-	b.stopLocked()
-	b.mu.Unlock()
-	if b.layer != nil && b.layer.Text() == b.Tip {
-		b.layer.HideTip()
-	}
 }
 
 // AccessibilityLabel is the tip: the button shows only an icon, and a

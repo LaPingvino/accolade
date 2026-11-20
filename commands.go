@@ -80,6 +80,11 @@ type command struct {
 	label string // in menus (and the palette)
 	// mdLabel is the label in a Markdown document, if another
 	mdLabel string
+	// ribbonLabel is its ribbon button's short label, if another: its
+	// group says the rest ("Next" in Adaptation > Links); the full label
+	// stays its tooltip and screen-reader name, menus and the palette
+	// keep the full one
+	ribbonLabel string
 	// tip is the header bar's tooltip, without the shortcut (label if
 	// ""); mdTip a Markdown document's; tipFor, if set, is the whole tip
 	tip, mdTip string
@@ -140,6 +145,20 @@ func (c *command) labelIn(e cmdEnv) string {
 		return c.mdLabel
 	}
 	return c.label
+}
+
+// ribbonLabelIn is c's label on a ribbon button in env: its short one,
+// else its text button's, else its label (without the "…": the tooltip
+// says it asks).
+func (c *command) ribbonLabelIn(e cmdEnv) string {
+	l := c.ribbonLabel
+	if l == "" {
+		l = c.text
+	}
+	if l == "" {
+		l = c.labelIn(e)
+	}
+	return strings.TrimSuffix(l, "…")
 }
 
 // tipIn is c's tooltip in env, with its shortcut.
@@ -311,10 +330,13 @@ func newRegistry() *registry {
 
 	// File
 	add(
-		&command{id: "file.new", label: "New", keys: []fyne.Shortcut{shortcut(fyne.KeyN, 0)}, icon: theme.DocumentCreateIcon,
+		&command{id: "file.new", label: "New", mdLabel: "New Screenplay", keys: []fyne.Shortcut{shortcut(fyne.KeyN, 0)}, icon: theme.DocumentCreateIcon,
 			run: (*MainWindow).NewFile,
 			tipFor: func(e cmdEnv) string {
 				tip := "New" + keys("N") + "; with Alt, empty" + keys("Alt+N")
+				if e.markdown { // a screenplay, not another Markdown document
+					tip = "New screenplay" + keys("N") + "; with Alt, empty" + keys("Alt+N")
+				}
 				if !e.browser {
 					tip += "; with Shift, a new window" + keys("Shift+N")
 				}
@@ -332,7 +354,7 @@ func newRegistry() *registry {
 					w.NewFile()
 				}
 			}},
-		&command{id: "file.newEmpty", label: "New Empty", icon: theme.FileIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierAlt)}, run: (*MainWindow).NewEmptyFile},
+		&command{id: "file.newEmpty", label: "New Empty", mdLabel: "New Empty Screenplay", icon: theme.FileIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierAlt)}, run: (*MainWindow).NewEmptyFile},
 		&command{id: "file.newWindow", label: "New Window", icon: theme.ComputerIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierShift)}, when: desktopOnly, // the browser has one window
 			run: func(w *MainWindow) { w.app.newScriptWindow(false) }},
 		&command{id: "file.newEmptyWindow", label: "New Empty Window", icon: theme.DesktopIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierShift|fyne.KeyModifierAlt)}, when: desktopOnly,
@@ -548,8 +570,10 @@ func newRegistry() *registry {
 
 	// View
 	add(
-		&command{id: "view.preview", label: "Preview PDF", mdLabel: "Preview", keys: []fyne.Shortcut{shortcut(fyne.KeyP, fyne.KeyModifierShift)}, icon: theme.VisibilityIcon,
-			run: (*MainWindow).preview},
+		// a screenplay's: the PDF as exported; a Markdown document's: the
+		// live preview beside the editor, shown or hidden
+		&command{id: "view.preview", label: "Preview PDF", mdLabel: "Live Preview", keys: []fyne.Shortcut{shortcut(fyne.KeyP, fyne.KeyModifierShift)}, icon: theme.VisibilityIcon,
+			run: (*MainWindow).preview, checked: func(w *MainWindow) bool { return w.markdown && w.previewVisible }},
 		&command{id: "view.outline", label: "Outline", keys: []fyne.Shortcut{shortcut(fyne.KeyO, fyne.KeyModifierShift)}, icon: theme.ListIcon, run: (*MainWindow).toggleOutline},
 		&command{id: "view.cards", label: "Cards", keys: []fyne.Shortcut{shortcut(fyne.KeyD, fyne.KeyModifierShift)}, icon: theme.GridIcon, when: screenplayOnly,
 			run: (*MainWindow).toggleCards},
@@ -675,6 +699,13 @@ func newRegistry() *registry {
 	r.context = []home{
 		madeFor(productionRole, (*MainWindow).tagAsLastItems), at("production.tag"), madeFor(productionRole, (*MainWindow).untagHereItems),
 		sep(), at("edit.cut"), at("edit.copy"), at("edit.paste"),
+	}
+	for id, short := range ribbonLabels {
+		cmd := r.byID[id]
+		if cmd == nil {
+			panic("ribbonLabels: no command " + id)
+		}
+		cmd.ribbonLabel = short
 	}
 	r.ribbon = ribbonLayout()
 	r.ribbonEnd = []home{at("app.palette"), at("view.menu")}
@@ -837,10 +868,43 @@ type ribbonTab struct {
 // stage (1 + stageLock …) whose actions it is: the group is there only
 // while the script is at that stage.
 type ribbonGroup struct {
-	title string
+	title   string
+	mdTitle string // a Markdown document's title, if another
 	when  func(cmdEnv) bool
 	stage int
 	homes []home
+}
+
+// ribbonLabels are the ribbon's short labels, where the group around a
+// button says the rest: "Next" in Adaptation > Links is the next source
+// passage. The full label stays the button's tooltip and screen-reader
+// name; the menus and the palette keep it. (A label's "…" never shows on
+// the ribbon: ribbonLabelIn.)
+var ribbonLabels = map[string]string{
+	// File
+	"file.newEmpty": "Empty", "file.newMarkdown": "Markdown", "file.newWindow": "Window", "file.newEmptyWindow": "Empty Window",
+	"file.recent": "Recent", "file.import": "Import", "file.importPandoc": "With pandoc",
+	"source.choose": "Choose Source", "file.startScreenplay": "Start Screenplay",
+	// Write
+	"format.rtl": "Right to Left", "md.rule": "Rule", "md.bullets": "Bullets", "md.numbers": "Numbered", "md.tasks": "Tasks",
+	"md.code": "Code", "md.strike": "Strike",
+	// Edit
+	"edit.findNext": "Next", "edit.findPrevious": "Previous", "format.lineUp": "Move Up", "format.lineDown": "Move Down",
+	"format.language": "Language",
+	// Adaptation
+	"source.saveAs": "Save As", "source.keepInside": "Keep in Script", "source.next": "Next", "source.link": "Link",
+	"source.cut": "Mark as Cut", "source.suggest": "Suggest Links", "source.update": "Update Links",
+	"source.sections": "Headings as Sections", "source.learned": "Learned Notes",
+	// Production
+	"production.lockNumbers": "Lock Numbers", "production.unlockNumbers": "Unlock", "production.issue": "Issue",
+	"production.revisedPages": "Revised PDF", "production.compare": "Compare", "production.withdraw": "Withdraw",
+	"production.sceneDone": "Scene Done", "production.tag": "Tag", "production.showTags": "Show Tags",
+	"production.sheets": "Sheets", "production.ics": "Export .ics", "production.omit": "Omit", "production.restore": "Restore",
+	// Collaboration
+	"file.join": "Join",
+	// View
+	"view.preview": "Preview", "view.foldHere": "Fold Here", "view.foldSections": "Fold Sections",
+	"app.palette": "Commands",
 }
 
 // ribbonLayout is the ribbon: the tabs follow the menus (File, Write for
@@ -874,7 +938,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Clipboard", homes: []home{at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll")}},
 			{title: "Find", homes: []home{at("edit.find"), at("edit.replace"), at("edit.findNext"), at("edit.findPrevious")}},
 			{title: "Lines", homes: []home{at("format.lineUp"), at("format.lineDown")}},
-			{title: "Script", homes: []home{at("file.titlePage"), at("format.language"), at("app.preferences")}},
+			{title: "Script", mdTitle: "Document", homes: []home{at("file.titlePage"), at("format.language"), at("app.preferences")}},
 		}},
 		// a source's, or a story's next step
 		{title: "Adaptation", when: func(e cmdEnv) bool { return e.source || e.markdown }, groups: []ribbonGroup{

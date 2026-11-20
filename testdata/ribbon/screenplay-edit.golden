@@ -8,14 +8,14 @@ tabs: File Write [Edit] Production Collaboration View
   S Paste icon=foreground_content-paste.svg name=Paste (Ctrl+V)
   S Select All icon=foreground_select-all.svg name=Select All (Ctrl+A)
 ## Find
-  S Find… icon=foreground_search.svg name=Find… (Ctrl+F)
-  S Replace… icon=foreground_search-replace.svg name=Replace… (Ctrl+H)
-  S Find Next icon=foreground_arrow-forward.svg name=Find Next (Ctrl+G)
-  S Find Previous icon=foreground_arrow-back.svg name=Find Previous (Ctrl+Shift+G)
+  S Find icon=foreground_search.svg name=Find… (Ctrl+F)
+  S Replace icon=foreground_search-replace.svg name=Replace… (Ctrl+H)
+  S Next icon=foreground_arrow-forward.svg name=Find Next (Ctrl+G)
+  S Previous icon=foreground_arrow-back.svg name=Find Previous (Ctrl+Shift+G)
 ## Lines
-  S Move Line Up icon=foreground_arrow-up.svg name=Move Line Up
-  S Move Line Down icon=foreground_arrow-down.svg name=Move Line Down
+  S Move Up icon=foreground_arrow-up.svg name=Move Line Up
+  S Move Down icon=foreground_arrow-down.svg name=Move Line Down
 ## Script
-  S Title Page… icon=foreground_document.svg name=Title Page… (Ctrl+Shift+T)
-  S Script Language… icon=foreground_language.svg name=Script Language…
-  S Preferences… icon=foreground_settings.svg name=Preferences… (Ctrl+,)
+  S Title Page icon=foreground_document.svg name=Title Page… (Ctrl+Shift+T)
+  S Language icon=foreground_language.svg name=Script Language…
+  S Preferences icon=foreground_settings.svg name=Preferences… (Ctrl+,)
