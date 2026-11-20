@@ -1,0 +1,379 @@
+# Portuguese: the story reader's word lists (see en.txt for the format).
+# Older spellings (elle, ella, quiz, Machado's 1899 Garnier edition) are listed too.
+
+[name]
+Português
+
+[speech]
+dizer
+dito
+perguntar
+responder
+disse
+diz
+dizia
+disseram
+perguntou
+pergunta
+perguntava
+respondeu
+responde
+respondia
+retrucou
+replicou
+tornou
+acudiu
+continuou
+interrompeu
+atalhou
+exclamou
+gritou = gritando
+bradou = gritando
+berrou = berrando
+clamou
+sussurrou = sussurrando
+murmurou = murmurando
+cochichou = cochichando
+balbuciou = balbuciando
+gaguejou = gaguejando
+suspirou = suspirando
+soluçou = soluçando
+riu = rindo
+explicou
+acrescentou
+insistiu
+observou
+concluiu
+redarguiu
+volveu
+emendou
+prosseguiu
+declarou
+protestou
+chamou
+pediu
+implorou = implorando
+ordenou
+falou
+repetiu
+confirmou
+teimou
+interrogou
+
+[thought]
+pensou
+pensava
+pensa
+pensei
+sentiu
+sentia
+sente
+senti
+lembrou
+lembrava
+lembrei
+recordou
+recordava
+sabia
+soube
+esperava
+temia
+receava
+receei
+desejava
+acreditava
+imaginou
+imaginava
+imaginei
+supôs
+suspeitava
+compreendeu
+compreendi
+percebeu
+percebi
+duvidava
+cuidou
+cuidei
+
+[titles]
+sr
+sra
+srta
+d
+dona
+dom
+dr
+doutor
+tio
+tia
+prima
+primo
+mano
+mana
+padre
+frei
+senhor
+senhora
+sinhá
+nhonhô
+iaiá
+capitão
+comendador
+conselheiro
+barão
+baronesa
+major
+coronel
+desembargador
+
+[place-before]
+em
+no
+na
+nos
+nas
+ao = 0.5
+à = 0.5
+para = 0.5
+até = 0.5
+
+[prepositions]
+a
+ao
+à
+de
+do
+da
+em
+no
+na
+com
+para
+por
+e
+mas
+que
+quando
+
+[interior]
+sala
+salas
+quarto
+cozinha
+casa
+alcova
+gabinete
+escritório
+igreja
+loja
+taverna
+botequim
+seminário
+seminario
+escola
+corredor
+salão
+salao
+capela
+teatro
+sótão
+porão
+carro
+sege
+bonde
+trem
+hotel
+camarote
+
+[exterior]
+rua
+estrada
+campo
+campos
+jardim
+chácara
+chacara
+praia
+mar
+rio
+praça
+praca
+morro
+monte
+quintal
+varanda
+ponte
+mercado
+floresta
+mata
+caminho
+cidade
+aldeia
+largo
+beco
+
+[time]
+manhã = MANHÃ
+madrugada = MADRUGADA
+tarde = TARDE
+noite = NOITE
+meia-noite = NOITE
+crepúsculo = CREPÚSCULO
+
+[shift]
+na manhã seguinte = MANHÃ
+no dia seguinte = DIA
+no outro dia = DIA
+naquela noite = NOITE
+nessa noite = NOITE
+à noite = NOITE
+de manhã = MANHÃ
+pela manhã = MANHÃ
+mais tarde
+enquanto isso
+entretanto
+de volta a
+de volta à
+de volta ao
+dias depois
+semanas depois
+horas depois
+uma semana depois
+
+[chapter]
+capítulo
+capitulo
+parte
+livro
+prólogo
+epílogo
+
+[not-names]
+você
+vós
+tu
+nós
+elle
+ella
+ele
+ela
+deus
+ora
+oh
+ah
+ai
+sim
+não
+segunda-feira
+terça-feira
+quarta-feira
+quinta-feira
+sexta-feira
+sábado
+domingo
+janeiro
+fevereiro
+março
+abril
+maio
+junho
+julho
+agosto
+setembro
+outubro
+novembro
+dezembro
+vossa
+excelência
+excellencia
+mercê
+senhor
+senhora
+
+[determiners]
+o
+a
+os
+as
+um
+uma
+uns
+umas
+este
+esta
+esse
+essa
+aquele
+aquela
+meu
+minha
+teu
+tua
+seu
+sua
+nosso
+nossa
+
+[possessives]
+meu
+minha
+seu
+sua
+nosso
+nossa
+teu
+tua
+
+[articles]
+o
+a
+
+[pronouns]
+ele
+ela
+elle
+ella
+eles
+elas
+elles
+ellas
+nós
+
+[narrator]
+eu
+
+[particles]
+de
+da
+do
+dos
+das
+
+[manner-suffix]
+mente
+
+[common]
+de
+que
+não
+é
+do
+da
+em
+um
+para
+uma
+os
+no
+se
+na
+por
+mais
+com
+como
+mas
+ao
+ele
+ela
+elle
+você

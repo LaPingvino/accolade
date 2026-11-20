@@ -341,6 +341,7 @@ func (s *sourcePane) offer(p int) {
 	s.list.Refresh()
 	s.list.ScrollTo(p)
 	s.showCutButton()
+	s.showReading(true)
 }
 
 // offeredPassage is the passage Next showed last, found again by its

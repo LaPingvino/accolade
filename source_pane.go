@@ -16,6 +16,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/storyread"
 )
 
 // The source pane: the Notes pane's other tab (View > Source), the
@@ -55,6 +56,10 @@ type sourcePane struct {
 	statuses     []passageStatus // as the rows show them (adaptation.go)
 	offered      int             // the passage Next showed last (-1 none)
 	offeredWords []string        // its words, to find it again
+
+	reading    *storyread.Reading // what the source shows (source_reading.go)
+	readingFor string
+	view       *readingView
 
 	heights []float32
 	width   float32 // the passages were measured at
@@ -124,7 +129,8 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.body = container.NewStack(newWidthWatch(s.list, s.measure))
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(s.edit, s.choose), s.title)
 	tools := container.NewBorder(nil, nil, nil, container.NewHBox(s.next, s.cut), s.count)
-	s.box = container.NewBorder(container.NewVBox(head, tools, s.prompt.box, s.info), nil, nil, nil, s.body)
+	s.view = newReadingView(s)
+	s.box = container.NewBorder(container.NewVBox(head, tools, s.prompt.box, s.info), s.view.box, nil, nil, s.body)
 	return s
 }
 
@@ -220,6 +226,7 @@ func (s *sourcePane) load() {
 	s.ref, s.modTime, s.size, s.src, s.err = ref, mod, size, src, err
 	s.passages = passagesOf(s.src)
 	s.model, s.modelFor = nil, ""
+	s.reading = nil
 	if s.selected >= len(s.passages) {
 		s.selected = -1
 	}
@@ -231,6 +238,7 @@ func (s *sourcePane) load() {
 	}
 	s.showBody()
 	s.measure(s.width)
+	s.showReading(false)
 }
 
 // showBody shows the list, the source's text being edited, or what to
@@ -410,6 +418,7 @@ func (s *sourcePane) pick(id int) {
 	}
 	s.list.Refresh()
 	s.showCutButton()
+	s.showReading(true)
 	scenes := s.current().linked(id)
 	if len(scenes) == 0 {
 		s.w.setStatus("Picked; no scene links to it yet: Format > Link to Source Passage puts the link at the cursor")
@@ -439,6 +448,7 @@ func (s *sourcePane) toggleEdit() {
 		s.edit.SetIcon(theme.ConfirmIcon())
 		fyne.SetAccessibleLabel(s.edit, "Done: save the source")
 		s.showBody()
+		s.showReading(false)
 		s.w.fyneWindow.Canvas().Focus(s.editor)
 		return
 	}

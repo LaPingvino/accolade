@@ -1,0 +1,32 @@
+# Read by hand before the reader was run on it. Held out: the reader was not
+# written against it, but its misses were seen once and a few general fixes
+# followed (a speech verb in any part of a word, participles, the name check
+# before a verb, pronouns as not-names); see LOOP.md.
+held-out: yes
+= Mrs. Bennet | her mother | his wife
+= Mr. Bennet | her father
+= Elizabeth | Lizzy
+Mr. Bennet | I hope Mr. Bingley will like it
+Mrs. Bennet | We are not in a way to know
+Elizabeth | But you forget, mamma
+Mrs. Bennet | I do not believe Mrs. Long
+Mr. Bennet | No more have I
+Mrs. Bennet | Don’t keep coughing so
+Mr. Bennet | Kitty has no discretion
+Kitty | I do not cough for my own amusement
+Elizabeth | To-morrow fortnight
+Mrs. Bennet | Ay, so it is
+Mr. Bennet | Then, my dear, you may have
+Mrs. Bennet | Impossible, Mr. Bennet
+Mr. Bennet | I honour your circumspection
+Mrs. Bennet | Nonsense, nonsense
+Mr. Bennet | What can be the meaning
+Mr. Bennet | While Mary is adjusting
+Mrs. Bennet | I am sick of Mr. Bingley
+Mr. Bennet | I am sorry to hear that
+Mrs. Bennet | How good it was in you
+Mr. Bennet | Now, Kitty, you may cough
+Mrs. Bennet | What an excellent father
+Lydia | Oh
+characters: Mr. Bennet, Mrs. Bennet, Elizabeth, Kitty, Lydia, Mary, Mr. Bingley
+floor: 0,0

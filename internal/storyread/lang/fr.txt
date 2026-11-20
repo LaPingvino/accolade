@@ -1,0 +1,378 @@
+# French: the story reader's word lists (see en.txt for the format).
+# "dit-il", "murmura-t-il" are read as the verb and its pronoun.
+
+[name]
+Français
+
+[speech]
+dire
+demandé
+répondu
+dit
+dis
+disait
+dirent
+demanda
+demande
+demandait
+répondit
+répond
+répondait
+reprit
+continua
+poursuivit
+ajouta
+s'écria
+écria
+cria = criant
+s'exclama
+exclama
+murmura = murmurant
+chuchota = chuchotant
+balbutia = balbutiant
+bégaya = bégayant
+soupira = soupirant
+sanglota = sanglotant
+hurla = hurlant
+gronda = grondant
+grommela = grommelant
+interrompit
+observa
+insista
+expliqua
+fit-il
+fit-elle
+répliqua
+riposta
+objecta
+appela
+pria
+supplia = suppliant
+ordonna
+déclara
+répéta
+lança
+conclut
+disait-il
+disait-elle
+
+[thought]
+pensa
+pensait
+pense
+sentit
+sentait
+souvint
+rappela
+rappelait
+savait
+sut
+espérait
+espéra
+craignait
+craignit
+désirait
+croyait
+crut
+imagina
+imaginait
+supposa
+soupçonnait
+comprit
+comprenait
+devina
+doutait
+songea
+songeait
+réfléchit
+
+[titles]
+m
+mme
+mlle
+monsieur
+madame
+mademoiselle
+dr
+docteur
+abbé
+comte
+comtesse
+duc
+duchesse
+baron
+baronne
+marquis
+marquise
+capitaine
+sire
+maître
+milady
+milord
+monseigneur
+mgr
+cardinal
+chevalier
+
+[place-before]
+à
+au
+aux
+dans
+en
+chez = 0.5
+vers = 0.5
+
+[prepositions]
+à
+au
+de
+du
+des
+dans
+en
+avec
+pour
+par
+sur
+et
+mais
+qui
+que
+quand
+entre
+
+[interior]
+chambre
+cuisine
+salon
+maison
+salle
+cabinet
+bureau
+église
+boutique
+auberge
+hôtellerie
+taverne
+cabaret
+château
+palais
+antichambre
+escalier
+couloir
+corridor
+grenier
+cave
+carrosse
+voiture
+train
+appartement
+hôtel
+chapelle
+
+[exterior]
+rue
+route
+chemin
+champ
+champs
+jardin
+parc
+bois
+forêt
+place
+cour
+plage
+mer
+rivière
+fleuve
+colline
+montagne
+village
+ville
+prairie
+pont
+marché
+quai
+port
+faubourg
+boulevard
+allée
+
+[time]
+matin = MATIN
+aube = AUBE
+aurore = AUBE
+midi = JOUR
+après-midi = APRÈS-MIDI
+soir = SOIR
+soirée = SOIR
+nuit = NUIT
+minuit = NUIT
+crépuscule = CRÉPUSCULE
+
+[shift]
+le lendemain matin = MATIN
+le lendemain = JOUR
+le soir = SOIR
+ce soir-là = SOIR
+cette nuit-là = NUIT
+le matin = MATIN
+plus tard
+pendant ce temps
+de retour à
+de retour chez
+quelques jours après
+quelques jours plus tard
+huit jours après
+une heure après
+
+[chapter]
+chapitre
+partie
+livre
+prologue
+épilogue
+
+[not-names]
+nous
+vous
+tu
+moi
+toi
+lui
+eux
+il
+elle
+je
+dieu
+oh
+ah
+eh
+ô
+oui
+non
+ouais
+diable
+parbleu
+morbleu
+mordieu
+lundi
+mardi
+mercredi
+jeudi
+vendredi
+samedi
+dimanche
+janvier
+février
+mars
+avril
+mai
+juin
+juillet
+août
+septembre
+octobre
+novembre
+décembre
+votre
+vos
+son
+sa
+excellence
+éminence
+majesté
+monsieur
+madame
+
+[determiners]
+le
+la
+les
+l'
+un
+une
+des
+ce
+cet
+cette
+ces
+mon
+ma
+mes
+son
+sa
+ses
+notre
+votre
+leur
+
+[possessives]
+mon
+ma
+son
+sa
+notre
+votre
+leur
+
+[articles]
+le
+la
+l'
+
+[pronouns]
+il
+elle
+ils
+elles
+on
+
+[narrator]
+je
+
+[particles]
+de
+d'
+du
+des
+la
+le
+
+[manner-suffix]
+ment
+
+[not-manner]
+comment
+moment
+seulement
+vraiment
+autrement
+justement
+précisément
+
+[common]
+de
+la
+le
+et
+les
+des
+en
+un
+à
+il
+que
+une
+est
+pas
+dans
+qui
+vous
+je
+ne
+du
+au
+ce

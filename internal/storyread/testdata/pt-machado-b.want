@@ -1,0 +1,33 @@
+# Read by hand before the reader was run on it. Held out: the reader was not
+# written against it, but its misses were seen once and a few general fixes
+# followed (a speech verb in any part of a word, participles, the name check
+# before a verb, pronouns as not-names); see LOOP.md.
+held-out: yes
+= Narrator | Bentinho
+= José Dias
+Narrator | Preciso falar-lhe amanhã
+José Dias | Amanhã, na rua
+Narrator | A licção foi hoje
+José Dias | Perfeitamente
+Narrator | Sim, senhor
+José Dias | Não importa
+José Dias | Não é verdade que o nosso joven amigo
+Narrator | Ha muito tempo que não venho
+José Dias | Perdôe-me
+Narrator | É verdade, mas foi tão de passagem
+José Dias | Elle pediu a sua mãe
+Narrator | Mas eu andei algumas vezes
+José Dias | Quando era mais joven
+Narrator | Perdão, interrompi
+José Dias | Não lhe agradeço nada
+Narrator | Vejo que o senhor
+José Dias | Pois que outra cousa, Bentinho
+Narrator | Neste caso, peço-lhe
+José Dias | Um favor? Mande
+Narrator | Mamãe...
+José Dias | Mamãe quê
+Narrator | Mamãe quer que eu seja padre
+Narrator | Não posso, continuei eu
+characters: José Dias, Capitú, Padua
+places: Passeio Publico
+floor: 0,0

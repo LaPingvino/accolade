@@ -1,0 +1,438 @@
+# English: the word lists the story reader (internal/storyread) reads prose with.
+#
+# Each [section] has one entry per line; "#" starts a comment. Entries are
+# compared in lower case; one of several words is a phrase. "word = value"
+# gives a value: a speech verb's manner (the parenthetical), a time word's
+# heading time, a place word's weight. To add a language, copy this file
+# as xx.txt (its ISO code) and fill in its words.
+
+[name]
+English
+
+[speech]            # verbs of speaking; "= manner" makes the parenthetical
+spoke
+told
+said
+says
+say
+asked
+asks
+replied
+replies
+answered
+answers
+returned
+rejoined
+retorted
+cried
+cries
+exclaimed
+called
+shouted = shouting
+yelled = yelling
+screamed = screaming
+roared = shouting
+thundered = shouting
+whispered = whispering
+breathed = whispering
+murmured = murmuring
+muttered = muttering
+mumbled = mumbling
+stammered = stammering
+sobbed = sobbing
+wept = crying
+laughed = laughing
+chuckled = chuckling
+giggled = giggling
+sighed = sighing
+groaned = groaning
+growled = growling
+hissed = hissing
+snapped = snapping
+pleaded = pleading
+begged = pleading
+implored = pleading
+began
+continued
+added
+observed
+remarked
+protested
+insisted
+interrupted
+interposed
+declared
+inquired
+enquired
+demanded
+repeated
+explained
+suggested
+agreed
+admitted
+urged
+responded
+ejaculated
+resumed
+
+[thought]           # thinking and feeling: unfilmable as written
+thought
+thinks
+felt
+feels
+remembered
+remembers
+recalled
+wondered
+wonders
+knew
+realised
+realized
+hoped
+feared
+wished
+believed
+imagined
+supposed
+longed
+dreaded
+reflected
+mused
+doubted
+suspected
+understood
+fancied
+
+[titles]            # before a name: Mr Darcy, Mrs. Bennet
+mr
+mrs
+miss
+ms
+dr
+sir
+lady
+lord
+captain
+colonel
+professor
+prof
+rev
+reverend
+uncle
+aunt
+madam
+mister
+master
+inspector
+lieutenant
+count
+countess
+duke
+duchess
+
+[place-before]      # a name after these is a place; "= weight" if less sure
+in
+at
+into
+inside
+outside
+to = 0.5
+from = 0.5
+near = 0.5
+towards = 0.5
+
+[prepositions]      # where a speaker's description stops: "said his wife to him"
+to
+with
+in
+at
+on
+of
+for
+from
+as
+and
+but
+who
+that
+when
+while
+
+[interior]          # a scene there is INT.
+room
+rooms
+kitchen
+parlour
+parlor
+drawing-room
+library
+study
+bedroom
+chamber
+house
+cottage
+office
+shop
+church
+inn
+tavern
+dining-room
+breakfast-room
+cellar
+attic
+corridor
+passage
+staircase
+stairs
+hall
+castle
+carriage
+coach
+cab
+train
+cabin
+ballroom
+salon
+school
+classroom
+hospital
+prison
+cell
+bar
+café
+restaurant
+apartment
+flat
+stable
+stables
+theatre
+theater
+
+[exterior]          # a scene there is EXT.
+street
+streets
+road
+lane
+field
+fields
+garden
+gardens
+park
+wood
+woods
+forest
+square
+yard
+courtyard
+beach
+shore
+sea
+river
+hill
+hills
+mountain
+village
+town
+meadow
+path
+bridge
+market
+orchard
+lawn
+moor
+gate
+terrace
+harbour
+harbor
+deck
+valley
+shrubbery
+paddock
+churchyard
+
+[time]              # times of day, as the heading says them
+morning = MORNING
+dawn = DAWN
+daybreak = DAWN
+sunrise = DAWN
+noon = DAY
+afternoon = AFTERNOON
+evening = EVENING
+dusk = DUSK
+sunset = DUSK
+twilight = DUSK
+night = NIGHT
+midnight = NIGHT
+tonight = NIGHT
+breakfast = MORNING
+supper = EVENING
+
+[shift]             # a paragraph starting so starts a new scene; "= time" if it says one
+the next morning = MORNING
+next morning = MORNING
+the following morning = MORNING
+the next day = DAY
+the following day = DAY
+the next evening = EVENING
+that evening = EVENING
+the same evening = EVENING
+that night = NIGHT
+the same night = NIGHT
+in the evening = EVENING
+in the morning = MORNING
+at dawn = DAWN
+at daybreak = DAWN
+later that day
+later that evening = EVENING
+later that night = NIGHT
+meanwhile
+in the meantime
+back at
+back in
+a week later
+a few days later
+some days later
+the next week
+an hour later
+when morning came = MORNING
+when evening came = EVENING
+when night came = NIGHT
+
+[chapter]           # a heading word: Chapter 3, Book II
+chapter
+book
+part
+volume
+prologue
+epilogue
+
+[not-names]         # capitalised, but no one's name
+you
+it
+me
+him
+us
+them
+he
+she
+we
+they
+i
+god
+heaven
+oh
+ah
+o
+alas
+yes
+no
+well
+sir
+madam
+ma'am
+dear
+monday
+tuesday
+wednesday
+thursday
+friday
+saturday
+sunday
+january
+february
+march
+april
+june
+july
+august
+september
+october
+november
+december
+english
+french
+christmas
+michaelmas
+lord
+
+[determiners]       # a capitalised word after these is a noun: the Park, a Duke
+the
+a
+an
+this
+that
+these
+those
+every
+some
+no
+
+[possessives]       # a speaker described: "said his wife"
+his
+her
+my
+their
+our
+your
+
+[articles]          # a speaker described: "said the doctor"
+the
+
+[pronouns]          # a speaker by pronoun: "she said" (who it is comes from the turns)
+he
+she
+they
+we
+
+[narrator]          # the one telling it: "I said"
+i
+
+[particles]         # inside a name: Lady Catherine de Bourgh
+de
+van
+von
+du
+le
+
+[manner-suffix]     # an adverb after the speech verb is its manner: "said softly" (softly)
+ly
+
+[not-manner]        # ends so, but no manner
+only
+family
+early
+likely
+reply
+ugly
+holy
+july
+italy
+silly
+lovely
+friendly
+nearly
+daily
+really
+
+[common]            # frequent words, to tell the language
+the
+and
+of
+to
+was
+he
+she
+that
+it
+with
+had
+her
+his
+you
+not
+but
+for
+is
+said
+have
+which

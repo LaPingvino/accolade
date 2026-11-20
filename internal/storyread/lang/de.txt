@@ -1,0 +1,365 @@
+# German: the story reader's word lists (see en.txt for the format).
+# German capitalises every noun, so a name here needs a sign it is one:
+# a speech verb, a title, being addressed, or many mentions without "der".
+
+[name]
+Deutsch
+
+[options]
+capitalised-nouns = yes
+
+[speech]
+zurief
+ausrief
+einwarf
+fortfuhr
+hinzufügte
+gesagt
+gefragt
+gerufen
+geantwortet
+sagte
+sagt
+sagten
+fragte
+fragt
+fragten
+antwortete
+antwortet
+erwiderte
+entgegnete
+versetzte
+rief
+ruft
+schrie = schreiend
+flüsterte = flüsternd
+murmelte = murmelnd
+stammelte = stammelnd
+seufzte = seufzend
+schluchzte = schluchzend
+lachte = lachend
+meinte
+bemerkte
+fuhr
+sprach
+bestätigte
+fügte
+unterbrach
+wiederholte
+flehte = flehend
+bat
+befahl
+erklärte
+brummte = brummend
+knurrte = knurrend
+jammerte = jammernd
+warf
+gab
+schloss
+schloß
+
+[thought]
+dachte
+denkt
+fühlte
+fühlt
+empfand
+erinnerte
+wusste
+wußte
+hoffte
+fürchtete
+wünschte
+glaubte
+ahnte
+begriff
+verstand
+zweifelte
+sann
+überlegte
+vermutete
+sehnte
+
+[titles]
+herr
+frau
+fräulein
+frl
+dr
+doktor
+professor
+prof
+graf
+gräfin
+baron
+baronin
+pastor
+onkel
+tante
+kapitän
+major
+hauptmann
+geheimrat
+landrat
+konsul
+
+[place-before]
+in
+im
+nach
+zu = 0.5
+zum = 0.5
+zur = 0.5
+bei = 0.5
+beim = 0.5
+an = 0.5
+am = 0.5
+auf = 0.5
+aus = 0.5
+
+[prepositions]
+zu
+mit
+in
+an
+auf
+aus
+bei
+nach
+von
+für
+und
+aber
+die
+der
+das
+während
+als
+
+[interior]
+zimmer
+stube
+küche
+saal
+salon
+haus
+kirche
+laden
+gasthaus
+wirtshaus
+schloss
+schloß
+flur
+treppe
+keller
+dachboden
+büro
+kontor
+wagen
+kutsche
+zug
+abteil
+wohnung
+schlafzimmer
+wohnzimmer
+gartensaal
+
+[exterior]
+straße
+strasse
+weg
+feld
+felder
+garten
+park
+wald
+platz
+hof
+strand
+meer
+fluss
+fluß
+hügel
+berg
+dorf
+stadt
+wiese
+brücke
+markt
+ufer
+hafen
+rondell
+allee
+teich
+
+[time]
+morgen = MORGEN
+vormittag = VORMITTAG
+mittag = MITTAG
+nachmittag = NACHMITTAG
+abend = ABEND
+nacht = NACHT
+mitternacht = NACHT
+dämmerung = DÄMMERUNG
+
+[shift]
+am nächsten morgen = MORGEN
+am anderen morgen = MORGEN
+am andern morgen = MORGEN
+am nächsten tag = TAG
+am anderen tage = TAG
+am abend = ABEND
+an diesem abend = ABEND
+in dieser nacht = NACHT
+später
+inzwischen
+unterdessen
+zurück in
+einige tage später
+eine woche später
+
+[chapter]
+kapitel
+teil
+buch
+prolog
+epilog
+
+[not-names]
+wir
+euch
+dich
+mich
+dir
+mir
+gott
+ich
+sie
+ihr
+ihnen
+du
+ja
+nein
+ach
+o
+oh
+montag
+dienstag
+mittwoch
+donnerstag
+freitag
+samstag
+sonnabend
+sonntag
+januar
+februar
+märz
+april
+mai
+juni
+juli
+august
+september
+oktober
+november
+dezember
+
+[determiners]
+der
+die
+das
+den
+dem
+des
+ein
+eine
+einen
+einem
+einer
+eines
+kein
+keine
+mein
+meine
+dein
+deine
+sein
+seine
+ihr
+ihre
+unser
+unsere
+euer
+dieser
+diese
+dieses
+jener
+jede
+jeder
+jedes
+alle
+viele
+zum
+zur
+im
+am
+vom
+beim
+ins
+ans
+
+[possessives]
+sein
+seine
+ihr
+ihre
+mein
+meine
+
+[articles]
+der
+die
+das
+
+[pronouns]
+er
+sie
+wir
+man
+
+[narrator]
+ich
+
+[particles]
+von
+van
+zu
+der
+
+[common]
+der
+die
+und
+in
+den
+von
+zu
+das
+mit
+sich
+des
+auf
+für
+ist
+im
+dem
+nicht
+ein
+eine
+als
+auch
+es
+an
+ich
+sie
+er

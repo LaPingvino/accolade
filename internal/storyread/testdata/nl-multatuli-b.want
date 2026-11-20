@@ -1,0 +1,14 @@
+# Read by hand before the reader was run on it. Held out: the reader was not
+# written against it, but its misses were seen once and a few general fixes
+# followed (a speech verb in any part of a word, participles, the name check
+# before a verb, pronouns as not-names); see LOOP.md.
+held-out: yes
+= Narrator | Droogstoppel
+= Sjaalman
+Narrator | Het was me byzonder aangenaam
+Sjaalman | Beste Droogstoppel
+Betsy Rosemeyer | Ja, ja, Louise
+Louise | Neen, neen, Frits is heel lief
+characters: Frits, Louise, Betsy Rosemeyer
+places: Kapelsteeg
+floor: 0,0

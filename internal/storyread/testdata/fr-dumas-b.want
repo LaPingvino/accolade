@@ -1,0 +1,27 @@
+# Read by hand before the reader was run on it. Held out: the reader was not
+# written against it, but its misses were seen once and a few general fixes
+# followed (a speech verb in any part of a word, participles, the name check
+# before a verb, pronouns as not-names); see LOOP.md.
+held-out: yes
+= l’inconnu | l’étranger | le gentilhomme | le voyageur
+= Milady | la dame | la belle voyageuse
+= d’Artagnan | D’Artagnan
+= l’hôte
+l’inconnu | Il ne faut pas que Milady
+Milady | Ainsi, Son Éminence
+l’inconnu | De retourner à l’instant
+Milady | Et quant à mes autres
+l’inconnu | Elles sont renfermées
+Milady | Très bien; et vous
+l’inconnu | Moi, je retourne à Paris
+Milady | Sans châtier cet insolent
+d’Artagnan | C’est cet insolent petit garçon
+l’inconnu | Ne lui échappera pas
+d’Artagnan | Non, devant une femme
+Milady | Songez
+l’inconnu | Vous avez raison
+l’hôte | Eh! votre dépense
+l’inconnu | Paie, maroufle
+characters: Milady, d’Artagnan
+places: Paris, Angleterre
+floor: 0,0

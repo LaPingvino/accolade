@@ -1,0 +1,46 @@
+---
+source: Alexandre Dumas, Les Trois Mousquetaires (1844), chapter I. Project Gutenberg eBook #13951.
+status: public domain (Dumas died 1870).
+edits: hard-wrapped lines joined into paragraphs; otherwise as in the Gutenberg text.
+---
+
+— Et il n’a nommé personne dans sa colère?
+
+— Si fait, il frappait sur sa poche, et il disait: «Nous verrons ce que M. de Tréville pensera de cette insulte faite à son protégé.
+
+— M. de Tréville? dit l’inconnu en devenant attentif; il frappait sur sa poche en prononçant le nom de M. de Tréville?… Voyons, mon cher hôte, pendant que votre jeune homme était évanoui, vous n’avez pas été, j’en suis bien sûr, sans regarder aussi cette poche-là. Qu’y avait-il?
+
+— Une lettre adressée à M. de Tréville, capitaine des mousquetaires.
+
+— En vérité!
+
+— C’est comme j’ai l’honneur de vous le dire, Excellence.»
+
+L’hôte, qui n’était pas doué d’une grande perspicacité, ne remarqua point l’expression que ses paroles avaient donnée à la physionomie de l’inconnu. Celui-ci quitta le rebord de la croisée sur lequel il était toujours resté appuyé du bout du coude, et fronça le sourcil en homme inquiet.
+
+— Diable! murmura-t-il entre ses dents, Tréville m’aurait-il envoyé ce Gascon? il est bien jeune! Mais un coup d’épée est un coup d’épée, quel que soit l’âge de celui qui le donne, et l’on se défie moins d’un enfant que de tout autre; il suffit parfois d’un faible obstacle pour contrarier un grand dessein.
+
+Et l’inconnu tomba dans une réflexion qui dura quelques minutes.
+
+— Voyons, l’hôte, dit-il, est-ce que vous ne me débarrasserez pas de ce frénétique? En conscience, je ne puis le tuer, et cependant, ajouta-t-il avec une expression froidement menaçante, cependant il me gêne. Où est-il?
+
+— Dans la chambre de ma femme, où on le panse, au premier étage.
+
+— Ses hardes et son sac sont avec lui? il n’a pas quitté son pourpoint?
+
+— Tout cela, au contraire, est en bas dans la cuisine. Mais puisqu’il vous gêne, ce jeune fou…
+
+— Sans doute. Il cause dans votre hôtellerie un scandale auquel d’honnêtes gens ne sauraient résister. Montez chez vous, faites mon compte et avertissez mon laquais.
+
+— Quoi! Monsieur nous quitte déjà?
+
+— Vous le savez bien, puisque je vous avais donné l’ordre de seller mon cheval. Ne m’a-t-on point obéi?
+
+— Si fait, et comme Votre Excellence a pu le voir, son cheval est sous la grande porte, tout appareillé pour partir.
+
+— C’est bien, faites ce que je vous ai dit alors.»
+
+— Ouais! se dit l’hôte, aurait-il peur du petit garçon?
+
+Mais un coup d’oeil impératif de l’inconnu vint l’arrêter court. Il salua humblement et sortit.
+

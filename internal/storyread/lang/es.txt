@@ -1,0 +1,340 @@
+# Spanish: the story reader's word lists (see en.txt for the format).
+# Cervantes' forms (díjole, respondióle, fuyan) are listed too.
+
+[name]
+Español
+
+[speech]
+decir
+decirle
+decirles
+preguntar
+responder
+dicho
+dijo
+dice
+decía
+dijeron
+díjole
+díjoles
+preguntó
+pregunta
+preguntaba
+preguntóle
+respondió
+respondióle
+responde
+respondía
+respondieron
+contestó
+contesta
+replicó
+replica
+repuso
+añadió
+continuó
+prosiguió
+exclamó
+gritó = gritando
+voceó = gritando
+chilló = chillando
+susurró = susurrando
+murmuró = murmurando
+balbuceó = balbuceando
+tartamudeó = tartamudeando
+suspiró = suspirando
+sollozó = sollozando
+rió = riendo
+rio = riendo
+explicó
+insistió
+interrumpió
+observó
+volvió
+tornó
+acudió
+llamó
+pidió
+rogó = suplicando
+suplicó = suplicando
+ordenó
+habló
+repitió
+afirmó
+declaró
+
+[thought]
+pensó
+pensaba
+piensa
+pensé
+sintió
+sentía
+siente
+sentí
+recordó
+recordaba
+acordó
+sabía
+supo
+esperaba
+temía
+deseaba
+creía
+creyó
+creí
+imaginó
+imaginaba
+sospechaba
+comprendió
+entendió
+dudaba
+pareció
+
+[titles]
+don
+doña
+señor
+señora
+señorita
+sr
+sra
+srta
+d
+dña
+fray
+padre
+maese
+licenciado
+bachiller
+doctor
+dr
+tío
+tía
+capitán
+conde
+condesa
+duque
+duquesa
+marqués
+marquesa
+
+[place-before]
+en
+al = 0.5
+hacia = 0.5
+desde = 0.5
+
+[prepositions]
+a
+al
+de
+del
+en
+con
+para
+por
+y
+mas
+pero
+que
+cuando
+
+[interior]
+sala
+cuarto
+cocina
+casa
+aposento
+aposentos
+alcoba
+venta
+posada
+iglesia
+tienda
+taberna
+mesón
+castillo
+caballeriza
+establo
+cámara
+palacio
+celda
+coche
+carroza
+
+[exterior]
+calle
+camino
+campo
+campos
+huerta
+jardín
+plaza
+playa
+mar
+río
+monte
+sierra
+bosque
+prado
+puente
+mercado
+aldea
+pueblo
+corral
+patio
+selva
+llanura
+
+[time]
+madrugada = MADRUGADA
+alba = AMANECER
+amanecer = AMANECER
+tarde = TARDE
+noche = NOCHE
+anochecer = ANOCHECER
+mediodía = DÍA
+
+[shift]
+a la mañana siguiente = MAÑANA
+al día siguiente = DÍA
+otro día = DÍA
+aquella noche = NOCHE
+esa noche = NOCHE
+por la mañana = MAÑANA
+por la noche = NOCHE
+más tarde
+mientras tanto
+entretanto
+de vuelta en
+de regreso a
+días después
+horas después
+
+[chapter]
+capítulo
+capitulo
+parte
+libro
+prólogo
+epílogo
+
+[not-names]
+usted
+tú
+vos
+vosotros
+nosotros
+él
+ella
+dios
+oh
+ah
+ay
+sí
+no
+lunes
+martes
+miércoles
+jueves
+viernes
+sábado
+domingo
+enero
+febrero
+marzo
+abril
+mayo
+junio
+julio
+agosto
+septiembre
+octubre
+noviembre
+diciembre
+vuestra
+vuestras
+merced
+mercedes
+señor
+señora
+
+[determiners]
+el
+la
+los
+las
+un
+una
+unos
+unas
+este
+esta
+ese
+esa
+aquel
+aquella
+mi
+su
+sus
+tu
+nuestro
+nuestra
+vuestro
+vuestra
+
+[possessives]
+mi
+su
+tu
+nuestro
+nuestra
+vuestro
+vuestra
+
+[articles]
+el
+la
+
+[pronouns]
+él
+ella
+ellos
+ellas
+nosotros
+
+[narrator]
+yo
+
+[particles]
+de
+del
+la
+
+[manner-suffix]
+mente
+
+[common]
+de
+la
+que
+el
+y
+en
+los
+se
+del
+las
+un
+por
+con
+no
+una
+su
+para
+es
+al
+lo
+como
+más

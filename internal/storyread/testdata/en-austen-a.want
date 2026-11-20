@@ -1,0 +1,37 @@
+# Who says each line, read by hand before the reader was run on it.
+# "= Name | other | names" lists what the text also calls them (counted as
+# hits, but reported apart from exact ones); then "Name | first words".
+held-out: no
+= Mrs. Bennet | his lady | his wife
+= Mr. Bennet
+Mrs. Bennet | My dear Mr. Bennet
+Mrs. Bennet | But it is
+Mrs. Bennet | Do not you want to know
+Mr. Bennet | You want to tell me
+Mrs. Bennet | Why, my dear, you must know
+Mr. Bennet | What is his name
+Mrs. Bennet | Bingley
+Mr. Bennet | Is he married or single
+Mrs. Bennet | Oh, single, my dear
+Mr. Bennet | How so? how can it affect them
+Mrs. Bennet | My dear Mr. Bennet, how can you be so tiresome
+Mr. Bennet | Is that his design
+Mrs. Bennet | Design? Nonsense
+Mr. Bennet | I see no occasion for that
+Mrs. Bennet | My dear, you flatter me
+Mr. Bennet | In such cases, a woman
+Mrs. Bennet | But, my dear, you must indeed go
+Mr. Bennet | It is more than I engage for
+Mrs. Bennet | But consider your daughters
+Mr. Bennet | You are over scrupulous
+Mrs. Bennet | I desire you will do no such thing
+Mr. Bennet | They have none of them much
+Mrs. Bennet | Mr. Bennet, how can you abuse
+Mr. Bennet | You mistake me, my dear
+Mrs. Bennet | Ah, you do not know what I suffer
+Mr. Bennet | But I hope you will get over it
+Mrs. Bennet | It will be no use to us
+Mr. Bennet | Depend upon it, my dear
+characters: Mr. Bennet, Mrs. Long, Bingley, Lizzy
+places: Netherfield Park
+floor: 0,0

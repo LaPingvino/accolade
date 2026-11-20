@@ -1,0 +1,18 @@
+# Read by hand before the reader was run on it. Held out: the reader was not
+# written against it, but its misses were seen once and a few general fixes
+# followed (a speech verb in any part of a word, participles, the name check
+# before a verb, pronouns as not-names); see LOOP.md.
+held-out: yes
+= don Quijote | su amo
+= Sancho Panza | Sancho
+don Quijote | La ventura va guiando
+Sancho Panza | Qué gigantes
+don Quijote | Aquellos que allí ves
+Sancho Panza | Mire vuestra merced
+don Quijote | Bien parece
+don Quijote | Non fuyades
+don Quijote | Pues, aunque mováis
+Sancho Panza | Válame Dios
+don Quijote | Calla, amigo Sancho
+characters: don Quijote, Sancho Panza, Rocinante, Dulcinea
+floor: 0,0

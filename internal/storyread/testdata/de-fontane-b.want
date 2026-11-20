@@ -1,0 +1,25 @@
+# Read by hand before the reader was run on it. Held out: the reader was not
+# written against it, but its misses were seen once and a few general fixes
+# followed (a speech verb in any part of a word, participles, the name check
+# before a verb, pronouns as not-names); see LOOP.md.
+held-out: yes
+= Effi
+= Hulda | Hulda Niemeyer
+= Hertha
+= Klitzing
+Klitzing | Sieht sie nicht aus
+Effi | Diese langweilige Stickerei
+Hulda | Aber deine Mama haben wir vertrieben
+Effi | Nicht doch
+Hertha | Das ist die Hauptsache
+Effi | Freilich ist das die Hauptsache
+Hulda | Nun aber, Effi
+Effi | Eine Geschichte mit Entsagung
+Hertha | Glaub ich nicht
+Effi | Ich auch nicht
+Hulda | Man soll sein Schicksal
+Effi | Immer Gouvernante
+Hulda | Und hoffe mich doch noch
+characters: Effi, Hulda, Hertha, Klitzing
+places: Schwantikow
+floor: 0,0

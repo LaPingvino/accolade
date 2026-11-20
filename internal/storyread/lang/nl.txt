@@ -1,0 +1,343 @@
+# Dutch: the story reader's word lists (see en.txt for the format).
+# Older spellings (zeide, hy, zy, myn: Multatuli's y for ij) are listed too.
+
+[name]
+Nederlands
+
+[speech]
+gezegd
+gevraagd
+geroepen
+zei
+zeide
+zeiden
+zegt
+zeggen
+vroeg
+vroegen
+vraagt
+antwoordde
+antwoordt
+hernam
+vervolgde
+sprak
+riep
+riepen
+roept
+kreet
+schreeuwde = schreeuwend
+gilde = gillend
+brulde = brullend
+fluisterde = fluisterend
+mompelde = mompelend
+prevelde = prevelend
+stamelde = stamelend
+snikte = snikkend
+lachte = lachend
+zuchtte = zuchtend
+kreunde = kreunend
+smeekte = smekend
+merkte
+onderbrak
+herhaalde
+verklaarde
+legde
+voegde
+bromde = brommend
+snauwde = snauwend
+klaagde
+bevestigde
+beweerde
+protesteerde
+
+[thought]
+dacht
+dachten
+denkt
+voelde
+voelt
+herinnerde
+wist
+wisten
+hoopte
+vreesde
+wenste
+geloofde
+meende
+begreep
+besefte
+vermoedde
+verlangde
+twijfelde
+peinsde
+overwoog
+
+[titles]
+mijnheer
+meneer
+m'nheer
+mynheer
+heer
+mevrouw
+mevr
+juffrouw
+juffer
+jonkheer
+dokter
+dr
+mr
+dhr
+baron
+graaf
+gravin
+tante
+oom
+dominee
+pastoor
+meester
+kapitein
+majoor
+generaal
+resident
+regent
+
+[place-before]
+in
+op
+naar = 0.5
+bij = 0.5
+uit = 0.5
+te
+binnen
+buiten
+
+[prepositions]
+in
+op
+aan
+naar
+bij
+met
+voor
+tegen
+tot
+uit
+van
+door
+over
+om
+en
+maar
+die
+dat
+toen
+
+[interior]
+kamer
+keuken
+huis
+salon
+zaal
+kantoor
+gang
+kerk
+herberg
+kroeg
+slaapkamer
+woonkamer
+voorkamer
+zolder
+kelder
+winkel
+school
+rijtuig
+koets
+trein
+hut
+paleis
+beurs
+societeit
+kajuit
+
+[exterior]
+straat
+weg
+veld
+velden
+tuin
+park
+bos
+plein
+strand
+zee
+rivier
+heuvel
+berg
+dorp
+stad
+weide
+pad
+brug
+markt
+gracht
+kade
+haven
+erf
+steeg
+dijk
+sawah
+pendopo
+
+[time]
+ochtend = OCHTEND
+dageraad = DAGERAAD
+middag = MIDDAG
+avond = AVOND
+schemering = SCHEMERING
+nacht = NACHT
+middernacht = NACHT
+
+[shift]
+de volgende ochtend = OCHTEND
+de volgende morgen = OCHTEND
+de andere morgen = OCHTEND
+de volgende dag = DAG
+die avond = AVOND
+die nacht = NACHT
+'s avonds = AVOND
+'s morgens = OCHTEND
+'s nachts = NACHT
+later
+intussen
+ondertussen
+terug in
+terug bij
+een week later
+enige dagen later
+een paar dagen later
+
+[chapter]
+hoofdstuk
+deel
+boek
+proloog
+epiloog
+
+[not-names]
+jij
+je
+wij
+zij
+hij
+men
+gy
+hy
+zy
+wy
+ik
+god
+hemel
+u
+gy
+gij
+ja
+nee
+neen
+o
+och
+ach
+maandag
+dinsdag
+woensdag
+donderdag
+vrijdag
+zaterdag
+zondag
+januari
+februari
+maart
+april
+mei
+juni
+juli
+augustus
+september
+oktober
+november
+december
+heer
+
+[determiners]
+de
+het
+een
+die
+dat
+deze
+dit
+mijn
+myn
+zijn
+zyn
+haar
+ons
+onze
+hun
+uw
+elk
+ieder
+
+[possessives]
+zijn
+zyn
+haar
+mijn
+myn
+hun
+onze
+
+[articles]
+de
+het
+
+[pronouns]
+hij
+hy
+zij
+zy
+ze
+wij
+wy
+men
+
+[narrator]
+ik
+
+[particles]
+van
+der
+den
+de
+ten
+ter
+
+[common]
+de
+het
+een
+en
+van
+ik
+dat
+niet
+is
+op
+te
+die
+met
+hij
+hy
+maar
+zijn
+er
+was

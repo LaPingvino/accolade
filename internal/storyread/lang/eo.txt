@@ -1,0 +1,295 @@
+# Esperanto: the story reader's word lists (see en.txt for the format).
+# Zamenhof's usage: Vi (capitalised you), S-ro, d-ro, de l' (the elided article).
+
+[name]
+Esperanto
+
+[speech]
+dirinte
+diris
+diras
+diros
+demandis
+demandas
+respondis
+respondas
+kriis = kriante
+krias = kriante
+ekkriis
+vokis
+flustris = flustrante
+murmuris = murmurante
+balbutis = balbutante
+ĝemis = ĝemante
+ploris = plorante
+ridis = ridante
+rimarkis
+aldonis
+daŭrigis
+rediris
+ripetis
+interrompis
+klarigis
+insistis
+petis
+ordonis
+admonis
+ekparolis
+parolis
+deklaris
+protestis
+obĵetis
+kriegis = kriegante
+jesis
+neis
+
+[thought]
+pensis
+pensas
+sentis
+sentas
+rememoris
+memoris
+sciis
+esperis
+timis
+deziris
+kredis
+imagis
+supozis
+suspektis
+komprenis
+dubis
+meditis
+sopiris
+konsciis
+
+[titles]
+s-ro
+s-ino
+f-ino
+sinjoro
+sinjorino
+fraŭlino
+doktoro
+d-ro
+dro
+profesoro
+onklo
+onklino
+kapitano
+grafo
+princo
+reĝo
+reĝino
+pastro
+
+[place-before]
+en
+ĉe
+al = 0.5
+el = 0.5
+sur = 0.5
+
+[prepositions]
+al
+de
+el
+en
+kun
+por
+per
+pri
+sur
+ĉe
+kaj
+sed
+kiu
+kiam
+dum
+
+[interior]
+ĉambro
+kuirejo
+salono
+domo
+halo
+kontoro
+preĝejo
+butiko
+gastejo
+drinkejo
+kastelo
+koridoro
+kelo
+subtegmento
+oficejo
+kaleŝo
+vagono
+trajno
+loĝejo
+dormoĉambro
+lernejo
+
+[exterior]
+strato
+vojo
+kampo
+kampoj
+ĝardeno
+ĝardenon
+parko
+arbaro
+placo
+korto
+strando
+maro
+rivero
+monteto
+monto
+vilaĝo
+urbo
+herbejo
+ponto
+bazaro
+pomĝardeno
+pomĝardenon
+batalkampo
+
+[time]
+mateno = MATENO
+matene = MATENO
+tagiĝo = TAGIĜO
+tagmezo = TAGO
+posttagmezo = POSTTAGMEZO
+vespero = VESPERO
+vespere = VESPERO
+nokto = NOKTO
+nokte = NOKTO
+noktomezo = NOKTO
+krepusko = KREPUSKO
+
+[shift]
+la sekvantan matenon = MATENO
+la sekvan matenon = MATENO
+la sekvantan tagon = TAGO
+la sekvan tagon = TAGO
+en tiu vespero = VESPERO
+tiun vesperon = VESPERO
+tiun nokton = NOKTO
+pli malfrue
+dume
+intertempe
+reen en
+post kelke da tagoj
+post unu semajno
+
+[chapter]
+ĉapitro
+parto
+libro
+prologo
+epilogo
+
+[not-names]
+li
+ŝi
+ili
+ni
+oni
+ĝi
+dio
+mi
+vi
+ci
+oh
+ho
+ha
+ve
+jes
+ne
+lundo
+mardo
+merkredo
+ĵaŭdo
+vendredo
+sabato
+dimanĉo
+januaro
+februaro
+marto
+aprilo
+majo
+junio
+julio
+aŭgusto
+septembro
+oktobro
+novembro
+decembro
+
+[determiners]
+la
+l'
+tiu
+tiuj
+ĉiu
+mia
+lia
+ŝia
+ilia
+nia
+via
+sia
+
+[possessives]
+mia
+lia
+ŝia
+ilia
+nia
+via
+sia
+miaj
+liaj
+ŝiaj
+siaj
+
+[articles]
+la
+
+[pronouns]
+li
+ŝi
+ili
+oni
+ni
+
+[narrator]
+mi
+
+[particles]
+de
+
+[common]
+la
+kaj
+de
+en
+al
+estas
+estis
+mi
+li
+ŝi
+ne
+kiu
+kun
+por
+sed
+tio
+ke
+ĉi
+ankaŭ
+pri
+ni

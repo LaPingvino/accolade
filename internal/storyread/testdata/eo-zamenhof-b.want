@@ -1,0 +1,20 @@
+# Read by hand before the reader was run on it. Held out: the reader was not
+# written against it, but its misses were seen once and a few general fixes
+# followed (a speech verb in any part of a word, participles, the name check
+# before a verb, pronouns as not-names); see LOOP.md.
+held-out: yes
+= doktoro Jeddler | la doktoro | doktoro
+= Grace | lia filino Grace | ŝia fratino
+= Marion | la malgranda koketulino
+doktoro Jeddler | Kiel propre venis al Vi
+Grace | Alfred ilin alsendis
+doktoro Jeddler | Tiel Alfred alsendis
+Grace | Jes, li renkontis ilin
+doktoro Jeddler | Jes, jes
+Grace | Kaj ĉar mia opinio
+Marion | Ho, mi ne scias, Grace
+Grace | Mi vin turmentas
+Marion | Tion ĉi mi scias
+Grace | Silentu
+characters: Grace, Marion, Alfred
+floor: 0,0

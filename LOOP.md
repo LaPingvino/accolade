@@ -97,3 +97,24 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
 - 2026-11-20 (Joop): external merges — someone edits a copy outside Accolade (a co-writer in Highland/Final Draft/any editor, an FDX from production, the flattened .fountain) and it comes back. Because every locked stage and draft is kept, Accolade has the common ancestor: File > Merge Changes… takes the outside file (fountain, highland, fdx, …), finds its base among the stored drafts (by the bundle/draft id when present, else the closest draft by text), and does a three-way merge per scene/element into a new draft: clean changes go in (marked as that revision's changes), conflicts shown side by side to pick. Links, cut marks, scene numbers and production sidecars follow the merged text (anchored by words; scenes matched by heading + content). Also the same for the source story. Exports carry the draft id (in info.json / an FDX header field / a boneyard line) so a returning file finds its base exactly.
   Compare and partial merge (Joop): Merge Changes… opens a side-by-side compare first, per scene/element, each change with Take / Leave (and Take all from this scene); only what is taken goes into the new draft. The same compare works between any two stored drafts, or a draft and an outside file, without merging.
   PDFs too (Joop): a script PDF someone sends back (their edits, or a marked-up print) goes through the same compare via Lexington's pdfin (OCR for scans): its text against the draft it came from, each difference offered as Take / Leave, or kept as a suggestion — a note in the script ("[[suggested by NAME: …]]") or a desk-style list of suggestions to work through — so their ideas are visible without being merged. Scene numbers and page numbers in the PDF help find the base draft and line up scenes.
+- 2026-11-20: step 5, the reading helpers (branch heuristics, not merged; internal/storyread, source_reading.go).
+  Heuristics only, pure Go, browser too. Word lists per language in internal/storyread/lang/xx.txt (en nl pt es fr
+  de eo; one file each, [speech] with "= manner", [thought], [titles], [place-before], [interior]/[exterior],
+  [time], [shift], [not-names] …; an unknown language reads with English's plus the punctuation rules). The source's
+  language is detected from its frequent words (Lexington has no pt/es), else the script's. Dialogue: “ ” " " ‘ ’
+  « » „ “ » «, paragraph dashes (—, –, --, -Para) with toggling inner dashes and incises (", disse eu"); a "-" list
+  run counts as dialogue only if it reads as talk. Speaker: verb + name/pronoun/description next to it (said Anna,
+  dit-il, cried his wife), else the sentence's nearest name; the paragraph's; a beat; "les dijo:" before; else the
+  other of the two talking (vocatives steer it). Manner from the verb (whispered → whispering) or an -ly/-mente
+  adverb. Characters counted with titles, speech and vocatives as weight; places after in/at/to or with Park, rua…;
+  aliases separate. Scenes at headings, breaks, "III."/"CHAPTER I" lines and shift phrases, with a suggested
+  heading (INT./EXT. from room/street words, place name, time). Thought/feeling verbs flagged. The pane: "What the
+  source shows" under the passages for the picked one (closable). Tests: 14 public-domain Gutenberg excerpts in
+  internal/storyread/testdata with hand-read speakers (.want, written before any run; the -b ones held out,
+  though their misses were seen once and four general fixes followed): lines found 187/188. Right speaker over
+  all expected lines 61/92 (66%) tuned-on, 53/96 (55%) held-out; of the lines it names a speaker for, 87% and
+  69% (counting "his wife" for Mrs. Bennet; the exact name 53% and 39%). Per language, right of expected: en
+  42/50, eo 16/17, es 10/13, de 11/19, pt 23/48, nl 3/9, fr 9/32 (fr-dumas-a 2/17: two unnamed men). A
+  language without lists (Italian, Latin) is not detected as a listed one (hit-rate floor) and reads with
+  English's. Whole Gutenberg novels read in 0.03–0.5 s natively, no panics. Rough: French narrators' "l'inconnu"/"l'hôte" pairs, three-way talk, pronoun gender, German nouns
+  as names, the narrator-as-addressee ("disse-me"). Next: step 6, suggestions while writing.
