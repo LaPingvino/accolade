@@ -153,7 +153,7 @@ func TestLockPagesUndo(t *testing.T) {
 func issueWait(t *testing.T, w *MainWindow, name string, day int, lockFrom string) {
 	t.Helper()
 	done := false
-	w.issueDraft(lex.RevisionSet{Name: name, Date: time.Date(2026, 11, day, 0, 0, 0, 0, time.Local)}, lockFrom,
+	w.issueDraft(lex.RevisionSet{Name: name, Date: time.Date(2026, 11, day, 0, 0, 0, 0, time.Local)}, lockFrom, false,
 		func(err error) {
 			if err != nil {
 				t.Error(err)

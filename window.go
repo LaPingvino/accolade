@@ -1221,6 +1221,7 @@ func (w *MainWindow) toggleNotes() {
 		w.relayout()
 		w.fyneWindow.Canvas().Focus(w.notes.focusTarget())
 		w.notes.source.follow()
+		w.notes.production.refresh()
 		return
 	}
 	w.relayout()
@@ -1329,6 +1330,7 @@ func (w *MainWindow) onWindowWidth(width float32) {
 		c := w.fyneWindow.Canvas()
 		focused := c.Focused() // a new content drops the focus
 		w.relayout()
+		w.productionFollow() // its buttons go where the room is
 		if focused != nil {
 			c.Focus(focused)
 		}

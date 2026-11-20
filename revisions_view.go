@@ -51,6 +51,11 @@ func (w *MainWindow) showIssueDraft() {
 		// the first revision: offer to lock the pages as the issue before
 		// printed them, so that this one's changed pages are A-pages
 		var lockCheck *widget.Check
+		if first && !locked { // White: the pages locked as it prints them (Blue's changes go onto A-pages)
+			lockCheck = widget.NewCheck("Lock the pages as White prints them", nil)
+			lockCheck.SetChecked(true)
+			what += "\n\nLocked, each page keeps its number from now on: a page that grows goes on to an A-page (12A)."
+		}
 		if !first && !locked {
 			last := chain.issues[len(chain.issues)-1]
 			lockCheck = widget.NewCheck("Lock the pages as "+last.set.Name+" printed them", nil)
@@ -81,11 +86,15 @@ func (w *MainWindow) showIssueDraft() {
 				return
 			}
 			set.Date = day
-			lockFrom := ""
+			lockFrom, lockNow := "", false
 			if lockCheck != nil && lockCheck.Checked {
-				lockFrom = strings.Join(chain.issues[len(chain.issues)-1].lines, "\n")
+				if first {
+					lockNow = true
+				} else {
+					lockFrom = strings.Join(chain.issues[len(chain.issues)-1].lines, "\n")
+				}
 			}
-			w.issueDraft(set, lockFrom, func(err error) {
+			w.issueDraft(set, lockFrom, lockNow, func(err error) {
 				if err != nil {
 					dialog.ShowError(fmt.Errorf("could not issue %s: %v", set.Name, err), w.fyneWindow)
 					return

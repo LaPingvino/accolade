@@ -147,7 +147,8 @@ func (w *MainWindow) notesMarks() notesMarks {
 }
 
 // notesPanel is the notepad beside the editor; for a screenplay, with a
-// second tab, its source (source_pane.go).
+// second tab, its source (source_pane.go), and a third, its production
+// stages (production_pane.go).
 type notesPanel struct {
 	w        *MainWindow
 	entry    *widget.Entry
@@ -157,8 +158,11 @@ type notesPanel struct {
 	tabs      *container.AppTabs
 	notesTab  *container.TabItem
 	sourceTab *container.TabItem
-	tabbed    fyne.CanvasObject // notes and source
+	tabbed    fyne.CanvasObject // notes, source and production
 	source    *sourcePane
+
+	productionTab *container.TabItem
+	production    *productionPane
 }
 
 func newNotesPanel(w *MainWindow) *notesPanel {
@@ -179,10 +183,15 @@ func newNotesPanel(w *MainWindow) *notesPanel {
 	n.source = newSourcePane(w)
 	n.notesTab = container.NewTabItem("Notes", n.entry)
 	n.sourceTab = container.NewTabItem("Source", n.source.box)
-	n.tabs = container.NewAppTabs(n.notesTab, n.sourceTab)
+	n.production = newProductionPane(w)
+	n.productionTab = container.NewTabItem("Production", n.production.box)
+	n.tabs = container.NewAppTabs(n.notesTab, n.sourceTab, n.productionTab)
 	n.tabs.OnSelected = func(t *container.TabItem) {
-		if t == n.sourceTab {
+		switch t {
+		case n.sourceTab:
 			n.source.follow()
+		case n.productionTab:
+			n.production.refresh()
 		}
 	}
 	wide := canvas.NewRectangle(color.Transparent)
@@ -205,6 +214,9 @@ func (n *notesPanel) box() fyne.CanvasObject {
 func (n *notesPanel) focusTarget() fyne.Focusable {
 	if !n.w.markdown && n.tabs.Selected() == n.sourceTab {
 		return n.source.focusTarget()
+	}
+	if !n.w.markdown && n.tabs.Selected() == n.productionTab {
+		return n.production.focusTarget()
 	}
 	return n.entry
 }

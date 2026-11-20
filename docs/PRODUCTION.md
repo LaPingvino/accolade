@@ -489,7 +489,7 @@ breakdown as "changed in Blue: check", which the stages before can't show.
 4. **Issue and revision sets:** snapshots, the diff, margin colours, Lexington's asterisks, headers and revised pages
    only. FDX `<Revisions>` and `RevisionID` out, and in as marks. Built (§10).
 5. **Locked pages and A-pages** in Lexington's paginator, with `CONTINUED`. FDX `<LockedPages>`. Built (§11).
-6. **The Production pane** with Lock and Revise, so the workflow stands before breakdown starts.
+6. **The Production pane** with Lock and Revise, so the workflow stands before breakdown starts. Built (§12).
 7. **Breakdown:** the categories, tagging by words, Next scene, eighths, breakdown sheets and element reports. FDX
    `<TagData>` and `<SceneProperties>` out (test against MMS), Beat's and FDX's tags in.
 8. **Schedule:** the stripboard (built on the cards), days, one-liner, DOOD, .ics and CSV.
@@ -535,7 +535,7 @@ Branch scenelock (Accolade), Lexington v1.7.0 (tagged locally).
   boneyard (notes blocks too) as General paragraphs, which Final Draft prints; it is left out now. So an omitted
   scene's text does not survive FDX: Restore needs the Fountain (or the bundle).
 
-**Accolade** (production.go; a Production menu, hidden for Markdown; no pane yet: that is step 6)
+**Accolade** (production.go; a Production menu, hidden for Markdown; the pane came with step 6, §12)
 
 - **Lock Scene Numbers** writes `#n#` into every heading without one (locked numbering, so numbers already there
   are kept and gaps get letters) and the lock into a boneyard block at the script's end, with the source and
@@ -965,3 +965,87 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
 - Pages whose text repeats word for word (the same 16 words around the break) can be told apart only by their order
   in the scene.
 - Print (File > Print, through HTML) does not keep locked pages: use the PDF.
+
+## 12. Step 6, built: the Production pane (2026-11-20)
+
+Branch prodpane (Accolade only; production_pane.go, production_checks.go).
+
+**Where.** A third tab of the Notes pane, beside Notes and Source: View > Production, and a toolbar button (Material's
+"movie") after the source's. The button is an ordinary one on the overflow row: on a phone's width it goes into the
+"more" menu (the source's stays). Under 600 px the pane is under the script with the others, and its buttons go to
+the end of its list, so the list has the half screen (fixed under it, they left one row). Not in Markdown (menu item,
+button, tab). The Production menu stays as it was; the pane is the guided way to the same actions.
+
+**The strip.** `1 Lock` and `2 Revise` are buttons; under them, greyed, "3 Break down · 4 Schedule · 5 Day pack:
+coming". The stage shown stands out; the script's own stage, when another is looked at, is the plain button; Lock
+gets a tick once issued. Either stage can be looked at again (§6: "each stage can be returned to"); the pane goes
+back to the script's stage when it changes (White issued).
+
+**The stage** is Lock until the drafts store holds an issue, then Revise. The store decides, not the production
+block's `revision:` line, which Undo can take out while the issue stays.
+
+**Lock.** The count line: "Not locked yet · 87 scenes · 3 to check" (scene numbers and pages may be locked before);
+after White, "Locked 1 Nov 2026 · 112 pages · 87 scenes" (the locked pages' count, else the status bar's estimate,
+"~"). The check before the lock, each row a tap (or its → button, for the keyboard) to its line; the body only, the
+blocks at the end and the boneyards' contents left out:
+
+- a heading without INT./EXT. (the script language's scene words, a forced `.HEADING` too) or without a time (the part
+  after the last ` - `); an OMITTED heading is not checked;
+- scene numbers: a number twice (on the later heading, naming the earlier's line); with some numbered and some not,
+  each without one; a number left inside a heading; with none numbered, one note (not counted as a problem): "No
+  scene numbers yet: Lock Scene Numbers writes them all";
+- a `/*` not closed (or opened again before its `*/`: the script between is hidden), a stray `*/`; a `[[` not closed
+  by its `]]` or an empty line, a stray `]]`;
+- one character under two cues: a cue the adaptation block's `characters:` names as another name of a cue
+  ("ANNIE (1 cue) is ANNA's other name, as learned: one cue for both?"), and cues alike but for case, dots and spaces
+  ("MRS BENNET (1 cue) and MRS. BENNET (14 cues): one character?", the rarer flagged);
+- a scene over three pages by the status bar's estimate (55 lines a page; action 60 columns, dialogue 35):
+  "Very long, about 6 5/8 pages";
+- no title page (its row opens File > Title Page…).
+
+Buttons: Lock Scene Numbers ("Scene Numbers Locked", greyed, once locked), Lock Pages ("Lock Pages Again" when
+locked), Issue White… ("White Issued" after).
+
+**Issue White locks the pages.** The White dialog (from the menu or the pane) now offers "Lock the pages as White
+prints them", checked: the pages are locked from the text as issued, after Issue has numbered its scenes (page
+anchors carry the scene number). Blue's changes then go onto A-pages without the first revision's offer, which stays
+for a script issued White unlocked. (`issueDraft` has a `lockNow`.)
+
+**Revise.** The count line: "Blue (open) · 6 pages changed · scenes 4, 12A, 17" (the first eight, then "and n more";
+"Title page" for a change before the first scene). Right after an issue, its own: "Blue issued 20 Nov 2026 · 6 pages
+changed · scenes …", or "White issued 1 Nov 2026 · no changes since". The list: the changed scenes, each with a bar in
+its set's colour, number and heading, a tap to its heading. Buttons: Issue Blue… (the next set's name; greyed with
+no change since the last issue), Revised Pages PDF… (the Export dialog set to PDF, revision marks, revised pages only,
+named `story-blue-pages.pdf`; greyed with nothing changed), Compare with White (Drafts' Compare, the last issue
+against the script now).
+
+- The changed scenes are the current revision's marks only: the marks are made with the margin's (same 400 ms pause,
+  same background run), and filtered by the current set, so "all issues' marks" in the margin does not widen them.
+- The pages are counted by Lexington's own pagination (`cli.Pages`) in the background, with the export's settings,
+  in the pages the revision prints against (locked pages, the issue before's for an issue just made), so the count is
+  what Revised pages only prints, A-pages included (tested). Only while Revise is shown, once per text; "counting
+  pages…" meanwhile.
+
+**Following the text.** The pane is made again when the revision marks are (400 ms after typing pauses, and after an
+issue): never per keystroke (tested with the real timers). The check is computed once per text; the rows are made
+again only when what they show changes; a tab switch or a width change shows it at once.
+
+**Tests** (production_pane_test.go): each check on its line, a clean script, omitted scenes, stray closes; the changed
+scenes and their list; the stages and counts through White, edits, Blue (with all issues' marks shown), Pink and back
+to Lock; the count waits for the pause; a tap on each row and its button goes to its line (a stale line to the end);
+the buttons call the actions (Lock Scene Numbers, Lock Pages, the White dialog with its lock, Issue Blue, the export
+set up, Compare); the page count against the revised-pages PDF with an A-page; the phone's layout (380 px wide, the
+pane no wider than 320, the buttons at the list's end, the toolbar button in the menu); Markdown without it; the
+pane's focus visible, a row scrolled into sight when Tab reaches it. Shots: `SHOT_DIR=… go test -run
+TestProductionPaneScreenshots` (combo-prodpane-lock/revise-wide/phone.png).
+
+**Rough**
+
+- The check is heuristic: a time is anything after the last dash (`INT. HOUSE - CONTINUOUS` passes; a list of the
+  language's times is not checked against), and a long scene is by estimate, not the paginator.
+- Cue variants: only learned aliases and spellings that differ by case, dots and spaces; ANNA and ANNA K. are not
+  matched.
+- The page count lays the whole script out in the background after each pause while Revise is shown; in the browser
+  that is one goroutine without yields, so a very long script may stall the page briefly. Revised Pages PDF… prints
+  with the margin's setting (all issues' marks if chosen), while the count is the current revision's.
+- The "unsaved title page" of §6 is "no title page": a title page is part of the text, so it is saved with it.

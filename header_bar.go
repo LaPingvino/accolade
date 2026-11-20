@@ -29,6 +29,7 @@ type HeaderBar struct {
 	fullscreenButton                  *tooltip.Button
 	outlineButton, cardsButton        *tooltip.Button
 	notesButton, sourceButton         *tooltip.Button
+	productionButton                  *tooltip.Button
 	titleLabel                        *scriptTitle // the file's name; click to rename it
 	element, format                   *widget.Select
 	elementBox                        *fyne.Container           // the list, or the buttons
@@ -50,8 +51,10 @@ var (
 	boldIcon   = icon("bold", "M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z")
 	italicIcon = icon("italic", "M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z")
 	// sourceIcon is Material's "menu_book": the story the script adapts
-	sourceIcon    = icon("source", "M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z")
-	underlineIcon = icon("underline", "M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z")
+	sourceIcon = icon("source", "M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z")
+	// productionIcon is Material's "movie": the shoot the script goes to
+	productionIcon = icon("production", "M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H5L3 4H2.01C.9 4 .01 4.9.01 6L0 18c0 1.1.9 2 2 2h20c1.1 0 2-.9 2-2V4h-6z")
+	underlineIcon  = icon("underline", "M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z")
 )
 
 // elementMarks are the elements' marks in Fountain, as the buttons show
@@ -114,6 +117,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.cardsButton = button(theme.GridIcon(), "Cards"+keys("Shift+D"), window.toggleCards)
 	hb.notesButton = button(theme.FileTextIcon(), "Notes"+keys("Shift+K"), window.toggleNotes)
 	hb.sourceButton = button(sourceIcon, "Source: the story the script adapts", window.toggleSource)
+	hb.productionButton = button(productionIcon, "Production: lock, revise, and the stages to the shoot", window.toggleProduction)
 	hb.fullscreenButton = button(theme.ViewFullScreenIcon(), "Full screen, without distractions"+keys("Shift+F"), window.toggleFullscreen)
 	hb.preferencesButton = button(theme.SettingsIcon(), "Preferences"+keys(","), func() { window.app.showPreferences() })
 
@@ -185,7 +189,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	top := newOverflowRow(tips, []overflowItem{
 		buttonItem(hb.newButton), buttonItem(hb.openButton), buttonItem(hb.saveButton), gapItem(),
 		buttonItem(hb.undoButton), buttonItem(hb.redoButton),
-		buttonItem(hb.outlineButton), buttonItem(hb.cardsButton), buttonItem(hb.notesButton), keptItem(hb.sourceButton), gapItem(),
+		buttonItem(hb.outlineButton), buttonItem(hb.cardsButton), buttonItem(hb.notesButton), keptItem(hb.sourceButton), buttonItem(hb.productionButton), gapItem(),
 		buttonItem(hb.findButton), buttonItem(hb.previewButton), buttonItem(hb.exportButton), gapItem(),
 		buttonItem(hb.fullscreenButton), buttonItem(hb.preferencesButton),
 	}, hb.titleLabel, 6)
@@ -245,9 +249,11 @@ func (hb *HeaderBar) setMarkdown(on bool) {
 		row, tip, export = hb.markdownRow, "Preview", "Export to Word, ODT, HTML, PDF…"
 		hb.cardsButton.Disable()
 		hb.sourceButton.Disable() // a screenplay's
+		hb.productionButton.Disable()
 	} else {
 		hb.cardsButton.Enable()
 		hb.sourceButton.Enable()
+		hb.productionButton.Enable()
 	}
 	hb.previewButton.Tip = tip + keys("Shift+P")
 	hb.exportButton.Tip = export + keys("E")

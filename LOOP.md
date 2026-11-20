@@ -313,3 +313,17 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   no locked pages. Rough:
   reports give the current pages, not locked labels. Next: PRODUCTION step 6, the Production pane.
 - 2026-11-20: lockedpages_test.go is built without -race (as background_real_test.go): its tests run real background work, and under the test driver fyne.Do runs callbacks on the background goroutine, which -race reports (TestLockPagesUndo: writePageLock vs undo). To look at: drive these tests through one UI goroutine (a test helper that runs every UI call via fyne.DoAndWait), so they can run under -race again.
+- 2026-11-20: PRODUCTION step 6, the Production pane (branch prodpane, not merged; production_pane.go,
+  production_checks.go; docs/PRODUCTION.md §12). A third tab beside Notes and Source (View > Production, a toolbar
+  button that goes into the "more" menu on a phone; none in Markdown). Strip: 1 Lock, 2 Revise (the shown one
+  highlighted, Lock ticked once issued), "3 Break down · 4 Schedule · 5 Day pack: coming" greyed. Stage from the drafts
+  store (an issue → Revise). Lock: "Not locked yet · 6 scenes · 9 to check" / "Locked 1 Nov 2026 · 112 pages · 87
+  scenes"; the check before the lock (no INT./EXT. or time, duplicate/missing/stray numbers, /* and [[ not closed or
+  stray, a cue that is a learned alias or the same name spelled otherwise, scenes over ~3 pages, no title page), each
+  row a tap to its line; Lock Scene Numbers, Lock Pages, Issue White… (whose dialog now offers to lock the pages as
+  White prints them, checked). Revise: "Blue (open) · 1 page changed · scenes 2, 3" (pages counted by Lexington's
+  pagination in the background, = revised pages only, A-pages included), the changed scenes in the set's colour;
+  Issue Blue…, Revised Pages PDF… (Export set up), Compare with White. Follows the revision marks' 400 ms pause, never
+  per key. On a phone the buttons go at the list's end. Shots: SHOT_DIR=… go test -run TestProductionPaneScreenshots.
+  Rough: time/long-scene checks are heuristics; the page count lays the script out without yields in the browser.
+  Next: PRODUCTION step 7, breakdown.

@@ -397,9 +397,10 @@ type revisionState struct {
 	chain *revisionChain
 	err   error
 	// the marks shown, by line, for the text they were computed for
-	text  string
-	marks []string
-	ink   map[int]color.Color
+	text    string
+	marks   []string
+	ink     map[int]color.Color
+	current lex.RevisionSet // the current revision's set (the open one, or the last issue)
 }
 
 // revisionKey is what the issues are read again for: another script (its
@@ -452,30 +453,34 @@ func (w *MainWindow) updateRevisionMarks() {
 			w.revisions.ink, w.revisions.marks = nil, nil
 			w.textEditor.RedrawMarks()
 		}
+		w.revisions.text, w.revisions.current = w.textEditor.Text(), lex.RevisionSet{}
+		w.productionFollow()
 		return
 	}
 	text, all, key := w.textEditor.Text(), w.marksAll(), w.revisions.key
 	w.revisionRun++
 	run := w.revisionRun
 	type shown struct {
-		marks []string
-		ink   map[int]color.Color
+		marks   []string
+		ink     map[int]color.Color
+		current lex.RevisionSet
 	}
 	inBackground(func() shown {
-		marks, _, _ := chain.marksOf(text, all, time.Now())
+		marks, _, current := chain.marksOf(text, all, time.Now())
 		ink := map[int]color.Color{}
 		for i, m := range marks {
 			if m != "" {
 				ink[i] = revisionInk(m)
 			}
 		}
-		return shown{marks, ink}
+		return shown{marks, ink, current}
 	}, func(r shown) {
 		if run != w.revisionRun || key != w.revisions.key {
 			return // a later text's are coming
 		}
-		w.revisions.text, w.revisions.marks, w.revisions.ink = text, r.marks, r.ink
+		w.revisions.text, w.revisions.marks, w.revisions.ink, w.revisions.current = text, r.marks, r.ink, r.current
 		w.textEditor.RedrawMarks()
+		w.productionFollow()
 	})
 }
 
@@ -589,9 +594,10 @@ func (w *MainWindow) withAllRevisions(j exportJob, text string) exportJob {
 // scene numbers locked first if they are not, the production block's
 // revision line written, the pages locked again if they are locked (with
 // their A-pages: lockedpages.go) or, with lockFrom (an issue's body),
-// locked as that text printed them, the text kept as an issue. done (may
-// be nil) gets the error.
-func (w *MainWindow) issueDraft(s lex.RevisionSet, lockFrom string, done func(error)) {
+// locked as that text printed them, or, with lockNow, locked as this
+// issue prints them (the first lock, offered with White), the text kept
+// as an issue. done (may be nil) gets the error.
+func (w *MainWindow) issueDraft(s lex.RevisionSet, lockFrom string, lockNow bool, done func(error)) {
 	finish := func(err error) {
 		if done != nil {
 			done(err)
@@ -652,6 +658,8 @@ func (w *MainWindow) issueDraft(s lex.RevisionSet, lockFrom string, done func(er
 			}
 			again(l.applyTo(job))
 		})
+	case lockNow: // the text as numbered above
+		again(w.lockJob(text))
 	default:
 		issue(nil)
 	}

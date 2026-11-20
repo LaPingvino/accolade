@@ -152,6 +152,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Unfold All", nil, func() { w.foldAll(true) }),
 		menuItem("Notes", shortcut(fyne.KeyK, fyne.KeyModifierShift), w.toggleNotes),
 		fyne.NewMenuItem("Source", w.toggleSource),
+		fyne.NewMenuItem("Production", w.toggleProduction),
 		menuItem("Changes", shortcut(fyne.KeyH, fyne.KeyModifierShift), w.toggleChanges),
 		fyne.NewMenuItem("Statistics…", w.showStatistics),
 		menuItem("Fullscreen", shortcut(fyne.KeyF, fyne.KeyModifierShift), w.toggleFullscreen),
@@ -160,7 +161,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	)
 	if w.markdown {
 		view.Items[0].Label = "Preview"
-		view.Items = withoutItems(view.Items, "Cards", "Statistics…", "Source") // a screenplay's
+		view.Items = withoutItems(view.Items, "Cards", "Statistics…", "Source", "Production") // a screenplay's
 	}
 
 	// a shooting script's (docs/PRODUCTION.md; production.go)

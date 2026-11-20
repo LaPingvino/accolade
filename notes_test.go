@@ -117,7 +117,7 @@ func TestTabOrderFollowsTheScreen(t *testing.T) {
 	c := w.fyneWindow.Canvas()
 	c.Unfocus()
 	var order []string
-	for i := 0; i < 30; i++ {
+	for i := 0; i < 40; i++ { // the toolbar's buttons, the panes' tabs, then the notes
 		c.FocusNext()
 		switch f := c.Focused(); f {
 		case w.textEditor:
