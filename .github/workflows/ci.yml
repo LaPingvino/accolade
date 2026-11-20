@@ -55,7 +55,7 @@ jobs:
         # TestFocusIsVisible runs on its own in the next step: it compares
         # pixels of every focusable widget and has failed only inside full
         # runs (Linux race, Windows), never alone.
-        run: go test -skip 'TestFocusIsVisible$' ./...
+        run: go test -timeout 25m -skip 'TestFocusIsVisible$' ./... # macOS runners vary from 6 to over 10 minutes
 
       - name: Focus is visible (on its own)
         env:
@@ -66,7 +66,7 @@ jobs:
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: "1"
-        run: go test -race -skip 'TestFocusIsVisible$' ./...
+        run: go test -timeout 40m -race -skip 'TestFocusIsVisible$' ./...
 
   screenreader-windows:
     # Accolade read through Windows UI Automation, the API of NVDA, JAWS,
