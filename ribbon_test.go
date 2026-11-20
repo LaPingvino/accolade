@@ -380,44 +380,52 @@ func TestRibbonKeyTips(t *testing.T) {
 	// before Alt's let-go arrives)
 	alt := func() { w.keyPreview(desktop.KeyAltLeft, 0) }
 	altUp := func() { w.textEditor.KeyUp(&fyne.KeyEvent{Name: desktop.KeyAltLeft}) }
-	c.Focus(w.textEditor)
-	if w.fyneWindow.MainMenu() != nil {
-		t.Error("Ribbon mode: the menu bar is still there (a double bar)")
-	}
-	alt()
-	if r.tipsOn {
-		t.Error("key tips before Alt was let go")
-	}
-	altUp()
-	if !r.tipsOn {
-		t.Error("Alt alone: no key tips")
-	}
-	c.Focused().TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
-	if r.tipsOn || c.Focused() != fyne.Focusable(w.textEditor) {
-		t.Error("Esc after Alt: tips still on, or the focus not back")
-	}
-	alt()
-	w.keyPreview(fyne.KeyJ, fyne.KeyModifierAlt)
-	altUp()
-	if r.tipsOn {
-		t.Error("Alt with a key showed the key tips")
-	}
-	alt()
-	w.textEditor.FocusLost() // Alt+Tab: the window loses the keyboard
-	altUp()
-	if r.tipsOn {
-		t.Error("Alt+Tab showed the key tips")
-	}
-	c.Focus(w.textEditor)
-	alt() // Alt alone again, with the tips on: they go
-	altUp()
-	if !r.tipsOn {
-		t.Fatal("Alt alone (again): no key tips")
-	}
-	alt()
-	c.Focused().(desktop.Keyable).KeyUp(&fyne.KeyEvent{Name: desktop.KeyAltLeft}) // on the ribbon's tab
-	if r.tipsOn {
-		t.Error("Alt alone on the ribbon did not take the key tips away")
+	if nativeMenus {
+		// a Mac: the menu bar is the system's and stays; Alt alone does
+		// nothing there (F10 shows the key tips, checked above)
+		if w.fyneWindow.MainMenu() == nil {
+			t.Error("Ribbon mode on a Mac: the system menu bar went")
+		}
+	} else {
+		c.Focus(w.textEditor)
+		if w.fyneWindow.MainMenu() != nil {
+			t.Error("Ribbon mode: the menu bar is still there (a double bar)")
+		}
+		alt()
+		if r.tipsOn {
+			t.Error("key tips before Alt was let go")
+		}
+		altUp()
+		if !r.tipsOn {
+			t.Error("Alt alone: no key tips")
+		}
+		c.Focused().TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+		if r.tipsOn || c.Focused() != fyne.Focusable(w.textEditor) {
+			t.Error("Esc after Alt: tips still on, or the focus not back")
+		}
+		alt()
+		w.keyPreview(fyne.KeyJ, fyne.KeyModifierAlt)
+		altUp()
+		if r.tipsOn {
+			t.Error("Alt with a key showed the key tips")
+		}
+		alt()
+		w.textEditor.FocusLost() // Alt+Tab: the window loses the keyboard
+		altUp()
+		if r.tipsOn {
+			t.Error("Alt+Tab showed the key tips")
+		}
+		c.Focus(w.textEditor)
+		alt() // Alt alone again, with the tips on: they go
+		altUp()
+		if !r.tipsOn {
+			t.Fatal("Alt alone (again): no key tips")
+		}
+		alt()
+		c.Focused().(desktop.Keyable).KeyUp(&fyne.KeyEvent{Name: desktop.KeyAltLeft}) // on the ribbon's tab
+		if r.tipsOn {
+			t.Error("Alt alone on the ribbon did not take the key tips away")
+		}
 	}
 	// a click in the script while they show takes them away
 	w.keyPreview(fyne.KeyF10, 0)
