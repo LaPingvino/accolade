@@ -49,6 +49,8 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItemSeparator(),
 		menuItem(saveLabel, shortcut(fyne.KeyS, 0), w.reportErr(w.SaveFile)),
 		menuItem("Save As…", shortcut(fyne.KeyS, fyne.KeyModifierShift), w.reportErr(w.SaveFileAs)),
+		fyne.NewMenuItem("Save Draft…", w.showSaveDraft),
+		fyne.NewMenuItem("Drafts…", w.showDrafts),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Edit Together…", w.shareDialog),
 		fyne.NewMenuItem("Join a Shared Script…", w.joinDialog),

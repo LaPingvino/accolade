@@ -109,33 +109,42 @@ func Diff(old, new []Element) []Row {
 }
 
 // pairUp makes a run of removed (del) and added (ins) elements rows: an
-// added element alike to a removed one in the run's order is that one
-// changed; the rest stay removed or added, in order.
+// added element alike to a removed one, in the run's order, is that one
+// changed; between those, the removed come before the added.
 func pairUp(old, new []Element, del, ins []int) []Row {
-	var rows []Row
+	type pair struct{ d, i int }
+	var pairs []pair
 	d := 0
-	for _, n := range ins {
-		match := -1
+	for i, n := range ins {
 		for k := d; k < len(del) && k < d+4; k++ {
 			if old[del[k]].Heading == new[n].Heading && alike(old[del[k]].Text, new[n].Text) {
-				match = k
+				pairs = append(pairs, pair{k, i})
+				d = k + 1
 				break
 			}
 		}
-		if match < 0 {
-			rows = append(rows, Row{Kind: Added, New: new[n].Text, Heading: new[n].Heading})
-			continue
-		}
-		for ; d < match; d++ {
-			rows = append(rows, Row{Kind: Removed, Old: old[del[d]].Text, Heading: old[del[d]].Heading})
-		}
-		o := old[del[d]].Text
-		rows = append(rows, Row{Kind: Changed, Old: o, New: new[n].Text, Words: Words(o, new[n].Text), Heading: new[n].Heading})
-		d++
 	}
-	for ; d < len(del); d++ {
-		rows = append(rows, Row{Kind: Removed, Old: old[del[d]].Text, Heading: old[del[d]].Heading})
+	var rows []Row
+	removed := func(from, to int) {
+		for _, x := range del[from:to] {
+			rows = append(rows, Row{Kind: Removed, Old: old[x].Text, Heading: old[x].Heading})
+		}
 	}
+	added := func(from, to int) {
+		for _, x := range ins[from:to] {
+			rows = append(rows, Row{Kind: Added, New: new[x].Text, Heading: new[x].Heading})
+		}
+	}
+	dp, ip := 0, 0
+	for _, p := range pairs {
+		removed(dp, p.d)
+		added(ip, p.i)
+		o, n := old[del[p.d]].Text, new[ins[p.i]].Text
+		rows = append(rows, Row{Kind: Changed, Old: o, New: n, Words: Words(o, n), Heading: new[ins[p.i]].Heading})
+		dp, ip = p.d+1, p.i+1
+	}
+	removed(dp, len(del))
+	added(ip, len(ins))
 	return rows
 }
 
@@ -236,8 +245,12 @@ func texts(es []Element) []string {
 	return s
 }
 
-// words are a text's words, for alike.
-func words(s string) []string { return strings.Fields(s) }
+// words are a text's words without their punctuation, for alike.
+func words(s string) []string {
+	return strings.FieldsFunc(s, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '\'' && r != '’'
+	})
+}
 
 // tokens are a text's words, the spaces between them and its other
 // characters (punctuation) one by one.
