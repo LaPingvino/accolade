@@ -2,6 +2,8 @@ package main
 
 import (
 	"os"
+	"os/exec"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -41,10 +43,10 @@ func headNums(w *MainWindow) string {
 // expected is what the preview says the headings will be: the same
 // notation as headNums.
 func expected(heads []sceneHead, p numberPlan) string {
-	rows, _ := previewRows(heads, p)
+	rows, _ := previewRows(heads, p, nil)
 	var out []string
 	for i, r := range rows {
-		if p.drop[i] || p.merge[i] {
+		if p.drop[i] {
 			continue
 		}
 		n := r.new
@@ -93,14 +95,14 @@ func TestRenumberStrategies(t *testing.T) {
 	}{
 		{"clean", nil, cleanChoice(), "1 2 3 4 5 6"},
 		{"letters kept", nil, renumberChoice{KeepLetters: true}, "1 1A 2 3 3A 4"},
-		{"OMITTED kept", nil, renumberChoice{Omitted: lex.OmittedKeep}, "1 2 3 O4 O5 6 7 8"},
-		{"OMITTED merged", nil, renumberChoice{Omitted: lex.OmittedMerge}, "1 2 3 O4-5 6 7 8"},
+		{"OMITTED kept", nil, renumberChoice{Omitted: omitKeep}, "1 2 3 O4 O5 6 7 8"},
+		{"OMITTED kept, printed as one: still one heading a scene", nil, renumberChoice{Omitted: omitPrintRuns}, "1 2 3 O4 O5 6 7 8"},
 		{"keep 9", nil, renumberChoice{List: listKeep, Numbers: "9"}, "1 2 3 4 5 9"},
 		{"keep 1A and 9", nil, renumberChoice{List: listKeep, Numbers: "1A, 9"}, "1 1A 2 3 4 9"},
 		{"keep a range", nil, renumberChoice{List: listKeep, Numbers: "6-9"}, "1 2 3 6 6A 9"},
 		{"only", nil, renumberChoice{List: listOnly, Numbers: "6A, 9"}, "1 1A 3 O4 O5 6 7 8"},
-		{"range, OMITTED kept", nil, renumberChoice{Scope: scopeRange, From: 2, To: 6, Omitted: lex.OmittedKeep}, "1 1A 2 O4 O5 6 7 9"},
-		{"range backwards", nil, renumberChoice{Scope: scopeRange, From: 6, To: 2, Omitted: lex.OmittedKeep}, "1 1A 2 O4 O5 6 7 9"},
+		{"range, OMITTED kept", nil, renumberChoice{Scope: scopeRange, From: 2, To: 6, Omitted: omitKeep}, "1 1A 2 O4 O5 6 7 9"},
+		{"keep a range by the script's order", nil, renumberChoice{List: listKeep, Numbers: "1A .. 4"}, "1 1A 3 O4 5 6 7"},
 		{"keep and range", nil, renumberChoice{Scope: scopeRange, From: 1, To: 6, List: listKeep, Numbers: "3"}, "1 2 3 4 5 9"},
 		{"from the cursor on", cursorIn("Eff."), renumberChoice{Scope: scopeCursor}, "1 1A 3 O4 O5 6 7 8"},
 		{"selected", selecting("See.", "Eff."), renumberChoice{Scope: scopeSelected}, "1 1A 2 3 6A 9"},
@@ -127,6 +129,68 @@ func TestRenumberStrategies(t *testing.T) {
 			t.Fatalf("%s: Undo is not one step:\n%s", c.name, w.textEditor.Text())
 		}
 	}
+	// the wrong way round: an error, nothing swapped, nothing written
+	text := w.textEditor.Text()
+	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
+	for _, c := range []struct {
+		c    renumberChoice
+		want string
+	}{
+		{renumberChoice{Scope: scopeRange, From: 6, To: 2}, "From 6A to 3: scene 3 comes before scene 6A in the script"},
+		{renumberChoice{List: listKeep, Numbers: "9-6"}, "9-6: scene 6 comes before scene 9 in the script"},
+		{renumberChoice{List: listOnly, Numbers: "1, 4-99"}, "4-99: no scene 99"},
+	} {
+		if got := strings.Join(c.c.problems(heads), "; "); got != c.want {
+			t.Errorf("%+v: problems %q, want %q", c.c, got, c.want)
+		}
+		if msg := w.renumberWith(c.c, w.renumberContextNow(text, heads)); !strings.HasPrefix(msg, "Not renumbered: ") || w.textEditor.Text() != script {
+			t.Errorf("%+v applied: %q", c.c, msg)
+		}
+	}
+}
+
+// Labels out of Lexington's scheme (Fountain's I-1-A, 1.1, PROLOGUE …)
+// stay through lock, every strategy and Unlock's Remove; the scheme's
+// numbers are given around them, never theirs.
+func TestFixedLabelsStay(t *testing.T) {
+	holdUI(t)
+	o, _ := fountain.OmitScene("INT. OLD - DAY #1-A#\n\nGone.\n\n")
+	script := "INT. A - DAY #I-1-A#\n\nAy.\n\nINT. B - DAY\n\nBee.\n\nINT. C - DAY #1.#\n\nSee.\n\n" + o +
+		"INT. D - DAY #110A#\n\nDee.\n\nINT. E - DAY #PROLOGUE#\n\nEe.\n\nINT. F - DAY\n\nEff.\n"
+	w, _ := scriptWindow(t, script)
+	fixed := "I-1-A 1. O1-A PROLOGUE"
+	only := func() string {
+		var out []string
+		for _, n := range strings.Fields(headNums(w)) {
+			if !lex.InNumberScheme(strings.TrimPrefix(n, "O")) {
+				out = append(out, n)
+			}
+		}
+		return strings.Join(out, " ")
+	}
+	w.lockSceneNumbers()
+	// B has no scheme number before it: before 110A, as before a first
+	if got := headNums(w); got != "I-1-A A110A 1. O1-A 110A PROLOGUE 111" {
+		t.Errorf("locked: %q", got)
+	}
+	for _, c := range []renumberChoice{cleanChoice(), {KeepLetters: true}, {Omitted: omitKeep}, {Omitted: omitPrintRuns},
+		{List: listKeep, Numbers: "110A"}, {List: listOnly, Numbers: "I-1-A – PROLOGUE"}, {Scope: scopeRange, From: 0, To: 5}} {
+		text := w.textEditor.Text()
+		heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
+		w.renumberWith(c, w.renumberContextNow(text, heads))
+		if got := only(); got != fixed {
+			t.Errorf("%+v: fixed labels %q → %q (%s)", c, fixed, got, headNums(w))
+		}
+		w.undo()
+	}
+	w.renumberNow()
+	if got := headNums(w); got != "I-1-A 1 1. O1-A 2 PROLOGUE 3" {
+		t.Errorf("clean: %q", got)
+	}
+	w.unlockNow(true)
+	if got := only(); got != fixed {
+		t.Errorf("unlock, remove: %q (%s)", got, headNums(w))
+	}
 }
 
 // The lock's "numbered before" line keeps the hand-typed numbers whose
@@ -147,27 +211,53 @@ func TestRenumberHandNumbers(t *testing.T) {
 	}
 }
 
-// A merged OMITTED run: one heading with the range, both blocks under
-// it; Restore Scene splits it, and then brings each scene back.
-func TestRenumberMergeAndRestore(t *testing.T) {
+// oldRunScript is strategyScript as Accolade v1.13.0's Renumber merged
+// its OMITTED run: one heading, ".OMITTED #4-5#", both blocks under it.
+func oldRunScript() string {
+	s := strategyScript()
+	s = strings.Replace(s, ".OMITTED #4#", ".OMITTED #4-5#", 1)
+	return strings.Replace(s, ".OMITTED #5#\n\n", "", 1)
+}
+
+// v1.13.0's merged run is read as its scenes and written as one heading
+// a scene on the next Renumber (one undo step of its own, the setting on
+// so it prints as before) or Save; Restore Scene on it splits it too.
+func TestOldOmittedRunRewritten(t *testing.T) {
 	holdUI(t)
-	w, _ := scriptWindow(t, strategyScript())
-	w.renumberWith(renumberChoice{Omitted: lex.OmittedMerge}, w.renumberContextNow(w.textEditor.Text(), nil))
-	text := w.textEditor.Text()
-	if strings.Count(text, ".OMITTED") != 1 || !strings.Contains(text, ".OMITTED #4-5#\n\n/* Omitted 4\nINT. D - DAY #4#\n\nDee.\n*/\n\n/* Omitted 5\nINT. E - DAY #5#") {
-		t.Fatalf("merged:\n%s", text)
-	}
-	// a new scene in the locked script never gets a number in the range
-	if got := sceneNumbersFor([]sceneHead{{num: "3"}, {num: "4-5"}, {}}, lex.NumberOptions{Locked: true}); got[2] == "4" || got[2] == "5" {
+	old := oldRunScript()
+	w, _ := scriptWindow(t, old)
+	// a new scene in the locked script never gets a number in the run
+	heads := []sceneHead{{num: "3", text: "INT. C - DAY #3#"}, {num: "4-5", text: ".OMITTED #4-5#"}, {}}
+	if got := sceneNumbersFor(heads, lex.NumberOptions{Locked: true}); got[2] != "6" {
 		t.Errorf("a new scene after 4-5 got %s", got[2])
 	}
-	// Clean on the merged run: both blocks plain boneyard, no number left
-	w.renumberNow()
-	if text := w.textEditor.Text(); strings.Contains(text, "OMITTED") || strings.Contains(text, "/* Omitted 5") ||
-		strings.Count(text, "/* Omitted scene\nINT. ") != 2 {
-		t.Errorf("clean after a merge:\n%s", text)
+	w.renumberScenes()
+	text := w.textEditor.Text()
+	if !strings.Contains(text, ".OMITTED #4#\n\n/* Omitted 4\n") || !strings.Contains(text, ".OMITTED #5#\n\n/* Omitted 5\n") ||
+		strings.Contains(text, "4-5") || !omittedRunsPrinted(text) {
+		t.Fatalf("not rewritten:\n%s", text)
+	}
+	if !strings.Contains(w.statusText(), "OMITTED 4-5 written as one OMITTED heading a scene") {
+		t.Errorf("status %q", w.statusText())
+	}
+	if got := w.renumbering.choice(); got != cleanChoice() {
+		t.Errorf("the dialog's choice %+v", got)
+	}
+	clearOverlays(w)
+	w.undo()
+	if w.textEditor.Text() != old {
+		t.Fatalf("the rewrite is not one undo step:\n%s", w.textEditor.Text())
+	}
+	// on Save
+	file := t.TempDir() + "/old.fountain"
+	if err := w.saveToFile(file); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(file); strings.Contains(string(data), "4-5") || !strings.Contains(string(data), ".OMITTED #5#") {
+		t.Errorf("saved:\n%s", data)
 	}
 	w.undo()
+	// Restore Scene on the old heading splits it; then each comes back
 	w.textEditor.SetCursorOffset(offsetOf(t, w, ".OMITTED #4-5#"))
 	w.restoreScene()
 	text = w.textEditor.Text()
@@ -179,6 +269,92 @@ func TestRenumberMergeAndRestore(t *testing.T) {
 	if !strings.Contains(w.textEditor.Text(), "INT. E - DAY #5#\n\nEe.\n\nINT. F") {
 		t.Errorf("restored:\n%s", w.textEditor.Text())
 	}
+}
+
+// "Print runs as one": the dialog's preview says how the run prints,
+// Apply writes the setting (and nothing else when no number changes),
+// and the print and the PDF follow it; FDX keeps one heading a number.
+func TestPrintOmittedRunsAsOne(t *testing.T) {
+	holdUI(t)
+	script := strategyScript()
+	w, _ := scriptWindow(t, script)
+	w.renumberScenes()
+	r := w.renumbering
+	r.omitted.SetSelected(omittedOptions[omitPrintRuns])
+	r.letters.SetSelected(letterOptions[1])
+	r.list.SetSelected(listOptions[listOnly])
+	r.numbers.SetText("9")
+	var printed []string
+	for _, row := range r.rows {
+		if strings.HasSuffix(row.heading, "OMITTED · prints as 4-5") {
+			printed = append(printed, row.old)
+		}
+	}
+	if strings.Join(printed, " ") != "4 5" || !strings.Contains(r.summary.Text, "Printed as one: 4-5 OMITTED") ||
+		!strings.Contains(r.summary.Text, "OMITTED runs will print as one") {
+		t.Errorf("preview: %v, summary %q", printed, r.summary.Text)
+	}
+	if r.apply.Disabled() {
+		t.Error("Apply disabled: the setting changes")
+	}
+	// the list read under the field
+	r.numbers.SetText("6 .. 9, 99")
+	if !r.read.Visible() || r.read.Text != "Read as: 6 to 9 (3 scenes) · 99 (no such scene)\nNo scene has 99 (nothing to renumber)" {
+		t.Errorf("read: %q", r.read.Text)
+	}
+	r.numbers.SetText("9-6")
+	if !r.bad.Visible() || r.bad.Text != "9-6: scene 6 comes before scene 9 in the script" || !r.apply.Disabled() {
+		t.Errorf("a range backwards: %q, apply disabled %v", r.bad.Text, r.apply.Disabled())
+	}
+	r.numbers.SetText("9")
+	r.scope.SetSelected(scopeOptions[scopeRange])
+	r.from.SetSelectedIndex(6)
+	r.to.SetSelectedIndex(1)
+	if !r.bad.Visible() || !strings.Contains(r.bad.Text, "scene 1A comes before scene 6A") || !r.apply.Disabled() {
+		t.Errorf("From … To backwards: %q", r.bad.Text)
+	}
+	r.scope.SetSelected(scopeOptions[scopeAll])
+	test.Tap(overlayButton(t, w, "Renumber"))
+	text := w.textEditor.Text()
+	if !omittedRunsPrinted(text) || strings.Count(text, ".OMITTED #") != 2 {
+		t.Fatalf("applied:\n%s", text)
+	}
+	// the print, the PDF and the FDX
+	dir := t.TempDir()
+	job := w.savedExportJob()
+	if err := exportAs(text, dir+"/s.html", "html", job); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(dir + "/s.html"); strings.Count(string(b), "OMITTED") != 1 || !strings.Contains(string(b), "4-5") {
+		t.Errorf("the print has %d OMITTED", strings.Count(string(b), "OMITTED"))
+	}
+	if err := exportAs(text, dir+"/s.fdx", "fdx", job); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(dir + "/s.fdx"); !strings.Contains(string(b), `Number="4"`) || !strings.Contains(string(b), `Number="5"`) {
+		t.Errorf("the FDX is not one heading a number")
+	}
+	if _, err := exec.LookPath("pdftotext"); err == nil {
+		if err := exportAs(text, dir+"/s.pdf", "pdf", job); err != nil {
+			t.Fatal(err)
+		}
+		out, _ := exec.Command("pdftotext", "-layout", dir+"/s.pdf", "-").Output()
+		if !regexp.MustCompile(`(?m)^\s*4-5\s+OMITTED\s+4-5\s*$`).Match(out) {
+			t.Errorf("the PDF:\n%s", out)
+		}
+	}
+	// keeping them one a heading takes the setting out
+	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
+	w.renumberWith(renumberChoice{List: listOnly, Numbers: "9", Omitted: omitKeep}, w.renumberContextNow(text, heads))
+	if omittedRunsPrinted(w.textEditor.Text()) {
+		t.Error("keep: the setting stayed")
+	}
+	w.undo()
+	w.undo()
+	if w.textEditor.Text() != script {
+		t.Errorf("undo:\n%s", w.textEditor.Text())
+	}
+	w.settings.SetString(renumberLastPref, "") // no Last used for the tests after
 }
 
 // The presets: Clean before an issue; after one, Keep sent scenes keeps
@@ -229,7 +405,7 @@ func TestRenumberPresets(t *testing.T) {
 	replaceText(t, w, "INT. C - DAY #3#\n\nSee.\n\n", "INT. N - NIGHT\n\nNew.\n\n")
 	w.renumberScenes()
 	r = w.renumbering
-	if r.preset.Selected != presetSent || r.numbers.Text != "1, 3-6, 9, 1A, 6A" {
+	if r.preset.Selected != presetSent || r.numbers.Text != "1-1A, 4-9, 3" {
 		t.Errorf("after an issue: %q, numbers %q", r.preset.Selected, r.numbers.Text)
 	}
 	if !dialogShows(w, "Sides, schedules and printed pages that went out use the old numbers") {
@@ -357,7 +533,9 @@ func TestRenumberDialogScreenshots(t *testing.T) {
 			w.fyneWindow.Resize(size.size)
 			w.renumberScenes()
 			if !issued {
-				w.renumbering.omitted.SetSelected(omittedOptions[lex.OmittedMerge])
+				w.renumbering.omitted.SetSelected(omittedOptions[omitPrintRuns])
+				w.renumbering.list.SetSelected(listOptions[listKeep])
+				w.renumbering.numbers.SetText("1A .. 4, 99")
 			}
 			name := "renumber-" + size.name
 			if issued {

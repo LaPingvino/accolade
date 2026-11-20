@@ -130,6 +130,7 @@ func (l pageLock) applyTo(j exportJob) exportJob {
 // layout, for a PDF or an FDX of the whole script (a PDF's lock made from
 // lockFrom first: withIssuedPages).
 func withLockedPages(content, to string, j exportJob) exportJob {
+	j.mergeOmitted = omittedRunsPrinted(content)
 	if j.lock == nil && j.lockFrom != "" && to == "pdf" {
 		if l, err := cli.LockPages(j.script(j.lockFrom), j.options("pdf", "")); err == nil {
 			j.lock = &l
@@ -176,6 +177,7 @@ func (w *MainWindow) withIssuedPages(j exportJob, text string) exportJob {
 // a lock's own layout when there is one.
 func (w *MainWindow) lockJob(text string) exportJob {
 	j := w.savedExportJob()
+	j.mergeOmitted = omittedRunsPrinted(text)
 	if l := pageLockOf(text); l != nil {
 		j = l.applyTo(j)
 	}

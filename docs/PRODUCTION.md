@@ -526,8 +526,9 @@ Branch scenelock (Accolade), Lexington v1.7.0 (tagged locally).
   - `lex.NumberBefore` ("A11"): 10, A11, B11, 11; between 10 and A11, AA11; between A11 and B11, AB11 (Wikipedia's
     examples).
   - Both: before the first numbered scene A1 (then B1); after the last, the next number (88 after 87), as Final Draft
-    letters only scenes "inserted between previously numbered scene headings". A number that is not digits and
-    letters (Storyboarder's `3-x2k9q`) is no neighbour, but is never given again.
+    letters only scenes "inserted between previously numbered scene headings". A label out of the scheme (Fountain's
+    `I-1-A`, `1.1`, Storyboarder's `3-x2k9q`; since v1.14.0 exactly defined: §15, *Scene numbers are labels*) is
+    no neighbour, but is never given again.
 - `lex.WithSceneNumber` puts `#n#` in a heading before its notes. `-number count|10A|A11` on the command line.
 - `fountain.OmitScene` / `fountain.RestoreScene` (and `lex.OmittedNumber`): `.OMITTED #12#`, a blank line, then
   `/* Omitted 12`, the scene exactly as it was (heading with its number and notes included), `*/`. A `*/` inside is
@@ -1398,7 +1399,7 @@ Branch renumstrat (Accolade; renumber_dialog.go, renumber_strategy.go), Lexingto
 `replace => ../lexington`). Joop: Renumber Scenes… becomes a dialog with choices and a preview, one undo step.
 
 **The numbering is Lexington's.** `lex.Renumber(scenes, RenumberOptions{Free, KeepLetters, Omitted, Reserved, Style})`
-gives each scene its new number, or Drop / Merged for an OMITTED one. A scene is *free* (gets a new number) or
+gives each scene its new number, or Drop for an OMITTED one (Merged went in v1.14.0: see *Scene numbers are labels*). A scene is *free* (gets a new number) or
 *pinned* (keeps its own). Free scenes are counted on from the pinned scene before them (1, 2, 3 … after none, 8 after
 a pinned 7), skipping a taken number (a pinned one, a kept OMITTED one, a reserved one). Where the count would reach
 or pass the next pinned number, the scene gets a letter between its neighbours, as a locked script gives a new scene
@@ -1409,45 +1410,36 @@ it, and no number is given twice (a property test over 3000 random scripts and s
 
 - *Scenes*: all / selected (the scenes from the selection's start to its end, a selection ending at a line's start not
   taking that line's scene; without a selection the cursor's) /
-  from scene … to … (two pickers, either order) / from the cursor on. Scenes outside are pinned: a range cannot close
+  from scene … to … (two pickers in script order; the end before the start is an error under the field, Apply
+  disabled, never swapped) / from the cursor on. Scenes outside are pinned: a range cannot close
   a gap outside it (1, 2, 2A, 2B, 3 with only 2–2B free stays so: 3 is taken).
 - *Numbers*: no list / *Keep these numbers* / *Only these numbers*, typed as `5, 12A, 20-24`
-  (`lex.ParseNumberSet`). A range stands for every number from its first to its last in script order (20, 20A … 24).
-  Kept numbers are pinned, and reserved too: one that no scene has now is not given to another (a range reserves its
-  whole numbers; the letters between stay free, so a new scene between kept 20 and 21 is 20A). *Only* renumbers just
-  the listed scenes, the rest pinned. One list, one meaning: keep and only exclude each other. Items that are no
-  number of the script are named under the field.
+  (`lex.ParseNumberSet`, read against the script's labels; since v1.14.0 by the script's order, below). Kept scenes
+  are pinned, and a kept label no scene has now is reserved: never given. *Only* renumbers just the listed scenes, the
+  rest pinned. One list, one meaning: keep and only exclude each other. Under the field: how the list was read
+  ("Read as: 6 to 9 (3 scenes) · 99 (no such scene)"), the labels no scene has, and in red what keeps it from being
+  applied (a range backwards, an end no scene has, a dash read two ways), Apply disabled until fixed.
 - *A-scenes*: fold into whole numbers (default) / keep the letters: 10, 10A, 11 after a cut become 9, 9A, 10. Kept
   letters are given after the whole numbers, between the new neighbours, in the lock's style (A10 with A11).
-- *OMITTED*: drop them and close the gaps (Clean's) / keep them with their numbers (pinned: the gap stays) / merge
-  runs, `OMITTED 12-14` (below). Only OMITTED headings in scope; one out of scope stays as it is.
+- *OMITTED*: drop them and close the gaps (Clean's) / keep them with their numbers (pinned: the gap stays) / keep
+  them, print runs as one: `12-14 OMITTED` (below). Only OMITTED headings in scope; one out of scope stays as it is.
 - *Presets*: *Clean 1…n (before anything went out)*; *After an issue: keep sent scenes*, the keep list filled with
-  every number in any issue (the drafts store's issues; OMITTED ones too, runs of whole numbers written as ranges
-  unless a number that did not go out falls inside), letters folded, OMITTED kept: a scene cut since keeps its number
+  every number in any issue (the drafts store's issues; OMITTED ones too: the script's runs of scenes that all went
+  out written as ranges in its order, `1-1A, 4-9`, a scene written since breaking a run; then the numbers that went
+  out and no scene has now, one by one), letters folded, OMITTED kept (printed as the script prints them now): a scene cut since keeps its number
   retired, a scene written since gets a free number or a letter; *Last used*, kept in settings.json
   (`renumber-last`; a range of another script's scenes falls back to all). The default is Clean before the first
   issue, Keep sent scenes after. Changing any control makes the preset "Your own".
-- *The preview*: every heading, old → new ("stays" greyed, "gone" for a dropped OMITTED, "into 12-14" for a merged
-  one), and "n headings of m change". The preview and Apply call the same plan (`strategyPlan`), so the preview is
+- *The preview*: every heading, old → new ("stays" greyed, "gone" for a dropped OMITTED; with print runs as one, an
+  OMITTED heading of a run says "· prints as 12-14"), and "n headings of m change", with the runs printed as one and
+  whether the setting changes. The preview and Apply call the same plan (`strategyPlan`), so the preview is
   what the script gets (tested for every strategy). Nothing to change: the buttons are disabled. If the headings
   changed while the dialog was open (the lock numbering a new scene at a pause), Renumber makes the preview again,
   says so, and applies only on the next tap.
 
-**OMITTED 12-14.** Fountain allows a dash in a scene number ("any alphanumerics, plus dashes and periods",
-[fountain.io/syntax](https://fountain.io/syntax)), so a merged run is `.OMITTED #12-14#`, the run's
-`/* Omitted 12 … */`, `/* Omitted 13 … */` blocks under it as they were (the later headings and their blank lines go).
-Lexington prints it `12-14   OMITTED   12-14` (checked with pdftotext), the form I know from shooting scripts for a cut
-run (*unverified*: no source checked); a
-range as wide as `12A-14B` runs a little into the right margin. FDX: `Number="12-14"` on the OMITTED Scene Heading,
-read back as `.OMITTED #12-14#` (*unverified* against Final Draft itself, as OMITTED was). Decisions: a range is
-`first-last`, both numbers in their own right and in order (`I-1-A`, Fountain's own dashed example, is none); it takes
-every number between, so locked numbering never gives 13 again and uses the range as a neighbour (its last before, its
-first after); a merge is only of OMITTED headings one after the other, numbers in order, whose range holds no other
-scene's number (else left alone). Dropping a merged heading (Clean, Remove) turns each of its blocks into plain
-boneyard. *Restore
-Scene* on a merged heading splits it back, one OMITTED heading a block (`fountain.SplitOmitted`), and says so; then
-each restores as before. Whatever named the merged scenes (a tag, strip, done mark) is lost as with Drop: their
-numbers left the OMITTED list.
+**OMITTED 12-14 (v1.13.0, superseded).** The first strategies merged a run of OMITTED headings into one,
+`.OMITTED #12-14#`. Joop: "using numbers in sequence is a bit of a hack, technically I think a scene number can be
+anything", and "ranges are ill-defined — useful in dialogs, not in the document itself". See below.
 
 **The breakdown and the schedule follow** (renumber_follow.go). Tags, scenes marked done and strips name their scene
 by number first, and are kept outside the text's undo. The window keeps the scene numbers it last saw. When only the
@@ -1484,6 +1476,76 @@ written since, Your own, Last used); tags, a done mark and a strip through a ran
 the locked pages through a from-the-cursor strategy and Undo. Shots: `SHOT_DIR=… go test -run
 TestRenumberDialogScreenshots` (renumber-wide/phone.png, renumber-wide/phone-issued.png).
 
+### Scene numbers are labels (2026-11-20)
+
+Branch scenelabels (Accolade; omitted_runs.go, renumber_strategy.go, renumber_dialog.go), Lexington v1.14.0 (local
+tag; go.mod `replace => ../lexington`; lex/labels.go, lex/numberset.go, lex/omitted.go).
+
+**Labels and the scheme.** Fountain allows "any alphanumerics, plus dashes and periods" in a scene number
+([fountain.io/syntax](https://fountain.io/syntax): `#1#`, `#1-A#`, `#I-1-A#`, `#1.#`, `#110A#`), so a scene
+number is an opaque label. Lexington's numbering (`NumberScenes`, `NumberLabels`, `SceneNumberBetween`,
+`Renumber`) reads one scheme, the one it writes (`lex.InNumberScheme`):
+
+- a whole number without a leading zero (1, 10, 110);
+- with letters after it, the 10A style: 10A, 10AA, 10B, and Wikipedia's small-a filler before a letter (10aA, 10AaA;
+  never at the end: `10a` is not one);
+- with capitals before it, the A11 style: A11, AB11; and both (A11B, which the A11 style gives before an 11B).
+
+Every other label is **fixed**: `I-1-A`, `1-A`, `1.`, `1.1`, `PROLOGUE`, `01`, `10a`, a Storyboarder id. A fixed
+label is never renumbered (by any strategy, OMITTED or not: Drop leaves a fixed OMITTED heading; Unlock's Remove
+leaves it, as no lock writes one), never given to another scene, and never a neighbour: looking for a new scene's
+number, it is passed over and the nearest scheme numbers before and after it in the script are the neighbours (10,
+PROLOGUE, *new*, 11 → 10A; a new scene with no scheme number before it is lettered before the first one after it,
+A110A before 110A, as A1 before 1). The free scenes after a fixed one count on from the scheme number before it.
+The scheme's numbers are ordered only inside the letter generator (to find a free number between two neighbours);
+nothing else compares labels.
+
+**Lists by the script's order.** In the dialog's list a range is list syntax, never a scene's number: `X-Y` is
+every scene from the one labelled X to the one labelled Y as the script has them, unnumbered scenes between included,
+whatever the labels ("4-2" where the scene labelled 4 comes before the one labelled 2 is a forward range;
+`I-1-A – PROLOGUE` works). If Y comes only before X, it is an error ("12-5: scene 5 comes before scene 12 in the
+script"), not swapped: swapping scenes is a separate action, not renumbering. Range separators: `–`, `—`, `..`, `…`,
+or a spaced ` - `; a lone `-` inside a word only when the word is no label of the script and it splits at exactly
+one dash into two labels the script has (else an error asking for `–` or `..`); a word that splits into a label and a
+scheme number no scene has (`1-99`) is an error (no scene 99); any other word no scene has is an unknown label,
+named under the field (kept: reserved). With a label twice, a range runs from the first X to the first Y at or after
+it. The same rule for the From … To pickers. `renumberWith` checks it too (nothing written, the reason in the status
+bar).
+
+**OMITTED runs.** The text always keeps one `.OMITTED #n#` a scene. Printing a run as one is a setting in the
+production block, `omitted runs: print as one`, so it travels with the file; Renumber's OMITTED choice *Keep them,
+print runs as one* sets it, *Keep them with their numbers* takes it out, *Drop* leaves it (Apply is enabled for a
+change of the setting alone). With it, Lexington (`lex.MergeOmittedRuns`, `-mergeomitted`, `cli.Options.MergeOmitted`,
+`pdf.PDFWriter.MergeOmitted`) prints two or more numbered OMITTED headings with only blank lines and boneyard between
+them as one, `12-14   OMITTED   12-14` in both margins (checked with pdftotext), the first and last label in script
+order joined by `-` (an en dash when a label has a dash: `I-1-A–I-1-C`); HTML, DOCX, ODT and the print the same; the
+PDF's pages, their lock and the scenes' lengths are the merged print's (each OMITTED heading of a run gets the run's
+page). FDX, Fountain and lex keep one heading a number. A "Last used" saved with v1.13.0's merge (2) is read as print
+runs as one.
+
+**v1.13.0's `.OMITTED #12-14#`.** Read as its scenes: only on an OMITTED heading whose number is two scheme numbers
+joined by a dash, in order (`lex.OmittedRange`; `I-1-A` on an OMITTED heading, or `12-14` on any other, is a label).
+Lexington's Fountain reader splits it into one OMITTED heading a `/* Omitted n` block under it, keeping the run's
+first and last where their block is gone (a number between them without a block is lost: nothing says what it was);
+until rewritten, locked numbering never gives a number inside it. Accolade rewrites it in the text
+(`fountain.SplitOmitted`) on the next Renumber, Unlock or Save (not on Save in a shared session: the next Renumber
+does it): one undo step of its own, the print setting switched on so that it prints as before, a page of the lock
+starting at the run now starting at its first, and a status note ("OMITTED 4-5 written as one OMITTED heading a
+scene …"). Restore Scene on such a heading still splits it, then each restores.
+
+**Tests.** Lexington: the scheme (every Fountain example form), fixed labels through locked and unlocked numbering
+and every Renumber strategy (table and the 3000-script property test: a fixed label never changes, is never dropped
+or given; nothing given out of the scheme), the v1.13.0 run taking its numbers, the lists (4-2 forward, 2-4 an error,
+separators, a label winning over a split, an ambiguous dash, unknown labels, Read), `MergeOmittedRuns` and
+`SplitOmittedRanges` (a run with a missing block, sources), `SplitOmitted` (no block, one block), and through the
+command line for v1.13.0's form and today's: one `12-14 OMITTED 12-14` line in the PDF (pdftotext), one OMITTED in
+HTML, DOCX and ODT, three without the flag, FDX one heading a number with five SceneProperties, Fountain never merged.
+Accolade: fixed labels through Lock, seven strategies, Clean and Remove; the backwards scope and list, and an end no
+scene has, refused; a keep range by script order; the v1.13.0 run rewritten on Renumber (one undo step, status) and on
+Save, and split by Restore; print runs as one in the preview, the read and error lines under the field, Apply for the
+setting alone, the HTML print, the FDX and the PDF (pdftotext), Keep taking it out, Undo. Shots: `SHOT_DIR=… go test
+-run TestRenumberDialogScreenshots` (renumber-wide.png shows print runs as one and a read list).
+
 **Rough**
 
 - The pre-lock check's rows do not offer Unlock / Renumber, only the pane's buttons do.
@@ -1493,5 +1555,8 @@ TestRenumberDialogScreenshots` (renumber-wide/phone.png, renumber-wide/phone-iss
   painter sets a nested scroller's clip to its own area instead of intersecting it with the outer one
   (internal/driver/util.go walkObjectTree); the GL painter intersects (ClipStack). A capture artefact.
 - Renumber's choice of a range is kept by scene index, so Last used on another script means other scenes.
+- A merged OMITTED run's page can anchor its page lock to "12-14" (a page starting at it); switching the setting off
+  then finds that page by its words.
+- "OMITTED 12-14" as one line is the form I know from shooting scripts (*unverified*: no source checked).
 - After an issue, Renumber marks every renumbered heading as revised in the next colour. That is correct (the
   headings changed), but it is a lot of asterisks.

@@ -68,6 +68,11 @@ type exportJob struct {
 	breakdown    *lex.TagSet
 	lineTags     map[int][]lex.LineTag
 	sceneLengths bool
+
+	// mergeOmitted prints a run of OMITTED headings as one, "12-14
+	// OMITTED" (the production block's setting, omitted_runs.go): every
+	// format but FDX and Fountain, the pages and their lock alike
+	mergeOmitted bool
 }
 
 // options are Lexington's options for the job, writing as to to output.
@@ -89,6 +94,7 @@ func (j exportJob) options(to, output string) cli.Options {
 		Breakdown:    j.breakdown,
 		LineTags:     j.lineTags,
 		SceneLengths: j.sceneLengths,
+		MergeOmitted: j.mergeOmitted,
 	}
 	if j.colors { // (a style alone would switch colors on)
 		o.ColorStyle = string(j.colorStyle)

@@ -162,8 +162,9 @@ func sceneHeads(text string, starts []string) []sceneHead {
 // a locked script (or, unlocked, by counting) does.
 func sceneNumbersFor(heads []sceneHead, o lex.NumberOptions) []string {
 	nums := make([]string, len(heads))
+	o.Omitted = make([]bool, len(heads))
 	for i, h := range heads {
-		nums[i] = h.num
+		nums[i], o.Omitted[i] = h.num, isOmitted(h)
 	}
 	return lex.NumberLabels(nums, o)
 }
@@ -389,7 +390,7 @@ func (w *MainWindow) restoreScene() {
 		w.setStatus("This scene is not omitted")
 		return
 	}
-	if _, _, isRange := lex.NumberRange(n); isRange { // a merged run: one OMITTED a scene again
+	if _, _, isRange := lex.OmittedRange(heading); isRange { // v1.13.0's merged run: one OMITTED a scene again
 		out, ok := fountain.SplitOmitted(scene)
 		if !ok {
 			w.setStatus("OMITTED " + n + " has no scenes under it (no /* Omitted … */ blocks) to restore")

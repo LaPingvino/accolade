@@ -612,6 +612,9 @@ func (w *MainWindow) SaveFileAs() error {
 }
 
 func (w *MainWindow) saveToFile(filePath string) error {
+	if w.shared == nil { // (shared, every peer would: the next Renumber does it)
+		w.splitOldOmittedRuns() // v1.13.0's OMITTED #12-14#: one heading a scene
+	}
 	data, utf8Instead := encodeScript(w.textEditor.Text(), w.format)
 	if err := w.writeScript(filePath, data); err != nil {
 		return fmt.Errorf("failed to write file: %v", err)

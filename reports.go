@@ -52,6 +52,7 @@ func scriptReport(content string, job exportJob) (r lexreport.Report, err error)
 			err = fmt.Errorf("the reports failed: %v", p)
 		}
 	}()
+	job.mergeOmitted = omittedRunsPrinted(content)
 	s := job.script(content)
 	if !sceneLockOf(content).locked {
 		s = lex.NumberScenes(s, lex.NumberOptions{})

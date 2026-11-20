@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -30,7 +31,7 @@ var (
 	scopeOptions   = []string{"All scenes", "Selected scenes", "From scene … to …", "From the cursor on"}
 	listOptions    = []string{"No list", "Keep these numbers", "Only these numbers"}
 	letterOptions  = []string{"Fold A-scenes into whole numbers", "Keep the letters"}
-	omittedOptions = []string{"Drop them, close the gaps", "Keep them with their numbers", "Merge runs: OMITTED 12-14"}
+	omittedOptions = []string{"Drop them, close the gaps", "Keep them with their numbers", "Keep them, print runs as one: 12-14 OMITTED"}
 )
 
 // renumberDlg is the dialog and its controls.
@@ -38,6 +39,7 @@ type renumberDlg struct {
 	w        *MainWindow
 	d        dialog.Dialog
 	heads    []sceneHead
+	text     string // the script the headings are of
 	ctx      renumberContext
 	sent     string // the numbers that went out, as a keep list
 	issued   bool
@@ -46,11 +48,13 @@ type renumberDlg struct {
 	from, to *widget.Select
 	list     *widget.RadioGroup
 	numbers  *widget.Entry
-	bad      *widget.Label
+	read     *widget.Label // how the list was read
+	bad      *widget.Label // what keeps the choice from being applied
 	letters  *widget.RadioGroup
 	omitted  *widget.RadioGroup
 	summary  *widget.Label
 	preview  *widget.List
+	boxes    []*fyne.Container // laid out again when a label shows, hides or grows
 	rows     []previewRow
 	apply    *widget.Button
 	draft    *widget.Button // after an issue: Save a Draft, Then Renumber
@@ -71,7 +75,7 @@ func sceneLabel(i int, h sceneHead) string {
 // newRenumberDialog is the dialog for the script now (not shown).
 func (w *MainWindow) newRenumberDialog() *renumberDlg {
 	text := w.textEditor.Text()
-	r := &renumberDlg{w: w, heads: sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())}
+	r := &renumberDlg{w: w, heads: sceneHeads(text[:bodyEndByte(text)], w.sceneStarts()), text: text}
 	r.ctx = w.renumberContextNow(text, r.heads)
 	var what string
 	r.issued, what = w.firstIssue()
@@ -94,11 +98,15 @@ func (w *MainWindow) newRenumberDialog() *renumberDlg {
 	r.scope = widget.NewRadioGroup(scopeOptions, func(string) { r.changed() })
 	r.list = widget.NewRadioGroup(listOptions, func(string) { r.changed() })
 	r.numbers = widget.NewEntry()
-	r.numbers.SetPlaceHolder("5, 12A, 20-24")
+	r.numbers.SetPlaceHolder("5, 12A, 20-24 (a range: as the script has them)")
 	r.numbers.OnChanged = func(string) { r.changed() }
+	r.read = widget.NewLabel("")
+	r.read.Wrapping = fyne.TextWrapWord
+	r.read.Importance = widget.LowImportance
+	r.read.Hide()
 	r.bad = widget.NewLabel("")
 	r.bad.Wrapping = fyne.TextWrapWord
-	r.bad.Importance = widget.WarningImportance
+	r.bad.Importance = widget.DangerImportance
 	r.bad.Hide()
 	r.letters = widget.NewRadioGroup(letterOptions, func(string) { r.changed() })
 	r.omitted = widget.NewRadioGroup(omittedOptions, func(string) { r.changed() })
@@ -122,7 +130,7 @@ func (w *MainWindow) newRenumberDialog() *renumberDlg {
 			heading.Truncation = fyne.TextTruncateEllipsis
 			nums := container.NewHBox(
 				container.New(layout.NewGridWrapLayout(col("12A-14B")), old),
-				container.New(layout.NewGridWrapLayout(col("→ into 12-14")), nw))
+				container.New(layout.NewGridWrapLayout(col("→ stays · 12A")), nw))
 			return container.NewBorder(nil, nil, nums, nil, heading)
 		},
 		func(id widget.ListItemID, o fyne.CanvasObject) {
@@ -155,11 +163,12 @@ func (w *MainWindow) newRenumberDialog() *renumberDlg {
 	controls := container.NewVBox(append(top,
 		section("Preset"), r.preset,
 		section("Scenes"), r.scope, container.NewGridWithColumns(2, r.from, r.to),
-		section("Numbers"), r.list, r.numbers, r.bad,
+		section("Numbers"), r.list, r.numbers, r.read, r.bad,
 		section("A-scenes"), r.letters,
 		section("OMITTED"), r.omitted,
 	)...)
 	preview := container.NewBorder(r.summary, nil, nil, nil, r.preview)
+	r.boxes = []*fyne.Container{controls, preview}
 
 	cancel := widget.NewButton("Cancel", func() { r.d.Hide() })
 	r.apply = widget.NewButton("Renumber", func() {
@@ -206,7 +215,7 @@ func (r *renumberDlg) choosePreset(name string) {
 	case presetClean:
 		c = cleanChoice()
 	case presetSent:
-		c = sentChoice(r.sent)
+		c = sentChoice(r.sent, r.ctx.printRuns)
 	case presetLast:
 		last, ok := r.w.lastChoice()
 		if !ok {
@@ -260,7 +269,7 @@ func (r *renumberDlg) choice() renumberChoice {
 		List:        renumberList(indexIn(listOptions, r.list.Selected)),
 		Numbers:     r.numbers.Text,
 		KeepLetters: r.letters.Selected == letterOptions[1],
-		Omitted:     lex.OmittedMode(indexIn(omittedOptions, r.omitted.Selected)),
+		Omitted:     omittedChoice(indexIn(omittedOptions, r.omitted.Selected)),
 	}
 }
 
@@ -298,30 +307,72 @@ func (r *renumberDlg) refresh() {
 	} else {
 		r.numbers.Enable()
 	}
-	_, bad := numbersOf(c, r.heads)
-	if c.List != listNone && len(bad) > 0 {
-		r.bad.SetText("Not a scene number: " + strings.Join(bad, ", ") + " (kept only as written)")
-		r.bad.Show()
-	} else {
-		r.bad.Hide()
+	// the list as read, under the field; what keeps it from being applied
+	var read []string
+	if c.List != listNone && strings.TrimSpace(c.Numbers) != "" {
+		set := numbersOf(c, r.heads)
+		if s := set.Read(sceneLabelsOf(r.heads)); s != "" {
+			read = append(read, "Read as: "+s)
+		}
+		if len(set.Unknown) > 0 {
+			what := "never given to a scene"
+			if c.List == listOnly {
+				what = "nothing to renumber"
+			}
+			read = append(read, "No scene has "+strings.Join(set.Unknown, ", ")+" ("+what+")")
+		}
+	}
+	setLabel := func(l *widget.Label, lines []string) {
+		if len(lines) == 0 {
+			l.Hide()
+			return
+		}
+		l.SetText(strings.Join(lines, "\n"))
+		l.Show()
+	}
+	setLabel(r.read, read)
+	problems := c.problems(r.heads)
+	setLabel(r.bad, problems)
+	p := r.plan()
+	var runs map[int]string
+	if c.Omitted == omitPrintRuns {
+		runs = printRuns(r.text, r.heads, p)
 	}
 	var n int
-	r.rows, n = previewRows(r.heads, r.plan())
+	r.rows, n = previewRows(r.heads, p, runs)
+	settingChanges := c.Omitted != omitDrop && (c.Omitted == omitPrintRuns) != r.ctx.printRuns
+	var summary string
 	switch {
+	case len(problems) > 0:
+		summary = "Fix the choice first (in red at the left); the preview is of the rest."
 	case n == 0:
-		r.summary.SetText("No number changes.")
+		summary = "No number changes."
 	default:
-		r.summary.SetText(fmt.Sprintf("%s of %d change:", plural(n, "heading"), len(r.heads)))
+		summary = fmt.Sprintf("%s of %d change:", plural(n, "heading"), len(r.heads))
 	}
+	if settingChanges {
+		if c.Omitted == omitPrintRuns {
+			summary += " OMITTED runs will print as one."
+		} else {
+			summary += " OMITTED runs will print one heading a scene again."
+		}
+	}
+	if labels := runLabels(runs); len(labels) > 0 {
+		summary += " Printed as one: " + strings.Join(labels, ", ") + " OMITTED (the text keeps one heading a scene)."
+	}
+	r.summary.SetText(summary)
 	for _, b := range []*widget.Button{r.apply, r.draft} {
 		if b == nil {
 			continue
 		}
-		if n == 0 {
+		if (n == 0 && !settingChanges) || len(problems) > 0 {
 			b.Disable()
 		} else {
 			b.Enable()
 		}
+	}
+	for _, b := range r.boxes {
+		b.Refresh()
 	}
 	r.preview.Refresh()
 }
@@ -340,7 +391,7 @@ func (r *renumberDlg) fresh() bool {
 		return true
 	}
 	from, to := r.from.SelectedIndex(), r.to.SelectedIndex()
-	r.heads = heads
+	r.heads, r.text = heads, text
 	r.ctx = r.w.renumberContextNow(text, heads)
 	labels := make([]string, len(heads))
 	for i, h := range heads {
@@ -377,4 +428,20 @@ func (r *renumberDlg) draftThenApply() {
 		}
 		w.setStatus("Draft “" + sd.Name + "” saved; " + r.applyNow())
 	})
+}
+
+// runLabels are the runs' labels, each once, in the script's order.
+func runLabels(runs map[int]string) []string {
+	var at []int
+	for i := range runs {
+		at = append(at, i)
+	}
+	slices.Sort(at)
+	var out []string
+	for _, i := range at {
+		if len(out) == 0 || out[len(out)-1] != runs[i] {
+			out = append(out, runs[i])
+		}
+	}
+	return out
 }

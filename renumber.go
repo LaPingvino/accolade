@@ -34,7 +34,8 @@ import (
 // Production > Renumber Scenes… asks how (renumber_dialog.go,
 // renumber_strategy.go; Lexington's lex.Renumber does the numbering):
 // which scenes, which numbers stay or only which go, A-scenes folded or
-// kept, OMITTED dropped, kept or merged into one "OMITTED #12-14#", with
+// kept, OMITTED dropped or kept (a run printed as one "12-14 OMITTED" or
+// not: omitted_runs.go), with
 // presets (Clean 1…n; after an issue, keep sent scenes; last used) and a
 // preview of old → new made by the plan Apply writes. Clean 1…n numbers
 // the scenes 1…n again, in script order: A-numbers and gaps go. An
@@ -106,19 +107,13 @@ func handNumbersLine(heads []sceneHead) string {
 
 // numberPlan is what Remove or Renumber does to each heading: its new
 // number ("" none), or, for an OMITTED one, drop: its number goes, and
-// with it the heading; its scene stays as boneyard; or merge: the heading
-// goes into the OMITTED run's first, which has the run's range (12-14),
-// its block staying under it. free are the headings Renumber gave a new
-// number (nil for Remove).
+// with it the heading; its scene stays as boneyard. free are the
+// headings Renumber gave a new number (nil for Remove).
 type numberPlan struct {
-	nums  []string
-	drop  []bool
-	merge []bool
-	free  []bool
+	nums []string
+	drop []bool
+	free []bool
 }
-
-// merged tells whether heading i goes into the OMITTED run before it.
-func (p numberPlan) merged(i int) bool { return i < len(p.merge) && p.merge[i] }
 
 // isOmitted tells whether a heading is an OMITTED one.
 func isOmitted(h sceneHead) bool {
@@ -126,11 +121,12 @@ func isOmitted(h sceneHead) bool {
 	return omitted
 }
 
-// removePlan takes out every number but keep's.
+// removePlan takes out every number but keep's, and the labels out of
+// Lexington's scheme (I-1-A, PROLOGUE), which no lock writes.
 func removePlan(heads []sceneHead, keep map[string]bool) numberPlan {
 	p := numberPlan{nums: make([]string, len(heads)), drop: make([]bool, len(heads))}
 	for i, h := range heads {
-		if h.num != "" && keep[h.num] {
+		if h.num != "" && (keep[h.num] || !lex.InNumberScheme(h.num)) {
 			p.nums[i] = h.num
 			continue
 		}
@@ -155,18 +151,6 @@ func planEdits(b *buffer.Buffer, lines []string, heads []sceneHead, p numberPlan
 			out = append(out, dropOmitted(b, lines, h))
 			continue
 		}
-		if p.merged(i) { // the heading and the blank lines after it go
-			next := h.line + 1
-			for next < len(lines) && strings.TrimSpace(lines[next]) == "" {
-				next++
-			}
-			end := b.LineEnd(h.line)
-			if next < len(lines) {
-				end = b.LineStart(next)
-			}
-			out = append(out, lineEdit{b.LineStart(h.line), end, ""})
-			continue
-		}
 		if p.nums[i] == h.num && !h.stray {
 			continue
 		}
@@ -176,7 +160,7 @@ func planEdits(b *buffer.Buffer, lines []string, heads []sceneHead, p numberPlan
 }
 
 // dropOmitted is the edit that takes an OMITTED heading out, its block
-// kept as plain boneyard: each block of a merged run's (12-14).
+// kept as plain boneyard.
 func dropOmitted(b *buffer.Buffer, lines []string, h sceneHead) lineEdit {
 	// block finds the "/* Omitted …" block from line at (blank lines
 	// skipped): its first and closing lines, or -1
@@ -206,34 +190,22 @@ func dropOmitted(b *buffer.Buffer, lines []string, h sceneHead) lineEdit {
 		}
 		return lineEdit{b.LineStart(h.line), end, ""}
 	}
-	_, _, isRun := lex.NumberRange(h.num)
 	var text strings.Builder
-	last := closing
-	for closing >= 0 {
-		if text.Len() > 0 { // the blank lines between the blocks
-			text.WriteString(strings.Join(lines[last+1:open], "\n") + "\n")
+	inner := lines[open+1 : closing]
+	kept := make([]string, len(inner))
+	copy(kept, inner)
+	if len(kept) > 0 { // the old heading, without its number
+		_, n := lex.SceneNumber(strings.TrimSpace(kept[0]))
+		if n != "" {
+			kept[0] = lex.WithSceneNumber(kept[0], "")
 		}
-		inner := lines[open+1 : closing]
-		kept := make([]string, len(inner))
-		copy(kept, inner)
-		if len(kept) > 0 { // the old heading, without its number
-			_, n := lex.SceneNumber(strings.TrimSpace(kept[0]))
-			if n != "" {
-				kept[0] = lex.WithSceneNumber(kept[0], "")
-			}
-		}
-		text.WriteString(omittedOpenLine + "\n" + strings.Join(kept, "\n"))
-		if len(kept) > 0 {
-			text.WriteString("\n")
-		}
-		text.WriteString("*/")
-		last = closing
-		if !isRun {
-			break
-		}
-		open, closing = block(last + 1)
 	}
-	return lineEdit{b.LineStart(h.line), b.LineEnd(last), text.String()}
+	text.WriteString(omittedOpenLine + "\n" + strings.Join(kept, "\n"))
+	if len(kept) > 0 {
+		text.WriteString("\n")
+	}
+	text.WriteString("*/")
+	return lineEdit{b.LineStart(h.line), b.LineEnd(closing), text.String()}
 }
 
 // pageLockFollowing is the block's inside with the page lock's scenes
@@ -327,6 +299,7 @@ func (w *MainWindow) unlockSceneNumbers() {
 		w.setStatus("The scene numbers are not locked")
 		return
 	}
+	w.splitOldOmittedRuns() // v1.13.0's OMITTED #12-14#: one heading a scene first
 	w.afterBundleWrites(func() { w.unlockDialog().Show() })
 }
 
@@ -450,6 +423,7 @@ func (w *MainWindow) renumberScenes() {
 	if w.markdown || w.textEditor == nil {
 		return
 	}
+	w.splitOldOmittedRuns() // v1.13.0's OMITTED #12-14#: one heading a scene first
 	text := w.textEditor.Text()
 	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
 	numbered := false
@@ -479,31 +453,38 @@ func (w *MainWindow) renumberNow() string {
 // the breakdown and the schedule following. It says what it did in the
 // status bar, and returns that.
 func (w *MainWindow) renumberWith(c renumberChoice, ctx renumberContext) string {
+	w.splitOldOmittedRuns() // v1.13.0's OMITTED #12-14#: one heading a scene first
 	text := w.textEditor.Text()
 	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
+	if bad := c.problems(heads); len(bad) > 0 {
+		msg := "Not renumbered: " + strings.Join(bad, "; ")
+		w.setStatus(msg)
+		return msg
+	}
 	p := strategyPlan(heads, c, ctx)
 	inside, _ := productionBlock(text)
 	if sceneLockOf(text).locked {
 		inside = withBlockLine(inside, handNumbersKey, handLineAfter(heads, p, ctx))
 	}
+	printRunsWas := omittedRunsPrinted(text)
+	if c.Omitted != omitDrop { // drop leaves the setting as it is
+		inside = withOmittedRuns(inside, c.Omitted == omitPrintRuns)
+	}
 	inside = pageLockFollowing(text, inside, heads, p)
 	w.applyNumberPlan(heads, p, inside)
-	_, changed := previewRows(heads, p)
-	dropped, merged := 0, 0
+	_, changed := previewRows(heads, p, nil)
+	dropped := 0
 	for i := range heads {
 		if p.drop[i] {
 			dropped++
-		}
-		if p.merged(i) {
-			merged++
 		}
 	}
 	msg := "Scenes renumbered: " + plural(changed, "heading") + " changed"
 	if dropped > 0 {
 		msg += "; " + plural(dropped, "OMITTED scene") + " kept as boneyard"
 	}
-	if merged > 0 {
-		msg += "; " + plural(merged, "OMITTED heading") + " merged into a range"
+	if now := omittedRunsPrinted(w.textEditor.Text()); now != printRunsWas {
+		msg += map[bool]string{true: "; OMITTED runs now print as one (12-14 OMITTED)", false: "; OMITTED runs now print one heading a scene"}[now]
 	}
 	msg += " (Undo takes it back)"
 	w.setStatus(msg)

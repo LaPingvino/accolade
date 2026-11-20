@@ -3,8 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/LaPingvino/lexington/lex"
@@ -36,15 +34,37 @@ const (
 	listOnly              // only these are renumbered
 )
 
+// omittedChoice is what Renumber does with the OMITTED scenes in its
+// scope: drop them (the gaps close), keep them, or keep them and print a
+// run as one ("12-14 OMITTED": the production block's setting,
+// omitted_runs.go). The text keeps one heading a scene either way. A
+// "Last used" kept before the setting had 2 for v1.13.0's merge into one
+// heading: it is the third now.
+type omittedChoice int
+
+const (
+	omitDrop omittedChoice = iota
+	omitKeep
+	omitPrintRuns
+)
+
+// mode is the choice as Lexington's Renumber takes it.
+func (o omittedChoice) mode() lex.OmittedMode {
+	if o == omitDrop {
+		return lex.OmittedDrop
+	}
+	return lex.OmittedKeep
+}
+
 // renumberChoice is the dialog's choices, as "Last used" keeps them.
 type renumberChoice struct {
-	Scope       renumberScope   `json:"scope"`
-	From        int             `json:"from"` // scopeRange: scene indices, in order
-	To          int             `json:"to"`
-	List        renumberList    `json:"list"`
-	Numbers     string          `json:"numbers"` // "5, 12A, 20-24"
-	KeepLetters bool            `json:"keepLetters"`
-	Omitted     lex.OmittedMode `json:"omitted"`
+	Scope       renumberScope `json:"scope"`
+	From        int           `json:"from"` // scopeRange: scene indices, in order
+	To          int           `json:"to"`
+	List        renumberList  `json:"list"`
+	Numbers     string        `json:"numbers"` // "5, 12A, 20-24"
+	KeepLetters bool          `json:"keepLetters"`
+	Omitted     omittedChoice `json:"omitted"`
 }
 
 // renumberLastPref is the setting that keeps the last used choice.
@@ -59,8 +79,13 @@ func cleanChoice() renumberChoice { return renumberChoice{} }
 // scene), OMITTED ones too; only what came since is numbered, around
 // them, its letters folded where a free number fits (a 1B the lock gave
 // between 1A and a cut 3 becomes 2).
-func sentChoice(sent string) renumberChoice {
-	return renumberChoice{List: listKeep, Numbers: sent, Omitted: lex.OmittedKeep}
+// The OMITTED ones are kept, printed as the script prints them now.
+func sentChoice(sent string, printRuns bool) renumberChoice {
+	c := renumberChoice{List: listKeep, Numbers: sent, Omitted: omitKeep}
+	if printRuns {
+		c.Omitted = omitPrintRuns
+	}
+	return c
 }
 
 // lastChoice is the last used choice, if one is kept.
@@ -73,6 +98,9 @@ func (w *MainWindow) lastChoice() (renumberChoice, bool) {
 	if s == "" || json.Unmarshal([]byte(s), &c) != nil {
 		return renumberChoice{}, false
 	}
+	c.Omitted = min(max(c.Omitted, omitDrop), omitPrintRuns)
+	c.Scope = min(max(c.Scope, scopeAll), scopeCursor)
+	c.List = min(max(c.List, listNone), listOnly)
 	return c, true
 }
 
@@ -95,6 +123,7 @@ type renumberContext struct {
 	style          lex.NumberStyle
 	locked         bool
 	hand           map[string]bool // numbered before the lock
+	printRuns      bool            // the script prints OMITTED runs as one now
 }
 
 // sceneIndexOf is the index of the heading a line is in (the last at or
@@ -127,6 +156,7 @@ func (w *MainWindow) renumberContextNow(text string, heads []sceneHead) renumber
 	}
 	l := sceneLockOf(text)
 	ctx.locked = l.locked
+	ctx.printRuns = omittedRunsPrinted(text)
 	ctx.style = w.sceneNumberStyle()
 	if l.locked {
 		ctx.style = l.style
@@ -135,30 +165,55 @@ func (w *MainWindow) renumberContextNow(text string, heads []sceneHead) renumber
 	return ctx
 }
 
-// numbersOf reads the choice's list; bad are the items that are no
-// number of the script nor a range.
-func numbersOf(c renumberChoice, heads []sceneHead) (set lex.NumberSet, bad []string) {
-	set, odd := lex.ParseNumberSet(c.Numbers)
-	for _, n := range odd { // 3-x2k9q is fine if a scene has it
-		found := false
-		for _, h := range heads {
-			found = found || h.num == n
-		}
-		if !found {
-			bad = append(bad, n)
-		}
+// sceneLabelsOf are the headings' numbers, in order ("" none).
+func sceneLabelsOf(heads []sceneHead) []string {
+	out := make([]string, len(heads))
+	for i, h := range heads {
+		out[i] = h.num
 	}
-	return set, bad
+	return out
 }
 
-// inScope tells whether heading i is in the choice's scope.
+// numbersOf reads the choice's list against the script's labels, in its
+// order (lex.ParseNumberSet: a range runs from scene to scene as the
+// script has them).
+func numbersOf(c renumberChoice, heads []sceneHead) lex.NumberSet {
+	return lex.ParseNumberSet(c.Numbers, sceneLabelsOf(heads))
+}
+
+// problems are what keeps the choice from being applied: the list's
+// errors (a range whose end comes first in the script, an end no scene
+// has), and a From … To whose To comes before its From. Neither is
+// swapped: swapping scenes is not renumbering.
+func (c renumberChoice) problems(heads []sceneHead) []string {
+	var out []string
+	if c.Scope == scopeRange && c.To < c.From && c.From < len(heads) {
+		out = append(out, fmt.Sprintf("From %s to %s: scene %s comes before scene %s in the script",
+			pickerName(c.From, heads[c.From]), pickerName(c.To, heads[c.To]), pickerName(c.To, heads[c.To]), pickerName(c.From, heads[c.From])))
+	}
+	if c.List != listNone {
+		out = append(out, numbersOf(c, heads).Errors...)
+	}
+	return out
+}
+
+// pickerName is a heading as a message names it: its number, else its
+// place ("scene 3").
+func pickerName(i int, h sceneHead) string {
+	if h.num != "" {
+		return h.num
+	}
+	return fmt.Sprintf("(%d)", i+1)
+}
+
+// inScope tells whether heading i is in the choice's scope (a From … To
+// the wrong way round has none: problems says why).
 func (c renumberChoice) inScope(i int, ctx renumberContext) bool {
 	switch c.Scope {
 	case scopeSelected:
 		return i >= ctx.selFrom && i <= ctx.selTo
 	case scopeRange:
-		from, to := min(c.From, c.To), max(c.From, c.To)
-		return i >= from && i <= to
+		return i >= c.From && i <= c.To
 	case scopeCursor:
 		return i >= ctx.cursor
 	}
@@ -167,7 +222,7 @@ func (c renumberChoice) inScope(i int, ctx renumberContext) bool {
 
 // strategyPlan is the plan a choice makes of the headings.
 func strategyPlan(heads []sceneHead, c renumberChoice, ctx renumberContext) numberPlan {
-	set, _ := numbersOf(c, heads)
+	set := numbersOf(c, heads)
 	scenes := make([]lex.RenumberScene, len(heads))
 	free := make([]bool, len(heads))
 	for i, h := range heads {
@@ -175,19 +230,21 @@ func strategyPlan(heads []sceneHead, c renumberChoice, ctx renumberContext) numb
 		free[i] = c.inScope(i, ctx)
 		switch {
 		case c.List == listKeep && !set.Empty():
-			free[i] = free[i] && !set.Has(h.num)
+			free[i] = free[i] && !set.Has(i)
 		case c.List == listOnly:
-			free[i] = free[i] && set.Has(h.num)
+			free[i] = free[i] && set.Has(i)
 		}
 	}
-	o := lex.RenumberOptions{Free: free, KeepLetters: c.KeepLetters, Omitted: c.Omitted, Style: ctx.style}
+	o := lex.RenumberOptions{Free: free, KeepLetters: c.KeepLetters, Omitted: c.Omitted.mode(), Style: ctx.style}
 	if c.List == listKeep {
-		o.Reserved = set.Items() // a kept number no scene has now is not given either
+		o.Reserved = set.Unknown // a kept number no scene has now is not given either
 	}
 	res := lex.Renumber(scenes, o)
-	p := numberPlan{nums: make([]string, len(heads)), drop: make([]bool, len(heads)), merge: make([]bool, len(heads)), free: free}
+	p := numberPlan{nums: make([]string, len(heads)), drop: make([]bool, len(heads)), free: free}
 	for i, r := range res {
-		p.nums[i], p.drop[i], p.merge[i] = r.Number, r.Drop, r.Merged
+		p.nums[i], p.drop[i] = r.Number, r.Drop
+		// a fixed label (I-1-A) Lexington keeps: pinned whatever the scope
+		p.free[i] = p.free[i] && (heads[i].num == "" || lex.InNumberScheme(heads[i].num))
 	}
 	return p
 }
@@ -208,34 +265,36 @@ func handLineAfter(heads []sceneHead, p numberPlan, ctx renumberContext) string 
 	return strings.Join(nums, ", ")
 }
 
-// previewRow is one heading in the preview: old → new.
+// previewRow is one heading in the preview: old → new, and how it
+// prints when OMITTED runs print as one.
 type previewRow struct {
 	old, new, heading string
 	changed           bool
 }
 
-// previewRows are the plan's rows, one a heading, and how many change.
-func previewRows(heads []sceneHead, p numberPlan) (rows []previewRow, changed int) {
+// previewRows are the plan's rows, one a heading, and how many change;
+// runs (printRuns) are the OMITTED runs as they will print.
+func previewRows(heads []sceneHead, p numberPlan, runs map[int]string) (rows []previewRow, changed int) {
 	for i, h := range heads {
 		heading, _ := lex.SceneNumber(strings.TrimSpace(h.text))
 		heading = strings.TrimPrefix(strings.TrimSpace(heading), ".")
 		r := previewRow{old: h.num, heading: heading}
-		switch {
-		case p.drop[i]:
+		if p.drop[i] {
 			r.new = "gone"
-		case p.merge[i]:
-			r.new = "into " + mergedInto(p, i)
-		default:
+		} else {
 			r.new = p.nums[i]
 		}
 		if r.old == "" {
 			r.old = "–"
 		}
-		r.changed = p.drop[i] || p.merge[i] || p.nums[i] != h.num
+		r.changed = p.drop[i] || p.nums[i] != h.num
 		if !r.changed {
 			r.new = "stays"
 		} else if r.new == "" {
 			r.new = "none"
+		}
+		if run, ok := runs[i]; ok {
+			r.heading += " · prints as " + run
 		}
 		if r.changed {
 			changed++
@@ -245,21 +304,57 @@ func previewRows(heads []sceneHead, p numberPlan) (rows []previewRow, changed in
 	return rows, changed
 }
 
-// mergedInto is the range a merged heading went into: the run's first's.
-func mergedInto(p numberPlan, i int) string {
-	for j := i - 1; j >= 0; j-- {
-		if !p.merge[j] {
-			return p.nums[j]
+// printRuns are the runs of OMITTED headings a plan leaves that print as
+// one (two or more kept one after the other, only blank lines and their
+// boneyard between them): for each heading in one, the run's label
+// (12-14), its numbers as the plan gives them.
+func printRuns(text string, heads []sceneHead, p numberPlan) map[int]string {
+	lines := strings.Split(text, "\n")
+	// only blank lines and boneyard between headings a and b
+	adjacent := func(a, b int) bool {
+		in := false
+		for _, l := range lines[heads[a].line+1 : heads[b].line] {
+			t := strings.TrimSpace(l)
+			switch {
+			case in:
+				in = !strings.Contains(t, "*/")
+			case strings.HasPrefix(t, "/*"):
+				in = !strings.Contains(t[2:], "*/")
+			case t != "":
+				return false
+			}
+		}
+		return true
+	}
+	out := map[int]string{}
+	var kept []int // the OMITTED headings that stay, in order
+	for i, h := range heads {
+		if isOmitted(h) && !p.drop[i] && p.nums[i] != "" {
+			kept = append(kept, i)
 		}
 	}
-	return ""
+	for k := 0; k < len(kept); {
+		j := k
+		for j+1 < len(kept) && kept[j+1] == kept[j]+1 && adjacent(kept[j], kept[j+1]) {
+			j++
+		}
+		if j > k {
+			label := lex.OmittedRunLabel(p.nums[kept[k]], p.nums[kept[j]])
+			for _, i := range kept[k : j+1] {
+				out[i] = label
+			}
+		}
+		k = j + 1
+	}
+	return out
 }
 
 // sentNumbers are the numbers that went out in the issues, as the keep
-// list writes them: runs of whole numbers as ranges (1-40), where no
-// scene of the script now has a number inside the run that did not go
-// out (a 4A written since splits 1-9 into "1-4, 5-9", so that 4A is not
-// kept).
+// list writes them: the script's runs of scenes that all went out as
+// ranges in its order ("1-40"), a scene written since breaking a run (a
+// 4A after the issue splits 1-9 into "1-4, 5-9", so that 4A is not
+// kept); then the numbers that went out and no scene has now, one by one
+// (never given again).
 func sentNumbers(chain *revisionChain, starts []string, now []sceneHead) string {
 	if chain == nil {
 		return ""
@@ -276,43 +371,36 @@ func sentNumbers(chain *revisionChain, starts []string, now []sceneHead) string 
 			order = append(order, n)
 		}
 	}
-	whole := map[int]bool{}
-	var other []string
-	for _, n := range order {
-		if v, err := strconv.Atoi(n); err == nil && fmt.Sprint(v) == n {
-			whole[v] = true
-		} else {
-			other = append(other, n)
-		}
+	labels := sceneLabelsOf(now)
+	has := map[string]bool{}
+	for _, l := range labels {
+		has[l] = true
 	}
-	// a number of the script now that did not go out breaks a run
-	breaks := func(lo, hi int) bool {
-		r := fmt.Sprintf("%d-%d", lo, hi)
-		set, _ := lex.ParseNumberSet(r)
-		for _, h := range now {
-			if h.num != "" && !sent[h.num] && set.Has(h.num) {
-				return true
-			}
-		}
-		return false
-	}
-	var keys []int
-	for v := range whole {
-		keys = append(keys, v)
-	}
-	slices.Sort(keys)
 	var out []string
-	for i := 0; i < len(keys); {
+	for i := 0; i < len(now); {
+		if !sent[now[i].num] {
+			i++
+			continue
+		}
 		j := i
-		for j+1 < len(keys) && keys[j+1] == keys[j]+1 && !breaks(keys[i], keys[j+1]) {
+		for j+1 < len(now) && sent[now[j+1].num] {
 			j++
 		}
-		if j > i {
-			out = append(out, fmt.Sprintf("%d-%d", keys[i], keys[j]))
-		} else {
-			out = append(out, fmt.Sprint(keys[i]))
+		a, b := now[i].num, now[j].num
+		switch {
+		case i == j:
+			out = append(out, a)
+		case strings.Contains(a, "-") || strings.Contains(b, "-") || has[a+"-"+b]:
+			out = append(out, a+" – "+b)
+		default:
+			out = append(out, a+"-"+b)
 		}
 		i = j + 1
 	}
-	return strings.Join(append(out, other...), ", ")
+	for _, n := range order {
+		if !has[n] {
+			out = append(out, n)
+		}
+	}
+	return strings.Join(out, ", ")
 }
