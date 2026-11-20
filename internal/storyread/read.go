@@ -13,6 +13,8 @@
 package storyread
 
 import (
+	"github.com/LaPingvino/accolade/internal/pace"
+
 	"regexp"
 	"slices"
 	"sort"
@@ -199,6 +201,7 @@ func Read(ps []Passage, lang string, h Hints) *Reading {
 	}
 	for _, p := range ps {
 		r.ps = append(r.ps, r.prepare(p))
+		pace.Yield() // the browser draws between (a novel is read in a goroutine)
 	}
 	r.dashRuns()
 	for _, p := range r.ps {
@@ -210,6 +213,7 @@ func Read(ps []Passage, lang string, h Hints) *Reading {
 	}
 	for i, p := range r.ps {
 		r.findMentions(i, p)
+		pace.Yield()
 	}
 	out := &Reading{Lang: r.l.Code, Passages: make([]PassageReading, len(ps))}
 	r.scenes(out)
@@ -219,6 +223,7 @@ func Read(ps []Passage, lang string, h Hints) *Reading {
 		}
 		r.dialogue(i, p, &out.Passages[i])
 		out.Passages[i].Flags = r.flags(p)
+		pace.Yield()
 	}
 	r.names(out)
 	r.headings(out)

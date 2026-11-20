@@ -11,6 +11,7 @@ import (
 	"github.com/LaPingvino/lexington/lex"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/pace"
 	"github.com/LaPingvino/accolade/internal/storyread"
 )
 
@@ -81,6 +82,7 @@ func offersOf(ps []passage, lang, script string, r *storyread.Reading) *sourceOf
 		if !ps[i].counted() {
 			continue
 		}
+		pace.Yield()
 		done := map[int]bool{}
 		for _, pc := range pr.Pieces {
 			var op offerPiece
@@ -168,6 +170,15 @@ func (c *sceneCtx) used(p offerPiece) bool {
 	return strings.Contains(c.joined, p.key)
 }
 
+// ctxSlot is a scene found for a revision and line.
+type ctxSlot struct {
+	ok      bool
+	rev     uint64
+	line    int
+	offered int // the passage Next showed then
+	c       *sceneCtx
+}
+
 // suggestion is what Tab would put in at the cursor: [start, end) (runes)
 // replaced by one of alts, each told in hints.
 type suggestion struct {
@@ -203,11 +214,7 @@ type suggester struct {
 	cues    map[string]int
 	cueOf   map[string]string // cueFor's, this revision
 	cuesOK  bool
-	ctxLine int
-	ctxHead bool
-	ctx     *sceneCtx
-	ctxOK   bool
-	ctxRev  uint64
+	ctxs    [2]ctxSlot // the cursor's scene, as a line in it and as its heading being typed
 
 	cycle     *suggestCycle
 	dismissed struct {
@@ -217,6 +224,7 @@ type suggester struct {
 	}
 	loaded    bool     // the source was read for the suggestions once
 	loadedFor string   // for this file
+	seenRev   uint64   // the text's revision it was last looked at in
 	loadTimer *uiTimer // reading it again after typing, the pane hidden
 }
 
@@ -244,14 +252,27 @@ func (sg *suggester) on() bool {
 // pane never was; nil without a source or passages yet.
 func (sg *suggester) source() *sourcePane {
 	w := sg.w
-	s := w.sourcePane()
-	if !sg.loaded || sg.loadedFor != w.currentFile {
-		sg.loaded, sg.loadedFor = true, w.currentFile
-		s.loadSource(true)
-	} else if !s.shown() && w.textEditor.Buffer().Rev() != sg.rev {
-		// the pane reads it again as it follows; hidden, after a pause
-		w.debounce(&sg.loadTimer, time.Second, func() { s.loadSource(true) })
+	rev := w.textEditor.Buffer().Rev()
+	// the pane is made for a script with a source only
+	load := func() {
+		if w.notes != nil || w.sourceRef().Origin != sourceNone {
+			w.sourcePane().loadSource(true)
+		}
 	}
+	switch {
+	case !sg.loaded || sg.loadedFor != w.currentFile: // another script
+		sg.loaded, sg.loadedFor, sg.seenRev = true, w.currentFile, rev
+		load()
+	case rev != sg.seenRev: // the pane reads it again as it follows; hidden, after a pause
+		sg.seenRev = rev
+		if w.notes == nil || !w.notes.source.shown() {
+			w.debounce(&sg.loadTimer, time.Second, load)
+		}
+	}
+	if w.notes == nil {
+		return nil
+	}
+	s := w.notes.source
 	if s.ref.Origin == sourceNone || s.loading != nil || len(s.passages) == 0 {
 		return nil
 	}
@@ -309,7 +330,7 @@ func (sg *suggester) refresh() {
 	}
 	sg.rev = b.Rev()
 	sg.lines = strings.Split(b.Text(), "\n")
-	sg.cuesOK, sg.ctxOK = false, false
+	sg.cuesOK, sg.ctxs = false, [2]ctxSlot{}
 	clear(sg.cueOf)
 }
 
@@ -401,11 +422,14 @@ func sectionAt(lines []string, i int) bool {
 // its passages and what it has of them; head, when line is the heading
 // being typed.
 func (sg *suggester) scene(s *sourcePane, line int, head bool) *sceneCtx {
-	if sg.ctxOK && sg.ctxRev == sg.rev && sg.ctxLine == line && sg.ctxHead == head {
-		return sg.ctx
+	slot := &sg.ctxs[0]
+	if head {
+		slot = &sg.ctxs[1]
 	}
-	sg.ctx, sg.ctxOK, sg.ctxRev, sg.ctxLine, sg.ctxHead = sg.sceneOf(s, line, head), true, sg.rev, line, head
-	return sg.ctx
+	if !slot.ok || slot.rev != sg.rev || slot.line != line || slot.offered != s.offered {
+		*slot = ctxSlot{ok: true, rev: sg.rev, line: line, offered: s.offered, c: sg.sceneOf(s, line, head)}
+	}
+	return slot.c
 }
 
 func (sg *suggester) sceneOf(s *sourcePane, line int, head bool) *sceneCtx {
@@ -590,7 +614,11 @@ func (sg *suggester) at() *suggestion {
 		if c == nil {
 			return nil
 		}
-		return sg.linesFor(o, c, strings.ToUpper(cueName(text)), cursor, cursor, "\n", true)
+		sug, own := sg.linesFor(o, c, strings.ToUpper(cueName(text)), cursor, cursor, "\n", true)
+		if sug != nil && !own && sg.startsSomething(text) {
+			return nil // AN, EXT: a name or heading being typed, not a cue for a line no one is named for
+		}
+		return sug
 	case strings.TrimSpace(text) != "":
 		return nil
 	case isCueLine(lines, line-1): // the cue's empty dialogue line
@@ -598,13 +626,15 @@ func (sg *suggester) at() *suggestion {
 		if c == nil {
 			return nil
 		}
-		return sg.linesFor(o, c, strings.ToUpper(cueName(lines[line-1])), start, cursor, "", true)
+		sug, _ := sg.linesFor(o, c, strings.ToUpper(cueName(lines[line-1])), start, cursor, "", true)
+		return sug
 	case strings.HasPrefix(strings.TrimSpace(lines[max(line-1, 0)]), "(") && isCueLine(lines, line-2):
 		c := sg.scene(s, line, false)
 		if c == nil {
 			return nil
 		}
-		return sg.linesFor(o, c, strings.ToUpper(cueName(lines[line-2])), start, cursor, "", false)
+		sug, _ := sg.linesFor(o, c, strings.ToUpper(cueName(lines[line-2])), start, cursor, "", false)
+		return sug
 	}
 	c := sg.scene(s, line, false)
 	if c == nil {
@@ -646,9 +676,10 @@ func (sg *suggester) at() *suggestion {
 
 // linesFor is the lines a character says that the scene has not got,
 // then those no one is named for: put in at [start, end) after lead (a
-// line break after the cue), with their parenthetical if withParen.
-func (sg *suggester) linesFor(o *sourceOffers, c *sceneCtx, cue string, start, end int, lead string, withParen bool) *suggestion {
-	sug := &suggestion{start: start, end: end}
+// line break after the cue), with their parenthetical if withParen; own
+// reports whether the character has lines of their own in it.
+func (sg *suggester) linesFor(o *sourceOffers, c *sceneCtx, cue string, start, end int, lead string, withParen bool) (sug *suggestion, own bool) {
+	sug = &suggestion{start: start, end: end}
 	var nobody []offerPiece
 	for _, pc := range sg.unused(o, c) {
 		switch {
@@ -659,13 +690,37 @@ func (sg *suggester) linesFor(o *sourceOffers, c *sceneCtx, cue string, start, e
 			sug.add(pc, lead, withParen, cue)
 		}
 	}
+	own = len(sug.alts) > 0
 	for _, pc := range nobody {
 		sug.add(pc, lead, withParen, "")
 	}
 	if len(sug.alts) == 0 {
-		return nil
+		return nil, false
 	}
-	return sug
+	return sug, own
+}
+
+// startsSomething reports whether a line being typed could be the start
+// of a heading, or of a name Tab completes.
+func (sg *suggester) startsSomething(line string) bool {
+	starts := sg.w.sceneStarts()
+	t := strings.TrimSpace(line)
+	if headingStart(t, starts) || isSceneHeadingIn(t, starts) {
+		return true
+	}
+	upper := strings.ToUpper(cueName(t))
+	for name := range sg.scriptCues() {
+		if strings.HasPrefix(name, upper) && name != upper {
+			return true
+		}
+	}
+	names, _ := sg.firsts(0)
+	for _, name := range names {
+		if strings.HasPrefix(name, upper) && name != upper {
+			return true
+		}
+	}
+	return false
 }
 
 func (sug *suggestion) add(pc offerPiece, lead string, withParen bool, cue string) {

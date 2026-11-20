@@ -189,8 +189,8 @@ func (k *completer) tab(e *editor.ScriptEditor) bool {
 // active reports whether Tab is going through completions: the line is
 // the one Tab put there, unchanged since.
 func (k *completer) active(e *editor.ScriptEditor) bool {
-	if k == nil || k.c == nil {
-		return false
+	if k == nil || k.c == nil || len(k.c.candidates) < 2 {
+		return false // one: nothing to go through, the line after it comes next
 	}
 	cur := k.c.candidates[k.index]
 	cursor := e.CursorOffset()

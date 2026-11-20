@@ -61,12 +61,15 @@ func toEnd(w *MainWindow) {
 func status(w *MainWindow) string { return w.statusLabel.Text }
 
 // tail is the script after the fixture's text.
-func tail(w *MainWindow) string {
+func tail(w *MainWindow) string { return tailOf(w, suggestScript) }
+
+// tailOf is the script after script.
+func tailOf(w *MainWindow, script string) string {
 	text := w.textEditor.Text()
-	if !strings.HasPrefix(text, suggestScript) {
+	if !strings.HasPrefix(text, script) {
 		return "(changed) " + text
 	}
-	return text[len(suggestScript):]
+	return text[len(script):]
 }
 
 func suggestWindow(t *testing.T, script string) *MainWindow {
@@ -330,6 +333,89 @@ func TestSuggestHeading(t *testing.T) {
 	}
 }
 
+// A line no one is named for comes under any cue after the character's
+// own, but a name or heading being typed is still completed (AN, EXT).
+func TestSuggestUnattributed(t *testing.T) {
+	story := strings.Replace(suggestStory, "Anna opened the kitchen door. “Where were you?” Anna whispered.", "The kitchen door opened. “Where were you?”", 1)
+	script := strings.Replace(suggestScript, "Anna opened the kitchen door.", "The kitchen door opened.", 1)
+	w, _ := sourceWindow(t, script, story)
+	toEnd(w)
+	typeText(w, "ANNA")
+	if h := status(w); !strings.HasPrefix(h, "Tab: ANNA’s line: “No. There is never tea.”") || !strings.Contains(h, "1 of 2") {
+		t.Fatalf("hint %q", h)
+	}
+	tabKey(w)
+	tabKey(w)
+	if got := tailOf(w, script); got != "ANNA\nWhere were you?" {
+		t.Errorf("no one's line: %q", got)
+	}
+	for tailOf(w, script) != "" {
+		w.textEditor.Undo()
+	}
+	typeText(w, "AN")
+	tabKey(w)
+	if got := tailOf(w, script); got != "ANNA" {
+		t.Errorf("AN, Tab: %q", got)
+	}
+	for tailOf(w, script) != "" {
+		w.textEditor.Undo()
+	}
+	typeText(w, "EXT")
+	tabKey(w)
+	if got := tailOf(w, script); got != "EXT. STREET - MORNING" {
+		t.Errorf("EXT, Tab: %q", got)
+	}
+	for tailOf(w, script) != "" {
+		w.textEditor.Undo()
+	}
+	// a cue of its own for it: the line, as the cue's
+	typeText(w, "MAID")
+	if h := status(w); !strings.HasPrefix(h, "Tab: “Where were you?”, no one named for it") {
+		t.Errorf("a new cue: %q", h)
+	}
+}
+
+// A name completed with Tab, the next Tab gives its line (the name is
+// the only one to complete).
+func TestSuggestCompleteThenLine(t *testing.T) {
+	w := suggestWindow(t, suggestScript)
+	typeText(w, "TO")
+	tabKey(w)
+	if got := tail(w); got != "TOM" {
+		t.Fatalf("completed: %q", got)
+	}
+	if h := status(w); !strings.HasPrefix(h, "Tab: TOM’s line") {
+		t.Errorf("hint %q", h)
+	}
+	tabKey(w)
+	if got := tail(w); got != "TOM\nOut. Is there tea?" {
+		t.Errorf("Tab again: %q", got)
+	}
+}
+
+// A scene with no link yet, the passage Next showed (Next only showing
+// it) is the one suggested from.
+func TestSuggestNextShown(t *testing.T) {
+	script := "Title: Snow\n\nINT. KITCHEN - NIGHT\n\n[[from: \"Anna opened the kitchen door.\"]]\n\nEXT. STREET - DAY\n\n"
+	w, _ := sourceWindow(t, script, suggestStory)
+	w.settings.SetBoolean("next-passage-inserts", false)
+	t.Cleanup(func() { w.settings.SetBoolean("next-passage-inserts", true) })
+	toEnd(w)
+	w.showSuggestionHint()
+	if h := status(w); strings.HasPrefix(h, "Tab: ") {
+		t.Fatalf("no link, nothing shown, still: %q", h)
+	}
+	w.nextSourcePassage()
+	if p := w.sourcePane().offeredPassage(); p < 0 || !strings.HasPrefix(w.sourcePane().passages[p].Plain, "“Out,”") {
+		t.Fatalf("Next showed %d", p)
+	}
+	toEnd(w)
+	w.showSuggestionHint()
+	if h := status(w); !strings.HasPrefix(h, "Tab: TOM: “Out. Is there tea?”") {
+		t.Errorf("from Next's: %q", h)
+	}
+}
+
 // Screenshots of a cue's suggestion and a narration's, at a desktop's
 // width and a phone's (SHOT_DIR).
 func TestSuggestScreenshots(t *testing.T) {
@@ -363,60 +449,77 @@ func TestSuggestScreenshots(t *testing.T) {
 }
 
 // What a keystroke costs with suggestions on and off: the novel and
-// its 200-scene script, the cursor on an empty line in a linked scene,
-// a rune typed and taken away and the hint shown, as a key does.
+// its 200-scene script, a rune typed and taken away in a linked scene,
+// the cursor on an empty line in it, where a suggestion is shown.
 func BenchmarkSuggestKeystroke(b *testing.B) {
 	for _, on := range []bool{true, false} {
 		b.Run(map[bool]string{true: "on", false: "off"}[on], func(b *testing.B) {
-			w, s, off := benchWindow(b, false)
-			w.settings.SetBoolean(suggestPref, on)
-			b.Cleanup(func() { w.settings.SetBoolean(suggestPref, true) })
-			// what the source offers is read once, before
-			w.textEditor.Navigate(func(bf *buffer.Buffer) { bf.SetCursor(off, false) })
-			w.suggester().offersFor(s)
+			w, off := benchSuggestWindow(b, on)
 			realTimers(b)
 			e := w.textEditor
 			i := 0
 			for b.Loop() {
-				if i%2 == 0 {
-					e.Replace(off, off, "x")
-				} else {
-					e.Replace(off, off+1, "")
-				}
+				e.Edit(func(bf *buffer.Buffer) { // the action under the empty line, the cursor kept
+					if i%2 == 0 {
+						bf.Replace(off+1, off+1, "x")
+					} else {
+						bf.Replace(off+1, off+2, "")
+					}
+					bf.SetCursor(off, false)
+				})
 				cancel(&w.followTimer)
 				cancel(&w.suggester().loadTimer)
 				i++
+			}
+			if h := status(w); on != strings.Contains(h, "from the source") {
+				b.Errorf("hint %q", h)
 			}
 		})
 	}
 }
 
+// benchSuggestWindow is benchWindow with an empty line put in scene 100,
+// the cursor on it, what the source offers read; off: suggestions off.
+func benchSuggestWindow(b *testing.B, on bool) (*MainWindow, int) {
+	w, s, off := benchWindow(b, false)
+	w.settings.SetBoolean(suggestPref, on)
+	b.Cleanup(func() { w.settings.SetBoolean(suggestPref, true) })
+	w.textEditor.Replace(off, off, "\n")
+	w.textEditor.Navigate(func(bf *buffer.Buffer) { bf.SetCursor(off, false) })
+	w.suggester().offersFor(s)
+	w.showSuggestionHint()
+	if h := status(w); on != strings.Contains(h, "from the source") {
+		b.Fatalf("hint %q", h)
+	}
+	return w, off
+}
+
 // The hint's own share of a keystroke, on and off (off: the completion
-// hint as before): the edit, and the text it makes, which every part of
-// a keystroke shares, are outside the timing.
+// hint as before), where a suggestion is shown: the edit, and the text it
+// makes, which every part of a keystroke shares, are outside the timing.
 func BenchmarkSuggestHint(b *testing.B) {
 	for _, on := range []bool{true, false} {
 		b.Run(map[bool]string{true: "on", false: "off"}[on], func(b *testing.B) {
-			w, s, off := benchWindow(b, false)
-			w.settings.SetBoolean(suggestPref, on)
-			b.Cleanup(func() { w.settings.SetBoolean(suggestPref, true) })
-			w.textEditor.Navigate(func(bf *buffer.Buffer) { bf.SetCursor(off, false) })
+			w, off := benchSuggestWindow(b, on)
 			sg := w.suggester()
-			sg.offersFor(s)
-			sg.hint()
 			bf := w.textEditor.Buffer()
 			i := 0
+			h := ""
 			for b.Loop() {
 				b.StopTimer()
 				if i%2 == 0 {
-					bf.Replace(off, off, "x")
+					bf.Replace(off+1, off+1, "x")
 				} else {
-					bf.Replace(off, off+1, "")
+					bf.Replace(off+1, off+2, "")
 				}
+				bf.SetCursor(off, false)
 				bf.Text()
 				i++
 				b.StartTimer()
-				sg.hint()
+				h = sg.hint()
+			}
+			if on != strings.Contains(h, "from the source") {
+				b.Errorf("hint %q", h)
 			}
 		})
 	}

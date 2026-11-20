@@ -174,7 +174,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   tea?” · from the source · 1 of 2"); Tab takes it (one undo step), Tab again the next, round; Esc puts it away for
   that line until the text changes; typing on, the next comes from where the cursor is. A cue at the end of its line
   (or the empty line under it, or under its parenthetical): that character's next line not in the scene, the manner
-  as a parenthetical, then the lines no one is named for. A cue being typed: the passages' speakers first (mapped to
+  as a parenthetical, then the lines no one is named for (those only when the line is no name or heading being
+  typed: AN, EXT still complete). A name Tab completed to the only one: Tab again gives its line. A cue being typed: the passages' speakers first (mapped to
   the script's cue when its words are the name's or part of it: ANNA K for Anna; no dots, MRS BENNET), then the
   script's own. An empty line: the next piece not in the scene, a line with its cue (CHARACTER, selected, when no one
   is named), or the narration as action as written ("not seen on screen" for thoughts); a blank line put before or
@@ -184,9 +185,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   storyread marks the sentence that says who speaks as a Tag piece ("said Tom, shaking his coat."), left out; a
   line's pieces are joined with a full stop where the narration between ended a sentence. Preferences > Script >
   Adapting "Suggest from the source while writing" (default on). The source is read for them with the pane hidden
-  too (again a second after typing). Cost: read once per source (in the background from 64 KB); per revision and
-  line the scene's lines only. The hint on the bench script: 1.5 ms on, 0.7 ms off (the old completion hint), the
-  text's copy apart. Rough: no grey text after the cursor (the editor has no ghost text; the status bar is small and
+  too (again a second after typing; the pane is made only for a script with a source). Cost: read once per source
+  (in the background from 64 KB, storyread.Read now yields: pace); per revision and line the scene's lines only. On
+  the bench script, the cursor where a suggestion shows: the hint 0.66 ms on, 0.98 ms off (the old completion hint),
+  the text's copy apart; a whole keystroke 36 vs 38 ms (noise). Rough: a phone's keyboard has no Tab, so there the
+  hint shows but cannot be taken (a tap on it could take it: to decide); no grey text after the cursor (the editor has no ghost text; the status bar is small and
   grey); a line edited after it was taken is offered again; speakers storyread misses come as CHARACTER; a tag with
   action in it ("shaking his coat") loses that action; the cue's cycle and the name completions' cycle are separate
   (after completing a name, Enter then Tab gives the line).
