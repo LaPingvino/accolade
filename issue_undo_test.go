@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -267,5 +268,145 @@ func TestWithdrawScreenshots(t *testing.T) {
 		png.Encode(f, w.fyneWindow.Canvas().Capture())
 		f.Close()
 		d.Hide()
+	}
+}
+
+// Undo right after an issue that laid out and locked the pages (in the
+// background): White's locks and Blue's lock again, each one step.
+func TestUndoLockingIssue(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, revScript)
+	before := w.textEditor.Text()
+	issueLocking(t, w, "White", 1)
+	white := w.textEditor.Text()
+	w.undo()
+	if got := w.textEditor.Text(); got != before || len(issueNames(t, w)) != 0 {
+		t.Fatalf("Undo of White: %v\n%s", issueNames(t, w), got)
+	}
+	w.redo()
+	if got := w.textEditor.Text(); got != white || len(issueNames(t, w)) != 1 {
+		t.Fatalf("Redo of White: %v\n%s", issueNames(t, w), got)
+	}
+	replaceText(t, w, "Mud everywhere.", "Mud everywhere, and a dog.")
+	edited := w.textEditor.Text()
+	issueWait(t, w, "Blue", 20, "")
+	blue := w.textEditor.Text()
+	w.undo()
+	if got := w.textEditor.Text(); got != edited {
+		t.Fatalf("Undo of Blue:\n%s", got)
+	}
+	if got := issueNames(t, w); len(got) != 1 || got[0] != "White" {
+		t.Fatalf("store %v", got)
+	}
+	w.redo()
+	if w.textEditor.Text() != blue || len(issueNames(t, w)) != 2 {
+		t.Fatal("Redo of Blue")
+	}
+}
+
+// In a bundle written in the background: Undo while the issue is still
+// being written keeps the step (and says so); once written it goes, and
+// Redo waits for the withdrawal in turn.
+func TestUndoIssueWhileWriting(t *testing.T) {
+	holdUI(t)
+	realPaths(t)
+	w := draftsWindow(t)
+	p := filepath.Join(t.TempDir(), "Rain.accolade")
+	w.textEditor.SetText(revScript)
+	if err := w.saveToFile(p); err != nil {
+		t.Fatal(err)
+	}
+	w.flushBundleWrites()
+	w.typeAfterRename("", "untitled.fountain", p, p)
+	w.currentFile = p
+	before := w.textEditor.Text()
+	done := false
+	w.issueDraft(lex.RevisionSet{Name: "White", Date: time.Now()}, "", false, func(err error) {
+		if err != nil {
+			t.Error(err)
+		}
+		done = true
+	})
+	issued := w.textEditor.Text()
+	if done {
+		t.Skip("the write was done at once")
+	}
+	w.undo()
+	if w.textEditor.Text() != issued || !strings.Contains(w.statusText(), "still being written") {
+		t.Fatalf("Undo while writing: status %q", w.statusText())
+	}
+	waitFor(t, "White written", func() bool { return done })
+	w.undo()
+	if w.textEditor.Text() != before {
+		t.Fatal("Undo once written")
+	}
+	w.redo() // the withdrawal is under way
+	if w.textEditor.Text() != before {
+		t.Fatal("Redo while withdrawing")
+	}
+	waitFor(t, "White withdrawn", func() bool { return !w.bundleBusy() && len(issueNames(t, w)) == 0 })
+	w.redo()
+	if w.textEditor.Text() != issued {
+		t.Fatal("Redo once withdrawn")
+	}
+	waitFor(t, "White back", func() bool { return !w.bundleBusy() && len(issueNames(t, w)) == 1 })
+}
+
+// An issue kept before entries noted what they made: Withdraw takes the
+// entry and the revision line, the locks stay, and the dialog says so.
+func TestWithdrawWithoutMade(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, revScript)
+	issueLocking(t, w, "White", 1)
+	home := w.extrasHome()
+	data, err := home.readExtra(draftsIndexName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var idx draftsIndex
+	json.Unmarshal(data, &idx)
+	idx.Drafts[0].Made = nil
+	data, _ = json.Marshal(idx)
+	if err := home.dir.write([]bundleFile{{draftsIndexName, data}}); err != nil {
+		t.Fatal(err)
+	}
+	wd, err := w.planWithdrawal()
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.withdrawDialog(wd).Show()
+	if !dialogShows(w, "before Accolade noted") {
+		t.Error("the dialog does not say the locks stay")
+	}
+	w.withdrawNow(wd)
+	got := w.textEditor.Text()
+	if currentRevisionOf(got) != "" || !sceneLockOf(got).locked || pageLockOf(got) == nil {
+		t.Fatalf("withdrawn without a note:\n%s", got)
+	}
+	if len(issueNames(t, w)) != 0 {
+		t.Error("still in the store")
+	}
+}
+
+// Typing while an issue lays out the pages stops it: no entry, and the
+// scene lock it made stays its own undo step.
+func TestIssueStopsOnTyping(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, revScript)
+	var got error
+	done := false
+	w.issueDraft(lex.RevisionSet{Name: "White", Date: time.Now()}, "", true, func(err error) { got, done = err, true })
+	replaceText(t, w, "Mud everywhere.", "Mud.")
+	waitFor(t, "the issue ends", func() bool { return done })
+	if got == nil || !strings.Contains(got.Error(), "changed while its pages") {
+		t.Fatalf("error %v", got)
+	}
+	if len(issueNames(t, w)) != 0 || w.textEditor.UndoTag() != nil {
+		t.Fatal("issued anyway")
+	}
+	w.undo() // the typing
+	w.undo() // the lock
+	if sceneLockOf(w.textEditor.Text()).locked {
+		t.Error("the scene lock is not a step of its own")
 	}
 }
