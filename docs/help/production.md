@@ -67,9 +67,9 @@ In a locked script, a cut scene keeps its number. Production > Omit Scene, with 
 
 ## Drafts
 
-File > Save Draft… keeps the script as it is now under a name, at any time. File > Drafts… lists the drafts:
+Collaboration > Save Draft… keeps the script as it is now under a name, at any time. Collaboration > Drafts… lists the drafts:
 
-- **Compare** two drafts, or one with the script now, scene by scene and word by word.
+- **Compare** two drafts, or one with the script now, scene by scene and word by word. Collaboration > Compare… goes straight there, the newest draft with the script now.
 - **Restore…** makes the script that draft's text again. The script as it was is saved as a draft first, and Undo takes it back.
 
 A text or source that is the same as one already stored is not stored twice. The drafts are kept with the script; see [where it is all kept](#where-it-is-all-kept).

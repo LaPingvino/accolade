@@ -41,6 +41,7 @@ func (s *Settings) loadDefaults() {
 
 		// Window settings
 		"toolbar-visible":   true,
+		"look":              "menus", // or "ribbon" (ribbon.go)
 		"statusbar-visible": true,
 
 		// Editor behavior

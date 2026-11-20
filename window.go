@@ -120,6 +120,12 @@ type MainWindow struct {
 	// menu bar: on the canvas, and for the editor (menuShortcut)
 	menuShortcuts map[string]menuShortcut
 
+	// the ribbon, once the look is Ribbon (ribbon.go), its refresh when
+	// typing pauses, and the command palette while open (palette.go)
+	ribbon      *ribbonBar
+	ribbonTimer *uiTimer
+	palette     *palette
+
 	// Settings
 	settings *Settings
 
@@ -206,6 +212,7 @@ func (w *MainWindow) setupUI() {
 	// Create main text editor with Courier Prime font
 	w.textEditor = newScriptEditor(w)
 	w.textEditor.OnCursorChanged = w.onCursorChanged
+	w.textEditor.OnKeyUp = func(k *fyne.KeyEvent) { w.altKey(k.Name, false) }
 
 	// Add some initial content - start with a title page
 	w.textEditor.SetText(defaultScript(time.Now()))
@@ -279,6 +286,7 @@ func (w *MainWindow) setupShortcuts() {
 // Shift+F6 for the panes; commands.go); it reports whether it took the key.
 func (w *MainWindow) keyPreview(key fyne.KeyName, mod fyne.KeyModifier) bool {
 	keyArrived()
+	w.altKey(key, true) // Alt alone shows the ribbon's key tips
 	return w.previewKey(key, mod)
 }
 
@@ -335,6 +343,7 @@ func (w *MainWindow) applyEditorSettings() {
 	// laid out in columns)
 	w.textEditor.SetLineNumbers(w.settings.GetBoolean("show-line-numbers"))
 	setVisible(w.headerArea, w.settings.GetBoolean("toolbar-visible"))
+	w.applyLook() // the header's rows or the ribbon
 	// vim mode switched on starts in normal mode, switched off types again
 	if w.vim != nil {
 		if on := w.editorKeys() != "standard"; on && w.vim.mode == vimInsert {
@@ -810,6 +819,7 @@ func (w *MainWindow) setLanguage(lang string) {
 			w.headerBar.place.SetText(both)
 		}
 	}
+	w.ribbonRefresh() // its place button too
 	if w.textEditor != nil {
 		w.textEditor.SceneStarts = sceneStarts(lang)
 		w.textEditor.Refresh()
@@ -1038,6 +1048,7 @@ func (w *MainWindow) onTextChanged(text string) {
 		w.searchBar.updateSearch() // the matches move with the text
 	}
 
+	w.ribbonFollow() // a lock or a source block changes what it can give
 	w.scheduleAutoSave()
 }
 
@@ -1064,6 +1075,9 @@ func (w *MainWindow) updateTitle() {
 			name = "Untitled"
 		}
 		w.headerBar.SetTitle(name)
+		if w.ribbon != nil {
+			w.ribbon.title.SetText(name)
+		}
 	}
 }
 
@@ -1123,6 +1137,9 @@ func (w *MainWindow) updateCurrentElement() {
 	}
 	if w.headerBar != nil {
 		w.headerBar.showElement(w.currentElement)
+		if w.ribbon != nil {
+			w.ribbon.showElement(w.currentElement)
+		}
 	}
 }
 
@@ -1369,6 +1386,7 @@ func (w *MainWindow) onWindowWidth(width float32) {
 		focused := c.Focused() // a new content drops the focus
 		w.relayout()
 		w.productionFollow() // its buttons go where the room is
+		w.ribbonRefresh()    // one row of tabs, one of buttons, on a phone
 		if w.stripsVisible && w.stripboard != nil {
 			w.stripboard.update() // strips of two lines on a phone
 		}
@@ -1481,6 +1499,7 @@ func (w *MainWindow) refreshMenu() {
 		c.RemoveShortcut(sc.shortcut)
 	}
 	w.menuShortcuts = nil
+	w.ribbonRefresh() // what the commands can give changed too
 	if !w.isFullscreen {
 		w.fyneWindow.SetMainMenu(w.buildMainMenu())
 		return

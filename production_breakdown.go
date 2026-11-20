@@ -41,16 +41,11 @@ type breakdownStage struct {
 
 func (b *breakdownStage) make(p *productionPane) {
 	w := p.w
-	button := func(label string, icon fyne.Resource, f func()) *widget.Button {
-		x := widget.NewButtonWithIcon(label, icon, f)
-		x.Alignment = widget.ButtonAlignLeading
-		return x
-	}
-	b.next = button("Next Scene", theme.NavigateNextIcon(), w.nextBreakdownScene)
+	b.next = paneButton(w, "production.nextScene")
 	b.next.Importance = widget.HighImportance
-	b.done = button("Mark Scene Done", theme.ConfirmIcon(), func() { w.markSceneDone(b.scene) })
-	b.tag = button("Tag Selection…", theme.ContentAddIcon(), w.showTagPicker)
-	b.sheets = button("Breakdown Sheets…", theme.DocumentIcon(), func() { w.showReportsOf(lexreport.KindSheets) })
+	b.done = paneButton(w, "production.sceneDone")
+	b.tag = paneButton(w, "production.tag")
+	b.sheets = paneButton(w, "production.sheets")
 	b.grid = container.NewGridWithColumns(2, b.next, b.done, b.tag, b.sheets)
 	b.scene = -1
 }
@@ -396,6 +391,23 @@ func (w *MainWindow) markSceneDone(sc int) {
 	} else {
 		w.setStatus("Scene " + s.label + " not done")
 	}
+}
+
+// markSceneDoneHere is Mark Scene Done: the scene the Break down stage
+// shows, else the cursor's.
+func (w *MainWindow) markSceneDoneHere() {
+	if w.markdown || w.textEditor == nil {
+		return
+	}
+	if w.productionShowsBreakdown() {
+		w.markSceneDone(w.notes.production.bd.scene)
+		return
+	}
+	_, bt, _ := w.breakdownNowFound()
+	if bt == nil {
+		return
+	}
+	w.markSceneDone(bt.sceneAt(w.textEditor.CursorOffset()))
 }
 
 // removeLostTag asks, then takes a lost tag away.

@@ -219,7 +219,7 @@ func (w *MainWindow) shareDialog() {
 		fyne.CurrentApp().Clipboard().SetContent(link.Text)
 		w.setStatus("Link copied")
 	})
-	msg := widget.NewLabel("Whoever has this link can read and edit the script with you, in the web version or in Accolade (File > Join a Shared Script…).\nThe peers connect directly; trackers only help them find each other and see nothing of the script.")
+	msg := widget.NewLabel("Whoever has this link can read and edit the script with you, in the web version or in Accolade (Collaboration > Join a Shared Script…).\nThe peers connect directly; trackers only help them find each other and see nothing of the script.")
 	msg.Wrapping = fyne.TextWrapWord
 	stop := widget.NewButton("Stop sharing", func() { w.stopSharing() })
 	if w.shared == nil {

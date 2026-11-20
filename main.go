@@ -287,6 +287,9 @@ func (app *Application) pauseWhenAway() {
 func (app *Application) scriptFormatsChanged() {
 	for _, w := range app.windows {
 		w.headerBar.showFormats()
+		if w.ribbon != nil {
+			w.ribbon.showFormats()
+		}
 		w.applyScriptFormat()
 	}
 }

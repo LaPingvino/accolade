@@ -24,10 +24,22 @@ For Markdown documents (File > New Markdown Document, or any .md file) and for a
 - **Link** — `[text](https://example.com)`
 - **Footnote** — `word[^1]`, and below: `[^1]: The note.`
 
+## The Format menu
+
+Each writes plain Markdown on the selection or the cursor's lines; again takes it away where that makes sense; one undo step each.
+
+- **Heading 1** … **Heading 6** — Ctrl+1 … Ctrl+6; **Normal Text** — Ctrl+0
+- **Bold** — Ctrl+B; **Italic** — Ctrl+I; **Strikethrough**; **Inline Code**
+- **Link…** — Ctrl+L: asks the address, the selection is its text; **Image…** — the same, `![…](…)`
+- **Footnote** — the next `[^n]` at the cursor, its note at the end
+- **Bulleted List**, **Numbered List**, **Task List**, **Quote** — on the lines (a list replaces another)
+- **Code Block** — fences the lines in ``` ```; **Horizontal Rule**; **Table…** — rows × columns
+
 ## Accolade
 
 - **Notes** — the notepad is kept at the end in `<!-- Notes` … `-->`
 - **Front matter** — a `---` block at the top is left out of the preview and the word count
+- **Command palette** — Ctrl+K or F1: every command by name
 - **Preview** — Ctrl+Shift+P shows the document formatted beside the editor
 - **Lists go on** — Enter at the end of an item starts the next; Enter on an empty item ends the list
 - **Outline** — the headings (Ctrl+Shift+O)

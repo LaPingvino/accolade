@@ -114,7 +114,7 @@ type changesPanel struct {
 
 func newChangesPanel(w *MainWindow) *changesPanel {
 	p := &changesPanel{w: w}
-	p.none = widget.NewLabel("No changes from others yet. Share the script (File > Share) to write it together.")
+	p.none = widget.NewLabel("No changes from others yet. Share the script (Collaboration > Edit Together…) to write it together.")
 	p.none.Wrapping = fyne.TextWrapWord
 	p.none.Importance = widget.LowImportance
 	p.list = widget.NewList(

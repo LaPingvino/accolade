@@ -93,7 +93,7 @@ func TestFormatMenu(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	found := map[string]bool{}
 	for _, m := range w.buildMainMenu().Items {
-		if m.Label != "Format" {
+		if m.Label != "Format" && m.Label != "Edit" { // Move Line Up/Down are Edit's
 			continue
 		}
 		for _, it := range m.Items {
@@ -104,7 +104,7 @@ func TestFormatMenu(t *testing.T) {
 	}
 	for _, l := range []string{"Scene Heading", "Character", "Dialogue", "Bold", "Italic", "Underline", "Move Line Up"} {
 		if !found[l] {
-			t.Errorf("Format menu: no %s shortcut", l)
+			t.Errorf("Format or Edit menu: no %s shortcut", l)
 		}
 	}
 }

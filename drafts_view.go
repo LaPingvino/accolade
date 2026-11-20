@@ -15,12 +15,12 @@ import (
 	"github.com/LaPingvino/accolade/internal/scriptdiff"
 )
 
-// File > Save Draft… and File > Drafts… (drafts.go has the store): the
+// Collaboration > Save Draft… and Collaboration > Drafts… (drafts.go has the store): the
 // list of drafts, Compare (two drafts, or one with the script now, by
 // scene and element: side by side on a desktop, one under the other on a
 // phone; read-only, taking changes over is a later step) and Restore.
 
-// showSaveDraft is File > Save Draft…: a name for the draft.
+// showSaveDraft is Collaboration > Save Draft…: a name for the draft.
 func (w *MainWindow) showSaveDraft() {
 	w.afterBundleWrites(func() {
 		ds, _ := readDrafts(w.extrasHome())
@@ -67,7 +67,7 @@ func draftsWhere(w *MainWindow) string {
 	return "Kept " + h.describe() + "."
 }
 
-// draftsDialog is File > Drafts….
+// draftsDialog is Collaboration > Drafts….
 type draftsDialog struct {
 	w        *MainWindow
 	drafts   []savedDraft // newest first
@@ -78,7 +78,7 @@ type draftsDialog struct {
 	restore  *widget.Button
 }
 
-// showDrafts is File > Drafts….
+// showDrafts is Collaboration > Drafts….
 func (w *MainWindow) showDrafts() {
 	w.afterBundleWrites(func() {
 		dd, err := newDraftsDialog(w)
@@ -527,4 +527,22 @@ func muted(s string) *widget.Label {
 	l := widget.NewLabel(s)
 	l.Importance = widget.LowImportance
 	return l
+}
+
+// compareDrafts is Collaboration > Compare…: the newest draft with the
+// script now, in Drafts' compare (the Drafts window, saying there are
+// none yet, without one).
+func (w *MainWindow) compareDrafts() {
+	w.afterBundleWrites(func() {
+		ds, err := readDrafts(w.extrasHome())
+		if err != nil {
+			dialog.ShowError(err, w.fyneWindow)
+			return
+		}
+		if len(ds) == 0 {
+			w.showDrafts()
+			return
+		}
+		showCompare(w, ds, ds[len(ds)-1].ID, nowID)
+	})
 }

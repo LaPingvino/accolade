@@ -16,9 +16,9 @@ import (
 )
 
 // Drafts (LOOP.md, Joop 2026-11-20): earlier versions of the script, and
-// of its source, kept with it so one can go back. File > Save Draft…
+// of its source, kept with it so one can go back. Collaboration > Save Draft…
 // keeps the script as it is now under a name, at any time (before a lock
-// too); File > Drafts… lists them, compares two (or one with the script
+// too); Collaboration > Drafts… lists them, compares two (or one with the script
 // now: drafts_view.go) and restores one as a new draft, never
 // overwriting. Production's issues (White, Blue …, PRODUCTION step 4)
 // will be drafts of the kind "issue", in the same store.

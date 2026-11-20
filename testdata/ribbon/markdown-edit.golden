@@ -1,0 +1,19 @@
+tabs: File Write [Edit] Adaptation Collaboration View
+## Undo
+  S Undo icon=foreground_content-undo.svg name=Undo (Ctrl+Z)
+  S Redo icon=foreground_content-redo.svg name=Redo (Ctrl+Shift+Z)
+## Clipboard
+  S Cut icon=foreground_content-cut.svg name=Cut (Ctrl+X)
+  S Copy icon=foreground_content-copy.svg name=Copy (Ctrl+C)
+  S Paste icon=foreground_content-paste.svg name=Paste (Ctrl+V)
+  S Select All icon=foreground_select-all.svg name=Select All (Ctrl+A)
+## Find
+  S Find… icon=foreground_search.svg name=Find… (Ctrl+F)
+  S Replace… icon=foreground_search-replace.svg name=Replace… (Ctrl+H)
+  S Find Next icon=foreground_arrow-forward.svg name=Find Next (Ctrl+G)
+  S Find Previous icon=foreground_arrow-back.svg name=Find Previous (Ctrl+Shift+G)
+## Lines
+  S Move Line Up icon=foreground_arrow-up.svg name=Move Line Up
+  S Move Line Down icon=foreground_arrow-down.svg name=Move Line Down
+## Script
+  S Preferences… icon=foreground_settings.svg name=Preferences… (Ctrl+,)

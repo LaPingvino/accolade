@@ -100,13 +100,13 @@ func TestDraftsDialog(t *testing.T) {
 	found := 0
 	for _, it := range w.fyneWindow.MainMenu().Items {
 		for _, m := range it.Items {
-			if it.Label == "File" && (m.Label == "Save Draft…" || m.Label == "Drafts…") {
+			if it.Label == "Collaboration" && (m.Label == "Save Draft…" || m.Label == "Drafts…") {
 				found++
 			}
 		}
 	}
 	if found != 2 {
-		t.Error("no File > Save Draft… and Drafts…")
+		t.Error("no Collaboration > Save Draft… and Drafts…")
 	}
 }
 

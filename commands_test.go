@@ -49,7 +49,7 @@ func TestRegistryIsWhole(t *testing.T) {
 	placed := map[string]bool{}
 	note := func(homes []home) {
 		for _, h := range homes {
-			if h.id != "" && h.id != "elements" && h.id != "formatButtons" {
+			if h.id != "" && h.id != "elements" && h.id != "formatButtons" && h.id != "scriptFormat" {
 				cmd(h.id) // panics for one not defined
 				placed[h.id] = true
 			}
@@ -62,6 +62,11 @@ func TestRegistryIsWhole(t *testing.T) {
 	note(r.screenplayRow)
 	note(r.markdownRow)
 	note(r.context)
+	for _, tab := range r.ribbon {
+		for _, g := range tab.groups {
+			note(g.homes)
+		}
+	}
 	for _, el := range toolbarElements {
 		placed[elementCommandID(el)] = true
 	}
@@ -178,7 +183,7 @@ func TestBrowserMenus(t *testing.T) {
 	w := newTestWindow(t, "")
 	desktopBar := w.menuBar(cmdEnv{pandoc: true})
 	browserBar := w.menuBar(cmdEnv{browser: true, pandoc: true})
-	if !slices.Equal(menuTitles(browserBar), []string{"File", "Edit", "Format", "Adaptation", "Production", "View", "Help"}) {
+	if !slices.Equal(menuTitles(browserBar), []string{"File", "Edit", "Format", "Adaptation", "Production", "Collaboration", "View", "Help"}) {
 		t.Errorf("browser menus %q", menuTitles(browserBar))
 	}
 	gone := []string{"New Window", "New Empty Window", "Import with pandoc…"}
@@ -197,13 +202,13 @@ func TestBrowserMenus(t *testing.T) {
 	if got := labelsOf(browserBar, "File"); !slices.Equal(got, want) {
 		t.Errorf("browser File %q, want %q", got, want)
 	}
-	for _, title := range []string{"Edit", "Format", "Adaptation", "Production", "View", "Help"} {
+	for _, title := range []string{"Edit", "Format", "Adaptation", "Production", "Collaboration", "View", "Help"} {
 		if !slices.Equal(labelsOf(browserBar, title), labelsOf(desktopBar, title)) {
 			t.Errorf("browser %s differs: %q", title, labelsOf(browserBar, title))
 		}
 	}
 	md := w.menuBar(cmdEnv{browser: true, markdown: true})
-	if !slices.Equal(menuTitles(md), []string{"File", "Edit", "Format", "View", "Help"}) {
+	if !slices.Equal(menuTitles(md), []string{"File", "Edit", "Format", "Collaboration", "View", "Help"}) {
 		t.Errorf("browser Markdown menus %q", menuTitles(md))
 	}
 }
@@ -214,7 +219,7 @@ func TestBrowserMenus(t *testing.T) {
 func TestAdaptationMenu(t *testing.T) {
 	w := newTestWindow(t, "INT. BARN - DAY\n\nRain.\n")
 	m := w.fyneWindow.MainMenu()
-	if !slices.Equal(menuTitles(m), []string{"File", "Edit", "Format", "Adaptation", "Production", "View", "Help"}) {
+	if !slices.Equal(menuTitles(m), []string{"File", "Edit", "Format", "Adaptation", "Production", "Collaboration", "View", "Help"}) {
 		t.Fatalf("menus %q", menuTitles(m))
 	}
 	want := []string{"Choose Source…", "Save Source As…", "Keep Source in the Script", "Source Pane", "---",

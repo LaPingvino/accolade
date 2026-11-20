@@ -29,7 +29,7 @@ Nothing here is built. Sources for claims about other products are linked inline
 
 - View > Cards (cards.go) and View > Outline (outline.go, outline_move.go): drag to reorder, colours, folding.
   This is Accolade's counterpart to Final Draft's Beat Board and Story Map, and the base for a stripboard.
-- File > Title Page… (title_page_dialog.go): where issued revision sets would be listed.
+- Edit > Title Page… (title_page_dialog.go): where issued revision sets would be listed.
 
 **Pagination**
 
@@ -704,8 +704,8 @@ names the stored one), and a draft whose text and source are both stored has no 
 it changed (a source kept in the script itself is in the text). The folder's name is the draft's number and its
 name in ASCII letters and digits (`03-uber-cafe` for "Über Café").
 
-- **File > Save Draft…:** a name (default "Draft n"), at any time, before a lock too; says where they are kept.
-- **File > Drafts…:** the list, newest first (name; date, "same text as …", "source changed"), Compare,
+- **Collaboration > Save Draft…:** a name (default "Draft n"), at any time, before a lock too; says where they are kept.
+- **Collaboration > Drafts…:** the list, newest first (name; date, "same text as …", "source changed"), Compare,
   Restore…, Save Draft….
 - **Compare:** any two drafts, or one with the script now; the script, or the source when there is one. By scene
   (internal/scriptdiff: elements are the paragraphs between blank lines, Myers' diff with the common start and end
@@ -1006,7 +1006,7 @@ blocks at the end and the boneyards' contents left out:
   ("MRS BENNET (1 cue) and MRS. BENNET (14 cues): one character?", the rarer flagged);
 - a scene over three pages by the status bar's estimate (55 lines a page; action 60 columns, dialogue 35):
   "Very long, about 6 5/8 pages";
-- no title page (its row opens File > Title Page…).
+- no title page (its row opens Edit > Title Page…).
 
 Buttons: Lock Scene Numbers ("Scene Numbers Locked", greyed, once locked), Lock Pages ("Lock Pages Again" when
 locked), Issue White… ("White Issued" after).

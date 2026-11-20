@@ -333,9 +333,9 @@ func TestCommandsGolden(t *testing.T) {
 		return
 	}
 	for name, s := range got {
-		want := helpMoves(name, adaptationMoves(name, readCommandsGolden(t, name)))
+		want := regroupMoves(name, helpMoves(name, adaptationMoves(name, readCommandsGolden(t, name))))
 		if s != want {
-			t.Errorf("%s differs from the golden (with the Adaptation moves):\n%s", name, lineDiff(want, s))
+			t.Errorf("%s differs from the golden (with the Adaptation, Help and regrouping moves):\n%s", name, lineDiff(want, s))
 		}
 	}
 }
@@ -437,4 +437,217 @@ func lineDiff(want, got string) string {
 		}
 	}
 	return b.String()
+}
+
+// The regrouping of the menus (Joop, 2026-11-20), the palette and the
+// Markdown commands, as explicit moves on the golden text, so nothing
+// else changes unnoticed: File keeps new, open, import, save and the
+// ways out; Edit gets Cut, Copy, Paste, Select All, Move Line Up/Down
+// (from Format), Title Page… (from File), Script Language… (from Format:
+// the script's own, like its title page) and Preferences… (from File);
+// the Collaboration menu, before View, has Edit Together…, Join a Shared
+// Script… (from File) · Save Draft…, Drafts… (from File) and Compare…;
+// Help starts with Command Palette… (Ctrl+K); a Markdown document's
+// Format has its own commands; the top row the palette's button, the
+// Markdown row the common Markdown.
+
+// goldenMenu is a menu of a golden file: its title and its items, each
+// with its submenu's lines.
+type goldenMenu struct {
+	title string
+	items []string // an item's line and its submenu's, joined
+}
+
+func parseGoldenMenus(golden string) []goldenMenu {
+	var ms []goldenMenu
+	for _, line := range strings.Split(strings.TrimRight(golden, "\n"), "\n") {
+		switch {
+		case strings.HasPrefix(line, "# "):
+			ms = append(ms, goldenMenu{title: line[2:]})
+		case strings.HasPrefix(line, "    "):
+			m := &ms[len(ms)-1]
+			m.items[len(m.items)-1] += "\n" + line
+		default:
+			m := &ms[len(ms)-1]
+			m.items = append(m.items, line)
+		}
+	}
+	return ms
+}
+
+func (m goldenMenu) labelOf(item string) string {
+	l := strings.TrimSpace(strings.SplitN(item, "\n", 2)[0])
+	if i := strings.Index(l, " ["); i >= 0 {
+		l = l[:i]
+	}
+	return l
+}
+
+// take takes the item labelled label out of menu title ("" if none).
+func takeItem(ms []goldenMenu, title, label string) string {
+	for i := range ms {
+		if ms[i].title != title {
+			continue
+		}
+		for j, it := range ms[i].items {
+			if ms[i].labelOf(it) == label {
+				ms[i].items = slices.Delete(ms[i].items, j, j+1)
+				return it
+			}
+		}
+	}
+	return ""
+}
+
+// tidy drops doubled separators and those at a menu's ends.
+func tidy(items []string) []string {
+	var out []string
+	for _, it := range items {
+		if it == "  ---" && (len(out) == 0 || out[len(out)-1] == "  ---") {
+			continue
+		}
+		if it != "" {
+			out = append(out, it)
+		}
+	}
+	for len(out) > 0 && out[len(out)-1] == "  ---" {
+		out = out[:len(out)-1]
+	}
+	return out
+}
+
+func joinMenus(ms []goldenMenu) string {
+	var b strings.Builder
+	for _, m := range ms {
+		b.WriteString("# " + m.title + "\n")
+		for _, it := range tidy(m.items) {
+			b.WriteString(it + "\n")
+		}
+	}
+	return b.String()
+}
+
+// markdownFormat is what a Markdown document's Format menu gained after
+// Italic.
+const markdownFormat = `  Strikethrough
+  Inline Code
+  ---
+  Heading 1 [Primary+1]
+  Heading 2 [Primary+2]
+  Heading 3 [Primary+3]
+  Heading 4 [Primary+4]
+  Heading 5 [Primary+5]
+  Heading 6 [Primary+6]
+  Normal Text [Primary+0]
+  ---
+  Link… [Primary+L]
+  Image…
+  Footnote
+  ---
+  Bulleted List
+  Numbered List
+  Task List
+  Quote
+  ---
+  Code Block
+  Horizontal Rule
+  Table…`
+
+// markdownKeys are the Markdown commands' keys.
+var markdownKeys = map[string]string{"Primary+0": "Normal Text", "Primary+1": "Heading 1", "Primary+2": "Heading 2", "Primary+3": "Heading 3",
+	"Primary+4": "Heading 4", "Primary+5": "Heading 5", "Primary+6": "Heading 6", "Primary+L": "Link…"}
+
+// markdownRowGolden is the Markdown editing row.
+const markdownRowGolden = `# row 1
+  button foreground_heading.svg text="Heading" label="Heading level, or normal text"
+    menu:Heading icon=foreground_heading.svg
+  button foreground_bold.svg tip=Bold (Ctrl+B)
+    menu:Bold icon=foreground_bold.svg
+  button foreground_italic.svg tip=Italic (Ctrl+I)
+    menu:Italic icon=foreground_italic.svg
+  button foreground_strikethrough.svg tip=Strikethrough
+    menu:Strikethrough icon=foreground_strikethrough.svg
+  button foreground_code.svg tip=Inline Code
+    menu:Inline Code icon=foreground_code.svg
+  button foreground_link.svg tip=Link… (Ctrl+L)
+    menu:Link… icon=foreground_link.svg
+  gap
+  button foreground_bullets.svg tip=Bulleted List
+    menu:Bulleted List icon=foreground_bullets.svg
+  button foreground_numbers.svg tip=Numbered List
+    menu:Numbered List icon=foreground_numbers.svg
+  button foreground_tasks.svg tip=Task List
+    menu:Task List icon=foreground_tasks.svg
+  button foreground_quote.svg tip=Quote
+    menu:Quote icon=foreground_quote.svg
+  gap
+  button foreground_document-create.svg text="Start a Screenplay" label="Start a Screenplay from This Source"
+    menu:Start a Screenplay from This Source icon=foreground_document-create.svg
+`
+
+func regroupMoves(name, golden string) string {
+	md := strings.Contains(name, "markdown")
+	switch {
+	case strings.HasPrefix(name, "shortcuts-"), strings.HasPrefix(name, "fullscreen-"):
+		lines := strings.Split(strings.TrimRight(golden, "\n"), "\n")
+		add := func(key, label string) {
+			if strings.HasPrefix(name, "shortcuts-") {
+				lines = append(lines, key+" = "+label)
+			} else {
+				lines = append(lines, key)
+			}
+		}
+		add("Primary+K", "Command Palette…")
+		if md {
+			for k, l := range markdownKeys {
+				add(k, l)
+			}
+		}
+		slices.Sort(lines)
+		return strings.Join(lines, "\n") + "\n"
+	case strings.HasPrefix(name, "header-"):
+		golden = strings.Replace(golden, "    menu:Find and replace icon=foreground_search.svg\n",
+			"    menu:Find and replace icon=foreground_search.svg\n"+
+				"  button foreground_palette.svg tip=Command palette: find any command (Ctrl+K)\n"+
+				"    menu:Command palette: find any command icon=foreground_palette.svg\n", 1)
+		if md {
+			golden = golden[:strings.Index(golden, "# row 1\n")] + markdownRowGolden
+		}
+		return golden
+	case !strings.HasPrefix(name, "menu-"):
+		return golden
+	}
+	ms := parseGoldenMenus(golden)
+	together, join := takeItem(ms, "File", "Edit Together…"), takeItem(ms, "File", "Join a Shared Script…")
+	saveDraft, drafts := takeItem(ms, "File", "Save Draft…"), takeItem(ms, "File", "Drafts…")
+	titlePage, prefs := takeItem(ms, "File", "Title Page…"), takeItem(ms, "File", "Preferences…")
+	up, down := takeItem(ms, "Format", "Move Line Up"), takeItem(ms, "Format", "Move Line Down")
+	language := takeItem(ms, "Format", "Script Language…")
+	var out []goldenMenu
+	for _, m := range ms {
+		switch m.title {
+		case "Edit":
+			// Undo, Redo · the clipboard · Find … · the lines · the script's · Preferences
+			items := append([]string{}, m.items[:2]...)
+			items = append(items, "  ---", "  Cut", "  Copy", "  Paste", "  Select All")
+			items = append(items, m.items[2:]...)
+			items = append(items, "  ---", up, down, "  ---", titlePage, language, "  ---", prefs)
+			m.items = items
+		case "Format":
+			if md {
+				for i, it := range m.items {
+					if m.labelOf(it) == "Italic" {
+						m.items = slices.Insert(m.items, i+1, strings.Split(markdownFormat, "\n")...)
+						break
+					}
+				}
+			}
+		case "View":
+			out = append(out, goldenMenu{title: "Collaboration", items: []string{together, join, "  ---", saveDraft, drafts, "  Compare…"}})
+		case "Help":
+			m.items = append([]string{"  Command Palette… [Primary+K]", "  ---"}, m.items...)
+		}
+		out = append(out, m)
+	}
+	return joinMenus(out)
 }

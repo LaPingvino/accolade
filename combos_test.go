@@ -533,7 +533,7 @@ func TestComboStoryLanguage(t *testing.T) {
 	story := string(data)
 	w.showImportedMarkdown("havelaar.md", story, "Markdown", 0)
 	w.startScreenplayFromSource()
-	if w.language != "nl" || !strings.Contains(w.statusLabel.Text, "nl (Format > Script Language…)") {
+	if w.language != "nl" || !strings.Contains(w.statusLabel.Text, "nl (Edit > Script Language…)") {
 		t.Errorf("language %q, status %q", w.language, w.statusLabel.Text)
 	}
 	if start, _ := headingPlaceholder(w.sceneStarts()); start == "INT." || !strings.Contains(w.textEditor.Text(), "\n"+start+" ") {

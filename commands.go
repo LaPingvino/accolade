@@ -7,6 +7,10 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
+
+	lexreport "github.com/LaPingvino/lexington/report"
+
+	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
 // The command registry: every command the user can give is defined here
@@ -199,12 +203,15 @@ type home struct {
 	label string
 	sep   bool
 	items func(w *MainWindow) []*fyne.MenuItem
+	large bool // on the ribbon: a large button (a common action)
 }
 
 func at(id string) home                              { return home{id: id} }
 func as(id, label string) home                       { return home{id: id, label: label} }
 func sep() home                                      { return home{sep: true} }
 func made(f func(*MainWindow) []*fyne.MenuItem) home { return home{items: f} }
+func big(id string) home                             { return home{id: id, large: true} }
+func bigAs(id, label string) home                    { return home{id: id, label: label, large: true} }
 
 // menuDef is a menu of the menu bar.
 type menuDef struct {
@@ -222,6 +229,7 @@ type registry struct {
 	// screenplay and of a Markdown document
 	topRow, screenplayRow, markdownRow []home
 	context                            []home // the editor's right-click menu
+	ribbon                             []ribbonTab
 	previewKeys                        []previewKey
 }
 
@@ -292,57 +300,64 @@ func newRegistry() *registry {
 					w.NewFile()
 				}
 			}},
-		&command{id: "file.newEmpty", label: "New Empty", keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierAlt)}, run: (*MainWindow).NewEmptyFile},
-		&command{id: "file.newWindow", label: "New Window", keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierShift)}, when: desktopOnly, // the browser has one window
+		&command{id: "file.newEmpty", label: "New Empty", icon: theme.FileIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierAlt)}, run: (*MainWindow).NewEmptyFile},
+		&command{id: "file.newWindow", label: "New Window", icon: theme.ComputerIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierShift)}, when: desktopOnly, // the browser has one window
 			run: func(w *MainWindow) { w.app.newScriptWindow(false) }},
-		&command{id: "file.newEmptyWindow", label: "New Empty Window", keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierShift|fyne.KeyModifierAlt)}, when: desktopOnly,
+		&command{id: "file.newEmptyWindow", label: "New Empty Window", icon: theme.DesktopIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierShift|fyne.KeyModifierAlt)}, when: desktopOnly,
 			run: func(w *MainWindow) { w.app.newScriptWindow(true) }},
-		&command{id: "file.newMarkdown", label: "New Markdown Document", run: (*MainWindow).NewMarkdownFile},
+		&command{id: "file.newMarkdown", label: "New Markdown Document", icon: theme.FileTextIcon, run: (*MainWindow).NewMarkdownFile},
 		&command{id: "file.open", label: openLabel, tip: "Open", keys: []fyne.Shortcut{shortcut(fyne.KeyO, 0)}, icon: theme.FolderOpenIcon, run: (*MainWindow).OpenFile},
-		&command{id: "file.recent", label: "Open Recent", submenu: func(w *MainWindow) *fyne.Menu { return w.recentMenu().ChildMenu }},
-		&command{id: "file.import", label: "Import as Markdown…", run: (*MainWindow).ImportDocument},
-		&command{id: "file.importPandoc", label: "Import with pandoc…", when: withPandoc, run: (*MainWindow).ImportWithPandoc}, // more formats
+		&command{id: "file.recent", label: "Open Recent", icon: theme.HistoryIcon, submenu: func(w *MainWindow) *fyne.Menu { return w.recentMenu().ChildMenu }},
+		&command{id: "file.import", label: "Import as Markdown…", icon: theme.UploadIcon, run: (*MainWindow).ImportDocument},
+		&command{id: "file.importPandoc", label: "Import with pandoc…", icon: theme.UploadIcon, when: withPandoc, run: (*MainWindow).ImportWithPandoc}, // more formats
 		// a Markdown document is a source to start from
 		&command{id: "file.startScreenplay", label: startScreenplayLabel, text: "Start a Screenplay", icon: theme.DocumentCreateIcon,
 			when: markdownOnly, run: (*MainWindow).startScreenplayFromSource},
 		&command{id: "file.save", label: saveLabel, tip: "Save", keys: []fyne.Shortcut{shortcut(fyne.KeyS, 0)}, icon: theme.DocumentSaveIcon,
 			run: func(w *MainWindow) { w.reportErr(w.SaveFile)() }},
-		&command{id: "file.saveAs", label: "Save As…", keys: []fyne.Shortcut{shortcut(fyne.KeyS, fyne.KeyModifierShift)},
+		&command{id: "file.saveAs", label: "Save As…", icon: theme.DocumentSaveIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyS, fyne.KeyModifierShift)},
 			run: func(w *MainWindow) { w.reportErr(w.SaveFileAs)() }},
-		&command{id: "file.saveDraft", label: "Save Draft…", run: (*MainWindow).showSaveDraft},
-		&command{id: "file.drafts", label: "Drafts…", run: (*MainWindow).showDrafts},
-		&command{id: "file.share", label: "Edit Together…", run: (*MainWindow).shareDialog},
-		&command{id: "file.join", label: "Join a Shared Script…", run: (*MainWindow).joinDialog},
-		&command{id: "file.titlePage", label: "Title Page…", keys: []fyne.Shortcut{shortcut(fyne.KeyT, fyne.KeyModifierShift)}, when: screenplayOnly,
+		&command{id: "file.saveDraft", label: "Save Draft…", icon: theme.StorageIcon, run: (*MainWindow).showSaveDraft},
+		&command{id: "file.drafts", label: "Drafts…", icon: theme.HistoryIcon, run: (*MainWindow).showDrafts},
+		&command{id: "file.share", label: "Edit Together…", icon: theme.AccountIcon, run: (*MainWindow).shareDialog},
+		&command{id: "file.join", label: "Join a Shared Script…", icon: theme.LoginIcon, run: (*MainWindow).joinDialog},
+		&command{id: "file.titlePage", label: "Title Page…", icon: theme.DocumentIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyT, fyne.KeyModifierShift)}, when: screenplayOnly,
 			run: (*MainWindow).showTitlePageDialog},
 		&command{id: "file.export", label: "Export…", tip: "Export to PDF, HTML, FDX…", mdTip: "Export to Word, ODT, HTML, PDF…",
 			keys: []fyne.Shortcut{shortcut(fyne.KeyE, 0)}, icon: theme.DownloadIcon, run: (*MainWindow).showExportDialog},
-		&command{id: "file.print", label: "Print…", keys: []fyne.Shortcut{shortcut(fyne.KeyP, 0)}, run: (*MainWindow).print},
+		&command{id: "file.print", label: "Print…", icon: theme.DocumentPrintIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyP, 0)}, run: (*MainWindow).print},
 		&command{id: "app.preferences", label: "Preferences…", tip: "Preferences", keys: []fyne.Shortcut{shortcut(fyne.KeyComma, 0)}, icon: theme.SettingsIcon,
 			run: func(w *MainWindow) { w.app.showPreferences() }},
 	)
 
 	// Edit: Ctrl+Z / Ctrl+Y reach the focused text field directly; the
 	// menu adds the Ctrl+Shift+Z redo that Fyne does not map itself
+	// Cut, Copy, Paste and Select All act on the text field with the focus
+	// (the editor, a search field), the editor if none: their keys (shown,
+	// not on the menu items) stay the field's own, so a search field's
+	// Ctrl+C copies its text. In the browser Fyne's clipboard is the
+	// page's: Paste from the menu gives what the page may read.
 	clip := func(s func(c fyne.Clipboard) fyne.Shortcut) func(w *MainWindow) {
-		return func(w *MainWindow) { w.textEditor.TypedShortcut(s(w.clipboard())) }
+		return func(w *MainWindow) { w.editShortcut(s(w.clipboard())) }
 	}
 	add(
 		&command{id: "edit.undo", label: "Undo", shownKeys: "Z", icon: theme.ContentUndoIcon, run: (*MainWindow).undo},
 		&command{id: "edit.redo", label: "Redo", keys: []fyne.Shortcut{shortcut(fyne.KeyZ, fyne.KeyModifierShift)}, icon: theme.ContentRedoIcon, run: (*MainWindow).redo},
-		&command{id: "edit.find", label: "Find…", keys: []fyne.Shortcut{shortcut(fyne.KeyF, 0)}, run: (*MainWindow).showFind},
-		&command{id: "edit.replace", label: "Replace…", keys: []fyne.Shortcut{shortcut(fyne.KeyH, 0)}, run: (*MainWindow).showFindReplace},
+		&command{id: "edit.find", label: "Find…", keys: []fyne.Shortcut{shortcut(fyne.KeyF, 0)}, icon: theme.SearchIcon, run: (*MainWindow).showFind},
+		&command{id: "edit.replace", label: "Replace…", keys: []fyne.Shortcut{shortcut(fyne.KeyH, 0)}, icon: theme.SearchReplaceIcon, run: (*MainWindow).showFindReplace},
 		// the header bar's search: the bar with its replace row
 		&command{id: "edit.findReplace", label: "Find and replace", shownKeys: "F", icon: theme.SearchIcon, run: (*MainWindow).showFindReplace},
-		&command{id: "edit.findNext", label: "Find Next", keys: []fyne.Shortcut{shortcut(fyne.KeyG, 0)}, run: (*MainWindow).findNext},
-		&command{id: "edit.findPrevious", label: "Find Previous", keys: []fyne.Shortcut{shortcut(fyne.KeyG, fyne.KeyModifierShift)}, run: (*MainWindow).findPrevious},
-		&command{id: "edit.cut", label: "Cut", run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCut{Clipboard: c} })},
-		&command{id: "edit.copy", label: "Copy", run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCopy{Clipboard: c} })},
-		&command{id: "edit.paste", label: "Paste", run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutPaste{Clipboard: c} })},
+		&command{id: "edit.findNext", label: "Find Next", keys: []fyne.Shortcut{shortcut(fyne.KeyG, 0)}, icon: theme.NavigateNextIcon, run: (*MainWindow).findNext},
+		&command{id: "edit.findPrevious", label: "Find Previous", keys: []fyne.Shortcut{shortcut(fyne.KeyG, fyne.KeyModifierShift)}, icon: theme.NavigateBackIcon, run: (*MainWindow).findPrevious},
+		&command{id: "edit.cut", label: "Cut", shownKeys: "X", icon: theme.ContentCutIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCut{Clipboard: c} })},
+		&command{id: "edit.copy", label: "Copy", shownKeys: "C", icon: theme.ContentCopyIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCopy{Clipboard: c} })},
+		&command{id: "edit.paste", label: "Paste", shownKeys: "V", icon: theme.ContentPasteIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutPaste{Clipboard: c} })},
+		&command{id: "edit.selectAll", label: "Select All", shownKeys: "A", icon: func() fyne.Resource { return selectAllIcon },
+			run: func(w *MainWindow) { w.editShortcut(&fyne.ShortcutSelectAll{}) }},
 	)
 
 	// Format: the line's element (Ctrl+1 to Ctrl+8), its direction and
-	// language, emphasis, moving lines
+	// language, emphasis; Edit's moving lines
 	for i, el := range toolbarElements {
 		add(&command{id: elementCommandID(el), label: el, text: elementMarks[el], keys: []fyne.Shortcut{shortcut(fyne.KeyName(rune('1'+i)), 0)},
 			editing: true, when: screenplayOnly,
@@ -357,8 +372,8 @@ func newRegistry() *registry {
 		}
 	}
 	add(
-		&command{id: "format.rtl", label: "Right to Left Line", editing: true, run: func(w *MainWindow) { toggleDirection(w.textEditor) }},
-		&command{id: "format.language", label: "Script Language…", when: screenplayOnly, run: (*MainWindow).pickLanguage},
+		&command{id: "format.rtl", label: "Right to Left Line", icon: func() fyne.Resource { return rtlIcon }, editing: true, run: func(w *MainWindow) { toggleDirection(w.textEditor) }},
+		&command{id: "format.language", label: "Script Language…", icon: func() fyne.Resource { return languageIcon }, when: screenplayOnly, run: (*MainWindow).pickLanguage},
 		&command{id: "format.color", label: "Scene or Section Color…", text: "Color", tip: "Color of the scene or section", icon: theme.ColorPaletteIcon,
 			keys: []fyne.Shortcut{shortcut(fyne.KeyL, fyne.KeyModifierShift)}, when: screenplayOnly, pick: (*MainWindow).pickColorHere},
 		&command{id: "format.bold", label: "Bold", keys: []fyne.Shortcut{shortcut(fyne.KeyB, 0)}, icon: func() fyne.Resource { return boldIcon }, editing: true, run: emphasis("**")},
@@ -366,8 +381,8 @@ func newRegistry() *registry {
 		// Markdown's _ is italic, not underline
 		&command{id: "format.underline", label: "Underline", keys: []fyne.Shortcut{shortcut(fyne.KeyU, 0)}, icon: func() fyne.Resource { return underlineIcon }, editing: true,
 			when: screenplayOnly, run: emphasis("_")},
-		&command{id: "format.lineUp", label: "Move Line Up", keys: []fyne.Shortcut{altKey(fyne.KeyUp)}, run: moveLine(-1)},
-		&command{id: "format.lineDown", label: "Move Line Down", keys: []fyne.Shortcut{altKey(fyne.KeyDown)}, run: moveLine(1)},
+		&command{id: "format.lineUp", label: "Move Line Up", keys: []fyne.Shortcut{altKey(fyne.KeyUp)}, icon: theme.MoveUpIcon, run: moveLine(-1)},
+		&command{id: "format.lineDown", label: "Move Line Down", keys: []fyne.Shortcut{altKey(fyne.KeyDown)}, icon: theme.MoveDownIcon, run: moveLine(1)},
 		// the editing row's pickers and its switch
 		&command{id: "write.place", label: "Inside or Outside…", text: "INT./EXT.", tip: "INT./EXT.", icon: theme.HomeIcon, when: screenplayOnly, pick: (*MainWindow).pickPlace},
 		&command{id: "write.character", label: "Character Name…", text: "Character", tip: "Character", icon: theme.AccountIcon, when: screenplayOnly, pick: (*MainWindow).pickCharacter},
@@ -381,52 +396,114 @@ func newRegistry() *registry {
 			}},
 	)
 
-	// Adaptation: the source a screenplay adapts (docs/ADAPTATION.md)
+	// Markdown's Format menu (markdown_format.go): plain Markdown on the
+	// lines or the selection, Ctrl+1 to Ctrl+6 the headings (a
+	// screenplay's elements have those keys), Ctrl+0 normal text
+	md := func(id, label string, ic fyne.Resource, run func(b *buffer.Buffer)) *command {
+		return &command{id: id, label: label, icon: func() fyne.Resource { return ic }, editing: true, when: markdownOnly,
+			run: func(w *MainWindow) { w.mdEdit(run) }}
+	}
+	for level := 0; level <= 6; level++ {
+		label, text := "Normal Text", "Normal"
+		if level > 0 {
+			label, text = "Heading "+string(rune('0'+level)), "H"+string(rune('0'+level))
+		}
+		c := md("md.heading"+string(rune('0'+level)), label, headingIcon, func(b *buffer.Buffer) { setMarkdownHeading(b, level) })
+		c.text = text
+		c.keys = []fyne.Shortcut{shortcut(fyne.KeyName(rune('0'+level)), 0)}
+		add(c)
+	}
+	strike := md("md.strike", "Strikethrough", strikeIcon, nil)
+	strike.run = emphasis("~~")
+	code := md("md.code", "Inline Code", codeIcon, nil)
+	code.run = emphasis("`")
+	link := md("md.link", "Link…", linkIcon, nil)
+	link.run, link.keys = func(w *MainWindow) { w.askLink(false) }, []fyne.Shortcut{shortcut(fyne.KeyL, 0)}
+	image := md("md.image", "Image…", imageIcon, nil)
+	image.run = func(w *MainWindow) { w.askLink(true) }
+	table := md("md.table", "Table…", tableIcon, nil)
+	table.run = (*MainWindow).askTable
 	add(
-		&command{id: "source.choose", label: "Choose Source…", when: screenplayOnly, run: (*MainWindow).chooseSource},
-		&command{id: "source.saveAs", label: "Save Source As…", when: screenplayOnly, enabled: withSource, run: (*MainWindow).saveSourceAs},
-		&command{id: "source.keepInside", label: "Keep Source in the Script", when: screenplayOnly, enabled: withSource, run: (*MainWindow).toggleSourceInside,
-			checked: func(w *MainWindow) bool { return w.textEditor != nil && w.sourceRef().Origin == sourceInside }},
-		&command{id: "source.link", label: "Link to Source Passage", when: screenplayOnly, enabled: withSource, run: (*MainWindow).linkToSource},
-		&command{id: "source.next", label: "Next Source Passage", keys: []fyne.Shortcut{shortcut(fyne.KeyJ, fyne.KeyModifierAlt)}, when: screenplayOnly, enabled: withSource,
-			run: (*MainWindow).nextSourcePassage},
-		&command{id: "source.cut", label: "Mark Source Passage as Cut", when: screenplayOnly, enabled: withSource, run: (*MainWindow).toggleCutHere},
-		&command{id: "source.suggest", label: "Suggest Links to the Source", when: screenplayOnly, enabled: withSource, run: (*MainWindow).suggestSourceLinks},
-		&command{id: "source.update", label: "Update Source Links", when: screenplayOnly, enabled: withSource, run: (*MainWindow).updateSourceLinks},
-		&command{id: "source.sections", label: "Source Headings as Sections", when: screenplayOnly, enabled: withSource, run: (*MainWindow).sectionsFromSourceHere},
-		&command{id: "source.learned", label: "What Accolade Learned…", when: screenplayOnly, enabled: withSource, run: (*MainWindow).showLearned},
+		// a picker of the headings, for the Markdown row and the ribbon
+		&command{id: "md.headings", label: "Heading…", text: "Heading", tip: "Heading level, or normal text", icon: func() fyne.Resource { return headingIcon },
+			when: markdownOnly, pick: func(w *MainWindow, anchor fyne.CanvasObject) { w.pickHeading(anchor) }},
+		strike, code,
+		md("md.codeBlock", "Code Block", codeBlockIcon, toggleCodeBlock),
+		link, image,
+		md("md.bullets", "Bulleted List", bulletsIcon, func(b *buffer.Buffer) { toggleMarkdownBlock(b, mdBullets) }),
+		md("md.numbers", "Numbered List", numbersIcon, func(b *buffer.Buffer) { toggleMarkdownBlock(b, mdNumbers) }),
+		md("md.tasks", "Task List", tasksIcon, func(b *buffer.Buffer) { toggleMarkdownBlock(b, mdTasks) }),
+		md("md.quote", "Quote", quoteIcon, func(b *buffer.Buffer) { toggleMarkdownBlock(b, mdQuote) }),
+		md("md.rule", "Horizontal Rule", ruleIcon, insertRule),
+		table,
+		md("md.footnote", "Footnote", footnoteIcon, insertFootnote),
 	)
 
-	// Production: a shooting script's (docs/PRODUCTION.md; production.go)
-	prod := func(id, label string, run func(*MainWindow)) *command {
-		return &command{id: id, label: label, when: screenplayOnly, run: run}
-	}
-	unlock := prod("production.unlockNumbers", "Unlock Scene Numbers…", (*MainWindow).unlockSceneNumbers)
-	unlock.enabled = numbersLocked
-	unlockPages := prod("production.unlockPages", "Unlock Pages…", (*MainWindow).unlockPages)
-	unlockPages.enabled = pagesLocked
-	tag := prod("production.tag", "Tag Selection…", (*MainWindow).showTagPicker)
-	tag.keys = []fyne.Shortcut{shortcut(fyne.KeyB, fyne.KeyModifierShift)}
-	showTags := prod("production.showTags", "Show Tagged Words", (*MainWindow).toggleBreakdownTags)
-	showTags.checked = func(w *MainWindow) bool { return w.settings == nil || !w.settings.GetBoolean(breakdownHiddenPref) }
+	// Adaptation: the source a screenplay adapts (docs/ADAPTATION.md)
 	add(
-		prod("production.lockNumbers", "Lock Scene Numbers", (*MainWindow).lockSceneNumbers),
-		unlock,
-		prod("production.renumber", "Renumber Scenes…", (*MainWindow).renumberScenes),
-		prod("production.omit", "Omit Scene", (*MainWindow).omitScene),
-		prod("production.restore", "Restore Scene", (*MainWindow).restoreScene),
-		prod("production.issue", "Issue Draft…", (*MainWindow).showIssueDraft),
-		prod("production.lockPages", "Lock Pages", (*MainWindow).lockPages),
-		unlockPages,
-		tag,
-		prod("production.untag", "Untag", (*MainWindow).untagSelection),
-		showTags,
-		prod("production.breakdown", "Break Down…", (*MainWindow).showBreakdownStage),
-		prod("production.stripboard", "Stripboard", (*MainWindow).toggleStripboard),
-		prod("production.schedule", "Schedule…", (*MainWindow).showScheduleStage),
-		prod("production.ics", "Export Shoot Days (.ics)…", (*MainWindow).exportICS),
-		prod("production.reports", "Reports…", (*MainWindow).showReports),
+		&command{id: "source.choose", label: "Choose Source…", icon: theme.FolderOpenIcon, when: screenplayOnly, run: (*MainWindow).chooseSource},
+		&command{id: "source.saveAs", label: "Save Source As…", icon: theme.DocumentSaveIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).saveSourceAs},
+		&command{id: "source.keepInside", label: "Keep Source in the Script", icon: theme.StorageIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).toggleSourceInside,
+			checked: func(w *MainWindow) bool { return w.textEditor != nil && w.sourceRef().Origin == sourceInside }},
+		&command{id: "source.link", label: "Link to Source Passage", icon: func() fyne.Resource { return linkIcon }, when: screenplayOnly, enabled: withSource, run: (*MainWindow).linkToSource},
+		&command{id: "source.next", label: "Next Source Passage", keys: []fyne.Shortcut{shortcut(fyne.KeyJ, fyne.KeyModifierAlt)}, icon: theme.NavigateNextIcon, when: screenplayOnly, enabled: withSource,
+			run: (*MainWindow).nextSourcePassage},
+		&command{id: "source.cut", label: "Mark Source Passage as Cut", icon: theme.ContentCutIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).toggleCutHere},
+		&command{id: "source.suggest", label: "Suggest Links to the Source", icon: func() fyne.Resource { return suggestIcon }, when: screenplayOnly, enabled: withSource, run: (*MainWindow).suggestSourceLinks},
+		&command{id: "source.update", label: "Update Source Links", icon: theme.ViewRefreshIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).updateSourceLinks},
+		&command{id: "source.sections", label: "Source Headings as Sections", icon: theme.ListIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).sectionsFromSourceHere},
+		&command{id: "source.learned", label: "What Accolade Learned…", icon: theme.InfoIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).showLearned},
 	)
+
+	// Production: a shooting script's (docs/PRODUCTION.md; production.go);
+	// text is the Production pane's button's, if shorter
+	prod := func(id, label string, ic func() fyne.Resource, run func(*MainWindow)) *command {
+		return &command{id: id, label: label, icon: ic, when: screenplayOnly, run: run}
+	}
+	unlock := prod("production.unlockNumbers", "Unlock Scene Numbers…", theme.ContentUndoIcon, (*MainWindow).unlockSceneNumbers)
+	unlock.enabled, unlock.text = numbersLocked, "Unlock…"
+	renumber := prod("production.renumber", "Renumber Scenes…", theme.ViewRefreshIcon, (*MainWindow).renumberScenes)
+	renumber.text = "Renumber"
+	unlockPages := prod("production.unlockPages", "Unlock Pages…", theme.ContentUndoIcon, (*MainWindow).unlockPages)
+	unlockPages.enabled = pagesLocked
+	tag := prod("production.tag", "Tag Selection…", theme.ContentAddIcon, (*MainWindow).showTagPicker)
+	tag.keys = []fyne.Shortcut{shortcut(fyne.KeyB, fyne.KeyModifierShift)}
+	showTags := prod("production.showTags", "Show Tagged Words", theme.VisibilityIcon, (*MainWindow).toggleBreakdownTags)
+	showTags.checked = func(w *MainWindow) bool { return w.settings == nil || !w.settings.GetBoolean(breakdownHiddenPref) }
+	nextScene := prod("production.nextScene", "Next Scene to Break Down", theme.NavigateNextIcon, (*MainWindow).nextBreakdownScene)
+	nextScene.text = "Next Scene"
+	add(
+		prod("production.lockNumbers", "Lock Scene Numbers", theme.ListIcon, (*MainWindow).lockSceneNumbers),
+		unlock, renumber,
+		prod("production.omit", "Omit Scene", theme.ContentRemoveIcon, (*MainWindow).omitScene),
+		prod("production.restore", "Restore Scene", theme.MediaReplayIcon, (*MainWindow).restoreScene),
+		prod("production.issue", "Issue Draft…", theme.ConfirmIcon, (*MainWindow).showIssueDraft),
+		prod("production.lockPages", "Lock Pages", theme.FileIcon, (*MainWindow).lockPages),
+		unlockPages,
+		// the Revise stage's
+		prod("production.revisedPages", "Revised Pages PDF…", theme.DownloadIcon, (*MainWindow).revisedPagesNow),
+		prod("production.compare", "Compare with the Last Issue", theme.ViewRestoreIcon, (*MainWindow).compareWithLastIssue),
+		tag,
+		prod("production.untag", "Untag", theme.ContentClearIcon, (*MainWindow).untagSelection),
+		showTags,
+		prod("production.breakdown", "Break Down…", theme.ListIcon, (*MainWindow).showBreakdownStage),
+		// the Break down stage's
+		nextScene,
+		prod("production.sceneDone", "Mark Scene Done", theme.ConfirmIcon, (*MainWindow).markSceneDoneHere),
+		prod("production.sheets", "Breakdown Sheets…", theme.DocumentIcon, func(w *MainWindow) { w.showReportsOf(lexreport.KindSheets) }),
+		prod("production.stripboard", "Stripboard", func() fyne.Resource { return stripboardIcon }, (*MainWindow).toggleStripboard),
+		prod("production.schedule", "Schedule…", theme.CalendarIcon, (*MainWindow).showScheduleStage),
+		// the Schedule stage's
+		prod("production.addDay", "Add Day", theme.ContentAddIcon, (*MainWindow).addShootDay),
+		prod("production.oneLiner", "One-Liner…", theme.DocumentIcon, func(w *MainWindow) { w.showReportsOf(lexreport.KindOneLiner) }),
+		prod("production.dood", "Day Out of Days…", theme.GridIcon, func(w *MainWindow) { w.showReportsOf(lexreport.KindDOOD) }),
+		prod("production.ics", "Export Shoot Days (.ics)…", theme.DownloadIcon, (*MainWindow).exportICS),
+		prod("production.reports", "Reports…", theme.DocumentIcon, (*MainWindow).showReports),
+	)
+	r.byID["production.ics"].text = "Export .ics…"
+
+	// Collaboration: writing together and the drafts
+	add(&command{id: "collab.compare", label: "Compare…", icon: theme.ViewRestoreIcon, run: (*MainWindow).compareDrafts})
 
 	// View
 	add(
@@ -435,55 +512,76 @@ func newRegistry() *registry {
 		&command{id: "view.outline", label: "Outline", keys: []fyne.Shortcut{shortcut(fyne.KeyO, fyne.KeyModifierShift)}, icon: theme.ListIcon, run: (*MainWindow).toggleOutline},
 		&command{id: "view.cards", label: "Cards", keys: []fyne.Shortcut{shortcut(fyne.KeyD, fyne.KeyModifierShift)}, icon: theme.GridIcon, when: screenplayOnly,
 			run: (*MainWindow).toggleCards},
-		&command{id: "view.foldHere", label: "Fold or Unfold Here", keys: []fyne.Shortcut{shortcut(fyne.KeyPeriod, fyne.KeyModifierShift)},
+		&command{id: "view.foldHere", label: "Fold or Unfold Here", keys: []fyne.Shortcut{shortcut(fyne.KeyPeriod, fyne.KeyModifierShift)}, icon: theme.MenuDropDownIcon,
 			run: func(w *MainWindow) { w.fold(false, true) }},
-		&command{id: "view.foldSections", label: "Fold All (Sections Only)", run: func(w *MainWindow) { w.foldOverview(w.outlineItems(w.textEditor.Text())) }},
-		&command{id: "view.headingsOnly", label: "Headings Only", run: (*MainWindow).foldHeadings},
-		&command{id: "view.unfoldAll", label: "Unfold All", run: func(w *MainWindow) { w.foldAll(true) }},
+		&command{id: "view.foldSections", label: "Fold All (Sections Only)", icon: theme.MenuDropUpIcon, run: func(w *MainWindow) { w.foldOverview(w.outlineItems(w.textEditor.Text())) }},
+		&command{id: "view.headingsOnly", label: "Headings Only", icon: func() fyne.Resource { return headingIcon }, run: (*MainWindow).foldHeadings},
+		&command{id: "view.unfoldAll", label: "Unfold All", icon: theme.MenuExpandIcon, run: func(w *MainWindow) { w.foldAll(true) }},
 		&command{id: "view.notes", label: "Notes", keys: []fyne.Shortcut{shortcut(fyne.KeyK, fyne.KeyModifierShift)}, icon: theme.FileTextIcon, run: (*MainWindow).toggleNotes},
 		&command{id: "view.source", label: "Source", tip: "Source: the story the script adapts", icon: func() fyne.Resource { return sourceIcon },
 			when: screenplayOnly, run: (*MainWindow).toggleSource},
 		&command{id: "view.production", label: "Production", tip: "Production: lock, revise, and the stages to the shoot", icon: func() fyne.Resource { return productionIcon },
 			when: screenplayOnly, run: (*MainWindow).toggleProduction},
-		&command{id: "view.changes", label: "Changes", keys: []fyne.Shortcut{shortcut(fyne.KeyH, fyne.KeyModifierShift)}, run: (*MainWindow).toggleChanges},
-		&command{id: "view.statistics", label: "Statistics…", when: screenplayOnly, run: (*MainWindow).showStatistics},
+		&command{id: "view.changes", label: "Changes", keys: []fyne.Shortcut{shortcut(fyne.KeyH, fyne.KeyModifierShift)}, icon: theme.HistoryIcon, run: (*MainWindow).toggleChanges},
+		&command{id: "view.statistics", label: "Statistics…", icon: theme.InfoIcon, when: screenplayOnly, run: (*MainWindow).showStatistics},
 		// Alt+Enter too, as in many programs
 		&command{id: "view.fullscreen", label: "Fullscreen", tip: "Full screen, without distractions", icon: theme.ViewFullScreenIcon,
 			keys: []fyne.Shortcut{shortcut(fyne.KeyF, fyne.KeyModifierShift), plainKey(fyne.KeyReturn, fyne.KeyModifierAlt), plainKey(fyne.KeyEnter, fyne.KeyModifierAlt)},
 			run:  (*MainWindow).toggleFullscreen},
-		&command{id: "view.documentType", label: "Document Type", submenu: func(w *MainWindow) *fyne.Menu { return w.documentTypeMenu().ChildMenu }},
+		&command{id: "view.documentType", label: "Document Type", icon: theme.FileIcon, submenu: func(w *MainWindow) *fyne.Menu { return w.documentTypeMenu().ChildMenu }},
 		// F6 and Shift+F6: the next or previous pane (editor, outline,
 		// notes, search), whatever has the focus
 		&command{id: "view.nextPane", label: "Next Pane", keys: []fyne.Shortcut{plainKey(fyne.KeyF6, 0)}, run: func(w *MainWindow) { w.cyclePane(1) }},
 		&command{id: "view.previousPane", label: "Previous Pane", keys: []fyne.Shortcut{plainKey(fyne.KeyF6, fyne.KeyModifierShift)}, run: func(w *MainWindow) { w.cyclePane(-1) }},
+		// F10 (and Alt alone, in Ribbon mode) the ribbon's key tips (ribbon.go)
+		&command{id: "view.keyTips", label: "Ribbon Key Tips", keys: []fyne.Shortcut{plainKey(fyne.KeyF10, 0)},
+			run: func(w *MainWindow) {
+				if w.ribbon != nil && w.ribbonOn() {
+					w.ribbon.showKeyTips()
+				}
+			}},
 	)
 
-	add(&command{id: "help.about", label: "About Accolade", run: func(w *MainWindow) { w.app.showAbout() }})
+	// the command palette (palette.go): Ctrl+K, F1 (Ctrl+Shift+P is Preview)
+	add(&command{id: "app.palette", label: "Command Palette…", tip: "Command palette: find any command", icon: func() fyne.Resource { return paletteIcon },
+		keys: []fyne.Shortcut{shortcut(fyne.KeyK, 0), plainKey(fyne.KeyF1, 0)}, run: (*MainWindow).showPalette})
+	add(&command{id: "help.about", label: "About Accolade", icon: theme.InfoIcon, run: func(w *MainWindow) { w.app.showAbout() }})
 	add(helpCommands()...) // help_pane.go
 
 	elements := make([]home, len(toolbarElements))
 	for i, el := range toolbarElements {
 		elements[i] = at(elementCommandID(el))
 	}
+	headings := make([]home, 0, 7)
+	for _, id := range mdHeadingIDs()[1:] {
+		headings = append(headings, at(id))
+	}
+	headings = append(headings, at("md.heading0"))
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
 			at("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
-			sep(), at("file.save"), at("file.saveAs"), at("file.saveDraft"), at("file.drafts"),
-			sep(), at("file.share"), at("file.join"),
-			sep(), at("file.titlePage"), at("file.export"), at("file.print"),
-			sep(), at("app.preferences"),
+			sep(), at("file.save"), at("file.saveAs"),
+			sep(), at("file.export"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 		}},
 		{title: "Edit", homes: []home{
 			at("edit.undo"), at("edit.redo"),
+			sep(), at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll"),
 			sep(), at("edit.find"), at("edit.replace"), at("edit.findNext"), at("edit.findPrevious"),
-		}},
-		{title: "Format", homes: append(elements,
-			at("format.rtl"), at("format.language"), at("format.color"),
-			sep(), at("format.bold"), at("format.italic"), at("format.underline"),
 			sep(), at("format.lineUp"), at("format.lineDown"),
-		)},
+			// the script's own: its title page and its language
+			sep(), at("file.titlePage"), at("format.language"),
+			sep(), at("app.preferences"),
+		}},
+		{title: "Format", homes: append(append(elements,
+			at("format.rtl"), at("format.color"),
+			sep(), at("format.bold"), at("format.italic"), at("format.underline"), at("md.strike"), at("md.code"),
+			sep()), append(headings,
+			sep(), at("md.link"), at("md.image"), at("md.footnote"),
+			sep(), at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote"),
+			sep(), at("md.codeBlock"), at("md.rule"), at("md.table"),
+		)...)},
 		{title: "Adaptation", when: screenplayOnly, homes: []home{
 			at("source.choose"), at("source.saveAs"), at("source.keepInside"), as("view.source", "Source Pane"),
 			sep(), at("source.link"), at("source.next"), at("source.cut"), at("source.suggest"), at("source.update"), at("source.sections"),
@@ -497,6 +595,10 @@ func newRegistry() *registry {
 			at("production.stripboard"), at("production.schedule"), at("production.ics"),
 			sep(), at("production.reports"),
 		}},
+		{title: "Collaboration", homes: []home{
+			at("file.share"), at("file.join"),
+			sep(), at("file.saveDraft"), at("file.drafts"), at("collab.compare"),
+		}},
 		{title: "View", homes: []home{
 			at("view.preview"), at("view.outline"), at("view.cards"), at("view.foldHere"), at("view.foldSections"),
 			at("view.headingsOnly"), at("view.unfoldAll"), at("view.notes"), at("view.source"), at("view.production"),
@@ -509,7 +611,7 @@ func newRegistry() *registry {
 		at("file.new"), at("file.open"), at("file.save"), sep(),
 		at("edit.undo"), at("edit.redo"),
 		at("view.outline"), at("view.cards"), at("view.notes"), at("view.source"), at("view.production"), sep(),
-		at("edit.findReplace"), at("view.preview"), at("file.export"), sep(),
+		at("edit.findReplace"), at("app.palette"), at("view.preview"), at("file.export"), sep(),
 		at("view.fullscreen"), at("app.preferences"),
 	}
 	// the element list (or buttons) after the switch, the format's own
@@ -518,12 +620,18 @@ func newRegistry() *registry {
 		at("write.elementKind"), {id: "elements"}, at("write.place"), at("write.character"), at("format.color"),
 		at("format.bold"), at("format.italic"), at("format.underline"), sep(), {id: "formatButtons"},
 	}
-	// a story's next step: a screenplay adapting it
-	r.markdownRow = []home{at("format.bold"), at("format.italic"), sep(), at("file.startScreenplay")}
+	// a story's: the common Markdown, then its next step, a screenplay
+	// adapting it
+	r.markdownRow = []home{
+		at("md.headings"), at("format.bold"), at("format.italic"), at("md.strike"), at("md.code"), at("md.link"),
+		sep(), at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote"),
+		sep(), at("file.startScreenplay"),
+	}
 	r.context = []home{
 		made((*MainWindow).tagAsLastItems), at("production.tag"), made((*MainWindow).untagHereItems),
 		sep(), at("edit.cut"), at("edit.copy"), at("edit.paste"),
 	}
+	r.ribbon = ribbonLayout()
 	r.previewKeys = previewKeysOf(r)
 	return r
 }
@@ -635,8 +743,9 @@ type previewKey struct {
 	c   *command
 }
 
-// homesOf are the places c is in the menu bar, as "Format > Bold" (for
-// the palette).
+// homesOf are the places c is in the menu bar, as "Format > Bold", and,
+// if it is in none, on the ribbon, as "Production > Lock > Lock Pages"
+// (for the palette).
 func homesOf(id string) []string {
 	var out []string
 	for _, m := range commands().menuBar {
@@ -650,5 +759,102 @@ func homesOf(id string) []string {
 			}
 		}
 	}
-	return out
+	if len(out) > 0 {
+		return out
+	}
+	for _, t := range commands().ribbon {
+		for _, g := range t.groups {
+			for _, h := range g.homes {
+				if h.id == id {
+					return []string{t.title + " > " + g.title + " > " + cmd(id).label}
+				}
+			}
+		}
+	}
+	return nil
+}
+
+// ribbonTab is a tab of the ribbon (ribbon.go): its groups of commands,
+// shown when it applies (when; nil: always).
+type ribbonTab struct {
+	title  string
+	when   func(cmdEnv) bool
+	groups []ribbonGroup
+}
+
+// ribbonGroup is a group of a ribbon tab: its title under its buttons;
+// when, if set, says when it is there; stage, if not 0, is the Production
+// stage (1 + stageLock …) whose actions it is: the group is there only
+// while the script is at that stage.
+type ribbonGroup struct {
+	title string
+	when  func(cmdEnv) bool
+	stage int
+	homes []home
+}
+
+// ribbonLayout is the ribbon: the tabs follow the menus (File, Write for
+// Format, Edit, Adaptation, Production, Collaboration, View); "elements",
+// "formatButtons" and "scriptFormat" are the Write tab's element buttons,
+// the script format's own buttons and its list.
+func ribbonLayout() []ribbonTab {
+	noSource := func(e cmdEnv) bool { return !e.markdown && !e.source }
+	return []ribbonTab{
+		{title: "File", groups: []ribbonGroup{
+			{title: "New", homes: []home{big("file.new"), at("file.newEmpty"), at("file.newMarkdown"), at("file.newWindow"), at("file.newEmptyWindow")}},
+			{title: "Open", homes: []home{big("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc")}},
+			{title: "Save", homes: []home{big("file.save"), at("file.saveAs")}},
+			{title: "Out", homes: []home{big("file.export"), big("file.print")}},
+			// a source to adapt: the Adaptation tab once there is one
+			{title: "Adapt", when: noSource, homes: []home{big("source.choose")}},
+			{title: "Adapt", homes: []home{big("file.startScreenplay")}},
+		}},
+		{title: "Write", groups: []ribbonGroup{
+			{title: "Element", homes: []home{{id: "elements"}}},
+			{title: "Scene", homes: []home{big("write.place"), big("write.character"), big("format.color")}},
+			{title: "Heading", homes: []home{big("md.headings")}},
+			{title: "Emphasis", homes: []home{at("format.bold"), at("format.italic"), at("format.underline"), at("md.strike"), at("md.code"), at("format.rtl")}},
+			{title: "Insert", homes: []home{big("md.link"), at("md.image"), at("md.footnote"), at("md.table"), at("md.rule"), at("md.codeBlock")}},
+			{title: "Lists", homes: []home{at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote")}},
+			{title: "Script Format", homes: []home{{id: "scriptFormat"}, {id: "formatButtons"}}},
+			{title: "Title Page", homes: []home{big("file.titlePage")}},
+		}},
+		{title: "Edit", groups: []ribbonGroup{
+			{title: "Undo", homes: []home{at("edit.undo"), at("edit.redo")}},
+			{title: "Clipboard", homes: []home{at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll")}},
+			{title: "Find", homes: []home{at("edit.find"), at("edit.replace"), at("edit.findNext"), at("edit.findPrevious")}},
+			{title: "Lines", homes: []home{at("format.lineUp"), at("format.lineDown")}},
+			{title: "Script", homes: []home{at("file.titlePage"), at("format.language"), at("app.preferences")}},
+		}},
+		// a source's, or a story's next step
+		{title: "Adaptation", when: func(e cmdEnv) bool { return e.source || e.markdown }, groups: []ribbonGroup{
+			{title: "Source", homes: []home{bigAs("view.source", "Source Pane"), at("source.choose"), at("source.saveAs"), at("source.keepInside")}},
+			{title: "Links", homes: []home{big("source.next"), big("source.link"), at("source.cut"), at("source.suggest"), at("source.update"), at("source.sections")}},
+			{title: "Learned", homes: []home{big("source.learned")}},
+			{title: "Start", homes: []home{big("file.startScreenplay")}},
+		}},
+		// the stage's actions first, as the Production pane has them
+		{title: "Production", when: screenplayOnly, groups: []ribbonGroup{
+			{title: "Lock", stage: 1 + stageLock, homes: []home{big("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
+				big("production.lockPages"), big("production.issue")}},
+			{title: "Revise", stage: 1 + stageRevise, homes: []home{big("production.issue"), big("production.revisedPages"), at("production.compare")}},
+			{title: "Break Down", stage: 1 + stageBreakdown, homes: []home{big("production.nextScene"), at("production.sceneDone"), big("production.tag"),
+				at("production.untag"), at("production.showTags"), at("production.sheets")}},
+			{title: "Schedule", stage: 1 + stageSchedule, homes: []home{big("production.stripboard"), at("production.addDay"), at("production.oneLiner"),
+				at("production.dood"), at("production.ics")}},
+			{title: "Stages", homes: []home{bigAs("view.production", "Production Pane"), at("production.breakdown"), at("production.schedule")}},
+			{title: "Scenes", homes: []home{at("production.omit"), at("production.restore"), at("production.unlockPages")}},
+			{title: "Reports", homes: []home{big("production.reports")}},
+		}},
+		{title: "Collaboration", groups: []ribbonGroup{
+			{title: "Together", homes: []home{big("file.share"), at("file.join")}},
+			{title: "Drafts", homes: []home{big("file.saveDraft"), at("file.drafts"), at("collab.compare")}},
+		}},
+		{title: "View", groups: []ribbonGroup{
+			{title: "Panes", homes: []home{big("view.outline"), big("view.cards"), big("view.notes"), at("view.source"), at("view.production"), at("view.help"), at("view.changes")}},
+			{title: "Preview", homes: []home{big("view.preview"), at("view.statistics")}},
+			{title: "Folding", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll")}},
+			{title: "Window", homes: []home{big("view.fullscreen"), at("view.documentType"), at("app.palette")}},
+		}},
+	}
 }

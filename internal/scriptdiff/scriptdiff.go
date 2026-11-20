@@ -1,7 +1,7 @@
 // Package scriptdiff compares two versions of a script (or of a story in
 // Markdown) element by element, as a writer reads the change: which
 // scenes changed, and in them which elements were cut, added or changed,
-// a changed one word by word. It is what File > Drafts… > Compare shows,
+// a changed one word by word. It is what Collaboration > Drafts… > Compare shows,
 // and what production's revision colours (PRODUCTION step 4) and Merge
 // Changes will build on.
 //

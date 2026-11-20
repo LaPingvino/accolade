@@ -156,7 +156,7 @@ func (w *MainWindow) newRenumberDialog() *renumberDlg {
 	if r.issued {
 		warn := widget.NewLabel("The script was issued: " + what + ". Sides, schedules and printed pages that went out use the old numbers. " +
 			"Accolade's breakdown, schedule and locked pages follow the scenes, but nothing printed or sent does: " +
-			"save a draft first, so the script as numbered now can be found again (File > Drafts…).")
+			"save a draft first, so the script as numbered now can be found again (Collaboration > Drafts…).")
 		warn.Wrapping = fyne.TextWrapWord
 		top = append(top, warn)
 	}

@@ -73,3 +73,13 @@ func (w *MainWindow) editTarget() undoer {
 
 func (w *MainWindow) undo() { w.followSceneNumbers(); w.editTarget().Undo(); w.followSceneNumbers() }
 func (w *MainWindow) redo() { w.followSceneNumbers(); w.editTarget().Redo(); w.followSceneNumbers() }
+
+// editShortcut gives a clipboard or selection shortcut (Cut, Copy, Paste,
+// Select All) to the text field with the focus, else the editor.
+func (w *MainWindow) editShortcut(s fyne.Shortcut) {
+	if f, ok := w.fyneWindow.Canvas().Focused().(fyne.Shortcutable); ok {
+		f.TypedShortcut(s)
+		return
+	}
+	w.textEditor.TypedShortcut(s)
+}

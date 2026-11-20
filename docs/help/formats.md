@@ -10,7 +10,7 @@ Accolade's own files are plain text: a screenplay is Fountain, a story or any ot
 
 Accolade saves a file the way it found it: a Windows-1252 file stays Windows-1252, a byte order mark and Windows line endings (CR LF) are kept.
 
-A language code before the extension says the script's language, which sets the words a scene heading starts with: `scene.eo.fountain` is in Esperanto, `scene.nl.fountain` in Dutch. Format > Script Language… sets it for a script without one in its name.
+A language code before the extension says the script's language, which sets the words a scene heading starts with: `scene.eo.fountain` is in Esperanto, `scene.nl.fountain` in Dutch. Edit > Script Language… sets it for a script without one in its name.
 
 ## Markdown documents
 

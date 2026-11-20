@@ -1,0 +1,20 @@
+tabs: [File] Write Edit Production Collaboration View
+## New
+  L New icon=foreground_document-create.svg name=New (Ctrl+N)
+  S New Empty icon=foreground_file.svg name=New Empty (Ctrl+Alt+N)
+  S New Markdown Document icon=foreground_file-text.svg name=New Markdown Document
+  S New Window icon=foreground_computer.svg name=New Window (Ctrl+Shift+N)
+  S New Empty Window icon=foreground_desktop.svg name=New Empty Window (Ctrl+Shift+Alt+N)
+## Open
+  L Open… icon=foreground_folder-open.svg name=Open… (Ctrl+O)
+  S Open Recent icon=foreground_history.svg name=Open Recent
+  S Import as Markdown… icon=foreground_upload.svg name=Import as Markdown…
+  S Import with pandoc… icon=foreground_upload.svg name=Import with pandoc…
+## Save
+  L Save icon=foreground_document-save.svg name=Save (Ctrl+S)
+  S Save As… icon=foreground_document-save.svg name=Save As… (Ctrl+Shift+S)
+## Out
+  L Export… icon=foreground_download.svg name=Export… (Ctrl+E)
+  L Print… icon=foreground_document-print.svg name=Print… (Ctrl+P)
+## Adapt
+  L Choose Source… icon=foreground_folder-open.svg name=Choose Source…

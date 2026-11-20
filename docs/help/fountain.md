@@ -19,7 +19,7 @@ Contact:
     +31 6 1234 5678
 ```
 
-File > Title Page… (Ctrl+Shift+T) fills these in for you.
+Edit > Title Page… (Ctrl+Shift+T) fills these in for you.
 
 ## Scene headings
 
@@ -31,7 +31,7 @@ INT. KITCHEN - NIGHT
 Rain against the window.
 ```
 
-Scripts in other languages have their own words: EN./EKST. in Esperanto, BIN./BUI. in Dutch, and so on. Format > Script Language… chooses them, and a file named like `scene.eo.fountain` says its own language.
+Scripts in other languages have their own words: EN./EKST. in Esperanto, BIN./BUI. in Dutch, and so on. Edit > Script Language… chooses them, and a file named like `scene.eo.fountain` says its own language.
 
 ### Forced scene headings
 

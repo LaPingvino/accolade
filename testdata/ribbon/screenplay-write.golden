@@ -1,0 +1,27 @@
+tabs: File [Write] Edit Production Collaboration View
+## Element
+  S Scene Heading mark=. name=Scene Heading (Ctrl+1)
+  S Action mark=! name=Action (Ctrl+2)
+  S Character mark=@ name=Character (Ctrl+3)
+  S Parenthetical mark=() name=Parenthetical (Ctrl+4)
+  S Dialogue mark=“ name=Dialogue (Ctrl+5)
+  S Transition mark=> name=Transition (Ctrl+6)
+  S Centered mark=>< name=Centered (Ctrl+7)
+  S Lyrics mark=~ name=Lyrics (Ctrl+8)
+## Scene
+  L INT./EXT. icon=foreground_home.svg name=Inside or Outside…
+  L Character icon=foreground_account.svg name=Character Name…
+  L Color icon=foreground_color-palette.svg name=Scene or Section Color… (Ctrl+Shift+L)
+## Emphasis
+  S Bold icon=foreground_bold.svg name=Bold (Ctrl+B)
+  S Italic icon=foreground_italic.svg name=Italic (Ctrl+I)
+  S Underline icon=foreground_underline.svg name=Underline (Ctrl+U)
+  S Right to Left Line icon=foreground_rtl.svg name=Right to Left Line
+## Script Format
+  select Script format
+  S Montage icon=foreground_content-add.svg name=Montage
+  S Intercut icon=foreground_content-add.svg name=Intercut
+  S Flashback icon=foreground_content-add.svg name=Flashback
+  S Super icon=foreground_content-add.svg name=Super
+## Title Page
+  L Title Page… icon=foreground_document.svg name=Title Page… (Ctrl+Shift+T)

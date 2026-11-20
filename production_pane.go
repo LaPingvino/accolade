@@ -110,24 +110,21 @@ func newProductionPane(w *MainWindow) *productionPane {
 	p.inList = container.NewVBox(p.rows)
 	p.scroll = container.NewVScroll(p.inList)
 
-	button := func(label string, icon fyne.Resource, f func()) *widget.Button {
-		b := widget.NewButtonWithIcon(label, icon, f)
-		b.Alignment = widget.ButtonAlignLeading
-		return b
-	}
-	p.lockNumbers = button("Lock Scene Numbers", theme.ListIcon(), w.lockSceneNumbers)
-	p.unlockNumbers = widget.NewButtonWithIcon("Unlock…", theme.ContentUndoIcon(), w.unlockSceneNumbers)
-	fyne.SetAccessibleLabel(p.unlockNumbers, "Unlock Scene Numbers…")
-	p.renumber = widget.NewButtonWithIcon("Renumber", theme.ViewRefreshIcon(), w.renumberScenes)
-	fyne.SetAccessibleLabel(p.renumber, "Renumber Scenes…")
+	p.lockNumbers = paneButton(w, "production.lockNumbers")
+	p.unlockNumbers = paneButton(w, "production.unlockNumbers")
+	p.unlockNumbers.Alignment = widget.ButtonAlignCenter
+	p.renumber = paneButton(w, "production.renumber")
+	p.renumber.Alignment = widget.ButtonAlignCenter
 	p.numbersRow = container.NewBorder(nil, nil, nil, container.NewHBox(p.unlockNumbers, p.renumber), p.lockNumbers)
-	p.lockPages = button("Lock Pages", theme.FileIcon(), w.lockPages)
-	p.issueWhite = button("Issue White…", theme.ConfirmIcon(), w.showIssueDraft)
+	p.lockPages = paneButton(w, "production.lockPages")
+	p.issueWhite = paneButton(w, "production.issue")
+	p.issueWhite.SetText("Issue White…")
 	p.issueWhite.Importance = widget.HighImportance
-	p.issueNext = button("Issue Blue…", theme.ConfirmIcon(), w.showIssueDraft)
+	p.issueNext = paneButton(w, "production.issue")
+	p.issueNext.SetText("Issue Blue…")
 	p.issueNext.Importance = widget.HighImportance
-	p.revisedPDF = button("Revised Pages PDF…", theme.DownloadIcon(), func() { w.showRevisedPagesExport(p.set) })
-	p.compare = button("Compare with the Last Issue", theme.ViewRestoreIcon(), w.compareWithLastIssue)
+	p.revisedPDF = paneButton(w, "production.revisedPages")
+	p.compare = paneButton(w, "production.compare")
 	p.buttons = container.NewVBox()
 	p.bottom = container.NewStack(p.buttons)
 	p.bd.make(p)
@@ -137,6 +134,61 @@ func newProductionPane(w *MainWindow) *productionPane {
 		container.NewBorder(nil, nil, p.stages[3], nil, p.later))
 	p.box = container.NewBorder(container.NewVBox(strip, widget.NewSeparator(), p.count), p.bottom, nil, nil, p.scroll)
 	return p
+}
+
+// paneButton is the pane's button of a registry command (commands.go):
+// its text (else its label), icon and action; screen readers hear its
+// label where the text is shorter.
+func paneButton(w *MainWindow, id string) *widget.Button {
+	c := cmd(id)
+	text := c.text
+	if text == "" {
+		text = c.label
+	}
+	var ic fyne.Resource
+	if c.icon != nil {
+		ic = c.icon()
+	}
+	b := widget.NewButtonWithIcon(text, ic, w.tapped(c, nil))
+	b.Alignment = widget.ButtonAlignLeading
+	if text != c.label {
+		fyne.SetAccessibleLabel(b, c.label)
+	}
+	return b
+}
+
+// scriptStage is the script's production stage (Lock until it has an
+// issue, then Revise, Break down once tagging began, Schedule once a
+// shoot day is made), with its revisions and whether it was issued.
+func (w *MainWindow) scriptStage() (stage int, chain *revisionChain, issued bool) {
+	chain, err := w.revisionChainNow()
+	issued = err == nil && chain != nil && len(chain.issues) > 0
+	stage = stageLock
+	if issued {
+		stage = stageRevise
+		if f := w.breakdownNow(); len(f.Tags) > 0 || len(f.Done) > 0 {
+			stage = stageBreakdown // the breakdown begun
+		}
+	}
+	if len(w.scheduleNow().Days) > 0 {
+		stage = stageSchedule // a shoot day made
+	}
+	return stage, chain, issued
+}
+
+// revisedPagesNow is Revised Pages PDF…: the Export dialog for the
+// current revision's pages.
+func (w *MainWindow) revisedPagesNow() {
+	chain, err := w.revisionChainNow()
+	if err != nil || chain == nil || len(chain.issues) == 0 {
+		w.setStatus("Nothing issued yet: Issue White first")
+		return
+	}
+	set := w.revisions.current.Name
+	if set == "" {
+		set = chain.issues[len(chain.issues)-1].set.Name
+	}
+	w.showRevisedPagesExport(set)
 }
 
 // place puts the buttons under the list beside the script, and at the
@@ -172,6 +224,7 @@ func (p *productionPane) pick(stage int) {
 	}
 	p.shownKey = ""
 	p.refresh()
+	p.w.ribbonRefresh() // the ribbon's Production tab follows it
 }
 
 // view is the stage shown.
@@ -188,6 +241,7 @@ func (w *MainWindow) productionFollow() {
 	if w.notes != nil && w.notes.production.shown() {
 		w.notes.production.refresh()
 	}
+	w.ribbonFollow() // an issue, a tag, a day: the ribbon's stage
 }
 
 // refresh shows the script's stage and the stage looked at.
@@ -197,18 +251,7 @@ func (p *productionPane) refresh() {
 	}
 	w := p.w
 	text := w.textEditor.Text()
-	chain, err := w.revisionChainNow()
-	issued := err == nil && chain != nil && len(chain.issues) > 0
-	stage := stageLock
-	if issued {
-		stage = stageRevise
-		if f := w.breakdownNow(); len(f.Tags) > 0 || len(f.Done) > 0 {
-			stage = stageBreakdown // the breakdown begun
-		}
-	}
-	if len(w.scheduleNow().Days) > 0 {
-		stage = stageSchedule // a shoot day made
-	}
+	stage, chain, issued := w.scriptStage()
 	if stage != p.stage { // issued (or a new script): follow it
 		p.stage, p.picked, p.shownKey = stage, -1, ""
 	}

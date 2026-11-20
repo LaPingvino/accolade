@@ -429,7 +429,7 @@ func helpCommands() []*command {
 
 // helpMenu is the Help menu's homes.
 func helpMenu() []home {
-	var homes []home
+	homes := []home{at("app.palette"), sep()} // every command, by a search
 	for _, p := range help.Pages() {
 		homes = append(homes, at("help.page."+p.Slug))
 	}

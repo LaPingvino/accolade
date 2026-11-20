@@ -102,7 +102,7 @@ func preLockChecks(text string, starts []string) []prodCheck {
 	if strings.TrimSpace(body) != "" {
 		kinds := syntax.ClassifyWith(lines[:min(len(lines), 40)], starts)
 		if len(kinds) == 0 || kinds[0] != syntax.TitlePage {
-			out = append(out, prodCheck{line: 0, kind: checkTitle, text: "No title page: File > Title Page… writes one (the issued sets are listed there later)"})
+			out = append(out, prodCheck{line: 0, kind: checkTitle, text: "No title page: Edit > Title Page… writes one (the issued sets are listed there later)"})
 		}
 	}
 

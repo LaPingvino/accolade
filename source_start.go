@@ -99,7 +99,7 @@ func (w *MainWindow) newScriptFromSource(md, name, file string) {
 	langNote := ""
 	if lang, sure := readingLanguage(md, ""); sure && sceneConf[lang] != nil && lang != w.language {
 		w.setLanguage(lang) // the story's language: its scene headings
-		langNote = "; the script's language is the story's, " + lang + " (Format > Script Language…)"
+		langNote = "; the script's language is the story's, " + lang + " (Edit > Script Language…)"
 	}
 	ps := passagesOf(md)
 	title := sourceTitle(md, name)

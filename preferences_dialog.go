@@ -31,6 +31,7 @@ type PreferencesDialog struct {
 
 	// General
 	themeSelect           *widget.Select
+	lookSelect            *widget.Select // the header's rows or the ribbon
 	toolbarVisibleCheck   *widget.Check
 	statusbarVisibleCheck *widget.Check
 	autoSaveCheck         *widget.Check
@@ -91,6 +92,7 @@ func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDial
 
 func (pd *PreferencesDialog) createWidgets() {
 	pd.themeSelect = widget.NewSelect([]string{"system", "light", "dark", "sepia"}, nil)
+	pd.lookSelect = widget.NewSelect(lookChoices, nil)
 	pd.toolbarVisibleCheck = widget.NewCheck("Show toolbar", nil)
 	pd.statusbarVisibleCheck = widget.NewCheck("Show status bar", nil)
 	pd.autoSaveCheck = widget.NewCheck("Auto-save documents", nil)
@@ -153,6 +155,9 @@ func (pd *PreferencesDialog) createContent() *fyne.Container {
 	return container.NewBorder(nil, buttons, nil, nil, tabs)
 }
 
+// lookChoices are the header's looks, as Preferences names them.
+var lookChoices = []string{"Menus", "Ribbon"}
+
 func labelled(label string, o fyne.CanvasObject) fyne.CanvasObject {
 	return labelledWith(label, o, nil)
 }
@@ -176,6 +181,8 @@ func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
 	return container.NewVBox(
 		widget.NewCard("Appearance", "", container.NewVBox(
 			labelled("Theme:", pd.themeSelect),
+			labelled("Look:", pd.lookSelect),
+			hint("Menus: the menu bar and the toolbar's two rows. Ribbon: the menu bar and, for the toolbar, tabs of large buttons (F10 or Alt shows their keys)."),
 			pd.toolbarVisibleCheck,
 			pd.statusbarVisibleCheck,
 		)),
@@ -253,6 +260,10 @@ func (pd *PreferencesDialog) loadCurrentSettings() { pd.loadFrom(pd.settings) }
 // loadFrom shows the settings of s in the window.
 func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.themeSelect.SetSelected(s.GetString("theme"))
+	pd.lookSelect.SetSelected(lookChoices[0])
+	if s.GetString(lookPref) == "ribbon" {
+		pd.lookSelect.SetSelected(lookChoices[1])
+	}
 	pd.toolbarVisibleCheck.SetChecked(s.GetBoolean("toolbar-visible"))
 	pd.statusbarVisibleCheck.SetChecked(s.GetBoolean("statusbar-visible"))
 	pd.autoSaveCheck.SetChecked(s.GetBoolean("auto-save"))
@@ -295,6 +306,10 @@ func (pd *PreferencesDialog) saveSettings() {
 	if pd.themeSelect.Selected != "" {
 		s.SetString("theme", pd.themeSelect.Selected)
 		pd.app.setColorScheme(pd.themeSelect.Selected)
+	}
+	s.SetString(lookPref, "menus")
+	if pd.lookSelect.Selected == lookChoices[1] {
+		s.SetString(lookPref, "ribbon")
 	}
 	s.SetBoolean("toolbar-visible", pd.toolbarVisibleCheck.Checked)
 	s.SetBoolean("statusbar-visible", pd.statusbarVisibleCheck.Checked)

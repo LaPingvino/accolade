@@ -8,8 +8,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-
-	lexreport "github.com/LaPingvino/lexington/report"
 )
 
 // The Production pane's fourth stage, Schedule (docs/PRODUCTION.md §6 and
@@ -26,17 +24,13 @@ type scheduleStage struct {
 
 func (s *scheduleStage) make(p *productionPane) {
 	w := p.w
-	button := func(label string, icon fyne.Resource, f func()) *widget.Button {
-		x := widget.NewButtonWithIcon(label, icon, f)
-		x.Alignment = widget.ButtonAlignLeading
-		return x
-	}
-	s.open = button("Open Stripboard", theme.ListIcon(), func() { w.showStripboard(-1, -1) })
+	s.open = widget.NewButtonWithIcon("Open Stripboard", theme.ListIcon(), func() { w.showStripboard(-1, -1) })
+	s.open.Alignment = widget.ButtonAlignLeading
 	s.open.Importance = widget.HighImportance
-	s.addDay = button("Add Day", theme.ContentAddIcon(), w.addShootDay)
-	s.oneLiner = button("One-Liner…", theme.DocumentIcon(), func() { w.showReportsOf(lexreport.KindOneLiner) })
-	s.dood = button("Day Out of Days…", theme.GridIcon(), func() { w.showReportsOf(lexreport.KindDOOD) })
-	s.ics = button("Export .ics…", theme.DownloadIcon(), w.exportICS)
+	s.addDay = paneButton(w, "production.addDay")
+	s.oneLiner = paneButton(w, "production.oneLiner")
+	s.dood = paneButton(w, "production.dood")
+	s.ics = paneButton(w, "production.ics")
 	s.grid = container.NewGridWithColumns(2, s.open, s.addDay, s.oneLiner, s.dood, s.ics)
 }
 

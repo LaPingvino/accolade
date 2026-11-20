@@ -86,7 +86,11 @@ func shortcutLine(c *command, env cmdEnv, both bool) string {
 			notes = append(notes, "“"+c.mdLabel+"” in Markdown")
 		}
 	}
-	if !env.browser && !c.applies(cmdEnv{markdown: env.markdown, browser: true}) {
+	inBrowser := c.applies(cmdEnv{markdown: env.markdown, browser: true})
+	if both { // in either mode's browser
+		inBrowser = c.applies(cmdEnv{browser: true}) || c.applies(cmdEnv{markdown: true, browser: true})
+	}
+	if !env.browser && !inBrowser {
 		notes = append(notes, "not in the browser")
 	}
 	if len(notes) > 0 {
@@ -207,9 +211,21 @@ func shortcutsPage(env cmdEnv, both bool) string {
 			b.WriteString(shortcutLine(c, env, both))
 		}
 	}
+	b.WriteString("\n## The command palette and the ribbon\n\n" + strings.Join(paletteRibbonKeys(), "\n") + "\n")
 	b.WriteString("\n## Vim and helix\n\nPreferences > Editor gives the editor vim's or helix's keys; the menus' shortcuts stay. " +
 		"Their own keys are not documented yet: [Vim and Helix Modes](vim.md).\n")
 	return b.String()
+}
+
+// paletteRibbonKeys are the palette's keys and the ribbon's key tips.
+func paletteRibbonKeys() []string {
+	palette := strings.Join(commandKeys(cmd("app.palette")), "** or **")
+	return []string{
+		"- **" + palette + "** — the command palette: type part of a command's name (the letters in order: “nsp” finds Next Source Passage), **Up**/**Down** choose, **Enter** runs it, **Esc** closes",
+		"- **F10**, or **Alt** pressed and let go alone — the ribbon's key tips (Preferences > General > Look: Ribbon): a letter on each tab; type one to open that tab, then the letter on a button to press it",
+		"- **Esc** in the key tips — back to the tabs' letters, again to leave them",
+		"- **Tab**, **Shift+Tab** — through the ribbon's tabs and buttons; **Left**/**Right** along a row, **Down** from a tab to its buttons, **Up** back; **Enter** or **Space** presses",
+	}
 }
 
 // shortcutsSheet is the cheat sheet: the same keys, short.
@@ -224,6 +240,7 @@ func shortcutsSheet(env cmdEnv, both bool) string {
 		b.WriteString("- **Enter** in a list → the next item\n")
 	}
 	b.WriteString("- **Tab** on “Tab: …” — take it; **Esc** — put it away\n")
+	b.WriteString("- **" + strings.Join(commandKeys(cmd("app.palette")), "**, **") + "** — the command palette; **F10** or **Alt** — the ribbon's key tips\n")
 	titles, lists := menuShortcuts(env, both)
 	for i, list := range lists {
 		fmt.Fprintf(&b, "\n## %s\n\n", strings.TrimSuffix(titles[i], " menu"))
