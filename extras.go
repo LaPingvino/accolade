@@ -294,6 +294,7 @@ func (w *MainWindow) hasProductionData() bool {
 // forgetUnsavedExtras lets go of the extras of a script not saved yet, as
 // another document takes the window's place.
 func (w *MainWindow) forgetUnsavedExtras() {
+	w.revisionGen++ // its issues too (revisions.go)
 	if d := w.unsavedExtras; d != "" {
 		w.unsavedExtras = ""
 		if isKeptExtras(d) {

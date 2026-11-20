@@ -167,7 +167,7 @@ func TestIssueEditMarks(t *testing.T) {
 		t.Errorf("margin %v", ink)
 	}
 	// the export's sets: White, Blue and the open Pink, dated
-	r, marks := w.exportRevisions(w.textEditor.Text())
+	r, marks := w.exportRevisions(w.textEditor.Text(), true)
 	if len(r.Sets) != 3 || r.Sets[1].Name != "Blue" || !r.Sets[1].Date.Equal(blue) || r.Sets[2].Name != "Pink" {
 		t.Errorf("sets %+v", r.Sets)
 	}
@@ -270,9 +270,10 @@ func TestRevisionExports(t *testing.T) {
 		t.Errorf("revised pages only: %d pages (%v)", len(p), err)
 	}
 
-	// FDX out: the sets and the RevisionID
+	// FDX out: the sets and the RevisionID (every issue's, whatever the
+	// margin shows)
 	fdxFile := filepath.Join(dir, "rev.fdx")
-	job = w.withRevisions(w.savedExportJob(), w.textEditor.Text(), false, false)
+	job = w.withAllRevisions(w.savedExportJob(), w.textEditor.Text())
 	if err := exportAs(w.textEditor.Text(), fdxFile, "fdx", job); err != nil {
 		t.Fatal(err)
 	}
@@ -323,10 +324,77 @@ func TestRevisionScreenshots(t *testing.T) {
 	w.fyneWindow.Canvas().Focus(w.textEditor)
 	test.Type(w.textEditor, "")
 	comboShot(t, w, "revisions")
-	r, marks := w.exportRevisions(w.textEditor.Text())
+	r, marks := w.exportRevisions(w.textEditor.Text(), true)
 	job := w.savedExportJob()
 	job.revisions, job.marks = r, marks
 	if err := exportAs(w.textEditor.Text(), filepath.Join(os.Getenv("SHOT_DIR"), "revisions.pdf"), "pdf", job); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// New after an unsaved script's issue: the new script has no marks, and
+// Issue Draft… offers White again.
+func TestNewScriptForgetsIssues(t *testing.T) {
+	w := draftsWindow(t)
+	w.textEditor.SetText(revScript)
+	issueNow(t, w, "White", time.Now())
+	replaceText(t, w, "Mud everywhere.", "Mud.")
+	if got := marked(w); len(got) != 1 {
+		t.Fatalf("marks %v", got)
+	}
+	w.hasChanges = false
+	w.newFile(true)
+	w.textEditor.SetText(revScript)
+	replaceText(t, w, "Mud everywhere.", "Mud.")
+	if got := marked(w); len(got) != 0 {
+		t.Errorf("a new script with the old one's marks: %v", got)
+	}
+	if c, _ := w.revisionChainNow(); c != nil && len(c.issues) != 0 {
+		t.Errorf("a new script with issues %+v", c.issues)
+	}
+}
+
+// In an .accolade: White, an edit, Blue, an edit, saved and opened again.
+func TestIssuesInBundle(t *testing.T) {
+	w := draftsWindow(t)
+	p := filepath.Join(t.TempDir(), "Rain.accolade")
+	w.textEditor.SetText(revScript)
+	if err := w.saveToFile(p); err != nil {
+		t.Fatal(err)
+	}
+	w.typeAfterRename("", "untitled.fountain", p, p)
+	w.currentFile = p
+	issueNow(t, w, "White", time.Date(2026, 11, 1, 0, 0, 0, 0, time.Local))
+	replaceText(t, w, "Mud everywhere.", "Mud, and a dog.")
+	issueNow(t, w, "Blue", time.Date(2026, 11, 20, 0, 0, 0, 0, time.Local))
+	replaceText(t, w, "Dry at last.", "Dry, at last.")
+	if got := marked(w); len(got) != 1 || got["Dry, at last."] != "Pink" {
+		t.Errorf("marks %v", got)
+	}
+	if err := w.saveToFile(p); err != nil {
+		t.Fatal(err)
+	}
+	w.flushBundleWrites()
+	w2 := againWindow(t, w)
+	if err := w2.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	ds := draftsOf(t, w2)
+	if len(ds) != 2 || ds[0].Colour != "White" || ds[1].Colour != "Blue" {
+		t.Fatalf("issues in the bundle %+v", ds)
+	}
+	w2.settings.SetString(revisionMarksPref, "all")
+	t.Cleanup(func() { w2.settings.SetString(revisionMarksPref, "last") })
+	if got := marked(w2); len(got) != 2 || got["Mud, and a dog."] != "Blue" || got["Dry, at last."] != "Pink" {
+		t.Errorf("reopened marks %v", got)
+	}
+}
+
+// After an import whose file names its sets its own way, the next set is
+// one it has not used.
+func TestNextSetSkipsImportedNames(t *testing.T) {
+	c := &revisionChain{issues: []issue{{set: lex.RevisionSet{Name: "Pink"}, sets: []lex.RevisionSet{{Name: "Blue"}, {Name: "Yellow"}}}}}
+	if n := c.nextSet(time.Now()).Name; n != "Green" {
+		t.Errorf("next %q, want Green", n)
 	}
 }

@@ -767,7 +767,8 @@ row's source line), so the marks are those the editor shows. File > Print goes t
 use the PDF.
 
 **FDX out:** `<Revisions>` with a `<Revision>` per set after White (IDs 1 on, Name "Blue Rev. 20/11/26", Final
-Draft's PageColor, Mark `*`, Location 7.75, ActiveSet the last) and `RevisionID` on a marked paragraph's runs. No
+Draft's PageColor, Mark `*`, Location 7.75, ActiveSet the last) and `RevisionID` on a marked paragraph's runs:
+every issue's marks, whatever the margin shows (an exchange file; the program reading it shows what it wants). No
 `<DeletedText>`: its offsets are unverified beyond one file.
 
 **FDX in:** Lexington reads each paragraph's set from its runs' `RevisionID` (the latest), or from a
@@ -788,7 +789,8 @@ That issue starts the chain with those marks: until the next Issue they are the 
 are the next set's (Yellow after Pink); from then on the snapshots take over (all issues' marks still show the
 imported ones on lines nothing changed since). A mark whose line's text is not what was recorded is dropped.
 
-Rough: a deletion next to a changed line has no mark of its own; the editor's bar is the fold column's second cell
+Rough: a deletion next to a changed line has no mark of its own; a dual dialogue is marked whole (both columns'
+lines) when either speech changed; Lexington's command line has no revision flags yet; the editor's bar is the fold column's second cell
 (no column of its own); the title page does not list the issued sets yet; locked pages and A-pages are step 5, so
 "changed pages" are by the current pagination; the browser's PDF export of a script the PDF writer cannot print
 (right to left, CJK) goes through HTML and has no marks.

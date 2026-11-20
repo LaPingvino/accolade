@@ -322,6 +322,8 @@ func (w *MainWindow) applySettings() {
 
 	// Apply font settings
 	w.applyFontSettings()
+
+	w.updateRevisionMarks() // since the last issue or all (revisions.go)
 }
 
 func (w *MainWindow) applyEditorSettings() {

@@ -184,6 +184,16 @@ func (c *revisionChain) nextSet(now time.Time) lex.RevisionSet {
 	if n < 0 {
 		n = len(c.issues) - 1
 	}
+	taken := map[string]bool{}
+	for _, is := range c.issues {
+		taken[strings.ToLower(is.set.Name)] = true
+		for _, s := range is.sets {
+			taken[strings.ToLower(s.Name)] = true
+		}
+	}
+	for taken[strings.ToLower(lex.RevisionName(n+1))] { // an imported file's names are its own
+		n++
+	}
 	return lex.RevisionSet{Name: lex.RevisionName(n + 1), Date: now}
 }
 
@@ -391,14 +401,16 @@ type revisionState struct {
 	ink   map[int]color.Color
 }
 
-// revisionKey is what the issues are read again for: another script, or
-// a new issue (revisionGen).
+// revisionKey is what the issues are read again for: another script (its
+// extras' home: a New or an import lets an unsaved one's go), or a new
+// issue (revisionGen).
 func (w *MainWindow) revisionKey() string {
-	p := w.currentFile
-	if w.bundle != nil {
-		p = w.bundle.path
+	h := w.extrasHome()
+	p := string(h.dir)
+	if h.b != nil {
+		p = h.b.path
 	}
-	return fmt.Sprintf("%s|%d", p, w.revisionGen)
+	return fmt.Sprintf("%d|%s|%s|%d", h.kind, p, w.currentFile, w.revisionGen)
 }
 
 // revisionChainNow are the script's issues, read again if need be.
@@ -472,7 +484,7 @@ func (w *MainWindow) revisionMarksShown() map[int]color.Color { return w.revisio
 // exportRevisions are the revisions of the text for an export: the sets
 // and each line's mark, as the setting has them (nil when the script has
 // no issue).
-func (w *MainWindow) exportRevisions(text string) (*lex.Revisions, []string) {
+func (w *MainWindow) exportRevisions(text string, all bool) (*lex.Revisions, []string) {
 	if w.markdown {
 		return nil, nil
 	}
@@ -480,7 +492,7 @@ func (w *MainWindow) exportRevisions(text string) (*lex.Revisions, []string) {
 	if err != nil || chain == nil || len(chain.issues) == 0 {
 		return nil, nil
 	}
-	marks, sets, _ := chain.marksOf(text, w.marksAll(), time.Now())
+	marks, sets, _ := chain.marksOf(text, all, time.Now())
 	r := &lex.Revisions{Sets: sets}
 	if w.settings != nil {
 		r.Header = w.settings.GetString(revisionHeaderPref)
@@ -552,12 +564,23 @@ func (w *MainWindow) scriptIssued() bool {
 // withRevisions is the export job with the text's revisions (none if the
 // script has no issue): the marks, revised pages only, coloured paper.
 func (w *MainWindow) withRevisions(j exportJob, text string, pagesOnly, colours bool) exportJob {
-	r, marks := w.exportRevisions(text)
+	r, marks := w.exportRevisions(text, w.marksAll())
 	if r == nil {
 		return j
 	}
 	r.PagesOnly, r.PageColors = pagesOnly, colours
 	j.revisions, j.marks = r, marks
+	return j
+}
+
+// withAllRevisions is the job with every issue's marks, each in its set,
+// whatever the setting shows: an FDX is an exchange file, the next
+// program shows the sets it wants.
+func (w *MainWindow) withAllRevisions(j exportJob, text string) exportJob {
+	r, marks := w.exportRevisions(text, true)
+	if r != nil {
+		j.revisions, j.marks = r, marks
+	}
 	return j
 }
 
