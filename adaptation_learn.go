@@ -27,12 +27,14 @@ import (
 //   - A cue Tab put in from the source, renamed: the source's name for
 //     the speaker becomes another name of the new cue (characters:). The
 //     same for a line the source reads as someone's, written under
-//     another cue, unless that someone's own cue is in the script or
-//     the cue is another speaker's in the source (the reading was wrong,
-//     not the name).
-//   - A cue Tab put in, deleted (the line gone, or no cue over it any
-//     more), or renamed to another cue than the one learned: a strike;
-//     two, and the name is no one (not characters).
+//     another cue. Not when the old name's own cue still speaks elsewhere
+//     in the script: then the reading was wrong, not the name.
+//   - A cue Tab put in, its name deleted (the line left with no cue over
+//     it), or renamed to another cue than the one learned: a strike; two,
+//     and the name is no one (not characters). A line deleted whole or
+//     reworded says nothing about the name.
+//   - Nothing while the script is shared live: a peer's edits come into
+//     this window's undo steps.
 //   - A heading written for a scene linked to a passage (written over
 //     Next's placeholder, or a link put under a heading written in this
 //     session), other than any the source's place makes: the place maps
@@ -64,9 +66,14 @@ type learner struct {
 	ran, busy bool
 }
 
-// took watches a cue Tab put in.
-func (l *learner) took(s *suggestion, t takenCue) {
+// took watches the cue Tab put in with alternative i of s, if it has one
+// from the source (Tab again: another alternative of s replaces it).
+func (l *learner) took(s *suggestion, i int, takes []takenCue) {
 	l.taken = slices.DeleteFunc(l.taken, func(o takenCue) bool { return o.from == s })
+	if i >= len(takes) || takes[i].Speaker == "" {
+		return
+	}
+	t := takes[i]
 	t.from, t.words = s, normWords(t.Text)
 	l.taken = append(l.taken, t)
 	if len(l.taken) > maxTaken {
@@ -150,8 +157,8 @@ func (w *MainWindow) knowScript() {
 // and writes what it learns to the adaptation block. The source pane's
 // follow calls it (after typing pauses; the pane shown or not).
 func (w *MainWindow) learnFromWriting() {
-	if w.markdown || w.textEditor == nil {
-		return
+	if w.markdown || w.textEditor == nil || w.shared != nil {
+		return // shared: a peer's edits come into this window's undo steps, half typed
 	}
 	sg := w.suggester()
 	l := &sg.learn
@@ -222,6 +229,9 @@ func (l *learner) checkTaken(sg *suggester, next *learned, cursor int) bool {
 		case at >= 0 && (cue == t.Cue || cue == castPlaceholder):
 			keep = append(keep, t)
 		case at >= 0 && cue != "": // renamed
+			if sg.scriptCues()[t.Cue] > 0 {
+				break // the old cue still speaks elsewhere: the line was read as the wrong one's
+			}
 			if next.renameCue(t.Speaker, cue) { // a cue learned before (the source's names read as it)
 				changed = true
 			} else if a := next.aliasOf(t.Speaker); a != "" && a != cue {
@@ -230,8 +240,10 @@ func (l *learner) checkTaken(sg *suggester, next *learned, cursor int) bool {
 				next.addAlias(cue, t.Speaker)
 				changed = true
 			}
-		default: // deleted: the line, or the name over it
+		case at >= 0: // the line there, no name over it any more
 			changed = l.strike(next, t.Speaker) || changed
+		default:
+			// the line gone or reworded: nothing said about the name
 		}
 	}
 	l.taken = keep
@@ -392,28 +404,9 @@ func learnCue(sg *suggester, o *sourceOffers, c *sceneCtx, b dialogueBlock, next
 				return false
 			case sg.scriptCues()[own] > 0:
 				return false // that one speaks in the script: the line was read as the wrong one's
-			case otherSpeaks(sg, o, pc.Speaker, b.cue):
-				return false // the cue is another speaker's of the source
 			}
 			next.addAlias(b.cue, pc.Speaker)
 			return true
-		}
-	}
-	return false
-}
-
-// otherSpeaks reports whether a speaker of the source other than name
-// has cue.
-func otherSpeaks(sg *suggester, o *sourceOffers, name, cue string) bool {
-	seen := map[string]bool{name: true}
-	for _, ps := range o.pieces {
-		for _, pc := range ps {
-			if pc.Speech && pc.Speaker != "" && !seen[pc.Speaker] {
-				seen[pc.Speaker] = true
-				if sg.cueFor(pc.Speaker) == cue {
-					return true
-				}
-			}
 		}
 	}
 	return false

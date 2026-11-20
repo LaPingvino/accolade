@@ -203,9 +203,9 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   below, `;`/`,`, `=`/`→`; unread entries and other lines kept), written in that order before `cut:`. Learned on the
   pane's follow (after typing pauses; the pane hidden too, on the suggester's 1 s reload), cursor's scene only, from
   actions not standing state (what the script had when opened teaches nothing; a cue/heading is looked at once the
-  cursor left it): a cue Tab put in renamed → alias; a line the source reads as X typed under another cue → alias,
-  unless X's own cue is in the script or the cue is another source speaker's; a taken cue deleted (line or name) or
-  renamed against a learned alias twice → not characters; a new heading over a linked scene (Next's placeholder, or
+  cursor left it): a cue Tab put in renamed, or a line the source reads as X typed under another cue → alias, unless
+  the old name's own cue still speaks elsewhere in the script (a correction); a taken cue's name deleted (line left
+  cueless) or renamed against a learned alias, twice → not characters (a line deleted whole or reworded: nothing); a new heading over a linked scene (Next's placeholder, or
   heading then link) unlike any the read place makes → places (time stripped); Skip on a suggested link → skipped
   links (not offered to that scene again). Quiet: only the block changes, joined to the writer's last undo step
   (buffer.Amend), cursor/selection kept (on the empty line before the block, a blank line kept after it); not while
@@ -213,9 +213,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   character, drop not-characters as speakers, and give a place its heading (Scene.Given); readings and offers are
   re-read when the hints change; suggestions use the cue, the place's heading first. The pane: "What Accolade learned
   (n)", folded, rows with a remove button each (one undo step; not relearned this session). Also: tail blocks' rune
-  places counted in one pass. Bench (base vs branch, n=8): SuggestKeystroke 22.4 vs 22.5 ms, hint 0.49 vs 0.63 ms
-  (noise ±47%); LearnedKeystroke none 21.8 / learned block 20.4 ms; one learning tick 0.56 ms. Rough: strikes and
-  "forgotten" are per session; the typed-cue alias rides on storyread's attribution (guarded, still possible to
+  places counted in one pass. Bench (base vs branch, n=8): SuggestKeystroke 22.4 vs 22.5 ms (whole keystroke
+  unchanged); the hint's own share about +0.1 ms (0.49 vs 0.63 ms, a first run +18% p=0.004); LearnedKeystroke none 21.8 / learned block 20.4 ms; one learning tick 0.56 ms. Rough: strikes and
+  "forgotten" are per session; no learning while shared live (collab); a correction made before the old name has a
+  cue of its own elsewhere is still learned as an alias; the typed-cue alias rides on storyread's attribution (guarded, still possible to
   mislearn); a link added under a heading the script had when opened teaches no place; open on a phone the list
   takes most of the pane (it scrolls, folded by default); extra blank line kept before the block when it is first
   written with the cursor at the script's end. Next: step 8 (AI) only if wanted; else PRODUCTION from step 1.

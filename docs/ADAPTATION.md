@@ -111,11 +111,12 @@ and more one per line below, in the order above.
 When it learns (quietly: no question, no status; on the pane's follow after typing pauses, the pane shown or not,
 the cursor's scene only; only the block changes, as part of the writer's last undo step, so Undo takes both):
 
-- **A cue Tab put in, renamed** (or a line the source reads as someone's written under another cue, unless that
-  someone's own cue is in the script or the cue is another speaker's: then the reading was wrong): the source's name
-  becomes another name of the new cue.
-- **A cue Tab put in, thrown away twice** (the line deleted, the name over it deleted, or renamed to another cue
-  than the one learned): the name goes on the "not characters" list.
+- **A cue Tab put in, renamed** (or a line the source reads as someone's written under another cue): the source's
+  name becomes another name of the new cue; not when the old name's own cue still speaks elsewhere in the script
+  (then the reading was wrong, not the name).
+- **A cue Tab put in, thrown away twice** (its name deleted, the line left with no cue, or renamed to another cue
+  than the one learned): the name goes on the "not characters" list. A line deleted whole or reworded says nothing
+  about the name.
 - **A heading written for a scene linked to a passage** (over Next's placeholder, or a link put under a heading
   written in this session), other than any the source's place makes: the place is matched to it from then on.
 - **A passage skipped with Next:** it is asked whether to mark it as cut (step 4).
@@ -124,7 +125,8 @@ the cursor's scene only; only the block changes, as part of the writer's last un
 It learns from actions, not from how the script stands: what the script had when it was opened teaches nothing, and
 a cue or heading is looked at once the cursor has left it (half typed, nothing). The source pane's "What Accolade
 learned (n)" line opens a list of the lessons, each with a button that takes it away (one undo step); a lesson
-taken away is not learned again in the session.
+taken away is not learned again in the session. Nothing is learned while the script is shared live (a peer's edits
+come into the window's undo steps).
 
 ## 7. Later, and optional
 

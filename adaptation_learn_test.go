@@ -271,10 +271,21 @@ func TestLearnTypedCue(t *testing.T) {
 		t.Errorf("Tom speaks in the script, still: %q", b)
 	}
 	// ANNA over Tom's line: Anna's cue
-	w3 := suggestWindow(t, suggestScript)
-	typeText(w3, "ANNA\nThen I will make some.\n\n")
+	// a cue Tab put in, corrected to another who speaks too: ANNA still
+	// speaks elsewhere, so the line was read as the wrong one's
+	script := suggestScript + "ANNA\nNo. There is never tea.\n\n"
+	w3 := suggestWindow(t, script)
+	w3.showSuggestionHint()
+	tabKey(w3)
+	tabKey(w3)
+	if got := tailOf(w3, script); got != "ANNA\n(whispering)\nWhere were you?" {
+		t.Fatalf("taken: %q", got)
+	}
+	l := len([]rune(script))
+	w3.textEditor.Edit(func(b *buffer.Buffer) { b.Replace(l, l+4, "TOM") })
+	moveTo(t, w3, "Title")
 	if b := learnedBlock(w3); b != "" {
-		t.Errorf("another's cue, still: %q", b)
+		t.Errorf("a correction, still: %q", b)
 	}
 	// what was in the script when it opened teaches nothing
 	w4 := suggestWindow(t, suggestScript+"THOMAS\nThen I will make some.\n\n")
@@ -308,12 +319,12 @@ func TestLearnNotCharacter(t *testing.T) {
 		} else {
 			e.Edit(func(b *buffer.Buffer) { b.Replace(from, len(r), "") })
 		}
-		w.onCursorChanged()
+		moveTo(t, w, "Title")
 		if !whole {
 			e.Edit(func(b *buffer.Buffer) { b.Replace(from, from+len("Where were you?"), "") })
 		}
 	}
-	takeAndDelete(true)
+	takeAndDelete(false)
 	if b := learnedBlock(w); b != "" {
 		t.Fatalf("once: %q", b)
 	}
@@ -333,6 +344,30 @@ func TestLearnNotCharacter(t *testing.T) {
 	forgetRow(t, w, "“Anna” is no one")
 	if b := learnedBlock(w); b != "" {
 		t.Errorf("forgotten: %q", b)
+	}
+	// a line deleted whole, or reworded under its cue, says nothing about
+	// the name, however often
+	w2 := suggestWindow(t, suggestScript)
+	for range 2 {
+		toScriptEnd(w2)
+		w2.showSuggestionHint()
+		tabKey(w2)
+		tabKey(w2)
+		e := w2.textEditor
+		from := len([]rune(suggestScript))
+		e.Edit(func(b *buffer.Buffer) { b.Replace(from, len([]rune(e.Text())), "") })
+		moveTo(t, w2, "Title")
+		toScriptEnd(w2)
+		tabKey(w2)
+		tabKey(w2)
+		at := from + len([]rune("ANNA\n(whispering)\n"))
+		e.Edit(func(b *buffer.Buffer) { b.Replace(at, at+len("Where were you?"), "Where on earth were you?") })
+		moveTo(t, w2, "Title")
+		e.Edit(func(b *buffer.Buffer) { b.Replace(from, len([]rune(e.Text())), "") })
+		moveTo(t, w2, "Title")
+	}
+	if b := learnedBlock(w2); b != "" {
+		t.Errorf("deleted whole and reworded: %q", b)
 	}
 }
 
@@ -424,6 +459,25 @@ func TestLearnSkippedLink(t *testing.T) {
 	w.suggestSourceLinks()
 	if !strings.Contains(s.prompt.label.Text, "1 of 3: INT. LIGHTHOUSE STAIRS") {
 		t.Errorf("forgotten: %q", s.prompt.label.Text)
+	}
+}
+
+// With the source pane hidden (a phone), learning runs on the
+// suggestions' reload after typing.
+func TestLearnPaneHidden(t *testing.T) {
+	w, p := scriptWindow(t, suggestScript)
+	os.WriteFile(filepath.Join(filepath.Dir(p), "story.md"), []byte(suggestStory), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	if w.notes != nil && w.notes.source.shown() {
+		t.Fatal("the pane is shown")
+	}
+	toEnd(w)
+	w.showSuggestionHint()
+	typeText(w, "THOMAS\nThen I will make some.\n\n")
+	if b := learnedBlock(w); b != "characters: THOMAS = Tom" {
+		t.Errorf("block %q", b)
 	}
 }
 

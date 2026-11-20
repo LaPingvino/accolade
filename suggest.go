@@ -953,9 +953,7 @@ func (sg *suggester) put(from, to int, s *suggestion, i int) {
 	})
 	b := e.Buffer()
 	sg.cycle = &suggestCycle{s: s, i: i, rev: b.Rev(), cursor: b.Cursor(), inserted: text}
-	if i < len(s.takes) {
-		sg.learn.took(s, s.takes[i])
-	}
+	sg.learn.took(s, i, s.takes)
 	sg.w.showSuggestionHint()
 }
 
