@@ -1,0 +1,58 @@
+# File
+  New [Primary+N]
+  New Empty [Primary+Alt+N]
+  New Window [Primary+Shift+N]
+  New Empty Window [Primary+Shift+Alt+N]
+  New Markdown Document
+  Open… [Primary+O]
+  Open Recent
+    No recent scripts (disabled) (no action)
+  Import as Markdown…
+  Import with pandoc…
+  Start a Screenplay from This Source
+  ---
+  Save [Primary+S]
+  Save As… [Primary+Shift+S]
+  Save Draft…
+  Drafts…
+  ---
+  Edit Together…
+  Join a Shared Script…
+  ---
+  Export… [Primary+E]
+  Print… [Primary+P]
+  ---
+  Preferences… [Primary+,]
+# Edit
+  Undo
+  Redo [Primary+Shift+Z]
+  ---
+  Find… [Primary+F]
+  Replace… [Primary+H]
+  Find Next [Primary+G]
+  Find Previous [Primary+Shift+G]
+# Format
+  Right to Left Line
+  ---
+  Bold [Primary+B]
+  Italic [Primary+I]
+  ---
+  Move Line Up [Alt+Up]
+  Move Line Down [Alt+Down]
+  ---
+# View
+  Preview [Primary+Shift+P]
+  Outline [Primary+Shift+O]
+  Fold or Unfold Here [Primary+Shift+.]
+  Fold All (Sections Only)
+  Headings Only
+  Unfold All
+  Notes [Primary+Shift+K]
+  Changes [Primary+Shift+H]
+  Fullscreen [Primary+Shift+F]
+  ---
+  Document Type
+    Screenplay
+    Markdown (checked)
+# Help
+  About Accolade

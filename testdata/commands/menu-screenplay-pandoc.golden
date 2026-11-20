@@ -1,0 +1,103 @@
+# File
+  New [Primary+N]
+  New Empty [Primary+Alt+N]
+  New Window [Primary+Shift+N]
+  New Empty Window [Primary+Shift+Alt+N]
+  New Markdown Document
+  Open… [Primary+O]
+  Open Recent
+    No recent scripts (disabled) (no action)
+  Import as Markdown…
+  Import with pandoc…
+  Choose Source…
+  Save Source As…
+  ---
+  Save [Primary+S]
+  Save As… [Primary+Shift+S]
+  Save Draft…
+  Drafts…
+  ---
+  Edit Together…
+  Join a Shared Script…
+  ---
+  Title Page… [Primary+Shift+T]
+  Export… [Primary+E]
+  Print… [Primary+P]
+  ---
+  Preferences… [Primary+,]
+# Edit
+  Undo
+  Redo [Primary+Shift+Z]
+  ---
+  Find… [Primary+F]
+  Replace… [Primary+H]
+  Find Next [Primary+G]
+  Find Previous [Primary+Shift+G]
+# Format
+  Scene Heading [Primary+1]
+  Action [Primary+2]
+  Character [Primary+3]
+  Parenthetical [Primary+4]
+  Dialogue [Primary+5]
+  Transition [Primary+6]
+  Centered [Primary+7]
+  Lyrics [Primary+8]
+  Right to Left Line
+  Script Language…
+  Scene or Section Color… [Primary+Shift+L]
+  ---
+  Bold [Primary+B]
+  Italic [Primary+I]
+  Underline [Primary+U]
+  ---
+  Move Line Up [Alt+Up]
+  Move Line Down [Alt+Down]
+  ---
+  Link to Source Passage
+  Next Source Passage [Primary+Alt+J]
+  Mark Source Passage as Cut
+  Source Headings as Sections
+  Suggest Links to the Source
+  Update Source Links
+  Keep Source in the Script
+# Production
+  Lock Scene Numbers
+  Unlock Scene Numbers…
+  Renumber Scenes
+  ---
+  Omit Scene
+  Restore Scene
+  ---
+  Issue Draft…
+  Lock Pages
+  Unlock Pages…
+  ---
+  Tag Selection… [Primary+Shift+B]
+  Untag
+  Show Tagged Words (checked)
+  Break Down…
+  Stripboard
+  Schedule…
+  Export Shoot Days (.ics)…
+  ---
+  Reports…
+# View
+  Preview PDF [Primary+Shift+P]
+  Outline [Primary+Shift+O]
+  Cards [Primary+Shift+D]
+  Fold or Unfold Here [Primary+Shift+.]
+  Fold All (Sections Only)
+  Headings Only
+  Unfold All
+  Notes [Primary+Shift+K]
+  Source
+  Production
+  Changes [Primary+Shift+H]
+  Statistics…
+  Fullscreen [Primary+Shift+F]
+  ---
+  Document Type
+    Screenplay (checked)
+    Markdown
+# Help
+  About Accolade

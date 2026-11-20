@@ -1,0 +1,42 @@
+# row 0
+  button foreground_document-create.svg tip=New (Ctrl+N); with Alt, empty (Ctrl+Alt+N); with Shift, a new window (Ctrl+Shift+N)
+    menu:New icon=foreground_document-create.svg
+  button foreground_folder-open.svg tip=Open (Ctrl+O)
+    menu:Open icon=foreground_folder-open.svg
+  button foreground_document-save.svg tip=Save (Ctrl+S)
+    menu:Save icon=foreground_document-save.svg
+  gap
+  button foreground_content-undo.svg tip=Undo (Ctrl+Z)
+    menu:Undo icon=foreground_content-undo.svg
+  button foreground_content-redo.svg tip=Redo (Ctrl+Shift+Z)
+    menu:Redo icon=foreground_content-redo.svg
+  button foreground_list.svg tip=Outline (Ctrl+Shift+O)
+    menu:Outline icon=foreground_list.svg
+  button foreground_grid.svg tip=Cards (Ctrl+Shift+D) (disabled)
+    menu:Cards icon=foreground_grid.svg
+  button foreground_file-text.svg tip=Notes (Ctrl+Shift+K)
+    menu:Notes icon=foreground_file-text.svg
+  button foreground_source.svg tip=Source: the story the script adapts (disabled) (kept)
+    menu:Source: the story the script adapts icon=foreground_source.svg
+  button foreground_production.svg tip=Production: lock, revise, and the stages to the shoot (disabled)
+    menu:Production: lock, revise, and the stages to the shoot icon=foreground_production.svg
+  gap
+  button foreground_search.svg tip=Find and replace (Ctrl+F)
+    menu:Find and replace icon=foreground_search.svg
+  button foreground_visibility.svg tip=Preview (Ctrl+Shift+P)
+    menu:Preview icon=foreground_visibility.svg
+  button foreground_download.svg tip=Export to Word, ODT, HTML, PDF… (Ctrl+E)
+    menu:Export to Word, ODT, HTML, PDF… icon=foreground_download.svg
+  gap
+  button foreground_view-fullscreen.svg tip=Full screen, without distractions (Ctrl+Shift+F)
+    menu:Full screen, without distractions icon=foreground_view-fullscreen.svg
+  button foreground_settings.svg tip=Preferences (Ctrl+,)
+    menu:Preferences icon=foreground_settings.svg
+# row 1
+  button foreground_bold.svg tip=Bold (Ctrl+B)
+    menu:Bold icon=foreground_bold.svg
+  button foreground_italic.svg tip=Italic (Ctrl+I)
+    menu:Italic icon=foreground_italic.svg
+  gap
+  button foreground_document-create.svg text="Start a Screenplay" label="Start a Screenplay from This Source"
+    menu:Start a Screenplay from This Source icon=foreground_document-create.svg
