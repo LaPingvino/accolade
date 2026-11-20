@@ -619,6 +619,12 @@ func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error
 // saveBundleFiles writes files into the bundle, in place, the text as it
 // is in the bundle (Save Draft); highlandWarned as bundleSave's.
 func saveBundleFiles(b *textBundle, files []bundleFile, highlandWarned bool) (*textBundle, error) {
+	return saveBundleFilesWithout(b, files, nil, highlandWarned)
+}
+
+// saveBundleFilesWithout is saveBundleFiles with the files gone (names in
+// the bundle, as files name them) taken out.
+func saveBundleFilesWithout(b *textBundle, files []bundleFile, gone []string, highlandWarned bool) (*textBundle, error) {
 	b = b.fresh()
 	ours := b.ours
 	ours.Drafts = cmp.Or(draftsIndexIn(files), ours.Drafts)
@@ -626,7 +632,7 @@ func saveBundleFiles(b *textBundle, files []bundleFile, highlandWarned bool) (*t
 	if info, changed := b.infoWith(ours); changed {
 		files = append(slices.Clone(files), bundleFile{b.infoName(), info})
 	}
-	return writeBundle(b, b.path, files)
+	return writeBundleWithout(b, b.path, files, gone)
 }
 
 // saveBundleSource writes md as the bundle's source, in place, the text

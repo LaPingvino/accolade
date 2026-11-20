@@ -38,6 +38,7 @@ type cmdEnv struct {
 	pages    bool // its pages are locked (Production)
 	renamed  bool // the last rename can be taken back (relocate.go)
 	brought  bool // the script brought Lexington settings of its own (lexington_carried.go)
+	issued   bool // the script has an issue (revisions.go)
 }
 
 // cmdEnv is the window's.
@@ -48,6 +49,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 		e.source = w.sourceRef().Origin != sourceNone
 		e.locked = sceneLockOf(text).locked
 		e.pages = pageLockOf(text) != nil
+		e.issued = w.scriptIssued()
 	}
 	e.renamed = w.canUndoRename()
 	e.brought = !w.carried.empty()
@@ -66,6 +68,7 @@ func numbersLocked(e cmdEnv) bool   { return e.locked }
 func pagesLocked(e cmdEnv) bool     { return e.pages }
 func renameToUndo(e cmdEnv) bool    { return e.renamed }
 func broughtSettings(e cmdEnv) bool { return e.brought }
+func hasIssue(e cmdEnv) bool        { return e.issued }
 
 // command is one thing the user can do.
 type command struct {
@@ -478,6 +481,8 @@ func newRegistry() *registry {
 	renumber.text = "Renumber"
 	unlockPages := prod("production.unlockPages", "Unlock Pages…", theme.ContentUndoIcon, (*MainWindow).unlockPages)
 	unlockPages.enabled = pagesLocked
+	withdraw := prod("production.withdraw", "Withdraw Last Issue…", theme.ContentUndoIcon, (*MainWindow).withdrawLastIssue)
+	withdraw.enabled, withdraw.text = hasIssue, "Withdraw…"
 	tag := prod("production.tag", "Tag Selection…", theme.ContentAddIcon, (*MainWindow).showTagPicker)
 	tag.keys = []fyne.Shortcut{shortcut(fyne.KeyB, fyne.KeyModifierShift)}
 	showTags := prod("production.showTags", "Show Tagged Words", theme.VisibilityIcon, (*MainWindow).toggleBreakdownTags)
@@ -490,6 +495,7 @@ func newRegistry() *registry {
 		prod("production.omit", "Omit Scene", theme.ContentRemoveIcon, (*MainWindow).omitScene),
 		prod("production.restore", "Restore Scene", theme.MediaReplayIcon, (*MainWindow).restoreScene),
 		prod("production.issue", "Issue Draft…", theme.ConfirmIcon, (*MainWindow).showIssueDraft),
+		withdraw,
 		prod("production.lockPages", "Lock Pages", theme.FileIcon, (*MainWindow).lockPages),
 		unlockPages,
 		// the Revise stage's
@@ -602,7 +608,7 @@ func newRegistry() *registry {
 		{title: "Production", when: screenplayOnly, homes: []home{
 			at("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
 			sep(), at("production.omit"), at("production.restore"),
-			sep(), at("production.issue"), at("production.lockPages"), at("production.unlockPages"),
+			sep(), at("production.issue"), at("production.withdraw"), at("production.lockPages"), at("production.unlockPages"),
 			sep(), at("production.tag"), at("production.untag"), at("production.showTags"), at("production.breakdown"),
 			at("production.stripboard"), at("production.schedule"), at("production.ics"),
 			sep(), at("production.reports"),
@@ -849,7 +855,7 @@ func ribbonLayout() []ribbonTab {
 		{title: "Production", when: screenplayOnly, groups: []ribbonGroup{
 			{title: "Lock", stage: 1 + stageLock, homes: []home{big("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
 				big("production.lockPages"), big("production.issue")}},
-			{title: "Revise", stage: 1 + stageRevise, homes: []home{big("production.issue"), big("production.revisedPages"), at("production.compare")}},
+			{title: "Revise", stage: 1 + stageRevise, homes: []home{big("production.issue"), big("production.revisedPages"), at("production.compare"), at("production.withdraw")}},
 			{title: "Break Down", stage: 1 + stageBreakdown, homes: []home{big("production.nextScene"), at("production.sceneDone"), big("production.tag"),
 				at("production.untag"), at("production.showTags"), at("production.sheets")}},
 			{title: "Schedule", stage: 1 + stageSchedule, homes: []home{big("production.stripboard"), at("production.addDay"), at("production.oneLiner"),

@@ -22,6 +22,9 @@ type step struct {
 	afterCursor, afterAnchor   int
 	// typing marks a step that further typed letters may join
 	typing bool
+	// tag is what the step means beyond its text, if anything (Tag):
+	// the editor tells its owner when such a step is undone or redone
+	tag any
 }
 
 // Buffer holds the text being edited.
@@ -216,6 +219,55 @@ func (b *Buffer) Amend(start, end int, text string) {
 		last.afterCursor = shifted(last.afterCursor, start, end, len(inserted))
 		last.afterAnchor = shifted(last.afterAnchor, start, end, len(inserted))
 	}
+}
+
+// Steps is how many steps there are to undo: a mark for JoinSince.
+func (b *Buffer) Steps() int { return len(b.undo) }
+
+// JoinSince makes the steps after the first n one step (n is an earlier
+// Steps), undone and redone as one: an action whose edits come in turns
+// (Accolade's Issue, which waits for the pages between its edits). False
+// if there is no step after n, or n is no longer a mark (undone past).
+func (b *Buffer) JoinSince(n int) bool {
+	if n < 0 || n >= len(b.undo) || b.group != nil {
+		return false
+	}
+	first, last := b.undo[n], b.undo[len(b.undo)-1]
+	j := step{beforeCursor: first.beforeCursor, beforeAnchor: first.beforeAnchor,
+		afterCursor: last.afterCursor, afterAnchor: last.afterAnchor, tag: last.tag}
+	for _, s := range b.undo[n:] {
+		j.changes = append(j.changes, s.changes...)
+	}
+	b.undo = append(b.undo[:n], j)
+	return true
+}
+
+// Tag gives the last step a tag (nil takes it away): UndoTag and RedoTag
+// report it while the step is next to be undone or redone. False if there
+// is no step.
+func (b *Buffer) Tag(tag any) bool {
+	if len(b.undo) == 0 || b.group != nil {
+		return false
+	}
+	b.undo[len(b.undo)-1].tag = tag
+	b.undo[len(b.undo)-1].typing = false
+	return true
+}
+
+// UndoTag is the tag of the step Undo would undo (nil: none, or no tag).
+func (b *Buffer) UndoTag() any {
+	if len(b.undo) == 0 {
+		return nil
+	}
+	return b.undo[len(b.undo)-1].tag
+}
+
+// RedoTag is the tag of the step Redo would redo.
+func (b *Buffer) RedoTag() any {
+	if len(b.redo) == 0 {
+		return nil
+	}
+	return b.redo[len(b.redo)-1].tag
 }
 
 // CanUndo and CanRedo report whether there is something to undo or redo.

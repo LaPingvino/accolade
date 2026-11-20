@@ -7,6 +7,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"path"
+	"slices"
 	"strings"
 	"time"
 	"unicode"
@@ -59,6 +61,25 @@ type savedDraft struct {
 	// its source's ("" none, or kept in the script itself)
 	Text   string `json:"text"`
 	Source string `json:"source,omitempty"`
+	// Made is what an issue changed in the production block, so that
+	// Withdraw Last Issue… takes back what it made and nothing else
+	// (issue_undo.go); nil for a draft, an import and an issue kept
+	// before Accolade noted it
+	Made *issueMade `json:"made,omitempty"`
+}
+
+// issueMade is what an issue changed in the production block besides
+// its revision line.
+type issueMade struct {
+	// Revision is the revision line's value before ("" none)
+	Revision string `json:"revision"`
+	// SceneLock: the issue locked the scene numbers (the first does, if
+	// they were not)
+	SceneLock bool `json:"sceneLock,omitempty"`
+	// PageLock: the issue wrote the page lock (locked the pages first or
+	// again); PagesBefore are the lock's lines before it ("" none)
+	PageLock    bool   `json:"pageLock,omitempty"`
+	PagesBefore string `json:"pagesBefore,omitempty"`
 }
 
 // draftsIndex is drafts.json.
@@ -150,7 +171,7 @@ func newDraftAs(r extrasReader, like savedDraft, text []byte, ext string, source
 		name = fmt.Sprintf("Draft %d", len(ds)+1)
 	}
 	d = savedDraft{Name: name, Date: now.UTC().Truncate(time.Second), Kind: cmp.Or(kind, kindDraft),
-		Colour: like.Colour, Issued: like.Issued}
+		Colour: like.Colour, Issued: like.Issued, Made: like.Made}
 	taken := map[string]bool{}
 	for _, o := range ds {
 		taken[o.ID] = true
@@ -233,11 +254,16 @@ func (w *MainWindow) addDraft(name string, skipSame bool, done func(d savedDraft
 // addDraftAs is addDraft for a draft of a kind: an issue with its set
 // (colour) and the date it is issued with (zero for a draft).
 func (w *MainWindow) addDraftAs(name, kind, colour string, issued time.Time, skipSame bool, done func(d savedDraft, added bool, err error)) {
-	text, ext, src, now := []byte(w.textEditor.Text()), draftExt(w.markdown), w.draftSource(), time.Now()
 	like := savedDraft{Name: name, Kind: kind, Colour: colour}
 	if !issued.IsZero() {
 		like.Issued = issued.Format("2006-01-02")
 	}
+	w.addDraftLike(like, skipSame, done)
+}
+
+// addDraftLike is addDraft for a draft as like is (newDraftAs).
+func (w *MainWindow) addDraftLike(like savedDraft, skipSame bool, done func(d savedDraft, added bool, err error)) {
+	text, ext, src, now := []byte(w.textEditor.Text()), draftExt(w.markdown), w.draftSource(), time.Now()
 	finish := func(d savedDraft, ok bool, err error) {
 		if done != nil {
 			done(d, ok, err)
@@ -328,4 +354,107 @@ func (w *MainWindow) restoreDraft(d savedDraft, done func(error)) {
 		e.Replace(0, utf8.RuneCountInString(e.Text()), text)
 		w.addDraft(d.Name+" (restored)", false, func(_ savedDraft, _ bool, err error) { finish(err) })
 	})
+}
+
+// withdrawnDraft is a draft taken out of the store (an issue withdrawn
+// or undone: issue_undo.go), its files as they were, so that it can be
+// put back as it was: kept for the session only.
+type withdrawnDraft struct {
+	d     savedDraft
+	files []bundleFile // its text and source, read before they went
+}
+
+// withoutDraft is what to write to take the draft id out of the store:
+// the index without it (files) and the files only it named (gone; a
+// text or source another draft names stays), and the draft as it was.
+func withoutDraft(r extrasReader, id string) (files []bundleFile, gone []string, kept withdrawnDraft, err error) {
+	ds, err := readDrafts(r)
+	if err != nil {
+		return nil, nil, kept, err
+	}
+	at := slices.IndexFunc(ds, func(d savedDraft) bool { return d.ID == id })
+	if at < 0 {
+		return nil, nil, kept, fmt.Errorf("the drafts store has no %s", id)
+	}
+	kept.d = ds[at]
+	if kept.d.Kind == kindIssue && slices.ContainsFunc(ds[at+1:], func(d savedDraft) bool { return d.Kind == kindIssue }) {
+		return nil, nil, kept, errLaterIssue
+	}
+	rest := slices.Delete(slices.Clone(ds), at, at+1)
+	named := map[string]bool{}
+	for _, d := range rest {
+		named[d.Text], named[d.Source] = true, true
+	}
+	for _, f := range []string{kept.d.Text, kept.d.Source} {
+		if f == "" {
+			continue
+		}
+		data, err := r.readExtra(f)
+		if err != nil {
+			return nil, nil, kept, fmt.Errorf("could not read %s: %v", f, err)
+		}
+		kept.files = append(kept.files, bundleFile{f, data})
+		if !named[f] {
+			gone = append(gone, f)
+		}
+	}
+	// its own folder too, once nothing in it is left
+	own := draftsDir + kept.d.ID + "/"
+	if slices.ContainsFunc(gone, func(f string) bool { return strings.HasPrefix(f, own) }) &&
+		!slices.ContainsFunc(rest, func(d savedDraft) bool {
+			return strings.HasPrefix(d.Text, own) || strings.HasPrefix(d.Source, own)
+		}) {
+		gone = append(gone, own)
+	}
+	idx, err := json.MarshalIndent(draftsIndex{Version: 1, Drafts: rest}, "", "  ")
+	if err != nil {
+		return nil, nil, kept, err
+	}
+	return []bundleFile{{draftsIndexName, append(idx, '\n')}}, gone, kept, nil
+}
+
+// draftBack is what to write to put a withdrawn draft back, last in the
+// store: its files where they were if those places are free or hold the
+// same, else under a folder of its own (its id taken since: a new id),
+// and the index. d is the draft as it is now in the store.
+func draftBack(r extrasReader, k withdrawnDraft) (d savedDraft, files []bundleFile, err error) {
+	ds, err := readDrafts(r)
+	if err != nil {
+		return d, nil, err
+	}
+	d = k.d
+	taken := map[string]bool{}
+	for _, o := range ds {
+		taken[o.ID] = true
+	}
+	if taken[d.ID] {
+		base := fmt.Sprintf("%02d-%s", len(ds)+1, draftSlug(d.Name))
+		d.ID = base
+		for i := 2; taken[d.ID]; i++ {
+			d.ID = fmt.Sprintf("%s-%d", base, i)
+		}
+	}
+	for _, f := range k.files {
+		got, rerr := r.readExtra(f.name)
+		switch {
+		case rerr == nil && bytes.Equal(got, f.data):
+			continue // there as it was (another draft names it, or left)
+		case errors.Is(rerr, fs.ErrNotExist) && d.ID == k.d.ID:
+			files = append(files, f)
+			continue
+		}
+		moved := draftsDir + d.ID + "/" + path.Base(f.name)
+		if f.name == d.Text {
+			d.Text = moved
+		}
+		if f.name == d.Source {
+			d.Source = moved
+		}
+		files = append(files, bundleFile{moved, f.data})
+	}
+	idx, err := json.MarshalIndent(draftsIndex{Version: 1, Drafts: append(ds, d)}, "", "  ")
+	if err != nil {
+		return d, nil, err
+	}
+	return d, append(files, bundleFile{draftsIndexName, append(idx, '\n')}), nil
 }

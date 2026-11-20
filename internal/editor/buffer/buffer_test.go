@@ -192,3 +192,31 @@ func TestAmendJoinsLastStep(t *testing.T) {
 		t.Error("a step of its own")
 	}
 }
+
+// JoinSince makes an action's steps one, its tag kept; Tag marks the
+// step for as long as it is next to undo or redo.
+func TestJoinSinceAndTag(t *testing.T) {
+	b := New("abc")
+	b.SetCursor(3, false)
+	b.Insert(" one")
+	mark := b.Steps()
+	b.Group(func() { b.Replace(0, 0, "X") })
+	b.Group(func() { b.Replace(b.Len(), b.Len(), "Y") })
+	if !b.JoinSince(mark) || b.Steps() != mark+1 {
+		t.Fatalf("steps %d after joining since %d", b.Steps(), mark)
+	}
+	if !b.Tag("issue") || b.UndoTag() != "issue" {
+		t.Fatal("no tag")
+	}
+	b.Undo()
+	if b.Text() != "abc one" || b.RedoTag() != "issue" || b.UndoTag() != nil {
+		t.Fatalf("undo: %q", b.Text())
+	}
+	b.Redo()
+	if b.Text() != "Xabc oneY" || b.UndoTag() != "issue" {
+		t.Fatalf("redo: %q", b.Text())
+	}
+	if b.JoinSince(b.Steps()) {
+		t.Error("joined nothing")
+	}
+}

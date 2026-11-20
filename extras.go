@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
 	"io"
 	"io/fs"
 	"os"
@@ -102,6 +103,21 @@ func (d extrasFolder) write(files []bundleFile) error {
 	}
 	for _, f := range files {
 		if err := writeBundleFile(string(d), f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// remove takes files out of the folder (a name ending in / is a folder,
+// taken out if empty); one not there is no error.
+func (d extrasFolder) remove(gone []string) error {
+	for _, g := range gone {
+		if d == "" || !fs.ValidPath(strings.TrimSuffix(g, "/")) {
+			continue
+		}
+		err := os.Remove(filepath.Join(string(d), filepath.FromSlash(strings.TrimSuffix(g, "/"))))
+		if err != nil && !errors.Is(err, fs.ErrNotExist) && !strings.HasSuffix(g, "/") {
 			return err
 		}
 	}

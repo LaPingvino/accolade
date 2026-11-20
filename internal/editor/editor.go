@@ -44,6 +44,12 @@ type ScriptEditor struct {
 	// OnKey, when set, sees every key first (a vim mode: Escape); it
 	// reports whether it handled the key.
 	OnKey func(k *fyne.KeyEvent) bool
+	// OnTaggedStep, when set, is asked before a tagged step (TagLastStep)
+	// is undone (redo false) or redone, by any way in (a menu, Ctrl+Z,
+	// vim's u): it does what the step means beyond its text (Accolade's
+	// Issue: the drafts store), or reports false to keep it, the text
+	// untouched.
+	OnTaggedStep func(tag any, redo bool) bool
 	// OnShortcut, when set, sees shortcuts first (vim's Ctrl+R); it
 	// reports whether it handled the shortcut.
 	OnShortcut func(s fyne.Shortcut) bool
@@ -262,6 +268,9 @@ func (e *ScriptEditor) SetCursorOffset(off int) {
 
 // Undo undoes the last edit step.
 func (e *ScriptEditor) Undo() {
+	if t := e.buf.UndoTag(); t != nil && e.OnTaggedStep != nil && !e.OnTaggedStep(t, false) {
+		return
+	}
 	if e.buf.Undo() {
 		e.changed(true)
 	}
@@ -269,10 +278,29 @@ func (e *ScriptEditor) Undo() {
 
 // Redo redoes the last undone step.
 func (e *ScriptEditor) Redo() {
+	if t := e.buf.RedoTag(); t != nil && e.OnTaggedStep != nil && !e.OnTaggedStep(t, true) {
+		return
+	}
 	if e.buf.Redo() {
 		e.changed(true)
 	}
 }
+
+// UndoSteps is how many steps there are to undo: a mark for
+// JoinStepsSince.
+func (e *ScriptEditor) UndoSteps() int { return e.buf.Steps() }
+
+// JoinStepsSince makes the steps after mark n one undo step (buffer's
+// JoinSince).
+func (e *ScriptEditor) JoinStepsSince(n int) bool { return e.buf.JoinSince(n) }
+
+// TagLastStep tags the last undo step: OnTaggedStep is asked before it is
+// undone or redone.
+func (e *ScriptEditor) TagLastStep(tag any) bool { return e.buf.Tag(tag) }
+
+// UndoTag and RedoTag are the tags of the steps Undo and Redo would take.
+func (e *ScriptEditor) UndoTag() any { return e.buf.UndoTag() }
+func (e *ScriptEditor) RedoTag() any { return e.buf.RedoTag() }
 
 // Columns is the number of columns the text is wrapped to.
 func (e *ScriptEditor) Columns() int { return e.columns }
@@ -1195,13 +1223,9 @@ func (e *ScriptEditor) TypedShortcut(s fyne.Shortcut) {
 		e.buf.SelectAll()
 		e.changed(false)
 	case *fyne.ShortcutUndo:
-		if e.buf.Undo() {
-			e.changed(true)
-		}
+		e.Undo()
 	case *fyne.ShortcutRedo:
-		if e.buf.Redo() {
-			e.changed(true)
-		}
+		e.Redo()
 	}
 }
 

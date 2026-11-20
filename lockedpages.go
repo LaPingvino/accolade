@@ -53,6 +53,11 @@ func pageLockOf(text string) *pageLock {
 	if !ok {
 		return nil
 	}
+	return pageLockIn(inside)
+}
+
+// pageLockIn is the page lock in a production block's inside (nil none).
+func pageLockIn(inside string) *pageLock {
 	l := lex.ParsePageLock(inside)
 	if l == nil {
 		return nil

@@ -93,6 +93,13 @@ The header text is set in Preferences > Script > Production ("Revised page heade
 
 In the pane's Revise stage, Revised Pages PDF… sets this up, and Compare with the Last Issue shows what changed.
 
+### Taking an issue back
+
+- **Undo** right after Issue Draft… takes the whole issue back in one step: its entry in the drafts, the revision line, the page lock it wrote, and the scene lock the White issue made. **Redo** issues it again, as it was.
+- **Production > Withdraw Last Issue…** does the same later, for the newest issue only (an older one has a later issue built on it). It asks first. It takes back only what the issue made and is still there: a page lock or revision line you changed since stays, and the dialog says so.
+- Withdraw only an issue nobody has received. If its PDF or FDX has already gone out, those copies still say its colour, and the next issue gets that colour again with other changes.
+- A script imported from Final Draft with its revisions keeps them as its first issue: that one cannot be withdrawn.
+
 ## Locked pages
 
 Production > Lock Pages keeps the pages as the PDF prints them now. From then on:

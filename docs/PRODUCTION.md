@@ -745,7 +745,44 @@ revision: Blue, 2026-11-20
 */
 ```
 
-The store is the record: Undo after an issue takes the block's line away, not the issue.
+**Taking an issue back** (issue_undo.go; LOOP.md, Joop 2026-11-20: "Issue White / Issue Blue cannot be undone").
+An issue is one undo step: the scene lock the first issue makes, the page lock it writes after laying out the pages
+(in the background) and the revision line are joined into one (`Buffer.JoinSince`), and the step is tagged
+(`Buffer.Tag`). Typing while the pages are laid out stops the issue ("the script changed while its pages were laid
+out: issue it again"), as Lock Pages does, so the joined step never holds the writer's own typing. The editor asks
+its owner before a tagged step is undone or redone, whichever way in (Edit > Undo, Ctrl+Z in the editor, vim's `u`):
+
+- *Undo* takes the text back and the issue's entry out of the drafts store: drafts.json without it, and the files
+  only it named (a draft saved after it with the same text names the same file, which stays). *Redo* writes the text
+  again and puts the entry back, last, with its id and files as they were (a new id and folder if a draft took them
+  since).
+- The entry taken out is kept in memory, in the step's record, with its files' bytes: the session's "withdrawn"
+  list, as long as the undo history lasts (another document forgets it).
+- While the store write is under way (a bundle's, in the background), Undo waits: the status line says to try again
+  in a moment. If the issue is no longer the newest in the store, or not there, the text is taken back and the store
+  left alone, as the status line says.
+
+**Production > Withdraw Last Issue…** (and the Revise group of the ribbon's Production tab) does the same later,
+for the newest issue only: an older one has a later issue built on it (its marks, its pages). The issue's entry
+notes what it made, `made` in drafts.json:
+
+```
+{"id": "02-blue", "name": "Blue", "kind": "issue", "colour": "Blue", "issued": "2026-11-20", …,
+ "made": {"revision": "White, 2026-11-01", "pageLock": true, "pagesBefore": "pages: locked, letter, …"}}
+```
+
+The withdrawal takes back only what is still as the issue left it, in one undo step: the revision line, if it is
+still the issue's, goes back to the one before (or goes); the page lock, if the issue wrote it and it is still the
+issue's, goes back to the lock before (or goes); the scene lock, if the issue made it, goes the way Unlock's *Remove
+the Numbers* goes (§15: the numbers the lock wrote go, typed ones stay). The dialog lists what goes and what stays
+(a lock changed since stays), and warns that a PDF or FDX that went out is not called back: those copies say its
+colour, and the next issue takes the colour again. Accolade keeps no record of exports, so the warning is always
+there. Undo issues it again, Redo withdraws it again (the same store moves as above). An issue kept before `made`
+existed has its entry and revision line taken back only (the dialog says so). An FDX's imported issue
+(revisions.json) cannot be withdrawn: it is the imported script's own record.
+
+Rough: a store write that fails after the text moved leaves them apart (an error dialog says so); a withdrawal that
+finds nothing in the block to take back changes the store only, and Undo then cannot put it back.
 
 **The marks.** Never in the text. Each issue's body (the text before the blocks at its end) is diffed with the one
 before, line by line, blank lines left out (`scriptdiff.Lines`, the same bounded Myers as Compare): a line the same

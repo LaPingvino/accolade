@@ -18,6 +18,9 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	e := editor.New("")
 	e.Syntax = true
 	e.OnEnter = func() bool { return completeLine(w, e) }
+	if w != nil {
+		e.OnTaggedStep = w.onTaggedStep // an issue's step: the drafts store follows (issue_undo.go)
+	}
 	tab := &completer{starts: w.sceneStarts}
 	if w != nil {
 		tab.first = func(cursor int) ([]string, []string) { return w.suggester().firsts(cursor) }

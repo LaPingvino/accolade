@@ -125,3 +125,25 @@ func TestHelix(t *testing.T) {
 		}
 	}
 }
+
+// vim's u and Ctrl+R ask about a tagged step (an issue's) as the menu does.
+func TestVimUndoAsksTaggedStep(t *testing.T) {
+	e, _ := vimOn("abc")
+	e.Replace(0, 0, "X")
+	e.TagLastStep("issue")
+	var asked []bool
+	e.OnTaggedStep = func(tag any, redo bool) bool { asked = append(asked, redo); return true }
+	vimKeys(e, "u")
+	if e.Text() != "abc" || len(asked) != 1 || asked[0] {
+		t.Fatalf("u: %q %v", e.Text(), asked)
+	}
+	e.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyR, Modifier: fyne.KeyModifierControl})
+	if e.Text() != "Xabc" || len(asked) != 2 || !asked[1] {
+		t.Fatalf("Ctrl+R: %q %v", e.Text(), asked)
+	}
+	e.OnTaggedStep = func(any, bool) bool { return false } // kept
+	vimKeys(e, "u")
+	if e.Text() != "Xabc" {
+		t.Errorf("a refused step was undone: %q", e.Text())
+	}
+}

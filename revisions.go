@@ -50,8 +50,10 @@ import (
 // snapshots take over (the imported marks still show, in all issues'
 // marks, on the lines no later issue changed).
 //
-// The store is the record: Undo after Issue takes the production block's
-// line away, not the issue (Drafts… still lists it).
+// Undo right after Issue takes the whole issue back in one step: the
+// drafts store's entry, the revision line, the page lock it wrote and the
+// scene lock the first issue made; Redo issues it again. Production >
+// Withdraw Last Issue… does the same later (issue_undo.go).
 
 // revisionsName is the imported revisions' file among the extras.
 const revisionsName = productionDir + "revisions.json"
@@ -596,27 +598,42 @@ func (w *MainWindow) withAllRevisions(j exportJob, text string) exportJob {
 // their A-pages: lockedpages.go) or, with lockFrom (an issue's body),
 // locked as that text printed them, or, with lockNow, locked as this
 // issue prints them (the first lock, offered with White), the text kept
-// as an issue. done (may be nil) gets the error.
+// as an issue. All of it is one undo step, tagged: Undo takes the issue
+// back from the drafts store too, Redo issues it again (issue_undo.go).
+// done (may be nil) gets the error.
 func (w *MainWindow) issueDraft(s lex.RevisionSet, lockFrom string, lockNow bool, done func(error)) {
 	finish := func(err error) {
 		if done != nil {
 			done(err)
 		}
 	}
-	if !sceneLockOf(w.textEditor.Text()).locked {
+	e := w.textEditor
+	mark := e.UndoSteps()
+	before, _ := productionBlock(e.Text())
+	made := &issueMade{Revision: currentRevisionOf(e.Text())}
+	if l := pageLockIn(before); l != nil {
+		made.PagesBefore = l.text()
+	}
+	if !sceneLockOf(e.Text()).locked {
 		w.lockSceneNumbers()
-		if !sceneLockOf(w.textEditor.Text()).locked {
+		if !sceneLockOf(e.Text()).locked {
 			finish(errors.New("the scene numbers could not be locked: the script needs scene headings"))
 			return
 		}
+		made.SceneLock = true
 	}
-	text := w.textEditor.Text()
+	text := e.Text()
 	revision := func(inside string) string { return withBlockLine(inside, revisionLineKey, revisionLine(s, "")) }
 	issue := func(l *pageLock) {
+		if e.Text() != text { // typed while the pages were laid out: that is not in the lock
+			finish(errors.New("the script changed while its pages were laid out: issue it again" +
+				map[bool]string{true: " (the scene numbers are locked; Undo takes that back)", false: ""}[made.SceneLock]))
+			return
+		}
 		if l != nil {
 			w.writePageLock(l, revision)
+			made.PageLock = true
 		} else {
-			e := w.textEditor
 			text := e.Text()
 			inside, _ := productionBlock(text)
 			start, end, block := withProductionBlock(text, revision(inside))
@@ -628,9 +645,23 @@ func (w *MainWindow) issueDraft(s lex.RevisionSet, lockFrom string, lockNow bool
 				})
 			})
 		}
-		w.addDraftAs(s.Name, kindIssue, s.Name, s.Date, false, func(_ savedDraft, _ bool, err error) {
+		rec := w.newIssueRecord(s.Name)
+		if e.UndoSteps() > mark {
+			e.JoinStepsSince(mark) // the lock, the block: one step
+			e.TagLastStep(&issueStep{rec: rec})
+		}
+		like := savedDraft{Name: s.Name, Kind: kindIssue, Colour: s.Name, Made: made}
+		if !s.Date.IsZero() {
+			like.Issued = s.Date.Format("2006-01-02")
+		}
+		w.addDraftLike(like, false, func(d savedDraft, ok bool, err error) {
+			rec.pending = false
+			if err == nil && ok {
+				rec.id, rec.inStore = d.ID, true
+			}
 			w.revisionGen++
 			w.updateRevisionMarks()
+			w.refreshMenu()
 			finish(err)
 		})
 	}
