@@ -232,5 +232,6 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   10A, Joop; Wikipedia calls 10A the UK way, Final Draft uses it). Export numbers a locked script always; the
   Export dialog's own numbering is lex.NumberScenes now. go.mod has `replace github.com/LaPingvino/lexington =>
   ../lexington` until v1.7.0 is pushed (then go get it and drop the replace). Shots: combo-production-*.png
-  (SHOT_DIR=… go test -run TestProductionScreenshots). Rough: an omitted scene's boneyard shows as plain text; text
-  typed after a heading's number makes it lose it. Next: PRODUCTION step 2, the basic reports.
+  (SHOT_DIR=… go test -run TestProductionScreenshots). A number left mid-line by text typed after it goes back to
+  the end; the learner keys known headings without numbers (Lock taught it places). Rough: an omitted scene's
+  boneyard shows as plain text. Next: PRODUCTION step 2, the basic reports.

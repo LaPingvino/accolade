@@ -239,3 +239,38 @@ func TestProductionScreenshots(t *testing.T) {
 	w.toggleOutline()
 	comboShot(t, w, "production")
 }
+
+// Lock rewrites the headings with their numbers: the learner does not
+// take a heading the script had when opened, now numbered, for one the
+// writer gave its scene (adaptation_learn.go headingKey).
+func TestLockTeachesNoPlace(t *testing.T) {
+	script := strings.Replace(suggestScript, "INT. KITCHEN - NIGHT", "INT. BARN - NIGHT", 1)
+	w, _ := sourceWindow(t, script, learnStory)
+	moveTo(t, w, "[[from:")
+	w.lockSceneNumbers()
+	if !strings.Contains(w.textEditor.Text(), "INT. BARN - NIGHT #1#") {
+		t.Fatalf("not locked:\n%s", w.textEditor.Text())
+	}
+	moveTo(t, w, "Title")
+	moveTo(t, w, "[[from:")
+	w.learnFromWriting()
+	if b := learnedBlock(w); b != "" {
+		t.Errorf("learned from Lock: %q", b)
+	}
+}
+
+// Text typed after a heading's number: the number goes back to the end
+// once the cursor has left, no second one given.
+func TestStrayNumberMovesToTheEnd(t *testing.T) {
+	w := newTestWindow(t, lockScript)
+	w.lockSceneNumbers()
+	text := w.textEditor.Text()
+	at := strings.Index(text, "#2#") + len("#2#")
+	w.fyneWindow.Canvas().Focus(w.textEditor)
+	w.textEditor.SetCursorOffset(len([]rune(text[:at])))
+	test.Type(w.textEditor, " - LATER")
+	w.textEditor.SetCursorOffset(0)
+	if got := headsOf(w)[1]; got != "EXT. GARDEN - DAY - LATER #2# [[red]]" {
+		t.Errorf("heading %q", got)
+	}
+}

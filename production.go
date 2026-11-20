@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -127,12 +128,18 @@ func withProductionBlock(text, inside string) (start, end int, block string) {
 }
 
 // sceneHead is a scene heading of the script: its line, the line as
-// written, and its number ("" none).
+// written, and its number ("" none); stray, a number left inside the
+// heading by text typed after it ("INT. HOUSE #1A# - DAY"), which Fountain
+// does not read as its number.
 type sceneHead struct {
-	line int
-	text string
-	num  string
+	line  int
+	text  string
+	num   string
+	stray bool
 }
+
+// strayNumber is a scene number inside a heading, not at its end.
+var strayNumber = regexp.MustCompile(`\s#([A-Za-z0-9]+)#\s`)
 
 // sceneHeads are the script's scene headings, in order: not those in a
 // boneyard (an omitted scene's old heading, the blocks at the end).
@@ -141,8 +148,14 @@ func sceneHeads(text string, starts []string) []sceneHead {
 	var out []sceneHead
 	for _, it := range outlineOf(text, starts) {
 		if it.Scene {
-			_, n := lex.SceneNumber(strings.TrimSpace(lines[it.Line]))
-			out = append(out, sceneHead{line: it.Line, text: lines[it.Line], num: n})
+			h := sceneHead{line: it.Line, text: lines[it.Line]}
+			_, h.num = lex.SceneNumber(strings.TrimSpace(h.text))
+			if m := strayNumber.FindStringSubmatchIndex(h.text); h.num == "" && m != nil {
+				// moved to the end: a locked number is not given twice
+				h.num, h.stray = h.text[m[2]:m[3]], true
+				h.text = h.text[:m[0]] + " " + h.text[m[1]:]
+			}
+			out = append(out, h)
 		}
 	}
 	return out
@@ -169,11 +182,12 @@ type lineEdit struct {
 func numberEdits(b *buffer.Buffer, heads []sceneHead, nums []string, skip int) []lineEdit {
 	var out []lineEdit
 	for i, h := range heads {
-		if h.num != "" || h.line == skip {
+		if (h.num != "" && !h.stray) || h.line == skip {
 			continue
 		}
 		start := b.LineStart(h.line)
-		out = append(out, lineEdit{start, start + utf8.RuneCountInString(h.text), lex.WithSceneNumber(h.text, nums[i])})
+		end := b.LineEnd(h.line)
+		out = append(out, lineEdit{start, end, lex.WithSceneNumber(h.text, nums[i])})
 	}
 	return out
 }
@@ -312,7 +326,7 @@ func (w *MainWindow) numberNewScenes() {
 	line, _ := b.Position(b.Cursor())
 	missing := false
 	for _, h := range heads {
-		if h.num == "" && h.line != line {
+		if (h.num == "" || h.stray) && h.line != line {
 			missing = true
 		}
 	}

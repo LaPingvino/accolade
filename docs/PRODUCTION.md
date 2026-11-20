@@ -360,15 +360,16 @@ Save As plain says which of the two it uses. A plain file opened again finds its
 Effort is rough: S is a day or two of ticks, M a week, L more.
 
 1. **Locked scene numbers, A-scenes, OMITTED.**
-   - What: number once, then lock. A new scene between 10 and 11 gets A11 (US) or 10A (UK, a preference). Omit
-     keeps the number.
+   - What: number once, then lock. A new scene between 10 and 11 gets 10A or A11 (a preference; which country
+     uses which is disputed, §2). Omit keeps the number. **Built: §7.**
    - Who has it: Final Draft, Fade In, WriterDuet, STARC.
    - Fountain: `#n#` in the text, the omitted scene in boneyard.
    - FDX: `Number` round-trips already. Add `<SceneNumberOptions>`, and write OMITTED as OpenDraft does.
      OSF's `number_locked`.
    - Effort: S. Where: the numbering moves from Accolade's export-time `numberScenes` (export_lexington.go:121) into
      Lexington, as `lex.NumberScenes` with locked and A-number rules, so its CLI, the FDX and OSF writers and
-     Accolade share it. Accolade gets the menu items: Format > Number and Lock Scenes, Omit Scene, Restore Scene.
+     Accolade share it. Accolade gets the menu items (built as Production > Lock Scene Numbers, Unlock Scene Numbers…, Omit Scene,
+     Restore Scene: §7).
 2. **Production revisions: issue, colours, asterisks, headers, revised pages only.**
    - What: Issue White (the first lock), then Blue and on, in the WGA order with "double" sets.
      - The PDF puts a `*` at the right margin of each changed line.
@@ -552,7 +553,9 @@ Branch scenelock (Accolade), Lexington v1.7.0 (tagged locally).
 - **Omit Scene** (cursor in a numbered scene): the heading becomes `.OMITTED #12#` with the scene in a boneyard under
   it. Unnumbered: it says to lock first. **Restore Scene** (cursor on the OMITTED heading) puts it back exactly. One
   undo step each. The outline and cards skip boneyard, so the old heading is no scene there.
+- Text typed after a heading's number (`INT. SHED #1A# - DAY`) leaves it mid-line, where Fountain doesn't read it;
+  once the cursor has left, it is moved back to the end, never replaced by a new one.
+- The learned notes key the headings they knew without their numbers, so Lock teaches them no places.
 - Rough: the editor shows the omitted scene's boneyard as plain text (boneyard has no colour of its own yet); the
-  outline doesn't show numbers; a heading edited after its number (text typed after `#1A#`) loses it as a number and
-  gets a second one.
+  outline doesn't show numbers.
 

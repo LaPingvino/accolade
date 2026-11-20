@@ -125,8 +125,12 @@ func blocksIn(lines []string, from, to int) []dialogueBlock {
 	return out
 }
 
-// headingKey is a heading as known.
-func headingKey(heading string) string { return "head\x00" + heading }
+// headingKey is a heading as known: without its scene number, which
+// Lock Scene Numbers and a locked script's new scenes get (production.go)
+// without the writer writing the heading anew.
+func headingKey(heading string) string {
+	return "head\x00" + strings.TrimSpace(lex.WithSceneNumber(heading, ""))
+}
 
 // knowScript takes in the script as it is: what is there is no action.
 func (l *learner) knowScript(lines []string, starts []string) {

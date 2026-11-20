@@ -222,7 +222,7 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 		)),
 		widget.NewCard("Production", "Once the scene numbers are locked (Production > Lock Scene Numbers)", container.NewVBox(
 			labelled("A new scene's number:", pd.sceneLettersSelect),
-			hint("For a script locked from now on; a locked script keeps the lettering it was locked with."),
+			hint("A scene written between 10 and 11: a letter after the scene before (10A) or before the scene after (A11). For scripts locked from now on; a locked script keeps its own."),
 		)),
 	)
 }
@@ -477,8 +477,8 @@ func (pd *PreferencesDialog) turnPage(step int) {
 // sceneLetterings are the Preferences' choices for a new scene's number
 // in a locked script (lex.NumberStyle), named by what they make.
 var sceneLetterings = []string{
-	"10A: a letter after the scene before (10A, 10B)",
-	"A11: a letter before the scene after (A11, B11)",
+	"10A, 10B (after 10)",
+	"A11, B11 (before 11)",
 }
 
 func sceneLettering(s lex.NumberStyle) string {
