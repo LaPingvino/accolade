@@ -6,7 +6,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
