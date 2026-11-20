@@ -312,7 +312,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   dialog's offer `SHOT_DIR=… go test -run TestIssueOffersLock` (lockedpages-issue-wide/phone.png). Print (HTML) keeps
   no locked pages. Rough:
   reports give the current pages, not locked labels. Next: PRODUCTION step 6, the Production pane.
-- 2026-11-20: lockedpages_test.go is built without -race (as background_real_test.go): its tests run real background work, and under the test driver fyne.Do runs callbacks on the background goroutine, which -race reports (TestLockPagesUndo: writePageLock vs undo). To look at: drive these tests through one UI goroutine (a test helper that runs every UI call via fyne.DoAndWait), so they can run under -race again.
+- 2026-11-20: lockedpages_test.go is built without -race (as background_real_test.go): its tests run real background work, and under the test driver fyne.Do runs callbacks on the background goroutine, which -race reports (TestLockPagesUndo: writePageLock vs undo). To look at: drive these tests through one UI goroutine (a test helper that runs every UI call via fyne.DoAndWait), so they can run under -race again. Done (2026-11-20, branch racesafe): see the tick log.
 - 2026-11-20: PRODUCTION step 6, the Production pane (branch prodpane, not merged; production_pane.go,
   production_checks.go; docs/PRODUCTION.md §12). A third tab beside Notes and Source (View > Production, a toolbar
   button that goes into the "more" menu on a phone; none in Markdown). Strip: 1 Lock, 2 Revise (the shown one
@@ -327,3 +327,9 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   per key. On a phone the buttons go at the list's end. Shots: SHOT_DIR=… go test -run TestProductionPaneScreenshots.
   Rough: time/long-scene checks are heuristics; the page count lays the script out without yields in the browser.
   Next: PRODUCTION step 7, breakdown.
+- 2026-11-20: race-safe real-background tests (branch racesafe, not merged). The tests of real timers and background
+  work hold the UI turn for the whole test (holdUI, waitfor_test.go) and give it up only while they wait (waitFor,
+  uiSleep): the timers' and results' callbacks take uiTurn (uiDo, background.go; lockedPagesOf now uses it too), so
+  they run between the test's steps, as on a real driver's UI goroutine. No more `//go:build !race` on
+  autosave_timer_test, background_real_test, lockedpages_test, production_pane_test, production_pane_real_test:
+  their 23 tests run in CI's race job (-race -count=3 clean). A new test of real background work: holdUI(t) first.

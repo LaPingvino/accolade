@@ -1,9 +1,5 @@
-//go:build !race
-
-// The test driver runs fyne.Do callbacks on the timer goroutine instead of
-// a UI thread, which the race detector rightly flags; the real GLFW
-// driver serialises them. So this one end-to-end timer test is skipped
-// under -race.
+// The auto-save timer as the app has it; the test holds the UI turn
+// (holdUI, waitfor_test.go), so it runs under -race too.
 
 package main
 
@@ -14,6 +10,7 @@ import (
 )
 
 func TestAutoSaveTimerFires(t *testing.T) {
+	holdUI(t)
 	w, path := autoSaveWindow(t, true)
 	w.textEditor.SetText("Rain on the window.")
 
@@ -22,7 +19,7 @@ func TestAutoSaveTimerFires(t *testing.T) {
 		if data, _ := os.ReadFile(path); string(data) == "Rain on the window." {
 			return
 		}
-		time.Sleep(10 * time.Millisecond)
+		uiSleep(10 * time.Millisecond)
 	}
 	t.Fatal("auto-save timer never wrote the file")
 }

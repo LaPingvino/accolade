@@ -1,7 +1,5 @@
-//go:build !race
-
-// Built without -race, like background_real_test.go: these tests run the real background work, and the test
-// driver calls fyne.Do's callbacks on the background goroutine, which the race detector reports.
+// These tests run the real background work; they hold the UI turn
+// (holdUI, waitfor_test.go), the results coming in between their steps.
 
 package main
 
@@ -67,6 +65,7 @@ func pdfLabels(t *testing.T, w *MainWindow, job exportJob) []string {
 }
 
 func TestPageLockBlock(t *testing.T) {
+	holdUI(t)
 	inside := "scene numbers: locked, 10A\nrevision: Blue, 2026-11-20"
 	l := &pageLock{lock: &lex.PageLock{Paper: "a4", Pages: []lex.LockedPage{
 		{Label: "1", Words: "int room one day"},
@@ -94,6 +93,7 @@ func TestPageLockBlock(t *testing.T) {
 // TestLockPagesUndo: Lock Pages writes the lock as one undo step, Unlock
 // takes it out as one; the export prints A-pages for what grew.
 func TestLockPagesUndo(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, pagesScript())
 	before := w.textEditor.Text()
 	l := lockNow(t, w)
@@ -237,6 +237,7 @@ func pageStartToken(t *testing.T, w *MainWindow, page int) string {
 // holds Blue's pages (Blue's A-page stays, what grows before it is aA);
 // Pink locks again; FDX carries them, and the import keeps them.
 func TestIssueLocksPages(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, pagesScript())
 	issueNow(t, w, "White", time.Date(2026, 11, 1, 0, 0, 0, 0, time.Local))
 	white := pdfLabels(t, w, w.savedExportJob())
@@ -312,6 +313,7 @@ func TestIssueLocksPages(t *testing.T) {
 // revised pages are the page and its A-page; a page whose text is cut
 // prints "n-m" in revised pages only.
 func TestIssuePushedPage(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, pagesScript())
 	lockNow(t, w)
 	issueWait(t, w, "White", 1, "")
@@ -374,6 +376,7 @@ func pdfLabelsAll(t *testing.T, w *MainWindow, job exportJob) ([]string, int) {
 // TestIssueOffersLock: the first revision's Issue dialog offers the lock;
 // SHOT_DIR renders it wide and on a phone.
 func TestIssueOffersLock(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, pagesScript())
 	issueNow(t, w, "White", time.Date(2026, 11, 1, 0, 0, 0, 0, time.Local))
 	replaceText(t, w, "R3P2 ", "R3P2 Blue words. ")

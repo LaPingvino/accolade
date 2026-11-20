@@ -1,10 +1,7 @@
-//go:build !race
-
 // The debounce and the background work as the app has them, not at
-// once as the other tests run them (background_test.go). Under the test
-// driver their functions run on a timer's or a goroutine's goroutine,
-// beside the test's, which the race detector rightly flags; the real
-// drivers run them on the UI goroutine. So not under -race.
+// once as the other tests run them (background_test.go). The tests hold
+// the UI turn (holdUI, waitfor_test.go): the timers' and the results'
+// functions run between their steps, as on the real drivers' UI goroutine.
 
 package main
 
@@ -22,13 +19,14 @@ import (
 func realPaths(t *testing.T) {
 	debounceAtOnce, backgroundAtOnce = false, false
 	t.Cleanup(func() {
-		time.Sleep(100 * time.Millisecond) // what was under way when the test ended is done
+		uiSleep(100 * time.Millisecond) // what was under way when the test ended is done
 		debounceAtOnce, backgroundAtOnce = true, true
 	})
 }
 
 // Typing puts the pane's follow off until a pause, and it runs once.
 func TestFollowAfterTypingPause(t *testing.T) {
+	holdUI(t)
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
 	s := w.sourcePane()
 	realPaths(t)
@@ -46,7 +44,7 @@ func TestFollowAfterTypingPause(t *testing.T) {
 	}
 	text := e.Text()
 	waitFor(t, "the follow after the pause", func() bool { return w.followTimer == nil && sameString(s.modelFor, text) })
-	time.Sleep(50 * time.Millisecond) // the follow done
+	uiSleep(50 * time.Millisecond) // the follow done
 	// a cursor move alone follows at once
 	e.SetCursorOffset(0)
 	if w.followTimer != nil || len(s.lit) != 0 {
@@ -57,6 +55,7 @@ func TestFollowAfterTypingPause(t *testing.T) {
 // A long source is parted into passages in the background; the pane
 // shows them when they are in.
 func TestLongSourceReadInBackground(t *testing.T) {
+	holdUI(t)
 	long := sourceStory + strings.Repeat("Another paragraph of the story, long enough to count.\n\n", 2000)
 	w, _ := newDialogTestWindow(t)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
@@ -84,6 +83,7 @@ func TestLongSourceReadInBackground(t *testing.T) {
 
 // Choose Source and Import read in the background.
 func TestChooseAndImportInBackground(t *testing.T) {
+	holdUI(t)
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
 	realPaths(t)
 	var b bytes.Buffer
@@ -104,6 +104,7 @@ func TestChooseAndImportInBackground(t *testing.T) {
 // bundle the one before left: a Save and the source's Done right after
 // it both end up in the file, and what waits for them runs after.
 func TestBundleWritesInBackground(t *testing.T) {
+	holdUI(t)
 	w, _ := newDialogTestWindow(t)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	p := filepath.Join(t.TempDir(), "Script.accolade")
@@ -113,7 +114,6 @@ func TestBundleWritesInBackground(t *testing.T) {
 	}
 	realPaths(t)
 	saved := false
-	uiTurn.Lock()
 	w.textEditor.SetText(bundleScript + "Bram eats.\n")
 	if err := w.saveToFile(p); err != nil {
 		t.Fatal(err)
@@ -123,7 +123,6 @@ func TestBundleWritesInBackground(t *testing.T) {
 		t.Errorf("the source while it is written: %q %q", entry, src)
 	}
 	w.afterBundleWrites(func() { saved = true })
-	uiTurn.Unlock()
 	waitFor(t, "the writes", func() bool { return saved && !w.bundleBusy() })
 	data, _ := os.ReadFile(p)
 	if got, _ := zipFile(t, data, "Script.textbundle/text.fountain"); got != bundleScript+"Bram eats.\n" {
@@ -132,8 +131,6 @@ func TestBundleWritesInBackground(t *testing.T) {
 	if got, _ := zipFile(t, data, "Script.textbundle/assets/source.md"); got != "# Novel\n" {
 		t.Errorf("source %q", got)
 	}
-	uiTurn.Lock()
-	defer uiTurn.Unlock()
 	if w.bundle == nil || string(w.bundle.srcText) != "# Novel\n" || w.srcPending != nil || w.hasChanges {
 		t.Errorf("the window's bundle after: %+v, pending %v, changes %v", w.bundle, w.srcPending, w.hasChanges)
 	}
@@ -145,6 +142,7 @@ func TestBundleWritesInBackground(t *testing.T) {
 // Writes under way are finished at once before the app quits (or :wq
 // closes the window): the file holds them, the queue is idle.
 func TestFlushBundleWrites(t *testing.T) {
+	holdUI(t)
 	w, _ := newDialogTestWindow(t)
 	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	p := filepath.Join(t.TempDir(), "Script.accolade")
@@ -153,7 +151,6 @@ func TestFlushBundleWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 	realPaths(t)
-	uiTurn.Lock()
 	w.textEditor.SetText(bundleScript + "One.\n")
 	w.saveToFile(p)
 	w.addDraft("Two", false, nil)
@@ -163,7 +160,6 @@ func TestFlushBundleWrites(t *testing.T) {
 	w.afterBundleWrites(func() { idle = true })
 	w.flushBundleWrites()
 	busy := w.bundleBusy()
-	uiTurn.Unlock()
 	if busy || !idle {
 		t.Fatalf("after the flush: busy %v, idle callbacks run %v", busy, idle)
 	}
@@ -174,9 +170,7 @@ func TestFlushBundleWrites(t *testing.T) {
 	if got, _ := zipFile(t, data, "assets/drafts/01-two/text.fountain"); got != bundleScript+"One.\n" { // as it was when asked
 		t.Errorf("draft %q", got)
 	}
-	time.Sleep(50 * time.Millisecond) // a late result changes nothing
-	uiTurn.Lock()
-	defer uiTurn.Unlock()
+	uiSleep(50 * time.Millisecond) // a late result changes nothing
 	if w.bundleBusy() || w.bundle == nil || len(w.bundle.extras) != 2 {
 		t.Errorf("after: busy %v bundle %+v", w.bundleBusy(), w.bundle)
 	}

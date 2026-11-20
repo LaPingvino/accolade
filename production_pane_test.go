@@ -1,7 +1,3 @@
-//go:build !race
-
-// Built without -race: it uses the locked-pages tests' helpers (lockedpages_test.go), which run real background work.
-
 package main
 
 import (
@@ -66,6 +62,7 @@ func checkScript() string {
 // A check of each kind, on its line; the adaptation block is not read as
 // the script (its /* is closed).
 func TestPreLockChecks(t *testing.T) {
+	holdUI(t)
 	text := checkScript()
 	got := preLockChecks(text, sceneStarts("en"))
 	want := []struct {
@@ -110,6 +107,7 @@ func TestPreLockChecks(t *testing.T) {
 // A clean script: a note that the numbers are still to be written, no
 // problem; without a title page, that; stray marks found.
 func TestPreLockChecksClean(t *testing.T) {
+	holdUI(t)
 	got := preLockChecks(revScript, sceneStarts("en"))
 	if len(got) != 1 || !got[0].info || got[0].kind != checkNumber || problems(got) != 0 {
 		t.Errorf("clean script: %+v", got)
@@ -131,6 +129,7 @@ func TestPreLockChecksClean(t *testing.T) {
 
 // changedScenes: by number, the title page's own, in order.
 func TestChangedScenes(t *testing.T) {
+	holdUI(t)
 	text := "Title: X\n\nINT. A - DAY #1#\n\nRain.\n\nINT. B - DAY #2A#\n\nSun.\n\nMore sun.\n"
 	marks := make([]string, strings.Count(text, "\n")+1)
 	marks[0], marks[8], marks[10] = "Blue", "Blue", "Blue"
@@ -181,6 +180,7 @@ func rowLabels(p *productionPane) []*tapLabel {
 // The stages: Lock before an issue, Revise after; the counts follow the
 // edits; Lock can be looked at again.
 func TestProductionStages(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, revScript)
 	p := prodPane(t, w)
 	if p.stage != stageLock || p.view() != stageLock {
@@ -253,6 +253,7 @@ func TestProductionStages(t *testing.T) {
 
 // A tap on a check or a changed scene goes to its line.
 func TestProductionRowsGo(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, checkScript())
 	p := prodPane(t, w)
 	ls := rowLabels(p)
@@ -309,6 +310,7 @@ func TestProductionRowsGo(t *testing.T) {
 
 // The buttons are the menu's actions.
 func TestProductionButtons(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, revScript)
 	p := prodPane(t, w)
 	test.Tap(p.lockNumbers)
@@ -351,6 +353,7 @@ func TestProductionButtons(t *testing.T) {
 // Revised Pages PDF… sets the export up: PDF, the marks, revised pages
 // only, a name of its own.
 func TestRevisedPagesExport(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, revScript)
 	issueNow(t, w, "White", time.Now())
 	replaceText(t, w, "Mud everywhere.", "Mud.")
@@ -376,6 +379,7 @@ func clearOverlays(w *MainWindow) {
 // The changed pages are those revised pages only prints: with locked
 // pages, the page and its A-page.
 func TestProductionPageCount(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, pagesScript())
 	p := prodPane(t, w)
 	done := false
@@ -403,6 +407,7 @@ func TestProductionPageCount(t *testing.T) {
 // toolbar's button in the menu, View > Production there; a Markdown
 // document has neither.
 func TestProductionNarrow(t *testing.T) {
+	holdUI(t)
 	w, _ := scriptWindow(t, checkScript())
 	w.fyneWindow.Resize(fyne.NewSize(380, 800))
 	p := prodPane(t, w)
@@ -453,6 +458,7 @@ func TestProductionNarrow(t *testing.T) {
 
 // SHOT_DIR renders the Lock and Revise stages wide and on a phone.
 func TestProductionPaneScreenshots(t *testing.T) {
+	holdUI(t)
 	if os.Getenv("SHOT_DIR") == "" {
 		t.Skip("set SHOT_DIR to render screenshots")
 	}
@@ -473,6 +479,7 @@ func TestProductionPaneScreenshots(t *testing.T) {
 
 // Everything Tab reaches in the pane shows its focus.
 func TestProductionFocusVisible(t *testing.T) {
+	holdUI(t)
 	if raceDetector {
 		t.Skip("pixel capture of focus: checked by the runs without -race")
 	}

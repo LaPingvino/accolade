@@ -28,6 +28,16 @@ import (
 // They take turns: on the UI goroutine the lock is never contended.
 var uiTurn sync.Mutex
 
+// uiDo is fyne.Do for work coming back from another goroutine: f runs on
+// the UI goroutine, in its turn (uiTurn).
+func uiDo(f func()) {
+	fyne.Do(func() {
+		uiTurn.Lock()
+		defer uiTurn.Unlock()
+		f()
+	})
+}
+
 // uiTimer is a timer of a window's.
 type uiTimer struct {
 	t       *time.Timer
@@ -79,9 +89,7 @@ func (w *MainWindow) after(d time.Duration, f func()) *uiTimer {
 		if t.stopped.Load() {
 			return
 		}
-		fyne.Do(func() {
-			uiTurn.Lock()
-			defer uiTurn.Unlock()
+		uiDo(func() {
 			if t.stopped.Load() {
 				return
 			}
@@ -150,11 +158,7 @@ func inBackground[T any](work func() T, done func(T)) {
 	go func() {
 		r := work()
 		pace.Yield()
-		fyne.Do(func() {
-			uiTurn.Lock()
-			defer uiTurn.Unlock()
-			done(r)
-		})
+		uiDo(func() { done(r) })
 	}()
 }
 

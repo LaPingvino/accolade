@@ -4,7 +4,6 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
@@ -188,7 +187,7 @@ func (w *MainWindow) lockJob(text string) exportJob {
 func lockedPagesOf(body string, job exportJob, done func(*pageLock, error)) {
 	go func() {
 		l, err := cli.LockPages(job.script(body), job.options("pdf", ""))
-		fyne.Do(func() {
+		uiDo(func() {
 			if err != nil {
 				done(nil, err)
 				return
