@@ -560,9 +560,10 @@ func TestUndoRenameKeepsOthersSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	other := filepath.Join(t.TempDir(), "other.fountain")
-	w.rememberSource(other, "/somewhere/novel.md")
+	novel := filepath.Join(t.TempDir(), "novel.md") // absolute on every system (Windows made "/somewhere" D:\somewhere)
+	w.rememberSource(other, novel)
 	w.undoRename()
-	if w.currentFile != p || w.chosenSource(other) != "/somewhere/novel.md" {
+	if w.currentFile != p || w.chosenSource(other) != novel {
 		t.Errorf("at %s; the other's source %q", w.currentFile, w.chosenSource(other))
 	}
 }
