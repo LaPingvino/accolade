@@ -176,22 +176,29 @@ func planEdits(b *buffer.Buffer, lines []string, heads []sceneHead, p numberPlan
 }
 
 // dropOmitted is the edit that takes an OMITTED heading out, its block
-// kept as plain boneyard.
+// kept as plain boneyard: each block of a merged run's (12-14).
 func dropOmitted(b *buffer.Buffer, lines []string, h sceneHead) lineEdit {
-	open := h.line + 1
-	for open < len(lines) && strings.TrimSpace(lines[open]) == "" {
-		open++
-	}
-	isOpen := open < len(lines) && strings.HasPrefix(strings.TrimSpace(lines[open]), "/* Omitted")
-	closing := -1
-	if isOpen {
-		for k := open + 1; k < len(lines); k++ {
+	// block finds the "/* Omitted …" block from line at (blank lines
+	// skipped): its first and closing lines, or -1
+	block := func(at int) (open, closing int) {
+		for at < len(lines) && strings.TrimSpace(lines[at]) == "" {
+			at++
+		}
+		first := ""
+		if at < len(lines) {
+			first = strings.TrimSpace(lines[at])
+		}
+		if !strings.HasPrefix(first, "/* Omitted") || first == omittedOpenLine {
+			return at, -1
+		}
+		for k := at + 1; k < len(lines); k++ {
 			if strings.TrimSpace(lines[k]) == "*/" {
-				closing = k
-				break
+				return at, k
 			}
 		}
+		return at, -1
 	}
+	open, closing := block(h.line + 1)
 	if closing < 0 { // no text under it: the heading goes, its line with it
 		end := b.LineEnd(h.line)
 		if h.line+1 < len(lines) {
@@ -199,21 +206,34 @@ func dropOmitted(b *buffer.Buffer, lines []string, h sceneHead) lineEdit {
 		}
 		return lineEdit{b.LineStart(h.line), end, ""}
 	}
-	inner := lines[open+1 : closing]
-	kept := make([]string, len(inner))
-	copy(kept, inner)
-	if len(kept) > 0 { // the old heading, without its number
-		_, n := lex.SceneNumber(strings.TrimSpace(kept[0]))
-		if n != "" {
-			kept[0] = lex.WithSceneNumber(kept[0], "")
+	_, _, isRun := lex.NumberRange(h.num)
+	var text strings.Builder
+	last := closing
+	for closing >= 0 {
+		if text.Len() > 0 { // the blank lines between the blocks
+			text.WriteString(strings.Join(lines[last+1:open], "\n") + "\n")
 		}
+		inner := lines[open+1 : closing]
+		kept := make([]string, len(inner))
+		copy(kept, inner)
+		if len(kept) > 0 { // the old heading, without its number
+			_, n := lex.SceneNumber(strings.TrimSpace(kept[0]))
+			if n != "" {
+				kept[0] = lex.WithSceneNumber(kept[0], "")
+			}
+		}
+		text.WriteString(omittedOpenLine + "\n" + strings.Join(kept, "\n"))
+		if len(kept) > 0 {
+			text.WriteString("\n")
+		}
+		text.WriteString("*/")
+		last = closing
+		if !isRun {
+			break
+		}
+		open, closing = block(last + 1)
 	}
-	text := omittedOpenLine + "\n" + strings.Join(kept, "\n")
-	if len(kept) > 0 {
-		text += "\n"
-	}
-	text += "*/"
-	return lineEdit{b.LineStart(h.line), b.LineEnd(closing), text}
+	return lineEdit{b.LineStart(h.line), b.LineEnd(last), text.String()}
 }
 
 // pageLockFollowing is the block's inside with the page lock's scenes

@@ -103,7 +103,8 @@ func TestRenumberStrategies(t *testing.T) {
 		{"range backwards", nil, renumberChoice{Scope: scopeRange, From: 6, To: 2, Omitted: lex.OmittedKeep}, "1 1A 2 O4 O5 6 7 9"},
 		{"keep and range", nil, renumberChoice{Scope: scopeRange, From: 1, To: 6, List: listKeep, Numbers: "3"}, "1 2 3 4 5 9"},
 		{"from the cursor on", cursorIn("Eff."), renumberChoice{Scope: scopeCursor}, "1 1A 3 O4 O5 6 7 8"},
-		{"selected", selecting("See.", "INT. F"), renumberChoice{Scope: scopeSelected}, "1 1A 2 3 6A 9"},
+		{"selected", selecting("See.", "Eff."), renumberChoice{Scope: scopeSelected}, "1 1A 2 3 6A 9"},
+		{"selected up to a heading's start: not that scene", selecting("See.", "INT. F"), renumberChoice{Scope: scopeSelected}, "1 1A 2 6 6A 9"},
 		{"selected, none: the cursor's scene", cursorIn("Gee."), renumberChoice{Scope: scopeSelected}, "1 1A 3 O4 O5 6 7 9"},
 	} {
 		w.textEditor.SetCursorOffset(0)
@@ -160,6 +161,13 @@ func TestRenumberMergeAndRestore(t *testing.T) {
 	if got := sceneNumbersFor([]sceneHead{{num: "3"}, {num: "4-5"}, {}}, lex.NumberOptions{Locked: true}); got[2] == "4" || got[2] == "5" {
 		t.Errorf("a new scene after 4-5 got %s", got[2])
 	}
+	// Clean on the merged run: both blocks plain boneyard, no number left
+	w.renumberNow()
+	if text := w.textEditor.Text(); strings.Contains(text, "OMITTED") || strings.Contains(text, "/* Omitted 5") ||
+		strings.Count(text, "/* Omitted scene\nINT. ") != 2 {
+		t.Errorf("clean after a merge:\n%s", text)
+	}
+	w.undo()
 	w.textEditor.SetCursorOffset(offsetOf(t, w, ".OMITTED #4-5#"))
 	w.restoreScene()
 	text = w.textEditor.Text()
@@ -233,6 +241,26 @@ func TestRenumberPresets(t *testing.T) {
 	r.preset.SetSelected(presetClean)
 	if got := expected(r.heads, r.plan()); got != "1 2 3 4 5 6" {
 		t.Errorf("clean after the issue: %q", got)
+	}
+}
+
+// The script changing under the open dialog (the lock numbering a new
+// scene at a pause, say): Renumber shows the new preview first, and
+// applies only on the next tap.
+func TestRenumberStalePreview(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, strategyScript())
+	w.renumberScenes()
+	replaceText(t, w, "INT. H - DAY #9#", "INT. G2 - DAY #8#\n\nMore.\n\nINT. H - DAY #9#")
+	changed := w.textEditor.Text()
+	test.Tap(overlayButton(t, w, "Renumber"))
+	if w.textEditor.Text() != changed || !dialogShows(w, "The script changed meanwhile") {
+		t.Fatal("renumbered from a stale preview")
+	}
+	want := expected(w.renumbering.heads, w.renumbering.plan())
+	test.Tap(overlayButton(t, w, "Renumber"))
+	if got := headNums(w); got != want || got != "1 2 3 4 5 6 7" {
+		t.Errorf("renumbered %q, the preview said %q", got, want)
 	}
 }
 

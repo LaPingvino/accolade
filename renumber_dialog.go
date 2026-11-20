@@ -162,10 +162,20 @@ func (w *MainWindow) newRenumberDialog() *renumberDlg {
 	preview := container.NewBorder(r.summary, nil, nil, nil, r.preview)
 
 	cancel := widget.NewButton("Cancel", func() { r.d.Hide() })
-	r.apply = widget.NewButton("Renumber", func() { r.d.Hide(); r.applyNow() })
+	r.apply = widget.NewButton("Renumber", func() {
+		if r.fresh() {
+			r.d.Hide()
+			r.applyNow()
+		}
+	})
 	buttons := []*widget.Button{r.apply}
 	if r.issued {
-		r.draft = widget.NewButton("Save a Draft, Then Renumber", func() { r.d.Hide(); r.draftThenApply() })
+		r.draft = widget.NewButton("Save a Draft, Then Renumber", func() {
+			if r.fresh() {
+				r.d.Hide()
+				r.draftThenApply()
+			}
+		})
 		r.draft.Importance = widget.HighImportance
 		buttons = append(buttons, r.draft)
 	} else {
@@ -314,6 +324,39 @@ func (r *renumberDlg) refresh() {
 		}
 	}
 	r.preview.Refresh()
+}
+
+// fresh tells whether the headings are still those the preview shows;
+// if not (the lock numbered a new scene at a pause, a peer typed), the
+// preview is made again from them and the dialog stays, saying so.
+func (r *renumberDlg) fresh() bool {
+	text := r.w.textEditor.Text()
+	heads := sceneHeads(text[:bodyEndByte(text)], r.w.sceneStarts())
+	same := len(heads) == len(r.heads)
+	for i := 0; same && i < len(heads); i++ {
+		same = heads[i].text == r.heads[i].text && heads[i].num == r.heads[i].num
+	}
+	if same {
+		return true
+	}
+	from, to := r.from.SelectedIndex(), r.to.SelectedIndex()
+	r.heads = heads
+	r.ctx = r.w.renumberContextNow(text, heads)
+	labels := make([]string, len(heads))
+	for i, h := range heads {
+		labels[i] = sceneLabel(i, h)
+	}
+	r.filling = true
+	r.from.SetOptions(labels)
+	r.to.SetOptions(labels)
+	if len(heads) > 0 {
+		r.from.SetSelectedIndex(min(max(from, 0), len(heads)-1))
+		r.to.SetSelectedIndex(min(max(to, 0), len(heads)-1))
+	}
+	r.filling = false
+	r.refresh()
+	r.summary.SetText("The script changed meanwhile: this is the preview now. " + r.summary.Text)
+	return false
 }
 
 // applyNow renumbers as the controls say, and keeps the choice as the

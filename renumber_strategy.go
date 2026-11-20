@@ -119,7 +119,10 @@ func (w *MainWindow) renumberContextNow(text string, heads []sceneHead) renumber
 	if b.HasSelection() {
 		s, t := b.Selection()
 		l1, _ := b.Position(s)
-		l2, _ := b.Position(t)
+		l2, c2 := b.Position(t)
+		if c2 == 0 && l2 > l1 { // ending at a line's start: not that line's scene
+			l2--
+		}
 		ctx.selFrom, ctx.selTo = sceneIndexOf(heads, l1), sceneIndexOf(heads, l2)
 	}
 	l := sceneLockOf(text)

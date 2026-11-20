@@ -1407,12 +1407,14 @@ it, and no number is given twice (a property test over 3000 random scripts and s
 
 **The dialog** (left the strategy, right the preview; on a phone one above the other, buttons one under the other):
 
-- *Scenes*: all / selected (the scenes from the selection's start to its end; without a selection the cursor's) /
+- *Scenes*: all / selected (the scenes from the selection's start to its end, a selection ending at a line's start not
+  taking that line's scene; without a selection the cursor's) /
   from scene … to … (two pickers, either order) / from the cursor on. Scenes outside are pinned: a range cannot close
   a gap outside it (1, 2, 2A, 2B, 3 with only 2–2B free stays so: 3 is taken).
 - *Numbers*: no list / *Keep these numbers* / *Only these numbers*, typed as `5, 12A, 20-24`
   (`lex.ParseNumberSet`). A range stands for every number from its first to its last in script order (20, 20A … 24).
-  Kept numbers are pinned, and reserved too: one that no scene has now is not given to another. *Only* renumbers just
+  Kept numbers are pinned, and reserved too: one that no scene has now is not given to another (a range reserves its
+  whole numbers; the letters between stay free, so a new scene between kept 20 and 21 is 20A). *Only* renumbers just
   the listed scenes, the rest pinned. One list, one meaning: keep and only exclude each other. Items that are no
   number of the script are named under the field.
 - *A-scenes*: fold into whole numbers (default) / keep the letters: 10, 10A, 11 after a cut become 9, 9A, 10. Kept
@@ -1427,17 +1429,22 @@ it, and no number is given twice (a property test over 3000 random scripts and s
   issue, Keep sent scenes after. Changing any control makes the preset "Your own".
 - *The preview*: every heading, old → new ("stays" greyed, "gone" for a dropped OMITTED, "into 12-14" for a merged
   one), and "n headings of m change". The preview and Apply call the same plan (`strategyPlan`), so the preview is
-  what the script gets (tested for every strategy). Nothing to change: the buttons are disabled.
+  what the script gets (tested for every strategy). Nothing to change: the buttons are disabled. If the headings
+  changed while the dialog was open (the lock numbering a new scene at a pause), Renumber makes the preview again,
+  says so, and applies only on the next tap.
 
 **OMITTED 12-14.** Fountain allows a dash in a scene number ("any alphanumerics, plus dashes and periods",
 [fountain.io/syntax](https://fountain.io/syntax)), so a merged run is `.OMITTED #12-14#`, the run's
 `/* Omitted 12 … */`, `/* Omitted 13 … */` blocks under it as they were (the later headings and their blank lines go).
-Lexington prints it `12-14   OMITTED   12-14` (checked with pdftotext), the form shooting scripts use for a cut run; a
+Lexington prints it `12-14   OMITTED   12-14` (checked with pdftotext), the form I know from shooting scripts for a cut
+run (*unverified*: no source checked); a
 range as wide as `12A-14B` runs a little into the right margin. FDX: `Number="12-14"` on the OMITTED Scene Heading,
 read back as `.OMITTED #12-14#` (*unverified* against Final Draft itself, as OMITTED was). Decisions: a range is
 `first-last`, both numbers in their own right and in order (`I-1-A`, Fountain's own dashed example, is none); it takes
 every number between, so locked numbering never gives 13 again and uses the range as a neighbour (its last before, its
-first after); a merge is only of OMITTED headings one after the other, numbers in order (else left alone). *Restore
+first after); a merge is only of OMITTED headings one after the other, numbers in order, whose range holds no other
+scene's number (else left alone). Dropping a merged heading (Clean, Remove) turns each of its blocks into plain
+boneyard. *Restore
 Scene* on a merged heading splits it back, one OMITTED heading a block (`fountain.SplitOmitted`), and says so; then
 each restores as before. Whatever named the merged scenes (a tag, strip, done mark) is lost as with Drop: their
 numbers left the OMITTED list.
