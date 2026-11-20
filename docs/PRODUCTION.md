@@ -478,7 +478,8 @@ breakdown as "changed in Blue: check", which the stages before can't show.
 2. **Basic reports:** scene (with eighths, D/N), location, character and cast, as PDF and CSV. They store nothing,
    need no bundle, and pay off at once. Built as Production > Reports… (§8); View > Statistics stays as it is.
 3. **The `.accolade` bundle and the production files' home:** `assets/production/`, the flattening layers and the
-   Highland warning. Test with a real Highland.
+   Highland warning, with the drafts store (LOOP.md, Joop 2026-11-20). Built (§9); still to test with a real
+   Highland.
 4. **Issue and revision sets:** snapshots, the diff, margin colours, Lexington's asterisks, headers and revised pages
    only. FDX `<Revisions>` and `RevisionID` out, and in as marks.
 5. **Locked pages and A-pages** in Lexington's paginator, with `CONTINUED`. FDX `<LockedPages>`.
@@ -496,7 +497,10 @@ Open questions for Joop:
 - A-numbering by default: answered (Joop): 10A, with a setting for A11. He called 10A "US"; Wikipedia calls it UK
   (above). If he meant A11, the default is one line (settings.go `scene-number-style`).
 - Should `.accolade` be the default Save for a script that has production data, or should `.highland` stay the
-  default with the warning?
+  default with the warning? Answered (on Joop's earlier choice): `.accolade` is what Save As offers once a script
+  has production data (drafts, a lock; later the sidecars). Saving such a script as `.highland` keeps working,
+  and warns once that Highland may drop Accolade's files. A plain `.fountain`/`.md` save flattens: the extras go
+  to the kept copy, or on choice to `Name.production/` beside the file (desktop only). Details in §9.
 
 ## 7. Step 1, built: locked scene numbers, A-scenes, OMITTED (2026-11-20)
 
@@ -628,3 +632,82 @@ unlocked script whose new scene counts on into a number an OMITTED scene keeps g
 title page (measured pages still count from 1); the PDF of a report was checked as HTML only here (Chromium can't
 run in the agent's sandbox).
 
+## 9. Step 3, built: the .accolade bundle, the extras' homes and the drafts (2026-11-20)
+
+Branch bundle3 (Accolade only).
+
+**The format.** `.accolade` is the same zipped TextBundle as `.highland` (a new one in the `Name.textbundle/` folder
+layout, the text in `text.fountain`, or `text.md` for a Markdown document; info.json's `type` as for Highland's).
+It is a screenplay by default, as a `.highland` is; unlike a `.highland` it is never read as plain text (a `.accolade`
+that is no zip does not open). Open, Save, Save As, Open Recent and the browser's picker take it. Every entry Accolade
+doesn't write is copied through byte for byte, as for any bundle. Accolade's key in info.json gains `drafts`
+(`assets/drafts/drafts.json`, when there are drafts) and `highlandWarned`.
+
+**Accolade's extras** are the files under `assets/drafts/` and (from step 4 on) `assets/production/`, named as in
+the bundle wherever they are (extras.go). Three homes:
+
+1. in the bundle (`.accolade`, and also `.highland`, `.textpack`, `.textbundle`);
+2. for a plain script, a copy Accolade keeps in its data folder (`~/.local/share/accolade/production/<name>-<id>/`;
+   the browser's kept settings folder), remembered per script in settings.json `production-files`, following a
+   rename and Save As as the source's copy does; an unsaved script's is let go of by New and Open;
+3. on choice, `Name.production/` beside `Name.fountain` (desktop only): the bundle's assets unzipped.
+
+A plain script looks in that order: the kept copy remembered for its path, else the folder beside it. A plain script
+saved as a bundle (Save As `.accolade`, a rename to `.highland`) carries its extras in; the kept copy is let go of
+only for a script never saved (else it stays remembered for the old path).
+
+**Saving** (saveas.go):
+
+- Save As offers `Name.accolade` for a screenplay with production data (drafts, or a production block with a
+  lock) that would be saved plain; a `.highland` or `.textpack` keeps its kind. Save and auto-save of a file with
+  a name keep writing it as it is: a `.fountain` stays a `.fountain`, its drafts in the kept copy or the folder.
+- Save As `.fountain` (or `.md`) of a bundle with drafts asks where they go: kept by Accolade (the default), in
+  `Name.production/` beside the file (desktop only), or left out, which asks again (the bundle on disk keeps
+  them). The status bar says which.
+- The browser's Save As now asks for a name (the download's), so it can change the kind too.
+- **The Highland warning:** saving a `.highland` that holds Accolade's files (drafts, the source) — or saving the
+  first draft into one — saves, then says once that Highland may drop them and that a copy as `.accolade` keeps
+  them safe. `highlandWarned` in the key makes it once per file (and if Highland drops the key, it warns again,
+  which is right). Untested with a real Highland: that is the test still to do.
+
+**Bundle writes in the background** (bundle_queue.go, PERF-SOURCE item 7): every write into a bundle (Save,
+auto-save, the source's Done, Save Draft) is a job, run one after another in a goroutine, each from the bundle the
+job before left; the zip loop calls `pace.Yield` for the browser's page. A failed save makes the script unsaved
+again and says why. Rename and closing the window wait for the writes; the browser's download follows the write.
+The per-keystroke path is unchanged: production data is looked for only when saving.
+
+**The drafts** (drafts.go, drafts_view.go):
+
+```
+assets/drafts/drafts.json
+assets/drafts/01-first-draft/text.fountain
+assets/drafts/02-for-anna/text.fountain
+assets/drafts/02-for-anna/source.md
+```
+
+`drafts.json` is `{"version": 1, "drafts": [{"id": "02-for-anna", "name": "For Anna", "date": "…Z", "kind":
+"draft", "text": "assets/drafts/02-for-anna/text.fountain", "source": "assets/drafts/02-for-anna/source.md"}]}`,
+oldest first; `kind` is `draft` or `issue`, and `colour` is there for step 4's issues. Each draft names its text and
+source by their files, so a text or a source the same as one stored already is not stored again (the new draft
+names the stored one), and a draft whose text and source are both stored has no folder. The source is kept when
+it changed (a source kept in the script itself is in the text). The folder's name is the draft's number and its
+name in ASCII letters and digits (`03-uber-cafe` for "Über Café").
+
+- **File > Save Draft…:** a name (default "Draft n"), at any time, before a lock too; says where they are kept.
+- **File > Drafts…:** the list, newest first (name; date, "same text as …", "source changed"), Compare,
+  Restore…, Save Draft….
+- **Compare:** any two drafts, or one with the script now; the script, or the source when there is one. By scene
+  (internal/scriptdiff: elements are the paragraphs between blank lines, Myers' diff with the common start and end
+  taken off, bounded at 2,000 edits; a removed and an added element sharing half their words are one changed
+  element, compared word by word). A changed scene shows its heading ("(cut)", "(new)" for a whole scene), its
+  changed elements (cut struck through in the error colour, added underlined in the success colour) and counts
+  the unchanged; unchanged scenes are counted between. Side by side on a desktop (a setting), one under the other
+  under 600 px. Computed in the background. Read only: taking single changes over is the later partial merge.
+- **Restore…** asks, keeps the script as it is now as "Before restoring X" (unless a draft holds it already), puts
+  X's text in the editor in one undo step, and adds "X (restored)". The source is not restored (compare it, or
+  Save Source As from the draft is a later item).
+
+Rough: Compare renders up to 400 changed elements as plain widgets (enough for drafts of one script; two
+unrelated scripts get a note); the list's dates are local time; a draft saved while a bundle save is under way
+shows in Drafts… once the write is done (Drafts… waits for it); the kept copy of a `.fountain` saved as
+`.accolade` stays remembered for the old path rather than being deleted (after a rename it is left over).

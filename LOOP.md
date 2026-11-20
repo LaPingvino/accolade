@@ -271,3 +271,13 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   selection). Rough: accents count in matching (the spec ignores them); "fits N passages: quote more of it" says
   nothing of prefix-; a footnote's mark (the page's number right after the word) and an image's description are
   not in the shown text, so a link's words around them miss in a browser.
+- 2026-11-20: PRODUCTION step 3, the .accolade bundle, the extras' homes and the drafts store (branch bundle3, not
+  merged; extras.go, drafts.go, drafts_view.go, saveas.go, flatten.go, bundle_queue.go, internal/scriptdiff;
+  docs/PRODUCTION.md §9). `.accolade` = the zipped TextBundle of a .highland plus assets/drafts/ (and later
+  assets/production/); Save As offers it once a script has drafts or a lock; .highland saves keep working and warn
+  once per file (info.json `highlandWarned`); a bundle saved as .fountain asks where its drafts go (kept by
+  Accolade / Name.production/ beside it, desktop / left out after a second ask), and the plain file finds them
+  again. File > Save Draft… and Drafts… (Compare any two or with now, by scene and element, word by word, side by
+  side or stacked on a phone; Restore… keeps the script first, one undo step). Identical texts and sources stored
+  once (drafts.json names each one's files). Bundle writes now run in the background, one after another
+  (PERF-SOURCE item 7 done); the browser's Save As asks for a name. Still to do: test with a real Highland.

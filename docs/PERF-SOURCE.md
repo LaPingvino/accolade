@@ -148,7 +148,9 @@ The real paths have their own tests in background_real_test.go, which does not b
 Left:
 - A keystroke still makes the editor wrap and classify the whole text again: 20 ms for the 160 KB script, 60 ms with
   the novel kept in it. An incremental wrap is the next step for long scripts.
-- Saving a bundle still zips on the UI goroutine. Making it a goroutine needs the bundle state handed over with care.
+- ~~Saving a bundle still zips on the UI goroutine.~~ Done with PRODUCTION step 3 (bundle_queue.go): every write
+  into a bundle (Save, auto-save, the source's Done, Save Draft) is a job run in the background, one after another,
+  each from the bundle the one before left; the zip loop calls pace.Yield.
 - goldmark's parse and x/net/html's parse cannot yield inside. In wasm they are about 10% of a novel's
   conversion.
 - The window benchmarks don't run under node yet: Fyne's wasm driver wants more of a page than the shim gives.

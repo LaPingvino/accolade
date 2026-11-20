@@ -122,7 +122,15 @@ These come from the teardown and are worth knowing for Lexington:
 - **.textbundle** is a folder, so it works on the desktop only. Open goes into the folder and opens its text
   file (or opens the folder's path from a drop, the command line or Open Recent). Save As writes a new folder
   whole and then moves it into place. Fyne's save dialog refuses an existing folder's name ("Files cannot
-  replace a directory"), so a .textbundle can't be overwritten by Save As. Save it in place, or pick a new name. The browser's picker offers `.highland` and `.textpack` only.
+  replace a directory"), so a .textbundle can't be overwritten by Save As. Save it in place, or pick a new name. The browser's picker offers `.highland`, `.accolade` and `.textpack` only.
+- **.accolade** (PRODUCTION step 3) is a `.highland` by another name: the same zipped TextBundle, a screenplay by
+  default, never opened as plain text, plus Accolade's extras under `assets/drafts/` (and later
+  `assets/production/`). Accolade's key gains `drafts` (the index, `assets/drafts/drafts.json`) and
+  `highlandWarned`.
+- **Accolade's files in a .highland:** a .highland can hold drafts and the source too, but whether Highland keeps
+  them on its own save is untested. Saving a .highland that holds them (or the first draft saved into one) says so
+  once, after the save; `highlandWarned: true` in the key keeps it to once per file. To test with a real Highland:
+  open such a file there, edit, save, and list the zip (`unzip -l`).
 - **No samples from others:** none is committed unless its licence allows it. Test fixtures are made by us, in both
   layouts. Real `.highland` files dropped into testdata/highland are picked up by `TestHighlandFiles`: each is
   opened and saved, and every entry but the text is compared byte for byte. That folder's .gitignore keeps

@@ -133,7 +133,12 @@ func (w *MainWindow) renameTo(name string) error {
 			if err := w.saveToFile(to); err != nil {
 				return err
 			}
-			_ = os.Remove(w.currentFile)
+			old := w.currentFile
+			w.afterBundleWrites(func() { // once the bundle is written (bundle_queue.go)
+				if w.bundle != nil && sameFile(w.bundle.path, to) {
+					_ = os.Remove(old)
+				}
+			})
 		default:
 			return fmt.Errorf("a bundle's kind changes with File > Save As, not a rename")
 		}
