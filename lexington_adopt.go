@@ -54,7 +54,8 @@ func bothName(it carriedItem) string {
 		taken := false
 		switch it.kind {
 		case "language":
-			taken = lexSettings.Scenes[n] != nil || lexSettings.Matchups[n] != nil
+			_, dir := lexSettings.Directions[n]
+			taken = lexSettings.Scenes[n] != nil || lexSettings.Matchups[n] != nil || dir
 		case "elements", "format":
 			taken = machineLex().hasFormat(n)
 		}
@@ -207,6 +208,11 @@ func setConfItem(text string, item rules.Item, key string, conf rules.TOMLConf) 
 			} else {
 				text = dropTableKey(text, table, key)
 			}
+		}
+		if d, ok := conf.Directions[key]; ok { // its direction (else the default's)
+			text = setTableKey(text, "Directions", key, tomlValue(d))
+		} else {
+			text = dropTableKey(text, "Directions", key)
 		}
 		return text, nil
 	case "elements":

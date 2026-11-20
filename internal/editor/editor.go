@@ -19,6 +19,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/lexington/lex"
+
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
 	"github.com/LaPingvino/accolade/internal/editor/wrap"
@@ -48,6 +50,11 @@ type ScriptEditor struct {
 	// SceneStarts are what scene headings start with in the script's
 	// language, for the colours (nil: English)
 	SceneStarts []string
+	// LanguageRTL is the script's language's direction (Lexington's
+	// [Directions]): a line with no direction mark and no strong letter
+	// reads right to left, laid out mirrored. Every other line follows its
+	// own letters.
+	LanguageRTL bool
 	// Format, when set, lays out each line as its element (its column,
 	// width and alignment), instead of by its leading spaces.
 	Format func(syntax.Kind) wrap.Format
@@ -343,7 +350,7 @@ func (e *ScriptEditor) relayout() {
 		line, _ = e.buf.Position(e.buf.Cursor())
 	}
 	key := layoutKey{rev: e.buf.Rev(), columns: e.columns, gutter: g, page: e.PageColumns, line: line,
-		markdown: e.Markdown, syntax: e.Syntax, format: e.Format != nil}
+		markdown: e.Markdown, syntax: e.Syntax, format: e.Format != nil, rtl: e.LanguageRTL}
 	if !e.laid.ok || e.laid.key != key {
 		e.laid = e.layOut(key)
 	}
@@ -410,6 +417,7 @@ type layoutKey struct {
 	columns, gutter, page    int
 	line                     int
 	markdown, syntax, format bool
+	rtl                      bool // LanguageRTL
 }
 
 // laidOut is the text laid out for a key.
@@ -445,7 +453,7 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 	lines := strings.Split(e.buf.Text(), "\n")
 	l.rtl = make([]bool, len(lines))
 	for i, ln := range lines {
-		l.rtl[i] = RTL(ln)
+		l.rtl[i] = lex.LineRTL(ln, key.rtl)
 	}
 	var kinds []syntax.Kind
 	if e.Format != nil && !e.Markdown {

@@ -142,9 +142,9 @@ func toggleDirection(e *editor.ScriptEditor) {
 			start, end := b.LineStart(line), b.LineEnd(line)
 			text := b.Slice(start, end)
 			bare := strings.TrimLeft(text, directionMarks)
-			want := !editor.RTL(text)
+			want := !e.LineRTL(text)
 			to := bare
-			if editor.RTL(bare) != want {
+			if e.LineRTL(bare) != want {
 				to = string(editor.LRM) + bare
 				if want {
 					to = string(editor.RLM) + bare

@@ -68,3 +68,27 @@ func TestRTLMirrored(t *testing.T) {
 		t.Errorf("left arrow: cursor %d, want 6", c)
 	}
 }
+
+// A line with no direction of its own ("…") takes the script language's
+// direction, laid out mirrored; the others keep their own, and turning
+// the language's direction lays the text out again.
+func TestLanguageRTLLayout(t *testing.T) {
+	e := newEditor(t, "Hello\n\n…\n\nשלום", 40)
+	e.Format = func(syntax.Kind) wrap.Format { return wrap.Format{Width: 30} }
+	e.PageColumns = 30
+	e.changed(false)
+	if r := e.layout.Rows[2]; r.Indent != 0 {
+		t.Errorf("ltr language: … at indent %d", r.Indent)
+	}
+	e.LanguageRTL = true
+	e.changed(false)
+	if r := e.layout.Rows[2]; r.Indent != 29 || !e.rowRTL(2) {
+		t.Errorf("rtl language: … at indent %d (rtl %v), want 29", r.Indent, e.rowRTL(2))
+	}
+	if r := e.layout.Rows[0]; r.Indent != 0 || e.rowRTL(0) {
+		t.Errorf("rtl language: Hello at indent %d", r.Indent)
+	}
+	if !e.LineRTL("2.") || e.LineRTL("Hello") || e.LineRTL("‎…") || RTL("…") {
+		t.Error("LineRTL")
+	}
+}

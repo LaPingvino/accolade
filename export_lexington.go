@@ -38,6 +38,7 @@ type exportJob struct {
 	omitTitlePage bool           // leave the title page out
 	numberScenes  bool           // number the scenes that have no number
 	scenes        []string       // the script language's scene headings (nil: English)
+	language      string         // the script's language: its direction for a line with none of its own ("": English)
 	colors        bool           // headings and sections in their notes' colors
 	colorStyle    lex.ColorStyle // how they show ("": Lexington's, a line in the margin)
 	colorBlock    bool           // a marker, background or text color over the whole block, not the heading
@@ -100,6 +101,7 @@ func (j exportJob) options(to, output string) cli.Options {
 		LineTags:     j.lineTags,
 		SceneLengths: j.sceneLengths,
 		MergeOmitted: j.mergeOmitted,
+		SceneIn:      j.language, // the HTML's direction for a line with none of its own
 	}
 	if j.conf.Scenes != nil { // the script's own, with what it brought
 		conf := j.conf.TOMLConf

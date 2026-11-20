@@ -564,6 +564,7 @@ func (ed *ExportDialog) plainJob() exportJob {
 		omitTitlePage: !ed.includeTitlePageCheck.Checked,
 		numberScenes:  ed.sceneNumbersCheck.Checked,
 		scenes:        ed.window.sceneHeaders(),
+		language:      ed.window.language,
 		colors:        ed.colorsCheck.Checked,
 		colorStyle:    ed.chosenColorStyle(),
 		colorBlock:    ed.colorBlockCheck.Checked,

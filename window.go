@@ -932,6 +932,7 @@ func (w *MainWindow) setLanguage(lang string) {
 	w.ribbonRefresh() // its place button too
 	if w.textEditor != nil {
 		w.textEditor.SceneStarts = conf.starts(lang)
+		w.textEditor.LanguageRTL = conf.RTL(lang) // for a line with no direction of its own
 		w.textEditor.Refresh()
 	}
 	w.shareMeta("language", lang)
@@ -1766,6 +1767,7 @@ func (w *MainWindow) savedExportJob() exportJob {
 		colorPatterns: w.settings.GetBoolean("export-color-patterns"),
 		pagination:    w.settings.GetString("export-pagination"),
 		scenes:        w.sceneHeaders(),
+		language:      w.language,
 		continueds:    w.settings.GetBoolean(continuedsPref),
 	}
 }
