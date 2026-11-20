@@ -4,6 +4,7 @@ name: Web version
 on:
   push:
     branches: [main]
+    paths-ignore: [LOOP.md]
   workflow_dispatch:
 
 permissions:

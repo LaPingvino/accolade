@@ -2,8 +2,14 @@ name: CI
 
 on:
   push:
+    paths-ignore: [LOOP.md] # the work log alone builds nothing
   pull_request:
   workflow_dispatch:
+
+# a newer push to the same branch makes the older run moot
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
