@@ -39,10 +39,12 @@ type Passage struct {
 	Text  string
 }
 
-// Hints are what the writer has told the adaptation (its notes, step 7).
+// Hints are what the writer has told the adaptation (its notes, step 7):
+// names are matched by their words, whatever their case.
 type Hints struct {
-	NotCharacters []string          // capitalised words that are no one
-	Aliases       map[string]string // a name: the character it is another name for
+	NotCharacters []string          // capitalised words that are no one: no character, no speaker
+	Aliases       map[string]string // a name: the character it is another name for (speakers merge)
+	Places        map[string]string // a place as read (KITCHEN, the house): the heading the writer gave it
 }
 
 // Attribution is how a line's speaker was found.
@@ -110,6 +112,7 @@ type Scene struct {
 	Setting     Setting
 	Place       string // in capitals: KITCHEN, NETHERFIELD PARK
 	Time        string // in capitals: MORNING; "" unknown
+	Given       string // the writer's heading for Place (Hints.Places), without the time: INT. KOVAČ HOUSE
 }
 
 // Character is a name that reads as someone's.
@@ -177,6 +180,7 @@ type reader struct {
 	l      *Lang
 	hints  Hints
 	not    set
+	alias  map[string]string // Hints.Aliases by key
 	ps     []*para
 	lower  map[string]int // words written in lower case, counted
 	stats  map[string]*nameStats
@@ -198,6 +202,12 @@ func Read(ps []Passage, lang string, h Hints) *Reading {
 		labels: map[string]string{}}
 	for _, n := range h.NotCharacters {
 		r.not[key(n)] = true
+	}
+	r.alias = map[string]string{}
+	for n, c := range h.Aliases {
+		if k := key(n); k != "" && n != c {
+			r.alias[k] = c
+		}
 	}
 	for _, p := range ps {
 		r.ps = append(r.ps, r.prepare(p))
@@ -226,8 +236,80 @@ func Read(ps []Passage, lang string, h Hints) *Reading {
 		pace.Yield()
 	}
 	r.names(out)
+	r.applyHints(out)
 	r.headings(out)
 	return out
+}
+
+// applyHints merges the speakers and characters the writer said are one
+// (Hints.Aliases), and drops the names that are no one.
+func (r *reader) applyHints(out *Reading) {
+	if len(r.alias) == 0 && len(r.not) == 0 {
+		return
+	}
+	name := func(n string) (string, bool) {
+		k := key(n)
+		if r.not[k] {
+			return "", false
+		}
+		if c, ok := r.alias[k]; ok {
+			return c, true
+		}
+		return n, true
+	}
+	for i := range out.Passages {
+		pr := &out.Passages[i]
+		for li := range pr.Lines {
+			ln := &pr.Lines[li]
+			if ln.Speaker == "" || ln.Speaker == Narrator {
+				continue
+			}
+			if n, ok := name(ln.Speaker); ok {
+				ln.Speaker = n
+			} else {
+				ln.Speaker, ln.By = "", Unknown
+			}
+		}
+		var names []string
+		for _, n := range pr.Names {
+			if n, ok := name(n); ok && !slices.Contains(names, n) {
+				names = append(names, n)
+			}
+		}
+		pr.Names = names
+	}
+	at := map[string]int{}
+	var cs []Character
+	for _, c := range out.Characters {
+		n, ok := name(c.Name)
+		if !ok {
+			continue
+		}
+		if j, ok := at[key(n)]; ok {
+			o := &cs[j]
+			o.Mentions += c.Mentions
+			o.Lines += c.Lines
+			o.Addressed += c.Addressed
+			o.Weight += c.Weight
+			o.First = min(o.First, c.First)
+			continue
+		}
+		c.Name = n
+		at[key(n)] = len(cs)
+		cs = append(cs, c)
+	}
+	sort.SliceStable(cs, func(a, b int) bool { return cs[a].Weight > cs[b].Weight })
+	out.Characters = cs
+}
+
+// placeKey is a place's words for Hints.Places: lower case, without a
+// leading article ("the house" is HOUSE).
+func (r *reader) placeKey(place string) string {
+	f := strings.Fields(key(place))
+	for len(f) > 1 && (r.l.articles[f[0]] || r.l.determiners[f[0]]) {
+		f = f[1:]
+	}
+	return strings.Join(f, " ")
 }
 
 // prepare tokenizes a passage and parts it into segments.
@@ -742,7 +824,7 @@ func (r *reader) whoBefore(p *para, k int) (speaker, bool) {
 // slot is the speaker a name stands for in the turns, after the hints'
 // aliases.
 func (r *reader) slot(name string) string {
-	if c, ok := r.hints.Aliases[name]; ok {
+	if c, ok := r.alias[key(name)]; ok {
 		return c
 	}
 	return name
@@ -1291,6 +1373,15 @@ func (r *reader) headings(out *Reading) {
 		if sc.Place == "" && word != "" {
 			sc.Place = strings.ToUpper(word)
 		}
+		if sc.Place != "" && len(r.hints.Places) > 0 {
+			pk := r.placeKey(sc.Place)
+			for pl, given := range r.hints.Places {
+				if r.placeKey(pl) == pk && strings.TrimSpace(given) != "" {
+					sc.Given = strings.TrimSpace(given)
+					break
+				}
+			}
+		}
 	}
 }
 
@@ -1298,6 +1389,12 @@ func (r *reader) headings(out *Reading) {
 // inside, outside and either ("INT.", "EXT.", "INT./EXT."): PLACE where
 // none was found, the time left out where none was.
 func (s Scene) Heading(inside, outside, either string) string {
+	if s.Given != "" {
+		if s.Time != "" {
+			return s.Given + " - " + s.Time
+		}
+		return s.Given
+	}
 	h := either
 	switch s.Setting {
 	case Inside:

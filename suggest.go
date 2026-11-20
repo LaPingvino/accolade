@@ -58,6 +58,7 @@ type offerPiece struct {
 type placeGuess struct {
 	Setting     storyread.Setting
 	Place, Time string
+	Given       string // the writer's heading for the place (places:), without the time
 }
 
 // sourceOffers is what a source offers, read once.
@@ -67,6 +68,7 @@ type sourceOffers struct {
 	script string         // the script's language then
 	pieces [][]offerPiece // each passage's, in order
 	places []placeGuess   // each passage's scene's
+	hints  string         // read with (learned.hintsKey)
 }
 
 // offersOf reads what passages offer, in lang.
@@ -77,7 +79,7 @@ func offersOf(ps []passage, lang, script string, r *storyread.Reading) *sourceOf
 			break
 		}
 		if sc := pr.Scene; sc >= 0 && sc < len(r.Scenes) {
-			o.places[i] = placeGuess{r.Scenes[sc].Setting, r.Scenes[sc].Place, r.Scenes[sc].Time}
+			o.places[i] = placeGuess{r.Scenes[sc].Setting, r.Scenes[sc].Place, r.Scenes[sc].Time, r.Scenes[sc].Given}
 		}
 		if !ps[i].counted() {
 			continue
@@ -157,6 +159,7 @@ func lineText(pieces []storyread.Piece, li int, as string) string {
 type sceneCtx struct {
 	head, end int             // the heading's line, and the line after the scene
 	passages  []int           // linked in it (else the one Next showed), in order
+	linked    bool            // passages are the scene's links
 	joined    string          // the scene's words, normalised, between spaces
 	lineKeys  map[string]bool // each line's words so
 }
@@ -185,6 +188,7 @@ type suggestion struct {
 	start, end int
 	alts       []string
 	hints      []string
+	takes      []takenCue // a cue from the source in the alternative, to learn from (adaptation_learn.go)
 }
 
 // suggestCycle is a suggestion taken: Tab again puts in the next one,
@@ -202,8 +206,10 @@ type suggestCycle struct {
 type suggester struct {
 	w *MainWindow
 
-	offers  *sourceOffers
-	pending []passage // being read in the background
+	offers       *sourceOffers
+	pending      []passage // being read in the background
+	pendingHints string    // with these hints
+	learn        learner   // what the writer does, learned from (adaptation_learn.go)
 
 	rev     uint64 // the text's revision the lines and cues are of
 	lines   []string
@@ -263,10 +269,14 @@ func (sg *suggester) source() *sourcePane {
 	case !sg.loaded || sg.loadedFor != w.currentFile: // another script
 		sg.loaded, sg.loadedFor, sg.seenRev = true, w.currentFile, rev
 		load()
+		w.knowScript()
 	case rev != sg.seenRev: // the pane reads it again as it follows; hidden, after a pause
 		sg.seenRev = rev
 		if w.notes == nil || !w.notes.source.shown() {
-			w.debounce(&sg.loadTimer, time.Second, load)
+			w.debounce(&sg.loadTimer, time.Second, func() {
+				load()
+				w.learnFromWriting() // the pane hidden, it does not follow
+			})
 		}
 	}
 	if w.notes == nil {
@@ -282,34 +292,40 @@ func (sg *suggester) source() *sourcePane {
 // offersFor is what the pane's source offers, read again when its
 // passages or language changed; nil while a long one is read.
 func (sg *suggester) offersFor(s *sourcePane) *sourceOffers {
-	if o := sg.offers; o != nil && samePassages(o.ps, s.passages) && o.script == sg.w.language {
+	_, hk := readLearned(sg.w.textEditor.Text())
+	if o := sg.offers; o != nil && samePassages(o.ps, s.passages) && o.script == sg.w.language && o.hints == hk {
 		return o // the language is the source's, or the script's: it holds while both do
 	}
 	lang, _ := readingLanguage(s.src, sg.w.language)
 	ps := s.passages
-	if samePassages(sg.pending, ps) {
+	if samePassages(sg.pending, ps) && sg.pendingHints == hk {
 		return nil // being read
 	}
-	if s.reading != nil && s.readingFor == sg.w.language+"\x00"+s.src {
+	key, hints := s.readingKey()
+	if s.reading != nil && s.readingFor == key {
 		sg.offers = offersOf(ps, lang, sg.w.language, s.reading)
+		sg.offers.hints = hk
 		return sg.offers
 	}
 	if len(s.src) < backgroundSource {
 		sg.offers = offersOf(ps, lang, sg.w.language, s.currentReading())
+		sg.offers.hints = hk
 		return sg.offers
 	}
-	sg.pending = ps
+	sg.pending, sg.pendingHints = ps, hk
 	script := sg.w.language
-	src, key := s.src, script+"\x00"+s.src
+	src := s.src
 	type read struct {
 		r *storyread.Reading
 		o *sourceOffers
 	}
 	inBackground(func() read {
-		r := storyread.Read(storyPassages(ps), lang, storyread.Hints{})
-		return read{r, offersOf(ps, lang, script, r)}
+		r := storyread.Read(storyPassages(ps), lang, hints)
+		o := offersOf(ps, lang, script, r)
+		o.hints = hk
+		return read{r, o}
 	}, func(got read) {
-		if !samePassages(sg.pending, ps) {
+		if !samePassages(sg.pending, ps) || sg.pendingHints != hk {
 			return
 		}
 		sg.pending = nil
@@ -372,6 +388,11 @@ func (sg *suggester) cueFor(speaker string) string {
 func (sg *suggester) cueForNow(speaker string) string {
 	if speaker == storyread.Narrator {
 		speaker = "Narrator"
+	}
+	if l, _ := readLearned(sg.w.textEditor.Text()); len(l.Aliases) > 0 {
+		if cue := l.aliasOf(speaker); cue != "" {
+			return cue // characters: ANNA = Anna, Annie
+		}
 	}
 	cue := strings.ToUpper(strings.Join(strings.FieldsFunc(speaker, func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r) && r != '\'' && r != '’' && r != '-'
@@ -497,6 +518,7 @@ func (sg *suggester) sceneOf(s *sourcePane, line int, head bool) *sceneCtx {
 		}
 	}
 	slices.Sort(c.passages)
+	c.linked = len(c.passages) > 0
 	if len(c.passages) == 0 {
 		if p := s.offeredPassage(); p >= 0 {
 			c.passages = []int{p}
@@ -650,6 +672,7 @@ func (sg *suggester) at() *suggestion {
 	sug := &suggestion{start: start, end: cursor}
 	for _, pc := range sg.unused(o, c) {
 		var body, hint string
+		var take takenCue
 		switch {
 		case pc.Speech && pc.Speaker == "":
 			body = castPlaceholder + "\n" + paren(pc.Manner) + pc.Text
@@ -658,6 +681,7 @@ func (sg *suggester) at() *suggestion {
 			cue := sg.cueFor(pc.Speaker)
 			body = cue + "\n" + paren(pc.Manner) + pc.Text
 			hint = cue + withManner(pc.Manner) + ": " + quoteShort(pc.Text)
+			take = takenCue{Speaker: pc.Speaker, Cue: cue, Text: pc.Text}
 		default:
 			body = pc.Text
 			hint = "action, as the source has it: " + quoteShort(pc.Text)
@@ -667,6 +691,7 @@ func (sg *suggester) at() *suggestion {
 		}
 		sug.alts = append(sug.alts, before+body+after)
 		sug.hints = append(sug.hints, hint)
+		sug.takes = append(sug.takes, take)
 	}
 	if len(sug.alts) == 0 {
 		return nil
@@ -833,10 +858,30 @@ func headingStart(t string, starts []string) bool {
 // headingsFor are the headings a guessed place makes, the setting read
 // first: INT. KITCHEN - MORNING, EXT. KITCHEN - MORNING …; none without a
 // place.
+//
+// A place the writer gave a heading (places:) has it first.
 func (sg *suggester) headingsFor(g placeGuess) []string {
 	if g.Place == "" {
 		return nil
 	}
+	var hs []string
+	if g.Given != "" {
+		h := g.Given
+		if g.Time != "" {
+			h += " - " + g.Time
+		}
+		hs = append(hs, h)
+	}
+	for _, h := range sg.readHeadings(g) {
+		if !slices.Contains(hs, h) {
+			hs = append(hs, h)
+		}
+	}
+	return hs
+}
+
+// readHeadings are the headings the place as read makes.
+func (sg *suggester) readHeadings(g placeGuess) []string {
 	in, out, either, ok := placeWords(sceneHeaders(sg.w.language))
 	if !ok {
 		in, out, either = "INT.", "EXT.", "INT./EXT."
@@ -908,6 +953,9 @@ func (sg *suggester) put(from, to int, s *suggestion, i int) {
 	})
 	b := e.Buffer()
 	sg.cycle = &suggestCycle{s: s, i: i, rev: b.Rev(), cursor: b.Cursor(), inserted: text}
+	if i < len(s.takes) {
+		sg.learn.took(s, s.takes[i])
+	}
 	sg.w.showSuggestionHint()
 }
 

@@ -84,15 +84,25 @@ func readingLanguage(src, script string) (lang string, detected bool) {
 	return "en", false
 }
 
-// currentReading is the source read, made again when it or the script's
-// language changed.
+// currentReading is the source read, made again when it, the script's
+// language or what the script's adaptation block learned changed.
 func (s *sourcePane) currentReading() *storyread.Reading {
-	key := s.w.language + "\x00" + s.src
+	key, h := s.readingKey()
 	if s.reading == nil || s.readingFor != key {
 		lang, _ := readingLanguage(s.src, s.w.language)
-		s.reading, s.readingFor = storyread.Read(storyPassages(s.passages), lang, storyread.Hints{}), key
+		s.reading, s.readingFor = storyread.Read(storyPassages(s.passages), lang, h), key
 	}
 	return s.reading
+}
+
+// readingKey is what the source is read with: the script's language, the
+// hints its adaptation block gives (adaptation_learned.go), the source.
+func (s *sourcePane) readingKey() (string, storyread.Hints) {
+	l, key := &learned{}, ""
+	if s.w.textEditor != nil {
+		l, key = readLearned(s.w.textEditor.Text())
+	}
+	return s.w.language + "\x00" + key + "\x00" + s.src, l.hints()
 }
 
 // showReading shows what the picked passage shows, or hides the view

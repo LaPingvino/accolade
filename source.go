@@ -375,6 +375,13 @@ func anchorFor(ps []passage, i int) (quote string, unique bool) {
 // inside the link's (they do not count for matching).
 func linkNote(quote string) string {
 	quote = strings.NewReplacer("]]", "] ]", "[[", "[ [", "\n", " ").Replace(quote)
+	return `[[from: "` + curlyQuotes(quote) + `"]]`
+}
+
+// curlyQuotes are a quote's straight double quotes made curly, opening
+// or closing by what is before them, so the quote can go between
+// straight ones.
+func curlyQuotes(quote string) string {
 	var b strings.Builder
 	prev := ' '
 	for _, r := range quote {
@@ -388,7 +395,7 @@ func linkNote(quote string) string {
 		b.WriteRune(r)
 		prev = r
 	}
-	return `[[from: "` + b.String() + `"]]`
+	return b.String()
 }
 
 // sceneSpan is a stretch of the script: a scene or section, from its

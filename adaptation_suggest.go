@@ -119,7 +119,10 @@ func stripNotes(line string) string {
 // scene with none, the passages still to do (status) it reads like, the
 // best first, each passage offered to one scene only (the one it fits
 // best); r is the source's reading (its passages' dialogue lines).
-func suggestLinks(text string, starts []string, ps []passage, status []passageStatus, r *storyread.Reading) []linkSuggestion {
+//
+// skipped are the passages the writer skipped for a scene, by its
+// heading (wordsKey): not offered to it again.
+func suggestLinks(text string, starts []string, ps []passage, status []passageStatus, r *storyread.Reading, skipped map[string][]int) []linkSuggestion {
 	scenes := scenesOf(text, starts)
 	// the passages to do, their words, and how rare each word is
 	df := map[string]int{}
@@ -171,6 +174,7 @@ func suggestLinks(text string, starts []string, ps []passage, status []passageSt
 		if sc.Linked {
 			continue
 		}
+		skip := skipped[wordsKey(sc.Heading)]
 		touched = touched[:0]
 		for w := range sc.Words {
 			wt := weight(w)
@@ -200,7 +204,7 @@ func suggestLinks(text string, starts []string, ps []passage, status []passageSt
 					}
 				}
 			}
-			if score >= suggestMin {
+			if score >= suggestMin && !slices.Contains(skip, i) {
 				fits = append(fits, fit{k, i, score})
 			}
 		}
@@ -290,14 +294,20 @@ func (s *sourcePane) offerSuggestions(auto bool) {
 	m := s.current()
 	text, starts, ps, status := s.modelFor, s.w.sceneStarts(), s.passages, slices.Clone(m.status)
 	reading := s.reading
+	key, hints := s.readingKey()
+	if s.readingFor != key {
+		reading = nil
+	}
+	l := learnedOf(text)
+	skipped := l.skippedFor(ps)
 	lang, _ := readingLanguage(s.src, s.w.language)
 	s.sugg.tried = true
 	inBackground(func() []linkSuggestion {
 		r := reading
 		if r == nil {
-			r = storyread.Read(storyPassages(ps), lang, storyread.Hints{})
+			r = storyread.Read(storyPassages(ps), lang, hints)
 		}
-		return suggestLinks(text, starts, ps, status, r)
+		return suggestLinks(text, starts, ps, status, r, skipped)
 	}, func(list []linkSuggestion) {
 		if !samePassages(ps, s.passages) || !sameString(text, s.w.textEditor.Text()) {
 			return // changed meanwhile
@@ -333,6 +343,7 @@ func (s *sourcePane) showSuggestion(goTo bool) {
 	text := fmt.Sprintf("Suggested link %d of %d: %s reads like %s. Link it?", s.sugg.at+1, len(s.sugg.list),
 		sg.Heading, strings.Join(quotes, " and "))
 	s.prompt.askSkip(text, "Link", s.acceptSuggestion, "Skip", func() {
+		s.skipSuggestion(sg)
 		s.sugg.at++
 		s.showSuggestion(true)
 	})
@@ -448,4 +459,16 @@ func (w *MainWindow) suggestSourceLinks() {
 		w.toggleSource()
 	}
 	s.offerSuggestions(false)
+}
+
+// skipSuggestion remembers a suggestion skipped, in the adaptation block
+// (skipped links:): its passages are not offered to that scene again.
+func (s *sourcePane) skipSuggestion(sg linkSuggestion) {
+	l := learnedOf(s.w.textEditor.Text())
+	for _, p := range sg.Passages {
+		if p < len(s.passages) {
+			l.addSkip(sg.Heading, cutFor(s.passages, p))
+		}
+	}
+	s.w.writeLearned(l, false)
 }

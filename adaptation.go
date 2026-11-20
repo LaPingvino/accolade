@@ -110,10 +110,25 @@ func findTails(text string) (src, adapt tailBlock, notes int) {
 			src.md += "\n"
 		}
 	}
-	runes := func(b int) int { return utf8.RuneCountInString(text[:b]) }
-	for _, t := range []*tailBlock{&src, &adapt} {
+	// the places in runes, counted once from the start: the text is long,
+	// the blocks are at its end
+	at, n := 0, 0
+	runes := func(b int) int {
+		if b < at {
+			return utf8.RuneCountInString(text[:b])
+		}
+		n += utf8.RuneCountInString(text[at:b])
+		at = b
+		return n
+	}
+	first, second := &src, &adapt
+	if adapt.ok && (!src.ok || adapt.bstart < src.bstart) {
+		first, second = &adapt, &src
+	}
+	for _, t := range []*tailBlock{first, second} {
 		if t.ok {
-			t.start, t.end = runes(t.bstart), runes(t.bend)
+			t.start = runes(t.bstart)
+			t.end = runes(t.bend)
 		}
 	}
 	return src, adapt, notes
@@ -164,7 +179,7 @@ type cutMark struct {
 
 // String is the entry as the block writes it.
 func (c cutMark) String() string {
-	q := strings.NewReplacer("\n", " ", `"`, "”").Replace(c.Quote)
+	q := curlyQuotes(strings.ReplaceAll(c.Quote, "\n", " "))
 	s := `"` + q + `"`
 	if c.Nth > 0 {
 		s += " (" + strconv.Itoa(c.Nth) + ")"

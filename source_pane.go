@@ -72,6 +72,7 @@ type sourcePane struct {
 	reading    *storyread.Reading // what the source shows (source_reading.go)
 	readingFor string
 	view       *readingView
+	learned    *learnedView // what Accolade learned (adaptation_learned_view.go)
 
 	heights          []float32 // the rows' heights, estimated or measured
 	exact            []bool    // measured
@@ -162,7 +163,8 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(s.edit, s.choose), s.title)
 	s.tools = container.NewBorder(nil, nil, nil, container.NewHBox(s.next, s.cut), s.count)
 	s.view = newReadingView(s)
-	s.box = container.NewBorder(container.NewVBox(head, s.tools, s.prompt.box, s.info), s.view.box, nil, nil, s.body)
+	s.learned = newLearnedView(s)
+	s.box = container.NewBorder(container.NewVBox(head, s.tools, s.prompt.box, s.info, s.learned.box), s.view.box, nil, nil, s.body)
 	return s
 }
 
@@ -625,6 +627,7 @@ func (s *sourcePane) shown() bool {
 // found.
 func (s *sourcePane) follow() {
 	cancel(&s.w.followTimer) // done now
+	s.w.learnFromWriting()
 	if !s.shown() {
 		return
 	}
@@ -637,6 +640,8 @@ func (s *sourcePane) follow() {
 	if s.ref.Origin == sourceNone {
 		s.setInfo("")
 		s.count.SetText("")
+		s.learned.box.Hide()
+		s.learned.ok = false
 		s.prompt.hide()
 		s.next.Disable()
 		s.cut.Disable()
@@ -645,6 +650,7 @@ func (s *sourcePane) follow() {
 	s.next.Enable()
 	m := s.current()
 	s.showStatuses(m)
+	s.learned.update(s)
 	s.offerStart(m)
 	line, _ := s.w.textEditor.Buffer().Position(s.w.textEditor.CursorOffset())
 	lit, doubt := map[int]bool{}, map[int]bool{}

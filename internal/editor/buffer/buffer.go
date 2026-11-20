@@ -185,6 +185,39 @@ func (b *Buffer) Group(f func()) {
 	}
 }
 
+// Amend replaces [start, end) with text as part of the last undo step:
+// undone and redone with it, not a step of its own. The cursor and the
+// selections stay where they were (moved with the text). It is for what
+// follows from the last edit by itself (Accolade's learned notes): an
+// Undo of the edit takes it away too. Nothing to undo, it is no step at
+// all. Redo is forgotten, as by any edit.
+func (b *Buffer) Amend(start, end int, text string) {
+	start, end = b.clamp(start), b.clamp(end)
+	if start > end {
+		start, end = end, start
+	}
+	inserted := []rune(text)
+	if start == end && len(inserted) == 0 {
+		return
+	}
+	c := change{pos: start, removed: append([]rune(nil), b.text[start:end]...), inserted: inserted}
+	cursor, anchor := b.cursor, b.anchor
+	b.splice(start, end, inserted)
+	b.cursor = shifted(cursor, start, end, len(inserted))
+	b.anchor = shifted(anchor, start, end, len(inserted))
+	b.redo = nil
+	switch {
+	case b.group != nil:
+		b.group.changes = append(b.group.changes, c)
+	case len(b.undo) > 0:
+		last := &b.undo[len(b.undo)-1]
+		last.changes = append(last.changes, c)
+		last.typing = false
+		last.afterCursor = shifted(last.afterCursor, start, end, len(inserted))
+		last.afterAnchor = shifted(last.afterAnchor, start, end, len(inserted))
+	}
+}
+
 // CanUndo and CanRedo report whether there is something to undo or redo.
 func (b *Buffer) CanUndo() bool { return len(b.undo) > 0 }
 func (b *Buffer) CanRedo() bool { return len(b.redo) > 0 }

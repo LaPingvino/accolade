@@ -259,6 +259,11 @@ func BenchmarkToMarkdown(b *testing.B) {
 // beside it, the source pane shown; inside, the novel kept in the script.
 func benchWindow(b *testing.B, inside bool) (*MainWindow, *sourcePane, int) {
 	md, script := benchFixture()
+	return benchWindowWith(b, md, script, inside)
+}
+
+// benchWindowWith is benchWindow with this script and source.
+func benchWindowWith(b *testing.B, md, script string, inside bool) (*MainWindow, *sourcePane, int) {
 	w, _ := newBenchWindow(b)
 	dir := b.TempDir()
 	p := filepath.Join(dir, "story.fountain")
@@ -479,7 +484,7 @@ func BenchmarkSuggestLinks(b *testing.B) {
 	r := storyread.Read(storyPassages(ps), "en", storyread.Hints{})
 	b.Run("match", func(b *testing.B) {
 		for b.Loop() {
-			suggestLinks(script, benchStarts, ps, m.status, r)
+			suggestLinks(script, benchStarts, ps, m.status, r, nil)
 		}
 	})
 }

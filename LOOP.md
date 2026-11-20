@@ -196,3 +196,26 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   action in it ("shaking his coat") loses that action; the cue's cycle and the name completions' cycle are separate
   (after completing a name, Enter then Tab gives the line).
 - 2026-11-20: TestFocusIsVisible is skipped under -race (race_on_test.go): on CI's Linux race job the Find/Replace bar's and the outline filter's focus never shows in captures, even after waiting ~4.5 s; plain runs on all three systems pass. To find: what differs under race (a renderer cache? a focus animation?). Also: run TestFocusIsVisible alone before every merge (it caught the Preferences page growing).
+- 2026-11-20: step 7, the learned notes (branch learned, not merged; adaptation_learned.go the block, adaptation_learn.go
+  the learning, adaptation_learned_view.go the view; format in ADAPTATION.md section 6). The adaptation block gains
+  `characters: ANNA = Anna, Annie`, `not characters: Monday, Lord`, `places: the house = INT. KOVAČ HOUSE` and
+  `skipped links:` (heading = "passage quote"), read leniently (keys in any case and a few synonyms, entries inline or
+  below, `;`/`,`, `=`/`→`; unread entries and other lines kept), written in that order before `cut:`. Learned on the
+  pane's follow (after typing pauses; the pane hidden too, on the suggester's 1 s reload), cursor's scene only, from
+  actions not standing state (what the script had when opened teaches nothing; a cue/heading is looked at once the
+  cursor left it): a cue Tab put in renamed → alias; a line the source reads as X typed under another cue → alias,
+  unless X's own cue is in the script or the cue is another source speaker's; a taken cue deleted (line or name) or
+  renamed against a learned alias twice → not characters; a new heading over a linked scene (Next's placeholder, or
+  heading then link) unlike any the read place makes → places (time stripped); Skip on a suggested link → skipped
+  links (not offered to that scene again). Quiet: only the block changes, joined to the writer's last undo step
+  (buffer.Amend), cursor/selection kept (on the empty line before the block, a blank line kept after it); not while
+  Redo is possible, a Tab cycle runs or text is selected. storyread.Hints now merge aliases into one speaker and
+  character, drop not-characters as speakers, and give a place its heading (Scene.Given); readings and offers are
+  re-read when the hints change; suggestions use the cue, the place's heading first. The pane: "What Accolade learned
+  (n)", folded, rows with a remove button each (one undo step; not relearned this session). Also: tail blocks' rune
+  places counted in one pass. Bench (base vs branch, n=8): SuggestKeystroke 22.4 vs 22.5 ms, hint 0.49 vs 0.63 ms
+  (noise ±47%); LearnedKeystroke none 21.8 / learned block 20.4 ms; one learning tick 0.56 ms. Rough: strikes and
+  "forgotten" are per session; the typed-cue alias rides on storyread's attribution (guarded, still possible to
+  mislearn); a link added under a heading the script had when opened teaches no place; open on a phone the list
+  takes most of the pane (it scrolls, folded by default); extra blank line kept before the block when it is first
+  written with the cursor at the script's end. Next: step 8 (AI) only if wanted; else PRODUCTION from step 1.

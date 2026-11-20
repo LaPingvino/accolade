@@ -77,27 +77,54 @@ text after the cursor; Tab accepts it.
 
 ## 6. Learning from what the writer does
 
-What the writer accepts, changes or ignores goes into the adaptation's notes. They are kept in the script as a
-Fountain boneyard block (like View > Notes), so they travel with the file and stay readable:
+What the writer accepts, changes or skips goes into the adaptation's notes. They are kept in the script as a
+Fountain boneyard block (like View > Notes), so they travel with the file and stay readable (built: step 7):
 
 ```
 /* Adaptation
 characters: ANNA = Anna, Annie, Miss Kovač
 not characters: Monday, Lord
 places: the house = INT. KOVAČ HOUSE
+skipped links:
+  INT. KITCHEN - NIGHT = "Anna opened the kitchen door."
 cut:
   "The rain kept falling." (2)
 */
 ```
 
-`cut:` (step 4, built) lists the passages cut on purpose, one per line, by their first words as a link quotes them,
-with "(2)" for the second of passages that open alike. The block sits after the script, before the Source block and
-the notes; the other sections are kept as written.
+The block sits after the script, before the Source block and the notes. Each section takes its entries on the
+key's line or on the lines below it (indented, as a list, or not), up to the next `name:` line; several on the
+key's line are parted by `;` (by `,` for not characters). Keys are read in any case, with a few other words for
+them (aliases:, names:, not names:, skipped:). An entry that cannot be read is kept in its section as written,
+and lines outside the sections are kept as they are. Accolade writes a section with one entry on the key's line
+and more one per line below, in the order above.
 
-- **A cue renamed after it was accepted:** the old name becomes another name for the new one.
-- **A suggested name deleted twice:** it goes on the "not characters" list.
-- **A heading written by hand for a passage:** the place is matched to it from then on.
-- **A passage skipped with Next:** it is asked whether to mark it as cut.
+- `characters:` a cue, then the source's names for that character. The source's reading takes them as one
+  speaker, and suggestions give their lines under the cue.
+- `not characters:` capitalised words that are no one: dropped as characters and as speakers.
+- `places:` a place as the source reads it (KITCHEN, the house; a leading article does not count), then the
+  heading the writer gave it, without the time. A heading suggested for that place is that one, with the time read.
+- `skipped links:` a scene's heading, then a passage offered to it as a link and skipped: not offered to it again.
+- `cut:` (step 4) the passages cut on purpose, by their first words as a link quotes them, "(2)" for the second of
+  passages that open alike.
+
+When it learns (quietly: no question, no status; on the pane's follow after typing pauses, the pane shown or not,
+the cursor's scene only; only the block changes, as part of the writer's last undo step, so Undo takes both):
+
+- **A cue Tab put in, renamed** (or a line the source reads as someone's written under another cue, unless that
+  someone's own cue is in the script or the cue is another speaker's: then the reading was wrong): the source's name
+  becomes another name of the new cue.
+- **A cue Tab put in, thrown away twice** (the line deleted, the name over it deleted, or renamed to another cue
+  than the one learned): the name goes on the "not characters" list.
+- **A heading written for a scene linked to a passage** (over Next's placeholder, or a link put under a heading
+  written in this session), other than any the source's place makes: the place is matched to it from then on.
+- **A passage skipped with Next:** it is asked whether to mark it as cut (step 4).
+- **Skip on a suggested link:** remembered under `skipped links:`.
+
+It learns from actions, not from how the script stands: what the script had when it was opened teaches nothing, and
+a cue or heading is looked at once the cursor has left it (half typed, nothing). The source pane's "What Accolade
+learned (n)" line opens a list of the lessons, each with a button that takes it away (one undo step); a lesson
+taken away is not learned again in the session.
 
 ## 7. Later, and optional
 
@@ -112,5 +139,5 @@ runs on the writer's own choice of tool, as GameViber's Terminal does, and is ne
 4. Statuses and Next passage.
 5. The characters and dialogue heuristics, with tests on public-domain prose in several languages.
 6. Suggestions while writing.
-7. The learned notes.
+7. The learned notes (built).
 8. AI, if wanted.

@@ -307,7 +307,7 @@ func TestComboNoLinks(t *testing.T) {
 	w, _ := sourceWindow(t, comboNoLinks, comboStory)
 	s := w.sourcePane()
 	ps := s.passages
-	got := suggestLinks(comboNoLinks, w.sceneStarts(), ps, s.current().status, s.currentReading())
+	got := suggestLinks(comboNoLinks, w.sceneStarts(), ps, s.current().status, s.currentReading(), nil)
 	want := map[string][]string{
 		"INT. LIGHTHOUSE STAIRS - NIGHT": {"Mara climbed", "\"Is anyone"},
 		"INT. LAMP ROOM - NIGHT":         {"\"Only the gulls"},
@@ -348,7 +348,7 @@ func TestComboNoLinks(t *testing.T) {
 		t.Errorf("then: %q", s.prompt.label.Text)
 	}
 	s.prompt.skip.OnTapped() // Skip
-	if !strings.Contains(s.prompt.label.Text, "3 of 3: EXT. HARBOUR") || strings.Contains(w.textEditor.Text(), "Only the gulls,”") {
+	if !strings.Contains(s.prompt.label.Text, "3 of 3: EXT. HARBOUR") || strings.Contains(w.textEditor.Text(), "[[from: \"“Only the gulls") {
 		t.Errorf("after Skip: %q", s.prompt.label.Text)
 	}
 	s.prompt.no.OnTapped() // Not Now
@@ -358,6 +358,7 @@ func TestComboNoLinks(t *testing.T) {
 	if c := countOf(s.statuses); c.Adapted != 2 {
 		t.Errorf("count %+v", c)
 	}
+	w.textEditor.Undo() // the Skip remembered (skipped links:), one step
 	w.textEditor.Undo() // the scene's links, one step
 	if w.textEditor.Text() != comboNoLinks {
 		t.Errorf("undo:\n%s", w.textEditor.Text())

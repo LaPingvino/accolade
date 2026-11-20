@@ -165,3 +165,30 @@ func TestSetTextForgetsHistory(t *testing.T) {
 		t.Errorf("SetText: undo %v %q", b.CanUndo(), b.Text())
 	}
 }
+
+// Amend joins the last undo step: undone and redone with it, the cursor
+// and selection kept where they were.
+func TestAmendJoinsLastStep(t *testing.T) {
+	b := New("ANNA\nHi.\n\n/* end */")
+	b.SetCursor(9, false)
+	b.Replace(9, 9, "x") // the writer's edit
+	b.Select(0, 4)
+	b.Amend(14, 17, "END") // what follows from it
+	if b.Text() != "ANNA\nHi.\nx\n/* END */" {
+		t.Fatalf("amended: %q", b.Text())
+	}
+	if s, e := b.Selection(); s != 0 || e != 4 {
+		t.Errorf("selection %d-%d", s, e)
+	}
+	b.Undo()
+	if b.Text() != "ANNA\nHi.\n\n/* end */" {
+		t.Errorf("undone together: %q", b.Text())
+	}
+	b.Redo()
+	if b.Text() != "ANNA\nHi.\nx\n/* END */" {
+		t.Errorf("redone together: %q", b.Text())
+	}
+	if b.Undo(); b.Undo() {
+		t.Error("a step of its own")
+	}
+}
