@@ -1198,10 +1198,25 @@ func (w *MainWindow) sectionsFromSourceHere() {
 	s.follow()
 }
 
-// sourceInsideItem is Format > Keep Source in the Script, checked while
-// it is.
-func (w *MainWindow) sourceInsideItem() *fyne.MenuItem {
-	item := fyne.NewMenuItem("Keep Source in the Script", w.toggleSourceInside)
-	item.Checked = w.textEditor != nil && w.sourceRef().Origin == sourceInside
-	return item
+// showLearned is Adaptation > What Accolade Learned…: the source pane,
+// with its list of what was learned open.
+func (w *MainWindow) showLearned() {
+	if w.markdown {
+		return
+	}
+	s := w.sourcePane()
+	if !s.shown() {
+		w.toggleSource()
+	}
+	if w.sourceRef().Origin == sourceNone {
+		w.setStatus("No source: Adaptation > Choose Source…")
+		return
+	}
+	s.learned.update(s)
+	if s.learned.n == 0 {
+		w.setStatus("Accolade has learned nothing from your writing yet")
+		return
+	}
+	s.learned.open = true
+	s.learned.layout()
 }

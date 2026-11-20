@@ -68,7 +68,7 @@ func TestMarkdownModeSwitches(t *testing.T) {
 		t.Error("laid out as a screenplay")
 	}
 	hb := w.headerBar
-	if hb.container.Objects[1] != hb.markdownRow || hb.exportButton.Disabled() || !hb.cardsButton.Disabled() {
+	if hb.container.Objects[1] != hb.markdownRow || hb.button("file.export").Disabled() || !hb.button("view.cards").Disabled() {
 		t.Error("the screenplay's toolbar is still there")
 	}
 	file, format, view := menuLabels(w, "File"), menuLabels(w, "Format"), menuLabels(w, "View")
@@ -93,7 +93,7 @@ func TestMarkdownModeSwitches(t *testing.T) {
 	if w.markdown || w.textEditor.Markdown || w.textEditor.Format == nil {
 		t.Error("a .fountain file is not a screenplay again")
 	}
-	if hb.container.Objects[1] != hb.screenplayRow || hb.exportButton.Disabled() {
+	if hb.container.Objects[1] != hb.screenplayRow || hb.button("file.export").Disabled() {
 		t.Error("the screenplay's toolbar did not come back")
 	}
 	if !slices.Contains(menuLabels(w, "Format"), "Scene Heading") {

@@ -15,14 +15,14 @@ func TestUndoRedoButtons(t *testing.T) {
 		t.Fatalf("typed text = %q", w.textEditor.Text())
 	}
 
-	if w.headerBar.undoButton.Disabled() || w.headerBar.redoButton.Disabled() {
+	if w.headerBar.button("edit.undo").Disabled() || w.headerBar.button("edit.redo").Disabled() {
 		t.Fatal("undo/redo buttons are disabled")
 	}
-	test.Tap(w.headerBar.undoButton)
+	test.Tap(w.headerBar.button("edit.undo"))
 	if w.textEditor.Text() != "" {
 		t.Errorf("after Undo: %q", w.textEditor.Text())
 	}
-	test.Tap(w.headerBar.redoButton)
+	test.Tap(w.headerBar.button("edit.redo"))
 	if w.textEditor.Text() != "Rain" {
 		t.Errorf("after Redo: %q", w.textEditor.Text())
 	}

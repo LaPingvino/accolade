@@ -29,10 +29,10 @@ func TestHeaderButtonsHaveTips(t *testing.T) {
 	w := newTestWindow(t, "")
 	hb := w.headerBar
 	for name, tip := range map[string]string{
-		"new": hb.newButton.Tip, "open": hb.openButton.Tip, "save": hb.saveButton.Tip,
-		"undo": hb.undoButton.Tip, "redo": hb.redoButton.Tip, "find": hb.findButton.Tip,
-		"preview": hb.previewButton.Tip, "export": hb.exportButton.Tip, "preferences": hb.preferencesButton.Tip,
-		"outline": hb.outlineButton.Tip, "cards": hb.cardsButton.Tip, "notes": hb.notesButton.Tip,
+		"new": hb.button("file.new").Tip, "open": hb.button("file.open").Tip, "save": hb.button("file.save").Tip,
+		"undo": hb.button("edit.undo").Tip, "redo": hb.button("edit.redo").Tip, "find": hb.button("edit.findReplace").Tip,
+		"preview": hb.button("view.preview").Tip, "export": hb.button("file.export").Tip, "preferences": hb.button("app.preferences").Tip,
+		"outline": hb.button("view.outline").Tip, "cards": hb.button("view.cards").Tip, "notes": hb.button("view.notes").Tip,
 	} {
 		if !strings.Contains(tip, "(") {
 			t.Errorf("%s button tip %q has no shortcut", name, tip)

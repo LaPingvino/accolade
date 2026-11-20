@@ -251,13 +251,25 @@ func (w *MainWindow) showTagMenu(at fyne.Position) {
 	if w.markdown {
 		return
 	}
-	var items []*fyne.MenuItem
-	if c := w.lastTagCategory; c != "" {
-		items = append(items, fyne.NewMenuItem("Tag as "+c, func() { w.tagSelectionAs(c) }))
+	items := w.menuItems(commands().context, w.cmdEnv())
+	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", items...), w.fyneWindow.Canvas(), at)
+}
+
+// tagAsLastItems are the context menu's Tag as (the category tagged
+// last), if one was.
+func (w *MainWindow) tagAsLastItems() []*fyne.MenuItem {
+	c := w.lastTagCategory
+	if c == "" {
+		return nil
 	}
-	items = append(items, fyne.NewMenuItem("Tag Selection…", w.showTagPicker))
+	return []*fyne.MenuItem{fyne.NewMenuItem("Tag as "+c, func() { w.tagSelectionAs(c) })}
+}
+
+// untagHereItems are the context menu's Untag, one for each tag at the
+// cursor or in the selection.
+func (w *MainWindow) untagHereItems() []*fyne.MenuItem {
+	var items []*fyne.MenuItem
 	for _, p := range w.tagsAt() {
-		p := p
 		items = append(items, fyne.NewMenuItem(fmt.Sprintf("Untag %q (%s)", p.element.Name, p.element.Category), func() {
 			f := w.breakdownNow()
 			if f.untag(w.breakdown.bt, p.start, p.end) > 0 {
@@ -265,11 +277,7 @@ func (w *MainWindow) showTagMenu(at fyne.Position) {
 			}
 		}))
 	}
-	items = append(items, fyne.NewMenuItemSeparator(),
-		fyne.NewMenuItem("Cut", func() { w.textEditor.TypedShortcut(&fyne.ShortcutCut{Clipboard: w.clipboard()}) }),
-		fyne.NewMenuItem("Copy", func() { w.textEditor.TypedShortcut(&fyne.ShortcutCopy{Clipboard: w.clipboard()}) }),
-		fyne.NewMenuItem("Paste", func() { w.textEditor.TypedShortcut(&fyne.ShortcutPaste{Clipboard: w.clipboard()}) }))
-	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", items...), w.fyneWindow.Canvas(), at)
+	return items
 }
 
 // clipboard is the app's clipboard.
@@ -380,11 +388,4 @@ func (tp *tagPicker) pickFirst() {
 func (tp *tagPicker) pick(category string) {
 	tp.d.Hide()
 	tp.w.tagSelectionAs(category)
-}
-
-// showTagsItem is Production > Show Tagged Words, checked when shown.
-func (w *MainWindow) showTagsItem() *fyne.MenuItem {
-	it := fyne.NewMenuItem("Show Tagged Words", w.toggleBreakdownTags)
-	it.Checked = w.settings == nil || !w.settings.GetBoolean(breakdownHiddenPref)
-	return it
 }

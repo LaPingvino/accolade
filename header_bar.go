@@ -22,23 +22,16 @@ type HeaderBar struct {
 	window    *MainWindow
 	container *fyne.Container
 
-	newButton, openButton, saveButton *tooltip.Button
-	undoButton, redoButton            *tooltip.Button
-	findButton, previewButton         *tooltip.Button
-	exportButton, preferencesButton   *tooltip.Button
-	fullscreenButton                  *tooltip.Button
-	outlineButton, cardsButton        *tooltip.Button
-	notesButton, sourceButton         *tooltip.Button
-	productionButton                  *tooltip.Button
-	titleLabel                        *scriptTitle // the file's name; click to rename it
-	element, format                   *widget.Select
-	elementBox                        *fyne.Container           // the list, or the buttons
-	elementMarks                      *fyne.Container           // the buttons
-	place                             *widget.Button            // inside, outside or both
-	elementButtons                    map[string]*widget.Button // by element
-	formatBox                         *fyne.Container           // the format's own buttons
-	screenplayRow, markdownRow        fyne.CanvasObject         // the editing row for each
-	showing                           bool                      // the selects show, not choose
+	buttons                    map[string]*tooltip.Button // the icon buttons, by command id
+	titleLabel                 *scriptTitle               // the file's name; click to rename it
+	element, format            *widget.Select
+	elementBox                 *fyne.Container           // the list, or the buttons
+	elementMarks               *fyne.Container           // the buttons
+	place                      *widget.Button            // inside, outside or both
+	elementButtons             map[string]*widget.Button // by element
+	formatBox                  *fyne.Container           // the format's own buttons
+	screenplayRow, markdownRow fyne.CanvasObject         // the editing row for each
+	showing                    bool                      // the selects show, not choose
 }
 
 // The emphasis icons (Material Design, Apache 2.0).
@@ -82,60 +75,13 @@ func (hb *HeaderBar) showElementKind() {
 var toolbarElements = []string{elementScene, elementAction, elementCharacter, elementParenthetical, elementDialogue, elementTransition, elementCentered, elementLyrics}
 
 func NewHeaderBar(window *MainWindow) *HeaderBar {
-	hb := &HeaderBar{window: window}
+	hb := &HeaderBar{window: window, buttons: map[string]*tooltip.Button{}}
 	tips := window.tooltips
-	button := func(icon fyne.Resource, tip string, action func()) *tooltip.Button {
-		b := tooltip.NewButton(icon, tip, action, tips)
-		b.Importance = widget.LowImportance
-		return b
-	}
+	env := cmdEnv{browser: inBrowser}
 
-	newTip := "New" + keys("N") + "; with Alt, empty" + keys("Alt+N")
-	if !inBrowser {
-		newTip += "; with Shift, a new window" + keys("Shift+N")
-	}
-	hb.newButton = button(theme.DocumentCreateIcon(), newTip, func() {
-		mods := heldModifiers()
-		empty := mods&fyne.KeyModifierAlt != 0
-		switch {
-		case mods&fyne.KeyModifierShift != 0 && !inBrowser:
-			window.app.newScriptWindow(empty)
-		case empty:
-			window.NewEmptyFile()
-		default:
-			window.NewFile()
-		}
-	})
-	hb.openButton = button(theme.FolderOpenIcon(), "Open"+keys("O"), window.OpenFile)
-	hb.saveButton = button(theme.DocumentSaveIcon(), "Save"+keys("S"), window.reportErr(window.SaveFile))
-	hb.undoButton = button(theme.ContentUndoIcon(), "Undo"+keys("Z"), window.undo)
-	hb.redoButton = button(theme.ContentRedoIcon(), "Redo"+keys("Shift+Z"), window.redo)
-	hb.findButton = button(theme.SearchIcon(), "Find and replace"+keys("F"), window.showFindReplace)
-	hb.previewButton = button(theme.VisibilityIcon(), "Preview PDF"+keys("Shift+P"), window.preview)
-	hb.exportButton = button(theme.DownloadIcon(), "Export to PDF, HTML, FDX…"+keys("E"), window.showExportDialog)
-	hb.outlineButton = button(theme.ListIcon(), "Outline"+keys("Shift+O"), window.toggleOutline)
-	hb.cardsButton = button(theme.GridIcon(), "Cards"+keys("Shift+D"), window.toggleCards)
-	hb.notesButton = button(theme.FileTextIcon(), "Notes"+keys("Shift+K"), window.toggleNotes)
-	hb.sourceButton = button(sourceIcon, "Source: the story the script adapts", window.toggleSource)
-	hb.productionButton = button(productionIcon, "Production: lock, revise, and the stages to the shoot", window.toggleProduction)
-	hb.fullscreenButton = button(theme.ViewFullScreenIcon(), "Full screen, without distractions"+keys("Shift+F"), window.toggleFullscreen)
-	hb.preferencesButton = button(theme.SettingsIcon(), "Preferences"+keys(","), func() { window.app.showPreferences() })
-
-	inEditor := func(f func()) func() {
-		return func() {
-			f()
-			window.fyneWindow.Canvas().Focus(window.textEditor)
-		}
-	}
-	emphasis := func(marker string) func() {
-		return inEditor(func() { toggleEmphasis(window.textEditor, marker) })
-	}
-	bold := button(boldIcon, "Bold"+keys("B"), emphasis("**"))
-	italic := button(italicIcon, "Italic"+keys("I"), emphasis("*"))
-	underline := button(underlineIcon, "Underline"+keys("U"), emphasis("_"))
 	hb.element = widget.NewSelect(toolbarElements, func(el string) {
 		if !hb.showing && el != "" {
-			inEditor(func() { setLineElement(window.textEditor, el, window.sceneStarts()) })()
+			window.tapped(cmd(elementCommandID(el)), nil)()
 		}
 	})
 	hb.element.PlaceHolder = "Element"
@@ -143,20 +89,16 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.elementButtons = map[string]*widget.Button{}
 	marks := container.NewHBox()
 	for _, el := range toolbarElements {
-		b := widget.NewButton(elementMarks[el], inEditor(func() { setLineElement(window.textEditor, el, window.sceneStarts()) }))
+		c := cmd(elementCommandID(el))
+		b := widget.NewButton(c.text, window.tapped(c, nil))
 		b.Importance = widget.LowImportance
-		fyne.SetAccessibleLabel(b, el)
+		fyne.SetAccessibleLabel(b, c.label)
 		hb.elementButtons[el] = b
 		marks.Add(b)
 	}
 	hb.elementMarks = marks
 	hb.elementBox = container.NewStack()
 	hb.showElementKind()
-	toggle := button(theme.ViewRestoreIcon(), "Elements as a list or as buttons", func() {
-		window.settings.SetBoolean("element-buttons", !window.settings.GetBoolean("element-buttons"))
-		_ = window.settings.Save()
-		hb.showElementKind()
-	})
 	hb.format = newScriptFormatSelect(nil, func(key string) {
 		if !hb.showing {
 			window.settings.SetString("script-format", key)
@@ -173,90 +115,116 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.titleLabel.TextStyle = fyne.TextStyle{Bold: true}
 	hb.titleLabel.Truncation = fyne.TextTruncateEllipsis
 
-	// the editing row: what a line is and its emphasis, the format's own
-	// buttons, and the format; both rows put what does not fit in a menu
-	var character *widget.Button
-	character = widget.NewButtonWithIcon("Character", theme.AccountIcon(), func() { window.pickCharacter(character) })
-	character.Importance = widget.LowImportance
-	var place *widget.Button
-	place = widget.NewButtonWithIcon("INT./EXT.", theme.HomeIcon(), func() { window.pickPlace(place) })
-	place.Importance = widget.LowImportance
-	hb.place = place
-	var sceneColor *widget.Button
-	sceneColor = widget.NewButtonWithIcon("Color", theme.ColorPaletteIcon(), func() { window.pickColorHere(sceneColor) })
-	sceneColor.Importance = widget.LowImportance
-	fyne.SetAccessibleLabel(sceneColor, "Color of the scene or section"+keys("Shift+L"))
-	top := newOverflowRow(tips, []overflowItem{
-		buttonItem(hb.newButton), buttonItem(hb.openButton), buttonItem(hb.saveButton), gapItem(),
-		buttonItem(hb.undoButton), buttonItem(hb.redoButton),
-		buttonItem(hb.outlineButton), buttonItem(hb.cardsButton), buttonItem(hb.notesButton), keptItem(hb.sourceButton), buttonItem(hb.productionButton), gapItem(),
-		buttonItem(hb.findButton), buttonItem(hb.previewButton), buttonItem(hb.exportButton), gapItem(),
-		buttonItem(hb.fullscreenButton), buttonItem(hb.preferencesButton),
-	}, hb.titleLabel, 6)
-	elements := overflowItem{obj: hb.elementBox, menu: func(fyne.CanvasObject) []*fyne.MenuItem {
-		var items []*fyne.MenuItem
-		for _, el := range toolbarElements {
-			items = append(items, fyne.NewMenuItem(el, inEditor(func() { setLineElement(window.textEditor, el, window.sceneStarts()) })))
-		}
-		menu := fyne.NewMenuItem("Element", nil)
-		menu.ChildMenu = fyne.NewMenu("", items...)
-		return []*fyne.MenuItem{menu}
-	}}
-	picker := func(b *widget.Button, pick func(fyne.CanvasObject)) overflowItem {
-		return overflowItem{obj: b, menu: func(anchor fyne.CanvasObject) []*fyne.MenuItem {
-			item := fyne.NewMenuItem(b.Text, func() { pick(anchor) })
-			item.Icon = b.Icon
-			return []*fyne.MenuItem{item}
-		}}
-	}
-	formatButtons := overflowItem{obj: hb.formatBox, menu: func(fyne.CanvasObject) []*fyne.MenuItem {
-		var items []*fyne.MenuItem
-		for _, o := range hb.formatBox.Objects {
-			if b, ok := o.(*widget.Button); ok {
-				items = append(items, fyne.NewMenuItem(b.Text, b.OnTapped))
-			}
-		}
-		return items
-	}}
-	editing := newOverflowRow(tips, []overflowItem{
-		buttonItem(toggle), elements, picker(place, window.pickPlace), picker(character, window.pickCharacter), picker(sceneColor, window.pickColorHere),
-		buttonItem(bold), buttonItem(italic), buttonItem(underline), gapItem(), formatButtons,
-	}, nil, 0)
+	// the rows from the registry (commands.go); both put what does not fit
+	// in a menu
+	top := newOverflowRow(tips, hb.rowItems(commands().topRow, env, true), hb.titleLabel, 6)
+	editing := newOverflowRow(tips, hb.rowItems(commands().screenplayRow, env, false), nil, 0)
 	hb.screenplayRow = container.NewBorder(nil, nil, nil, hb.format, editing.Container)
-	// Markdown's: its emphasis (_ is italic there, not underline)
-	// and a story's next step: a screenplay adapting it
-	adapt := widget.NewButtonWithIcon("Start a Screenplay", theme.DocumentCreateIcon(), window.startScreenplayFromSource)
-	adapt.Importance = widget.LowImportance
-	fyne.SetAccessibleLabel(adapt, startScreenplayLabel)
-	hb.markdownRow = newOverflowRow(tips, []overflowItem{
-		buttonItem(button(boldIcon, "Bold"+keys("B"), emphasis("**"))),
-		buttonItem(button(italicIcon, "Italic"+keys("I"), emphasis("*"))),
-		gapItem(), {obj: adapt, menu: func(fyne.CanvasObject) []*fyne.MenuItem {
-			item := fyne.NewMenuItem(startScreenplayLabel, adapt.OnTapped)
-			item.Icon = adapt.Icon
-			return []*fyne.MenuItem{item}
-		}},
-	}, nil, 0).Container
+	hb.markdownRow = newOverflowRow(tips, hb.rowItems(commands().markdownRow, cmdEnv{markdown: true, browser: inBrowser}, false), nil, 0).Container
 	hb.container = container.NewVBox(top.Container, hb.screenplayRow)
 	return hb
 }
 
+// rowItems are a header row's items for homes: a command with an icon
+// and no text is an icon button with a tooltip (the source pane's stays
+// however narrow the row), one with text a text button, which opens its
+// picker next to it; "elements" and "formatButtons" are the element list
+// and the script format's own buttons. The top row's buttons are kept
+// (tracked) to follow the document's kind (setMarkdown).
+func (hb *HeaderBar) rowItems(homes []home, env cmdEnv, tracked bool) []overflowItem {
+	w := hb.window
+	var items []overflowItem
+	for _, h := range homes {
+		switch {
+		case h.sep:
+			items = append(items, gapItem())
+			continue
+		case h.id == "elements":
+			items = append(items, overflowItem{obj: hb.elementBox, menu: func(fyne.CanvasObject) []*fyne.MenuItem {
+				var items []*fyne.MenuItem
+				for _, el := range toolbarElements {
+					items = append(items, fyne.NewMenuItem(el, w.tapped(cmd(elementCommandID(el)), nil)))
+				}
+				menu := fyne.NewMenuItem("Element", nil)
+				menu.ChildMenu = fyne.NewMenu("", items...)
+				return []*fyne.MenuItem{menu}
+			}})
+			continue
+		case h.id == "formatButtons":
+			items = append(items, overflowItem{obj: hb.formatBox, menu: func(fyne.CanvasObject) []*fyne.MenuItem {
+				var items []*fyne.MenuItem
+				for _, o := range hb.formatBox.Objects {
+					if b, ok := o.(*widget.Button); ok {
+						items = append(items, fyne.NewMenuItem(b.Text, b.OnTapped))
+					}
+				}
+				return items
+			}})
+			continue
+		}
+		c := cmd(h.id)
+		var icon fyne.Resource
+		if c.icon != nil {
+			icon = c.icon()
+		}
+		if c.text == "" { // an icon button
+			b := tooltip.NewButton(icon, c.tipIn(env), nil, w.tooltips)
+			b.OnTapped = w.tapped(c, b)
+			b.Importance = widget.LowImportance
+			if tracked {
+				hb.buttons[c.id] = b
+			}
+			if c.id == "view.source" {
+				items = append(items, keptItem(b))
+			} else {
+				items = append(items, buttonItem(b))
+			}
+			continue
+		}
+		b := widget.NewButtonWithIcon(c.text, icon, nil)
+		b.OnTapped = w.tapped(c, b)
+		b.Importance = widget.LowImportance
+		if c.tip != "" { // its accessible name: the tip, else the label
+			fyne.SetAccessibleLabel(b, c.tipIn(env))
+		} else if c.label != c.text {
+			fyne.SetAccessibleLabel(b, c.label)
+		}
+		if c.id == "write.place" {
+			hb.place = b
+		}
+		label := c.label // in the menu: a picker as its button says, opening by the menu
+		if c.pick != nil {
+			label = c.text
+		}
+		items = append(items, overflowItem{obj: b, menu: func(anchor fyne.CanvasObject) []*fyne.MenuItem {
+			item := fyne.NewMenuItem(label, w.tapped(c, anchor))
+			item.Icon = b.Icon
+			return []*fyne.MenuItem{item}
+		}})
+	}
+	return items
+}
+
+// button is the top row's button of the command with id (nil if none).
+func (hb *HeaderBar) button(id string) *tooltip.Button { return hb.buttons[id] }
+
 // setMarkdown shows the bar for a Markdown document or a screenplay: the
 // editing row, the preview's tip; the export is a screenplay's.
 func (hb *HeaderBar) setMarkdown(on bool) {
-	row, tip, export := hb.screenplayRow, "Preview PDF", "Export to PDF, HTML, FDX…"
+	row := hb.screenplayRow
 	if on {
-		row, tip, export = hb.markdownRow, "Preview", "Export to Word, ODT, HTML, PDF…"
-		hb.cardsButton.Disable()
-		hb.sourceButton.Disable() // a screenplay's
-		hb.productionButton.Disable()
-	} else {
-		hb.cardsButton.Enable()
-		hb.sourceButton.Enable()
-		hb.productionButton.Enable()
+		row = hb.markdownRow
 	}
-	hb.previewButton.Tip = tip + keys("Shift+P")
-	hb.exportButton.Tip = export + keys("E")
+	env := cmdEnv{markdown: on, browser: inBrowser}
+	for id, b := range hb.buttons { // a screenplay's disabled, the tips its own
+		c := cmd(id)
+		if c.applies(env) {
+			b.Enable()
+		} else {
+			b.Disable()
+		}
+		b.Tip = c.tipIn(env)
+	}
 	hb.container.Objects[1] = row
 	hb.container.Refresh()
 }

@@ -339,9 +339,15 @@ func TestCommandsGolden(t *testing.T) {
 	}
 }
 
-// adaptationMoves is golden text with the moves the Adaptation menu made
-// (none yet).
-func adaptationMoves(name, golden string) string { return golden }
+// adaptationMoves is golden text with the changes the registry made: a
+// Markdown document's Format menu no longer ends with a separator (the
+// source group's, its items hidden).
+func adaptationMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-markdown") {
+		return strings.Replace(golden, "  ---\n# View\n", "# View\n", 1)
+	}
+	return golden
+}
 
 // lineDiff shows the lines only in want (-) and only in got (+), in order.
 func lineDiff(want, got string) string {

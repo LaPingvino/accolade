@@ -426,16 +426,16 @@ func TestProductionNarrow(t *testing.T) {
 	if !p.narrow || len(p.inList.Objects) != 2 || len(p.bottom.Objects) != 0 {
 		t.Error("on a phone the buttons are not at the list's end")
 	}
-	if w.headerBar.productionButton.Visible() {
+	if w.headerBar.button("view.production").Visible() {
 		t.Error("the toolbar's Production button stays on a phone's row")
 	}
-	if !w.headerBar.sourceButton.Visible() {
+	if !w.headerBar.button("view.source").Visible() {
 		t.Error("the source button went")
 	}
 	menuItemByLabel(t, w, "Production")
 	w.fyneWindow.Resize(fyne.NewSize(1100, 650))
 	w.fyneWindow.Content().Refresh()
-	if !w.headerBar.productionButton.Visible() {
+	if !w.headerBar.button("view.production").Visible() {
 		t.Error("the toolbar's Production button is not on a wide row")
 	}
 	if p.narrow || len(p.inList.Objects) != 1 || len(p.bottom.Objects) != 1 {
@@ -451,7 +451,7 @@ func TestProductionNarrow(t *testing.T) {
 			}
 		}
 	}
-	if !md.headerBar.productionButton.Disabled() {
+	if !md.headerBar.button("view.production").Disabled() {
 		t.Error("Markdown's toolbar has Production")
 	}
 }
