@@ -339,14 +339,50 @@ func TestCommandsGolden(t *testing.T) {
 	}
 }
 
-// adaptationMoves is golden text with the changes the registry made: a
-// Markdown document's Format menu no longer ends with a separator (the
-// source group's, its items hidden).
+// adaptationMenu is the Adaptation menu as the golden files would have
+// it: the source's items out of File and Format, in a menu of their own.
+const adaptationMenu = `# Adaptation
+  Choose Source…
+  Save Source As…
+  Keep Source in the Script
+  Source Pane
+  ---
+  Link to Source Passage
+  Next Source Passage [Primary+Alt+J]
+  Mark Source Passage as Cut
+  Suggest Links to the Source
+  Update Source Links
+  Source Headings as Sections
+  ---
+  What Accolade Learned…
+`
+
+// adaptationMoves is golden text with the moves the Adaptation menu made,
+// and only those: in a screenplay's menu bar, Choose Source… and Save
+// Source As… leave File, the source's group leaves Format (its separator
+// too), and the Adaptation menu comes before Production; in a Markdown
+// document's, Format loses the separator it ended with (the source's
+// group's, left behind). The shortcuts, header bar and context menu are
+// as they were.
 func adaptationMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-") {
+		return golden
+	}
 	if strings.HasPrefix(name, "menu-markdown") {
 		return strings.Replace(golden, "  ---\n# View\n", "# View\n", 1)
 	}
-	return golden
+	golden = strings.Replace(golden, "  Choose Source…\n", "", 1)
+	golden = strings.Replace(golden, "  Save Source As…\n", "", 1)
+	golden = strings.Replace(golden, `  ---
+  Link to Source Passage
+  Next Source Passage [Primary+Alt+J]
+  Mark Source Passage as Cut
+  Source Headings as Sections
+  Suggest Links to the Source
+  Update Source Links
+  Keep Source in the Script
+`, "", 1)
+	return strings.Replace(golden, "# Production\n", adaptationMenu+"# Production\n", 1)
 }
 
 // lineDiff shows the lines only in want (-) and only in got (+), in order.

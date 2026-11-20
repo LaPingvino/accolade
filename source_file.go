@@ -17,7 +17,7 @@ import (
 // Where a script's source is kept, in layers, looked for in this order:
 //
 //  1. Inside the script: a boneyard block at its end, before the notes,
-//     "/* Source … */" (Format > Keep Source in the Script, off by
+//     "/* Source … */" (Adaptation > Keep Source in the Script, off by
 //     default). Other Fountain apps ignore a boneyard, so one .fountain
 //     file carries the script and its source anywhere.
 //  2. In the bundle, when the script is a TextBundle (.textbundle,
@@ -25,14 +25,14 @@ import (
 //     Accolade's key in info.json names, or a source.md beside the text).
 //     The bundle carries it wherever it goes; Choose Source puts the
 //     source there for such a script, and edits are written into it.
-//  3. A copy Accolade keeps: File > Choose Source… reads a Markdown file
+//  3. A copy Accolade keeps: Adaptation > Choose Source… reads a Markdown file
 //     (or a Word, OpenDocument, web page or text file, through
 //     internal/prose) and keeps it as Markdown in Accolade's own folder,
 //     remembered per script in settings.json ("source-files", as
 //     doctype.go keeps document types). On the desktop the folder is the
 //     app's data folder; in the browser, which has no folder of the
 //     user's (an opened file is an upload), the settings folder, which
-//     the page keeps (web/index.html's memfsPersist). File > Save Source
+//     the page keeps (web/index.html's memfsPersist). Adaptation > Save Source
 //     As… gets it out again.
 //  4. Beside the script, on the desktop: story.md (or .markdown) next to
 //     story.fountain.
@@ -426,7 +426,7 @@ func (w *MainWindow) keepSourceInside(on bool) error {
 			return nil
 		}
 		if r.Origin == sourceNone {
-			return fmt.Errorf("the script has no source yet: File > Choose Source… first")
+			return fmt.Errorf("the script has no source yet: Adaptation > Choose Source… first")
 		}
 		md, err := w.sourceText(r)
 		if err != nil {

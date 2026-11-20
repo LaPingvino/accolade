@@ -388,8 +388,8 @@ func TestNextAllDone(t *testing.T) {
 	w.setDocumentType(true)
 	before := w.textEditor.Text()
 	w.nextSourcePassage()
-	if w.textEditor.Text() != before || slices.Contains(menuLabels(w, "Format"), "Next Source Passage") ||
-		slices.Contains(menuLabels(w, "Format"), "Mark Source Passage as Cut") {
+	if w.textEditor.Text() != before || slices.Contains(menuLabels(w, "Adaptation"), "Next Source Passage") ||
+		slices.Contains(menuLabels(w, "Adaptation"), "Mark Source Passage as Cut") {
 		t.Error("Markdown with Next")
 	}
 }

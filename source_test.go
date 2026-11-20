@@ -256,7 +256,7 @@ func TestSourceBeside(t *testing.T) {
 	// a Markdown document has no source, nor the menu items
 	w.setDocumentType(true)
 	if w.sourceRef().Origin != sourceNone || slices.Contains(menuLabels(w, "View"), "Source") ||
-		slices.Contains(menuLabels(w, "Format"), "Link to Source Passage") || slices.Contains(menuLabels(w, "File"), "Choose Source…") {
+		slices.Contains(menuLabels(w, "Adaptation"), "Link to Source Passage") || slices.Contains(menuLabels(w, "File"), "Choose Source…") {
 		t.Error("a Markdown document with a source")
 	}
 }
@@ -346,8 +346,8 @@ func TestSourceInside(t *testing.T) {
 			t.Errorf("the source printed: %q", l.Text())
 		}
 	}
-	if !slices.ContainsFunc(formatItems(w), func(it string) bool { return it == "Keep Source in the Script ✓" }) {
-		t.Errorf("not checked: %q", formatItems(w))
+	if !slices.ContainsFunc(adaptationItems(w), func(it string) bool { return it == "Keep Source in the Script ✓" }) {
+		t.Errorf("not checked: %q", adaptationItems(w))
 	}
 	// edited: in the block; a */ in it is kept apart
 	s.toggleEdit()
@@ -408,11 +408,11 @@ func TestSourceOrder(t *testing.T) {
 	}
 }
 
-// formatItems are the Format menu's items, a checked one marked.
-func formatItems(w *MainWindow) []string {
+// adaptationItems are the Adaptation menu's items, a checked one marked.
+func adaptationItems(w *MainWindow) []string {
 	var out []string
 	for _, m := range w.fyneWindow.MainMenu().Items {
-		if m.Label == "Format" {
+		if m.Label == "Adaptation" {
 			for _, it := range m.Items {
 				if it.Checked {
 					out = append(out, it.Label+" ✓")

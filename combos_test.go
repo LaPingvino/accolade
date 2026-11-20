@@ -188,7 +188,7 @@ func TestComboNoSource(t *testing.T) {
 		}
 		comboShot(t, w, "none-new")
 
-		// File > Choose Source… for the empty script
+		// Adaptation > Choose Source… for the empty script
 		if err := w.useSource(storyFile(t, "lighthouse.md", comboStory)); err != nil {
 			t.Fatal(err)
 		}

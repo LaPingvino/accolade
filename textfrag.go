@@ -45,7 +45,7 @@ import (
 // matches are kept as for the old form (a few words edited).
 //
 // The old form, [[from: "first words…"]], is read as before (the words a
-// passage opens with); Format > Update Source Links writes the new one.
+// passage opens with); Adaptation > Update Source Links writes the new one.
 
 // textDirective is one text= directive, its parts decoded ("" for none;
 // Start is always there).

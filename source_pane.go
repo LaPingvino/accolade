@@ -26,7 +26,7 @@ import (
 
 // The source pane: the Notes pane's other tab (View > Source), the
 // script's source as prose, one passage under the other. Tapping a
-// passage picks it (for Format > Link to Source Passage) and goes to the
+// passage picks it (for Adaptation > Link to Source Passage) and goes to the
 // scene that links to it, the next one on each tap if several do; the
 // passages the cursor's scene links to are lit, and scrolled to.
 //
@@ -844,7 +844,7 @@ func (s *sourcePane) pick(id int) {
 	s.showReading(true)
 	scenes := s.current().linked(id)
 	if len(scenes) == 0 {
-		s.w.setStatus("Picked; no scene links to it yet: Format > Link to Source Passage puts the link at the cursor")
+		s.w.setStatus("Picked; no scene links to it yet: Adaptation > Link to Source Passage puts the link at the cursor")
 		return
 	}
 	line := scenes[s.cycle%len(scenes)]
@@ -992,7 +992,7 @@ func (w *MainWindow) toggleSource() {
 	s.follow()
 }
 
-// chooseSource is File > Choose Source…: a story to be the script's
+// chooseSource is Adaptation > Choose Source…: a story to be the script's
 // source, kept by Accolade (source_file.go) and remembered for it.
 func (w *MainWindow) chooseSource() {
 	exts := []string{".md", ".markdown", ".txt", ".docx", ".odt", ".html", ".htm", ".xhtml"}
@@ -1056,12 +1056,12 @@ func (w *MainWindow) showSource() {
 	s.follow()
 }
 
-// saveSourceAs is File > Save Source As…: the source, wherever it is
+// saveSourceAs is Adaptation > Save Source As…: the source, wherever it is
 // kept, written out as Markdown (the browser downloads it).
 func (w *MainWindow) saveSourceAs() {
 	r := w.sourceRef()
 	if r.Origin == sourceNone {
-		w.setStatus("No source: File > Choose Source…")
+		w.setStatus("No source: Adaptation > Choose Source…")
 		return
 	}
 	md, err := w.sourceText(r)
@@ -1098,7 +1098,7 @@ func (w *MainWindow) saveSourceAs() {
 	d.Show()
 }
 
-// toggleSourceInside is Format > Keep Source in the Script: the source
+// toggleSourceInside is Adaptation > Keep Source in the Script: the source
 // moved into the script's end as a boneyard block, or out of it again.
 func (w *MainWindow) toggleSourceInside() {
 	in := w.sourceRef().Origin != sourceInside
@@ -1116,7 +1116,7 @@ func (w *MainWindow) toggleSourceInside() {
 	}
 }
 
-// linkToSource is Format > Link to Source Passage: a link to the passage
+// linkToSource is Adaptation > Link to Source Passage: a link to the passage
 // picked in the source pane, at the cursor.
 func (w *MainWindow) linkToSource() {
 	if w.markdown {
@@ -1160,7 +1160,7 @@ func (w *MainWindow) linkToSource() {
 	s.follow()
 }
 
-// sectionsFromSourceHere is Format > Source Headings as Sections: the
+// sectionsFromSourceHere is Adaptation > Source Headings as Sections: the
 // source's headings, those not in the script yet, as its sections.
 func (w *MainWindow) sectionsFromSourceHere() {
 	if w.markdown {
@@ -1169,7 +1169,7 @@ func (w *MainWindow) sectionsFromSourceHere() {
 	s := w.sourcePane()
 	s.load()
 	if s.ref.Origin == sourceNone {
-		w.setStatus("No source: File > Choose Source…")
+		w.setStatus("No source: Adaptation > Choose Source…")
 		return
 	}
 	e := w.textEditor

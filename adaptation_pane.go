@@ -341,7 +341,7 @@ func (s *sourcePane) nextPassage() {
 	}
 	s.load()
 	if s.ref.Origin == sourceNone {
-		w.setStatus("No source: File > Choose Source…")
+		w.setStatus("No source: Adaptation > Choose Source…")
 		return
 	}
 	m := s.current()
@@ -456,7 +456,7 @@ func (w *MainWindow) nextInserts() bool {
 	return w.settings == nil || w.settings.GetBoolean("next-passage-inserts")
 }
 
-// nextSourcePassage is Format > Next Source Passage.
+// nextSourcePassage is Adaptation > Next Source Passage.
 func (w *MainWindow) nextSourcePassage() {
 	if w.markdown {
 		return
@@ -464,7 +464,7 @@ func (w *MainWindow) nextSourcePassage() {
 	w.sourcePane().nextPassage()
 }
 
-// toggleCutHere is Format > Mark Source Passage as Cut: the passage
+// toggleCutHere is Adaptation > Mark Source Passage as Cut: the passage
 // picked in the source pane cut on purpose, or not any more.
 func (w *MainWindow) toggleCutHere() {
 	if w.markdown {

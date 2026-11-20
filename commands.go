@@ -467,8 +467,7 @@ func newRegistry() *registry {
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
-			at("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc"),
-			at("source.choose"), at("file.startScreenplay"), at("source.saveAs"),
+			at("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.saveDraft"), at("file.drafts"),
 			sep(), at("file.share"), at("file.join"),
 			sep(), at("file.titlePage"), at("file.export"), at("file.print"),
@@ -483,9 +482,12 @@ func newRegistry() *registry {
 			at("format.rtl"), at("format.language"), at("format.color"),
 			sep(), at("format.bold"), at("format.italic"), at("format.underline"),
 			sep(), at("format.lineUp"), at("format.lineDown"),
-			sep(), at("source.link"), at("source.next"), at("source.cut"), at("source.sections"),
-			at("source.suggest"), at("source.update"), at("source.keepInside"),
 		)},
+		{title: "Adaptation", when: screenplayOnly, homes: []home{
+			at("source.choose"), at("source.saveAs"), at("source.keepInside"), as("view.source", "Source Pane"),
+			sep(), at("source.link"), at("source.next"), at("source.cut"), at("source.suggest"), at("source.update"), at("source.sections"),
+			sep(), at("source.learned"),
+		}},
 		{title: "Production", when: screenplayOnly, homes: []home{
 			at("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
 			sep(), at("production.omit"), at("production.restore"),

@@ -227,7 +227,7 @@ func BenchmarkMatchFragmentMiss(b *testing.B) {
 	}
 }
 
-// Format > Update Source Links on the bench screenplay.
+// Adaptation > Update Source Links on the bench screenplay.
 func BenchmarkUpdateSourceLinks(b *testing.B) {
 	md, script := benchFixture()
 	lm := newLinkMatcher(passagesOf(md))

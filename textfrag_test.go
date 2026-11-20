@@ -317,7 +317,7 @@ func TestFragmentBlockEntries(t *testing.T) {
 	}
 }
 
-// Format > Update Source Links: old links and entries in the new form,
+// Adaptation > Update Source Links: old links and entries in the new form,
 // for the same passages, one undo step; the ambiguous and missing left.
 func TestUpdateSourceLinks(t *testing.T) {
 	story := "# The Garden\n\nShe opened the door to the garden and the wind came in from the sea.\n\nThe rain kept falling.\n\nIt was late.\n\nThe rain kept falling.\n\n“Who's there?” Anna called, but nobody answered.\n"

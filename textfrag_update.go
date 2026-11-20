@@ -7,7 +7,7 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
-// Format > Update Source Links: the old form's links and block entries
+// Adaptation > Update Source Links: the old form's links and block entries
 // ([[from: "…"]], cut: "…" (2)) written in the new one (textfrag.go), in
 // one undo step. Only what is found is written again, for the passages
 // it found (a near one keeps its words, so it still says the source
@@ -97,7 +97,7 @@ func updateLinksEdits(text string, lm *linkMatcher) (edits []linkEdit, updated, 
 	return edits, updated, left
 }
 
-// updateSourceLinks is Format > Update Source Links.
+// updateSourceLinks is Adaptation > Update Source Links.
 func (w *MainWindow) updateSourceLinks() {
 	if w.markdown {
 		return
@@ -106,7 +106,7 @@ func (w *MainWindow) updateSourceLinks() {
 	s.load()
 	switch {
 	case s.ref.Origin == sourceNone:
-		w.setStatus("No source: File > Choose Source…")
+		w.setStatus("No source: Adaptation > Choose Source…")
 		return
 	case s.loading != nil:
 		w.setStatus("The source is being read: Update Source Links again in a moment")

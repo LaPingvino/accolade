@@ -81,7 +81,7 @@ Chrome, Safari and Firefox), so a link is also an address into the source as a w
   end of one of the next 40 passages; textEnd or the context not found, the start's passage alone. Near links
   say the source changed since they were linked.
 - **The old form,** `[[from: "first words…"]]` (the words a passage opens with), and `"…" (2)` in the block,
-  are read as before. Format > Update Source Links writes every link and block entry that is found in the new
+  are read as before. Adaptation > Update Source Links writes every link and block entry that is found in the new
   form, for the same passages, in one undo step; a near one keeps its words (so it still says the source
   changed); ambiguous and missing ones, and those the new form cannot tell apart, stay as they were.
 - **Exports:** the source exported or printed as a web page (Export, Print) is the page the fragments are

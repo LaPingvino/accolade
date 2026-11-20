@@ -287,7 +287,7 @@ func (s *sourcePane) offerSuggestions(auto bool) {
 	s.load()
 	if s.ref.Origin == sourceNone || len(s.passages) == 0 {
 		if !auto {
-			s.w.setStatus("No source: File > Choose Source…")
+			s.w.setStatus("No source: Adaptation > Choose Source…")
 		}
 		return
 	}
@@ -453,7 +453,7 @@ func (s *sourcePane) offerStart(m *sourceModel) {
 	s.offerSuggestions(true)
 }
 
-// suggestSourceLinks is Format > Suggest Links to the Source.
+// suggestSourceLinks is Adaptation > Suggest Links to the Source.
 func (w *MainWindow) suggestSourceLinks() {
 	if w.markdown {
 		return
