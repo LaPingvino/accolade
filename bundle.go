@@ -76,9 +76,16 @@ type accoladeInfo struct {
 	DocumentType string `json:"documentType,omitempty"`
 	// Source is the bundle's entry holding the script's source.
 	Source string `json:"source,omitempty"`
+	// Drafts is the drafts' index (drafts.go), when there are drafts.
+	Drafts string `json:"drafts,omitempty"`
+	// HighlandWarned: Save as .highland has said once that Highland may
+	// drop Accolade's files (flatten.go).
+	HighlandWarned bool `json:"highlandWarned,omitempty"`
 }
 
-func (a accoladeInfo) empty() bool { return a.DocumentType == "" && a.Source == "" }
+func (a accoladeInfo) empty() bool {
+	return a.DocumentType == "" && a.Source == "" && a.Drafts == "" && !a.HighlandWarned
+}
 
 // textBundle is a bundle as read: where it is and what it holds besides
 // the text.
@@ -97,8 +104,9 @@ type textBundle struct {
 	info     []byte // info.json as it is, nil for none
 	natural  bool   // Markdown, as the text file's name and "type" say
 	ours     accoladeInfo
-	source   string // the source's entry, "" for none
-	srcText  []byte // and what it holds
+	source   string   // the source's entry, "" for none
+	srcText  []byte   // and what it holds
+	extras   []string // Accolade's extras in it (extras.go), sorted
 }
 
 // markdown tells whether the bundle's document is Markdown.
@@ -239,12 +247,16 @@ func parseZipBundle(p string, data []byte) (*textBundle, []byte, error) {
 			b.prefix = cands[0] + "/"
 		}
 	}
-	var root []string
+	var root, all []string
 	for name := range files {
-		if rel, ok := strings.CutPrefix(name, b.prefix); ok && !strings.Contains(rel, "/") {
-			root = append(root, rel)
+		if rel, ok := strings.CutPrefix(name, b.prefix); ok {
+			all = append(all, rel)
+			if !strings.Contains(rel, "/") {
+				root = append(root, rel)
+			}
 		}
 	}
+	b.extras = extraNames(all)
 	read := func(rel string) ([]byte, error) {
 		f := files[b.prefix+rel]
 		if f == nil {
@@ -272,7 +284,7 @@ func readFolderBundle(dir string) (*textBundle, []byte, error) {
 			root = append(root, e.Name())
 		}
 	}
-	b := &textBundle{path: dir}
+	b := &textBundle{path: dir, extras: folderExtras(dir)}
 	return b.fill(dir, root, func(rel string) ([]byte, error) {
 		return os.ReadFile(filepath.Join(dir, filepath.FromSlash(rel)))
 	})
@@ -370,16 +382,32 @@ func newBundleInfo(markdown bool) []byte {
 `)
 }
 
-// saveBundleText writes the bundle (b; nil for a new one) to dst with text
-// as its text; markdown is the document's type, kept in Accolade's key if
-// the bundle would say otherwise. The bundle as written is returned.
-func saveBundleText(b *textBundle, dst string, text []byte, markdown bool) (*textBundle, error) {
+// bundleSave is what saveBundleText writes.
+type bundleSave struct {
+	text     []byte
+	markdown bool // the document's type
+	// extra are Accolade's files carried in (a plain script's drafts,
+	// saved as a bundle), added to or replacing the bundle's
+	extra []bundleFile
+	// highlandWarned marks the Highland warning given (flatten.go)
+	highlandWarned bool
+}
+
+// saveBundleText writes the bundle (b; nil for a new one) to dst with s's
+// text as its text; the document's type is kept in Accolade's key if the
+// bundle would say otherwise. The bundle as written is returned.
+func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error) {
 	if b == nil {
 		textName := "text.fountain"
-		if markdown {
+		if s.markdown {
 			textName = "text.md"
 		}
-		files := []bundleFile{{"info.json", newBundleInfo(markdown)}, {textName, text}, {"assets/", nil}}
+		info := newBundleInfo(s.markdown)
+		if ours := (accoladeInfo{Version: 1, HighlandWarned: s.highlandWarned, Drafts: draftsIndexIn(s.extra)}); !ours.empty() {
+			val, _ := json.Marshal(ours)
+			info, _ = setInfoValue(info, accoladeInfoKey, val)
+		}
+		files := append([]bundleFile{{"info.json", info}, {textName, s.text}, {"assets/", nil}}, s.extra...)
 		return writeBundle(nil, dst, files)
 	}
 	if sameFile(dst, b.path) {
@@ -387,14 +415,28 @@ func saveBundleText(b *textBundle, dst string, text []byte, markdown bool) (*tex
 	}
 	ours := b.ours
 	ours.DocumentType = ""
-	if markdown != b.natural {
-		ours.DocumentType = map[bool]string{true: "markdown", false: "screenplay"}[markdown]
+	if s.markdown != b.natural {
+		ours.DocumentType = map[bool]string{true: "markdown", false: "screenplay"}[s.markdown]
 	}
-	files := []bundleFile{{b.textName, text}}
+	ours.HighlandWarned = ours.HighlandWarned || s.highlandWarned
+	ours.Drafts = cmp.Or(draftsIndexIn(s.extra), ours.Drafts)
+	files := append([]bundleFile{{b.textName, s.text}}, s.extra...)
 	if info, changed := b.infoWith(ours); changed {
 		files = append(files, bundleFile{b.infoName(), info})
 	}
 	return writeBundle(b, dst, files)
+}
+
+// saveBundleFiles writes files into the bundle, in place, the text as it
+// is in the bundle (Save Draft).
+func saveBundleFiles(b *textBundle, files []bundleFile) (*textBundle, error) {
+	b = b.fresh()
+	ours := b.ours
+	ours.Drafts = cmp.Or(draftsIndexIn(files), ours.Drafts)
+	if info, changed := b.infoWith(ours); changed {
+		files = append(slices.Clone(files), bundleFile{b.infoName(), info})
+	}
+	return writeBundle(b, b.path, files)
 }
 
 // saveBundleSource writes md as the bundle's source, in place, the text

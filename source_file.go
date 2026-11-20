@@ -232,6 +232,7 @@ func (w *MainWindow) rememberSource(script, source string) {
 // when another document takes the window's place (New, an import): it
 // was that script's, not the next one's.
 func (w *MainWindow) forgetUnsavedSource() {
+	w.forgetUnsavedExtras() // and its drafts (extras.go)
 	if old := w.unsavedSource; old != "" {
 		w.unsavedSource = ""
 		w.dropKeptCopy(old)

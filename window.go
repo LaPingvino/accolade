@@ -94,6 +94,10 @@ type MainWindow struct {
 	paneSplit      *container.Split // the script over the panes, while narrow
 	paneTaller     *tooltip.Button  // makes them taller, or half again
 	unsavedSource  string           // the source chosen for a script not saved yet (source.go)
+	unsavedExtras  string           // the kept extras of a script not saved yet (extras.go)
+	// flattenTo is where a bundle's extras go when it is saved as a plain
+	// file, as asked (flatten.go); then back to the kept copy
+	flattenTo flattenChoice
 	// markdown: the document is Markdown, not a screenplay (markdown.go)
 	markdown       bool
 	previewPane    *previewPanel // a Markdown document's preview
@@ -387,6 +391,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	}
 	w.plainBundle = plain
 	w.setBundle(bundle)
+	w.forgetUnsavedExtras()
 
 	// as stored: Windows-1252, a byte order mark, CR LF are kept for saving
 	text, format := decodeScript(content)
@@ -644,12 +649,19 @@ func (w *MainWindow) writeScript(filePath string, data []byte) error {
 			return fmt.Errorf("a .textbundle is a folder, which the browser cannot save: use .textpack")
 		}
 		markdown, gen := w.markdown, w.bundleGen
+		var extra []bundleFile
+		if w.bundle == nil { // a plain script made a bundle: its extras carried in
+			var err error
+			if extra, err = w.extrasHome().all(); err != nil {
+				return fmt.Errorf("could not read the drafts to carry in: %v", err)
+			}
+		}
 		w.plainBundle = ""
 		// in the background (bundle_queue.go): an error makes the script
 		// unsaved again
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {
-				return saveBundleText(b, filePath, data, markdown)
+				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra})
 			},
 			done: func(err error) {
 				if err != nil && w.bundleGen == gen {
@@ -664,13 +676,18 @@ func (w *MainWindow) writeScript(filePath string, data []byte) error {
 	if err := writeFileAtomic(filePath, data); err != nil {
 		return err
 	}
-	if w.bundle != nil {
+	if b := w.bundle; b != nil {
 		entry, src := w.bundleSource()
+		how := w.flattenTo
+		w.flattenTo = flattenKept
 		w.setBundle(nil)
 		if entry != "" && w.chosenSource(filePath) == "" {
 			if kept, err := keepSourceCopy(w.sourceName(sourceRef{}), string(src)); err == nil {
 				w.rememberSource(filePath, kept)
 			}
+		}
+		if err := w.placeFlattened(b, filePath, how); err != nil {
+			return fmt.Errorf("the script is saved, but its drafts could not be kept: %v", err)
 		}
 	}
 	if bundleKindOf(filePath) != notBundle {

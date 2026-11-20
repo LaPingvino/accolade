@@ -119,6 +119,7 @@ func decisiveExtension(name string) bool {
 // none).
 func (w *MainWindow) typeAfterRename(oldPath, oldName, newPath, newName string) {
 	w.sourceAfterRename(oldPath, newPath) // and its source with it (source.go)
+	w.extrasAfterRename(oldPath, newPath) // and its drafts (extras.go)
 	if oldPath != "" && absPath(oldPath) != absPath(newPath) {
 		w.rememberType(oldPath, isMarkdownFile(oldPath)) // forgotten
 	}
