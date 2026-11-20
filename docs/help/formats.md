@@ -20,6 +20,8 @@ A script's language sets the words a scene heading starts with: EN. and EKST. in
 
 A language of your own goes along in an .accolade, so the script reads the same on a machine without it (see [Settings that travel with an .accolade](#settings-that-travel-with-an-accolade)); a plain .fountain or another app's bundle does not take it along.
 
+Each line runs the way its own letters say — Hebrew or Arabic right to left, Latin left to right — so a script that mixes them stays mixed; Format > Right to Left Line turns one line with a mark. Only a line with no letters of either kind (`…`, `2.`, a bare number) takes the script language's direction, from Lexington's `[Directions]` (`he = "rtl"`; Arabic and Hebrew are right to left unless changed, every other language left to right, and a language of your own can set it).
+
 A Markdown document has no script language. Edit > Script Language… changes the language: a plain file's name follows (`film.eo.fountain`), a bundle is saved with the new one inside.
 
 ## Markdown documents
