@@ -65,7 +65,8 @@ Chrome, Safari and Firefox), so a link is also an address into the source as a w
   its layers (the file beside the script, the bundle's entry, the file chosen, story.md for one kept in the
   script), its extension aside (story.html, the source exported, is it too). One source for now: a link naming
   another is read against it, and the pane says so. Accolade writes no file part.
-- **Written readable:** the passage's own characters (the browser compares the text), only `,` `-` `&` `%`
+- **Written readable:** the passage's own characters as its page shows them (the browser compares the text: no
+  link targets, list marks or footnote marks; prose.Doc.Shown), only `,` `-` `&` `%`
   percent-encoded as the grammar needs, and `[` `]` so the note's `]]` stays its own; spaces stay spaces. Read
   both encoded and plain: `%20` or a space, a `-` inside a word taken as text (the spec rejects it), spaces
   around the parts aside, an `&` not followed by `text=` or another `name=` part of the text before it. A

@@ -327,7 +327,15 @@ func escapeStart(s string) string {
 
 // Plain is the document as plain text: headings, paragraphs and list
 // items with a blank line between, quotes indented, footnotes at the end.
-func (d *Doc) Plain() string {
+func (d *Doc) Plain() string { return d.text(false) }
+
+// Shown is the text a web page of the document shows, block by block
+// with a blank line between (as a browser finds text, in one block):
+// Plain without what the page does not show as text (a link's target,
+// a list's marks, footnotes and their marks), a table's cells apart.
+func (d *Doc) Shown() string { return d.text(true) }
+
+func (d *Doc) text(shown bool) string {
 	var notes [][]*Block
 	text := func(spans []Span) string {
 		var t strings.Builder
@@ -335,12 +343,13 @@ func (d *Doc) Plain() string {
 			switch {
 			case s.Break:
 				t.WriteString("\n")
+			case s.Note != nil && shown:
 			case s.Note != nil:
 				notes = append(notes, s.Note)
 				fmt.Fprintf(&t, "[%d]", len(notes))
 			default:
 				t.WriteString(collapse(s.Text))
-				if s.Link != "" && s.Link != s.Text {
+				if s.Link != "" && s.Link != s.Text && !shown {
 					t.WriteString(" (" + s.Link + ")")
 				}
 			}
@@ -368,6 +377,9 @@ func (d *Doc) Plain() string {
 					if bl.Ordered {
 						mark = strconv.Itoa(max(bl.Start, 1)+i) + ". "
 					}
+					if shown {
+						mark = ""
+					}
 					var sub strings.Builder
 					walk(&sub, it.Children, "")
 					item := strings.TrimSpace(sub.String())
@@ -382,6 +394,10 @@ func (d *Doc) Plain() string {
 					var cells []string
 					for _, c := range row {
 						cells = append(cells, text(c))
+					}
+					if shown {
+						b.WriteString(strings.Join(cells, "\n\n") + "\n\n")
+						continue
 					}
 					b.WriteString(indent + strings.Join(cells, "\t") + "\n")
 				}

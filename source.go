@@ -34,6 +34,7 @@ type passage struct {
 	Level    int        // a heading's
 	Markdown string     // as shown
 	Plain    string     // its text, without formatting
+	Shown    string     // its text as its web page shows it, block by block (prose.Doc.Shown; Plain's if the same)
 	Words    []string   // Plain's words, normalised (normWords)
 }
 
@@ -47,10 +48,17 @@ func passagesOf(src string) []passage {
 	add := func(kind prose.Kind, level int, shown, text []*prose.Block) {
 		md := strings.TrimSpace((&prose.Doc{Blocks: shown}).Markdown())
 		plain := strings.TrimSpace((&prose.Doc{Blocks: text}).Plain())
-		if kind == prose.Rule {
-			md, plain = "* * *", ""
+		vis := plain
+		if showsOtherwise(text) {
+			vis = strings.TrimSpace((&prose.Doc{Blocks: text}).Shown())
 		}
-		out = append(out, passage{Index: len(out), Kind: kind, Level: level, Markdown: md, Plain: plain, Words: normWords(plain)})
+		if kind == prose.Rule {
+			md, plain, vis = "* * *", "", ""
+		}
+		if vis == plain {
+			vis = plain // the same string
+		}
+		out = append(out, passage{Index: len(out), Kind: kind, Level: level, Markdown: md, Plain: plain, Shown: vis, Words: normWords(plain)})
 	}
 	for _, b := range doc.Blocks {
 		switch b.Kind {
@@ -68,6 +76,22 @@ func passagesOf(src string) []passage {
 		}
 	}
 	return out
+}
+
+// showsOtherwise reports whether blocks' page shows other text than
+// their Plain: a link's target, a footnote, a list or a table in them.
+func showsOtherwise(bs []*prose.Block) bool {
+	for _, b := range bs {
+		if b.Kind == prose.List || b.Kind == prose.Table || showsOtherwise(b.Children) {
+			return true
+		}
+		for _, sp := range b.Spans {
+			if sp.Note != nil || (sp.Link != "" && sp.Link != sp.Text) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // normWords is text's words as links compare them: in lower case, with
@@ -118,7 +142,7 @@ func parseLinks(text string) []sourceLink {
 	text = text[:notes]
 	var links []sourceLink
 	var refs []linkRef // room for each note's
-	off := 0 // in runes, of the line
+	off := 0           // in runes, of the line
 	inBoneyard := false
 	for i, line := range strings.Split(text, "\n") {
 		t := strings.TrimSpace(line)

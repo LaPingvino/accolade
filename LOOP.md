@@ -252,7 +252,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   short passage is all start, a longer one its first 8 words and last 4 (a quote's or list item's first and last
   block: a term is one block in a browser). prefix-/-suffix only when more words do not tell it apart, replacing
   "(n)" (twins with twin neighbours: ambiguous; Mark as Cut/Skip then write the old `"…" (2)`). Written readable
-  (only , - & % [ ] encoded, the source's own characters), read encoded or plain (a dash inside a word, a stray
+  (only , - & % [ ] encoded, the source's own characters as the page shows them: prose.Doc.Shown, no link
+  targets or list marks; matched on those words too), read encoded or plain (a dash inside a word, a stray
   &). Matching is the spec's on the passages (terms within one passage as whole normalised words, prefix right
   before, suffix right after, the first end after the start; a word index per source, built on the first new-form
   link), but ambiguous where a browser takes the first, and near kept (start as before, end near one of the next 40
@@ -268,4 +269,5 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (vs 19: the word index once per source read), a missed link 0.05-0.6 ms (old near link 0.76 ms). Not done: the
   script's own HTML export has no hyperlinks (Lexington drops notes); the pane links one passage (no range
   selection). Rough: accents count in matching (the spec ignores them); "fits N passages: quote more of it" says
-  nothing of prefix-.
+  nothing of prefix-; a footnote's mark (the page's number right after the word) and an image's description are
+  not in the shown text, so a link's words around them miss in a browser.

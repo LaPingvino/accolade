@@ -373,6 +373,7 @@ func TestUpdateSourceLinks(t *testing.T) {
 func TestFragmentOpensInExportedSource(t *testing.T) {
 	src := sourceStory + "\n\nShort.\n\nIt was “late”, and well-known.\n\nShort.\n\n- a list item, of its own\n- Short.\n\n> Short.\n\n" +
 		"> Dear Anna, I hope this finds you well and the garden too.\n>\n> I am writing to say the house is sold, and the rain came in at last.\n\n" +
+		"She *opened* the [door](http://example.com) to `the` garden, **and** walked on into the night air.\n\n" +
 		"- a loose item with words enough to have an end\n\n  and a second paragraph of it, which ends here\n- nested: the outer words\n  - the inner item, with an end of its own\n"
 	page, err := markdownHTML(src, "Story")
 	if err != nil {
@@ -398,12 +399,12 @@ func TestFragmentOpensInExportedSource(t *testing.T) {
 			t.Errorf("passage %d %q: %+v not found on the page", i, p.Plain, d)
 			continue
 		}
-		plain := collapse(strings.Join(slices.Concat(blockFields(p.Plain)...), " "))
+		plain := collapse(strings.Join(slices.Concat(blockFields(p.shown())...), " "))
 		if !strings.Contains(plain, collapse(blocks[b])) || !strings.Contains(plain, collapse(blocks[e])) ||
-			(len(blockFields(p.Plain)) == 1 && b != e) {
+			(len(blockFields(p.shown())) == 1 && b != e) {
 			t.Errorf("passage %d %q: %+v opens blocks %d..%d %q", i, p.Plain, d, b, e, blocks[b:e+1])
 		}
-		if len(blockFields(p.Plain)) > 1 {
+		if len(blockFields(p.shown())) > 1 {
 			multi++
 		}
 		if d.Prefix != "" || d.Suffix != "" {

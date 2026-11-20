@@ -347,6 +347,7 @@ type wordAt struct{ p, w int32 }
 // fragIndex is the source's words, for the new form: where each one is
 // (in order), and each passage's neighbours with words.
 type fragIndex struct {
+	words      [][]string // each passage's words as its page shows them (Words, mostly)
 	at         map[string][]wordAt
 	prev, next []int // the passage before / after with words (-1: none)
 }
@@ -359,12 +360,16 @@ func (lm *linkMatcher) index() *fragIndex {
 }
 
 func (lm *linkMatcher) makeIndex() {
-	fi := &fragIndex{at: map[string][]wordAt{}, prev: make([]int, len(lm.ps)), next: make([]int, len(lm.ps))}
+	fi := &fragIndex{words: make([][]string, len(lm.ps)), at: map[string][]wordAt{}, prev: make([]int, len(lm.ps)), next: make([]int, len(lm.ps))}
 	last := -1
 	for i, p := range lm.ps {
 		fi.prev[i] = last
+		fi.words[i] = p.Words
+		if p.Shown != p.Plain { // a link's target, a footnote: not on the page
+			fi.words[i] = normWords(p.Shown)
+		}
 		if p.linkable() {
-			for w, word := range p.Words {
+			for w, word := range fi.words[i] {
 				fi.at[word] = append(fi.at[word], wordAt{int32(i), int32(w)})
 			}
 			last = i
@@ -392,13 +397,13 @@ func (lm *linkMatcher) prefixOK(p, w int, pre []string) bool {
 		return true
 	}
 	if w >= len(pre) {
-		return runAt(lm.ps[p].Words, w-len(pre), pre)
+		return runAt(lm.fi.words[p], w-len(pre), pre)
 	}
 	if w > 0 {
 		return false
 	}
 	q := lm.fi.prev[p]
-	return q >= 0 && runAt(lm.ps[q].Words, len(lm.ps[q].Words)-len(pre), pre)
+	return q >= 0 && runAt(lm.fi.words[q], len(lm.fi.words[q])-len(pre), pre)
 }
 
 // suffixOK: suf begins at word e of passage p (or, at its end, the next
@@ -407,12 +412,12 @@ func (lm *linkMatcher) suffixOK(p, e int, suf []string) bool {
 	if len(suf) == 0 {
 		return true
 	}
-	ws := lm.ps[p].Words
+	ws := lm.fi.words[p]
 	if e < len(ws) {
 		return runAt(ws, e, suf)
 	}
 	q := lm.fi.next[p]
-	return q >= 0 && runAt(lm.ps[q].Words, 0, suf)
+	return q >= 0 && runAt(lm.fi.words[q], 0, suf)
 }
 
 // findEnd is the passage of the first end at or after word e of passage
@@ -424,7 +429,7 @@ func (lm *linkMatcher) findEnd(p, e int, end, suf []string) int {
 		return int(a.p) > p || (int(a.p) == p && int(a.w) >= e)
 	})
 	for _, a := range list[k:] {
-		if runAt(lm.ps[a.p].Words, int(a.w), end) && lm.suffixOK(int(a.p), int(a.w)+len(end), suf) {
+		if runAt(lm.fi.words[a.p], int(a.w), end) && lm.suffixOK(int(a.p), int(a.w)+len(end), suf) {
 			return int(a.p)
 		}
 	}
@@ -449,7 +454,7 @@ func (lm *linkMatcher) nearEnd(p int, end []string) int {
 		if !lm.ps[q].linkable() {
 			continue
 		}
-		ws := slices.Clone(lm.ps[q].Words)
+		ws := slices.Clone(lm.fi.words[q])
 		slices.Reverse(ws)
 		if d := prefixDistanceIn(rev, ws, limit, &lm.row); d < best {
 			best, at = d, q
@@ -468,7 +473,7 @@ func (lm *linkMatcher) findDir(d normDir) linkMatch {
 	}
 	lm.index()
 	var exact []span
-	var loose []wordAt // textStart found, its context or end not: the first in each passage
+	var loose []wordAt     // textStart found, its context or end not: the first in each passage
 	add := func(sp span) { // (in order: the same one comes in a row)
 		if n := len(exact); n == 0 || exact[n-1] != sp {
 			exact = append(exact, sp)
@@ -477,7 +482,7 @@ func (lm *linkMatcher) findDir(d normDir) linkMatch {
 	endMissed := false // no end after a start: none after a later one either
 	for _, a := range lm.fi.at[d.start[0]] {
 		p, w := int(a.p), int(a.w)
-		if !runAt(lm.ps[p].Words, w, d.start) {
+		if !runAt(lm.fi.words[p], w, d.start) {
 			continue
 		}
 		e := w + len(d.start)
@@ -616,7 +621,7 @@ const (
 // it apart; the directive then has both.
 func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 	ps := lm.ps
-	bi, bj := blockFields(ps[i].Plain), blockFields(ps[j].Plain)
+	bi, bj := blockFields(ps[i].shown()), blockFields(ps[j].shown())
 	if len(bi) == 0 || len(bj) == 0 {
 		return textDirective{Start: ps[i].Plain}, false
 	}
@@ -679,12 +684,12 @@ func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 	base := short
 	var before, after []string
 	if q := lm.index().prev[i]; q >= 0 {
-		if b := blockFields(ps[q].Plain); len(b) > 0 {
+		if b := blockFields(ps[q].shown()); len(b) > 0 {
 			before = b[len(b)-1]
 		}
 	}
 	if q := lm.fi.next[j]; q >= 0 {
-		if b := blockFields(ps[q].Plain); len(b) > 0 {
+		if b := blockFields(ps[q].shown()); len(b) > 0 {
 			after = b[0]
 		}
 	}
@@ -722,6 +727,14 @@ func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 		d.Suffix = ""
 	}
 	return d, ok(d)
+}
+
+// shown is the passage's text as its page shows it (Plain if not set).
+func (p passage) shown() string {
+	if p.Shown == "" {
+		return p.Plain
+	}
+	return p.Shown
 }
 
 // listMark is a list item's or a quote's mark, as a passage's Plain has
