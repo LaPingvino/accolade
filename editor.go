@@ -18,9 +18,16 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	e := editor.New("")
 	e.Syntax = true
 	e.OnEnter = func() bool { return completeLine(w, e) }
-	tab := completer{starts: w.sceneStarts}
+	tab := &completer{starts: w.sceneStarts}
+	if w != nil {
+		tab.first = func(cursor int) ([]string, []string) { return w.suggester().firsts(cursor) }
+		w.complete = tab
+	}
 	e.OnTab = func() bool {
 		if w != nil && w.cycleHere() {
+			return true
+		}
+		if w != nil && !w.markdown && w.suggester().tab() { // from the source (suggest.go)
 			return true
 		}
 		return (w == nil || !w.markdown) && tab.tab(e) // names and headings: a screenplay's
@@ -77,7 +84,13 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	if w != nil {
 		w.vim = vi
 	}
-	e.OnKey = vi.key
+	e.OnKey = func(k *fyne.KeyEvent) bool {
+		// Esc puts a suggestion away; vim's insert mode ends too
+		if k.Name == fyne.KeyEscape && w != nil && w.suggest != nil && w.suggest.dismiss() && !vi.active() {
+			return true
+		}
+		return vi.key(k)
+	}
 	e.OnShortcut = func(s fyne.Shortcut) bool {
 		if w != nil && w.menuShortcut(s) {
 			return true

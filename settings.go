@@ -71,6 +71,8 @@ func (s *Settings) loadDefaults() {
 		// Adapting (adaptation.go): Next Source Passage starts a scene
 		// for the passage, or only shows it and offers to
 		"next-passage-inserts": true,
+		// suggestions from the source while writing (suggest.go)
+		"suggest-from-source": true,
 	}
 
 	for key, value := range defaults {

@@ -169,3 +169,24 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   stale question is dropped when the source changes. background_real_test.go flaked (main 1 in 30, this branch 3 in
   30: a source list refreshed by a background result while a measuring timer set its heights, side by side under
   the test driver); timers' and background results' functions now take turns (background.go uiTurn): 0 in 40.
+- 2026-11-20: step 6, suggestions while writing (branch suggest, not merged; suggest.go). From the passages linked in
+  the cursor's scene (else the one Next showed), in the status bar as Tab's hint ("Tab: TOM’s line: “Out. Is there
+  tea?” · from the source · 1 of 2"); Tab takes it (one undo step), Tab again the next, round; Esc puts it away for
+  that line until the text changes; typing on, the next comes from where the cursor is. A cue at the end of its line
+  (or the empty line under it, or under its parenthetical): that character's next line not in the scene, the manner
+  as a parenthetical, then the lines no one is named for. A cue being typed: the passages' speakers first (mapped to
+  the script's cue when its words are the name's or part of it: ANNA K for Anna; no dots, MRS BENNET), then the
+  script's own. An empty line: the next piece not in the scene, a line with its cue (CHARACTER, selected, when no one
+  is named), or the narration as action as written ("not seen on screen" for thoughts); a blank line put before or
+  after where needed. A heading being typed: storyread's INT./EXT. PLACE - TIME for the scene's passage (links below
+  it, Next's, else the first to do after the last link above), the setting read first; none without a place. Used: a
+  piece's normalised words in a row in the scene (one or two words: a whole line), notes and boneyard left out.
+  storyread marks the sentence that says who speaks as a Tag piece ("said Tom, shaking his coat."), left out; a
+  line's pieces are joined with a full stop where the narration between ended a sentence. Preferences > Script >
+  Adapting "Suggest from the source while writing" (default on). The source is read for them with the pane hidden
+  too (again a second after typing). Cost: read once per source (in the background from 64 KB); per revision and
+  line the scene's lines only. The hint on the bench script: 1.5 ms on, 0.7 ms off (the old completion hint), the
+  text's copy apart. Rough: no grey text after the cursor (the editor has no ghost text; the status bar is small and
+  grey); a line edited after it was taken is offered again; speakers storyread misses come as CHARACTER; a tag with
+  action in it ("shaking his coat") loses that action; the cue's cycle and the name completions' cycle are separate
+  (after completing a name, Enter then Tab gives the line).

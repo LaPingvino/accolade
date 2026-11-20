@@ -78,8 +78,9 @@ type Line struct {
 type Piece struct {
 	Speech     bool
 	Text       string
-	Start, End int // bytes
-	Line       int // the line it is part of (Speech), else -1
+	Start, End int  // bytes
+	Line       int  // the line it is part of (Speech), else -1
+	Tag        bool // narration that only says who speaks a line: "said Tom,"
 }
 
 // Flag is a sentence of narration that a camera cannot see: a thought,
@@ -154,6 +155,7 @@ type para struct {
 	segs     []segment
 	dash     bool
 	mentions []mention
+	tags     map[int][2]int // a narration segment's start: the bytes of its sentence that says who speaks
 }
 
 // mention is a name in a passage: tokens [from, to).
@@ -782,6 +784,11 @@ func (r *reader) attribute(p *para, s int, taken map[int]bool) (sp speaker, used
 			}
 			if v := r.verbIn(p, from, end); v >= 0 {
 				if sp, ok := r.near(p, v); ok {
+					tagEnd := p.segs[s+1].end
+					if end < to {
+						tagEnd = p.toks[end].start
+					}
+					p.tag(s+1, p.segs[s+1].start, tagEnd)
 					return sp, s + 1, true
 				}
 			}
@@ -802,12 +809,44 @@ func (r *reader) attribute(p *para, s int, taken map[int]bool) (sp speaker, used
 			}
 			if v := r.verbIn(p, start, to); v >= 0 {
 				if sp, ok := r.near(p, v); ok {
+					p.tag(s-1, p.toks[start].start, p.segs[s-1].end)
 					return sp, s - 1, true
 				}
 			}
 		}
 	}
 	return speaker{}, -1, false
+}
+
+// tag notes the bytes [from, to) of narration segment s as the sentence
+// that says who speaks.
+func (p *para) tag(s, from, to int) {
+	if p.tags == nil {
+		p.tags = map[int][2]int{}
+	}
+	p.tags[p.segs[s].start] = [2]int{from, to}
+}
+
+// splitTags parts the narration pieces at the sentences that say who
+// speaks, those marked as tags.
+func splitTags(p *para, pieces []Piece) []Piece {
+	if len(p.tags) == 0 {
+		return pieces
+	}
+	var out []Piece
+	for _, pc := range pieces {
+		t, ok := p.tags[pc.Start]
+		if pc.Speech || !ok {
+			out = append(out, pc)
+			continue
+		}
+		for _, part := range [][3]int{{pc.Start, t[0], 0}, {t[0], t[1], 1}, {t[1], pc.End, 0}} {
+			if text := strings.TrimSpace(p.Text[part[0]:part[1]]); text != "" {
+				out = append(out, Piece{Text: text, Start: part[0], End: part[1], Line: -1, Tag: part[2] == 1})
+			}
+		}
+	}
+	return out
 }
 
 // dialogue finds a passage's lines and who says them.
@@ -864,6 +903,7 @@ func (r *reader) dialogue(i int, p *para, out *PassageReading) {
 			out.Pieces = append(out.Pieces, pc)
 		}
 	}
+	out.Pieces = splitTags(p, out.Pieces)
 	if len(out.Lines) == 0 {
 		r.narrationTurn(i, p)
 		return

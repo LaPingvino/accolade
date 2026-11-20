@@ -25,6 +25,13 @@ type completion struct {
 // completeAt finds the completions for the cursor in text, if it is at
 // the end of a line that begins a character name or a scene heading.
 func completeAt(text string, cursor int, starts []string) *completion {
+	return completeFirst(text, cursor, starts, nil, nil)
+}
+
+// completeFirst is completeAt with names and headings that go first,
+// in their order, when they fit what was typed (the source's speakers,
+// the heading it reads; suggest.go), the script's need not have them.
+func completeFirst(text string, cursor int, starts []string, firstNames, firstHeads []string) *completion {
 	runes := []rune(text)
 	if cursor > len(runes) {
 		return nil
@@ -54,14 +61,26 @@ func completeAt(text string, cursor int, starts []string) *completion {
 	}
 	pool := map[string]int{}
 	upper := strings.ToUpper(typed)
+	var first []string
 	if len([]rune(typed)) >= 2 {
 		for h, n := range sceneHeadings(text, starts) {
 			pool[h] = n
 		}
+		first = append(first, firstHeads...)
 	}
 	if typed == upper && hasLetter(typed) && !strings.ContainsAny(typed, ".!?:") {
 		for name, n := range characterNames(text) {
 			pool[name] += n
+		}
+		first = append(first, firstNames...)
+	}
+	rank := map[string]int{}
+	for i, f := range first {
+		if _, ok := rank[f]; !ok {
+			rank[f] = len(first) - i
+			if _, ok := pool[f]; !ok {
+				pool[f] = 0
+			}
 		}
 	}
 	c := &completion{start: start, end: end, prefix: typed}
@@ -75,6 +94,9 @@ func completeAt(text string, cursor int, starts []string) *completion {
 	}
 	sort.Slice(c.candidates, func(i, j int) bool {
 		a, b := c.candidates[i], c.candidates[j]
+		if rank[a] != rank[b] {
+			return rank[a] > rank[b]
+		}
 		if pool[a] != pool[b] {
 			return pool[a] > pool[b]
 		}
@@ -125,6 +147,9 @@ func sceneHeadings(text string, starts []string) map[string]int {
 // and which candidate is on the line.
 type completer struct {
 	starts func() []string // the script's scene heading starts (nil: English)
+	// first are the names and headings to offer first at the cursor
+	// (the source's; nil: none)
+	first func(cursor int) (names, heads []string)
 
 	c     *completion
 	index int
@@ -144,11 +169,14 @@ func (k *completer) tab(e *editor.ScriptEditor) bool {
 			return true
 		}
 	}
-	var starts []string
+	var starts, names, heads []string
 	if k.starts != nil {
 		starts = k.starts()
 	}
-	c := completeAt(text, cursor, starts)
+	if k.first != nil {
+		names, heads = k.first(cursor)
+	}
+	c := completeFirst(text, cursor, starts, names, heads)
 	if c == nil {
 		k.c = nil
 		return false
@@ -156,6 +184,36 @@ func (k *completer) tab(e *editor.ScriptEditor) bool {
 	k.c, k.index = c, 0
 	k.replace(e, c.prefix, c.candidates[0])
 	return true
+}
+
+// active reports whether Tab is going through completions: the line is
+// the one Tab put there, unchanged since.
+func (k *completer) active(e *editor.ScriptEditor) bool {
+	if k == nil || k.c == nil {
+		return false
+	}
+	cur := k.c.candidates[k.index]
+	cursor := e.CursorOffset()
+	b := e.Buffer()
+	end := k.c.start + len([]rune(cur))
+	return end == cursor && cursor <= b.Len() && b.Slice(k.c.start, cursor) == cur && !b.HasSelection()
+}
+
+// cycleHint is what Tab gives next while going through completions.
+func (k *completer) cycleHint() string {
+	n := len(k.c.candidates)
+	if n < 2 {
+		return ""
+	}
+	var next []string
+	for i := 1; i < n && i <= 4; i++ {
+		next = append(next, k.c.candidates[(k.index+i)%n])
+	}
+	h := "Tab: " + strings.Join(next, " · ")
+	if n-1 > len(next) {
+		h += " …"
+	}
+	return h
 }
 
 func (k *completer) replace(e *editor.ScriptEditor, from, to string) {
@@ -168,7 +226,12 @@ func (k *completer) replace(e *editor.ScriptEditor, from, to string) {
 
 // hint is what the status bar shows for the cursor's completions.
 func completionHint(text string, cursor int, starts []string) string {
-	c := completeAt(text, cursor, starts)
+	return completionHintWith(text, cursor, starts, nil, nil)
+}
+
+// completionHintWith is completionHint with names and headings first.
+func completionHintWith(text string, cursor int, starts, names, heads []string) string {
+	c := completeFirst(text, cursor, starts, names, heads)
 	if c == nil {
 		return ""
 	}

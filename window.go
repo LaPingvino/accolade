@@ -121,6 +121,8 @@ type MainWindow struct {
 	autoSaveTimer *uiTimer
 	timers        uiTimers // the window's (background.go)
 	followTimer   *uiTimer // the source pane's follow, after typing
+	suggest       *suggester // suggestions from the source while writing (suggest.go)
+	complete      *completer // Tab's completions of names and headings (complete.go)
 	seenRev       uint64   // the text's revision the cursor was last seen in
 	importGen     int      // the import under way (a later one wins)
 	bundleSrc     struct { // the bundle's source, decoded (sourceText)
@@ -1028,15 +1030,9 @@ func (w *MainWindow) onCursorChanged() {
 	if w.notes != nil {
 		w.followSource() // the scene's passages
 	}
-	// what Tab would complete, or nothing once it no longer applies
-	if w.markdown {
-		return
-	}
-	if h := completionHint(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()); h != "" {
-		w.setStatus(h)
-	} else if w.statusLabel != nil && strings.HasPrefix(w.statusLabel.Text, "Tab: ") {
-		w.setStatus("")
-	}
+	// what Tab would complete or take from the source, or nothing once
+	// it no longer applies
+	w.showSuggestionHint()
 }
 
 func (w *MainWindow) updateCurrentElement() {
