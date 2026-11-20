@@ -60,7 +60,7 @@ type savedDraft struct {
 
 // draftsIndex is drafts.json.
 type draftsIndex struct {
-	Version int     `json:"version"`
+	Version int          `json:"version"`
 	Drafts  []savedDraft `json:"drafts"`
 }
 
@@ -225,6 +225,8 @@ func (w *MainWindow) addDraft(name string, skipSame bool, done func(d savedDraft
 	if w.bundle != nil {
 		var d savedDraft
 		var ok bool
+		p := w.bundle.path
+		warn := w.warnsHighland(p, []bundleFile{{draftsIndexName, nil}})
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {
 				if b == nil {
@@ -234,13 +236,18 @@ func (w *MainWindow) addDraft(name string, skipSame bool, done func(d savedDraft
 				if err != nil || !ok0 {
 					return b, err
 				}
-				nb, err := saveBundleFiles(b, files)
+				nb, err := saveBundleFiles(b, files, warn)
 				if err == nil {
 					d, ok = d0, true
 				}
 				return nb, err
 			},
-			done: func(err error) { finish(d, ok, err) },
+			done: func(err error) {
+				if err == nil && ok && warn {
+					w.highlandWarning(p)
+				}
+				finish(d, ok, err)
+			},
 		})
 		return
 	}

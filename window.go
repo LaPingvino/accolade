@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -97,7 +96,9 @@ type MainWindow struct {
 	unsavedExtras  string           // the kept extras of a script not saved yet (extras.go)
 	// flattenTo is where a bundle's extras go when it is saved as a plain
 	// file, as asked (flatten.go); then back to the kept copy
-	flattenTo flattenChoice
+	flattenTo      flattenChoice
+	flattenAsked   *flattenAsk     // the question last asked (saveas.go)
+	highlandWarned map[string]bool // the files the Highland warning was given for
 	// markdown: the document is Markdown, not a screenplay (markdown.go)
 	markdown       bool
 	previewPane    *previewPanel // a Markdown document's preview
@@ -561,64 +562,23 @@ func (w *MainWindow) SaveFile() error {
 }
 
 func (w *MainWindow) SaveFileAs() error {
-	if inBrowser { // the browser asks where, for the download
-		name := w.suggestedName
-		if w.currentFile != "" {
-			name = filepath.Base(w.currentFile)
-		}
-		if name == "" {
-			name = w.untitledName()
-		}
-		p := filepath.Join("/files", name)
-		if err := os.MkdirAll("/files", 0o755); err != nil {
-			return err
-		}
-		if err := w.saveToFile(p); err != nil {
-			return err
-		}
-		w.afterBundleWrites(func() { offerDownload(p) })
-		w.typeAfterRename(w.currentFile, cmp.Or(w.currentFile, name), p, p)
-		w.currentFile, w.suggestedName = p, ""
-		w.updateTitle()
+	if inBrowser { // the browser asks for a name, for the download
+		w.askBrowserName()
 		return nil
 	}
 	fileDialog := dialog.NewFileSave(func(closer fyne.URIWriteCloser, err error) {
 		if err != nil || closer == nil {
 			return
 		}
-
 		filePath := closer.URI().Path()
 		// written as Save does, safely: not through the dialog's file,
 		// which truncates first
 		closer.Close()
-		if err := w.saveToFile(filePath); err != nil {
-			dialog.ShowError(fmt.Errorf("failed to save file: %v", err), w.fyneWindow)
-			return
-		}
-
-		oldPath, oldName := w.currentFile, cmp.Or(w.currentFile, w.suggestedName, w.untitledName())
-		w.currentFile = filePath
-		w.suggestedName = ""
-		w.rememberRecent(filePath)
-		w.typeAfterRename(oldPath, oldName, filePath, filePath)
-		if l := languageOf(filePath); l != "" {
-			w.setLanguage(l)
-		}
-		w.hasChanges = false
-		w.updateTitle()
-
-		dialog.ShowInformation("File Saved", fmt.Sprintf("File saved to %s", filepath.Base(filePath)), w.fyneWindow)
+		w.saveAs(filePath)
 	}, w.fyneWindow)
-
-	// Set default filename
-	if w.currentFile != "" {
-		fileDialog.SetFileName(filepath.Base(w.currentFile))
-	} else if w.suggestedName != "" {
-		fileDialog.SetFileName(w.suggestedName)
-	} else {
-		fileDialog.SetFileName(w.untitledName())
-	}
-
+	// the file's name, or one for it; .accolade once it has production
+	// data (saveas.go)
+	fileDialog.SetFileName(w.offeredName())
 	fileDialog.Show()
 	return nil
 }
@@ -656,14 +616,18 @@ func (w *MainWindow) writeScript(filePath string, data []byte) error {
 				return fmt.Errorf("could not read the drafts to carry in: %v", err)
 			}
 		}
+		warn := w.warnsHighland(filePath, extra)
 		w.plainBundle = ""
 		// in the background (bundle_queue.go): an error makes the script
 		// unsaved again
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {
-				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra})
+				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra, highlandWarned: warn})
 			},
 			done: func(err error) {
+				if err == nil && warn {
+					w.highlandWarning(filePath)
+				}
 				if err != nil && w.bundleGen == gen {
 					w.saveFailed(filePath, err)
 				} else if err != nil {

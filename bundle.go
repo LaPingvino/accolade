@@ -428,11 +428,12 @@ func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error
 }
 
 // saveBundleFiles writes files into the bundle, in place, the text as it
-// is in the bundle (Save Draft).
-func saveBundleFiles(b *textBundle, files []bundleFile) (*textBundle, error) {
+// is in the bundle (Save Draft); highlandWarned as bundleSave's.
+func saveBundleFiles(b *textBundle, files []bundleFile, highlandWarned bool) (*textBundle, error) {
 	b = b.fresh()
 	ours := b.ours
 	ours.Drafts = cmp.Or(draftsIndexIn(files), ours.Drafts)
+	ours.HighlandWarned = ours.HighlandWarned || highlandWarned
 	if info, changed := b.infoWith(ours); changed {
 		files = append(slices.Clone(files), bundleFile{b.infoName(), info})
 	}
