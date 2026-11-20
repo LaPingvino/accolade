@@ -312,7 +312,7 @@ func readCommandsGolden(t *testing.T, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return onThisSystem(string(b))
+	return onThisSystem(strings.ReplaceAll(string(b), "\r\n", "\n")) // a Windows checkout may give CRLF
 }
 
 // TestCommandsGolden: the menus, shortcuts, header bar and context menu
