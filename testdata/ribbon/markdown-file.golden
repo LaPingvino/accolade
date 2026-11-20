@@ -15,7 +15,7 @@ tabs: [File] Write Edit Adaptation Collaboration View
   S Save As icon=foreground_document-save.svg name=Save As… (Ctrl+Shift+S)
   S Rename icon=foreground_document-create.svg name=Rename…
   S Undo Rename icon=foreground_content-undo.svg (disabled) name=Undo Rename
-## Out
+## Output
   L Export icon=foreground_download.svg name=Export… (Ctrl+E)
   L Print icon=foreground_document-print.svg name=Print… (Ctrl+P)
 ## Adapt

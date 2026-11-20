@@ -2,10 +2,10 @@ tabs: File [Write] Edit Adaptation Collaboration View
 ## Heading
   L Heading icon=foreground_heading.svg name=Heading…
 ## Emphasis
-  S Bold icon=foreground_bold.svg name=Bold (Ctrl+B)
-  S Italic icon=foreground_italic.svg name=Italic (Ctrl+I)
-  S Strike icon=foreground_strikethrough.svg name=Strikethrough
-  S Code icon=foreground_code.svg name=Inline Code
+  T Bold icon=foreground_bold.svg name=Bold (Ctrl+B)
+  T Italic icon=foreground_italic.svg name=Italic (Ctrl+I)
+  T Strike icon=foreground_strikethrough.svg name=Strikethrough
+  T Code icon=foreground_code.svg name=Inline Code
   S Right to Left icon=foreground_rtl.svg name=Right to Left Line
 ## Insert
   L Link icon=foreground_link.svg name=Link… (Ctrl+L)

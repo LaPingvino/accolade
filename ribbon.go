@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -366,10 +367,18 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 	}
 	var cols []fyne.CanvasObject
 	var smalls []fyne.CanvasObject
+	var row []fyne.CanvasObject // compact buttons, side by side
+	flushRow := func() {
+		if len(row) > 0 {
+			smalls = append(smalls, container.New(layout.NewCustomPaddedHBoxLayout(2), row...))
+			row = nil
+		}
+	}
 	flush := func() {
+		flushRow()
 		for len(smalls) > 0 {
 			n := min(3, len(smalls))
-			cols = append(cols, container.NewVBox(smalls[:n]...))
+			cols = append(cols, container.New(ribbonRows{}, smalls[:n]...))
 			smalls = smalls[n:]
 		}
 	}
@@ -412,7 +421,7 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 			for _, fb := range r.w.lex().formatButtons(r.w.scriptFormatKey()) {
 				fb := fb
 				b := newRibbonButton(r, nil, false)
-				b.label, b.icon = fb.Label, theme.ContentAddIcon()
+				b.label, b.icon = fb.Label, insertBlockIcon
 				b.onTap = func() {
 					r.w.textEditor.Edit(func(b *buffer.Buffer) { insertButton(b, fb) })
 					r.w.fyneWindow.Canvas().Focus(r.w.textEditor)
@@ -427,15 +436,20 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 			continue
 		}
 		b := newRibbonButton(r, c, h.large)
+		b.compact = h.compact
 		if h.label != "" { // this place's own (Source Pane)
 			b.label, b.homeLabel = h.label, h.label
 			b.name = h.label + c.keysTip()
 		}
 		r.add(b)
-		if h.large || r.phone {
+		switch {
+		case h.large || r.phone:
 			flush()
 			cols = append(cols, b)
-		} else {
+		case h.compact:
+			row = append(row, b)
+		default:
+			flushRow()
 			addSmall(b)
 		}
 	}
@@ -444,6 +458,32 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 		return nil
 	}
 	return container.NewHBox(cols...)
+}
+
+// ribbonRows lays a column of small buttons out in the group's three
+// rows, each row a third of the height, each button centred in its row:
+// the rows line up across columns and groups, whatever is in them (the
+// script format's list is taller than a button).
+type ribbonRows struct{}
+
+func (ribbonRows) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	var w float32
+	for _, o := range objects {
+		w = max(w, o.MinSize().Width)
+	}
+	return fyne.NewSize(w, 3*ribbonSmallHeight+2*theme.Padding())
+}
+
+func (ribbonRows) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	row := size.Height / 3
+	for i, o := range objects {
+		h := min(max(o.MinSize().Height, ribbonSmallHeight), row)
+		if _, ok := o.(*widget.Select); ok {
+			h = row - 2 // as tall as the row lets it
+		}
+		o.Move(fyne.NewPos(0, float32(i)*row+(row-h)/2))
+		o.Resize(fyne.NewSize(size.Width, h))
+	}
 }
 
 // add keeps b among the groups' buttons.
@@ -965,6 +1005,7 @@ type ribbonButton struct {
 	// homeLabel is its place's own label, if any (Source Pane)
 	homeLabel string
 	iconOnly  bool // no label on a phone (the palette's: the tabs have the row)
+	compact   bool // an icon alone, always (B I U)
 	large     bool
 	onTap     func()
 
@@ -1186,7 +1227,7 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 	objects = append(objects, badge.bg, badge.text)
 	r := &ribbonRenderer{objects: objects}
 	texts := func() []string {
-		if b.iconOnly && b.r.phone || b == b.r.menus {
+		if b.iconOnly && b.r.phone || b == b.r.menus || b.compact {
 			return nil // the palette's on a phone's tab row; ☰ always
 		}
 		if b.large || b.r.phone {
@@ -1222,6 +1263,12 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 			th += s.Height
 		}
 		is := iconSize()
+		if b.compact {
+			if b.r.phone {
+				return fyne.NewSquareSize(ribbonPhoneHeight)
+			}
+			return fyne.NewSquareSize(ribbonSmallHeight)
+		}
 		if b.large || b.r.phone {
 			w := max(tw, is) + 2*pad + 4
 			h := is + th + 3*pad
@@ -1230,17 +1277,23 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 			}
 			return fyne.NewSize(max(w, 52), max(h, 3*ribbonSmallHeight))
 		}
-		return fyne.NewSize(is+tw+3*pad+4, ribbonSmallHeight)
+		return fyne.NewSize(is+tw+3*pad+2, ribbonSmallHeight)
 	}
 	r.layout = func(size fyne.Size) {
 		bg.Resize(size)
 		is := iconSize()
 		ts := textSize()
 		ls := texts()
-		if b.large || b.r.phone {
-			var th float32
-			for _, l := range ls {
-				th += fyne.MeasureText(l, ts, fyne.TextStyle{}).Height
+		if b.compact {
+			img.Move(fyne.NewPos((size.Width-is)/2, (size.Height-is)/2))
+			img.Resize(fyne.NewSize(is, is))
+		} else if b.large || b.r.phone {
+			// the icon and the first line at the same height in every
+			// large button, one line or two: laid out as for two
+			lh := fyne.MeasureText("Mg", ts, fyne.TextStyle{}).Height
+			th := lh * float32(max(len(ls), 1))
+			if !b.r.phone {
+				th = 2 * lh
 			}
 			top := (size.Height - is - th - pad) / 2
 			img.Move(fyne.NewPos((size.Width-is)/2, top))
@@ -1254,11 +1307,11 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 				}
 			}
 		} else {
-			img.Move(fyne.NewPos(pad+2, (size.Height-is)/2))
+			img.Move(fyne.NewPos(pad, (size.Height-is)/2))
 			img.Resize(fyne.NewSize(is, is))
 			if len(ls) > 0 {
 				s := fyne.MeasureText(ls[0], ts, fyne.TextStyle{})
-				lines[0].Move(fyne.NewPos(pad*2+2+is, (size.Height-s.Height)/2))
+				lines[0].Move(fyne.NewPos(pad*2+is, (size.Height-s.Height)/2))
 			}
 		}
 		ms := mark.MinSize()

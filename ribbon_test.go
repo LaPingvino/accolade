@@ -35,7 +35,7 @@ func ribbonOnFor(t *testing.T, w *MainWindow) *ribbonBar {
 }
 
 // dumpRibbon is the ribbon as it shows: the tabs, the one chosen, and
-// its groups' buttons (L: large), greyed or checked.
+// its groups' buttons (L: large, T: an icon alone), greyed or checked.
 func dumpRibbon(r *ribbonBar) string {
 	var b strings.Builder
 	var tabs []string
@@ -61,6 +61,9 @@ func dumpRibbon(r *ribbonBar) string {
 				size := "S"
 				if x.large {
 					size = "L"
+				}
+				if x.compact {
+					size = "T" // an icon alone in a row of them
 				}
 				line := fmt.Sprintf("  %s %s", size, x.label)
 				if x.mark != "" {
@@ -709,4 +712,61 @@ func TestRibbonShortLabels(t *testing.T) {
 	if w.tooltips.Text() != "" {
 		t.Error("the tooltip stayed")
 	}
+}
+
+// At 1000 px every tab fits without scrolling: both roles, a screenplay
+// in every built-in format and a Markdown document, each Production
+// stage.
+func TestRibbonFitsDesktop(t *testing.T) {
+	holdUI(t)
+	w := suggestWindow(t, suggestScript)
+	r := ribbonOnFor(t, w)
+	w.fyneWindow.Resize(fyne.NewSize(1000, 700))
+	w.fyneWindow.Canvas().Capture()
+	const room = 1000 - 2*4 // the window's padding
+	check := func(what string) {
+		t.Helper()
+		got := r.groupBox.MinSize().Width
+		if testing.Verbose() {
+			t.Logf("%-40s %4.0f", what, got)
+		}
+		if got > room {
+			t.Errorf("%s: %v wide, more than %v", what, got, room)
+		}
+	}
+	defer w.settings.SetString("script-format", "default")
+	for _, role := range []string{roleProduction, roleWriter} {
+		w.workAs(role)
+		for _, md := range []bool{false, true} {
+			w.setDocumentType(md)
+			for _, tab := range r.shownTabs() {
+				r.selectTab(tab.title)
+				what := fmt.Sprintf("%s md=%v %s", role, md, tab.title)
+				switch {
+				case tab.title == "Write" && !md:
+					for _, f := range scriptFormatKeys() {
+						w.settings.SetString("script-format", f)
+						r.refresh()
+						check(what + " " + f)
+					}
+					w.settings.SetString("script-format", "default")
+					r.refresh()
+				case tab.title == "Production":
+					if !w.notes.production.shown() {
+						w.toggleProduction()
+					}
+					for s := stageLock; s <= stageSchedule; s++ {
+						w.notes.production.pick(s)
+						r.refresh()
+						check(fmt.Sprintf("%s stage %d", what, s))
+					}
+					w.toggleProduction()
+				default:
+					check(what)
+				}
+			}
+		}
+	}
+	w.workAs(roleProduction)
+	w.setDocumentType(false)
 }
