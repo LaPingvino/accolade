@@ -331,7 +331,7 @@ export.
 | `revisions.json` | the sets: name, colour, page colour, mark, date, issued or open; FDX `<Revision>`'s fields | JSON (own, after FDX and OSF) |
 | ~~`pages.json`~~ | locked pages: built in the production block instead (§11), for every kind of file | — |
 | `breakdown.json` | categories of one's own, the elements (by category name), each tag's scene and words as a Text Fragment directive, the scenes marked done (built: §13) | JSON (own; FDX/OSF categories) |
-| `schedule.json` | shoot days, strips in order, day breaks, banners, units | JSON (own) |
+| `schedule.json` | shoot days (date, call, notes), strips in order (built: §14; banners and units later) | JSON (own) |
 | `cast.vcf`, `crew.vcf` | contacts, with the role or department | vCard |
 | `shots.otio` | shot list per scene, with boards as media references | OpenTimelineIO |
 | `boards/` | images | PNG/JPEG |
@@ -473,7 +473,7 @@ The **Production pane** (View > Production, a tab beside Notes and Source) shows
 
    Done marks it done. **Built: §13.**
 4. **Schedule.** "18 of 87 scenes on a day · 3 days". The stripboard, with the unscheduled strips at the end and
-   Next Day.
+   Next Day. **Built: §14** (Add Day for Next Day).
 5. **Day pack.** Per day: sides, call sheet and .ics, as one export. FDX or CSV goes out to an office using other
    software.
 
@@ -979,7 +979,8 @@ Branch prodpane (Accolade only; production_pane.go, production_checks.go).
 the end of its list, so the list has the half screen (fixed under it, they left one row). Not in Markdown (menu item,
 button, tab). The Production menu stays as it was; the pane is the guided way to the same actions.
 
-**The strip.** `1 Lock` and `2 Revise` are buttons (since step 7 `3 Break down` too, §13); under them, greyed, "4
+**The strip.** `1 Lock` and `2 Revise` are buttons (since step 7 `3 Break down` too, §13; since step 8 `4 Schedule`
+on a row of its own, §14); under them, greyed, "4
 Schedule · 5 Day pack: coming". The stage shown stands out; the script's own stage, when another is looked at, is the plain button; Lock
 gets a tick once issued. Either stage can be looked at again (§6: "each stage can be returned to"); the pane goes
 back to the script's stage when it changes (White issued).
@@ -1225,7 +1226,7 @@ say nothing:
   strips in their colours with scene, I/E, set, D/N, pages, cast numbers and synopsis, then the black day break
   "End of Day 1 — 4 6/8 pages").
 - Day Out of Days: `Report.DOOD`, `Report.DOODTable`, `report.WriteDOODPDF` (landscape, a column a day, as many pages
-  across as the days need, the totals on each, a legend). The codes are Movie Magic Scheduling's
+  across as the days need and down as the cast needs, the totals on each, a legend). The codes are Movie Magic Scheduling's
   (https://mms-docs.ep.com/DayOutofDays/DOODRules.html): SW the first day worked ("almost always shown as SW"), W, WF
   the last, SWF the only one, and H every day between the first and last not worked (MMS's "Allow Hold Days" on: "all
   non-working days for that Element between their first and last working day are marked as H"). Who: every cast
@@ -1271,7 +1272,8 @@ of its last change. A file that cannot be read is never written over.
   the latest of its lines' marks newer than the strip's, from all issues' marks whatever the margin shows (so Pink's
   issue does not hide a Blue change), else the open set's, else "Changed since scheduled". **Checked** takes the flag
   away. A change before the strip was scheduled flags nothing.
-- `pool` is how the unscheduled are grouped (`location`, `cast`, or script order).
+- `pool` is how the unscheduled are grouped (`location`, `cast`, or script order): set by Group … by Location / by
+  Cast with no strip on a day selected, back to script order by a tap on the unscheduled's head.
 
 **The stripboard** (stripboard.go; Production > Stripboard, the stage's Open Stripboard). In the editor's place, as
 the cards are, and dragged as they are (`dragged` now takes any `dropBoard`). The days one under the other: each its
@@ -1285,7 +1287,8 @@ before), length, cast numbers; the flag under it in red.
 - Without a drag (phones, keyboard): a tap or Tab selects a strip (outlined; focused: a thicker outline), Up/Down
   select the next, Enter opens the scene. **Move Up / Move Down** (Alt+Up / Alt+Down) move it over its neighbour,
   across a day break into the day before or after; the pool's first strip up goes to the last day's end, the last
-  day's last strip down back to the pool. **Move to…** picks a day or Unscheduled. **Unschedule**, **Open Scene**,
+  day's last strip down back to the pool (Alt+Up/Down are Edit > Move Line Up/Down's keys, which give them to a strip
+  that has the focus). **Move to…** picks a day or Unscheduled. **Unschedule**, **Open Scene**,
   **Checked**.
 - **Add Day** (dated the day after the last dated day), **Group Day 2 by Location / by Cast** (the selected strip's
   day, or the unscheduled): one click, once, never by itself. By location: in order of each location's first strip,
@@ -1306,7 +1309,8 @@ it).
 
 **Tests** (schedule_test.go, production_pane_real_test.go): the strip colours; order, moves over day breaks and to and
 from the pool, Move to, Undo, a day removed, the day totals and the break's text; grouping; the anchors (above);
-two strips of one scene; the revision flags through White, Blue, Pink and an open Yellow, and Checked; the file in the
+two strips of one scene; the bundle (and the file read again after an issue); the pool's grouping undone, a silent
+cast member tagged showing on the strip, Alt+Up through the menu; the revision flags through White, Blue, Pink and an open Yellow, and Checked; the file in the
 kept copy, read again, never written over when unreadable, the next day's date; the one-liner and DOOD as the Reports
 dialog makes them against golden CSVs (testdata/schedule/), the .ics; the stage's counts, rows and buttons, the menu
 items; the keys (Up/Down, Alt+Up); drops on a strip's halves and the pool's head; the phone's layout (the board and the
@@ -1320,6 +1324,9 @@ schedule-dood.pdf, schedule-oneliner.pdf).
   minimum gap setting); no banners or units in the board yet; one-liner and DOOD list the cast only (not other
   elements).
 - The board shows every strip as a widget: a script of several hundred scenes builds them all at once.
+- Drag or scroll is decided by the window's width, not by touch: a tablet or a phone held sideways (600 px and more)
+  drags strips and cannot scroll the board by dragging over them (the scroll bar, or a narrower window).
+- On a phone the actions take the board's top third; they could go to the list's end, as the pane's do.
 - The pages are the current layout's (as the reports'), not a locked script's labels.
 - A drag on the desktop is checked by drop positions in the tests, not by a pointer; on a phone the board is moved with
   the buttons only.

@@ -676,3 +676,71 @@ func TestScheduleScreenshots(t *testing.T) {
 	lexreport.WriteOneLinerPDF(&b, "The Shed", rep, w.schedule.breakdown, w.lexScheduleFor(&rep), lexreport.StripOptions{}, "")
 	os.WriteFile(filepath.Join(dir, "schedule-oneliner.pdf"), b.Bytes(), 0o644)
 }
+
+// In an .accolade the schedule is in the bundle, and read again after an
+// issue (which reads the extras again).
+func TestScheduleInBundle(t *testing.T) {
+	w := draftsWindow(t)
+	p := filepath.Join(t.TempDir(), "Script.accolade")
+	os.WriteFile(p, makeZip(t, bundleItems("Script.textbundle/")), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	sb := board(t, w)
+	w.addShootDay()
+	sb.selectScene(0, false)
+	sb.moveSelected(0, 0)
+	b, _, err := readBundle(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if data, err := b.readExtra(scheduleName); err != nil || !strings.Contains(string(data), `"heading": "int kitchen day"`) {
+		t.Errorf("in the bundle: %v %s", err, data)
+	}
+	w.toggleStripboard()
+	issueNow(t, w, "White", time.Date(2026, 11, 1, 0, 0, 0, 0, time.Local))
+	if got := days(w); len(got) != 1 || got[0] != "kitchen" {
+		t.Errorf("after the issue: %v", got)
+	}
+}
+
+// Grouping the unscheduled is undone by a tap on their head; a silent
+// cast member tagged shows on the strip; the menu's Alt+Up/Down keys
+// move a strip with the focus.
+func TestStripboardPoolCastKeys(t *testing.T) {
+	w, _ := scriptWindow(t, schedScript)
+	sb := board(t, w)
+	sb.group("location")
+	if w.scheduleNow().Pool != "location" || sb.pool[0] != 0 || sb.pool[1] != 3 || sb.pool[2] != 1 { // the gardens together, day first
+		t.Errorf("pool %v", sb.pool)
+	}
+	var head *tapLabel
+	for _, o := range sb.list.Objects {
+		if l, ok := o.(*tapLabel); ok && strings.Contains(l.Text, "tap for script order") {
+			head = l
+		}
+	}
+	if head == nil {
+		t.Fatal("no head to tap")
+	}
+	head.onTap()
+	if w.scheduleNow().Pool != "" || sb.pool[1] != 1 || sb.pool[2] != 2 {
+		t.Errorf("script order: %v", sb.pool)
+	}
+	w.toggleStripboard()
+	tagNow(t, w, "Spiders", 0, "Cast Members")
+	sb = board(t, w)
+	if st := w.stripOfScene(2); st == nil || len(st.Cast) != 1 || !strings.HasSuffix(st.Cast[0], "SPIDERS") {
+		t.Errorf("the shed's cast %v", st)
+	}
+	w.addShootDay()
+	sb.selectScene(0, false)
+	sb.moveSelected(0, 0)
+	sb.selectScene(1, false)
+	sb.moveSelected(0, 1)
+	w.fyneWindow.Canvas().Focus(sb.strips[1])
+	menuItemByLabel(t, w, "Move Line Up").Action()
+	if got := days(w)[0]; got != "garden,kitchen" {
+		t.Errorf("Alt+Up through the menu: %q", got)
+	}
+}

@@ -250,9 +250,12 @@ func (sb *stripboardView) rebuild(f *scheduleFile, bt *bdText, p schedPlaced) {
 		sb.list.Add(br)
 		sb.targets = append(sb.targets, stripTarget{obj: br, day: d, at: len(scenes)})
 	}
-	poolHead := caption("Unscheduled · " + plural(len(sb.pool), "scene"))
-	if f.Pool != "" {
-		poolHead.SetText(poolHead.Text + " · grouped by " + f.Pool)
+	var poolHead fyne.CanvasObject = caption("Unscheduled · " + plural(len(sb.pool), "scene"))
+	if f.Pool != "" { // grouped once: a tap puts it back in script order
+		head := newTapLabel("Unscheduled · "+plural(len(sb.pool), "scene")+" · grouped by "+f.Pool+
+			" (tap for script order)", sb.poolInScriptOrder)
+		head.TextStyle.Bold = true
+		poolHead = head
 	}
 	sb.list.Add(poolHead)
 	sb.targets = append(sb.targets, stripTarget{obj: poolHead, day: -1})
@@ -470,6 +473,14 @@ func (sb *stripboardView) group(by string) {
 		what = fmt.Sprintf("Day %d", day+1)
 	}
 	w.setStatus(fmt.Sprintf("Grouped %s by %s (Undo takes it back)", what, by))
+}
+
+// poolInScriptOrder lists the unscheduled in script order again.
+func (sb *stripboardView) poolInScriptOrder() {
+	sb.w.changeSchedule(func(f *scheduleFile, _ *bdText, _ schedPlaced) bool {
+		f.Pool = ""
+		return true
+	})
 }
 
 // checkSelected takes the selected strip's change flag away.
@@ -791,17 +802,35 @@ func (s *stripWidget) TypedKey(e *fyne.KeyEvent) {
 	}
 }
 
-// TypedShortcut: Alt+Up and Alt+Down move the strip.
+// TypedShortcut: Alt+Up and Alt+Down move the strip (where no menu has
+// the keys: on a desktop Edit > Move Line Up/Down has them, and gives
+// them to a strip with the focus, orStrip).
 func (s *stripWidget) TypedShortcut(sc fyne.Shortcut) {
 	if c, ok := sc.(*desktop.CustomShortcut); ok && c.Modifier == fyne.KeyModifierAlt {
 		switch c.KeyName {
 		case fyne.KeyUp:
-			s.sb.selectScene(s.sc, false)
-			s.sb.shift(-1)
+			s.moveBy(-1)
 		case fyne.KeyDown:
-			s.sb.selectScene(s.sc, false)
-			s.sb.shift(1)
+			s.moveBy(1)
 		}
+	}
+}
+
+// moveBy moves the strip up (-1) or down (+1).
+func (s *stripWidget) moveBy(dir int) {
+	s.sb.selectScene(s.sc, false)
+	s.sb.shift(dir)
+}
+
+// orStrip is a menu action whose keys move a strip that has the focus
+// (Alt+Up / Alt+Down), else f.
+func (w *MainWindow) orStrip(dir int, f func()) func() {
+	return func() {
+		if s, ok := w.fyneWindow.Canvas().Focused().(*stripWidget); ok {
+			s.moveBy(dir)
+			return
+		}
+		f()
 	}
 }
 

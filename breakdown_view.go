@@ -175,6 +175,7 @@ func (w *MainWindow) saveBreakdown() {
 	}
 	w.breakdown.key = w.breakdownKey() // a kept copy made for it: the same breakdown
 	w.breakdown.bt = nil
+	w.schedule.measuredFor = "" // the strips' cast measured again (a silent one tagged)
 	w.updateBreakdown()
 	w.productionFollow()
 }
