@@ -10,9 +10,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
 ## Rules
 
 - **Never cd:** use `git -C` and `go -C`.
-- **Tests:** `go test ./...` must pass before each commit (commit only inside an `if` on success). The race suite
-  (`go test -race -timeout 40m -skip TestFocusIsVisible .`, ~5 min) runs once, just before merging to main, not
-  during work (Joop 2026-11-20); agents run only targeted `-race -run …` tests when fixing a race.
+- **Tests:** `go test ./...` must pass before each commit and before merging (commit only inside an `if` on
+  success), plus the wasm build. The race suite runs in CI on every push (.github/workflows/ci.yml), not locally
+  (Joop 2026-11-20: "those tests take long"); after a push, check the CI run (`gh run list -R LaPingvino/accolade`)
+  and fix a red one first. Agents run only targeted `-race -run …` tests when fixing a race.
 - **Pushing to main** redeploys the public browser version (pages.yml), so main must always work in the browser too.
   Anything that needs the desktop (pandoc, `exec`) has a browser fallback, or is left out there with a clear message.
 - **Lexington:** changes it needs go into `~/Projects/lexington` first and are tagged there. Accolade then updates
