@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 )
@@ -35,16 +36,26 @@ func invisibleFocus(c fyne.Canvas) []string {
 		if !ok {
 			continue
 		}
-		focused := c.Capture()
-		c.Unfocus()
-		unfocused := c.Capture()
-		c.Focus(f)
-		r := area(o).Intersect(focused.Bounds())
+		// A focus change reaches the widget's look through Fyne's refresh queue,
+		// which under load (CI's race run) can lag a capture: try again a few
+		// times before calling the focus invisible.
+		var focused, unfocused image.Image
 		changed := 0
-		for y := r.Min.Y; y < r.Max.Y; y++ {
-			for x := r.Min.X; x < r.Max.X; x++ {
-				if focused.At(x, y) != unfocused.At(x, y) {
-					changed++
+		for try := 0; try < 10 && changed == 0; try++ {
+			if try > 0 {
+				time.Sleep(50 * time.Millisecond)
+				c.Focus(f)
+			}
+			focused = c.Capture()
+			c.Unfocus()
+			unfocused = c.Capture()
+			c.Focus(f)
+			r := area(o).Intersect(focused.Bounds())
+			for y := r.Min.Y; y < r.Max.Y; y++ {
+				for x := r.Min.X; x < r.Max.X; x++ {
+					if focused.At(x, y) != unfocused.At(x, y) {
+						changed++
+					}
 				}
 			}
 		}
