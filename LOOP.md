@@ -188,8 +188,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   too (again a second after typing; the pane is made only for a script with a source). Cost: read once per source
   (in the background from 64 KB, storyread.Read now yields: pace); per revision and line the scene's lines only. On
   the bench script, the cursor where a suggestion shows: the hint 0.66 ms on, 0.98 ms off (the old completion hint),
-  the text's copy apart; a whole keystroke 36 vs 38 ms (noise). Rough: a phone's keyboard has no Tab, so there the
-  hint shows but cannot be taken (a tap on it could take it: to decide); no grey text after the cursor (the editor has no ghost text; the status bar is small and
+  the text's copy apart; a whole keystroke 36 vs 38 ms (noise). Phones (Joop: yes): every "Tab: …" hint, the
+  completions' too, starts with a small "Tab ⇥" chip (accessible: "Take the suggestion"), there only with a hint; a
+  tap on it is Tab (takes, then the next; same undo step), the editor focused again; the message wraps beside it.
+  Rough: the chip is caption-sized (about 50×28, under a finger's 44 px); no grey text after the cursor (the editor has no ghost text; the status bar is small and
   grey); a line edited after it was taken is offered again; speakers storyread misses come as CHARACTER; a tag with
   action in it ("shaking his coat") loses that action; the cue's cycle and the name completions' cycle are separate
   (after completing a name, Enter then Tab gives the line).

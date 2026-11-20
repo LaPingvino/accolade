@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/test"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
@@ -58,7 +59,7 @@ func toEnd(w *MainWindow) {
 }
 
 // status is what the status bar says.
-func status(w *MainWindow) string { return w.statusLabel.Text }
+func status(w *MainWindow) string { return w.statusText() }
 
 // tail is the script after the fixture's text.
 func tail(w *MainWindow) string { return tailOf(w, suggestScript) }
@@ -413,6 +414,55 @@ func TestSuggestNextShown(t *testing.T) {
 	w.showSuggestionHint()
 	if h := status(w); !strings.HasPrefix(h, "Tab: TOM: “Out. Is there tea?”") {
 		t.Errorf("from Next's: %q", h)
+	}
+}
+
+// A phone has no Tab: a tap on the hint's chip does what Tab does,
+// takes the suggestion (one undo step) and goes on to the next; it
+// completes names too. The chip is there only with a hint, and the bar
+// stays within a phone's width.
+func TestSuggestTapChip(t *testing.T) {
+	w := suggestWindow(t, suggestScript)
+	w.fyneWindow.Resize(fyne.NewSize(380, 800))
+	typeText(w, "TOM")
+	if !w.tabChip.Visible() || !strings.HasPrefix(w.statusLabel.Text, "TOM’s line") {
+		t.Fatalf("chip %v, label %q", w.tabChip.Visible(), w.statusLabel.Text)
+	}
+	w.fyneWindow.Content().Refresh()
+	row := w.statusLabel
+	if right := row.Position().X + row.Size().Width; right > 380 || row.Position().X < w.tabChip.Size().Width {
+		t.Errorf("the hint at %v, %v wide, the chip %v", row.Position(), row.Size(), w.tabChip.Size())
+	}
+	test.Tap(w.tabChip)
+	if got := tail(w); got != "TOM\nOut. Is there tea?" {
+		t.Fatalf("tapped: %q", got)
+	}
+	test.Tap(w.tabChip)
+	if got := tail(w); got != "TOM\nThen I will make some." {
+		t.Errorf("tapped again: %q", got)
+	}
+	w.textEditor.Undo()
+	w.textEditor.Undo()
+	if got := tail(w); got != "TOM" {
+		t.Errorf("undone: %q", got)
+	}
+	// a completion
+	typeText(w, "\n\nANDREW\nHi.\n\nAN")
+	if h := status(w); !strings.HasPrefix(h, "Tab: ANNA · ANDREW") || !w.tabChip.Visible() {
+		t.Fatalf("hint %q", h)
+	}
+	test.Tap(w.tabChip)
+	if !strings.HasSuffix(w.textEditor.Text(), "\nANNA") {
+		t.Errorf("completed by a tap: %q", w.textEditor.Text())
+	}
+	test.Tap(w.tabChip)
+	if !strings.HasSuffix(w.textEditor.Text(), "\nANDREW") {
+		t.Errorf("the next by a tap: %q", w.textEditor.Text())
+	}
+	// no hint, no chip
+	typeText(w, " is here")
+	if w.tabChip.Visible() || status(w) != "" {
+		t.Errorf("after typing on: chip %v, %q", w.tabChip.Visible(), status(w))
 	}
 }
 

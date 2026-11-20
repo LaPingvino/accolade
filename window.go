@@ -119,13 +119,13 @@ type MainWindow struct {
 
 	// Auto-save (autosave.go)
 	autoSaveTimer *uiTimer
-	timers        uiTimers // the window's (background.go)
-	followTimer   *uiTimer // the source pane's follow, after typing
+	timers        uiTimers   // the window's (background.go)
+	followTimer   *uiTimer   // the source pane's follow, after typing
 	suggest       *suggester // suggestions from the source while writing (suggest.go)
 	complete      *completer // Tab's completions of names and headings (complete.go)
-	seenRev       uint64   // the text's revision the cursor was last seen in
-	importGen     int      // the import under way (a later one wins)
-	bundleSrc     struct { // the bundle's source, decoded (sourceText)
+	seenRev       uint64     // the text's revision the cursor was last seen in
+	importGen     int        // the import under way (a later one wins)
+	bundleSrc     struct {   // the bundle's source, decoded (sourceText)
 		raw  []byte
 		text string
 		ok   bool
@@ -135,6 +135,8 @@ type MainWindow struct {
 	autoSaveDelay time.Duration // overrides the setting; for tests
 
 	statusLabel *widget.Label
+	statusHint  string   // the "Tab: …" hint shown, "" none (status_hint.go)
+	tabChip     *tabChip // before it: a tap is Tab
 	statsLabel  *widget.Label
 
 	// Lexington integration
@@ -210,12 +212,14 @@ func (w *MainWindow) setupUI() {
 	}
 	w.statusLabel = small("")
 	w.statusLabel.Wrapping = fyne.TextWrapWord // a phone's width: on more lines, not wider than the screen
+	w.tabChip = newTabChip(w.takeHint)
+	w.tabChip.Hide()
 	w.statsLabel = small("")
 	w.statsLabel.Alignment = fyne.TextAlignTrailing
 	w.statsLabel.Truncation = fyne.TextTruncateEllipsis // a narrow window shows what fits
 	w.statusBar = container.NewVBox(
 		widget.NewSeparator(),
-		container.New(&statusRow{}, w.statusLabel, w.statsLabel),
+		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel),
 	)
 
 	w.relayout()
@@ -834,9 +838,10 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.updateStatusBar()
 }
 
-// statusRow lays out the status bar: the message as wide as it is, or
-// wrapped if it is wider than the bar (a phone's); the statistics in
-// what is left, cut to fit. A long message never makes the window wider.
+// statusRow lays out the status bar: the Tab chip of a hint, if shown;
+// the message as wide as it is, or wrapped if it is wider than the bar
+// (a phone's); the statistics in what is left, cut to fit. A long
+// message never makes the window wider.
 type statusRow struct{ width float32 } // the width laid out last
 
 // statsMin is how wide the statistics are at least to be shown.
@@ -857,11 +862,23 @@ func (r *statusRow) fit(msg *widget.Label, width float32) float32 {
 	return mw
 }
 
+// chipWidth is how wide the chip is, 0 hidden.
+func chipWidth(chip fyne.CanvasObject) float32 {
+	if !chip.Visible() {
+		return 0
+	}
+	return chip.MinSize().Width
+}
+
 func (r *statusRow) Layout(objs []fyne.CanvasObject, size fyne.Size) {
-	msg, stats := objs[0].(*widget.Label), objs[1]
+	chip, msg, stats := objs[0], objs[1].(*widget.Label), objs[2]
 	r.width = size.Width
-	mw := r.fit(msg, size.Width)
-	msg.Move(fyne.NewPos(0, 0))
+	cw := chipWidth(chip)
+	chip.Move(fyne.NewPos(0, 0))
+	chip.Resize(chip.MinSize())
+	mw := r.fit(msg, max(size.Width-cw, 0))
+	msg.Move(fyne.NewPos(cw, 0))
+	mw += cw
 	if left := size.Width - mw; left >= statsMin || msg.Text == "" {
 		stats.Show()
 		stats.Move(fyne.NewPos(mw, 0))
@@ -872,11 +889,14 @@ func (r *statusRow) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 }
 
 func (r *statusRow) MinSize(objs []fyne.CanvasObject) fyne.Size {
-	msg, stats := objs[0].(*widget.Label), objs[1]
+	chip, msg, stats := objs[0], objs[1].(*widget.Label), objs[2]
 	h := stats.MinSize().Height
+	if cw := chipWidth(chip); cw > 0 {
+		h = max(h, chip.MinSize().Height)
+	}
 	if msg.Text != "" {
 		if r.width > 0 {
-			r.fit(msg, r.width)
+			r.fit(msg, max(r.width-chipWidth(chip), 0))
 		}
 		h = max(h, msg.Size().Height)
 	}
@@ -996,12 +1016,6 @@ func (w *MainWindow) updateTitle() {
 			name = "Untitled"
 		}
 		w.headerBar.SetTitle(name)
-	}
-}
-
-func (w *MainWindow) setStatus(text string) {
-	if w.statusLabel != nil {
-		w.statusLabel.SetText(text)
 	}
 }
 

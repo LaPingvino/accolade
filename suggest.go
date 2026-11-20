@@ -915,7 +915,7 @@ func (sg *suggester) put(from, to int, s *suggestion, i int) {
 // changes; it reports whether one was shown.
 func (sg *suggester) dismiss() bool {
 	w := sg.w
-	if w.statusLabel == nil || !strings.HasPrefix(w.statusLabel.Text, "Tab: ") {
+	if w.statusHint == "" {
 		return false
 	}
 	line, _ := sg.position()
@@ -962,7 +962,7 @@ func (w *MainWindow) showSuggestionHint() {
 	}
 	if h := w.suggester().hint(); h != "" {
 		w.setStatus(h)
-	} else if w.statusLabel != nil && strings.HasPrefix(w.statusLabel.Text, "Tab: ") {
+	} else if w.statusHint != "" {
 		w.setStatus("")
 	}
 }
