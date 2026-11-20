@@ -125,11 +125,13 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Move Line Down", alt(fyne.KeyDown), inEditor(func() { moveLines(w.textEditor, 1) })),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Link to Source Passage", w.linkToSource),
+		menuItem("Next Source Passage", shortcut(fyne.KeyJ, fyne.KeyModifierAlt), w.nextSourcePassage),
+		fyne.NewMenuItem("Mark Source Passage as Cut", w.toggleCutHere),
 		fyne.NewMenuItem("Source Headings as Sections", w.sectionsFromSourceHere),
 		w.sourceInsideItem(),
 	)
 	if w.markdown { // a screenplay's elements, language, colours and source
-		format.Items = withoutItems(format.Items, "Link to Source Passage", "Source Headings as Sections", "Keep Source in the Script", "Scene Heading", "Action", "Character", "Parenthetical",
+		format.Items = withoutItems(format.Items, "Link to Source Passage", "Next Source Passage", "Mark Source Passage as Cut", "Source Headings as Sections", "Keep Source in the Script", "Scene Heading", "Action", "Character", "Parenthetical",
 			"Dialogue", "Transition", "Centered", "Lyrics", "Script Language…", "Scene or Section Color…", "Underline")
 	}
 

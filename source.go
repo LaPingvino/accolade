@@ -349,6 +349,9 @@ type sourceModel struct {
 	links    []sourceLink
 	matches  []linkMatch // the links'
 	spans    []sceneSpan
+	cuts     []cutMark       // the adaptation block's cut: entries
+	cutAt    []int           // the passage each names (-1: none)
+	status   []passageStatus // the passages' (adaptation.go)
 }
 
 func newSourceModel(ps []passage, script string, starts []string) *sourceModel {
@@ -356,6 +359,13 @@ func newSourceModel(ps []passage, script string, starts []string) *sourceModel {
 	for _, l := range m.links {
 		m.matches = append(m.matches, matchLink(l.Words, ps))
 	}
+	if inside, ok := adaptationBlock(script); ok {
+		m.cuts = parseCuts(inside)
+	}
+	for _, c := range m.cuts {
+		m.cutAt = append(m.cutAt, resolveCut(c, ps))
+	}
+	m.status = statusesOf(ps, m.matches, m.cutAt)
 	return m
 }
 
@@ -466,7 +476,7 @@ type sectionEdit struct {
 // outline, at the line the cursor is on; otherwise each goes in its
 // place among those already there: after the one before it in the
 // source, before the next (the end of the script, before its notes, if
-// none follows). The edits are in order, last first, to make one by one.
+// none follows, before its notes and other blocks). The edits are in order, last first, to make one by one.
 func sectionsFromSource(text string, starts []string, hs []sourceHeading, cursor int) []sectionEdit {
 	var sections []outlineItem
 	for _, it := range outlineOf(text, starts) {
@@ -510,7 +520,7 @@ func sectionsFromSource(text string, starts []string, hs []sourceHeading, cursor
 		}
 		return []sectionEdit{{At: s, Text: b.String()}}
 	}
-	end := len([]rune(strings.TrimRight(string(r[:notesStart(text)]), "\n")))
+	end := len([]rune(strings.TrimRight(string(r[:bodyEnd(text)]), "\n")))
 	for i := 0; i < len(hs); {
 		if at[i] >= 0 {
 			i++

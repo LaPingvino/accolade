@@ -85,8 +85,14 @@ Fountain boneyard block (like View > Notes), so they travel with the file and st
 characters: ANNA = Anna, Annie, Miss Kovač
 not characters: Monday, Lord
 places: the house = INT. KOVAČ HOUSE
+cut:
+  "The rain kept falling." (2)
 */
 ```
+
+`cut:` (step 4, built) lists the passages cut on purpose, one per line, by their first words as a link quotes them,
+with "(2)" for the second of passages that open alike. The block sits after the script, before the Source block and
+the notes; the other sections are kept as written.
 
 - **A cue renamed after it was accepted:** the old name becomes another name for the new one.
 - **A suggested name deleted twice:** it goes on the "not characters" list.

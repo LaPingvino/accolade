@@ -52,6 +52,10 @@ type sourcePane struct {
 	doubt    map[int]bool // an ambiguous link of the scene's fits them
 	jumping  bool         // the cursor is moving because of a tap here
 
+	statuses     []passageStatus // as the rows show them (adaptation.go)
+	offered      int             // the passage Next showed last (-1 none)
+	offeredWords []string        // its words, to find it again
+
 	heights []float32
 	width   float32 // the passages were measured at
 
@@ -60,6 +64,10 @@ type sourcePane struct {
 	list    *widget.List
 	edit    *widget.Button
 	choose  *widget.Button
+	count   *widget.Label // "62% adapted · 5 cut · 12 to go"
+	next    *widget.Button
+	cut     *widget.Button
+	prompt  *statusPrompt
 	editor  *widget.Entry
 	editing bool
 	empty   fyne.CanvasObject
@@ -68,7 +76,7 @@ type sourcePane struct {
 }
 
 func newSourcePane(w *MainWindow) *sourcePane {
-	s := &sourcePane{w: w, selected: -1, lit: map[int]bool{}, doubt: map[int]bool{}}
+	s := &sourcePane{w: w, selected: -1, offered: -1, lit: map[int]bool{}, doubt: map[int]bool{}}
 	s.title = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	s.title.Truncation = fyne.TextTruncateEllipsis
 	s.info = widget.NewLabel("")
@@ -95,6 +103,17 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.choose = widget.NewButtonWithIcon("", theme.FolderOpenIcon(), w.chooseSource)
 	s.choose.Importance = widget.LowImportance
 	fyne.SetAccessibleLabel(s.choose, "Choose the source…")
+	s.count = widget.NewLabel("")
+	s.count.SizeName = theme.SizeNameCaptionText
+	s.count.TextStyle.Bold = true
+	s.next = widget.NewButtonWithIcon("Next", theme.MediaSkipNextIcon(), s.nextPassage)
+	s.next.Importance = widget.LowImportance
+	fyne.SetAccessibleLabel(s.next, "Next passage to adapt")
+	s.cut = widget.NewButtonWithIcon("Mark as Cut", theme.ContentCutIcon(), s.toggleCut)
+	s.cut.Importance = widget.LowImportance
+	s.cut.Disable()
+	fyne.SetAccessibleLabel(s.cut, "Mark the picked passage as cut on purpose")
+	s.prompt = newStatusPrompt(s)
 	s.editor = widget.NewMultiLineEntry()
 	s.editor.Wrapping = fyne.TextWrapWord
 	fyne.SetAccessibleLabel(s.editor, "Source text")
@@ -104,12 +123,13 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.empty = container.NewVBox(none, widget.NewButtonWithIcon("Choose Source…", theme.FolderOpenIcon(), w.chooseSource))
 	s.body = container.NewStack(newWidthWatch(s.list, s.measure))
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(s.edit, s.choose), s.title)
-	s.box = container.NewBorder(container.NewVBox(head, s.info), nil, nil, nil, s.body)
+	tools := container.NewBorder(nil, nil, nil, container.NewHBox(s.next, s.cut), s.count)
+	s.box = container.NewBorder(container.NewVBox(head, tools, s.prompt.box, s.info), nil, nil, nil, s.body)
 	return s
 }
 
 // newPassageRow is a passage's row: its background (lit), a bar on its
-// left (picked) and its text.
+// left (picked), its status mark (adaptation_pane.go) and its text.
 func newPassageRow() *fyne.Container {
 	bg := canvas.NewRectangle(color.Transparent)
 	bg.CornerRadius = 4
@@ -117,7 +137,8 @@ func newPassageRow() *fyne.Container {
 	bar.SetMinSize(fyne.NewSize(4, 0))
 	text := widget.NewRichText()
 	text.Wrapping = fyne.TextWrapWord
-	return container.NewStack(bg, container.NewBorder(nil, nil, bar, nil, text))
+	left := container.NewHBox(bar, newStatusMark()) // clear of the list's scroll bar on the right
+	return container.NewStack(bg, container.NewBorder(nil, nil, left, nil, text))
 }
 
 // tint is a theme colour, see-through.
@@ -131,7 +152,9 @@ func (s *sourcePane) show(row *fyne.Container, id int) {
 	p := s.passages[id]
 	bg := row.Objects[0].(*canvas.Rectangle)
 	inner := row.Objects[1].(*fyne.Container)
-	text, bar := inner.Objects[0].(*widget.RichText), inner.Objects[1].(*canvas.Rectangle)
+	left := inner.Objects[1].(*fyne.Container)
+	text, bar := inner.Objects[0].(*widget.RichText), left.Objects[0].(*canvas.Rectangle)
+	left.Objects[1].(*statusMark).setStatus(s.statusOf(id))
 	switch {
 	case s.lit[id]:
 		bg.FillColor = tint(theme.ColorNamePrimary, 0x38)
@@ -201,6 +224,11 @@ func (s *sourcePane) load() {
 		s.selected = -1
 	}
 	s.lit, s.doubt = map[int]bool{}, map[int]bool{}
+	s.statuses = nil
+	s.offeredPassage() // found again by its words, or none
+	if s.offered < 0 {
+		s.offeredWords = nil
+	}
 	s.showBody()
 	s.measure(s.width)
 }
@@ -258,9 +286,15 @@ func (s *sourcePane) follow() {
 	s.load()
 	if s.ref.Origin == sourceNone {
 		s.setInfo("")
+		s.count.SetText("")
+		s.prompt.hide()
+		s.next.Disable()
+		s.cut.Disable()
 		return
 	}
+	s.next.Enable()
 	m := s.current()
+	s.showStatuses(m)
 	line, _ := s.w.textEditor.Buffer().Position(s.w.textEditor.CursorOffset())
 	lit, doubt := map[int]bool{}, map[int]bool{}
 	var problems []string
@@ -375,6 +409,7 @@ func (s *sourcePane) pick(id int) {
 		s.selected, s.cycle = id, 0
 	}
 	s.list.Refresh()
+	s.showCutButton()
 	scenes := s.current().linked(id)
 	if len(scenes) == 0 {
 		s.w.setStatus("Picked; no scene links to it yet: Format > Link to Source Passage puts the link at the cursor")
@@ -602,8 +637,17 @@ func (w *MainWindow) linkToSource() {
 	note := linkNote(quote)
 	e := w.textEditor
 	at, insert, after := insertLink(e.Text(), e.CursorOffset(), note, w.sceneStarts())
+	m := s.current()
+	uncut := unique && m.status[s.selected] == statusCut // an ambiguous link does not adapt it
 	e.Edit(func(b *buffer.Buffer) {
 		b.Group(func() {
+			if uncut { // linked now, so not cut: its entry goes (at the end, after the link's place)
+				inside, _ := adaptationBlock(b.Text())
+				start, end, block := withAdaptationBlock(b.Text(), withCuts(inside, s.cutsWithout(m, s.selected)))
+				if start >= at {
+					b.Replace(start, end, block)
+				}
+			}
 			b.Replace(at, at, insert)
 			b.SetCursor(after, false)
 		})
@@ -643,7 +687,6 @@ func (w *MainWindow) sectionsFromSourceHere() {
 			cursor := b.Cursor()
 			for _, ed := range edits { // the last first: the offsets before stay
 				b.Replace(ed.At, ed.At, ed.Text)
-				n += strings.Count(ed.Text, "# ") + strings.Count(ed.Text, "# ")*0
 				if ed.At <= cursor {
 					cursor += len([]rune(ed.Text))
 				}

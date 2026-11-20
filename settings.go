@@ -67,6 +67,10 @@ func (s *Settings) loadDefaults() {
 
 		// Fountain-specific settings
 		"fountain-scene-numbers": false,
+
+		// Adapting (adaptation.go): Next Source Passage starts a scene
+		// for the passage, or only shows it and offers to
+		"next-passage-inserts": true,
 	}
 
 	for key, value := range defaults {

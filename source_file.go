@@ -78,20 +78,19 @@ func (r sourceRef) describe() string {
 var sourceMarks = newNotesMarks("/* Source", "*/", "* /")
 
 // sourceBlock is the source kept in the script: the block closing just
-// before the notes (or at the end); where it is, in runes, from the
-// blank lines before it to the notes, and the Markdown.
+// before the notes (or at the end), or before the adaptation block
+// there (adaptation.go); where it is, in runes, from the blank lines
+// before it to what follows, and the Markdown.
 func sourceBlock(text string) (start, end int, md string, ok bool) {
-	end = notesStart(text)
-	before := string([]rune(text)[:end])
-	i, inside := sourceMarks.at(before)
-	if i < 0 {
+	b, _ := tailBlocks(text)
+	if !b.ok {
 		return 0, 0, "", false
 	}
-	md = strings.ReplaceAll(inside, sourceMarks.escaped, sourceMarks.close)
+	md = b.inside
 	if md != "" && !strings.HasSuffix(md, "\n") { // the block's last line ends as a file's
 		md += "\n"
 	}
-	return len([]rune(before[:i])), end, md, true
+	return b.start, b.end, md, true
 }
 
 // withSourceBlock is the edit that puts md in the script as its source

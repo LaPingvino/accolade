@@ -54,6 +54,7 @@ type PreferencesDialog struct {
 	paperSelect           *widget.Select
 	includeTitlePageCheck *widget.Check
 	numberScenesCheck     *widget.Check
+	nextInsertsCheck      *widget.Check
 }
 
 func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDialog {
@@ -111,6 +112,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.paperSelect = widget.NewSelect(documentPages, nil)
 	pd.includeTitlePageCheck = widget.NewCheck("Include the title page", nil)
 	pd.numberScenesCheck = widget.NewCheck("Number the scenes (those without a number)", nil)
+	pd.nextInsertsCheck = widget.NewCheck("Next Source Passage starts a scene for it (else it shows the passage and offers to)", nil)
 }
 
 func (pd *PreferencesDialog) createContent() *fyne.Container {
@@ -209,6 +211,9 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 			pd.includeTitlePageCheck,
 			pd.numberScenesCheck,
 		)),
+		widget.NewCard("Adapting", "A script made from a story beside it (View > Source)", container.NewVBox(
+			pd.nextInsertsCheck,
+		)),
 	)
 }
 
@@ -237,6 +242,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.paperSelect.SetSelected(documentPageLabel(s.GetString("page-size")))
 	pd.includeTitlePageCheck.SetChecked(s.GetBoolean("include-title-page"))
 	pd.numberScenesCheck.SetChecked(s.GetBoolean("fountain-scene-numbers"))
+	pd.nextInsertsCheck.SetChecked(s.GetBoolean("next-passage-inserts"))
 }
 
 func (pd *PreferencesDialog) saveSettings() {
@@ -278,6 +284,7 @@ func (pd *PreferencesDialog) saveSettings() {
 	s.SetString("page-size", page)
 	s.SetBoolean("include-title-page", pd.includeTitlePageCheck.Checked)
 	s.SetBoolean("fountain-scene-numbers", pd.numberScenesCheck.Checked)
+	s.SetBoolean("next-passage-inserts", pd.nextInsertsCheck.Checked)
 
 	s.Save()
 }

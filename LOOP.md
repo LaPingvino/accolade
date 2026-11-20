@@ -75,3 +75,18 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   files in testdata/highland (gitignored). A same-path save re-reads the bundle first, so other apps' changes are kept.
   Rough: no real .highland tested yet; assets/ for the source is a guess. Fyne's save dialog refuses an existing
   folder's name, so Save As can't overwrite a .textbundle. Each save, autosave too, rewrites the whole zip. Next: step 4, statuses and Next passage.
+- 2026-11-20: step 4, statuses and Next passage (branch statuses, not merged; adaptation.go, adaptation_pane.go).
+  Each counted passage (not a heading or break) is adapted (a link resolves to it; ambiguous ones don't), cut on
+  purpose, or to do. Cuts live in the script: `/* Adaptation` block after the script, before Source and Notes
+  (either order with Source is read), `cut:` then one `"first words…"` per line, `(2)` for the second of alike
+  passages; read leniently (on the key's line, lists, bare words), other lines and unresolved entries kept. The pane:
+  a mark left of each passage (green solid adapted, red dashed cut, thin grey line to do), the count "50% adapted ·
+  1 cut · 3 to go" (% of the passages not cut), Next and Mark as Cut / Unmark Cut (one undo step; linking a cut
+  passage drops its entry in the link's step). Format > Next Source Passage (Ctrl+Alt+J), Mark Source Passage as
+  Cut. Next: after the cursor's scene's last linked passage (else the nearest scene before with links, or the one
+  Next showed), the first to do, wrapping; starts a scene after the cursor's (chapter section if the script enters a
+  new chapter without one, `INT. PLACE - DAY` selected, the link), one undo step; Preferences > Script > Adapting
+  "Next starts a scene" (default on) or only shows and offers Start a Scene. Next again with the shown one still
+  unlinked asks in the pane: mark it as cut? Rough: in insert mode the skip question only comes after an undo;
+  a duplicate passage can be cut but Next's link to it is ambiguous, so it stays to do; placeholder is English-only
+  ("…" in other languages). Next: step 5, the characters and dialogue heuristics.
