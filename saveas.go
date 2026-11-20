@@ -107,6 +107,7 @@ func (w *MainWindow) saveAs(filePath string) {
 func (w *MainWindow) finishSaveAs(filePath string) {
 	flattening := w.bundle != nil && len(w.bundle.extras) > 0 && bundleKindOf(filePath) == notBundle
 	how := w.flattenTo
+	failures := w.saveFailures
 	if err := w.saveToFile(filePath); err != nil {
 		w.flattenTo = flattenKept
 		dialog.ShowError(fmt.Errorf("failed to save file: %v", err), w.fyneWindow)
@@ -134,7 +135,7 @@ func (w *MainWindow) finishSaveAs(filePath string) {
 		return
 	}
 	w.afterBundleWrites(func() {
-		if !flattening {
+		if !flattening && w.saveFailures == failures { // a background save that failed said so
 			dialog.ShowInformation("File Saved", fmt.Sprintf("File saved to %s", filepath.Base(filePath)), w.fyneWindow)
 		}
 	})

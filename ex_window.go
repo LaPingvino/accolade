@@ -155,6 +155,7 @@ func (w *MainWindow) runEx(cmd string) {
 		if res.keep {
 			w.hasChanges = false // :q! closes without asking
 		}
+		w.flushBundleWrites() // the write just asked for, before the window goes
 		w.fyneWindow.Close()
 	}
 }

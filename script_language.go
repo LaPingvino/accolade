@@ -251,6 +251,7 @@ func (w *MainWindow) nameLanguage(lang string) error {
 	if w.plainBundle == w.currentFile {
 		w.plainBundle = to
 	}
+	w.typeAfterRename(w.currentFile, w.currentFile, to, to) // its type, source and drafts follow
 	w.currentFile = to
 	w.rememberRecent(to)
 	w.updateTitle()

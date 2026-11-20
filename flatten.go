@@ -24,7 +24,17 @@ const (
 // placeFlattened puts bundle b's extras where how says, for the plain
 // script at p.
 func (w *MainWindow) placeFlattened(b *textBundle, p string, how flattenChoice) error {
-	if len(b.extras) == 0 || how == flattenDrop {
+	if len(b.extras) == 0 {
+		return nil
+	}
+	old := w.chosenExtras(p) // a kept copy from an earlier save under this name: replaced
+	if how != flattenKept && old != "" {
+		w.rememberExtras(p, "")
+		if isKeptExtras(old) {
+			os.RemoveAll(old)
+		}
+	}
+	if how == flattenDrop {
 		return nil
 	}
 	files, err := (extrasHome{kind: extrasBundle, b: b}).all()
@@ -34,7 +44,6 @@ func (w *MainWindow) placeFlattened(b *textBundle, p string, how flattenChoice) 
 	if how == flattenFolder && !inBrowser {
 		return extrasFolder(productionFolderOf(p)).write(files)
 	}
-	old := w.chosenExtras(p)
 	dir, err := newKeptExtras(p)
 	if err != nil {
 		return err

@@ -325,10 +325,16 @@ func (w *MainWindow) extrasAfterRename(oldPath, newPath string) {
 	_, statErr := os.Stat(oldPath)
 	oldGone := oldPath == "" || statErr != nil
 	if bundleKindOf(newPath) != notBundle && !w.isPlainBundle(newPath) {
-		// carried into the bundle
+		// carried into the bundle: an unsaved script's copy let go of once
+		// the bundle is written (bundle_queue.go)
 		if old.kind == extrasKept && oldGone {
 			w.rememberExtras(oldPath, "")
-			os.RemoveAll(string(old.dir))
+			dir := string(old.dir)
+			w.afterBundleWrites(func() {
+				if w.bundle != nil && sameFile(w.bundle.path, newPath) {
+					os.RemoveAll(dir)
+				}
+			})
 		}
 		return
 	}

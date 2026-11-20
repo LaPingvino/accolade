@@ -260,6 +260,9 @@ func (w *MainWindow) addDraft(name string, skipSame bool, done func(d savedDraft
 		}
 		w.rememberExtras(w.currentFile, string(dir))
 		home = extrasHome{kind: extrasKept, dir: dir}
+		if inBrowser && w.currentFile == "" {
+			keepDraft(w.draft()) // a reload keeps the drafts with the script
+		}
 	}
 	d, files, ok, err := newDraft(home, name, kindDraft, text, ext, src, now, skipSame)
 	if err == nil && ok {

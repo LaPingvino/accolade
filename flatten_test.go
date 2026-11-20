@@ -119,3 +119,33 @@ func TestFlattenDrop(t *testing.T) {
 		t.Error("production data left")
 	}
 }
+
+// Flattened again under the same name with another choice: the choice
+// made last is what the plain file finds.
+func TestFlattenTwice(t *testing.T) {
+	w, p := bundleWithDraft(t)
+	to := filepath.Join(filepath.Dir(p), "Script.fountain")
+	saveAsPlain(t, w, to, flattenKept)
+	kept := w.chosenExtras(to)
+	if kept == "" {
+		t.Fatal("not kept")
+	}
+	for _, how := range []flattenChoice{flattenFolder, flattenDrop} {
+		w2 := againWindow(t, w)
+		if err := w2.LoadFile(p); err != nil {
+			t.Fatal(err)
+		}
+		saveAsPlain(t, w2, to, how)
+		if w2.chosenExtras(to) != "" {
+			t.Errorf("%d: the old kept copy is still remembered", how)
+		}
+		if _, err := os.Stat(kept); err == nil {
+			t.Errorf("%d: the old kept copy is still there", how)
+		}
+	}
+	w3 := againWindow(t, w)
+	w3.LoadFile(to)
+	if h := w3.extrasHome(); h.kind != extrasBeside { // the folder made by the first of the two
+		t.Errorf("home %+v", h)
+	}
+}

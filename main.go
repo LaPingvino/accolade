@@ -189,6 +189,7 @@ func (app *Application) newScriptWindow(empty bool) *MainWindow {
 }
 
 func (app *Application) onWindowClosed(window *MainWindow) {
+	window.flushBundleWrites()
 	window.cancelAutoSave()
 	window.stopTimers()
 
@@ -316,6 +317,9 @@ func (app *Application) setColorScheme(scheme string) {
 
 func (app *Application) quit() {
 	log.Println("Quitting application")
+	for _, window := range app.windows { // saves under way are done first
+		window.flushBundleWrites()
+	}
 
 	// Check for unsaved changes
 	hasUnsaved := false

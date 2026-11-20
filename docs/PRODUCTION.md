@@ -663,7 +663,7 @@ only for a script never saved (else it stays remembered for the old path).
   a name keep writing it as it is: a `.fountain` stays a `.fountain`, its drafts in the kept copy or the folder.
 - Save As `.fountain` (or `.md`) of a bundle with drafts asks where they go: kept by Accolade (the default), in
   `Name.production/` beside the file (desktop only), or left out, which asks again (the bundle on disk keeps
-  them). The status bar says which.
+  them). The status bar says which. The last choice for a name wins: an earlier kept copy for it is let go of.
 - The browser's Save As now asks for a name (the download's), so it can change the kind too.
 - **The Highland warning:** saving a `.highland` that holds Accolade's files (drafts, the source) — or saving the
   first draft into one — saves, then says once that Highland may drop them and that a copy as `.accolade` keeps
@@ -673,7 +673,8 @@ only for a script never saved (else it stays remembered for the old path).
 **Bundle writes in the background** (bundle_queue.go, PERF-SOURCE item 7): every write into a bundle (Save,
 auto-save, the source's Done, Save Draft) is a job, run one after another in a goroutine, each from the bundle the
 job before left; the zip loop calls `pace.Yield` for the browser's page. A failed save makes the script unsaved
-again and says why. Rename and closing the window wait for the writes; the browser's download follows the write.
+again and says why. Rename and closing the window wait for the writes (then ask about unsaved changes as ever);
+quitting and `:wq` finish them at once first; the browser's download follows the write.
 The per-keystroke path is unchanged: production data is looked for only when saving.
 
 **The drafts** (drafts.go, drafts_view.go):

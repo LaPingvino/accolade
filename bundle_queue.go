@@ -31,8 +31,19 @@ type bundleJob struct {
 // bundleQueue is a window's bundle jobs.
 type bundleQueue struct {
 	busy bool
+	cur  *runningJob // the job under way
 	jobs []bundleJob
 	idle []func() // run once nothing is pending
+}
+
+// runningJob is the job under way: ran is closed once its writing is
+// done (before its result reaches the UI goroutine), res is what it gave.
+type runningJob struct {
+	job     bundleJob
+	gen     int
+	ran     chan struct{}
+	res     bundleResult
+	flushed bool // finished by flushBundleWrites: its result is in
 }
 
 // setBundle makes b the window's bundle (nil: none), as a document is
@@ -90,10 +101,18 @@ func (w *MainWindow) nextBundleJob() {
 	q.jobs = q.jobs[1:]
 	q.busy = true
 	b, gen := w.bundle, w.bundleGen
+	cur := &runningJob{job: job, gen: gen, ran: make(chan struct{})}
+	q.cur = cur
 	inBackground(func() bundleResult {
 		nb, err := job.run(b)
-		return bundleResult{nb, err}
+		cur.res = bundleResult{nb, err}
+		close(cur.ran)
+		return cur.res
 	}, func(r bundleResult) {
+		if cur.flushed {
+			return // flushBundleWrites took it in
+		}
+		q.cur = nil
 		if r.err == nil && w.bundleGen == gen {
 			w.bundle = r.b
 		}
@@ -104,9 +123,49 @@ func (w *MainWindow) nextBundleJob() {
 	})
 }
 
+// flushBundleWrites finishes every pending write now, on the UI
+// goroutine: before the app quits or a window closes from a command
+// (:wq), when what runs in the background would not get to finish. The
+// browser's page never quits that way: there it does nothing.
+func (w *MainWindow) flushBundleWrites() {
+	q := &w.bundleQ
+	if !q.busy || inBrowser {
+		return
+	}
+	if cur := q.cur; cur != nil {
+		<-cur.ran
+		cur.flushed = true
+		q.cur = nil
+		if cur.res.err == nil && w.bundleGen == cur.gen {
+			w.bundle = cur.res.b
+		}
+		if cur.job.done != nil {
+			cur.job.done(cur.res.err)
+		}
+	}
+	for len(q.jobs) > 0 {
+		job := q.jobs[0]
+		q.jobs = q.jobs[1:]
+		nb, err := job.run(w.bundle)
+		if err == nil {
+			w.bundle = nb
+		}
+		if job.done != nil {
+			job.done(err)
+		}
+	}
+	q.busy = false
+	idle := q.idle
+	q.idle = nil
+	for _, f := range idle {
+		f()
+	}
+}
+
 // saveFailed is what a background save that failed does: the script is
 // unsaved again, and says why.
 func (w *MainWindow) saveFailed(p string, err error) {
+	w.saveFailures++
 	w.hasChanges = true
 	w.updateTitle()
 	if w.fyneWindow != nil {

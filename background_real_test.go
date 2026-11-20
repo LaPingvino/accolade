@@ -162,3 +162,43 @@ func TestBundleWritesInBackground(t *testing.T) {
 		t.Errorf("rename after the writes: %v", err)
 	}
 }
+
+// Writes under way are finished at once before the app quits (or :wq
+// closes the window): the file holds them, the queue is idle.
+func TestFlushBundleWrites(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	p := filepath.Join(t.TempDir(), "Script.accolade")
+	os.WriteFile(p, makeZip(t, bundleItems("")), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	realPaths(t)
+	uiTurn.Lock()
+	w.textEditor.SetText(bundleScript + "One.\n")
+	w.saveToFile(p)
+	w.addDraft("Two", false, nil)
+	w.textEditor.SetText(bundleScript + "Three.\n")
+	w.saveToFile(p)
+	idle := false
+	w.afterBundleWrites(func() { idle = true })
+	w.flushBundleWrites()
+	busy := w.bundleBusy()
+	uiTurn.Unlock()
+	if busy || !idle {
+		t.Fatalf("after the flush: busy %v, idle callbacks run %v", busy, idle)
+	}
+	data, _ := os.ReadFile(p)
+	if got, _ := zipFile(t, data, "text.fountain"); got != bundleScript+"Three.\n" {
+		t.Errorf("text %q", got)
+	}
+	if got, _ := zipFile(t, data, "assets/drafts/01-two/text.fountain"); got != bundleScript+"One.\n" { // as it was when asked
+		t.Errorf("draft %q", got)
+	}
+	time.Sleep(50 * time.Millisecond) // a late result changes nothing
+	uiTurn.Lock()
+	defer uiTurn.Unlock()
+	if w.bundleBusy() || w.bundle == nil || len(w.bundle.extras) != 2 {
+		t.Errorf("after: busy %v bundle %+v", w.bundleBusy(), w.bundle)
+	}
+}

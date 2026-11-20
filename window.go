@@ -80,9 +80,10 @@ type MainWindow struct {
 	plainBundle string
 	// bundleQ are the writes into the bundle, in the background
 	// (bundle_queue.go); bundleGen counts the bundles the window had
-	bundleQ    bundleQueue
-	bundleGen  int
-	srcPending *pendingSource // a source being written into the bundle (source_file.go)
+	bundleQ      bundleQueue
+	bundleGen    int
+	saveFailures int            // background saves that failed (bundle_queue.go)
+	srcPending   *pendingSource // a source being written into the bundle (source_file.go)
 	// imported is closed when the PDF import under way is in
 	imported       chan struct{}
 	outline        *outlinePanel
@@ -278,10 +279,11 @@ func (w *MainWindow) keyPreview(key fyne.KeyName, mod fyne.KeyModifier) bool {
 
 func (w *MainWindow) setupCallbacks() {
 	// Window close callback
-	w.fyneWindow.SetCloseIntercept(func() {
-		if w.bundleBusy() { // a save under way finishes first
+	var askClose func()
+	askClose = func() {
+		if w.bundleBusy() { // a save under way finishes first, then asks as ever
 			w.setStatus("Saving...")
-			w.afterBundleWrites(func() { w.fyneWindow.Close() })
+			w.afterBundleWrites(askClose)
 			return
 		}
 		if w.hasChanges {
@@ -298,7 +300,8 @@ func (w *MainWindow) setupCallbacks() {
 		} else {
 			w.fyneWindow.Close()
 		}
-	})
+	}
+	w.fyneWindow.SetCloseIntercept(askClose)
 }
 
 // TODO: Implement file drop handling when needed
@@ -933,13 +936,14 @@ type kept struct {
 	Name     string `json:"name,omitempty"` // an import's name to save it as
 	Markdown bool   `json:"markdown,omitempty"`
 	Source   string `json:"source,omitempty"` // the source of a script not saved yet (its kept copy)
+	Extras   string `json:"extras,omitempty"` // its drafts (their kept copy: extras.go)
 }
 
 // draft is the window's script as the web version keeps it.
 func (w *MainWindow) draft() kept {
 	d := kept{Text: w.textEditor.Text(), Language: w.language, File: w.currentFile, Name: w.suggestedName, Markdown: w.markdown}
 	if w.currentFile == "" {
-		d.Source = w.unsavedSource
+		d.Source, d.Extras = w.unsavedSource, w.unsavedExtras
 	}
 	return d
 }
@@ -961,6 +965,10 @@ func (w *MainWindow) restore(d kept) {
 	w.unsavedSource = ""
 	if _, err := os.Stat(d.Source); d.Source != "" && err == nil {
 		w.unsavedSource = d.Source
+	}
+	w.unsavedExtras = ""
+	if _, err := os.Stat(d.Extras); d.Extras != "" && err == nil {
+		w.unsavedExtras = d.Extras
 	}
 	w.updateTitle()
 	w.setStatus("Your script not saved yet, as this browser kept it")
