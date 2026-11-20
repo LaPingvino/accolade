@@ -286,7 +286,7 @@ func (w *MainWindow) renameScript() {
 	update()
 	w.renameAsked = &renameAsk{base: base, lang: lang, kind: kind, plan: plan, confirm: d.Confirm, result: result, scroll: scroll}
 	base.OnSubmitted = func(string) { d.Confirm() }
-	d.Resize(fitDialog(w.fyneWindow, 560, 720))
+	d.Resize(fitDialog(w.fyneWindow, 560, 1000))
 	d.Show()
 	w.fyneWindow.Canvas().Focus(base)
 }

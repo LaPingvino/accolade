@@ -2,6 +2,8 @@ package main
 
 import (
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"io/fs"
@@ -35,6 +37,8 @@ type fileJournal struct {
 	text     string // the script's text then
 	wrote    bool   // the script's text was written to the new file
 	rename   bool   // a rename: the old file goes
+	carried  bool   // the source goes into the new bundle
+	print    string // the extras and source as they were after it (fingerprint)
 	done     bool   // committed: what it parked is the undo's
 }
 
@@ -155,9 +159,29 @@ func (j *fileJournal) forget() {
 func (w *MainWindow) rollback(j *fileJournal) error {
 	err := j.undoFiles()
 	if w.settings != nil {
+		// only the entries of the script's two names: what other windows
+		// remembered since stays
+		mine := map[string]bool{}
+		for _, p := range []string{j.from, j.to} {
+			if p != "" {
+				mine[absPath(p)] = true
+			}
+		}
 		for _, k := range journalKeys {
-			if !slicesEqual(w.settings.GetStringSlice(k), j.settings[k]) {
-				w.settings.SetStringSlice(k, j.settings[k])
+			now := w.settings.GetStringSlice(k)
+			var kept, back []string
+			for _, e := range j.settings[k] {
+				if mine[entryScript(e)] {
+					back = append(back, e)
+				}
+			}
+			for _, e := range now {
+				if !mine[entryScript(e)] {
+					kept = append(kept, e)
+				}
+			}
+			if list := append(back, kept...); !slicesEqual(list, now) {
+				w.settings.SetStringSlice(k, list)
 			}
 		}
 		_ = w.settings.Save()
@@ -184,6 +208,20 @@ func (w *MainWindow) rollback(j *fileJournal) error {
 	w.updateTitle()
 	w.ribbonRefresh()
 	return err
+}
+
+// entryScript is the script a remembered entry is about: "script\tsource",
+// "markdown:script", or the path itself (recent files).
+func entryScript(e string) string {
+	if s, _, ok := strings.Cut(e, "\t"); ok {
+		return absPath(s)
+	}
+	for _, p := range []string{"markdown:", "screenplay:"} {
+		if s, ok := strings.CutPrefix(e, p); ok {
+			return absPath(s)
+		}
+	}
+	return absPath(e)
 }
 
 func slicesEqual(a, b []string) bool {
@@ -274,7 +312,12 @@ func (w *MainWindow) relocate(r relocation, done func(error)) error {
 		done = func(error) {}
 	}
 	if w.bundleBusy() { // a save under way finishes first
+		gen, file := w.bundleGen, w.currentFile
 		w.afterBundleWrites(func() {
+			if w.bundleGen != gen || w.currentFile != file {
+				done(fmt.Errorf("another document was opened meanwhile: nothing was renamed or saved"))
+				return
+			}
 			if err := w.relocateNow(r, done); err != nil {
 				done(err)
 			}
@@ -289,6 +332,9 @@ func (w *MainWindow) relocate(r relocation, done func(error)) error {
 // background that fails puts everything back and says so (done).
 func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	oldName := cmp.Or(r.from, w.suggestedName, w.untitledName())
+	if r.rename && r.how == flattenDrop { // the bundle goes: nothing would keep them
+		r.how = flattenKept
+	}
 	if r.rename && r.from == "" { // not saved yet: only the name it will be saved by
 		w.suggestedName = filepath.Base(r.to)
 		w.afterNewName(oldName, "", filepath.Base(r.to))
@@ -311,6 +357,7 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	home := w.extrasHome()
 	j := w.beginJournal(r.from, r.to)
 	j.rename = r.rename
+	j.carried = carries(fromKind, toKind, ref)
 	w.relocating = j
 	// what may be made for the new name, to know it was
 	keptSource, keptExtras := w.chosenSource(r.to), w.chosenExtras(r.to)
@@ -337,13 +384,15 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	}
 	fail := func(err error) error {
 		noteMade()
+		w.flattenTo = flattenKept
+		w.carrySource, w.sourceBeside = nil, ""
 		w.relocating = nil
 		w.rollback(j)
 		return err
 	}
 
 	// the source beside the script follows its name (story.md: film.md)
-	if t := w.besideTarget(r, ref); t != "" && toKind == notBundle {
+	if t := w.besideTarget(r, ref); t != "" && !j.carried {
 		var err error
 		if r.rename {
 			err = j.move(ref.Path, t)
@@ -358,13 +407,14 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	failures := w.saveFailures
 	if r.rename && sameKind(fromKind, toKind) {
 		// the same kind of file: renamed, the folder beside it too
+		wasPlain := w.isPlainBundle(r.from)
 		if err := j.move(r.from, r.to); err != nil {
 			return fail(fmt.Errorf("could not rename the file: %v", err))
 		}
 		if w.bundle != nil {
 			w.bundle.path = r.to
 		}
-		if w.isPlainBundle(r.from) {
+		if wasPlain {
 			w.plainBundle = ""
 			if strings.EqualFold(filepath.Ext(r.to), ".highland") {
 				w.plainBundle = r.to
@@ -386,7 +436,7 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 		}
 		w.flattenTo = r.how
 		w.carrySource = nil
-		if toKind != notBundle && fromKind == notBundle && (ref.Origin == sourceKept || ref.Origin == sourceBeside) {
+		if j.carried {
 			md, err := w.sourceText(ref)
 			if err != nil {
 				return fail(fmt.Errorf("could not read the source to carry in: %v", err))
@@ -406,7 +456,7 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 			return fail(err)
 		}
 		j.wrote = true
-		if toKind != notBundle && fromKind == notBundle && w.carriedIn(ref) {
+		if j.carried {
 			if r.rename && ref.Origin == sourceBeside {
 				p := ref.Path
 				after = append(after, func() { w.discard(p) })
@@ -428,7 +478,7 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	w.rememberRecent(r.to)
 	w.afterNewName(oldName, r.from, r.to)
 	noteMade()
-	if toKind != notBundle && fromKind == notBundle && (ref.Origin == sourceKept || ref.Origin == sourceBeside) {
+	if j.carried {
 		// carried in: the bundle has it now
 		kept := ref.Path
 		w.rememberSource(r.to, "")
@@ -446,12 +496,19 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 		}
 	}
 	w.updateTitle()
+	gen, file := w.bundleGen, w.currentFile
 	w.afterBundleWrites(func() {
-		if w.saveFailures != failures || !exists(r.to) { // the bundle could not be written: all back
+		moved := w.bundleGen != gen || w.currentFile != file // another document since
+		if w.saveFailures != failures || !exists(r.to) {     // the bundle could not be written: all back
 			w.relocating = nil
-			w.saveFailures = failures
-			err := cmp.Or(w.rollback(j), fmt.Errorf("%s could not be written: nothing was changed", filepath.Base(r.to)))
-			done(err)
+			var err error
+			if moved { // the files only: the window is another's now
+				err = j.undoFiles()
+			} else {
+				w.saveFailures = failures
+				err = w.rollback(j)
+			}
+			done(cmp.Or(err, fmt.Errorf("%s could not be written: nothing was changed", filepath.Base(r.to))))
 			return
 		}
 		for _, f := range after {
@@ -459,11 +516,14 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 		}
 		w.relocating = nil
 		j.done = true
-		if r.rename {
-			w.renameUndo.forget()
+		w.dropRenameUndo() // only the last one, and not after a Save As
+		if r.rename && !moved {
+			if j.wrote {
+				j.print = w.extrasPrint()
+			}
 			w.renameUndo = j
 		} else {
-			j.forget() // Save As: the file it replaced is gone for good
+			j.forget() // the file it replaced is gone for good
 		}
 		w.ribbonRefresh()
 		done(nil)
@@ -471,10 +531,10 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	return nil
 }
 
-// carriedIn tells whether a plain script's source goes into the bundle it
-// is saved as (a kept copy or the file beside: the bundle's own then).
-func (w *MainWindow) carriedIn(ref sourceRef) bool {
-	return ref.Origin == sourceKept || ref.Origin == sourceBeside
+// carries tells whether a script's source goes into the bundle it becomes:
+// a plain script's kept copy or file beside (the bundle's own then).
+func carries(fromKind, toKind bundleKind, ref sourceRef) bool {
+	return fromKind == notBundle && toKind != notBundle && (ref.Origin == sourceKept || ref.Origin == sourceBeside)
 }
 
 // afterNewName is what a new name means for the window (a rename, Save
@@ -510,6 +570,12 @@ func (w *MainWindow) undoRename() {
 		if w.renameUndo != j {
 			return
 		}
+		if j.wrote && j.print != w.extrasPrint() {
+			dialog.ShowInformation("Undo Rename",
+				"Drafts, production files or the source changed since the rename: taking it back would lose that. "+
+					"Rename it back instead (File > Rename…).", w.fyneWindow)
+			return
+		}
 		w.renameUndo = nil
 		name := filepath.Base(j.to)
 		if err := w.rollback(j); err != nil {
@@ -525,6 +591,24 @@ func (w *MainWindow) undoRename() {
 func (w *MainWindow) canUndoRename() bool {
 	j := w.renameUndo
 	return j != nil && w.currentFile != "" && absPath(w.currentFile) == absPath(j.to)
+}
+
+// extrasPrint is a fingerprint of the script's drafts, production files
+// and source as they are now: Undo Rename after a conversion would lose
+// what changed since.
+func (w *MainWindow) extrasPrint() string {
+	h := sha256.New()
+	files, _ := w.extrasHome().all()
+	for _, f := range files {
+		fmt.Fprintf(h, "%s %d\n", f.name, len(f.data))
+		h.Write(f.data)
+	}
+	if !w.markdown {
+		if md, err := w.sourceText(w.sourceRef()); err == nil {
+			fmt.Fprintf(h, "source %d\n%s", len(md), md)
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 // dropRenameUndo lets the last rename's undo go (another document, the

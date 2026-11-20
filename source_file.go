@@ -246,6 +246,9 @@ func (w *MainWindow) sourceAfterRename(oldPath, newPath string) {
 	if newPath == "" || (oldPath != "" && absPath(oldPath) == absPath(newPath)) {
 		return
 	}
+	if j := w.relocating; j != nil && j.carried {
+		return // into the new bundle: its own (relocate.go)
+	}
 	source := w.chosenSource(oldPath)
 	if source == "" {
 		source = companionOf(oldPath)

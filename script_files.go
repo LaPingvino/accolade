@@ -344,12 +344,13 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 			}
 			rows = append(rows, row)
 		case sourceKept:
+			carried := carries(fromKind, toKind, ref)
 			row := planRow{what: "Source", now: filepath.Base(ref.Path) + ", kept by Accolade"}
 			if !strings.HasPrefix(ref.Path, keptSourcesDir()+string(filepath.Separator)) {
 				row.now = filepath.Base(ref.Path) + ", chosen"
 			}
 			switch {
-			case toKind != notBundle:
+			case carried:
 				row.what, row.after, row.fixed = bundleSourceName, inside(newName), true
 			case r.rename:
 				row.after = "kept by Accolade, as now"
@@ -362,7 +363,7 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 			t := w.besideTarget(r, ref)
 			theirs := strings.TrimSuffix(r.to, filepath.Ext(r.to)) + filepath.Ext(ref.Path)
 			switch {
-			case toKind != notBundle:
+			case carries(fromKind, toKind, ref):
 				row.what, row.after, row.fixed = bundleSourceName, inside(newName), true
 			case t != "":
 				row.after = verb + beside(filepath.Base(t))

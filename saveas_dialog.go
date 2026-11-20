@@ -187,8 +187,21 @@ func (w *MainWindow) showSaveAs() {
 	ask.confirm = d.Confirm
 	name.OnSubmitted = func(string) { d.Confirm() }
 	ask.choose(sel)
-	d.Resize(fitDialog(w.fyneWindow, 600, 760))
+	d.Resize(fitDialog(w.fyneWindow, 600, 1400)) // as tall as the window allows: many rows
 	d.Show()
+}
+
+// withTypeExt is the path the save dialog gave, with the type's extension
+// if it was given a bare name (the empty file the dialog made for that
+// name removed).
+func withTypeExt(p string, t fileType) string {
+	if hasTypeExt(p) {
+		return p
+	}
+	if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() && st.Size() == 0 {
+		os.Remove(p)
+	}
+	return p + t.ext
 }
 
 // askWhere is the system's save dialog for a type: its filter, the name
@@ -204,12 +217,7 @@ func (w *MainWindow) askWhere(t fileType, name string, chosen *relocation) {
 		// written as Save does, safely: not through the dialog's file,
 		// which truncates first
 		closer.Close()
-		if !hasTypeExt(p) { // a bare name: the type's extension, the empty file the dialog made gone
-			if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() && st.Size() == 0 {
-				os.Remove(p)
-			}
-			p += t.ext
-		}
+		p = withTypeExt(p, t)
 		if typeOfName(p, w.markdown).id != t.id {
 			chosen = nil
 		}

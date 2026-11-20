@@ -509,7 +509,9 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (relocate): same kind renamed (story.md → film.md, story.production/ → film.production/), else written anew — into a
   bundle the source and drafts carried in, out of one the drafts and source kept or beside; a rename converts, never
   refuses. Journaled: made files, renames, and what it would delete parked under a hidden name; a failure puts all
-  back (files, settings, window), File > Undo Rename too, until another document or the window closes. Save As copies
+  back (files, settings, window), File > Undo Rename too, until another document or the window closes (it declines
+  after a conversion once drafts or the source changed since; the settings put back are only the script's own). Save As copies
   a kept source/drafts instead of taking them from the old file. Rough: parked files are hidden siblings until then
   (a crash leaves them); a rename out of a bundle loses another app's files once the undo is gone (warned in the plan);
-  a Save As over a .textbundle folder still meets Fyne's refusal.
+  a Save As over a .textbundle folder still meets Fyne's refusal; the dialogs' scroll does not follow the keyboard
+  focus on a small screen; a failed background write shows two error dialogs.

@@ -171,7 +171,6 @@ func (app *Application) newWindow() *MainWindow {
 
 	// Set up window close handler
 	window.fyneWindow.SetOnClosed(func() {
-		window.dropRenameUndo() // what the last rename parked goes
 		app.onWindowClosed(window)
 	})
 
@@ -191,6 +190,7 @@ func (app *Application) newScriptWindow(empty bool) *MainWindow {
 
 func (app *Application) onWindowClosed(window *MainWindow) {
 	window.flushBundleWrites()
+	window.dropRenameUndo() // what the last rename parked goes
 	window.cancelAutoSave()
 	window.stopTimers()
 
@@ -323,6 +323,7 @@ func (app *Application) quit() {
 	log.Println("Quitting application")
 	for _, window := range app.windows { // saves under way are done first
 		window.flushBundleWrites()
+		window.dropRenameUndo() // what the last rename parked goes
 	}
 
 	// Check for unsaved changes

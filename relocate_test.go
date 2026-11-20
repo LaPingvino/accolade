@@ -506,3 +506,82 @@ func TestCopyPath(t *testing.T) {
 		t.Error("copied over what is there")
 	}
 }
+
+// A bare name from the save dialog gets the type's extension, the empty
+// file the dialog made gone; a name with one stays.
+func TestWithTypeExt(t *testing.T) {
+	dir := t.TempDir()
+	bare := filepath.Join(dir, "film")
+	os.WriteFile(bare, nil, 0o644)
+	if got := withTypeExt(bare, typeAccolade); got != bare+".accolade" || exists(bare) {
+		t.Errorf("bare: %s, left %v", got, exists(bare))
+	}
+	if got := withTypeExt(filepath.Join(dir, "film.md"), typeAccolade); got != filepath.Join(dir, "film.md") {
+		t.Errorf("with one: %s", got)
+	}
+}
+
+// Undo Rename after a conversion will not lose a draft saved since.
+func TestUndoRenameKeepsLaterWork(t *testing.T) {
+	w, p := relocWindow(t)
+	if err := w.renameTo("film.accolade"); err != nil {
+		t.Fatal(err)
+	}
+	saveDraftNow(t, w, "Two")
+	w.undoRename()
+	if w.currentFile == p || len(draftsOf(t, w)) != 2 {
+		t.Errorf("taken back over a later draft: %s, %d drafts", w.currentFile, len(draftsOf(t, w)))
+	}
+}
+
+// A .highland of plain text renamed to another .highland stays plain.
+func TestRenamePlainHighland(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	dir := t.TempDir()
+	p := filepath.Join(dir, "Plain.highland")
+	os.WriteFile(p, []byte(bundleScript), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.renameTo("Other.highland"); err != nil {
+		t.Fatal(err)
+	}
+	q := filepath.Join(dir, "Other.highland")
+	if got, _ := os.ReadFile(q); string(got) != bundleScript || !w.isPlainBundle(q) || w.bundle != nil {
+		t.Errorf("not plain any more: %q", got)
+	}
+}
+
+// Undo Rename puts back only the script's own remembered entries: what
+// another window remembered since stays.
+func TestUndoRenameKeepsOthersSettings(t *testing.T) {
+	w, p := relocWindow(t)
+	if err := w.renameTo("film.fountain"); err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(t.TempDir(), "other.fountain")
+	w.rememberSource(other, "/somewhere/novel.md")
+	w.undoRename()
+	if w.currentFile != p || w.chosenSource(other) != "/somewhere/novel.md" {
+		t.Errorf("at %s; the other's source %q", w.currentFile, w.chosenSource(other))
+	}
+}
+
+// Everything Tab reaches in both dialogs shows its focus.
+func TestSaveAsFocusVisible(t *testing.T) {
+	if raceDetector {
+		t.Skip("pixel capture of focus: checked by the runs without -race")
+	}
+	w, _ := relocWindow(t)
+	w.fyneWindow.Resize(fyne.NewSize(1100, 1500)) // all of it in sight: the scroll does not follow the focus
+	w.showSaveAs()
+	if u := invisibleFocus(w.fyneWindow.Canvas()); len(u) > 0 {
+		t.Errorf("Save As: the focus is not seen on\n  %s", strings.Join(u, "\n  "))
+	}
+	w2, _ := relocWindow(t)
+	w2.fyneWindow.Resize(fyne.NewSize(1100, 1500))
+	w2.renameScript()
+	if u := invisibleFocus(w2.fyneWindow.Canvas()); len(u) > 0 {
+		t.Errorf("Rename: the focus is not seen on\n  %s", strings.Join(u, "\n  "))
+	}
+}
