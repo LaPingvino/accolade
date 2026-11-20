@@ -243,8 +243,10 @@ func (w *MainWindow) renameScript() {
 	}
 	target := func() relocation {
 		n := renamedName(name(), old)
-		l, _ := picked()
-		r := relocation{rename: true, from: w.currentFile, to: n, lang: l}
+		r := relocation{rename: true, from: w.currentFile, to: n}
+		if l, t := picked(); l != w.language || t.id == "dialect" { // said only by a choice
+			r.lang = l
+		}
 		if w.currentFile != "" && n != "" {
 			r.to = filepath.Join(filepath.Dir(w.currentFile), n)
 		}
@@ -277,8 +279,9 @@ func (w *MainWindow) renameScript() {
 		}
 		r := target()
 		becomes := "Becomes: " + n
-		if lang, _ := w.langAfter(r); !w.markdown && !isMarkdownFile(n) && dialect(lang) && languageOf(n) == "" {
-			becomes += "  · " + languageName(lang) + ", " + languageHome(n, lang, bundleKindOf(n))
+		if lang, _ := w.langAfter(r); !w.markdown && !isMarkdownFile(n) && languageOf(n) == "" &&
+			languageHome(n, lang, w.languageSaid || r.lang != "", bundleKindOf(n)) != "" {
+			becomes += "  (" + languageName(lang) + " inside)" // the Language row says where
 		}
 		result.SetText(becomes)
 		plan.show(r)

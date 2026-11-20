@@ -266,7 +266,7 @@ func (w *MainWindow) langAfter(r relocation) (lang string, noCopy bool) {
 
 // diskForm is how a script is written to path in language lang: two
 // that differ are different files for the same text (script_text.go).
-func (w *MainWindow) diskForm(path, lang string, noCopy bool, kind bundleKind) string {
+func (w *MainWindow) diskForm(path, lang string, noCopy, said bool, kind bundleKind) string {
 	switch {
 	case w.markdown:
 		return "markdown"
@@ -278,7 +278,7 @@ func (w *MainWindow) diskForm(path, lang string, noCopy bool, kind bundleKind) s
 		return fmt.Sprintf("bundle %s %v", lang, copied)
 	case languageOf(path) != "":
 		return "dialect"
-	case dialect(lang):
+	case dialect(lang) && said:
 		return "standard " + lang
 	}
 	return "plain"
@@ -289,14 +289,15 @@ func (w *MainWindow) diskForm(path, lang string, noCopy bool, kind bundleKind) s
 func (w *MainWindow) reforms(r relocation) bool {
 	fromKind, toKind := w.kinds(r)
 	lang, noCopy := w.langAfter(r)
-	return w.diskForm(r.from, w.language, w.noFountainCopy, fromKind) != w.diskForm(r.to, lang, noCopy, toKind)
+	return w.diskForm(r.from, w.language, w.noFountainCopy, w.languageSaid, fromKind) !=
+		w.diskForm(r.to, lang, noCopy, w.languageSaid || r.lang != "", toKind)
 }
 
 // languageHome is where a script's language is kept in a file, "" for
 // the standard language.
-func languageHome(path, lang string, kind bundleKind) string {
+func languageHome(path, lang string, said bool, kind bundleKind) string {
 	switch {
-	case !dialect(lang):
+	case !dialect(lang) || (!said && kind == notBundle && languageOf(path) == ""):
 		return ""
 	case kind != notBundle:
 		return "in info.json, its text as text." + lang + ".fountain"
@@ -435,14 +436,18 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 			row.what = "Language: " + languageName(w.language) + " → " + languageName(lang)
 		}
 		std := languageName(standardLanguage()) + ": nowhere"
-		row.now = cmp.Or(languageHome(r.from, w.language, fromKind), std)
+		row.now = cmp.Or(languageHome(r.from, w.language, true, fromKind), std)
 		switch {
 		case r.from == "":
 			row.now = "not saved yet"
 		case !w.languageSaid && fromKind == notBundle:
 			row.now = "nowhere (the Preferences' language, assumed)"
 		}
-		row.after = cmp.Or(languageHome(r.to, lang, toKind), std)
+		row.after = languageHome(r.to, lang, w.languageSaid || r.lang != "", toKind)
+		if row.after == "" && dialect(lang) {
+			row.after = "nowhere (the Preferences' language, assumed): the text as it is"
+		}
+		row.after = cmp.Or(row.after, std)
 		rows = append(rows, row)
 	}
 

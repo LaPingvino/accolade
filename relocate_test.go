@@ -349,7 +349,7 @@ func TestRenameEditor(t *testing.T) {
 		t.Errorf("types in Esperanto: %v, %q", a.kind.Options, a.kind.Selected)
 	}
 	a.kind.SetSelected("Accolade (.accolade)")
-	if a.result.Text != "Becomes: film.accolade  · Esperanto, in info.json, its text as text.eo.fountain" {
+	if a.result.Text != "Becomes: film.accolade  (Esperanto inside)" {
 		t.Errorf("result %q", a.result.Text)
 	}
 	plan := planText(a.plan)

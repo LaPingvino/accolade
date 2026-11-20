@@ -31,7 +31,7 @@ INT. KITCHEN - NIGHT
 Rain against the window.
 ```
 
-Scripts in other languages have their own words: EN./EKST. in Esperanto, BIN./BUI. in Dutch, and so on. Edit > Script Language… chooses them, and a file named like `scene.eo.fountain` says its own language.
+Scripts in other languages have their own words: EN./EKST. in Esperanto, BIN./BUI. in Dutch, and so on. Edit > Script Language… chooses them, and a file named like `scene.eo.fountain` says its own language (a bundle keeps it inside; see [File Formats](formats.md#a-script-in-another-language)).
 
 ### Forced scene headings
 

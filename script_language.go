@@ -237,8 +237,9 @@ func (w *MainWindow) nameLanguage(lang string) error {
 		return w.SaveFile()
 	}
 	to := withLanguageName(w.currentFile, lang)
-	if to == w.currentFile {
-		return nil
+	if to == w.currentFile { // the name stays: the text says it (script_text.go)
+		w.hasChanges = true
+		return w.SaveFile()
 	}
 	return w.renameTo(filepath.Base(to)) // its files along (relocate.go)
 }

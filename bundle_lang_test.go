@@ -336,7 +336,7 @@ func TestRenameEditorBundleLanguage(t *testing.T) {
 	if a.lang.Selected != languageLabel("eo") || a.base.Text != "film" || a.kind.Selected != "Accolade (.accolade)" {
 		t.Fatalf("opened as %q %q %q", a.lang.Selected, a.base.Text, a.kind.Selected)
 	}
-	if a.result.Text != "Becomes: film.accolade  · Esperanto, in info.json, its text as text.eo.fountain" {
+	if a.result.Text != "Becomes: film.accolade  (Esperanto inside)" {
 		t.Errorf("result %q", a.result.Text)
 	}
 	if !strings.Contains(planText(a.plan), "text.eo.fountain, text.fountain (standard Fountain)") {
@@ -439,5 +439,110 @@ func TestDialectNames(t *testing.T) {
 	}
 	if got := withTypeExt(filepath.Join(dir, "story"), dialectType("eo")); got != filepath.Join(dir, "story.eo.fountain") {
 		t.Errorf("bare name: %s", got)
+	}
+}
+
+// The rename editor with its language picker untouched says nothing:
+// a rename with nothing changed does nothing, and an assumed language
+// is not written.
+func TestRenameEditorAssumedLanguage(t *testing.T) {
+	dir := t.TempDir()
+	for _, tc := range []struct {
+		name, text, pref string
+	}{{"film.fountain", bundleScript, "en"}, {"notes.md", "# Notes\n\nEN. DOMO\n", "eo"}, {"plain.fountain", eoScript, "eo"}} {
+		w := draftsWindow(t)
+		was := w.settings.GetString("script-language")
+		w.settings.SetString("script-language", tc.pref)
+		t.Cleanup(func() { w.settings.SetString("script-language", was) })
+		p := filepath.Join(dir, tc.name)
+		os.WriteFile(p, []byte(tc.text), 0o644)
+		if err := w.LoadFile(p); err != nil {
+			t.Fatal(err)
+		}
+		w.textEditor.SetText(tc.text + "\nMore.\n")
+		w.hasChanges = true
+		w.renameScript()
+		w.renameAsked.confirm()
+		w.flushBundleWrites()
+		if got, _ := os.ReadFile(p); string(got) != tc.text || !w.hasChanges || w.currentFile != p {
+			t.Errorf("%s renamed to itself: changed %v, now %s:\n%s", tc.name, w.hasChanges, w.currentFile, got)
+		}
+		if tc.name != "plain.fountain" {
+			continue
+		}
+		// only its name changed: written as it is
+		os.WriteFile(p, []byte(tc.text), 0o644)
+		w.LoadFile(p)
+		w.renameScript()
+		w.renameAsked.base.SetText("other")
+		w.renameAsked.confirm()
+		w.flushBundleWrites()
+		if got, _ := os.ReadFile(filepath.Join(dir, "other.fountain")); string(got) != tc.text {
+			t.Errorf("renamed, an assumed language written:\n%s", got)
+		}
+	}
+}
+
+// Script Language back to the standard one on a standard film.fountain
+// in Esperanto: saved without its marks and line, English on reopening.
+func TestScriptLanguageBackToStandard(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "film.fountain")
+	os.WriteFile(p, []byte(eoFountain+"\n/* Language: eo */\n"), 0o644)
+	w := draftsWindow(t)
+	if err := w.LoadFile(p); err != nil || w.language != "eo" {
+		t.Fatal(err, w.language)
+	}
+	w.changeLanguage(standardLanguage(), markLanguage, nil)
+	w2 := draftsWindow(t)
+	w2.LoadFile(p)
+	if got, _ := os.ReadFile(p); w2.language != standardLanguage() || string(got) != eoScript {
+		t.Errorf("reopened in %s:\n%s", w2.language, got)
+	}
+}
+
+// A .textbundle folder: the language's text written beside text.fountain,
+// and removed in place when the script is in the standard language again.
+func TestTextBundleFolderLanguage(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "Story.textbundle")
+	os.MkdirAll(filepath.Join(dir, "assets"), 0o755)
+	os.WriteFile(filepath.Join(dir, "info.json"), []byte(highlandInfo), 0o644)
+	os.WriteFile(filepath.Join(dir, "text.fountain"), []byte(bundleScript), 0o644)
+	os.WriteFile(filepath.Join(dir, "other.txt"), []byte("keep"), 0o644)
+	w := draftsWindow(t)
+	if err := w.LoadFile(dir); err != nil {
+		t.Fatal(err)
+	}
+	w.changeLanguage("eo", markLanguage, nil)
+	w.textEditor.SetText(eoScript)
+	w.SaveFile()
+	w.flushBundleWrites()
+	native, _ := os.ReadFile(filepath.Join(dir, "text.eo.fountain"))
+	plain, _ := os.ReadFile(filepath.Join(dir, "text.fountain"))
+	if string(native) != eoScript || string(plain) != eoFountain || w.currentFile != dir {
+		t.Errorf("in Esperanto (%s):\n%s\n---\n%s", w.currentFile, native, plain)
+	}
+	w.changeLanguage(standardLanguage(), markLanguage, nil)
+	w.flushBundleWrites()
+	if exists(filepath.Join(dir, "text.eo.fountain")) || !exists(filepath.Join(dir, "other.txt")) {
+		t.Error("text.eo.fountain left, or another file lost")
+	}
+}
+
+// Out of a bundle: to its dialect the text as written, to standard
+// Fountain forced with its language line.
+func TestBundleLanguageToPlain(t *testing.T) {
+	for _, tc := range []struct{ to, want string }{
+		{"film.eo.fountain", eoScript}, {"film.fountain", eoFountain + "\n/* Language: eo */\n"},
+	} {
+		w, p := eoAccolade(t)
+		if err := w.renameTo(tc.to); err != nil {
+			t.Fatal(err)
+		}
+		w.flushBundleWrites()
+		to := filepath.Join(filepath.Dir(p), tc.to)
+		if got, _ := os.ReadFile(to); string(got) != tc.want || exists(p) {
+			t.Errorf("%s:\n%s", tc.to, got)
+		}
 	}
 }
