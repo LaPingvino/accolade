@@ -312,3 +312,4 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   dialog's offer `SHOT_DIR=… go test -run TestIssueOffersLock` (lockedpages-issue-wide/phone.png). Print (HTML) keeps
   no locked pages. Rough:
   reports give the current pages, not locked labels. Next: PRODUCTION step 6, the Production pane.
+- 2026-11-20: lockedpages_test.go is built without -race (as background_real_test.go): its tests run real background work, and under the test driver fyne.Do runs callbacks on the background goroutine, which -race reports (TestLockPagesUndo: writePageLock vs undo). To look at: drive these tests through one UI goroutine (a test helper that runs every UI call via fyne.DoAndWait), so they can run under -race again.

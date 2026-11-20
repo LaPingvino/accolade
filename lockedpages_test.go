@@ -1,3 +1,8 @@
+//go:build !race
+
+// Built without -race, like background_real_test.go: these tests run the real background work, and the test
+// driver calls fyne.Do's callbacks on the background goroutine, which the race detector reports.
+
 package main
 
 import (
