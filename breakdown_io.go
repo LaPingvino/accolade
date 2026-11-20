@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"maps"
 	"slices"
 	"strings"
 	"unicode/utf16"
@@ -75,7 +76,8 @@ func fdxBreakdown(data []byte, text string, starts []string) (breakdownFile, int
 	lines := rowLines(s, text)
 	bt := readBdText(text, starts)
 	n := 0
-	for row, tags := range byRow {
+	for _, row := range slices.Sorted(maps.Keys(byRow)) {
+		tags := byRow[row]
 		if row >= len(lines) || lines[row] < 0 {
 			continue
 		}
@@ -256,7 +258,7 @@ func (f *breakdownFile) merge(o breakdownFile) int {
 }
 
 // keepImportedBreakdown adds an imported breakdown to the script's.
-func (w *MainWindow) keepImportedBreakdown(o breakdownFile, from string) int {
+func (w *MainWindow) keepImportedBreakdown(o breakdownFile) int {
 	w.breakdownGen++
 	f := w.breakdownNow()
 	n := f.merge(o)
@@ -278,10 +280,12 @@ func (w *MainWindow) readBeatTags() {
 	}
 	o, _, why := beatBreakdown(text, w.sceneStarts())
 	if why != "" {
-		w.setStatus(why)
+		if len(w.breakdownNow().Tags) == 0 { // said once: not when they were read before
+			w.setStatus(why)
+		}
 		return
 	}
-	if n := w.keepImportedBreakdown(o, "Beat"); n > 0 {
+	if n := w.keepImportedBreakdown(o); n > 0 {
 		w.setStatus("Read " + plural(n, "tag") + " from Beat's data: the breakdown keeps them by their words")
 	}
 }

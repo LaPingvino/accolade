@@ -92,8 +92,8 @@ func (w *MainWindow) showReports() {
 		return
 	}
 	content, job := w.textEditor.Text(), w.savedExportJob()
-	f, _, ps := w.breakdownNowFound()
-	bd, lost := reportBreakdown(f, ps), 0
+	f, bt, ps := w.breakdownNowFound()
+	lost := 0
 	for _, p := range ps {
 		if p.lost {
 			lost++
@@ -113,7 +113,7 @@ func (w *MainWindow) showReports() {
 			return
 		}
 		w.setStatus("")
-		rd := newReportsDialogWith(w, m.r, bd, lost)
+		rd := newReportsDialogWith(w, m.r, reportBreakdownFor(f, ps, bt, &m.r), lost)
 		rd.dialog.Show()
 		w.lastReports = rd
 	})

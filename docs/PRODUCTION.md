@@ -1096,12 +1096,17 @@ as boneyard; and the file is the record the bundle was made for. Undo does not c
 - A tag's scene: its written number (`#12#`) when it has one, the heading's words, and which of the scenes with that
   heading it is (`nth`). Its words: a Text Fragment directive (textfrag.go's syntax) with up to three words before and
   after in the scene.
-- **Found again** (breakdown.go `locate`): in its scene (by number, else heading and nth, else any scene with that
-  heading), the place with the words whose words around them match best. If they are not in that scene: anywhere, if
-  that place is told apart (some words around it match, or the words are more than one, or stand once). Otherwise
-  the tag is **lost**: shown in the pane, kept in the file, found again if the words come back.
+- **Found again** (breakdown.go `locate`): the place with the words whose words around them match the anchor's
+  best, looked for in its own scene when it is numbered; else in the scenes with its heading together (of equals,
+  the one that is which-of-those it was); else anywhere. A place is taken when it is told apart: in its own scene when
+  that is sure (by its number, or a heading no other scene has), else with at least two of the words around it as
+  anchored, or words (more than one) that stand once in the script. Otherwise the tag is **lost**: shown in the pane,
+  kept in the file, found again if the words come back. A single word that left its scene is lost rather than moved
+  to another scene that has the word.
 - Tested: words before it in its line, a new scene before all, the same word earlier in its scene, Lock Scene Numbers
-  after tagging, a numbered scene's heading changed, the words cut and restored.
+  after tagging, a numbered scene's heading changed, the words cut and restored, a scene with the same heading and
+  the word put before it, the words cut while two other scenes have the word (lost, not moved).
+- A `breakdown.json` that cannot be read is never written over: tagging says so (mend or move the file).
 
 **Tagging** (Production menu; breakdown_view.go)
 
@@ -1126,7 +1131,8 @@ as boneyard; and the file is the record the bundle was made for. Undo does not c
   part), its elements by category in their colours (a tap selects the words). Then "Tagged in other scenes, found
   here": an element tagged elsewhere whose words this scene has, a tap tags it here. Then the lost tags, anywhere (a
   tap asks to remove one).
-- **Next Scene** goes to the first scene not marked done (the list shows its cast and location at once: they need no
+- The buttons (two columns beside the script, one under the other at the list's end on a phone):
+  **Next Scene** goes to the first scene not marked done (the list shows its cast and location at once: they need no
   tagging). **Mark Scene Done** / **Mark Scene Not Done**. **Tag Selection…**. **Breakdown Sheets…** (the reports).
 - The script's stage is Break down once White is issued and the breakdown has begun (a tag or a scene done); it can
   be looked at any time. Production > Break Down… opens it.
@@ -1152,7 +1158,7 @@ as boneyard; and the file is the record the bundle was made for. Undo does not c
 **FDX**
 
 - Out (Export > FDX, always): each heading's `<SceneProperties Length="1 3/8" Page="12">` from the PDF's measure with
-  the export's settings (`cli.Options.SceneLengths`, `-lengths`). Final Draft writes lengths so (`1`, `2/8`, `1 3/8`
+  the export's settings (`cli.Options.SceneLengths`, `-lengths`); an OMITTED scene has its Page and no Length. Final Draft writes lengths so (`1`, `2/8`, `1 3/8`
   in Big Fish). With a breakdown: `<TagData>` with all the categories (Final Draft 13's list, these colours, one's
   own after), a `<TagDefinition CatId Id Label Number>` per element, a `<Tag Number><DefId>…</DefId></Tag>` per place
   tagged (two DefIds where the same words are tagged twice), and `TagNumber` on the runs of the tagged words (split
@@ -1168,7 +1174,9 @@ as boneyard; and the file is the record the bundle was made for. Undo does not c
 - In (Open of an .fdx): `fdx.ParseTags` reads the TagData (standard categories by Id, else by name; others as one's
   own) and each run's TagNumber, with its text and place in the line; Accolade anchors them on the imported text by
   their words, as its own. Round trip tested: written, read back, the same elements on the same words, the cues'
-  cast with them.
+  cast with them, also on the second line of a two-line action paragraph and of a two-line speech. The scenes on the
+  sheets are the text's scenes matched to the report's (one to one, else by number; tested with an OMITTED scene, a
+  forced heading and a title page).
 
 **Beat's tags in.** On opening a script with Beat's data block: its `TagDefinitions` (`type`, `name`, `id`) are the
 elements (Beat's types read as the standard categories), its `Tags` (`range` in UTF-16 units of the text before the

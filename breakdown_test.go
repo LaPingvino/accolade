@@ -7,6 +7,8 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -174,6 +176,22 @@ func TestLostTags(t *testing.T) {
 	}
 }
 
+// A tag whose words left its scene is not moved to another place with
+// the same word: it is lost. A scene with the same heading and the word
+// put before its scene does not take it either.
+func TestTagNotMoved(t *testing.T) {
+	w, _ := scriptWindow(t, bdScript)
+	tagNow(t, w, "revolver", 1, "Props")
+	replaceText(t, w, "INT. KITCHEN - NIGHT", "INT. KITCHEN - NIGHT\n\nA revolver on the shelf.\n\nINT. KITCHEN - NIGHT")
+	if got := found(w); len(got) != 1 || got[0] != "revolver@revolver@008:039" {
+		t.Errorf("after a scene put before: %v", got)
+	}
+	replaceText(t, w, "Anna puts the revolver on the table. A revolver again.", "Anna waits.")
+	if got := found(w); len(got) != 1 || got[0] != "revolver@lost" {
+		t.Errorf("after its words went: %v (scene 3 and the new scene have the word)", got)
+	}
+}
+
 // Untag takes the tag away (and its element, if it has no other).
 func TestUntag(t *testing.T) {
 	w, _ := scriptWindow(t, bdScript)
@@ -220,6 +238,21 @@ func TestBreakdownStored(t *testing.T) {
 	}
 	if got := found(w); len(got) != 1 || !strings.HasPrefix(got[0], "revolver@revolver@") {
 		t.Errorf("read again: %v", got)
+	}
+}
+
+// A breakdown.json that cannot be read is never written over.
+func TestBreakdownUnreadable(t *testing.T) {
+	w, _ := scriptWindow(t, bdScript)
+	tagNow(t, w, "dog", 0, "Animals") // the kept copy made
+	h := w.extrasHome()
+	if err := h.dir.write([]bundleFile{{breakdownName, []byte("{not json")}}); err != nil {
+		t.Fatal(err)
+	}
+	w.breakdownGen++ // read again
+	tagNow(t, w, "taxi", 0, "Vehicles")
+	if data, _ := h.readExtra(breakdownName); string(data) != "{not json" {
+		t.Errorf("written over: %s", data)
 	}
 }
 
@@ -380,15 +413,51 @@ func TestBreakdownReports(t *testing.T) {
 		}
 	}
 	rep, _ := scriptReport(w.textEditor.Text(), w.savedExportJob())
-	f, _, ps := w.breakdownNowFound()
+	f, bt, ps := w.breakdownNowFound()
 	b.Reset()
-	if err := lexreport.WriteSheetsPDF(&b, "The Shed", rep.Sheets(reportBreakdown(f, ps)), ""); err != nil || !bytes.HasPrefix(b.Bytes(), []byte("%PDF")) {
+	if err := lexreport.WriteSheetsPDF(&b, "The Shed", rep.Sheets(reportBreakdownFor(f, ps, bt, &rep)), ""); err != nil || !bytes.HasPrefix(b.Bytes(), []byte("%PDF")) {
 		t.Errorf("sheets PDF: %v", err)
 	}
 	if dir := os.Getenv("SHOT_DIR"); dir != "" {
 		os.WriteFile(filepath.Join(dir, "breakdown-sheets.pdf"), b.Bytes(), 0o644)
 	}
 	rd.dialog.Hide()
+}
+
+// The text's scenes are the report's, with an OMITTED scene (its old
+// heading in boneyard), a forced heading and a title page: each tag on
+// its scene's sheet.
+func TestBreakdownScenesAlign(t *testing.T) {
+	script := "Title: X\n\nINT. HOUSE - DAY #1#\n\nA lamp.\n\n.OMITTED #2#\n\n/* Omitted 2\nINT. SHED - NIGHT #2#\n\nA rake.\n*/\n\n" +
+		".THE VOID #3#\n\nA star.\n\nEXT. ROAD - NIGHT #4#\n\nA truck.\n\n/* Production\nscene numbers: locked, 10A\n*/\n"
+	w, _ := scriptWindow(t, script)
+	tagNow(t, w, "lamp", 0, "Props")
+	tagNow(t, w, "star", 0, "Props")
+	tagNow(t, w, "truck", 0, "Vehicles")
+	rep, err := scriptReport(w.textEditor.Text(), w.savedExportJob())
+	if err != nil {
+		t.Fatal(err)
+	}
+	f, bt, ps := w.breakdownNowFound()
+	if len(bt.scenes) != len(rep.Scenes) {
+		t.Errorf("%d scenes in the text, %d in the report", len(bt.scenes), len(rep.Scenes))
+	}
+	got := map[string]string{}
+	for _, sh := range rep.Sheets(reportBreakdownFor(f, ps, bt, &rep)) {
+		for _, g := range sh.Groups {
+			got[sh.ID()] += strings.Join(g.Names, ",")
+		}
+	}
+	if got["1"] != "lamp" || got["3"] != "star" || got["4"] != "truck" || got["2"] != "" {
+		t.Errorf("sheets %v", got)
+	}
+	// and when they differ, by their numbers
+	short := rep
+	short.Scenes = append([]lexreport.Scene{}, rep.Scenes[:1]...)
+	short.Scenes = append(short.Scenes, rep.Scenes[2:]...)
+	if m := reportScenes(bt, &short); m[0] != 0 || m[1] != -1 || m[2] != 1 || m[3] != 2 {
+		t.Errorf("by number %v", m)
+	}
 }
 
 // FDX out: the scenes' lengths, the TagData with the tags and the cast
@@ -445,6 +514,81 @@ func TestBreakdownFDX(t *testing.T) {
 	}
 	if n := len(w2.breakdownNow().Tags); n < 3 {
 		t.Errorf("%d tags imported", n)
+	}
+}
+
+// Tags on the second line of a two-line action paragraph and of a
+// two-line speech go out on their paragraph's runs and come back on their
+// words.
+func TestBreakdownFDXMultiLine(t *testing.T) {
+	script := "INT. HOUSE - DAY\n\nThe taxi waits.\nA dog barks at it.\n\nANNA\nWhere is the taxi?\nAnd my umbrella?\n"
+	w, _ := scriptWindow(t, script)
+	tagNow(t, w, "dog", 0, "Animals")
+	tagNow(t, w, "umbrella", 0, "Props")
+	text := w.textEditor.Text()
+	j := w.withBreakdown(w.savedExportJob(), text)
+	out := filepath.Join(t.TempDir(), "multi.fdx")
+	if err := cli.Write(t.Context(), j.script(text), j.options("fdx", out)); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(out)
+	for _, want := range []string{">dog</Text>", ">umbrella</Text>"} {
+		if !strings.Contains(string(data), "TagNumber") || !regexpMatch(`<Text TagNumber="\d+"`+want, string(data)) {
+			t.Errorf("no tagged %s in\n%s", want, data)
+		}
+	}
+	text2, _, _, tags, err := importFDXTagged(bytes.NewReader(data))
+	if err != nil {
+		t.Fatal(err)
+	}
+	bt := readBdText(text2, nil)
+	var got []string
+	for _, p := range bt.place(&tags) {
+		if !p.lost && p.element.Category != lex.CastCategory {
+			got = append(got, string(bt.runes[p.start:p.end]))
+		}
+	}
+	slices.Sort(got)
+	if strings.Join(got, ",") != "dog,umbrella" {
+		t.Errorf("read back %v from\n%s", got, text2)
+	}
+}
+
+func regexpMatch(re, s string) bool { return regexp.MustCompile(re).MatchString(s) }
+
+// A bundle whose only extra is its breakdown, saved as a plain script,
+// keeps it (the kept copy); saved as .accolade again, it goes back in.
+func TestBreakdownFlattened(t *testing.T) {
+	w := draftsWindow(t)
+	p := filepath.Join(t.TempDir(), "Script.accolade")
+	os.WriteFile(p, makeZip(t, bundleItems("Script.textbundle/")), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	_, bt, _ := w.breakdownNowFound()
+	if len(bt.scenes) == 0 {
+		t.Fatal("the bundle's script has no scene")
+	}
+	wd := bt.words[len(bt.words)-1]
+	word := string(bt.runes[wd.start:wd.end])
+	w.textEditor.Select(wd.start, wd.end)
+	w.tagSelectionAs("Props")
+	to := filepath.Join(filepath.Dir(p), "Script.fountain")
+	saveAsPlain(t, w, to, flattenKept)
+	w2 := againWindow(t, w)
+	if err := w2.LoadFile(to); err != nil {
+		t.Fatal(err)
+	}
+	if got := found(w2); len(got) != 1 || !strings.HasPrefix(got[0], word+"@") {
+		t.Fatalf("flattened: %v", got)
+	}
+	back := filepath.Join(filepath.Dir(p), "Back.accolade")
+	if err := w2.saveToFile(back); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(back)
+	if got, _ := zipFile(t, data, "Back.textbundle/"+breakdownName); !strings.Contains(got, `"Props"`) {
+		t.Errorf("back in: %q", got)
 	}
 }
 
@@ -563,12 +707,18 @@ func TestBreakdownScreenshots(t *testing.T) {
 	tagNow(t, w, "Nobody", 0, "Cast Members")
 	p := prodPane(t, w)
 	p.pick(stageBreakdown)
-	w.goToLine(2)
-	test.Tap(p.bd.done)
 	w.goToLine(13)
+	p.refresh()
+	test.Tap(p.bd.done) // scene 2 done
+	w.goToLine(4)       // scene 1: cast, location, elements
 	w.updateBreakdown()
 	p.refresh()
 	comboShot(t, w, "breakdown-stage")
+	w.app.setColorScheme("light")
+	t.Cleanup(func() { w.app.setColorScheme("dark") })
+	w.updateBreakdown()
+	p.refresh()
+	comboShot(t, w, "breakdown-stage-light")
 
 	t.Cleanup(func() { w.settings.SetString("report-kind", lexreport.KindScenes) })
 	// the reports made for the window's size, as a phone opens them
@@ -587,5 +737,27 @@ func TestBreakdownScreenshots(t *testing.T) {
 		png.Encode(f, w.fyneWindow.Canvas().Capture())
 		f.Close()
 		w.lastReports.dialog.Hide()
+	}
+}
+
+// On a phone the Break down stage fits the pane: its buttons one under
+// the other at the list's end.
+func TestBreakdownStageNarrow(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, bdScript)
+	w.fyneWindow.Resize(fyne.NewSize(380, 800))
+	p := prodPane(t, w)
+	p.pick(stageBreakdown)
+	if p.box.MinSize().Width > sourceWidth {
+		t.Errorf("the pane is at least %v wide", p.box.MinSize().Width)
+	}
+	if len(p.buttons.Objects) != 4 || !p.narrow {
+		t.Errorf("%d buttons, narrow %v", len(p.buttons.Objects), p.narrow)
+	}
+	w.fyneWindow.Resize(fyne.NewSize(1100, 650))
+	w.fyneWindow.Content().Refresh()
+	p.refresh()
+	if len(p.buttons.Objects) != 1 || p.buttons.Objects[0] != p.bd.grid {
+		t.Error("beside the script the buttons are not in two columns")
 	}
 }

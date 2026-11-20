@@ -369,21 +369,29 @@ func (t *bdText) locate(tag bdTag) (start, end, scene int, ok bool) {
 	if len(want) == 0 {
 		return 0, 0, -1, false
 	}
-	var first, second, rest []int // candidate scenes, best first
-	for i, s := range t.scenes {
-		switch {
-		case tag.Scene != "" && s.key.Scene == tag.Scene:
-			first = append(first, i)
-		case s.key.Heading == tag.Heading && s.key.Nth == tag.Nth:
-			second = append(second, i)
-		case s.key.Heading == tag.Heading:
-			rest = append(rest, i)
-		}
+	// its own scene: by its number (a number given later, by Lock, is
+	// none: then the heading and which of those it is)
+	numbered := false
+	for _, s := range t.scenes {
+		numbered = numbered || (tag.Scene != "" && s.key.Scene == tag.Scene)
 	}
-	best := func(scenes []int) (int, int, bool) {
-		bi, bscore := -1, -1
+	own := func(s bdScene) bool {
+		if numbered {
+			return s.key.Scene == tag.Scene
+		}
+		return s.key.Heading == tag.Heading && s.key.Nth == tag.Nth
+	}
+	type cand struct {
+		i, score int
+		own      bool
+	}
+	// best is the place with the words with the most words around them
+	// as anchored, of the scenes; of equals, one in its own scene
+	best := func(scenes []int) (cand, bool) {
+		c := cand{i: -1, score: -1}
 		for _, sc := range scenes {
 			lo, hi := t.sceneWords(sc)
+			isOwn := own(t.scenes[sc])
 			for i := lo; i+len(want) <= hi; i++ {
 				if !t.wordsAt(i, want) {
 					continue
@@ -395,26 +403,47 @@ func (t *bdText) locate(tag bdTag) (start, end, scene int, ok bool) {
 				for k := 0; k < len(suf) && i+len(want)+k < hi && t.words[i+len(want)+k].norm == suf[k]; k++ {
 					score++
 				}
-				if score > bscore {
-					bi, bscore = i, score
+				if score > c.score || (score == c.score && isOwn && !c.own) {
+					c = cand{i, score, isOwn}
 				}
 			}
 		}
-		return bi, bscore, bi >= 0
+		return c, c.i >= 0
 	}
-	for _, group := range [][]int{first, second, rest} {
-		if i, _, ok := best(group); ok {
-			return t.words[i].start, t.words[i+len(want)-1].end, t.sceneOf[i], true
+	// told apart: in its own scene, or with two words around it as anchored,
+	// or more than a word that stand once in the script (a single word
+	// elsewhere is another place: the tag is lost, not moved)
+	var ownScenes, sameHeading, all []int
+	headings := 0
+	for i, s := range t.scenes {
+		all = append(all, i)
+		if own(s) {
+			ownScenes = append(ownScenes, i)
+		}
+		if s.key.Heading == tag.Heading {
+			headings++
+		}
+		if s.key.Heading == tag.Heading || own(s) {
+			sameHeading = append(sameHeading, i)
 		}
 	}
-	all := make([]int, len(t.scenes))
-	for i := range all {
-		all[i] = i
+	// its own scene is sure by its number, or by a heading no other
+	// scene has: which of several it is can shift (a scene put before)
+	sure := numbered || headings == 1
+	accept := func(c cand) bool {
+		return (c.own && sure) || c.score >= 2 || (len(want) > 1 && t.count(want) == 1)
 	}
-	if i, score, ok := best(all); ok && (score > 0 || len(want) > 1 || t.count(want) == 1) {
-		// moved to another scene: found when it is told apart (its
-		// words around it, or words few others have)
-		return t.words[i].start, t.words[i+len(want)-1].end, t.sceneOf[i], true
+	// its own scene when numbered (the heading may have changed); else
+	// the scenes with its heading together (a scene with that heading put
+	// before it shifts which it is); else anywhere (moved)
+	groups := [][]int{sameHeading, all}
+	if numbered {
+		groups = [][]int{ownScenes, sameHeading, all}
+	}
+	for _, g := range groups {
+		if c, ok := best(g); ok && accept(c) {
+			return t.words[c.i].start, t.words[c.i+len(want)-1].end, t.sceneOf[c.i], true
+		}
 	}
 	return 0, 0, -1, false
 }
@@ -609,16 +638,13 @@ func (p bdProgress) percent() int {
 	return p.done * 100 / p.total
 }
 
-// categoryInk is a category's colour as the editor draws words in it:
-// mixed a little towards the text's colour, so that light ones (Camera's
-// yellow-green) read on the page.
-func categoryInk(c lex.TagCategory, fg color.Color) color.Color {
-	r, g, b, ok := parseHexRGB(c.Color)
-	if !ok {
-		return fg
-	}
+// mixInk is a category's colour as the editor draws words in it: mixed
+// a little towards the text's colour, so that light ones (Camera's
+// yellow-green) read on a light page and dark ones on a dark.
+func mixInk(c, fg color.Color) color.Color {
+	r, g, b, _ := c.RGBA()
 	fr, fgc, fb, _ := fg.RGBA()
-	mix := func(x uint8, y uint32) uint8 { return uint8((float64(x)*0.7 + float64(y>>8)*0.3)) }
+	mix := func(x, y uint32) uint8 { return uint8(float64(x>>8)*0.7 + float64(y>>8)*0.3) }
 	return color.NRGBA{R: mix(r, fr), G: mix(g, fgc), B: mix(b, fb), A: 0xff}
 }
 
@@ -655,19 +681,54 @@ func inksOf(t *bdText, f *breakdownFile, ps []placed, ink func(lex.TagCategory) 
 	return out
 }
 
-// sceneElements are the elements of a scene: its cast (who speaks, from
-// the report, then those tagged), then the tags placed in it, each
-// element once, by category in order.
-type sceneElement struct {
-	category lex.TagCategory
-	name     string
-	fromCue  bool    // the cast from the cues: not a tag
-	at       *placed // the first of its tags in the scene
-	number   int     // a cast member's number
+// reportScenes maps the text's scenes to the report's (-1: none): one
+// to one when there are as many, else by their numbers, in order.
+func reportScenes(t *bdText, rep *lexreport.Report) []int {
+	out := make([]int, len(t.scenes))
+	if rep == nil {
+		for i := range out {
+			out[i] = -1
+		}
+		return out
+	}
+	if len(rep.Scenes) == len(t.scenes) {
+		for i := range out {
+			out[i] = i
+		}
+		return out
+	}
+	j := 0
+	for i, s := range t.scenes {
+		out[i] = -1
+		for k := j; k < len(rep.Scenes); k++ {
+			if rep.Scenes[k].ID() == s.label {
+				out[i], j = k, k+1
+				break
+			}
+		}
+	}
+	return out
 }
 
 // reportBreakdown is the breakdown as Lexington's report takes it: each
-// scene's elements by its Order.
+// scene's elements by its Order (the text's scenes mapped to the
+// report's by reportScenes).
+func reportBreakdownFor(f *breakdownFile, ps []placed, t *bdText, rep *lexreport.Report) lexreport.Breakdown {
+	m := reportScenes(t, rep)
+	moved := make([]placed, 0, len(ps))
+	for _, p := range ps {
+		if p.scene >= 0 && p.scene < len(m) {
+			p.scene = m[p.scene]
+		}
+		if p.scene >= 0 {
+			moved = append(moved, p)
+		}
+	}
+	return reportBreakdown(f, moved)
+}
+
+// reportBreakdown is the breakdown as Lexington's report takes it: each
+// scene's elements by its Order, the tags' scenes being the report's.
 func reportBreakdown(f *breakdownFile, ps []placed) lexreport.Breakdown {
 	b := lexreport.Breakdown{Elements: map[int][]lexreport.Element{}}
 	for _, c := range f.Categories {

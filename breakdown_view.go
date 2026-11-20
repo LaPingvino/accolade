@@ -33,7 +33,10 @@ type breakdownState struct {
 	text   string // the text the tags were found in
 	bt     *bdText
 	placed []placed
-	inks   map[int][]editor.Ink
+	inks   map[int][]editor.Ink // in the categories' own colours
+
+	shown   map[int][]editor.Ink // as drawn: mixed with the theme's text colour
+	shownFg color.Color          // the text colour they are mixed with
 }
 
 // breakdownHiddenPref hides the tagged words' colours in the editor.
@@ -80,7 +83,6 @@ func (w *MainWindow) updateBreakdown() {
 	}
 	file := *f
 	file.Tags = append([]bdTag(nil), f.Tags...)
-	fg := w.textEditor.Theme().Color(theme.ColorNameForeground, fyne.CurrentApp().Settings().ThemeVariant())
 	w.breakdownRun++
 	run := w.breakdownRun
 	type found struct {
@@ -91,12 +93,18 @@ func (w *MainWindow) updateBreakdown() {
 	inBackground(func() found {
 		bt := readBdText(text, starts)
 		ps := bt.place(&file)
-		return found{bt, ps, inksOf(bt, &file, ps, func(c lex.TagCategory) color.Color { return categoryInk(c, fg) })}
+		return found{bt, ps, inksOf(bt, &file, ps, func(c lex.TagCategory) color.Color {
+			if r, g, b, ok := parseHexRGB(c.Color); ok {
+				return color.NRGBA{R: r, G: g, B: b, A: 0xff}
+			}
+			return nil
+		})}
 	}, func(r found) {
 		if run != w.breakdownRun || key != w.breakdown.key {
 			return // a later text's are coming
 		}
 		w.breakdown.text, w.breakdown.bt, w.breakdown.placed, w.breakdown.inks = text, r.bt, r.placed, r.inks
+		w.breakdown.shown = nil
 		w.textEditor.RedrawMarks()
 		w.productionFollow()
 	})
@@ -116,10 +124,27 @@ func (w *MainWindow) breakdownNowFound() (*breakdownFile, *bdText, []placed) {
 
 // breakdownInksShown are the editor's inks (its Inks).
 func (w *MainWindow) breakdownInksShown() map[int][]editor.Ink {
-	if w.settings != nil && w.settings.GetBoolean(breakdownHiddenPref) {
+	if w.settings != nil && w.settings.GetBoolean(breakdownHiddenPref) || w.breakdown.inks == nil {
 		return nil
 	}
-	return w.breakdown.inks
+	fg := w.textEditor.Theme().Color(theme.ColorNameForeground, fyne.CurrentApp().Settings().ThemeVariant())
+	if w.breakdown.shown == nil || w.breakdown.shownFg != fg { // mixed again only for another theme
+		shown := make(map[int][]editor.Ink, len(w.breakdown.inks))
+		for line, ks := range w.breakdown.inks {
+			out := make([]editor.Ink, len(ks))
+			for i, k := range ks {
+				out[i] = k
+				if k.Color == nil {
+					out[i].Color = fg
+				} else {
+					out[i].Color = mixInk(k.Color, fg)
+				}
+			}
+			shown[line] = out
+		}
+		w.breakdown.shown, w.breakdown.shownFg = shown, fg
+	}
+	return w.breakdown.shown
 }
 
 // toggleBreakdownTags is Production > Show Tagged Words.
@@ -138,6 +163,12 @@ func (w *MainWindow) toggleBreakdownTags() {
 // shows it again.
 func (w *MainWindow) saveBreakdown() {
 	f := w.breakdownNow()
+	if err := w.breakdown.err; err != nil { // never written over what could not be read
+		dialog.ShowError(fmt.Errorf("the breakdown could not be read, so it is not written over (%v): "+
+			"mend or move %s first", err, breakdownName), w.fyneWindow)
+		w.breakdown.key = "" // read again next time
+		return
+	}
 	f.Version = 1
 	if err := w.writeExtra(breakdownName, f); err != nil {
 		dialog.ShowError(fmt.Errorf("could not keep the breakdown: %v", err), w.fyneWindow)
@@ -283,7 +314,9 @@ func (w *MainWindow) showTagPicker() {
 	tp.d.Resize(fitDialog(w.fyneWindow, 380+dialogMargin, 560+dialogMargin))
 	tp.d.Show()
 	w.lastPicker = tp
-	w.fyneWindow.Canvas().Focus(tp.filter)
+	if !w.narrow { // on a phone the keyboard would cover the list
+		w.fyneWindow.Canvas().Focus(tp.filter)
+	}
 }
 
 // fill lists the categories that match the filter (and the new one it

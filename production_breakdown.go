@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -29,12 +30,13 @@ import (
 // breakdownStage is the stage's buttons and what it last showed.
 type breakdownStage struct {
 	next, done, tag, sheets *widget.Button
+	grid                    *fyne.Container // the buttons in two columns, beside the script
 
-	scene     int // the scene shown (-1: none)
-	report    *lexreport.Report
-	reportFor string // the text the report is of
-	reportRun int
-	reportErr error
+	scene      int // the scene shown (-1: none)
+	report     *lexreport.Report
+	reportFor  string // the text the report is of
+	pendingFor string // the text a report is being made of
+	reportRun  int
 }
 
 func (b *breakdownStage) make(p *productionPane) {
@@ -49,6 +51,7 @@ func (b *breakdownStage) make(p *productionPane) {
 	b.done = button("Mark Scene Done", theme.ConfirmIcon(), func() { w.markSceneDone(b.scene) })
 	b.tag = button("Tag Selection…", theme.ContentAddIcon(), w.showTagPicker)
 	b.sheets = button("Breakdown Sheets…", theme.DocumentIcon(), func() { w.showReportsOf(lexreport.KindSheets) })
+	b.grid = container.NewGridWithColumns(2, b.next, b.done, b.tag, b.sheets)
 	b.scene = -1
 }
 
@@ -106,8 +109,8 @@ func (p *productionPane) showBreakdown(text string) {
 	}
 	p.count.SetText(strings.Join(parts, " · "))
 
-	if b.report == nil || !sameString(b.reportFor, text) {
-		p.makeReport(text)
+	if (b.report == nil || !sameString(b.reportFor, text)) && !sameString(b.pendingFor, text) {
+		p.makeReport(text) // once a text
 	}
 	sc := bt.sceneAt(w.textEditor.CursorOffset())
 	if sc < 0 && len(bt.scenes) > 0 {
@@ -117,9 +120,11 @@ func (p *productionPane) showBreakdown(text string) {
 
 	var rs *lexreport.Scene
 	numbers := map[string]int{}
-	if b.report != nil && sameString(b.reportFor, text) && sc >= 0 && sc < len(b.report.Scenes) {
-		rs = &b.report.Scenes[sc]
-		numbers = b.report.CastNumbers(reportBreakdown(f, ps))
+	if b.report != nil && sameString(b.reportFor, text) && sc >= 0 {
+		if k := reportScenes(bt, b.report)[sc]; k >= 0 {
+			rs = &b.report.Scenes[k]
+		}
+		numbers = b.report.CastNumbers(reportBreakdownFor(f, ps, bt, b.report))
 	}
 	var key strings.Builder
 	fmt.Fprintf(&key, "breakdown\x00%d\x00%v\x00%d\x00", sc, rs != nil, len(numbers))
@@ -152,7 +157,11 @@ func (p *productionPane) showBreakdown(text string) {
 	} else {
 		b.next.Enable()
 	}
-	p.setButtons(b.next, b.done, b.tag, b.sheets)
+	if p.narrow { // a phone: one under the other, at the list's end
+		p.setButtons(b.next, b.done, b.tag, b.sheets)
+	} else {
+		p.setButtons(b.grid)
+	}
 }
 
 // breakdownRows are the stage's list: the scene, its cast and location,
@@ -319,6 +328,7 @@ func (p *productionPane) makeReport(text string) {
 	b := &p.bd
 	b.reportRun++
 	run := b.reportRun
+	b.pendingFor = text
 	job := p.w.savedExportJob()
 	type made struct {
 		r   lexreport.Report
@@ -331,7 +341,7 @@ func (p *productionPane) makeReport(text string) {
 		if run != b.reportRun {
 			return
 		}
-		b.report, b.reportFor, b.reportErr = &m.r, text, m.err
+		b.report, b.reportFor, b.pendingFor = &m.r, text, ""
 		if m.err != nil {
 			b.report = &lexreport.Report{}
 		}

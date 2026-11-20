@@ -462,7 +462,7 @@ func (w *MainWindow) importFile(filePath string) error {
 		w.keepImportedRevisions(filepath.Base(filePath), sets, marks)
 	}
 	if len(tags.Tags) > 0 {
-		if n := w.keepImportedBreakdown(tags, from); n > 0 {
+		if n := w.keepImportedBreakdown(tags); n > 0 {
 			w.setStatus("Imported from " + from + " with its breakdown: " + plural(n, "tag") + ", kept by their words")
 		}
 	}
