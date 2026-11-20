@@ -207,12 +207,13 @@ func (w *MainWindow) setupUI() {
 		return l
 	}
 	w.statusLabel = small("")
+	w.statusLabel.Wrapping = fyne.TextWrapWord // a phone's width: on more lines, not wider than the screen
 	w.statsLabel = small("")
 	w.statsLabel.Alignment = fyne.TextAlignTrailing
 	w.statsLabel.Truncation = fyne.TextTruncateEllipsis // a narrow window shows what fits
 	w.statusBar = container.NewVBox(
 		widget.NewSeparator(),
-		container.NewBorder(nil, nil, w.statusLabel, nil, w.statsLabel),
+		container.New(&statusRow{}, w.statusLabel, w.statsLabel),
 	)
 
 	w.relayout()
@@ -419,6 +420,7 @@ func (w *MainWindow) importFile(filePath string) error {
 // showImported puts an imported script in the window, unsaved.
 func (w *MainWindow) showImported(filePath, text, from string) {
 	w.cancelAutoSave()
+	w.forgetUnsavedSource()
 	w.format = fileFormat{}
 	w.setMarkdown(false)
 	w.textEditor.SetText(text)
@@ -816,6 +818,7 @@ func newScriptTemplate() string {
 }
 
 func (w *MainWindow) createNewFile(empty bool) {
+	w.forgetUnsavedSource()
 	w.setMarkdown(false)
 	w.format = fileFormat{} // a new script is UTF-8
 	text := newScriptTemplate()
@@ -827,6 +830,55 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.hasChanges = false
 	w.updateTitle()
 	w.updateStatusBar()
+}
+
+// statusRow lays out the status bar: the message as wide as it is, or
+// wrapped if it is wider than the bar (a phone's); the statistics in
+// what is left, cut to fit. A long message never makes the window wider.
+type statusRow struct{ width float32 } // the width laid out last
+
+// statsMin is how wide the statistics are at least to be shown.
+const statsMin = 60
+
+func (*statusRow) natural(l *widget.Label) float32 {
+	if l.Text == "" {
+		return 0
+	}
+	return fyne.MeasureText(l.Text, theme.CaptionTextSize(), l.TextStyle).Width + 2*theme.InnerPadding() + 1
+}
+
+// fit gives the message its width in a bar so wide, and its height for it.
+func (r *statusRow) fit(msg *widget.Label, width float32) float32 {
+	mw := min(r.natural(msg), width)
+	msg.Resize(fyne.NewSize(mw, msg.Size().Height))
+	msg.Resize(fyne.NewSize(mw, msg.MinSize().Height))
+	return mw
+}
+
+func (r *statusRow) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	msg, stats := objs[0].(*widget.Label), objs[1]
+	r.width = size.Width
+	mw := r.fit(msg, size.Width)
+	msg.Move(fyne.NewPos(0, 0))
+	if left := size.Width - mw; left >= statsMin || msg.Text == "" {
+		stats.Show()
+		stats.Move(fyne.NewPos(mw, 0))
+		stats.Resize(fyne.NewSize(left, stats.MinSize().Height))
+	} else {
+		stats.Hide() // the message first
+	}
+}
+
+func (r *statusRow) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	msg, stats := objs[0].(*widget.Label), objs[1]
+	h := stats.MinSize().Height
+	if msg.Text != "" {
+		if r.width > 0 {
+			r.fit(msg, r.width)
+		}
+		h = max(h, msg.Size().Height)
+	}
+	return fyne.NewSize(statsMin, h)
 }
 
 // UI operations
@@ -850,6 +902,16 @@ type kept struct {
 	File     string `json:"file,omitempty"` // in the browser's memory (kept too)
 	Name     string `json:"name,omitempty"` // an import's name to save it as
 	Markdown bool   `json:"markdown,omitempty"`
+	Source   string `json:"source,omitempty"` // the source of a script not saved yet (its kept copy)
+}
+
+// draft is the window's script as the web version keeps it.
+func (w *MainWindow) draft() kept {
+	d := kept{Text: w.textEditor.Text(), Language: w.language, File: w.currentFile, Name: w.suggestedName, Markdown: w.markdown}
+	if w.currentFile == "" {
+		d.Source = w.unsavedSource
+	}
+	return d
 }
 
 // restore puts a kept script back: its file again, if it still has it,
@@ -866,6 +928,9 @@ func (w *MainWindow) restore(d kept) {
 	w.setMarkdown(d.Markdown)
 	w.textEditor.SetText(d.Text)
 	w.suggestedName = d.Name
+	if _, err := os.Stat(d.Source); d.Source != "" && err == nil {
+		w.unsavedSource = d.Source
+	}
 	w.updateTitle()
 	w.setStatus("Your script not saved yet, as this browser kept it")
 }
@@ -878,7 +943,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
 	if inBrowser { // kept when typing pauses: the whole script is written each time
 		w.debounce(&w.draftTimer, draftPause, func() {
-			keepDraft(kept{Text: w.textEditor.Text(), Language: w.language, File: w.currentFile, Name: w.suggestedName, Markdown: w.markdown})
+			keepDraft(w.draft())
 		})
 	}
 	w.shareEdit(text)

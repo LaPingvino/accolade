@@ -317,6 +317,9 @@ func TestNextInserts(t *testing.T) {
 func TestNextShowsAndSkips(t *testing.T) {
 	w, _ := sourceWindow(t, nextScript, sourceStory)
 	w.settings.SetBoolean("next-passage-inserts", false)
+	t.Cleanup(func() { // the settings are the process's (GetSettings): the default back for the next tests
+		w.settings.SetBoolean("next-passage-inserts", true)
+	})
 	s := w.sourcePane()
 	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(lineWith(t, w, "Anna at the door")))
 	who := passageNamed(t, s.passages, `"Who's`)
@@ -415,6 +418,9 @@ func TestStatusScreenshots(t *testing.T) {
 		shot("accolade-statuses-" + scheme + ".png")
 	}
 	w.settings.SetBoolean("next-passage-inserts", false)
+	t.Cleanup(func() { // the settings are the process's (GetSettings): the default back for the next tests
+		w.settings.SetBoolean("next-passage-inserts", true)
+	})
 	w.nextSourcePassage()
 	w.nextSourcePassage()
 	shot("accolade-statuses-skip-dark.png")

@@ -138,3 +138,29 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   in a split (half each; an arrow over the panes makes them taller, as a finger cannot drag the split in the
   browser); a toolbar button toggles the source and stays on the row however narrow. Export, Title Page and
   Preferences dialogs fit a phone's width. Phone shots: SHOT_DIR=… go test -run TestPhoneScreenshots.
+- 2026-11-20: every source × screenplay combination (branch combos, not merged; combos_test.go has a scenario per
+  combination, SHOT_DIR=… go test -run TestCombo renders each first view at 1100×650 and 380×800). Found and fixed:
+  no source showed a blank pane (the empty state never came up on first show) with Next and Cut still there: it says
+  what to choose now, the tools hidden; a source with no passages says Edit writes it. A Markdown story (opened or
+  imported) had no way on: File > Start a Screenplay from This Source and a toolbar button (the import's status says
+  so) make a new script, a title page naming the story (Source: Based on …), its chapters as sections, the first scene
+  started; a saved .md on the desktop stays open and is the source itself (it can go on being written), an import or
+  the browser's is kept. An empty script given a source is offered the same in the pane. A script without links, a
+  source added: links are suggested scene by scene (a speech storyread finds in the passage said in the scene, or the
+  passage's words in the scene's, rarer words weighing more), Link / Skip / Not Now, never put in by itself; Format >
+  Suggest Links to the Source asks again. Next from the top of a part-adapted script (as it opens) went on from the
+  first passage and put the scene under the title page: it goes on after the last passage linked, after that scene;
+  with the chapters' sections there, a scene goes under its own chapter's. A linked passage changed in the source
+  shows its mark in the warning colour, "N changed since linked" in the count, and the scene's info says to link
+  again. A new script or import no longer inherits the last unsaved script's source; the browser's kept draft keeps
+  an unsaved script's source over a reload. A long status message made the window wider than a phone: it wraps now,
+  the statistics give way. Settings leaked between tests (next-passage-inserts): restored after them.
+  Ideas, not built: (1) "changed since" only sees the quoted opening words, and only while matching nearly: store a
+  fingerprint of the whole passage with each link (goes with the locked source, above) and a Relink that updates a
+  link's quote; (2) suggestions: stems (tore/tears, climbs/climbed) from storyread's word lists, the story's order
+  as a hint, a passage in two scenes, Skip remembered (step 7's notes), cuts offered for skipped passages between
+  linked ones; (3) the first scene's heading from storyread's suggested INT./EXT. PLACE - TIME instead of the
+  placeholder; (4) an open .md that is some script's source could say so and open that script; (5) the settings
+  object is one for the process (GetSettings, globalSettings), shared by all tests in a run: give each test its own.
+  Seen, not from this branch: background_real_test.go's tests panic about 1 run in 10 on main too (the test driver
+  runs fyne.Do callbacks and timers beside the test's goroutine, the list touched from both).

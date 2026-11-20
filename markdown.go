@@ -106,6 +106,7 @@ func (w *MainWindow) setMarkdown(on bool) {
 func (w *MainWindow) NewMarkdownFile() {
 	create := func() {
 		w.cancelAutoSave()
+		w.forgetUnsavedSource()
 		w.setMarkdown(true)
 		w.format = fileFormat{}
 		w.textEditor.SetText("# Untitled\n\n")

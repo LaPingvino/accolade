@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -59,7 +60,12 @@ type sourcePane struct {
 	jumping  bool         // the cursor is moving because of a tap here
 
 	statuses     []passageStatus // as the rows show them (adaptation.go)
+	changed      map[int]bool    // adapted passages changed since they were linked
+	sugg         suggestions     // links offered (adaptation_suggest.go)
+	seedAsked    bool            // an unwritten script offered to start from the source
+	fresh        bool            // the source just read: the list not scrolled yet
 	offered      int             // the passage Next showed last (-1 none)
+	nextAt       int             // where Next's scene goes after (runes; -1: the cursor)
 	offeredWords []string        // its words, to find it again
 
 	reading    *storyread.Reading // what the source shows (source_reading.go)
@@ -90,13 +96,16 @@ type sourcePane struct {
 	prompt  *statusPrompt
 	editor  *sourceEditor
 	editing bool
-	empty   fyne.CanvasObject
-	body    *fyne.Container // the list, the editor or the empty state
+	empty   fyne.CanvasObject // no source
+	blank   fyne.CanvasObject // a source with no passages yet
+	tools   *fyne.Container   // the count, Next and Cut: hidden without a source
+	body    *fyne.Container   // the list, the editor or the empty state
 	box     fyne.CanvasObject
 }
 
 func newSourcePane(w *MainWindow) *sourcePane {
-	s := &sourcePane{w: w, selected: -1, offered: -1, lit: map[int]bool{}, doubt: map[int]bool{}}
+	s := &sourcePane{w: w, selected: -1, offered: -1, nextAt: -1, lit: map[int]bool{}, doubt: map[int]bool{},
+		ref: sourceRef{Origin: -1}} // none read yet: the first load shows what there is, the empty state too
 	s.title = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	s.title.Truncation = fyne.TextTruncateEllipsis
 	s.info = widget.NewLabel("")
@@ -141,15 +150,18 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	fyne.SetAccessibleLabel(s.cut, "Mark the picked passage as cut on purpose")
 	s.prompt = newStatusPrompt(s)
 	s.editor = newSourceEditor()
-	none := widget.NewLabel("No source yet. A Markdown file with the script's name beside it " +
-		"(story.md for story.fountain) is its source; or choose one.")
+	none := widget.NewLabel(noSourceText())
 	none.Wrapping = fyne.TextWrapWord
 	s.empty = container.NewVBox(none, widget.NewButtonWithIcon("Choose Source…", theme.FolderOpenIcon(), w.chooseSource))
+	blank := widget.NewLabel("The source has no passages yet. Edit writes it here: " +
+		"each paragraph you add is a passage to adapt, and Next finds it.")
+	blank.Wrapping = fyne.TextWrapWord
+	s.blank = container.NewVBox(blank)
 	s.body = container.NewStack(newWidthWatch(s.list, s.onWidth))
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(s.edit, s.choose), s.title)
-	tools := container.NewBorder(nil, nil, nil, container.NewHBox(s.next, s.cut), s.count)
+	s.tools = container.NewBorder(nil, nil, nil, container.NewHBox(s.next, s.cut), s.count)
 	s.view = newReadingView(s)
-	s.box = container.NewBorder(container.NewVBox(head, tools, s.prompt.box, s.info), s.view.box, nil, nil, s.body)
+	s.box = container.NewBorder(container.NewVBox(head, s.tools, s.prompt.box, s.info), s.view.box, nil, nil, s.body)
 	return s
 }
 
@@ -250,7 +262,7 @@ func (s *sourcePane) show(row *fyne.Container, id int) {
 	p := s.passages[id]
 	r := rowParts(row)
 	bg, bar, text := r.bg, r.bar, r.text
-	r.mark.setStatus(s.statusOf(id))
+	r.mark.setStatus(s.statusOf(id), s.changed[id])
 	r.more.OnTapped = func() { s.toggleFull(id) }
 	switch {
 	case s.lit[id]:
@@ -515,7 +527,11 @@ func (s *sourcePane) use(r *sourceRead, ps []passage) {
 	if (r.ref.Origin == sourceInside) != (s.ref.Origin == sourceInside) {
 		s.w.refreshMenu() // Keep Source in the Script (an undo can change it)
 	}
+	if r.ref != s.ref { // another source: its offers are new
+		s.sugg, s.seedAsked = suggestions{}, false
+	}
 	s.ref, s.modTime, s.size, s.src, s.err = r.ref, r.modTime, r.size, r.src, r.err
+	s.fresh = true
 	s.passages = ps
 	s.model, s.modelFor, s.matcher = nil, "", nil
 	s.reading = nil
@@ -534,17 +550,32 @@ func (s *sourcePane) use(r *sourceRead, ps []passage) {
 	s.showReading(false)
 }
 
+// noSourceText is what the pane says without a source: where one comes
+// from (the browser has no folder beside the script).
+func noSourceText() string {
+	t := "No source yet. Choose the story this script adapts: Markdown, Word, OpenDocument, a web page or text."
+	if !inBrowser {
+		t += " A Markdown file beside the script with its name (story.md for story.fountain) is its source too."
+	}
+	return t
+}
+
 // showBody shows the list, the source's text being edited, or what to
 // do without a source.
 func (s *sourcePane) showBody() {
 	var o fyne.CanvasObject
 	s.title.SetText(s.ref.describe())
+	s.tools.Show()
 	switch {
 	case s.ref.Origin == sourceNone:
 		s.edit.Hide()
+		s.tools.Hide() // nothing to count or go to
 		o = s.empty
 	case s.editing:
 		o = s.editor
+	case !slices.ContainsFunc(s.passages, passage.linkable) && s.err == nil:
+		s.edit.Show()
+		o = s.blank
 	default:
 		s.edit.Show()
 		o = s.body.Objects[0]
@@ -611,6 +642,7 @@ func (s *sourcePane) follow() {
 	s.next.Enable()
 	m := s.current()
 	s.showStatuses(m)
+	s.offerStart(m)
 	line, _ := s.w.textEditor.Buffer().Position(s.w.textEditor.CursorOffset())
 	lit, doubt := map[int]bool{}, map[int]bool{}
 	var problems []string
@@ -625,7 +657,8 @@ func (s *sourcePane) follow() {
 				first = mt.Passages[0]
 			}
 			if mt.Kind == linkNear {
-				problems = append(problems, q+" found nearly: the passage changed?")
+				problems = append(problems, q+": the source changed since it was linked; "+
+					"check the scene, then Link to Source Passage again")
 			}
 		case linkAmbiguous:
 			for _, p := range mt.Passages {
@@ -642,6 +675,9 @@ func (s *sourcePane) follow() {
 		where = "Before the first scene"
 	}
 	info := where + ": " + plural(len(lit), "passage")
+	if len(lit) == 0 {
+		info = where + ": no passage linked"
+	}
 	if len(problems) > 0 {
 		info += "\n" + strings.Join(problems, "\n")
 	}
@@ -655,6 +691,16 @@ func (s *sourcePane) follow() {
 		if first >= 0 && !s.jumping && !s.inSight(lit) {
 			s.list.ScrollTo(first)
 		}
+	}
+	if s.fresh && first < 0 && s.selected < 0 { // just read: where the adapting goes on
+		if last, _ := m.lastLinked(); last >= 0 {
+			if next, _ := m.nextToDo(last); next >= 0 {
+				s.list.ScrollTo(max(next-1, 0))
+			}
+		}
+	}
+	if s.list.Size().Height > 0 {
+		s.fresh = false
 	}
 }
 

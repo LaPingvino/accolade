@@ -468,6 +468,18 @@ func (m *sourceModel) position(line int) int {
 	return -1
 }
 
+// lastLinked is the last passage in the source a link found, and the
+// line of that link (-1, -1: none).
+func (m *sourceModel) lastLinked() (passage, line int) {
+	passage, line = -1, -1
+	for i, mt := range m.matches {
+		if mt.found() && mt.Passages[0] > passage {
+			passage, line = mt.Passages[0], m.links[i].Line
+		}
+	}
+	return passage, line
+}
+
 // nextToDo is the first passage after `after` not adapted and not cut;
 // past the end, from the start again (wrapped); -1 if none is left.
 func (m *sourceModel) nextToDo(after int) (next int, wrapped bool) {
@@ -520,24 +532,38 @@ type sceneEdit struct {
 // the scene at the cursor: its chapter's section first if p opens a
 // chapter the script is not in yet (another than that of passage from,
 // where the script is in the source; -1 for none) and has no section of
-// that name, then a scene heading to write over, and the link.
+// that name, then a scene heading to write over, and the link. If the
+// script has the chapter's section and the cursor is not in it, the
+// scene goes at the end of that chapter (sections made from the source's
+// headings before any scene: each scene under its own).
 func sceneForPassage(text string, starts []string, ps []passage, p, from, cursor int) sceneEdit {
 	r := []rune(text)
 	body := bodyEnd(text)
 	line := strings.Count(string(r[:min(cursor, len(r))]), "\n")
 	span := spanAt(sceneSpans(text, starts), line)
+	lines := strings.Count(text, "\n") + 1
+	endLine := span.End // the scene goes in at this line
 
 	var parts []string
-	if ch := chapterOf(ps, p); ch >= 0 && (from < 0 || chapterOf(ps, from) != ch) {
+	if ch := chapterOf(ps, p); ch >= 0 {
 		key := strings.Join(ps[ch].Words, " ")
-		there := false
-		for _, it := range outlineOf(text, starts) {
-			if !it.Scene && strings.Join(normWords(it.Text), " ") == key {
-				there = true
-				break
+		outline := outlineOf(text, starts)
+		sec := slices.IndexFunc(outline, func(it outlineItem) bool {
+			return !it.Scene && strings.Join(normWords(it.Text), " ") == key
+		})
+		switch {
+		case sec >= 0:
+			chEnd := lines // the chapter ends at the next section as high, or the end
+			for _, it := range outline[sec+1:] {
+				if !it.Scene && it.Level <= outline[sec].Level {
+					chEnd = it.Line
+					break
+				}
 			}
-		}
-		if !there {
+			if line < outline[sec].Line || line >= chEnd {
+				endLine = chEnd
+			}
+		case from < 0 || chapterOf(ps, from) != ch:
 			parts = append(parts, strings.Repeat("#", max(ps[ch].Level, 1))+" "+ps[ch].Plain)
 		}
 	}
@@ -549,14 +575,14 @@ func sceneForPassage(text string, starts []string, ps []passage, p, from, cursor
 
 	// where: the line the next scene starts on, or the end of the script
 	at := 0
-	for i, l := 0, 0; i < len(r) && l < span.End; i++ {
+	for i, l := 0, 0; i < len(r) && l < endLine; i++ {
 		if r[i] == '\n' {
 			l++
 			at = i + 1
 		}
 	}
 	var ed sceneEdit
-	if span.End >= strings.Count(text, "\n")+1 || at >= body {
+	if endLine >= lines || at >= body {
 		at = len([]rune(strings.TrimRight(string(r[:body]), "\n")))
 		ed = sceneEdit{At: at, Replace: body, Text: "\n\n" + block}
 		if body == len(r) {

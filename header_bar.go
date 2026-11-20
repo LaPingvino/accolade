@@ -220,9 +220,18 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	}, nil, 0)
 	hb.screenplayRow = container.NewBorder(nil, nil, nil, hb.format, editing.Container)
 	// Markdown's: its emphasis (_ is italic there, not underline)
+	// and a story's next step: a screenplay adapting it
+	adapt := widget.NewButtonWithIcon("Start a Screenplay", theme.DocumentCreateIcon(), window.startScreenplayFromSource)
+	adapt.Importance = widget.LowImportance
+	fyne.SetAccessibleLabel(adapt, startScreenplayLabel)
 	hb.markdownRow = newOverflowRow(tips, []overflowItem{
 		buttonItem(button(boldIcon, "Bold"+keys("B"), emphasis("**"))),
 		buttonItem(button(italicIcon, "Italic"+keys("I"), emphasis("*"))),
+		gapItem(), {obj: adapt, menu: func(fyne.CanvasObject) []*fyne.MenuItem {
+			item := fyne.NewMenuItem(startScreenplayLabel, adapt.OnTapped)
+			item.Icon = adapt.Icon
+			return []*fyne.MenuItem{item}
+		}},
 	}, nil, 0).Container
 	hb.container = container.NewVBox(top.Container, hb.screenplayRow)
 	return hb

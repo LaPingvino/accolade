@@ -151,7 +151,7 @@ func (w *MainWindow) setDocumentType(markdown bool) {
 	w.setMarkdown(markdown)
 	w.rememberType(w.currentFile, markdown)
 	if inBrowser { // an unsaved document comes back as this type after a reload
-		keepDraft(kept{Text: w.textEditor.Text(), Language: w.language, File: w.currentFile, Name: w.suggestedName, Markdown: w.markdown})
+		keepDraft(w.draft())
 	}
 }
 

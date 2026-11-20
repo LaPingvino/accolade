@@ -211,6 +211,7 @@ func (w *MainWindow) importProsePDFAsync(path string) {
 // Markdown document, unsaved, named after the file it came from.
 func (w *MainWindow) showImportedMarkdown(path, md, from string, dropped int) {
 	w.cancelAutoSave()
+	w.forgetUnsavedSource()
 	w.format = fileFormat{}
 	w.setMarkdown(true)
 	w.textEditor.SetText(md)
@@ -221,7 +222,7 @@ func (w *MainWindow) showImportedMarkdown(path, md, from string, dropped int) {
 	w.hasChanges = true
 	w.updateTitle()
 	w.updateStatusBar()
-	status := "Imported from " + from
+	status := "Imported from " + from + ". To adapt it: Start a Screenplay, on the toolbar"
 	if dropped > 0 {
 		status += fmt.Sprintf("; %s left out, marked <!-- image left out --> in the text", plural(dropped, "image"))
 	}

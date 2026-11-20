@@ -44,6 +44,7 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		w.recentMenu(),
 		fyne.NewMenuItem("Import as Markdown…", w.ImportDocument),
 		fyne.NewMenuItem("Choose Source…", w.chooseSource),
+		fyne.NewMenuItem(startScreenplayLabel, w.startScreenplayFromSource),
 		fyne.NewMenuItem("Save Source As…", w.saveSourceAs),
 		fyne.NewMenuItemSeparator(),
 		menuItem(saveLabel, shortcut(fyne.KeyS, 0), w.reportErr(w.SaveFile)),
@@ -74,6 +75,8 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 	}
 	if w.markdown { // the title page and the source are a screenplay's
 		file.Items = withoutItems(file.Items, "Title Page…", "Choose Source…", "Save Source As…")
+	} else { // a Markdown document is a source to start from
+		file.Items = withoutItems(file.Items, startScreenplayLabel)
 	}
 
 	edit := fyne.NewMenu("Edit",
@@ -128,10 +131,11 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		menuItem("Next Source Passage", shortcut(fyne.KeyJ, fyne.KeyModifierAlt), w.nextSourcePassage),
 		fyne.NewMenuItem("Mark Source Passage as Cut", w.toggleCutHere),
 		fyne.NewMenuItem("Source Headings as Sections", w.sectionsFromSourceHere),
+		fyne.NewMenuItem("Suggest Links to the Source", w.suggestSourceLinks),
 		w.sourceInsideItem(),
 	)
 	if w.markdown { // a screenplay's elements, language, colours and source
-		format.Items = withoutItems(format.Items, "Link to Source Passage", "Next Source Passage", "Mark Source Passage as Cut", "Source Headings as Sections", "Keep Source in the Script", "Scene Heading", "Action", "Character", "Parenthetical",
+		format.Items = withoutItems(format.Items, "Link to Source Passage", "Next Source Passage", "Mark Source Passage as Cut", "Source Headings as Sections", "Suggest Links to the Source", "Keep Source in the Script", "Scene Heading", "Action", "Character", "Parenthetical",
 			"Dialogue", "Transition", "Centered", "Lyrics", "Script Language…", "Scene or Section Color…", "Underline")
 	}
 

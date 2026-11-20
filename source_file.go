@@ -226,6 +226,16 @@ func (w *MainWindow) rememberSource(script, source string) {
 	_ = w.settings.Save()
 }
 
+// forgetUnsavedSource lets go of the source of a script not saved yet,
+// when another document takes the window's place (New, an import): it
+// was that script's, not the next one's.
+func (w *MainWindow) forgetUnsavedSource() {
+	if old := w.unsavedSource; old != "" {
+		w.unsavedSource = ""
+		w.dropKeptCopy(old)
+	}
+}
+
 // sourceAfterRename keeps a script's source through a rename or Save As:
 // the old name's remembered source, or the file beside the old name,
 // becomes the new name's, unless the new name has one beside it.
@@ -271,6 +281,9 @@ func (w *MainWindow) useSourceText(path, md string) error {
 	}
 	w.rememberSource(w.currentFile, kept)
 	w.dropKeptCopy(old)
+	if inBrowser && w.currentFile == "" {
+		keepDraft(w.draft()) // a reload keeps the source with the script
+	}
 	return nil
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"image/color"
 	"slices"
 
@@ -26,7 +27,8 @@ const statusMarkWidth = 7
 // a thin line (gray); a heading has none.
 type statusMark struct {
 	widget.BaseWidget
-	status passageStatus
+	status  passageStatus
+	changed bool // adapted, but the passage changed since: in the warning colour
 }
 
 func newStatusMark() *statusMark {
@@ -35,9 +37,9 @@ func newStatusMark() *statusMark {
 	return m
 }
 
-func (m *statusMark) setStatus(st passageStatus) {
-	if st != m.status {
-		m.status = st
+func (m *statusMark) setStatus(st passageStatus, changed bool) {
+	if st != m.status || changed != m.changed {
+		m.status, m.changed = st, changed
 		m.Refresh()
 	}
 }
@@ -83,6 +85,9 @@ func (r *statusMarkRenderer) Refresh() {
 		case statusAdapted:
 			b := r.rect(0)
 			b.FillColor, b.StrokeWidth, b.CornerRadius = theme.Color(theme.ColorNameSuccess), 0, 1
+			if r.m.changed {
+				b.FillColor = theme.Color(theme.ColorNameWarning)
+			}
 			b.Move(fyne.NewPos(0, inset))
 			b.Resize(fyne.NewSize(size.Width, h))
 			n = 1
@@ -117,12 +122,12 @@ func (r *statusMarkRenderer) Refresh() {
 // passage, or mark the one skipped as cut. Not a dialog: writing goes
 // on, and the next Next replaces it.
 type statusPrompt struct {
-	label    *widget.Label
-	yes, no  *widget.Button
-	box      *fyne.Container
-	yesDo    func()
-	passage  int // what it asks about
-	skipping bool
+	label         *widget.Label
+	yes, skip, no *widget.Button
+	box           *fyne.Container
+	yesDo, skipDo func()
+	passage       int // what it asks about
+	skipping      bool
 }
 
 func newStatusPrompt(s *sourcePane) *statusPrompt {
@@ -136,6 +141,12 @@ func newStatusPrompt(s *sourcePane) *statusPrompt {
 		}
 	})
 	p.yes.Importance = widget.HighImportance
+	p.skip = widget.NewButton("", func() {
+		if do := p.skipDo; do != nil {
+			do()
+		}
+	})
+	p.skip.Hide()
 	p.no = widget.NewButton("Not Now", func() {
 		p.hide()
 		s.w.fyneWindow.Canvas().Focus(s.w.textEditor)
@@ -143,14 +154,15 @@ func newStatusPrompt(s *sourcePane) *statusPrompt {
 	fyne.SetAccessibleLabel(p.no, "Not now: close the question")
 	bg := canvas.NewRectangle(tint(theme.ColorNamePrimary, 0x20))
 	bg.CornerRadius = 4
-	p.box = container.NewStack(bg, container.NewPadded(container.NewVBox(p.label, container.NewHBox(p.yes, p.no))))
+	p.box = container.NewStack(bg, container.NewPadded(container.NewVBox(p.label, container.NewHBox(p.yes, p.skip, p.no))))
 	p.box.Hide()
 	return p
 }
 
 // ask shows the question, with the action for its first button.
 func (p *statusPrompt) ask(passage int, skipping bool, text, yes string, do func()) {
-	p.passage, p.skipping, p.yesDo = passage, skipping, do
+	p.passage, p.skipping, p.yesDo, p.skipDo = passage, skipping, do, nil
+	p.skip.Hide()
 	p.label.SetText(text)
 	p.yes.SetText(yes)
 	fyne.SetAccessibleLabel(p.yes, yes)
@@ -161,8 +173,18 @@ func (p *statusPrompt) ask(passage int, skipping bool, text, yes string, do func
 	p.box.Refresh()
 }
 
+// askSkip shows a question of a series: its action, a Skip to the next
+// one, and Not Now.
+func (p *statusPrompt) askSkip(text, yes string, do func(), skip string, skipDo func()) {
+	p.ask(-1, false, text, yes, do)
+	p.skipDo = skipDo
+	p.skip.SetText(skip)
+	fyne.SetAccessibleLabel(p.skip, skip)
+	p.skip.Show()
+}
+
 func (p *statusPrompt) hide() {
-	p.passage, p.yesDo = -1, nil
+	p.passage, p.yesDo, p.skipDo = -1, nil, nil
 	p.box.Hide()
 }
 
@@ -179,14 +201,25 @@ func (s *sourcePane) statusOf(id int) passageStatus {
 // showStatuses takes the statuses and the count from the model: the
 // rows again if a status changed, the count line, the Cut button.
 func (s *sourcePane) showStatuses(m *sourceModel) {
-	if !slices.Equal(m.status, s.statuses) {
+	changed := map[int]bool{} // linked nearly: the passage's words changed since
+	for _, mt := range m.matches {
+		if mt.Kind == linkNear {
+			changed[mt.Passages[0]] = true
+		}
+	}
+	if !slices.Equal(m.status, s.statuses) || !sameSet(changed, s.changed) {
 		s.statuses = slices.Clone(m.status)
+		s.changed = changed
 		s.list.Refresh()
 	}
 	if s.prompt.passage >= 0 && s.statusOf(s.prompt.passage) != statusToDo {
 		s.prompt.hide() // linked or cut meanwhile: nothing to ask
 	}
-	s.count.SetText(countOf(s.statuses).String())
+	count := countOf(s.statuses).String()
+	if n := len(s.changed); n > 0 {
+		count += fmt.Sprintf(" · %d changed since linked", n)
+	}
+	s.count.SetText(count)
 	s.showCutButton()
 }
 
@@ -288,8 +321,15 @@ func (s *sourcePane) nextPassage() {
 		return
 	}
 	m := s.current()
-	line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
+	e := w.textEditor
+	line, _ := e.Buffer().Position(e.CursorOffset())
 	pos := m.position(line)
+	s.nextAt = -1 // the scene goes after the cursor's
+	if last, at := m.lastLinked(); pos < 0 && last >= 0 {
+		// the cursor before every link (a script just opened): on from the
+		// last passage adapted, the scene after the scene linking to it
+		pos, s.nextAt = last, e.Buffer().LineStart(at)
+	}
 	skipped := -1
 	if o := s.offeredPassage(); o >= 0 && m.status[o] == statusToDo {
 		skipped = o
@@ -321,7 +361,7 @@ func (s *sourcePane) nextPassage() {
 	case next < 0 && skipped >= 0:
 		w.setStatus("No other passage is left to adapt")
 	case next < 0:
-		w.setStatus("Every passage is adapted or cut")
+		w.setStatus("Every passage is adapted or cut; what is added to the source later, Next finds")
 	case wrapped:
 		w.setStatus("Next passage, from the start of the source: none is left after this scene's")
 	case !w.nextInserts():
@@ -356,16 +396,22 @@ func (s *sourcePane) offeredPassage() int {
 }
 
 // startScene puts a scene for passage p in the script after the
-// cursor's scene (sceneForPassage), one undo step, its heading's
-// placeholder selected to write over.
+// cursor's scene (or after the one Next went on from, nextAt;
+// sceneForPassage), one undo step, its heading's placeholder selected to
+// write over.
 func (s *sourcePane) startScene(p int) {
 	w := s.w
 	if p < 0 || p >= len(s.passages) {
 		return
 	}
 	e := w.textEditor
-	line, _ := e.Buffer().Position(e.CursorOffset())
-	ed := sceneForPassage(e.Text(), w.sceneStarts(), s.passages, p, s.current().position(line), e.CursorOffset())
+	at := e.CursorOffset()
+	if s.nextAt >= 0 && s.nextAt <= len([]rune(e.Text())) {
+		at = s.nextAt
+	}
+	s.nextAt = -1
+	line, _ := e.Buffer().Position(at)
+	ed := sceneForPassage(e.Text(), w.sceneStarts(), s.passages, p, s.current().position(line), at)
 	e.Edit(func(b *buffer.Buffer) {
 		b.Group(func() {
 			b.Replace(ed.At, ed.Replace, ed.Text)
