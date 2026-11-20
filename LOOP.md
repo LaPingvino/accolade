@@ -236,3 +236,13 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the end; the learner keys known headings without numbers (Lock taught it places). Rough: an omitted scene's
   boneyard shows as plain text. Next: PRODUCTION step 2, the basic reports.
 - 2026-11-20 (Joop): source links in the browser's Text Fragments syntax (#:~:text=, WICG spec, supported by Chrome, Safari and Firefox): [[from: story.md#:~:text=She opened the door,stepped out]] — textStart[,textEnd] covers a passage range, prefix-/-suffix disambiguate instead of our "(n)", and a file name in front allows more than one source. Write it readable: percent-encode only what the grammar needs (, - & and %), spaces kept; read both encoded and plain, and keep reading the old [[from: "…"]] form (convert on the next save, or with a command). Use the same form in the Adaptation block (cut:, skipped links:) and in exports: an HTML/PDF of the source can then be opened at the exact passage from a link. Next after the reports step.
+- 2026-11-20: PRODUCTION step 2, the basic reports (branch reports, not merged; reports.go; decisions and the CSV
+  layout in docs/PRODUCTION.md §8). Lexington v1.8.0 (tagged locally, not pushed): `pdf.PDFWriter.Measure` (each
+  scene's printed page and length, from the real paginator), `lex.EighthsOf` (nearest eighth, at least 1/8; written
+  4/8, 1, 1 3/8), the `report` package (scenes, locations, characters, `Report.Cast()` numbered by size; CSV and a
+  page to print) and `-report`. Accolade: Production > Reports…, one dialog: Report and Sort by (a table with
+  sorting headers on a desktop, cards on a phone), CSV… and PDF…/Print…; measured with the export's settings, every
+  scene numbered as Export would, aliases from the adaptation block merged. go.mod has `replace => ../lexington`
+  until v1.8.0 is pushed. Shots: reports-*-wide/phone.png (SHOT_DIR=… go test -run TestReportsScreenshots). Next:
+  PRODUCTION step 3, the `.accolade` bundle.
+

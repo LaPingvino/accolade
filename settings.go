@@ -70,6 +70,8 @@ func (s *Settings) loadDefaults() {
 		// a locked script's new scenes: 10A after 10, or A11 before 11
 		// (production.go, lex.NumberStyle)
 		"scene-number-style": "10A",
+		// the report Production > Reports… shows first (reports.go)
+		"report-kind": "scenes",
 
 		// Adapting (adaptation.go): Next Source Passage starts a scene
 		// for the passage, or only shows it and offers to

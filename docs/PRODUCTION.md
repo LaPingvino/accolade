@@ -66,11 +66,8 @@ Nothing here is built. Sources for claims about other products are linked inline
   - scenes by heading start;
   - each role's speeches and words.
 - The status bar shows "Scene 2 of 3 · 412 words · ~2 pages" (stats.go).
-- Missing reports:
-  - a scene report: number, heading, page, length in eighths, day or night;
-  - a location report;
-  - a character report: a character's scenes and lines;
-  - all of these as CSV.
+- Since step 2 (§8): Production > Reports… has the scene, location, character and cast reports, on screen, as
+  CSV and as PDF. Breakdown sheets wait for tagging.
 
 **Notes and collaboration**
 
@@ -412,7 +409,8 @@ Effort is rough: S is a day or two of ticks, M a week, L more.
    - Who has it: Final Draft, Fade In, Trelby, STARC, WriterDuet.
    - Representation: computed, nothing stored.
    - Effort: S–M. Where: Lexington (a report package, as `layout`); Accolade (Statistics grows into View > Reports).
-     The basic reports need no tagging and come early (Order step 2); breakdown sheets follow tagging.
+     The basic reports need no tagging and come early (Order step 2); breakdown sheets follow tagging. **Basic
+     reports built: §8.**
 6. **Stripboard and shooting schedule.**
    - What: strips, one per scene, coloured INT/EXT × D/N. Drag them into days and add day breaks with totals in
      eighths. Sort by location, cast or D/N. Make a one-liner and a shooting schedule. DOOD comes from it.
@@ -478,7 +476,7 @@ breakdown as "changed in Blue: check", which the stages before can't show.
 1. **Lock scene numbers:** A-scenes, OMITTED and Restore. Accolade's `numberScenes` moves into Lexington as
    `lex.NumberScenes`, with A-numbers. In the text only, so nothing waits on the bundle.
 2. **Basic reports:** scene (with eighths, D/N), location, character and cast, as PDF and CSV. They store nothing,
-   need no bundle, and pay off at once. Statistics grows into View > Reports.
+   need no bundle, and pay off at once. Built as Production > Reports… (§8); View > Statistics stays as it is.
 3. **The `.accolade` bundle and the production files' home:** `assets/production/`, the flattening layers and the
    Highland warning. Test with a real Highland.
 4. **Issue and revision sets:** snapshots, the diff, margin colours, Lexington's asterisks, headers and revised pages
@@ -558,4 +556,73 @@ Branch scenelock (Accolade), Lexington v1.7.0 (tagged locally).
 - The learned notes key the headings they knew without their numbers, so Lock teaches them no places.
 - Rough: the editor shows the omitted scene's boneyard as plain text (boneyard has no colour of its own yet); the
   outline doesn't show numbers.
+
+## 8. Step 2, built: the basic reports (2026-11-20)
+
+Branch reports (Accolade), Lexington v1.8.0 (tagged locally, not pushed; Accolade's go.mod has `replace
+github.com/LaPingvino/lexington => ../lexington` until it is).
+
+**Lexington**
+
+- `pdf.PDFWriter.Measure` lays the script out as the PDF prints it (rules, paper, pagination; nothing written) and
+  gives each scene heading its page (numbered as printed: the first after the title page is 1) and its length. A
+  scene runs from the top of its heading to the top of the next heading, the last to the foot of the script's last
+  line. The room a page break leaves at a page's foot (a heading kept with what follows, a forced `===`) is the scene
+  before it, as a ruler on the printed page measures it. A page is the lines that fit on it (55 on Letter), so a
+  page of scenes adds up to 8/8 before rounding.
+- `lex.EighthsOf` / `lex.Eighths`: the eighths rule (below). Written as productions write it: `3/8`, `1`, `1 3/8`,
+  never reduced (`4/8`, not `1/2`; https://anonymousproductionassistant.com/2016/08/29/long-will-scene-take/: "A
+  scene isn't 2 1/2 pages; it's 2 4/8").
+- The `report` package: `report.Make(screenplay, Options{Scenes, Aliases, PDF})` gives the scenes, locations and
+  characters; `Report.Cast()` the cast list; `Report.Table(kind)` each as rows of cells; `Table.WriteCSV`,
+  `report.WriteHTML`. `cli.Report` measures with the export's settings; `lexington -report scenes|locations|
+  characters|cast` writes the CSV.
+
+**The eighths rule.** A page's text area is eight equal eighths (the "8 one-inch rows" of
+https://howtofilmschool.com/script-breakdown). A scene's length is rounded to the nearest eighth, half an eighth up,
+and is never less than 1/8 (Scriptation: "Every scene should be at least 1/8",
+https://help.scriptation.com/en/article/how-do-i-add-page-counts-to-my-script-3jt60r/). *Unverified:* the rounding
+to the nearest. I found no source that gives a rounding rule (Filmustage, Scriptation, the AD blogs all eyeball it
+with a ruler); nearest is my choice. The minimum means a page of many short scenes counts more than 8/8, as on real
+breakdowns. Totals (a location's, a character's) are the sum of their scenes' rounded eighths. An OMITTED scene has
+no length.
+
+**What the reports read**
+
+- Scenes: the heading as printed, split into the place word as written (`INT`, `EXT`, `INT./EXT`, in the script's
+  language: the language's scene words), the location (up to the last ` - `, `–` or `—`) and the time (after it).
+  A forced heading (`.THE VOID`) has no place word. Every scene has a number: a locked script's as Export prints
+  them (a new scene gets its letter), an unlocked one's counted on as Export's "Number the scenes" does.
+- Characters are those who speak: a cue's name without its extension (`(V.O.)`, `(CONT'D)`), `@` and `^`. The
+  adaptation block's `characters: ANNA = Annie` line merges ANNIE into ANNA. A character is "in" the scenes they
+  speak in; their eighths are those scenes' (a silent presence needs tagging, step 7). Cues in boneyard (an omitted
+  scene's, the source's, the blocks) count for nothing.
+- Cast numbers: by size, which later steps reuse (`Report.Cast`): the scenes they speak in, then their eighths, their
+  speeches, their words; a tie goes to who speaks first, then by name.
+
+**Accolade** (reports.go): Production > Reports… makes them in the background with the export's settings (script
+format, paper, pagination, title page) and shows one at a time: Report (Scenes, Locations, Characters, Cast, the last
+one remembered), Sort by (the report's own order, or a column; ↓/↑ reverses). On a desktop a table, its headers
+sorting too; on a phone (under 600 px) each row a card: its first columns in bold, the rest as "Title value". CSV…
+saves the report as sorted (downloaded in the browser); PDF… prints it as a web page through Chromium, or Print…
+opens the print dialog (Save as PDF) where there is none or in the browser.
+
+**CSV layout** (stable; golden files in Lexington's report/testdata). RFC 4180: UTF-8, comma, quotes where needed,
+CRLF. One header row of these keys, then a row each. A cell with several values joins them with `; `. Lengths come
+twice: `eighths`, a whole number (11), and `length`, as written (1 3/8: a spreadsheet may read `3/8` as a date, so
+use `eighths` to compute). Empty means none.
+
+| Report | Columns, in order |
+|---|---|
+| scenes | `order` (1, 2, … in the script), `number`, `heading` (as printed, without number and notes), `int_ext`, `location`, `time`, `page`, `eighths`, `length`, `characters` (who speaks, in order), `omitted` (`yes` or empty; an omitted row has `heading` OMITTED, `eighths` 0 and nothing else but its number and page) |
+| locations | `location`, `int_ext`, `times`, `scene_count`, `scenes`, `eighths`, `length` (in order of first appearance; omitted scenes left out) |
+| characters | `name`, `cast_number`, `scene_count`, `scenes`, `first_scene`, `first_page`, `last_scene`, `last_page`, `speeches`, `words`, `eighths`, `length` (in order of first speech) |
+| cast | `cast_number`, `name`, `scene_count`, `eighths`, `length`, `speeches`, `words`, `first_scene`, `first_page` |
+
+The order of rows is the report's own in Lexington's CLI; Accolade writes them as sorted on screen.
+
+Rough: an unlocked script whose new scene counts on into a number an OMITTED scene keeps gets that number twice
+(Export's count numbering does the same; lock the numbers first); Lexington's PDF prints no page numbers without a
+title page (measured pages still count from 1); the PDF of a report was checked as HTML only here (Chromium can't
+run in the agent's sandbox).
 

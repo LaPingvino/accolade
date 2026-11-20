@@ -167,6 +167,8 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Omit Scene", w.omitScene),
 		fyne.NewMenuItem("Restore Scene", w.restoreScene),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Reports…", w.showReports),
 	)
 
 	help := fyne.NewMenu("Help",
