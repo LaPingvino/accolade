@@ -58,6 +58,7 @@ type PreferencesDialog struct {
 	sceneLettersSelect    *widget.Select
 	revisionMarksSelect   *widget.Select // the current revision's marks, or all issues'
 	revisionHeaderEntry   *widget.Entry  // a changed page's header
+	continuedsCheck       *widget.Check  // the scenes' CONTINUEDs in the PDF
 	revisionDateSelect    *widget.Select // its date's layout
 	nextInsertsCheck      *widget.Check
 	suggestCheck          *widget.Check
@@ -120,6 +121,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.numberScenesCheck = widget.NewCheck("Number the scenes (those without a number)", nil)
 	pd.sceneLettersSelect = widget.NewSelect(sceneLetterings, nil)
 	pd.revisionMarksSelect = widget.NewSelect(revisionMarkChoices, nil)
+	pd.continuedsCheck = widget.NewCheck("CONTINUED where a scene breaks over pages (PDF)", nil)
 	pd.revisionHeaderEntry = widget.NewEntry()
 	pd.revisionHeaderEntry.SetPlaceHolder(lex.DefaultRevisionHeader)
 	fyne.SetAccessibleLabel(pd.revisionHeaderEntry, "Revised page header")
@@ -240,6 +242,8 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 			labelled("Revised page header:", pd.revisionHeaderEntry),
 			labelled("Its date:", pd.revisionDateSelect),
 			hint("{set} is the revision's colour, {date} its date: \"{set} Revision – {date}\" prints \"Blue Revision – 20/11/26\". \"-\" prints none."),
+			pd.continuedsCheck,
+			hint("(CONTINUED) at the foot of a page a scene goes on from, CONTINUED: at the top of the next. Locked pages (Production > Lock Pages) keep the choice they were locked with."),
 		)),
 	)
 }
@@ -277,6 +281,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 		pd.revisionMarksSelect.SetSelected(revisionMarkChoices[1])
 	}
 	pd.revisionHeaderEntry.SetText(s.GetString(revisionHeaderPref))
+	pd.continuedsCheck.SetChecked(s.GetBoolean(continuedsPref))
 	pd.revisionDateSelect.SetSelected(revisionDates[0].label)
 	for _, d := range revisionDates {
 		if d.layout == s.GetString(revisionDatePref) {
@@ -333,6 +338,7 @@ func (pd *PreferencesDialog) saveSettings() {
 	}
 	s.SetString(revisionMarksPref, marks)
 	s.SetString(revisionHeaderPref, strings.TrimSpace(pd.revisionHeaderEntry.Text))
+	s.SetBoolean(continuedsPref, pd.continuedsCheck.Checked)
 	for _, d := range revisionDates {
 		if d.label == pd.revisionDateSelect.Selected {
 			s.SetString(revisionDatePref, d.layout)

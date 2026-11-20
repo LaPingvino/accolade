@@ -56,6 +56,11 @@ type exportJob struct {
 	// nil: none), for PDF and FDX
 	revisions *lex.Revisions
 	marks     []string
+
+	// locked pages (lockedpages.go; nil: none) and the scenes' CONTINUEDs,
+	// for PDF (and the lock for FDX)
+	lock       *lex.PageLock
+	continueds bool
 }
 
 // options are Lexington's options for the job, writing as to to output.
@@ -72,6 +77,8 @@ func (j exportJob) options(to, output string) cli.Options {
 		Tags:         j.tags,
 		Pagination:   j.pagination,
 		Revisions:    j.revisions,
+		Lock:         j.lock,
+		Continueds:   j.continueds,
 	}
 	if j.colors { // (a style alone would switch colors on)
 		o.ColorStyle = string(j.colorStyle)
@@ -138,6 +145,7 @@ func withoutTitlePage(s lex.Screenplay) lex.Screenplay {
 // exportAs writes the script as Lexington's format to (its -to), with
 // Lexington's command line's options: what "accolade -to ..." makes.
 func exportAs(content, outputPath, to string, job exportJob) error {
+	job = withLockedPages(content, to, job)
 	if to == "pdf" {
 		// a script the PDF writer cannot print as written (Hebrew, CJK,
 		// right to left): a browser on the computer prints Lexington's
@@ -178,9 +186,14 @@ func importFDX(r io.Reader) (string, error) {
 
 // importFDXRevised is importFDX with the document's revisions: the sets
 // its text uses (oldest first) and the marked lines of the text
-// (revisions.go keeps them).
+// (revisions.go keeps them). Its locked pages go into the text's
+// production block (lockedpages.go).
 func importFDXRevised(r io.Reader) (text string, sets []lex.RevisionSet, marks []importedMark, err error) {
-	screenplay, sets, err := fdx.ParseRevisions(r)
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	screenplay, sets, err := fdx.ParseRevisions(bytes.NewReader(data))
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -191,6 +204,11 @@ func importFDXRevised(r io.Reader) (text string, sets []lex.RevisionSet, marks [
 	text = buf.String()
 	if len(sets) > 0 {
 		marks = marksOnText(screenplay, text)
+	}
+	if lock, err := fdx.ParseLockedPages(bytes.NewReader(data)); err == nil && lock != nil {
+		start, end, block := withProductionBlock(text, withPageLock("", &pageLock{lock: lock}))
+		runes := []rune(text)
+		text = string(runes[:start]) + block + string(runes[end:])
 	}
 	return text, sets, marks, nil
 }

@@ -90,7 +90,7 @@ func replaceText(t *testing.T, w *MainWindow, old, new string) {
 func issueNow(t *testing.T, w *MainWindow, name string, day time.Time) {
 	t.Helper()
 	called := false
-	w.issueDraft(lex.RevisionSet{Name: name, Date: day}, func(err error) {
+	w.issueDraft(lex.RevisionSet{Name: name, Date: day}, "", func(err error) {
 		if err != nil {
 			t.Fatal(err)
 		}

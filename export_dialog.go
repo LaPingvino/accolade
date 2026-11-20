@@ -566,6 +566,7 @@ func (ed *ExportDialog) plainJob() exportJob {
 		character:     ed.chosenCharacter(),
 		sides:         ed.chosenSides(),
 		cueWords:      ed.chosenCueWords(),
+		continueds:    ed.settings.GetBoolean(continuedsPref),
 	}
 }
 

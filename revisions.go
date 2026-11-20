@@ -586,9 +586,11 @@ func (w *MainWindow) withAllRevisions(j exportJob, text string) exportJob {
 
 // issueDraft issues the script as it is now as set s, dated date: the
 // scene numbers locked first if they are not, the production block's
-// revision line written, the text kept as an issue. done (may be nil)
-// gets the error.
-func (w *MainWindow) issueDraft(s lex.RevisionSet, done func(error)) {
+// revision line written, the pages locked again if they are locked (with
+// their A-pages: lockedpages.go) or, with lockFrom (an issue's body),
+// locked as that text printed them, the text kept as an issue. done (may
+// be nil) gets the error.
+func (w *MainWindow) issueDraft(s lex.RevisionSet, lockFrom string, done func(error)) {
 	finish := func(err error) {
 		if done != nil {
 			done(err)
@@ -601,20 +603,45 @@ func (w *MainWindow) issueDraft(s lex.RevisionSet, done func(error)) {
 			return
 		}
 	}
-	e := w.textEditor
-	text := e.Text()
-	inside, _ := productionBlock(text)
-	start, end, block := withProductionBlock(text, withBlockLine(inside, revisionLineKey, revisionLine(s, "")))
-	e.Edit(func(b *buffer.Buffer) {
-		c := b.Cursor()
-		b.Group(func() {
-			b.Replace(start, end, block)
-			b.SetCursor(min(c, utf8.RuneCountInString(b.Text())), false)
+	text := w.textEditor.Text()
+	revision := func(inside string) string { return withBlockLine(inside, revisionLineKey, revisionLine(s, "")) }
+	issue := func(l *pageLock) {
+		if l != nil {
+			w.writePageLock(l, revision)
+		} else {
+			e := w.textEditor
+			text := e.Text()
+			inside, _ := productionBlock(text)
+			start, end, block := withProductionBlock(text, revision(inside))
+			e.Edit(func(b *buffer.Buffer) {
+				c := b.Cursor()
+				b.Group(func() {
+					b.Replace(start, end, block)
+					b.SetCursor(min(c, utf8.RuneCountInString(b.Text())), false)
+				})
+			})
+		}
+		w.addDraftAs(s.Name, kindIssue, s.Name, s.Date, false, func(_ savedDraft, _ bool, err error) {
+			w.revisionGen++
+			w.updateRevisionMarks()
+			finish(err)
 		})
-	})
-	w.addDraftAs(s.Name, kindIssue, s.Name, s.Date, false, func(_ savedDraft, _ bool, err error) {
-		w.revisionGen++
-		w.updateRevisionMarks()
-		finish(err)
+	}
+	from := ""
+	switch {
+	case pageLockOf(text) != nil:
+		from = text // locked again, its A-pages kept (Final Draft's Lock A Pages)
+	case lockFrom != "":
+		from = lockFrom
+	default:
+		issue(nil)
+		return
+	}
+	lockedPagesOf(from, w.lockJob(text), func(l *pageLock, err error) {
+		if err != nil {
+			finish(fmt.Errorf("the pages could not be locked: %v", err))
+			return
+		}
+		issue(l)
 	})
 }

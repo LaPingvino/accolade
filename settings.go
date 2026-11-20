@@ -80,6 +80,9 @@ func (s *Settings) loadDefaults() {
 		// their set's paper
 		"export-revisions":    true,
 		"export-page-colours": false,
+		// the scenes' (CONTINUED) and CONTINUED: in the PDF (lockedpages.go;
+		// a page lock keeps its own)
+		"export-continueds": false,
 		// the report Production > Reports… shows first (reports.go)
 		"report-kind": "scenes",
 

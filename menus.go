@@ -172,6 +172,8 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItem("Restore Scene", w.restoreScene),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Issue Draft…", w.showIssueDraft),
+		fyne.NewMenuItem("Lock Pages", w.lockPages),
+		fyne.NewMenuItem("Unlock Pages…", w.unlockPages),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Reports…", w.showReports),
 	)

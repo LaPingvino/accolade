@@ -36,8 +36,8 @@ Nothing here is built. Sources for claims about other products are linked inline
 - Lexington paginates as screenplay software does: keep-with-next, widows and orphans, and `(MORE)` / `NAME
   (CONT'D)` in the PDF. This is Lexington 1.6.0 (CHANGELOG) and the Export dialog's page-break choice
   (export_pagination.go).
-- Missing: the scene `CONTINUED:` / `(CONTINUED)`, locked pages, A-pages, and running headers other than the page
-  number (pdf/create.go:483-487 prints only `n.`).
+- Since step 5 (§11): the scene `CONTINUED:` / `(CONTINUED)`, locked pages and A-pages. Still missing: running
+  headers other than the page number and the revision slug.
 
 **Colours and tags**
 
@@ -84,7 +84,8 @@ Nothing here is built. Sources for claims about other products are linked inline
 - FDX keeps the title page, dual dialogue, styles, scene numbers, scene colours and script notes.
 - FDX writes `RevisionID="0"` on every text run (fdx/write.go:232) and reads `RevisionID` without using it
   (fdx/parse.go:64, 188).
-- FDX has no `<Revisions>`, `<LockedPages>`, `<TagData>` or `<SceneProperties Length=…>`.
+- FDX has no `<TagData>` or `<SceneProperties Length=…>` (`<Revisions>` since step 4, `<LockedPages>` since step
+  5).
 
 **Bundles**
 
@@ -325,7 +326,7 @@ export.
 |---|---|---|
 | `revisions/01-white.fountain`, `02-blue.fountain`, … | each issued draft's text, as sent out | Fountain, whole |
 | `revisions.json` | the sets: name, colour, page colour, mark, date, issued or open; FDX `<Revision>`'s fields | JSON (own, after FDX and OSF) |
-| `pages.json` | locked pages: page number to its first words in the locked draft, with A-pages | JSON (own, after FDX `<LockedPage>`, anchored by words) |
+| ~~`pages.json`~~ | locked pages: built in the production block instead (§11), for every kind of file | — |
 | `breakdown.json` | tag definitions in FDX's categories (with their UUIDs and numbers), and each tag's scene number and quoted words | JSON (own; FDX/OSF categories) |
 | `schedule.json` | shoot days, strips in order, day breaks, banners, units | JSON (own) |
 | `cast.vcf`, `crew.vcf` | contacts, with the role or department | vCard |
@@ -393,7 +394,7 @@ Effort is rough: S is a day or two of ticks, M a week, L more.
    - Representation: pages.json by words.
    - FDX: `<LockedPages>`, its Position computed when writing. OSF: `pages_locked`, `page_number`.
    - Effort: M–L, the hardest part being Lexington's paginator laying out to anchors. Where: mostly Lexington
-     (`rules.Pagination` with locks), Accolade for Lock Pages and Unlock.
+     (`rules.Pagination` with locks), Accolade for Lock Pages and Unlock. **Built: §11.**
 4. **Breakdown tagging.**
    - What: select words and tag them in a category (Cast fills itself from the cues, Location from the heading).
      Each scene gets its eighths, D/N, INT/EXT and script day, and a breakdown sheet.
@@ -487,7 +488,7 @@ breakdown as "changed in Blue: check", which the stages before can't show.
    Highland.
 4. **Issue and revision sets:** snapshots, the diff, margin colours, Lexington's asterisks, headers and revised pages
    only. FDX `<Revisions>` and `RevisionID` out, and in as marks. Built (§10).
-5. **Locked pages and A-pages** in Lexington's paginator, with `CONTINUED`. FDX `<LockedPages>`.
+5. **Locked pages and A-pages** in Lexington's paginator, with `CONTINUED`. FDX `<LockedPages>`. Built (§11).
 6. **The Production pane** with Lock and Revise, so the workflow stands before breakdown starts.
 7. **Breakdown:** the categories, tagging by words, Next scene, eighths, breakdown sheets and element reports. FDX
    `<TagData>` and `<SceneProperties>` out (test against MMS), Beat's and FDX's tags in.
@@ -794,3 +795,146 @@ lines) when either speech changed; Lexington's command line has no revision flag
 (no column of its own); the title page does not list the issued sets yet; locked pages and A-pages are step 5, so
 "changed pages" are by the current pagination; the browser's PDF export of a script the PDF writer cannot print
 (right to left, CJK) goes through HTML and has no marks.
+
+## 11. Step 5, built: locked pages, A-pages and CONTINUEDs (2026-11-20)
+
+Branch lockedpages (Accolade), Lexington v1.10.0 (tagged locally, not pushed; Accolade's go.mod has `replace
+github.com/LaPingvino/lexington => ../lexington` until it is).
+
+**The rules, and where they come from**
+
+- A page that grows goes on to A-pages, named as A-scenes are in 10A style (`lex.PageLabelBetween`, which is
+  `lex.SceneNumberBetween`): 12, 12A, 12B. 12AA comes between 12A and 12B, and 12aA between 12 and 12A.
+  - 12A, 12B: Wikipedia's Shooting script; WriterDuet's 2A (§2).
+  - 12AA after a second lock: WriterDuet ("1AA, 2AA … for any new additions after that point",
+    https://www.writerduet.com/article/112-lock-pages) and Filmustage (10AA between 10A and 10B).
+  - Small letters: Scripto falls back to them "unless that would break sort order"
+    (https://help.scripto.live/en/articles/11689842-page-locking). A Final Draft user's "4aA" is seen as a
+    search snippet of its knowledge base only, whose pages refuse robots.
+- A page that shrinks stays short. Nothing is printed on it: I found no source for a "(page intentionally short)"
+  line.
+- A page whose text is all gone gives its number to the page before it, which then reads "12-13".
+  - Scripto: "Page 4 becomes 4–5".
+  - Final Draft: "7BB-9A", a search snippet only.
+- Pages after the last locked page count on (121 after 120), as scene numbers do after the last. This is my choice:
+  no source covers it.
+- Scene CONTINUEDs. "(CONTINUED)" goes on the line under the last text of a page whose scene goes on, ending where a
+  transition ends. "CONTINUED:" goes on the next page's first line at the heading's place, with the scene's number
+  in both margins. Sources:
+  - johnaugust.com/?p=3959: "most screenwriting software will offer to put CONTINUED: at the top left of the next
+    page, next to the scene number"; only when "headed into production".
+  - The format guides of Charles Deemer and SimplyScripts for the "(CONTINUED)" at the foot.
+  - "CONTINUED: (2)" on a scene's second page after its first, and on: Final Draft's way as I remember it.
+    *Unverified.*
+  - A page always keeps its last line free for the foot's mark, and a continued page starts two lines down. So a
+    page's text never depends on what follows it.
+- Dialogue's (MORE) / (CONT'D) was there already. A lock that falls inside a speech puts them in too.
+
+**Lexington v1.10.0**
+
+- The anchor (`lex.PageLock`, `lex.LockedPage`) is by words, as Accolade's links are. A page has:
+  - the number of the scene it starts in;
+  - its first eight words, normalised (lower case, no punctuation or emphasis);
+  - the eight words before it;
+  - which place of its first words in the scene it is, when they repeat.
+- A page is found again (`lex.LocatePages`), in this order:
+  1. its first words at their place in its scene, with the words before them;
+  2. the only place they stand with those words before them;
+  3. their place in the scene;
+  4. right after the words before it (its first line was edited);
+  5. near: three of its first words in a row.
+  - A page found by the words before it at the next page's place is gone, as is one whose words are past the next
+    page's place.
+  - A page whose scene is gone (cut or omitted) is looked for anywhere after the page before.
+- In the PDF (`pdf.PDFWriter.Lock`), each found page gets a break of its own before its first row, or within the
+  row. A break within an action paragraph splits it at the word. One within a speech adds (MORE) and NAME (CONT'D).
+  - The labels are printed once the text is laid out, so "12-13" can be known.
+  - No page starts with a blank line any more, and page numbers print without a title page too.
+- A lock carries its paper and CONTINUEDs, and the writer prints a locked script so.
+- `PDFWriter.LockPages` locks the pages as printed. Locking again keeps the A-pages, as Final Draft's Lock A Pages
+  does. `PDFWriter.Pages` lists the pages: number, revision, new or not.
+- Revised pages with a lock:
+  - a page with a mark;
+  - the pages after it in the same locked page (its A-pages, which also count as new);
+  - a "12-13" page;
+  - the page before a locked page whose first line is marked: a deletion at its foot marks the line after it.
+- The command line has `-lockpages` (writes the lock as text), `-lock file` and `-continueds`. Programs use
+  `cli.LockPages` and `cli.Pages`.
+- Tests:
+  - Locked and printed again, the same script gives the same pages and the same lock. This holds in every
+    pagination, on Letter, A4 and A5, with and without CONTINUEDs, and for all of Big Fish (FDX fixture) with and
+    without them.
+  - Growth gives one A-page, then two, on two pages at once, and at the boundary.
+  - A paragraph cut gives a short page; a whole page's text cut gives 4-5.
+  - A page's first words edited: it is still found.
+  - Locked again: an A-page keeps its number, then 4aA and 4B.
+  - Revised pages only gives the page, its A-page and their headers.
+  - CONTINUED marks pair up, including "(2)".
+
+**FDX** (`FDXWriter.Lock`, `fdx.ParseLockedPages`)
+
+- The form is `<LockedPages><LockedPage LevelIndex LockLevel PageNumber Position/>`, as Final Draft wrote it in
+  EuroMechanical.fdx (michaelforrest/ShootingChecklist).
+- Its four Positions fall at paragraph starts and inside a speech after a sentence. They count the text runs'
+  characters plus one per paragraph end, the same count as DeletedText's (§10). Checked on that one file only.
+- *Unverified:* what Final Draft writes in `LockLevel` and `LevelIndex` for an A-page. Every page seen had 0 and
+  its index. Lexington writes the number of letters (12A: 1) and the index.
+- Reading takes PageNumber and Position. It drops a position past the end, or one not after the page before:
+  another file seen (captioncast's small.fdx) keeps stale positions after its text was cut.
+- A missing page is not written.
+- Round trip: written and read back, the same labels and words.
+
+**Accolade** (lockedpages.go)
+
+- The lock lives in the production block for every kind of file, bundles included, and replaces §4's
+  `pages.json`. Reasons:
+  - Undo covers it;
+  - it survives a flattening to plain Fountain and edits in other programs;
+  - it is a few kilobytes of words for a feature.
+
+  ```
+  /* Production
+  scene numbers: locked, 10A
+  revision: Blue, 2026-11-20
+  pages: locked, letter, format screenplay, pagination all
+    1 -:  / int room 1 day anna walks along the
+    2 1: about the house and about the people / who lived here before her long ago
+  */
+  ```
+
+  The head line holds the layout the pages were locked in:
+  - paper, and `continueds` when they were on (Lexington's);
+  - the script format and the pagination (Accolade's).
+
+  Each page is `label scene[*n]: words before / first words`.
+- **Production > Lock Pages** locks the pages as the PDF prints them with the export's settings. Run on a locked
+  script it locks them again with their A-pages.
+- **Unlock Pages…** asks, then takes the lines out.
+- Each is one undo step.
+- **Export, Preview PDF, FDX** use the lock's layout whatever the Export dialog says, when exporting a whole
+  script. Filters (tags, sides) leave the lock out. Print (HTML) keeps no locked pages.
+- **Issue:**
+  - every Issue of a locked script locks the pages again (Lock A Pages), so an issued 12A stays 12A;
+  - the first revision's Issue (Blue) offers, checked by default, to lock the pages as White printed them, so that
+    Blue's changed pages are A-pages. Later issues of an unlocked script offer it unchecked.
+- **Preferences > Script > Production** has "CONTINUED where a scene breaks over pages (PDF)" (`export-continueds`,
+  off). A lock keeps its own.
+- **FDX import** puts an FDX's locked pages into the production block, at Final Draft's breaks. Lexington's layout
+  differs from Final Draft's, so pages that print longer get A-pages: the page identities are Final Draft's.
+- Tests:
+  - lock, Undo, Redo;
+  - text that grows exports 2A;
+  - Unlock and its Undo;
+  - Issue White; grow; Issue Blue with the offer: one A-page, revised pages only that page and its A-page;
+  - Issue Pink: locked again, the A-page kept;
+  - FDX out with the A-page, and the import keeps the lock.
+
+**Rough**
+
+- Reports (Production > Reports…) still give whole page numbers from the current layout, not the locked labels.
+- The revised-only PDF prints no number on page 1, as page 1 never has one.
+- The FDX reader adds a blank line around Fountain's dual dialogue, so a script that went through FDX may print a
+  line longer. A lock shows this as an A-page.
+- `LockLevel` and `LevelIndex` for A-pages are unverified, and nothing written here has been opened in Final Draft.
+- Pages whose text repeats word for word (the same 16 words around the break) can be told apart only by their order
+  in the scene.

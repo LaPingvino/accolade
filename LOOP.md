@@ -296,3 +296,16 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   assets/production/revisions.json until the next Issue. Shots: combo-revisions-*.png (SHOT_DIR=… go test -run
   TestRevisionScreenshots, which writes revisions.pdf too). Print (HTML) has no marks. Next: PRODUCTION step 5,
   locked pages and A-pages.
+- 2026-11-20: PRODUCTION step 5, locked pages, A-pages and CONTINUEDs (branch lockedpages, not merged;
+  lockedpages.go; docs/PRODUCTION.md §11). Lexington v1.10.0 (tagged locally, not pushed; go.mod has `replace =>
+  ../lexington` until it is): `lex.PageLock` anchored by words (scene, first words, words before), `pdf.PDFWriter.Lock`
+  (A-pages named as A-scenes: 12A, 12B, 12AA, 12aA; a page whose text is gone makes "12-13"; short pages stay short;
+  pages after the last count on), `LockPages` (again: A-pages kept), `Pages`, revised pages counting A-pages,
+  `Continueds` ((CONTINUED) / CONTINUED: (2)), FDX `<LockedPages>` out and in (Position as DeletedText's offset,
+  checked on one Final Draft file; LockLevel for A-pages a guess), `-lock`, `-lockpages`, `-continueds`. Accolade:
+  Production > Lock Pages / Unlock Pages… (one undo step each; the lock in the production block, `pages: locked,
+  letter, format …, pagination …` and a line per page, for bundles too), export/preview/FDX in the lock's layout, every
+  Issue of a locked script locks again, the first revision's Issue offers to lock the pages as White printed them,
+  Preferences "CONTINUED where a scene breaks over pages", an FDX's locked pages kept on import. Shots: Lexington's
+  `LOCKED_SHOT=… go test -run TestLockedShot ./pdf` (page 12 with CONTINUED:, 12A with its Blue header). Rough:
+  reports give the current pages, not locked labels. Next: PRODUCTION step 6, the Production pane.

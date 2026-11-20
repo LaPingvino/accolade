@@ -1587,6 +1587,7 @@ func (w *MainWindow) savedExportJob() exportJob {
 		colorPatterns: w.settings.GetBoolean("export-color-patterns"),
 		pagination:    w.settings.GetString("export-pagination"),
 		scenes:        sceneHeaders(w.language),
+		continueds:    w.settings.GetBoolean(continuedsPref),
 	}
 }
 

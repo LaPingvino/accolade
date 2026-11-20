@@ -44,17 +44,33 @@ func (w *MainWindow) showIssueDraft() {
 		if first && !sceneLockOf(w.textEditor.Text()).locked {
 			what += "\n\nIssuing White locks the scene numbers first (Production > Lock Scene Numbers)."
 		}
+		locked := pageLockOf(w.textEditor.Text()) != nil
+		if locked {
+			what += "\n\nThe locked pages are locked again with their A-pages, as " + set.Name + " prints them."
+		}
+		// the first revision: offer to lock the pages as the issue before
+		// printed them, so that this one's changed pages are A-pages
+		var lockCheck *widget.Check
+		if !first && !locked {
+			last := chain.issues[len(chain.issues)-1]
+			lockCheck = widget.NewCheck("Lock the pages as "+last.set.Name+" printed them (pages that grew get A-pages: 12A)", nil)
+			lockCheck.SetChecked(len(chain.issues) == 1)
+		}
 		text := widget.NewLabel(what)
 		text.Wrapping = fyne.TextWrapWord
 		where := widget.NewLabel(draftsWhere(w))
 		where.Wrapping = fyne.TextWrapWord
 		where.Importance = widget.LowImportance
-		var d *dialog.FormDialog
-		d = dialog.NewForm("Issue "+set.Name, "Issue", "Cancel", []*widget.FormItem{
+		items := []*widget.FormItem{
 			widget.NewFormItem("", text),
 			widget.NewFormItem("Date", date),
-			widget.NewFormItem("", where),
-		}, func(ok bool) {
+		}
+		if lockCheck != nil {
+			items = append(items, widget.NewFormItem("", lockCheck))
+		}
+		items = append(items, widget.NewFormItem("", where))
+		var d *dialog.FormDialog
+		d = dialog.NewForm("Issue "+set.Name, "Issue", "Cancel", items, func(ok bool) {
 			if !ok {
 				return
 			}
@@ -64,7 +80,11 @@ func (w *MainWindow) showIssueDraft() {
 				return
 			}
 			set.Date = day
-			w.issueDraft(set, func(err error) {
+			lockFrom := ""
+			if lockCheck != nil && lockCheck.Checked {
+				lockFrom = strings.Join(chain.issues[len(chain.issues)-1].lines, "\n")
+			}
+			w.issueDraft(set, lockFrom, func(err error) {
 				if err != nil {
 					dialog.ShowError(fmt.Errorf("could not issue %s: %v", set.Name, err), w.fyneWindow)
 					return
