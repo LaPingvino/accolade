@@ -928,6 +928,7 @@ func (w *MainWindow) restore(d kept) {
 	w.setMarkdown(d.Markdown)
 	w.textEditor.SetText(d.Text)
 	w.suggestedName = d.Name
+	w.unsavedSource = ""
 	if _, err := os.Stat(d.Source); d.Source != "" && err == nil {
 		w.unsavedSource = d.Source
 	}

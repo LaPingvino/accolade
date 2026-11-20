@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"slices"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -201,10 +202,25 @@ func (s *sourcePane) statusOf(id int) passageStatus {
 // showStatuses takes the statuses and the count from the model: the
 // rows again if a status changed, the count line, the Cut button.
 func (s *sourcePane) showStatuses(m *sourceModel) {
-	changed := map[int]bool{} // linked nearly: the passage's words changed since
-	for _, mt := range m.matches {
+	// changed since linked: linked nearly (the quoted words changed), or
+	// the passage's words other than when this session first saw it linked
+	changed := map[int]bool{}
+	if s.linkedWords == nil {
+		s.linkedWords = map[string][]string{}
+	}
+	for i, mt := range m.matches {
+		if !mt.found() {
+			continue
+		}
+		p := mt.Passages[0]
+		key := strings.Join(m.links[i].Words, " ")
+		if seen, ok := s.linkedWords[key]; !ok {
+			s.linkedWords[key] = s.passages[p].Words
+		} else if !slices.Equal(seen, s.passages[p].Words) {
+			changed[p] = true
+		}
 		if mt.Kind == linkNear {
-			changed[mt.Passages[0]] = true
+			changed[p] = true
 		}
 	}
 	if !slices.Equal(m.status, s.statuses) || !sameSet(changed, s.changed) {

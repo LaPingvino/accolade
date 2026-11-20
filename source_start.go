@@ -44,8 +44,9 @@ func sourceTitle(md, name string) string {
 }
 
 // scriptFromSource is what a script started from a source holds: a title
-// page naming the story, then the story's headings as sections (the one
-// that is its title left out: the title page has it).
+// page naming the story, then the story's headings as sections (its title
+// too, if it is a heading: what comes under it before the first chapter
+// has its place there).
 func scriptFromSource(title string, ps []passage, now time.Time) string {
 	lines := []string{
 		"Title: " + title,
@@ -55,11 +56,7 @@ func scriptFromSource(title string, ps []passage, now time.Time) string {
 		"Draft date: " + now.Format("January 2, 2006"),
 		"",
 	}
-	key := strings.Join(normWords(title), " ")
 	for _, h := range sourceHeadings(ps) {
-		if h.Level == 1 && strings.Join(normWords(h.Text), " ") == key {
-			continue
-		}
 		lines = append(lines, strings.Repeat("#", h.Level)+" "+h.Text, "")
 	}
 	return strings.Join(lines, "\n")
@@ -99,8 +96,10 @@ func (w *MainWindow) startScreenplayFromSource() {
 func (w *MainWindow) newScriptFromSource(md, name, file string) {
 	w.cancelAutoSave()
 	w.createNewFile(true)
-	if lang, sure := readingLanguage(md, ""); sure && sceneConf[lang] != nil {
+	langNote := ""
+	if lang, sure := readingLanguage(md, ""); sure && sceneConf[lang] != nil && lang != w.language {
 		w.setLanguage(lang) // the story's language: its scene headings
+		langNote = "; the script's language is the story's, " + lang + " (Format > Script Language…)"
 	}
 	ps := passagesOf(md)
 	title := sourceTitle(md, name)
@@ -117,7 +116,7 @@ func (w *MainWindow) newScriptFromSource(md, name, file string) {
 	w.updateStatusBar()
 	w.showSource()
 	w.sourcePane().firstScene()
-	w.setStatus("A screenplay from “" + title + "”: its chapters as sections, the first scene started; write its heading")
+	w.setStatus("A screenplay from “" + title + "”: its chapters as sections, the first scene started; write its heading" + langNote)
 }
 
 // firstScene starts the script's first scene, for the source's first

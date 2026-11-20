@@ -59,14 +59,15 @@ type sourcePane struct {
 	doubt    map[int]bool // an ambiguous link of the scene's fits them
 	jumping  bool         // the cursor is moving because of a tap here
 
-	statuses     []passageStatus // as the rows show them (adaptation.go)
-	changed      map[int]bool    // adapted passages changed since they were linked
-	sugg         suggestions     // links offered (adaptation_suggest.go)
-	seedAsked    bool            // an unwritten script offered to start from the source
-	fresh        bool            // the source just read: the list not scrolled yet
-	offered      int             // the passage Next showed last (-1 none)
-	nextAt       int             // where Next's scene goes after (runes; -1: the cursor)
-	offeredWords []string        // its words, to find it again
+	statuses     []passageStatus     // as the rows show them (adaptation.go)
+	changed      map[int]bool        // adapted passages changed since they were linked
+	linkedWords  map[string][]string // each link's passage's words as first seen linked (by the link's words)
+	sugg         suggestions         // links offered (adaptation_suggest.go)
+	seedAsked    bool                // an unwritten script offered to start from the source
+	fresh        bool                // the source just read: the list not scrolled yet
+	offered      int                 // the passage Next showed last (-1 none)
+	nextAt       int                 // where Next's scene goes after (runes; -1: the cursor)
+	offeredWords []string            // its words, to find it again
 
 	reading    *storyread.Reading // what the source shows (source_reading.go)
 	readingFor string
@@ -527,8 +528,10 @@ func (s *sourcePane) use(r *sourceRead, ps []passage) {
 	if (r.ref.Origin == sourceInside) != (s.ref.Origin == sourceInside) {
 		s.w.refreshMenu() // Keep Source in the Script (an undo can change it)
 	}
-	if r.ref != s.ref { // another source: its offers are new
+	if r.ref != s.ref { // another source: its offers are new, the last one's question gone
 		s.sugg, s.seedAsked = suggestions{}, false
+		s.prompt.hide()
+		s.linkedWords = nil
 	}
 	s.ref, s.modTime, s.size, s.src, s.err = r.ref, r.modTime, r.size, r.src, r.err
 	s.fresh = true
@@ -656,7 +659,7 @@ func (s *sourcePane) follow() {
 			if first < 0 || mt.Passages[0] < first {
 				first = mt.Passages[0]
 			}
-			if mt.Kind == linkNear {
+			if mt.Kind == linkNear || s.changed[mt.Passages[0]] {
 				problems = append(problems, q+": the source changed since it was linked; "+
 					"check the scene, then Link to Source Passage again")
 			}
@@ -694,8 +697,8 @@ func (s *sourcePane) follow() {
 	}
 	if s.fresh && first < 0 && s.selected < 0 { // just read: where the adapting goes on
 		if last, _ := m.lastLinked(); last >= 0 {
-			if next, _ := m.nextToDo(last); next >= 0 {
-				s.list.ScrollTo(max(next-1, 0))
+			if next, _ := m.nextToDo(last); next >= 0 && !s.inSight(map[int]bool{next: true}) {
+				s.scrollToTop(max(next-1, 0)) // with the one before it, for where it follows on
 			}
 		}
 	}
@@ -762,6 +765,19 @@ func shortQuote(q string) string {
 		return strings.Join(words[:6], " ") + "…"
 	}
 	return q
+}
+
+// scrollToTop scrolls the list so that row id is at its top.
+func (s *sourcePane) scrollToTop(id int) {
+	if len(s.heights) != len(s.passages) {
+		s.list.ScrollTo(id)
+		return
+	}
+	y := float32(0)
+	for _, h := range s.heights[:min(id, len(s.heights))] {
+		y += h + theme.Padding()
+	}
+	s.list.ScrollToOffset(y)
 }
 
 // inSight reports whether one of the passages is in the list's view.

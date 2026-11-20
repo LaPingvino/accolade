@@ -21,6 +21,13 @@ import (
 // goroutine; long loops in it call pace.Yield so that the web version's
 // page is not frozen meanwhile (internal/pace).
 
+// uiTurn is the UI goroutine's turn. The real drivers run what fyne.Do is
+// given one at a time on the UI goroutine; the test driver runs it on the
+// calling goroutine, so a timer's function and a background result's ran
+// side by side there (the source list measured while it was refreshed).
+// They take turns: on the UI goroutine the lock is never contended.
+var uiTurn sync.Mutex
+
 // uiTimer is a timer of a window's.
 type uiTimer struct {
 	t       *time.Timer
@@ -73,6 +80,8 @@ func (w *MainWindow) after(d time.Duration, f func()) *uiTimer {
 			return
 		}
 		fyne.Do(func() {
+			uiTurn.Lock()
+			defer uiTurn.Unlock()
 			if t.stopped.Load() {
 				return
 			}
@@ -141,7 +150,11 @@ func inBackground[T any](work func() T, done func(T)) {
 	go func() {
 		r := work()
 		pace.Yield()
-		fyne.Do(func() { done(r) })
+		fyne.Do(func() {
+			uiTurn.Lock()
+			defer uiTurn.Unlock()
+			done(r)
+		})
 	}()
 }
 

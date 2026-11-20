@@ -23,3 +23,29 @@ func TestRestoreKeepsLanguage(t *testing.T) {
 		t.Errorf("not saved: %q %q %q", w.language, w.textEditor.Text(), w.suggestedName)
 	}
 }
+
+// An unsaved script's source comes back with it after a reload: the
+// draft names its kept copy.
+func TestRestoreKeepsSource(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	w.createNewFile(true)
+	story := filepath.Join(t.TempDir(), "story.md")
+	os.WriteFile(story, []byte("# Story\n\nIt was night.\n"), 0o644)
+	if err := w.useSource(story); err != nil {
+		t.Fatal(err)
+	}
+	d := w.draft()
+	if d.Source == "" {
+		t.Fatal("the draft has no source")
+	}
+	w2, _ := newDialogTestWindow(t)
+	w2.restore(d)
+	if r := w2.sourceRef(); r.Origin != sourceKept || r.Path != d.Source {
+		t.Errorf("restored: %+v", r)
+	}
+	w2.restore(kept{Text: "x", Source: "/gone/story.md"}) // gone: none
+	if r := w2.sourceRef(); r.Origin != sourceNone {
+		t.Errorf("a draft whose source is gone: %+v", r)
+	}
+}

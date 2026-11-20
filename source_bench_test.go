@@ -12,6 +12,8 @@ package main
 // pane), the work put off or into the background apart.
 
 import (
+	"github.com/LaPingvino/accolade/internal/storyread"
+
 	"bytes"
 	"fmt"
 	"math/rand"
@@ -451,6 +453,33 @@ func BenchmarkSourceEditor(b *testing.B) {
 		se.ed.SetCursorOffset(5000)
 		for b.Loop() {
 			se.ed.TypedRune('x')
+		}
+	})
+}
+
+// The links suggested for the bench screenplay without its links (a
+// script written before it had a source): the story read, then the
+// scenes matched to it, as the pane does it in the background.
+func BenchmarkSuggestLinks(b *testing.B) {
+	md, script := benchFixture()
+	var kept []string
+	for _, l := range strings.Split(script, "\n") {
+		if !strings.HasPrefix(l, "[[from:") {
+			kept = append(kept, l)
+		}
+	}
+	script = strings.Join(kept, "\n")
+	ps := passagesOf(md)
+	m := newSourceModel(ps, script, benchStarts)
+	b.Run("read", func(b *testing.B) {
+		for b.Loop() {
+			storyread.Read(storyPassages(ps), "en", storyread.Hints{})
+		}
+	})
+	r := storyread.Read(storyPassages(ps), "en", storyread.Hints{})
+	b.Run("match", func(b *testing.B) {
+		for b.Loop() {
+			suggestLinks(script, benchStarts, ps, m.status, r)
 		}
 	})
 }

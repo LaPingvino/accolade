@@ -534,8 +534,9 @@ type sceneEdit struct {
 // where the script is in the source; -1 for none) and has no section of
 // that name, then a scene heading to write over, and the link. If the
 // script has the chapter's section and the cursor is not in it, the
-// scene goes at the end of that chapter (sections made from the source's
-// headings before any scene: each scene under its own).
+// scene goes at the end of that chapter, before the next section (sections
+// made from the source's headings before any scene: each scene under its
+// own; a passage under a part's heading before the part's first chapter).
 func sceneForPassage(text string, starts []string, ps []passage, p, from, cursor int) sceneEdit {
 	r := []rune(text)
 	body := bodyEnd(text)
@@ -553,9 +554,9 @@ func sceneForPassage(text string, starts []string, ps []passage, p, from, cursor
 		})
 		switch {
 		case sec >= 0:
-			chEnd := lines // the chapter ends at the next section as high, or the end
+			chEnd := lines // the chapter's passages end at the next section, or the end
 			for _, it := range outline[sec+1:] {
-				if !it.Scene && it.Level <= outline[sec].Level {
+				if !it.Scene {
 					chEnd = it.Line
 					break
 				}

@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/pace"
 	"github.com/LaPingvino/accolade/internal/storyread"
 )
 
@@ -21,6 +22,10 @@ import (
 // suggestMin is how alike a scene and a passage are at least (0–1) for
 // a link to be suggested.
 const suggestMin = 0.5
+
+// commonFrom is how many passages a source has before its commonest
+// words are left out of the matching.
+const commonFrom = 50
 
 // suggestPerScene is how many passages a scene is offered at most.
 const suggestPerScene = 3
@@ -138,6 +143,16 @@ func suggestLinks(text string, starts []string, ps []passage, status []passageSt
 	if n == 0 || len(scenes) == 0 {
 		return nil
 	}
+	if n >= commonFrom { // a long source: a word in many of its passages tells none apart
+		for w, d := range df {
+			if d > n/4 {
+				for _, i := range index[w] {
+					delete(words[i], w)
+				}
+				delete(index, w)
+			}
+		}
+	}
 	weight := func(w string) float64 { return math.Log(1 + float64(n)/float64(max(df[w], 1))) }
 	total := make([]float64, len(ps))
 	for i, ws := range words {
@@ -150,17 +165,27 @@ func suggestLinks(text string, starts []string, ps []passage, status []passageSt
 		score          float64
 	}
 	var fits []fit
+	shared := make([]float64, len(ps)) // a scene's words in each passage, weighed
+	var touched []int
 	for k, sc := range scenes {
 		if sc.Linked {
 			continue
 		}
-		shared := map[int]float64{}
+		touched = touched[:0]
 		for w := range sc.Words {
+			wt := weight(w)
 			for _, i := range index[w] {
-				shared[i] += weight(w)
+				if shared[i] == 0 {
+					touched = append(touched, i)
+				}
+				shared[i] += wt
 			}
+			pace.Yield() // the browser draws between
 		}
-		for i, sum := range shared {
+		for _, i := range touched {
+			sum := shared[i]
+			shared[i] = 0
+			pace.Yield()
 			score := sum / max(total[i], 1e-9)
 			if r != nil && i < len(r.Passages) { // a line of the passage's said in the scene
 				for _, l := range r.Passages[i].Lines {
@@ -392,15 +417,25 @@ func (s *sourcePane) offerStart(m *sourceModel) {
 	if s.prompt.box.Visible() || !slices.ContainsFunc(s.passages, passage.counted) {
 		return
 	}
-	if !s.seedAsked && unwritten(s.modelFor, s.w.sceneStarts()) {
+	if len(m.links) > 0 || (s.seedAsked && s.sugg.tried) {
+		return // the cursor moves: nothing to read again
+	}
+	if !s.seedAsked && len(m.spans) == 1 && m.spans[0].Heading == "" { // no scene, no section
 		s.seedAsked = true
 		s.prompt.ask(-1, false, "Nothing written yet. Start from the source: its chapters as sections, and the first scene?",
 			"Start from the Source", s.seedScript)
 		return
 	}
-	if !s.sugg.tried && len(m.links) == 0 && slices.ContainsFunc(outlineOf(s.modelFor, s.w.sceneStarts()), func(it outlineItem) bool { return it.Scene }) {
-		s.offerSuggestions(true)
+	if s.sugg.tried || !slices.ContainsFunc(outlineOf(s.modelFor, s.w.sceneStarts()), func(it outlineItem) bool { return it.Scene }) {
+		return
 	}
+	if len(s.src) >= backgroundSource { // a long one is read for it only when asked
+		s.sugg.tried = true
+		s.prompt.ask(-1, false, "The script has scenes but no links to the source yet. Suggest them, scene by scene?",
+			"Suggest Links", func() { s.offerSuggestions(false) })
+		return
+	}
+	s.offerSuggestions(true)
 }
 
 // suggestSourceLinks is Format > Suggest Links to the Source.

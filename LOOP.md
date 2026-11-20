@@ -155,12 +155,17 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   again. A new script or import no longer inherits the last unsaved script's source; the browser's kept draft keeps
   an unsaved script's source over a reload. A long status message made the window wider than a phone: it wraps now,
   the statistics give way. Settings leaked between tests (next-passage-inserts): restored after them.
-  Ideas, not built: (1) "changed since" only sees the quoted opening words, and only while matching nearly: store a
-  fingerprint of the whole passage with each link (goes with the locked source, above) and a Relink that updates a
-  link's quote; (2) suggestions: stems (tore/tears, climbs/climbed) from storyread's word lists, the story's order
+  Ideas, not built: (1) "changed since" sees the quoted words always, the rest only within a session (it starts
+  from the words first seen linked): store a fingerprint of the whole passage with each link (goes with the locked
+  source, above) and a Relink that updates a link's quote; (2) suggestions: stems (tore/tears, climbs/climbed) from storyread's word lists, the story's order
   as a hint, a passage in two scenes, Skip remembered (step 7's notes), cuts offered for skipped passages between
   linked ones; (3) the first scene's heading from storyread's suggested INT./EXT. PLACE - TIME instead of the
   placeholder; (4) an open .md that is some script's source could say so and open that script; (5) the settings
   object is one for the process (GetSettings, globalSettings), shared by all tests in a run: give each test its own.
-  Seen, not from this branch: background_real_test.go's tests panic about 1 run in 10 on main too (the test driver
-  runs fyne.Do callbacks and timers beside the test's goroutine, the list touched from both).
+  Follow-ups (second commit): a passage changed after the words its link quotes counts as changed too, against its
+  words when the session first saw it linked; the epigraph case (a passage under the story's title before Chapter 1:
+  sections keep the title's heading, a scene goes before the next section); a long source (≥ 64 KB) is asked first
+  before its links are suggested, and the matching yields (the bench novel: read 0.13 s, match 0.08 s natively); a
+  stale question is dropped when the source changes. background_real_test.go flaked (main 1 in 30, this branch 3 in
+  30: a source list refreshed by a background result while a measuring timer set its heights, side by side under
+  the test driver); timers' and background results' functions now take turns (background.go uiTurn): 0 in 40.

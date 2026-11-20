@@ -285,9 +285,6 @@ func checkStarted(t *testing.T, w *MainWindow) {
 			t.Errorf("no %q in\n%s", want, text)
 		}
 	}
-	if strings.Contains(text, "\n# The Lighthouse") {
-		t.Errorf("the title is a section too:\n%s", text)
-	}
 	if !textAfter(t, w, "## Chapter 1", "[[from: \"Mara climbed") || textAfter(t, w, "## Chapter 2", "[[from: \"Mara climbed") {
 		t.Errorf("the first scene is not under Chapter 1:\n%s", text)
 	}
@@ -372,57 +369,63 @@ func TestComboNoLinks(t *testing.T) {
 	}
 }
 
+// comboOrigins open a script with comboStory as its source, kept in
+// each of the places a source can be.
+var comboOrigins = []struct {
+	name string
+	open func(t *testing.T, script string) *MainWindow
+}{
+	{"beside", func(t *testing.T, script string) *MainWindow {
+		w, _ := sourceWindow(t, script, comboStory)
+		return w
+	}},
+	{"kept", func(t *testing.T, script string) *MainWindow {
+		w, _ := scriptWindow(t, script)
+		if err := w.useSource(storyFile(t, "lighthouse.md", comboStory)); err != nil {
+			t.Fatal(err)
+		}
+		w.showSource()
+		return w
+	}},
+	{"inside", func(t *testing.T, script string) *MainWindow {
+		w, _ := sourceWindow(t, script, comboStory)
+		if err := w.keepSourceInside(true); err != nil {
+			t.Fatal(err)
+		}
+		w.textEditor.SetCursorOffset(0)
+		w.sourcePane().follow()
+		return w
+	}},
+	{"bundle", func(t *testing.T, script string) *MainWindow {
+		w, _ := newDialogTestWindow(t)
+		t.Setenv("XDG_DATA_HOME", t.TempDir())
+		p := filepath.Join(t.TempDir(), "Lighthouse.highland")
+		items := bundleItems("Lighthouse.textbundle/")
+		for i := range items {
+			if strings.HasSuffix(items[i].name, "text.fountain") {
+				items[i].data = script
+			}
+		}
+		os.WriteFile(p, makeZip(t, items), 0o644)
+		if err := w.LoadFile(p); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.useSource(storyFile(t, "lighthouse.md", comboStory)); err != nil {
+			t.Fatal(err)
+		}
+		w.showSource()
+		return w
+	}},
+}
+
 // The source wherever it is kept, a script covering its first chapter:
-// the statuses at once, and Next, from the top of the script as it
-// opens, goes on after the last passage covered, its scene after the
-// scene that covers it.
+// the statuses at once, the list on where the adapting goes on, and
+// Next, from the top of the script as it opens, goes on after the last
+// passage covered, its scene after the scene that covers it.
 func TestComboPartial(t *testing.T) {
-	for _, c := range []struct {
-		name string
-		make func(t *testing.T) *MainWindow
-	}{
-		{"beside", func(t *testing.T) *MainWindow {
-			w, _ := sourceWindow(t, comboPartial, comboStory)
-			return w
-		}},
-		{"kept", func(t *testing.T) *MainWindow {
-			w, _ := scriptWindow(t, comboPartial)
-			if err := w.useSource(storyFile(t, "lighthouse.docx.md", comboStory)); err != nil {
-				t.Fatal(err)
-			}
-			w.showSource()
-			return w
-		}},
-		{"inside", func(t *testing.T) *MainWindow {
-			w, _ := sourceWindow(t, comboPartial, comboStory)
-			if err := w.keepSourceInside(true); err != nil {
-				t.Fatal(err)
-			}
-			return w
-		}},
-		{"bundle", func(t *testing.T) *MainWindow {
-			w, _ := newDialogTestWindow(t)
-			t.Setenv("XDG_DATA_HOME", t.TempDir())
-			p := filepath.Join(t.TempDir(), "Lighthouse.highland")
-			items := bundleItems("Lighthouse.textbundle/")
-			for i := range items {
-				if strings.HasSuffix(items[i].name, "text.fountain") {
-					items[i].data = comboPartial
-				}
-			}
-			os.WriteFile(p, makeZip(t, items), 0o644)
-			if err := w.LoadFile(p); err != nil {
-				t.Fatal(err)
-			}
-			if err := w.useSource(storyFile(t, "lighthouse.md", comboStory)); err != nil {
-				t.Fatal(err)
-			}
-			w.showSource()
-			return w
-		}},
-	} {
+	for _, c := range comboOrigins {
 		t.Run(c.name, func(t *testing.T) {
-			w := c.make(t)
+			w := c.open(t, comboPartial)
 			s := w.sourcePane()
 			w.textEditor.SetCursorOffset(0)
 			s.follow()
@@ -442,7 +445,111 @@ func TestComboPartial(t *testing.T) {
 			if selected(w) != "PLACE - DAY" {
 				t.Errorf("selected %q", selected(w))
 			}
+			if c.name == "inside" && w.sourceRef().Origin != sourceInside {
+				t.Errorf("the source left the script: %+v", w.sourceRef())
+			}
 		})
+	}
+}
+
+// The source wherever it is kept, a script with only its title page:
+// offered to start from the source, which puts the chapters in as
+// sections and starts the first scene, the source where it was.
+func TestComboEmptyScript(t *testing.T) {
+	for _, c := range comboOrigins {
+		t.Run(c.name, func(t *testing.T) {
+			w := c.open(t, "Title: The Lighthouse\n")
+			s := w.sourcePane()
+			if !s.prompt.box.Visible() || !strings.Contains(s.prompt.label.Text, "Nothing written yet") {
+				t.Fatalf("not offered to start: %q", s.prompt.label.Text)
+			}
+			if c.name != "kept" { // kept-new above
+				comboShot(t, w, c.name+"-empty")
+			}
+			origin := w.sourceRef().Origin
+			s.prompt.yes.OnTapped()
+			if !textAfter(t, w, "Title: The Lighthouse", "## Chapter 1") || !textAfter(t, w, "## Chapter 1", "[[from: \"Mara climbed") ||
+				textAfter(t, w, "## Chapter 2", "[[from: \"Mara climbed") {
+				t.Errorf("started:\n%s", w.textEditor.Text())
+			}
+			if w.sourceRef().Origin != origin {
+				t.Errorf("the source moved: %v, was %v", w.sourceRef().Origin, origin)
+			}
+			if c.name == "inside" && !textAfter(t, w, "## Chapter 3", "/* Source") {
+				t.Errorf("the sections are not before the source:\n%s", w.textEditor.Text())
+			}
+			w.textEditor.Undo()
+			w.textEditor.Undo()
+			if got := w.textEditor.Text(); !strings.HasPrefix(got, "Title: The Lighthouse\n") || strings.Contains(got[:bodyEndByte(got)], "## Chapter") {
+				t.Errorf("two undos:\n%s", got)
+			}
+		})
+	}
+}
+
+// The source wherever it is kept, a script without links: suggested.
+func TestComboNoLinksOrigins(t *testing.T) {
+	for _, c := range comboOrigins {
+		t.Run(c.name, func(t *testing.T) {
+			w := c.open(t, comboNoLinks)
+			s := w.sourcePane()
+			if !s.prompt.box.Visible() || !strings.Contains(s.prompt.label.Text, "1 of 3: INT. LIGHTHOUSE STAIRS") {
+				t.Fatalf("not suggested: %q", s.prompt.label.Text)
+			}
+			s.prompt.yes.OnTapped()
+			if c := countOf(s.statuses); c.Adapted != 2 {
+				t.Errorf("count %+v in\n%s", c, w.textEditor.Text()[:600])
+			}
+		})
+	}
+}
+
+// A script just opened, its source long: the list is on where the
+// adapting goes on, not at the story's start.
+func TestComboScrollsToNext(t *testing.T) {
+	filler := strings.Repeat("A paragraph of the prologue, which the script does not adapt yet.\n\n", 40)
+	story := strings.Replace(comboStory, "## Chapter 1\n", filler+"## Chapter 1\n", 1)
+	w, _ := sourceWindow(t, comboPartial, story)
+	s := w.sourcePane()
+	if s.list.GetScrollOffset() == 0 {
+		t.Error("the list is at the start")
+	}
+	storm := passageNamed(t, s.passages, "The storm came")
+	if !s.inSight(map[int]bool{storm: true}) {
+		t.Error("the next passage to adapt is not in sight")
+	}
+}
+
+// A story in another language (with scene headings Accolade knows)
+// starts a script in it: its scene headings, and the status says so.
+func TestComboStoryLanguage(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	data, err := os.ReadFile(filepath.Join("internal", "storyread", "testdata", "nl-multatuli-a.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	story := string(data)
+	w.showImportedMarkdown("havelaar.md", story, "Markdown", 0)
+	w.startScreenplayFromSource()
+	if w.language != "nl" || !strings.Contains(w.statusLabel.Text, "nl (Format > Script Language…)") {
+		t.Errorf("language %q, status %q", w.language, w.statusLabel.Text)
+	}
+	if start, _ := headingPlaceholder(w.sceneStarts()); start == "INT." || !strings.Contains(w.textEditor.Text(), "\n"+start+" ") {
+		t.Errorf("the first scene's heading is not Dutch (%q):\n%s", start, w.textEditor.Text())
+	}
+}
+
+// A passage under the story's title, before its first chapter (an
+// epigraph): its scene goes under the title's section, before Chapter 1.
+func TestComboEpigraph(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	story := strings.Replace(comboStory, "## Chapter 1\n", "An old song of the coast, sung by the keepers' wives.\n\n## Chapter 1\n", 1)
+	w.showImportedMarkdown("lighthouse.md", story, "Markdown", 0)
+	w.startScreenplayFromSource()
+	if !textAfter(t, w, "# The Lighthouse", "[[from: \"An old song") || !textAfter(t, w, "[[from: \"An old song", "## Chapter 1") {
+		t.Errorf("the epigraph's scene:\n%s", w.textEditor.Text())
 	}
 }
 
@@ -462,8 +569,10 @@ func TestComboGrowing(t *testing.T) {
 	if st := w.statusLabel.Text; !strings.Contains(st, "added to the source later") {
 		t.Errorf("Next at the end of a source being written: %q", st)
 	}
-	// the story goes on, and its first paragraph is reworded
+	// the story goes on, its first paragraph reworded in the words a link
+	// quotes, Tomas's after them
 	grown := strings.Replace(comboStory, "Mara climbed the stairs of the old lighthouse", "Mara climbed the narrow stairs of the old lighthouse", 1)
+	grown = strings.Replace(grown, "the kettle is on", "the teapot is warm", 1)
 	story := filepath.Join(filepath.Dir(p), "story.md")
 	os.WriteFile(story, []byte(grown), 0o644)
 	later := time.Now().Add(time.Minute)
@@ -473,7 +582,7 @@ func TestComboGrowing(t *testing.T) {
 	if c.Adapted != 3 || c.ToDo != 4 {
 		t.Errorf("after the story grew: %+v", c)
 	}
-	if !strings.Contains(s.count.Text, "1 changed since linked") {
+	if !strings.Contains(s.count.Text, "2 changed since linked") {
 		t.Errorf("count %q", s.count.Text)
 	}
 	first := passageNamed(t, s.passages, "Mara climbed")
