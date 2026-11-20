@@ -105,7 +105,7 @@ func TestFocusIsVisible(t *testing.T) {
 	w.hideFindReplace()
 
 	pd := NewPreferencesDialog(app, w.fyneWindow)
-	pd.win.Resize(fyne.NewSize(900, 820)) // all of every page in view
+	pd.win.Resize(fyne.NewSize(900, 1000)) // all of every page in view (the Script page grew with Adapting)
 	for i := range pd.tabs.Items {
 		pd.tabs.SelectIndex(i)
 		check("Preferences, "+pd.tabs.Items[i].Text, pd.win.Canvas())
