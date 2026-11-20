@@ -200,7 +200,7 @@ func (w *MainWindow) renameScript() {
 		kind.Options = labels
 		if keep.id == "dialect" {
 			keep = dialectType(l)
-			if !dialect(l) {
+			if !dialect(l) && languageOf(old) != l {
 				keep = typeFountain
 			}
 		}

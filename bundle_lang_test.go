@@ -172,7 +172,7 @@ func TestBundleLanguageOtherAppWins(t *testing.T) {
 	data, _ = os.ReadFile(p)
 	native, _ := zipFile(t, data, "Script.textbundle/text.eo.fountain")
 	plain, _ := zipFile(t, data, "Script.textbundle/text.fountain")
-	if native != want || plain != englishFountain(want, "eo") {
+	if native != want || plain != standardFountain(want, "eo") {
 		t.Errorf("after saving:\n%s\n---\n%s", native, plain)
 	}
 	if _, ok := zipFile(t, data, "Script.textbundle/unknown.bin"); !ok {
@@ -283,17 +283,21 @@ func TestPlainFountainLanguage(t *testing.T) {
 	if w2.language != "eo" || w2.textEditor.Text() != eoScript || w2.hasChanges {
 		t.Errorf("film.fountain opened in %s:\n%s", w2.language, w2.textEditor.Text())
 	}
-	// English: as it is, whatever the preference
-	was := w2.settings.GetString("script-language")
-	w2.settings.SetString("script-language", "eo")
-	t.Cleanup(func() { w2.settings.SetString("script-language", was) })
+	// a file saying no language: the preferences' is assumed, which
+	// changes nothing written ("Open on" would make Dutch headings)
 	en := filepath.Join(dir, "en.fountain")
-	os.WriteFile(en, []byte(bundleScript), 0o644)
-	w3 := draftsWindow(t)
-	w3.LoadFile(en)
-	w3.saveToFile(en)
-	if got, _ := os.ReadFile(en); w3.language != "en" || string(got) != bundleScript {
-		t.Errorf("English file in %s:\n%s", w3.language, got)
+	english := "INT. KITCHEN - DAY\n\nOpen on a pan.\n\nOpen on Bram.\n\nBOB\nINT. is how it starts.\n"
+	for _, pref := range []string{"eo", "nl", "en"} {
+		was := w2.settings.GetString("script-language")
+		w2.settings.SetString("script-language", pref)
+		t.Cleanup(func() { w2.settings.SetString("script-language", was) })
+		os.WriteFile(en, []byte(english), 0o644)
+		w3 := draftsWindow(t)
+		w3.LoadFile(en)
+		w3.saveToFile(en)
+		if got, _ := os.ReadFile(en); w3.languageSaid || string(got) != english {
+			t.Errorf("with %s preferred (said %v):\n%s", pref, w3.languageSaid, got)
+		}
 	}
 }
 
@@ -412,5 +416,28 @@ func TestBundleLangScreenshots(t *testing.T) {
 		w.renameAsked.kind.SetSelected("Esperanto Fountain (.eo.fountain)")
 		w.renameAsked.scroll.ScrollToTop()
 		capture(t, w.fyneWindow.Canvas(), "bundlelang-rename-dialect-"+size.name+".png")
+	}
+}
+
+// film.en.fountain renamed with nothing changed stays itself; a bare
+// name for the dialect gets its whole extension.
+func TestDialectNames(t *testing.T) {
+	w := draftsWindow(t)
+	dir := t.TempDir()
+	p := filepath.Join(dir, "film.en.fountain")
+	os.WriteFile(p, []byte(bundleScript), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	w.renameScript()
+	if a := w.renameAsked; a.kind.Selected != "English Fountain (.en.fountain)" || a.result.Text != "Becomes: film.en.fountain" {
+		t.Errorf("opened as %q, %q", a.kind.Selected, a.result.Text)
+	}
+	w.renameAsked.confirm()
+	if w.currentFile != p {
+		t.Errorf("renamed to %s", w.currentFile)
+	}
+	if got := withTypeExt(filepath.Join(dir, "story"), dialectType("eo")); got != filepath.Join(dir, "story.eo.fountain") {
+		t.Errorf("bare name: %s", got)
 	}
 }

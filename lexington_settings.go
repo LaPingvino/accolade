@@ -40,6 +40,9 @@ func readLexingtonSettings() rules.TOMLConf {
 	for k, v := range file.Matchups {
 		conf.Matchups[k] = v
 	}
+	if file.Standard != "" {
+		conf.Standard = file.Standard
+	}
 	return conf
 }
 

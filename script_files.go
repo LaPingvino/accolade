@@ -98,7 +98,7 @@ func hasTypeExt(name string) bool {
 }
 
 // scriptTypes are the types offered, in order: the document's own plain
-// type first (a script in another language than English: standard
+// type first (a script in another language than the standard one: standard
 // Fountain, then its language's dialect), the bundles, the other kind's
 // plain type last (it switches the document); a current name with
 // another plain extension adds "as it is" first. The browser has no
@@ -113,7 +113,7 @@ func scriptTypes(markdown, browser bool, current, lang string) []fileType {
 		ts = append(ts, t)
 	}
 	ts = append(ts, own)
-	if !markdown && dialect(lang) {
+	if !markdown && (dialect(lang) || (lang != "" && languageOf(current) == lang)) { // film.en.fountain too, as it is
 		ts = append(ts, dialectType(lang))
 	}
 	ts = append(ts, typeAccolade, typeHighland, typeTextPack)
@@ -140,8 +140,8 @@ func (t fileType) keeps(markdown, browser bool, lang string) string {
 			return "Makes the document a screenplay, as plain Fountain."
 		}
 		if dialect(lang) {
-			return "Standard Fountain, for any Fountain app: " + languageName(lang) + " scene headings forced (.EN. DOMO), " +
-				"the language kept in a last /* Language: " + lang + " */ line; " + extras + "."
+			return "Standard Fountain, for any Fountain app: a line only " + languageName(lang) + "'s words make a scene heading " +
+				"gets Fountain's force mark (.), the language kept in a last /* Language: " + lang + " */ line; " + extras + "."
 		}
 		return "Plain Fountain, for any Fountain app: the script with Accolade's blocks inside; " + extras + "."
 	case "dialect":
@@ -293,7 +293,7 @@ func (w *MainWindow) reforms(r relocation) bool {
 }
 
 // languageHome is where a script's language is kept in a file, "" for
-// English.
+// the standard language.
 func languageHome(path, lang string, kind bundleKind) string {
 	switch {
 	case !dialect(lang):
@@ -434,11 +434,15 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 		if lang != w.language {
 			row.what = "Language: " + languageName(w.language) + " → " + languageName(lang)
 		}
-		row.now = cmp.Or(languageHome(r.from, w.language, fromKind), "English: nowhere")
-		if r.from == "" {
+		std := languageName(standardLanguage()) + ": nowhere"
+		row.now = cmp.Or(languageHome(r.from, w.language, fromKind), std)
+		switch {
+		case r.from == "":
 			row.now = "not saved yet"
+		case !w.languageSaid && fromKind == notBundle:
+			row.now = "nowhere (the Preferences' language, assumed)"
 		}
-		row.after = cmp.Or(languageHome(r.to, lang, toKind), "English: nowhere")
+		row.after = cmp.Or(languageHome(r.to, lang, toKind), std)
 		rows = append(rows, row)
 	}
 

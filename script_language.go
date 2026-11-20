@@ -205,12 +205,12 @@ func withLanguageName(path, lang string) string {
 	parts := strings.Split(base, ".")
 	switch {
 	case len(parts) >= 3 && sceneConf[strings.ToLower(parts[len(parts)-2])] != nil:
-		if lang == "en" {
+		if lang == standardLanguage() {
 			parts = append(parts[:len(parts)-2], parts[len(parts)-1])
 		} else {
 			parts[len(parts)-2] = lang
 		}
-	case lang == "en":
+	case lang == standardLanguage():
 	case len(parts) >= 2:
 		parts = append(parts[:len(parts)-1], lang, parts[len(parts)-1])
 	default:
@@ -248,6 +248,7 @@ func (w *MainWindow) nameLanguage(lang string) error {
 func (w *MainWindow) changeLanguage(lang string, how languageChange, words map[string]string) {
 	n, actions := w.changeHeadings(lang, how, words)
 	w.setLanguage(lang)
+	w.languageSaid = true
 	if err := w.nameLanguage(lang); err != nil {
 		dialog.ShowError(fmt.Errorf("the script is now in %s, but its file could not be renamed: %v", languageLabel(lang), err), w.fyneWindow)
 		return

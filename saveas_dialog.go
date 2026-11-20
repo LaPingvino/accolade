@@ -79,7 +79,7 @@ func (w *MainWindow) showSaveAs() {
 		if n == "" || strings.TrimSpace(name.Text) == "" {
 			n = composedName(base.base, t)
 		}
-		r := relocation{from: w.currentFile, to: filepath.Join(dir, filepath.Base(n))}
+		r := relocation{from: w.currentFile, to: filepath.Join(dir, filepath.Base(n)), lang: w.language} // said by the type chosen
 		if dir == "" {
 			r.to = filepath.Base(n)
 		}
@@ -201,7 +201,7 @@ func withTypeExt(p string, t fileType) string {
 	if st, err := os.Stat(p); err == nil && st.Mode().IsRegular() && st.Size() == 0 {
 		os.Remove(p)
 	}
-	return p + t.ext
+	return p + t.shownExt()
 }
 
 // askWhere is the system's save dialog for a type: its filter, the name

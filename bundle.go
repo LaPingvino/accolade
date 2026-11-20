@@ -83,7 +83,7 @@ type accoladeInfo struct {
 	// HighlandWarned: Save as .highland has said once that Highland may
 	// drop Accolade's files (flatten.go).
 	HighlandWarned bool `json:"highlandWarned,omitempty"`
-	// Language is a screenplay's language, other than English: its text
+	// Language is a screenplay's language, other than the standard one: its text
 	// is text.<language>.fountain, as Accolade writes it, and text.fountain
 	// the same as standard Fountain (fountain_dialect.go). A bundle's name
 	// never says it.
@@ -118,19 +118,19 @@ type textBundle struct {
 	// noText: there is no textName in the bundle, only the language's
 	// text (an .accolade without its Fountain copy)
 	noText bool
-	// lang is the screenplay's language, "" for English: Accolade's key's,
+	// lang is the screenplay's language, "" for the standard one: Accolade's key's,
 	// else (a bundle from before) as the bundle's name says
 	lang string
 	// native is the language's text's entry (text.eo.fountain), "" none,
 	// and nativeText what it holds
 	native     string
 	nativeText []byte
-	info     []byte // info.json as it is, nil for none
-	natural  bool   // Markdown, as the text file's name and "type" say
-	ours     accoladeInfo
-	source   string   // the source's entry, "" for none
-	srcText  []byte   // and what it holds
-	extras   []string // Accolade's extras in it (extras.go), sorted
+	info       []byte // info.json as it is, nil for none
+	natural    bool   // Markdown, as the text file's name and "type" say
+	ours       accoladeInfo
+	source     string   // the source's entry, "" for none
+	srcText    []byte   // and what it holds
+	extras     []string // Accolade's extras in it (extras.go), sorted
 }
 
 // markdown tells whether the bundle's document is Markdown.
@@ -475,7 +475,7 @@ type bundleSave struct {
 	// highlandWarned marks the Highland warning given (flatten.go)
 	highlandWarned bool
 	// native is a screenplay's text in its language, lang (text is then
-	// the same as standard Fountain), nil for English; noCopy leaves
+	// the same as standard Fountain), nil for the standard language; noCopy leaves
 	// text.fountain out (an .accolade's choice)
 	native []byte
 	lang   string

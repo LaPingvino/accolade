@@ -74,6 +74,9 @@ type MainWindow struct {
 	// noFountainCopy: the script's .accolade keeps no text.fountain beside
 	// its language's text (script_text.go)
 	noFountainCopy bool
+	// languageSaid: the script's language was said (by its file, or chosen
+	// since), not only assumed from the preferences (script_text.go)
+	languageSaid bool
 	// format is how the script's file stores it (encoding.go)
 	format fileFormat
 	// bundle is the TextBundle (.textbundle, .textpack, .highland, .accolade) the
@@ -447,7 +450,11 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	default:
 		text, lang = plainFileText(filePath, text)
 	}
-	w.setLanguage(cmp.Or(lang, "en"))
+	if bundle != nil && !w.markdown { // a bundle saying none is standard Fountain
+		lang = cmp.Or(lang, standardLanguage())
+	}
+	w.setLanguage(lang) // none: the preferences', assumed
+	w.languageSaid = lang != ""
 	if !w.markdown { // Markdown's indents are its own (lists, code)
 		text = withoutIndents(text, w.sceneStarts())
 		before = withoutIndents(before, w.sceneStarts())

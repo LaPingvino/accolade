@@ -5,7 +5,8 @@ import (
 )
 
 // The script's text as it is on disk, which is not always the text in
-// the editor: a screenplay in another language than English is written
+// the editor: a screenplay in another language than the standard one
+// (Lexington's configuration: English by default) is written
 // in its own words only where its language says so (fountain_dialect.go).
 //
 //   - film.eo.fountain: the name says the language; the text is as
@@ -13,7 +14,10 @@ import (
 //   - film.fountain: standard Fountain. A script in another language is
 //     written with force marks, its language in a last line of the
 //     boneyard, "/* Language: eo */", which no app prints; Accolade takes
-//     both back when it reads the file.
+//     both back when it reads the file. Only a language said (the name,
+//     that line, the rename editor, Script Language, Save As) is written
+//     so: one assumed from the preferences, for a file that says none,
+//     leaves the text as it is.
 //   - a bundle: text.eo.fountain as written, the one Accolade reads, and
 //     text.fountain as standard Fountain beside it for other apps (an
 //     .accolade may leave that out); the language in info.json
@@ -58,8 +62,8 @@ func cutLanguageLine(text string) (string, string, bool) {
 
 // plainFileText is a plain screenplay file's text as the editor has it,
 // and its language: as the name says (film.eo.fountain), else the
-// language line's, its force marks taken back, else the one its scene
-// headings are in (English when they could be).
+// language line's, its force marks taken back; else "", the text as it
+// is (the preferences' language assumed, which changes nothing written).
 func plainFileText(path, text string) (string, string) {
 	if l := languageOf(path); l != "" {
 		return text, l
@@ -67,8 +71,7 @@ func plainFileText(path, text string) (string, string) {
 	if before, l, ok := cutLanguageLine(text); ok {
 		return dialectFountain(before, l), l
 	}
-	l := headingsLanguage(text, "en")
-	return dialectFountain(text, l), l
+	return text, ""
 }
 
 // plainFileForm is a plain screenplay file's text for the editor's text
@@ -77,7 +80,7 @@ func plainFileForm(path, text, lang string) string {
 	if languageOf(path) != "" || !dialect(lang) {
 		return text
 	}
-	return withLanguageLine(englishFountain(text, lang), lang)
+	return withLanguageLine(standardFountain(text, lang), lang)
 }
 
 // writesBundle tells whether saving to path writes a bundle (a plain
@@ -88,15 +91,18 @@ func (w *MainWindow) writesBundle(path string) bool {
 
 // scriptTexts are the texts saving to path writes for the editor's
 // text: the file's (a bundle's text.fountain), and a bundle's text in
-// the language ("" none, for English and Markdown).
+// the language ("" none, for the standard language and Markdown).
 func (w *MainWindow) scriptTexts(path, text string) (main, native string, hasNative bool) {
 	switch {
 	case w.markdown:
 		return text, "", false
 	case w.writesBundle(path):
 		if dialect(w.language) {
-			return englishFountain(text, w.language), text, true
+			return standardFountain(text, w.language), text, true
 		}
+		return text, "", false
+	}
+	if !w.languageSaid { // only assumed: written as it is
 		return text, "", false
 	}
 	return plainFileForm(path, text, w.language), "", false
