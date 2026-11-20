@@ -158,24 +158,39 @@ func cardPreview(lines []string, items []outlineItem, i int) string {
 	return p
 }
 
-// dragged is what cards and section headers share: they follow the
-// pointer, and are dropped where its middle is.
+// dropBoard is where dragged things are dropped: the cards, the
+// stripboard.
+type dropBoard interface {
+	// dragging says where what is dragged (item i, as self) would go,
+	// its middle at pos (absolute).
+	dragging(i int, self fyne.CanvasObject, pos fyne.Position)
+	// dropped puts it there.
+	dropped(i int, self fyne.CanvasObject, pos fyne.Position)
+}
+
+// dragged is what cards, section headers and strips share: they follow
+// the pointer, and are dropped where its middle is.
 type dragged struct {
-	c    *cardsView
-	i    int
-	self fyne.CanvasObject
+	board dropBoard
+	i     int
+	self  fyne.CanvasObject
 }
 
 func (d *dragged) Dragged(e *fyne.DragEvent) {
 	d.self.Move(d.self.Position().Add(e.Dragged))
-	if to := d.c.dropAt(d.self, d.middle()); to >= 0 && to < len(d.c.items) {
-		d.c.w.setStatus("Move before " + d.c.items[to].Text)
-	} else if to >= 0 {
-		d.c.w.setStatus("Move to the end")
-	}
+	d.board.dragging(d.i, d.self, d.middle())
 }
 
-func (d *dragged) DragEnd() { d.c.dropped(d.i, d.self, d.middle()) }
+func (d *dragged) DragEnd() { d.board.dropped(d.i, d.self, d.middle()) }
+
+// dragging says where a card or section would go.
+func (c *cardsView) dragging(_ int, self fyne.CanvasObject, pos fyne.Position) {
+	if to := c.dropAt(self, pos); to >= 0 && to < len(c.items) {
+		c.w.setStatus("Move before " + c.items[to].Text)
+	} else if to >= 0 {
+		c.w.setStatus("Move to the end")
+	}
+}
 
 func (d *dragged) middle() fyne.Position {
 	at := fyne.CurrentApp().Driver().AbsolutePositionForObject(d.self)
@@ -187,6 +202,7 @@ func (d *dragged) middle() fyne.Position {
 type card struct {
 	widget.BaseWidget
 	dragged
+	c    *cardsView
 	body fyne.CanvasObject
 	syn  *synopsisEntry
 }
@@ -225,7 +241,8 @@ func newCard(c *cardsView, i int, it outlineItem, preview string) *card {
 		bottom = p
 	}
 	k := &card{syn: syn, body: container.NewStack(canvasCard(), container.NewPadded(container.NewBorder(withSwatch(title, it.Color), bottom, nil, nil, syn)))}
-	k.dragged = dragged{c: c, i: i, self: k}
+	k.c = c
+	k.dragged = dragged{board: c, i: i, self: k}
 	k.ExtendBaseWidget(k)
 	fyne.SetAccessibleLabel(k, withColorName(it.Text, it.Color))
 	return k
@@ -273,6 +290,7 @@ func (c *cardsView) open(i int) {
 type sectionHeader struct {
 	widget.BaseWidget
 	dragged
+	c    *cardsView
 	body fyne.CanvasObject
 }
 
@@ -294,7 +312,8 @@ func newSectionHeader(c *cardsView, i int, it outlineItem) *sectionHeader {
 		indent = container.NewGridWrap(fyne.NewSize(float32(it.Level-1)*4*theme.Padding(), 1))
 	}
 	h := &sectionHeader{body: container.NewBorder(nil, nil, indent, nil, container.NewVBox(rows...))}
-	h.dragged = dragged{c: c, i: i, self: h}
+	h.c = c
+	h.dragged = dragged{board: c, i: i, self: h}
 	h.ExtendBaseWidget(h)
 	fyne.SetAccessibleLabel(h, withColorName("Section "+it.Text, it.Color))
 	return h

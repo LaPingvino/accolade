@@ -57,3 +57,36 @@ func TestBreakdownFollowsAfterPause(t *testing.T) {
 		return len(in) == 1 && in[0].Start == 25
 	})
 }
+
+// The Schedule stage measures in the background after typing pauses: a
+// key starts no measuring, the change flag comes after the pause.
+func TestScheduleFollowsAfterPause(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, schedScript)
+	p := prodPane(t, w)
+	w.addShootDay()
+	_, bt, pl := w.scheduleFound()
+	w.changeSchedule(func(f *scheduleFile, _ *bdText, _ schedPlaced) bool {
+		f.move(bt, pl, 0, 0, 0, "")
+		return true
+	})
+	p.refresh()
+	if !strings.HasPrefix(p.count.Text, "1 of 4 scenes on a day · 1 day") {
+		t.Fatalf("count %q", p.count.Text)
+	}
+	realPaths(t)
+	runs := w.schedule.run
+	replaceText(t, w, "Anna makes tea.", "Anna makes coffee.")
+	if w.schedule.run != runs {
+		t.Error("measured at the key")
+	}
+	waitFor(t, "the change flag", func() bool { return strings.Contains(p.count.Text, "1 changed scene to check") })
+	waitFor(t, "the day's length", func() bool {
+		for _, l := range rowLabels(p) {
+			if strings.Contains(l.Text, "page") {
+				return true
+			}
+		}
+		return false
+	})
+}

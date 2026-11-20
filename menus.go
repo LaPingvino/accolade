@@ -180,6 +180,9 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItem("Untag", w.untagSelection),
 		w.showTagsItem(),
 		fyne.NewMenuItem("Break Down…", w.showBreakdownStage),
+		fyne.NewMenuItem("Stripboard", w.toggleStripboard),
+		fyne.NewMenuItem("Schedule…", w.showScheduleStage),
+		fyne.NewMenuItem("Export Shoot Days (.ics)…", w.exportICS),
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Reports…", w.showReports),
 	)

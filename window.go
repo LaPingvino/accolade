@@ -152,6 +152,9 @@ type MainWindow struct {
 	breakdown        breakdownState // the script's breakdown and its tags as found
 	breakdownGen     int            // the breakdown read again (an import)
 	breakdownRun     int            // the tags being found
+	schedule         scheduleState  // the shooting schedule (schedule_state.go)
+	stripsVisible    bool           // the stripboard in the editor's place (stripboard.go)
+	stripboard       *stripboardView
 	lastTagCategory  string         // the category last tagged in (offered first)
 	lastReports      *reportsDialog // the reports last shown (tests)
 	lastPicker       *tagPicker     // the tag picker last shown (tests)
@@ -1031,6 +1034,9 @@ func (w *MainWindow) onTextChanged(text string) {
 	if w.cardsVisible && w.cards != nil {
 		w.cards.update(text)
 	}
+	if w.stripsVisible && w.stripboard != nil {
+		w.stripboard.update()
+	}
 	if w.notesVisible && w.notes != nil {
 		w.notes.update(text)
 		w.followSource()
@@ -1251,7 +1257,9 @@ func (w *MainWindow) toggleNotes() {
 // the outline and notes on the left if shown, the editor.
 func (w *MainWindow) relayout() {
 	var center fyne.CanvasObject = w.editorView
-	if w.cardsVisible && w.cards != nil {
+	if w.stripsVisible && w.stripboard != nil {
+		center = w.stripboard.box
+	} else if w.cardsVisible && w.cards != nil {
 		center = w.cards.box
 	} else if w.previewVisible && w.previewPane != nil {
 		split := container.NewHSplit(w.editorView, w.previewPane.box)
@@ -1367,6 +1375,9 @@ func (w *MainWindow) onWindowWidth(width float32) {
 		focused := c.Focused() // a new content drops the focus
 		w.relayout()
 		w.productionFollow() // its buttons go where the room is
+		if w.stripsVisible && w.stripboard != nil {
+			w.stripboard.update() // strips of two lines on a phone
+		}
 		if focused != nil {
 			c.Focus(focused)
 		}

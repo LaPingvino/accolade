@@ -428,7 +428,7 @@ Effort is rough: S is a day or two of ticks, M a week, L more.
    - Exports: iCalendar per day, CSV per strip.
    - FDX: none. FDX carries tags, not schedules.
    - Effort: M–L. Where: Accolade (a Schedule view like the cards), Lexington (one-liner, DOOD and schedule
-     PDFs).
+     PDFs). **Built: §14.**
 7. **Day packs: sides and call sheets.**
    - What: for a shoot day, the day's scenes as sides (Lexington has `lex.Sides`; add by scene list, two-up, the
      revision header, a cover) and a call sheet. The call sheet has date, call times, location, scenes, cast with
@@ -495,7 +495,7 @@ breakdown as "changed in Blue: check", which the stages before can't show.
 6. **The Production pane** with Lock and Revise, so the workflow stands before breakdown starts. Built (§12).
 7. **Breakdown:** the categories, tagging by words, Next scene, eighths, breakdown sheets and element reports. FDX
    `<TagData>` and `<SceneProperties>` out (test against MMS), Beat's and FDX's tags in. Built (§13).
-8. **Schedule:** the stripboard (built on the cards), days, one-liner, DOOD, .ics and CSV.
+8. **Schedule:** the stripboard (built on the cards), days, one-liner, DOOD, .ics and CSV. Built (§14).
 9. **Day packs:** sides by scene list and the call sheet with vCard contacts.
 10. **OSF** reader and writer.
 11. **Shot list** in OTIO, keeping Storyboarder's ids and reading `[[SHOT]]` markers.
@@ -1197,3 +1197,130 @@ tags (two UTF-16 units).
 - Undo does not take a tag back (Untag does), and tags are written when made, also before the script is saved.
 - The sheet's PDF prints the boxes that fit on a page (a scene with very many elements: the CSV has them all), and its
   title is the script's file name.
+
+## 14. Step 8, built: the schedule (2026-11-20)
+
+Branch schedule (Accolade), Lexington v1.12.0 (tagged locally, not pushed; Accolade's go.mod has `replace
+github.com/LaPingvino/lexington => ../lexington` until it is).
+
+**The strip colours.** White INT. DAY, yellow EXT. DAY, blue INT. NIGHT, green EXT. NIGHT: Wikipedia's "Production
+board" tabulates this as the generic convention and as StudioBinder's and Scenechronize's
+(https://en.wikipedia.org/wiki/Production_board); StudioBinder's own stripboard article has the same table, and black
+day breaks (https://www.studiobinder.com/blog/shooting-schedule-stripboard/). Movie Magic Scheduling swaps the night
+ones (green inside, blue outside) in the same table: Accolade follows the generic. My choices where the four colours
+say nothing:
+
+- INT/EXT by the language's place words (Lexington's `rules` Matchups): EXT., INT./EXT. either way and EST. are
+  outside (weather and light go with the outside); a forced heading or an unknown word is inside.
+- Day or night by the time's words, in Lexington's languages (NIGHT, EVENING, DUSK, SUNSET; DAY, MORNING, DAWN …;
+  NACHT, NOKTO, НОЧЬ, 夜 …): dusk and evening count as night, dawn and morning as day. A time that names neither
+  (CONTINUOUS, LATER, none) takes the scene before's; the strip marks it `D*`/`N*`.
+
+**Lexington v1.12.0** (report/schedule.go, report/ics.go)
+
+- `report.Schedule{Days}`, `report.Day{ID, Date, Call, Notes, Scenes}` (each scene by its report Order, in shooting
+  order). `Report.Strips(breakdown, StripOptions{Lang})`: a scene's strip, INT/EXT, D/N, colour, cast by number (who
+  speaks and who is tagged, as the breakdown sheets'; the sheets now share the code).
+- One-liner: `Report.OneLinerTable`, `report.WriteOneLinerPDF` (gofpdf: each day's head with date, call and notes, its
+  strips in their colours with scene, I/E, set, D/N, pages, cast numbers and synopsis, then the black day break
+  "End of Day 1 — 4 6/8 pages").
+- Day Out of Days: `Report.DOOD`, `Report.DOODTable`, `report.WriteDOODPDF` (landscape, a column a day, as many pages
+  across as the days need, the totals on each, a legend). The codes are Movie Magic Scheduling's
+  (https://mms-docs.ep.com/DayOutofDays/DOODRules.html): SW the first day worked ("almost always shown as SW"), W, WF
+  the last, SWF the only one, and H every day between the first and last not worked (MMS's "Allow Hold Days" on: "all
+  non-working days for that Element between their first and last working day are marked as H"). Who: every cast
+  member in a scheduled scene, by cast number.
+- `report.WriteICS`: one VEVENT a dated day. UID `<day id>@accolade.kiefte.eu` (stable: the day's id in the JSON),
+  DTSTAMP, SUMMARY "story: shoot day 2 of 3", LOCATION the day's notes, DESCRIPTION the call, the scenes in shooting
+  order with their lengths and the day's total. With a call time: DTSTART at the call as a floating local time (the
+  call is where the unit is, whatever the calendar's zone) and DTEND twelve hours on (`ShootDayHours`, a usual day: my
+  choice); without: `VALUE=DATE`, DTEND the day after. Days without a date are left out (the status says how many).
+  RFC 5545: CRLF, lines folded at 75 octets never inside a UTF-8 character, TEXT escaped (`\ ; , \n`).
+- Tests: the colours and D/N words in several languages, CONTINUOUS, the DOOD codes (hold days between, a one-day
+  SWF), the day totals, golden `oneliner.csv`, `dood.csv` and `shoot.ics`, the .ics's validity (line lengths, folds,
+  required properties, escaping, the undated day left out), the PDFs (30 days go over pages).
+
+**CSV layouts** (stable; golden files in Lexington's report/testdata; RFC 4180 as §8's)
+
+| Report | Columns, in order |
+|---|---|
+| oneliner | `day` (1, 2, …), `date` (2026-12-01 or empty), `shoot_order` (1, 2, … over the whole schedule), `number`, `int_ext` (as written), `location`, `time`, `day_night` (`D`/`N`), `page`, `eighths`, `length`, `cast` (numbers: `1; 3`), `synopsis`, `strip` (`white`, `yellow`, `blue`, `green`); a row a scheduled strip, the unscheduled left out |
+| dood | `cast_number`, `name`, `day_1` … `day_n` (`SW`, `W`, `WF`, `SWF`, `H` or empty), `work`, `hold`, `total`, `start_day`, `finish_day` |
+
+**Where the schedule lives.** `assets/production/schedule.json`, in the script's extras as the breakdown (§13): the
+bundle's, else the kept copy, else `Name.production/`. The text's Undo does not cover it; the board has its own Undo
+of its last change. A file that cannot be read is never written over.
+
+```
+{"version": 1,
+ "days": [{"id": "5f1c2a9b", "date": "2026-12-01", "call": "07:00", "notes": "Kovač house",
+           "strips": [{"scene": "12", "heading": "int kitchen night", "nth": 1,
+                       "start": "anna makes tea rain on the window is", "sum": "1c9e…", "set": "Blue"}]}],
+ "pool": "location"}
+```
+
+- A strip names its scene as a breakdown tag does (written number, heading words, which of those it is) plus its
+  first eight words. Found again (schedule.go `find`): by its number; else among the scenes with its heading, the one
+  with its first words; else the only scene anywhere with its first words (its heading changed, another has its old
+  one); else which-of-those it was; else the only one with its heading. Numbered strips are placed first. A strip
+  moved gets its scene's key as it is now (so after Lock it is found by number). Tested: a scene with the same heading
+  put before, Lock Scene Numbers, a number changed by hand, a heading changed, both, the scene cut (lost: kept in the
+  file, listed, a tap removes it), the same scene on two days (the second left out and pruned).
+- `sum` is the scene's words (heading included) when it was put on its day or checked; `set` the revision then. A
+  scene whose words changed since is flagged on its strip and in the stage: "Changed in Blue: check", the set being
+  the latest of its lines' marks newer than the strip's, from all issues' marks whatever the margin shows (so Pink's
+  issue does not hide a Blue change), else the open set's, else "Changed since scheduled". **Checked** takes the flag
+  away. A change before the strip was scheduled flags nothing.
+- `pool` is how the unscheduled are grouped (`location`, `cast`, or script order).
+
+**The stripboard** (stripboard.go; Production > Stripboard, the stage's Open Stripboard). In the editor's place, as
+the cards are, and dragged as they are (`dragged` now takes any `dropBoard`). The days one under the other: each its
+head (Day 1 · Tue 1 Dec 2026 · Call 07:00, its notes, an edit button for date, call, notes or removing the day), its
+strips, its black break "End of Day 1 — 4 6/8 pages"; then "Unscheduled · 69 scenes" and their strips; lost strips
+last. A strip is paper in its colour, its ink dark whatever the theme: number, I/E, location, D/N (`*` from the scene
+before), length, cast numbers; the flag under it in red.
+
+- Drag a strip (desktop): onto a strip's upper half before it, lower half after it, onto a day's head or empty
+  placeholder its start, its break its end, the unscheduled's head back to the pool.
+- Without a drag (phones, keyboard): a tap or Tab selects a strip (outlined; focused: a thicker outline), Up/Down
+  select the next, Enter opens the scene. **Move Up / Move Down** (Alt+Up / Alt+Down) move it over its neighbour,
+  across a day break into the day before or after; the pool's first strip up goes to the last day's end, the last
+  day's last strip down back to the pool. **Move to…** picks a day or Unscheduled. **Unschedule**, **Open Scene**,
+  **Checked**.
+- **Add Day** (dated the day after the last dated day), **Group Day 2 by Location / by Cast** (the selected strip's
+  day, or the unscheduled): one click, once, never by itself. By location: in order of each location's first strip,
+  then INT/EXT and D/N; by cast: the cast numbers compared in turn (the lead's scenes first), then location. **Undo**.
+- On a phone (under 600 px) each strip is two lines, the actions two columns over the board, a drag scrolls.
+
+**The Schedule stage** (production_schedule.go). The strip's fourth button (on its own row: 320 px hold three). "18 of
+87 scenes on a day · 3 days" (OMITTED scenes left out; "· 2 changed scenes to check", "· 1 lost strip"); the days
+(date, call, scenes, length, notes; a tap opens the board there), the changed scenes in their set's colour (a tap:
+the board with it selected). Buttons: Open Stripboard, Add Day, One-Liner…, Day Out of Days…, Export .ics… (the last
+three greyed with no day). The script's stage is Schedule once it has a day. Measured (the reports' layout, the strips,
+all issues' marks) in the background once per text while the board or the stage is shown, after typing pauses (tested
+with real timers).
+
+**Reports.** Production > Reports… has One-liner and Day out of days (on screen, CSV, PDF by Lexington's gofpdf: no
+browser needed); Production > Export Shoot Days (.ics)… and the stage's button save the calendar (the browser downloads
+it).
+
+**Tests** (schedule_test.go, production_pane_real_test.go): the strip colours; order, moves over day breaks and to and
+from the pool, Move to, Undo, a day removed, the day totals and the break's text; grouping; the anchors (above);
+two strips of one scene; the revision flags through White, Blue, Pink and an open Yellow, and Checked; the file in the
+kept copy, read again, never written over when unreadable, the next day's date; the one-liner and DOOD as the Reports
+dialog makes them against golden CSVs (testdata/schedule/), the .ics; the stage's counts, rows and buttons, the menu
+items; the keys (Up/Down, Alt+Up); drops on a strip's halves and the pool's head; the phone's layout (the board and the
+pane within 380/320 px, a drag scrolling); the board's focus visible and everything named. Shots: `SHOT_DIR=… go test
+-run TestScheduleScreenshots` (combo-stripboard-wide/phone.png, combo-schedule-stage-wide/phone.png,
+schedule-dood.pdf, schedule-oneliner.pdf).
+
+**Rough**
+
+- No drops and pick-ups, travel, fitting, rehearsal or holiday days in the DOOD (MMS's rules for a drop need a
+  minimum gap setting); no banners or units in the board yet; one-liner and DOOD list the cast only (not other
+  elements).
+- The board shows every strip as a widget: a script of several hundred scenes builds them all at once.
+- The pages are the current layout's (as the reports'), not a locked script's labels.
+- A drag on the desktop is checked by drop positions in the tests, not by a pointer; on a phone the board is moved with
+  the buttons only.
+- Lexington's command line has no schedule flags (the schedule is Accolade's file).

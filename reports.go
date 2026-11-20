@@ -37,6 +37,8 @@ var reportKinds = []struct{ kind, label string }{
 	{lexreport.KindCast, "Cast"},
 	{lexreport.KindSheets, "Breakdown sheets"},
 	{lexreport.KindElements, "Elements"},
+	{lexreport.KindOneLiner, "One-liner"},
+	{lexreport.KindDOOD, "Day out of days"},
 }
 
 // scriptReport makes the reports of a script as the export would print
@@ -75,6 +77,7 @@ type reportsDialog struct {
 	rep     lexreport.Report
 	bd      lexreport.Breakdown // the tags, for the breakdown's reports
 	lost    int                 // the tags lost
+	sched   lexreport.Schedule  // the shoot days, for the schedule's reports
 	kind    *widget.Select
 	sortBy  *widget.Select
 	reverse *widget.Button
@@ -114,6 +117,8 @@ func (w *MainWindow) showReports() {
 		}
 		w.setStatus("")
 		rd := newReportsDialogWith(w, m.r, reportBreakdownFor(f, ps, bt, &m.r), lost)
+		rd.sched = w.lexScheduleFor(&m.r)
+		rd.kindChanged() // shown again with the days
 		rd.dialog.Show()
 		w.lastReports = rd
 	})
@@ -135,6 +140,10 @@ func (rd *reportsDialog) tableOf(kind string) (lexreport.Table, error) {
 		return rd.bd.SheetTable(rd.rep.Sheets(rd.bd)), nil
 	case lexreport.KindElements:
 		return rd.rep.ElementTable(rd.bd), nil
+	case lexreport.KindOneLiner:
+		return rd.rep.OneLinerTable(rd.bd, rd.sched, lexreport.StripOptions{Lang: rd.w.language}), nil
+	case lexreport.KindDOOD:
+		return rd.rep.DOODTable(rd.bd, rd.sched), nil
 	}
 	return rd.rep.Table(kind)
 }
@@ -251,6 +260,10 @@ func ownOrder(kind string) string {
 		return "Cast number"
 	case lexreport.KindElements:
 		return "Category order"
+	case lexreport.KindOneLiner:
+		return "Shooting order"
+	case lexreport.KindDOOD:
+		return "Cast number"
 	}
 	return "Script order"
 }
@@ -294,6 +307,9 @@ func (rd *reportsDialog) show() {
 	sum := reportSummary(rd.rep, kind, rd.w.savedExportJob().page)
 	if kind == lexreport.KindSheets || kind == lexreport.KindElements {
 		sum = breakdownSummary(rd.bd, rd.lost) + " " + sum
+	}
+	if kind == lexreport.KindOneLiner || kind == lexreport.KindDOOD {
+		sum = scheduleSummary(rd.rep, rd.sched, kind)
 	}
 	rd.summary.SetText(sum)
 	if rd.narrow {
@@ -448,10 +464,14 @@ func (rd *reportsDialog) saveCSV() {
 	rd.saveFile(rd.reportFileName("csv"), func(p string) error { return writeFileAtomic(p, b.Bytes()) })
 }
 
-// saveFile asks where to save name (the browser downloads it), and
-// writes it there.
+// saveFile saves the report's file (saveNamedFile).
 func (rd *reportsDialog) saveFile(name string, write func(p string) error) {
-	w := rd.w
+	rd.w.saveNamedFile(name, write)
+}
+
+// saveNamedFile asks where to save name (the browser downloads it), and
+// writes it there.
+func (w *MainWindow) saveNamedFile(name string, write func(p string) error) {
 	if inBrowser {
 		p := filepath.Join("/files", name)
 		err := os.MkdirAll("/files", 0o755)
@@ -480,7 +500,7 @@ func (rd *reportsDialog) saveFile(name string, write func(p string) error) {
 		}
 	}, w.fyneWindow)
 	d.SetFileName(name)
-	if dir := cmp.Or(rd.w.settings.GetString("export-directory"), defaultExportDir()); dir != "" {
+	if dir := cmp.Or(w.settings.GetString("export-directory"), defaultExportDir()); dir != "" {
 		if l, err := storage.ListerForURI(storage.NewFileURI(dir)); err == nil {
 			d.SetLocation(l)
 		}
@@ -501,6 +521,10 @@ func (rd *reportsDialog) reportPage() ([]byte, error) {
 func (rd *reportsDialog) savePDF() {
 	if rd.kindOf() == lexreport.KindSheets { // the classic sheets, a page a scene
 		rd.saveSheetsPDF()
+		return
+	}
+	if k := rd.kindOf(); k == lexreport.KindOneLiner || k == lexreport.KindDOOD { // Lexington's, as the sheets
+		rd.saveSchedulePDF(k)
 		return
 	}
 	page, err := rd.reportPage()
@@ -571,4 +595,44 @@ func breakdownSummary(bd lexreport.Breakdown, lost int) string {
 		s += ", " + plural(lost, "lost tag") + " left out (the Production pane lists them)"
 	}
 	return s + ". The cast is who speaks, and who is tagged as a cast member."
+}
+
+// saveSchedulePDF saves the one-liner or the Day Out of Days as a PDF
+// (Lexington writes it: no browser needed).
+func (rd *reportsDialog) saveSchedulePDF(kind string) {
+	var b bytes.Buffer
+	title, paper := rd.w.scheduleTitle(), rd.w.savedExportJob().page
+	var err error
+	if kind == lexreport.KindOneLiner {
+		err = lexreport.WriteOneLinerPDF(&b, title, rd.rep, rd.bd, rd.sched, lexreport.StripOptions{Lang: rd.w.language}, paper)
+	} else {
+		err = lexreport.WriteDOODPDF(&b, title, rd.rep, rd.bd, rd.sched, paper)
+	}
+	if err != nil {
+		dialog.ShowError(err, rd.w.fyneWindow)
+		return
+	}
+	rd.saveFile(rd.reportFileName("pdf"), func(p string) error {
+		if err := writeFileAtomic(p, b.Bytes()); err != nil {
+			return err
+		}
+		rd.w.setStatus(rd.kind.Selected + " saved as " + filepath.Base(p))
+		return nil
+	})
+}
+
+// scheduleSummary is the line above the schedule's reports.
+func scheduleSummary(r lexreport.Report, s lexreport.Schedule, kind string) string {
+	n := 0
+	for _, d := range s.Days {
+		n += len(d.Scenes)
+	}
+	if len(s.Days) == 0 {
+		return "No shoot days yet: the stripboard (Production > Stripboard) puts scenes on days."
+	}
+	sum := fmt.Sprintf("%s, %s on them.", plural(len(s.Days), "shoot day"), plural(n, "scene"))
+	if kind == lexreport.KindDOOD {
+		sum += " SW start work, W work, WF work finish, SWF start-work-finish, H hold (Movie Magic Scheduling's codes)."
+	}
+	return sum
 }

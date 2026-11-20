@@ -22,7 +22,7 @@ import (
 // The Production pane (docs/PRODUCTION.md §6, step 6): the Notes pane's
 // third tab, the guided way through a shooting script's stages, as the
 // source pane is through an adaptation. A strip of the stages (Lock,
-// Revise; Break down, Schedule and Day pack to come), the current one
+// Revise, Break down, Schedule; Day pack to come), the current one
 // highlighted, and for the stage shown its count line, its list (each
 // row goes to its place in the script) and its buttons, which are the
 // Production menu's actions: the menu stays, the pane is the way to them.
@@ -47,12 +47,13 @@ const (
 	stageLock = iota
 	stageRevise
 	stageBreakdown
+	stageSchedule
 )
 
 type productionPane struct {
 	w *MainWindow
 
-	stages  [3]*widget.Button
+	stages  [4]*widget.Button
 	later   *widget.Label
 	count   *widget.Label // the stage's count line
 	rows    *fyne.Container
@@ -65,6 +66,7 @@ type productionPane struct {
 	lockNumbers, lockPages, issueWhite *widget.Button // Lock's
 	issueNext, revisedPDF, compare     *widget.Button // Revise's
 	bd                                 breakdownStage // Break down's
+	sched                              scheduleStage  // Schedule's
 
 	box *fyne.Container
 
@@ -91,10 +93,10 @@ type changedPages struct {
 
 func newProductionPane(w *MainWindow) *productionPane {
 	p := &productionPane{w: w, picked: -1, listView: -1}
-	for i, name := range []string{"1 Lock", "2 Revise", "3 Break down"} {
+	for i, name := range []string{"1 Lock", "2 Revise", "3 Break down", "4 Schedule"} {
 		p.stages[i] = widget.NewButton(name, func() { p.pick(i) })
 	}
-	p.later = widget.NewLabel("4 Schedule · 5 Day pack: coming")
+	p.later = widget.NewLabel("5 Day pack: coming")
 	p.later.Wrapping = fyne.TextWrapWord
 	p.later.SizeName = theme.SizeNameCaptionText
 	p.later.Importance = widget.LowImportance
@@ -122,8 +124,10 @@ func newProductionPane(w *MainWindow) *productionPane {
 	p.buttons = container.NewVBox()
 	p.bottom = container.NewStack(p.buttons)
 	p.bd.make(p)
+	p.sched.make(p)
 
-	strip := container.NewVBox(container.NewHBox(p.stages[0], p.stages[1], p.stages[2]), p.later)
+	strip := container.NewVBox(container.NewHBox(p.stages[0], p.stages[1], p.stages[2]),
+		container.NewBorder(nil, nil, p.stages[3], nil, p.later))
 	p.box = container.NewBorder(container.NewVBox(strip, widget.NewSeparator(), p.count), p.bottom, nil, nil, p.scroll)
 	return p
 }
@@ -195,6 +199,9 @@ func (p *productionPane) refresh() {
 			stage = stageBreakdown // the breakdown begun
 		}
 	}
+	if len(w.scheduleNow().Days) > 0 {
+		stage = stageSchedule // a shoot day made
+	}
 	if stage != p.stage { // issued (or a new script): follow it
 		p.stage, p.picked, p.shownKey = stage, -1, ""
 	}
@@ -205,8 +212,10 @@ func (p *productionPane) refresh() {
 		p.showLock(text, chain, issued)
 	case stageRevise:
 		p.showRevise(text, chain, issued)
-	default:
+	case stageBreakdown:
 		p.showBreakdown(text)
+	default:
+		p.showSchedule(text)
 	}
 	// laid out again: a container's or a label's new height does not
 	// reach the pane's layout by itself (the buttons went under the window)
@@ -216,7 +225,7 @@ func (p *productionPane) refresh() {
 // showStrip shows the stages: the one looked at stands out, a done one
 // has a tick.
 func (p *productionPane) showStrip(issued bool) {
-	names := []string{"Lock", "Revise", "Break down"}
+	names := []string{"Lock", "Revise", "Break down", "Schedule"}
 	for i, b := range p.stages {
 		imp := widget.LowImportance
 		switch {
