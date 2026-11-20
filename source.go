@@ -210,7 +210,7 @@ type linkMatch struct {
 func (m linkMatch) found() bool { return m.Kind == linkFound || m.Kind == linkNear }
 
 // covers reports whether the link found passage p (in its range).
-func (m linkMatch) covers(p int) bool { return m.found() && p >= m.Passages[0] && p <= m.Last }
+func (m linkMatch) covers(p int) bool { return m.found() && p >= m.Passages[0] && p <= m.last() }
 
 // last is the last passage the link found (its only one if not a range).
 func (m linkMatch) last() int { return max(m.Last, m.Passages[0]) }

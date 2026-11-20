@@ -184,11 +184,15 @@ type cutMark struct {
 	Nth   int      // old form: which of the passages opening so (1, 2 …); 0: the one
 	Words []string // normalised
 	Ref   linkRef
+	Raw   string // a new-form entry that cannot be read: as written, kept
 }
 
 // String is the entry as the block writes it.
 func (c cutMark) String() string {
-	if !c.Ref.Old && c.Ref.Bad == "" && c.Ref.Dir.Start != "" {
+	switch {
+	case c.Ref.Bad != "" && c.Raw != "":
+		return c.Raw
+	case !c.Ref.Old && c.Ref.Bad == "" && c.Ref.Dir.Start != "":
 		return c.Ref.String()
 	}
 	q := curlyQuotes(strings.ReplaceAll(c.Quote, "\n", " "))
@@ -221,9 +225,11 @@ func parseCutEntries(s string) []cutMark {
 	if isFragmentRef(t) {
 		var out []cutMark
 		for _, r := range fragmentRefs(t) {
-			if r.Bad == "" {
-				out = append(out, cutOf(r))
+			c := cutOf(r)
+			if r.Bad != "" {
+				c.Raw = t
 			}
+			out = append(out, c)
 		}
 		return out
 	}
@@ -444,10 +450,28 @@ func cutAt(c cutMark, mt linkMatch) cutSpan {
 }
 
 // cutFor is the entry that names passage i: a link to it (fragmentFor),
-// its prefix or suffix telling it from passages alike.
+// its prefix or suffix telling it from passages alike; if nothing does
+// (its neighbours alike too), the old form's, which counts: its first
+// words and which of the passages opening so it is, "(2)".
 func cutFor(ps []passage, i int) cutMark {
-	d, _ := fragmentFor(matcherFor(ps), i, i)
-	return cutOf(linkRef{Dir: d})
+	if d, unique := fragmentFor(matcherFor(ps), i, i); unique {
+		return cutOf(linkRef{Dir: d})
+	}
+	words := strings.Fields(ps[i].Plain)
+	n := min(linkWords, len(words))
+	for n < len(words) && len(matchLink(normWords(strings.Join(words[:n], " ")), ps).Passages) > 1 {
+		n++ // as few others opening so as can be
+	}
+	quote := strings.Join(words[:n], " ")
+	c := cutMark{Quote: quote, Words: normWords(quote)}
+	if mt := matchLink(c.Words, ps); len(mt.Passages) > 1 {
+		c.Nth = slices.Index(mt.Passages, i) + 1
+	}
+	if n < len(words) {
+		c.Quote += "…"
+	}
+	c.Ref = linkRef{Old: true, Quote: c.Quote}
+	return c
 }
 
 // passageStatus is what the script has done with a passage.

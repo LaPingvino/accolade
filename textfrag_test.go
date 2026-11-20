@@ -84,8 +84,10 @@ func TestParseTextDirective(t *testing.T) {
 		}
 	}
 	// other directives: ignored; none at all: a problem shown
-	if _, dirs, bad := parseFragment("#:~:other=x&text=foo"); bad != "" || len(dirs) != 1 || dirs[0].Start != "foo" {
-		t.Errorf("unknown directive: %+v %q", dirs, bad)
+	for _, f := range []string{"#:~:other=x&text=foo", "#:~:text=foo&other=x"} {
+		if _, dirs, bad := parseFragment(f); bad != "" || len(dirs) != 1 || dirs[0].Start != "foo" {
+			t.Errorf("unknown directive in %q: %+v %q", f, dirs, bad)
+		}
 	}
 	links := parseLinks("INT. A\n\n[[from: #:~:text=-oops]] [[from: #:~:nothing]]\n")
 	if len(links) != 2 || links[0].Ref.Bad == "" || links[1].Ref.Bad == "" {
@@ -179,6 +181,16 @@ func TestFragmentDisambiguation(t *testing.T) {
 	}
 	if mt := lm3.matchRef(linkRef{Dir: d}); mt.Kind != linkAmbiguous {
 		t.Errorf("the twins' link: %+v", mt)
+	}
+	// cut, they are told apart in the old form's way, "(2)", still read
+	ps3 := passagesOf(src3)
+	for _, i := range []int{1, 4} {
+		if c := cutFor(ps3, i); !c.Ref.Old || resolveCut(c, ps3) != (cutSpan{i, i}) {
+			t.Errorf("twin %d cut as %q", i, c.String())
+		}
+	}
+	if c := cutFor(ps3, 4); c.String() != `"Yes." (2)` {
+		t.Errorf("the second twin's entry: %q", c.String())
 	}
 }
 
@@ -274,14 +286,14 @@ func TestOldFormStillRead(t *testing.T) {
 // The block's entries in the new form: cut:, skipped links:, read and
 // written; the old kept.
 func TestFragmentBlockEntries(t *testing.T) {
-	inside := "cut:\n#:~:text=The rain kept falling.\n  story.md#:~:text=open.-,The rain kept falling.\n  \"Old words\" (2)\n" +
+	inside := "cut:\n#:~:text=The rain kept falling.\n  #:~:text=-bad\n  story.md#:~:text=open.-,The rain kept falling.\n  \"Old words\" (2)\n" +
 		"skipped links:\n  INT. KITCHEN - NIGHT = #:~:text=a=b,c\n  EXT. YARD→#:~:text=Anna%2C at last\n  INT. HALL = \"Old quote\"\nother: kept"
 	cuts := parseCuts(inside)
-	if len(cuts) != 3 || cuts[0].Ref.Dir.Start != "The rain kept falling." || cuts[1].Ref.File != "story.md" ||
-		cuts[1].Ref.Dir.Prefix != "open." || !cuts[2].Ref.Old || cuts[2].Nth != 2 {
+	if len(cuts) != 4 || cuts[0].Ref.Dir.Start != "The rain kept falling." || cuts[1].Ref.Bad == "" || cuts[2].Ref.File != "story.md" ||
+		cuts[2].Ref.Dir.Prefix != "open." || !cuts[3].Ref.Old || cuts[3].Nth != 2 {
 		t.Fatalf("cuts %+v", cuts)
 	}
-	if got := withCuts(inside, cuts); !strings.Contains(got, "cut:\n  #:~:text=The rain kept falling.\n  story.md#:~:text=open.-,The rain kept falling.\n  \"Old words\" (2)\n") ||
+	if got := withCuts(inside, cuts); !strings.Contains(got, "cut:\n  #:~:text=The rain kept falling.\n  #:~:text=-bad\n  story.md#:~:text=open.-,The rain kept falling.\n  \"Old words\" (2)\n") ||
 		!strings.Contains(got, "other: kept") {
 		t.Errorf("written:\n%s", got)
 	}
@@ -359,7 +371,9 @@ func TestUpdateSourceLinks(t *testing.T) {
 // page: a stand-in for the browser's find (the spec's algorithm on the
 // page's blocks' text, literally: case aside, whitespace collapsed).
 func TestFragmentOpensInExportedSource(t *testing.T) {
-	src := sourceStory + "\n\nShort.\n\nIt was “late”, and well-known.\n\nShort.\n\n- a list item, of its own\n- Short.\n\n> Short.\n"
+	src := sourceStory + "\n\nShort.\n\nIt was “late”, and well-known.\n\nShort.\n\n- a list item, of its own\n- Short.\n\n> Short.\n\n" +
+		"> Dear Anna, I hope this finds you well and the garden too.\n>\n> I am writing to say the house is sold, and the rain came in at last.\n\n" +
+		"- a loose item with words enough to have an end\n\n  and a second paragraph of it, which ends here\n- nested: the outer words\n  - the inner item, with an end of its own\n"
 	page, err := markdownHTML(src, "Story")
 	if err != nil {
 		t.Fatal(err)
@@ -367,7 +381,7 @@ func TestFragmentOpensInExportedSource(t *testing.T) {
 	blocks := htmlBlocks(string(page))
 	ps := passagesOf(src)
 	lm := newLinkMatcher(ps)
-	checked, withContext := 0, 0
+	checked, withContext, multi := 0, 0, 0
 	for i, p := range ps {
 		if !p.linkable() {
 			continue
@@ -384,28 +398,53 @@ func TestFragmentOpensInExportedSource(t *testing.T) {
 			t.Errorf("passage %d %q: %+v not found on the page", i, p.Plain, d)
 			continue
 		}
-		if !strings.Contains(collapse(blocks[b]), collapse(p.Plain)) || b != e {
-			t.Errorf("passage %d %q: %+v opens block %d..%d %q", i, p.Plain, d, b, e, blocks[b])
+		plain := collapse(strings.Join(slices.Concat(blockFields(p.Plain)...), " "))
+		if !strings.Contains(plain, collapse(blocks[b])) || !strings.Contains(plain, collapse(blocks[e])) ||
+			(len(blockFields(p.Plain)) == 1 && b != e) {
+			t.Errorf("passage %d %q: %+v opens blocks %d..%d %q", i, p.Plain, d, b, e, blocks[b:e+1])
+		}
+		if len(blockFields(p.Plain)) > 1 {
+			multi++
 		}
 		if d.Prefix != "" || d.Suffix != "" {
 			withContext++
 		}
 		checked++
 	}
-	if checked < 12 || withContext < 3 {
-		t.Errorf("%d passages checked, %d with a prefix or suffix", checked, withContext)
+	if checked < 12 || withContext < 3 || multi < 3 {
+		t.Errorf("%d passages checked, %d with a prefix or suffix, %d of several blocks", checked, withContext, multi)
 	}
 }
 
-var blockTag = regexp.MustCompile(`(?s)<(p|h[1-6]|li|pre)[^>]*>(.*?)</(p|h[1-6]|li|pre)>`)
-var anyTag = regexp.MustCompile(`<[^>]+>`)
+var anyTag = regexp.MustCompile(`<(/?)([a-zA-Z0-9]+)[^>]*>`)
 
-// htmlBlocks are a page's blocks' text, in order.
+// htmlBlocks are a page's blocks' text, in order, as the spec collects
+// it: each block element (opening or closing) ends the text before it;
+// the head's left out.
 func htmlBlocks(page string) []string {
-	var out []string
-	for _, m := range blockTag.FindAllStringSubmatch(page, -1) {
-		out = append(out, html.UnescapeString(anyTag.ReplaceAllString(m[2], "")))
+	if i := strings.Index(page, "<body>"); i >= 0 {
+		page = page[i+6:]
 	}
+	block := map[string]bool{"p": true, "li": true, "ul": true, "ol": true, "blockquote": true, "pre": true, "div": true, "hr": true,
+		"h1": true, "h2": true, "h3": true, "h4": true, "h5": true, "h6": true, "body": true, "table": true, "tr": true, "td": true, "th": true}
+	var out []string
+	var cur strings.Builder
+	flush := func() {
+		if t := strings.TrimSpace(html.UnescapeString(cur.String())); t != "" {
+			out = append(out, t)
+		}
+		cur.Reset()
+	}
+	at := 0
+	for _, m := range anyTag.FindAllStringSubmatchIndex(page, -1) {
+		cur.WriteString(page[at:m[0]])
+		at = m[1]
+		if block[strings.ToLower(page[m[4]:m[5]])] {
+			flush()
+		}
+	}
+	cur.WriteString(page[at:])
+	flush()
 	return out
 }
 

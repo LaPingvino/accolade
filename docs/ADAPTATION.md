@@ -53,12 +53,14 @@ Chrome, Safari and Firefox), so a link is also an address into the source as a w
   `text=[prefix-,]textStart[,textEnd][,-suffix]`.
 - **textStart[,textEnd] is the passage range:** from the passage textStart is in to the passage of the first
   textEnd after it. One passage, short (up to 12 words): textStart is all of it; longer: its first 8 words and
-  its last 4. A link may span consecutive passages (a suggestion of neighbours is one link). Several `text=` are
+  its last 4. A term is matched in one block of the page, so a passage of several (a quote's paragraphs, a list
+  item's, a nested item) has textStart from its first and textEnd from its last. A link may span consecutive passages (a suggestion of neighbours is one link). Several `text=` are
   one link each, at the note's place.
 - **prefix- and -suffix** are the words just before and after: in the passage, or at the end of the one before
   (the start of the one after). Written only when needed: when the words are found elsewhere too, Accolade first
   quotes more of textStart (then of textEnd), then adds the words before, then those after. They replace the old
-  form's "(2)". Two passages whose words and neighbours are all alike cannot be told apart: the link is ambiguous.
+  form's "(2)". Two passages whose words and neighbours are all alike cannot be told apart: the link is ambiguous,
+  and Mark as Cut (or Skip) writes the old form's `"…" (2)` for it, which still counts.
 - **The file** is optional: none is the script's source. A name is the source's when it is the name of any of
   its layers (the file beside the script, the bundle's entry, the file chosen, story.md for one kept in the
   script), its extension aside (story.html, the source exported, is it too). One source for now: a link naming
@@ -66,8 +68,9 @@ Chrome, Safari and Firefox), so a link is also an address into the source as a w
 - **Written readable:** the passage's own characters (the browser compares the text), only `,` `-` `&` `%`
   percent-encoded as the grammar needs, and `[` `]` so the note's `]]` stays its own; spaces stay spaces. Read
   both encoded and plain: `%20` or a space, a `-` inside a word taken as text (the spec rejects it), spaces
-  around the parts aside, an `&` not followed by `text=` part of the text before it. A fragment that cannot be
-  read stays a link, shown as one that cannot be read.
+  around the parts aside, an `&` not followed by `text=` or another `name=` part of the text before it. A
+  directive other than `text=` is ignored, as browsers do. A fragment that cannot be
+  read stays a link, shown as one that cannot be read (and an entry so in the block is kept as written).
 - **Matching** is the spec's, on the passages (each one block): every term within one passage, as whole words;
   the prefix right before textStart, the suffix right after the match (whitespace and wordless breaks between
   allowed, as the spec's "next non-whitespace position"); textEnd the first after textStart that the suffix

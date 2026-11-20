@@ -205,6 +205,28 @@ func BenchmarkSourceModelKeystrokeNew(b *testing.B) {
 	}
 }
 
+// A new-form link being typed: each letter a link not matched yet (the
+// cache missed), against the novel: a common word (ambiguous: every
+// place it is), a range whose end is nowhere, one found.
+func BenchmarkMatchFragmentMiss(b *testing.B) {
+	md, _ := benchFixture()
+	ps := passagesOf(md)
+	lm := newLinkMatcher(ps)
+	lm.index()
+	for name, d := range map[string]textDirective{
+		"common": {Start: "the"},
+		"no end": {Start: "the", End: "four words not there"},
+		"near":   {Start: "zzz qqq xxx yyy www vvv uuu ttt"},
+		"found":  {Start: strings.Join(strings.Fields(ps[500].Plain)[:8], " ")},
+	} {
+		b.Run(name, func(b *testing.B) {
+			for b.Loop() {
+				lm.findDir(normOf(d))
+			}
+		})
+	}
+}
+
 // Format > Update Source Links on the bench screenplay.
 func BenchmarkUpdateSourceLinks(b *testing.B) {
 	md, script := benchFixture()

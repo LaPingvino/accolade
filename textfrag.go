@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -244,7 +245,7 @@ func parseFragment(s string) (file string, dirs []textDirective, bad string) {
 		switch {
 		case strings.HasPrefix(t, "text="):
 			values = append(values, t[5:])
-		case len(values) > 0:
+		case len(values) > 0 && !otherDirective.MatchString(t):
 			values[len(values)-1] += "&" + piece
 		}
 	}
@@ -261,6 +262,10 @@ func parseFragment(s string) (file string, dirs []textDirective, bad string) {
 	}
 	return file, dirs, bad
 }
+
+// otherDirective is a directive other than text= (a browser ignores
+// it): name=…; anything else after an & is the text's.
+var otherDirective = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_-]*=`)
 
 // parseTextDirective is the spec's "parse a text directive", leniently
 // (a dash inside a term is text; spaces around a part do not count): ""
@@ -462,12 +467,14 @@ func (lm *linkMatcher) findDir(d normDir) linkMatch {
 		return linkMatch{Kind: linkMissing}
 	}
 	lm.index()
-	var exact, loose []span
-	add := func(list *[]span, s span) {
-		if !slices.Contains(*list, s) {
-			*list = append(*list, s)
+	var exact []span
+	var loose []wordAt // textStart found, its context or end not: the first in each passage
+	add := func(sp span) { // (in order: the same one comes in a row)
+		if n := len(exact); n == 0 || exact[n-1] != sp {
+			exact = append(exact, sp)
 		}
 	}
+	endMissed := false // no end after a start: none after a later one either
 	for _, a := range lm.fi.at[d.start[0]] {
 		p, w := int(a.p), int(a.w)
 		if !runAt(lm.ps[p].Words, w, d.start) {
@@ -475,33 +482,44 @@ func (lm *linkMatcher) findDir(d normDir) linkMatch {
 		}
 		e := w + len(d.start)
 		withContext := lm.prefixOK(p, w, d.pre)
-		if len(d.end) == 0 {
+		switch {
+		case len(d.end) == 0:
 			if withContext && lm.suffixOK(p, e, d.suf) {
-				add(&exact, span{p, p})
+				add(span{p, p})
 			}
-			add(&loose, span{p, p})
-			continue
-		}
-		if withContext {
+		case withContext && !endMissed:
 			if q := lm.findEnd(p, e, d.end, d.suf); q >= 0 {
-				add(&exact, span{p, q})
+				add(span{p, q})
 				continue
 			}
+			endMissed = true
 		}
-		// the context or the end changed: the end as it is, else near, else the start's passage alone
-		q := lm.findEnd(p, e, d.end, nil)
-		if q < 0 {
-			q = lm.nearEnd(p, d.end)
+		if n := len(loose); n == 0 || int(loose[n-1].p) != p {
+			loose = append(loose, a)
 		}
-		add(&loose, span{p, max(q, p)})
 	}
 	switch {
 	case len(exact) == 1:
 		return linkMatch{Kind: linkFound, Passages: []int{exact[0].first}, Last: exact[0].last}
 	case len(exact) > 1:
 		return ambiguousOf(exact, linkFound)
-	case len(loose) > 0:
-		return ambiguousOf(loose, linkNear)
+	case len(loose) > 1:
+		mt := linkMatch{Kind: linkAmbiguous}
+		for _, a := range loose {
+			mt.Passages = append(mt.Passages, int(a.p))
+		}
+		return mt
+	case len(loose) == 1:
+		// the context or the end changed: the end as it is, else near, else the start's passage alone
+		p, last := int(loose[0].p), int(loose[0].p)
+		if len(d.end) > 0 {
+			q := lm.findEnd(p, int(loose[0].w)+len(d.start), d.end, nil)
+			if q < 0 {
+				q = lm.nearEnd(p, d.end)
+			}
+			last = max(q, p)
+		}
+		return linkMatch{Kind: linkNear, Passages: []int{p}, Last: last}
 	}
 	// textStart edited: near a passage's opening, as the old form's
 	mt := matchIn(d.start, lm.ps, lm.byFirst, &lm.row)
@@ -598,7 +616,14 @@ const (
 // it apart; the directive then has both.
 func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 	ps := lm.ps
-	fi, fj := strings.Fields(ps[i].Plain), strings.Fields(ps[j].Plain)
+	bi, bj := blockFields(ps[i].Plain), blockFields(ps[j].Plain)
+	if len(bi) == 0 || len(bj) == 0 {
+		return textDirective{Start: ps[i].Plain}, false
+	}
+	// a term is matched within one block of the page: textStart from the
+	// first's first, textEnd from the last's last (a quote's paragraphs)
+	fi, fj := bi[0], bj[len(bj)-1]
+	single := i == j && len(bi) == 1
 	join := strings.Join
 	ok := func(d textDirective) bool {
 		mt := lm.matchRef(linkRef{Dir: d})
@@ -606,12 +631,12 @@ func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 	}
 	// textStart's and textEnd's fields: [0, ns) of i, [len-ne, len) of j
 	ns, ne := min(linkWords, len(fi)), min(endWords, len(fj))
-	whole := i == j && len(fi) <= linkWords+endWords
+	whole := single && len(fi) <= linkWords+endWords
 	if whole {
 		ns, ne = len(fi), 0
 	}
 	mk := func(ns, ne int) textDirective {
-		if i == j && ns+ne >= len(fi) {
+		if single && ns+ne >= len(fi) {
 			return textDirective{Start: join(fi, " ")}
 		}
 		d := textDirective{Start: join(fi[:ns], " ")}
@@ -636,17 +661,17 @@ func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 		if d = mk(ns, ne); ok(d) {
 			return d, true
 		}
-		if i == j && d.End == "" {
+		if single && d.End == "" {
 			break
 		}
 	}
-	if !(i == j && d.End == "") {
+	if !(single && d.End == "") {
 		for ne > 0 && ne < len(fj) {
 			ne++
 			if d = mk(ns, ne); ok(d) {
 				return d, true
 			}
-			if i == j && d.End == "" {
+			if single && d.End == "" {
 				break
 			}
 		}
@@ -654,10 +679,14 @@ func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 	base := short
 	var before, after []string
 	if q := lm.index().prev[i]; q >= 0 {
-		before = strings.Fields(ps[q].Plain)
+		if b := blockFields(ps[q].Plain); len(b) > 0 {
+			before = b[len(b)-1]
+		}
 	}
 	if q := lm.fi.next[j]; q >= 0 {
-		after = strings.Fields(ps[q].Plain)
+		if b := blockFields(ps[q].Plain); len(b) > 0 {
+			after = b[0]
+		}
 	}
 	for k := 1; k <= min(maxContext, len(before)); k++ {
 		d = base
@@ -693,6 +722,27 @@ func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 		d.Suffix = ""
 	}
 	return d, ok(d)
+}
+
+// listMark is a list item's or a quote's mark, as a passage's Plain has
+// it for one nested in it (the page shows no such text).
+var listMark = regexp.MustCompile(`^([-*+>]|\d{1,9}[.)])$`)
+
+// blockFields are a passage's blocks' words as the page shows them (a
+// quote's or a list item's paragraphs, nested items): split at blank
+// lines, a nested item's mark left out.
+func blockFields(plain string) [][]string {
+	var out [][]string
+	for _, para := range strings.Split(plain, "\n\n") {
+		f := strings.Fields(para)
+		for len(f) > 0 && listMark.MatchString(f[0]) {
+			f = f[1:]
+		}
+		if len(f) > 0 {
+			out = append(out, f)
+		}
+	}
+	return out
 }
 
 // linkNoteFor is the note that links to passages [i, j], and whether it

@@ -245,4 +245,27 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   scene numbered as Export would, aliases from the adaptation block merged. go.mod has `replace => ../lexington`
   until v1.8.0 is pushed. Shots: reports-*-wide/phone.png (SHOT_DIR=… go test -run TestReportsScreenshots). Next:
   PRODUCTION step 3, the `.accolade` bundle.
-
+- 2026-11-20: source links in the Text Fragments syntax (branch textfrag, not merged; textfrag.go, textfrag_update.go;
+  format in docs/ADAPTATION.md §3 "The link format"). `[[from: #:~:text=She opened the door to the garden and,out
+  into the rain.]]`: after `from:` an optional file, `#:~:`, `text=[prefix-,]start[,end][,-suffix]` joined by `&`
+  (one link each). start..end is a passage range (from start's passage to that of the first end after it); a
+  short passage is all start, a longer one its first 8 words and last 4 (a quote's or list item's first and last
+  block: a term is one block in a browser). prefix-/-suffix only when more words do not tell it apart, replacing
+  "(n)" (twins with twin neighbours: ambiguous; Mark as Cut/Skip then write the old `"…" (2)`). Written readable
+  (only , - & % [ ] encoded, the source's own characters), read encoded or plain (a dash inside a word, a stray
+  &). Matching is the spec's on the passages (terms within one passage as whole normalised words, prefix right
+  before, suffix right after, the first end after the start; a word index per source, built on the first new-form
+  link), but ambiguous where a browser takes the first, and near kept (start as before, end near one of the next 40
+  passages' ends, else the start's passage alone). Old `[[from: "…"]]` and `"…" (2)` read as before; Format > Update
+  Source Links writes every link and cut:/skipped links: entry that is found in the new form (one undo step; near
+  ones keep their words; ambiguous/missing left as written, deliberately). New links (Link, Next, Start from the
+  Source, suggestions: neighbours one range link) and block entries are the new form; no file part is written, a
+  named one is the source's if any layer has that name (extension aside, so story.html too), else the pane says
+  so and reads it against the source. Exports: the source exported/printed as HTML is where the fragments open
+  (TestFragmentOpensInExportedSource runs the spec's algorithm on the exported page for every passage). Bench (main
+  vs branch, n=6, old-form links): SourceModelKeystroke 4.0 vs 4.7 ms (~, p=0.18, noisy VPS), allocs 3623 vs 3624,
+  B/op +15% (a bigger sourceLink); PaneKeystroke 21.2 vs 20.6 ms (~). New-form links: keystroke 3.4 ms, cold 35 ms
+  (vs 19: the word index once per source read), a missed link 0.05-0.6 ms (old near link 0.76 ms). Not done: the
+  script's own HTML export has no hyperlinks (Lexington drops notes); the pane links one passage (no range
+  selection). Rough: accents count in matching (the spec ignores them); "fits N passages: quote more of it" says
+  nothing of prefix-.
