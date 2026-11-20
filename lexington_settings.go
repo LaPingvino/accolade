@@ -31,26 +31,20 @@ func readLexingtonSettings() rules.TOMLConf {
 	if err != nil {
 		return conf
 	}
-	for k, v := range file.Elements {
-		conf.Elements[k] = v
-	}
-	for k, v := range file.Scenes {
-		conf.Scenes[k] = v
-	}
-	for k, v := range file.Matchups {
-		conf.Matchups[k] = v
-	}
-	if file.Standard != "" {
-		conf.Standard = file.Standard
-	}
-	return conf
+	return conf.With(file)
+}
+
+// reloadLexingtonSettings reads the settings file again.
+func reloadLexingtonSettings() {
+	lexSettings = readLexingtonSettings()
+	sceneConf = lexSettings.Scenes
 }
 
 // customFormats are the element sets of the settings that are not
 // presets, by key.
-func customFormats() []string {
+func (c lexConf) customFormats() []string {
 	var keys []string
-	for k := range lexSettings.Elements {
+	for k := range c.Elements {
 		if _, preset := rules.GetPreset(k); !preset && k != "default" {
 			keys = append(keys, k)
 		}
@@ -101,8 +95,7 @@ func saveLexingtonSettings(text string) error {
 	if err := os.Rename(tmp, lexingtonConfig()); err != nil {
 		return err
 	}
-	lexSettings = readLexingtonSettings()
-	sceneConf = lexSettings.Scenes
+	reloadLexingtonSettings()
 	return nil
 }
 

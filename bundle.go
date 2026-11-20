@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/LaPingvino/accolade/internal/pace"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // The TextBundle family (docs/HIGHLAND.md): a .textbundle is a folder
@@ -94,11 +95,16 @@ type accoladeInfo struct {
 	// NoFountainCopy: an .accolade keeps only the language's text, no
 	// text.fountain (the script's choice).
 	NoFountainCopy bool `json:"noFountainCopy,omitempty"`
+	// Format is an .accolade's script format, when not the screenplay:
+	// the script's own (MainWindow.scriptFormatKey), its file carried in
+	// assets/lexington/formats/ if it is one of one's own
+	// (lexington_carried.go).
+	Format string `json:"format,omitempty"`
 }
 
 func (a accoladeInfo) empty() bool {
 	return a.DocumentType == "" && a.Source == "" && a.Drafts == "" && !a.HighlandWarned &&
-		a.Language == "" && a.FountainHash == "" && !a.NoFountainCopy
+		a.Language == "" && a.FountainHash == "" && !a.NoFountainCopy && a.Format == ""
 }
 
 // textBundle is a bundle as read: where it is and what it holds besides
@@ -131,7 +137,15 @@ type textBundle struct {
 	source     string   // the source's entry, "" for none
 	srcText    []byte   // and what it holds
 	extras     []string // Accolade's extras in it (extras.go), sorted
+	// carried is the Lexington configuration an .accolade brought
+	// (lexington_carried.go), nil for none; carriedNames its entries
+	carried      *carriedConf
+	carriedNames []string
 }
+
+// lex is the configuration the bundle's script reads: the machine's, with
+// what it brought over it.
+func (b *textBundle) lex() lexConf { return layered(b.carried) }
 
 // markdown tells whether the bundle's document is Markdown.
 func (b *textBundle) markdown() bool {
@@ -187,12 +201,14 @@ func nativeTextName(lang string) string { return "text." + lang + ".fountain" }
 
 // nativeLanguage is the language a text entry is in (text.eo.fountain:
 // "eo"), "" for none.
-func nativeLanguage(name string) string {
+func nativeLanguage(name string) string { return machineLex().nativeLanguage(name) }
+
+func (c lexConf) nativeLanguage(name string) string {
 	mid, ok := strings.CutPrefix(strings.ToLower(name), "text.")
 	if !ok {
 		return ""
 	}
-	if l, ok := strings.CutSuffix(mid, ".fountain"); ok && dialect(l) {
+	if l, ok := strings.CutSuffix(mid, ".fountain"); ok && c.dialect(l) {
 		return l
 	}
 	return ""
@@ -208,7 +224,7 @@ func fountainHash(data []byte) string {
 // pickText is the bundle's text among the files at its root: text.fountain,
 // text.md, text.markdown, text.txt, else another text.* (a language's
 // text, text.eo.fountain, is no other app's: not that).
-func pickText(names []string) string {
+func pickText(names []string, conf lexConf) string {
 	rank := func(n string) int {
 		switch strings.ToLower(path.Ext(n)) {
 		case ".fountain":
@@ -224,7 +240,7 @@ func pickText(names []string) string {
 	}
 	best := ""
 	for _, n := range names {
-		if !isTextName(n) || nativeLanguage(n) != "" {
+		if !isTextName(n) || conf.nativeLanguage(n) != "" {
 			continue
 		}
 		if best == "" || rank(n) < rank(best) || (rank(n) == rank(best) && n < best) {
@@ -305,6 +321,12 @@ func parseZipBundle(p string, data []byte) (*textBundle, []byte, error) {
 		}
 	}
 	b.extras = extraNames(all)
+	for _, n := range all {
+		if isCarriedEntry(n) {
+			b.carriedNames = append(b.carriedNames, n)
+		}
+	}
+	slices.Sort(b.carriedNames)
 	read := func(rel string) ([]byte, error) {
 		f := files[b.prefix+rel]
 		if f == nil {
@@ -316,6 +338,9 @@ func parseZipBundle(p string, data []byte) (*textBundle, []byte, error) {
 		}
 		defer r.Close()
 		return io.ReadAll(r)
+	}
+	if carriesConf(p) {
+		b.carried = readCarried(b.carriedNames, read)
 	}
 	return b.fill(p, root, read)
 }
@@ -341,10 +366,11 @@ func readFolderBundle(dir string) (*textBundle, []byte, error) {
 // fill reads the bundle's text, info.json and source, given the files at
 // its root and how to read one.
 func (b *textBundle) fill(p string, root []string, read func(string) ([]byte, error)) (*textBundle, []byte, error) {
-	b.textName = pickText(root)
+	conf := b.lex() // what it brought, before its language is known
+	b.textName = pickText(root, conf)
 	var natives []string
 	for _, n := range root {
-		if nativeLanguage(n) != "" {
+		if conf.nativeLanguage(n) != "" {
 			natives = append(natives, n)
 		}
 	}
@@ -376,7 +402,7 @@ func (b *textBundle) fill(p string, root []string, read func(string) ([]byte, er
 	// before the key had it); its text, else the one there is
 	if !b.markdown() {
 		b.lang = b.ours.Language
-		if !dialect(b.lang) {
+		if !conf.dialect(b.lang) {
 			b.lang = languageOf(p)
 		}
 		pick := ""
@@ -393,7 +419,7 @@ func (b *textBundle) fill(p string, root []string, read func(string) ([]byte, er
 			if b.nativeText, err = read(pick); err != nil {
 				return nil, nil, err
 			}
-			b.native, b.lang = pick, nativeLanguage(pick)
+			b.native, b.lang = pick, conf.nativeLanguage(pick)
 		}
 	}
 	// the source: as Accolade's key names it, else one where Accolade or
@@ -480,6 +506,40 @@ type bundleSave struct {
 	native []byte
 	lang   string
 	noCopy bool
+	// conf is the script's configuration (MainWindow.lex; unset: the
+	// machine's); an .accolade carries carry (lexington_carried.go) and
+	// names format (the screenplay's: "")
+	conf   lexConf
+	carry  *carriedConf
+	format string
+}
+
+// lex is the configuration the script is saved with.
+func (s bundleSave) lex() lexConf {
+	if s.conf.Scenes == nil {
+		return machineLex()
+	}
+	return s.conf
+}
+
+// carried are the configuration's files a save to dst writes, and the
+// old ones gone (all of them for another kind of bundle); ours names the
+// format.
+func (s bundleSave) carried(ours *accoladeInfo, dst string, old []string) (files []bundleFile, gone []string) {
+	ours.Format = ""
+	if !carriesConf(dst) || s.markdown {
+		return nil, old
+	}
+	if s.format != rules.ScreenplayPreset {
+		ours.Format = s.format
+	}
+	files = s.carry.files()
+	for _, n := range old {
+		if !slices.ContainsFunc(files, func(f bundleFile) bool { return f.name == n }) {
+			gone = append(gone, n)
+		}
+	}
+	return files, gone
 }
 
 // language is what Accolade's key says of the language, and the text
@@ -487,7 +547,7 @@ type bundleSave struct {
 func (s bundleSave) language(ours *accoladeInfo, textName, oldNative string, oldNoText bool) (files []bundleFile, gone []string) {
 	ours.Language, ours.FountainHash, ours.NoFountainCopy = "", "", false
 	native := ""
-	if s.native != nil && dialect(s.lang) {
+	if s.native != nil && s.lex().dialect(s.lang) {
 		native = nativeTextName(s.lang)
 		ours.Language = s.lang
 		files = append(files, bundleFile{native, s.native})
@@ -525,12 +585,13 @@ func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error
 			ours.Source = bundleSourceName
 		}
 		texts, _ := s.language(&ours, textName, "", true)
+		carried, _ := s.carried(&ours, dst, nil)
 		if !ours.empty() {
 			val, _ := json.Marshal(ours)
 			info, _ = setInfoValue(info, accoladeInfoKey, val)
 		}
 		files := append(append([]bundleFile{{"info.json", info}}, texts...), bundleFile{"assets/", nil})
-		files = append(files, s.extra...)
+		files = append(append(files, carried...), s.extra...)
 		if s.source != nil {
 			files = append(files, bundleFile{bundleSourceName, s.source})
 		}
@@ -547,7 +608,8 @@ func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error
 	ours.HighlandWarned = ours.HighlandWarned || s.highlandWarned
 	ours.Drafts = cmp.Or(draftsIndexIn(s.extra), ours.Drafts)
 	files, gone := s.language(&ours, b.textName, b.native, b.noText)
-	files = append(files, s.extra...)
+	carried, old := s.carried(&ours, dst, b.carriedNames)
+	files, gone = append(append(files, carried...), s.extra...), append(gone, old...)
 	if info, changed := b.infoWith(ours); changed {
 		files = append(files, bundleFile{b.infoName(), info})
 	}

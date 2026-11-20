@@ -886,7 +886,7 @@ func (sg *suggester) headingsFor(g placeGuess) []string {
 
 // readHeadings are the headings the place as read makes.
 func (sg *suggester) readHeadings(g placeGuess) []string {
-	in, out, either, ok := placeWords(sceneHeaders(sg.w.language))
+	in, out, either, ok := placeWords(sg.w.sceneHeaders())
 	if !ok {
 		in, out, either = "INT.", "EXT.", "INT./EXT."
 	}

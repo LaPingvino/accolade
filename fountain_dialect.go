@@ -20,25 +20,33 @@ import (
 // Fountain's.
 func standardLanguage() string { return lexSettings.StandardLanguage() }
 
+func (c lexConf) standard() string { return c.StandardLanguage() }
+
 // standardFountain is lang's text as standard Fountain.
-func standardFountain(text, lang string) string {
-	if !dialect(lang) {
+func standardFountain(text, lang string) string { return machineLex().standardFountain(text, lang) }
+
+func (c lexConf) standardFountain(text, lang string) string {
+	if !c.dialect(lang) {
 		return text
 	}
-	return fountain.Force(text, sceneHeaders(lang), sceneHeaders(standardLanguage()))
+	return fountain.Force(text, c.headers(lang), c.headers(c.standard()))
 }
 
 // dialectFountain is standard Fountain read as lang's text: the marks
 // standardFountain gives taken back.
-func dialectFountain(text, lang string) string {
-	if !dialect(lang) {
+func dialectFountain(text, lang string) string { return machineLex().dialectFountain(text, lang) }
+
+func (c lexConf) dialectFountain(text, lang string) string {
+	if !c.dialect(lang) {
 		return text
 	}
-	return fountain.Unforce(text, sceneHeaders(lang), sceneHeaders(standardLanguage()))
+	return fountain.Unforce(text, c.headers(lang), c.headers(c.standard()))
 }
 
 // dialect tells whether lang is a language whose scripts are a dialect
 // of Fountain: a known one other than the standard one.
-func dialect(lang string) bool {
-	return lang != "" && lang != standardLanguage() && sceneConf[lang] != nil
+func dialect(lang string) bool { return machineLex().dialect(lang) }
+
+func (c lexConf) dialect(lang string) bool {
+	return lang != "" && lang != c.standard() && c.knows(lang)
 }

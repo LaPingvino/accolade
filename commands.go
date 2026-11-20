@@ -37,6 +37,7 @@ type cmdEnv struct {
 	locked   bool // its scene numbers are locked (Production)
 	pages    bool // its pages are locked (Production)
 	renamed  bool // the last rename can be taken back (relocate.go)
+	brought  bool // the script brought Lexington settings of its own (lexington_carried.go)
 }
 
 // cmdEnv is the window's.
@@ -49,6 +50,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 		e.pages = pageLockOf(text) != nil
 	}
 	e.renamed = w.canUndoRename()
+	e.brought = !w.carried.empty()
 	return e
 }
 
@@ -59,10 +61,11 @@ func desktopOnly(e cmdEnv) bool    { return !e.browser }
 func withPandoc(e cmdEnv) bool     { return e.pandoc && !e.browser }
 
 // The rules for when a command can be given now.
-func withSource(e cmdEnv) bool    { return e.source }
-func numbersLocked(e cmdEnv) bool { return e.locked }
-func pagesLocked(e cmdEnv) bool   { return e.pages }
-func renameToUndo(e cmdEnv) bool  { return e.renamed }
+func withSource(e cmdEnv) bool      { return e.source }
+func numbersLocked(e cmdEnv) bool   { return e.locked }
+func pagesLocked(e cmdEnv) bool     { return e.pages }
+func renameToUndo(e cmdEnv) bool    { return e.renamed }
+func broughtSettings(e cmdEnv) bool { return e.brought }
 
 // command is one thing the user can do.
 type command struct {
@@ -322,6 +325,8 @@ func newRegistry() *registry {
 			run: func(w *MainWindow) { w.reportErr(w.SaveFileAs)() }},
 		&command{id: "file.rename", label: "Rename…", icon: theme.DocumentCreateIcon, run: (*MainWindow).renameScript},
 		&command{id: "file.undoRename", label: "Undo Rename", icon: theme.ContentUndoIcon, enabled: renameToUndo, run: (*MainWindow).undoRename},
+		&command{id: "file.addSettings", label: "Add to My Settings…", icon: theme.SettingsIcon, when: broughtSettings,
+			run: (*MainWindow).addToMySettings},
 		&command{id: "file.saveDraft", label: "Save Draft…", icon: theme.StorageIcon, run: (*MainWindow).showSaveDraft},
 		&command{id: "file.drafts", label: "Drafts…", icon: theme.HistoryIcon, run: (*MainWindow).showDrafts},
 		&command{id: "file.share", label: "Edit Together…", icon: theme.AccountIcon, run: (*MainWindow).shareDialog},
@@ -568,7 +573,7 @@ func newRegistry() *registry {
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
 			at("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
-			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"),
+			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
 			sep(), at("file.export"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 		}},

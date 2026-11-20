@@ -77,10 +77,14 @@ func plainFileText(path, text string) (string, string) {
 // plainFileForm is a plain screenplay file's text for the editor's text
 // in language lang, as the file's name says to write it.
 func plainFileForm(path, text, lang string) string {
-	if languageOf(path) != "" || !dialect(lang) {
+	return machineLex().plainFileForm(path, text, lang)
+}
+
+func (c lexConf) plainFileForm(path, text, lang string) string {
+	if languageOf(path) != "" || !c.dialect(lang) {
 		return text
 	}
-	return withLanguageLine(standardFountain(text, lang), lang)
+	return withLanguageLine(c.standardFountain(text, lang), lang)
 }
 
 // writesBundle tells whether saving to path writes a bundle (a plain
@@ -97,15 +101,15 @@ func (w *MainWindow) scriptTexts(path, text string) (main, native string, hasNat
 	case w.markdown:
 		return text, "", false
 	case w.writesBundle(path):
-		if dialect(w.language) {
-			return standardFountain(text, w.language), text, true
+		if c := w.lex(); c.dialect(w.language) {
+			return c.standardFountain(text, w.language), text, true
 		}
 		return text, "", false
 	}
 	if !w.languageSaid { // only assumed: written as it is
 		return text, "", false
 	}
-	return plainFileForm(path, text, w.language), "", false
+	return w.lex().plainFileForm(path, text, w.language), "", false
 }
 
 // keepsFountainCopy tells whether a bundle at path keeps text.fountain

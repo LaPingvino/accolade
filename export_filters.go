@@ -138,7 +138,7 @@ func (ed *ExportDialog) createFilterWidgets() {
 		fyne.SetAccessibleLabel(c, "Only scenes and sections tagged "+tag)
 		ed.tagChecks = append(ed.tagChecks, c)
 	}
-	ed.characterSelect = widget.NewSelect(append([]string{noSides}, scriptSpeakers(text, sceneHeaders(ed.window.language))...), func(string) {
+	ed.characterSelect = widget.NewSelect(append([]string{noSides}, scriptSpeakers(text, ed.window.sceneHeaders())...), func(string) {
 		ed.showSides()
 		changed()
 	})

@@ -6,6 +6,8 @@ import (
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // A script's language decides what its scene headings start with: INT.
@@ -16,10 +18,29 @@ import (
 
 var sceneConf = lexSettings.Scenes
 
+// A lexConf is Lexington's configuration as one script reads it: the
+// machine's (lexSettings), and for a script that brought its own
+// (an .accolade, lexington_carried.go) that laid over it. The functions
+// below without one read the machine's; a window's script reads its own
+// (MainWindow.lex).
+type lexConf struct {
+	rules.TOMLConf
+	// carried is the script's own part, nil for none
+	carried *carriedConf
+}
+
+// machineLex is the machine's configuration.
+func machineLex() lexConf { return lexConf{TOMLConf: lexSettings} }
+
+// knows tells whether lang is a language with scene headings.
+func (c lexConf) knows(lang string) bool { return c.Scenes[lang] != nil }
+
 // scriptLanguages are the languages with scene headings, in order.
-func scriptLanguages() []string {
+func scriptLanguages() []string { return machineLex().languages() }
+
+func (c lexConf) languages() []string {
 	var ls []string
-	for l := range sceneConf {
+	for l := range c.Scenes {
 		ls = append(ls, l)
 	}
 	sort.Strings(ls)
@@ -41,18 +62,25 @@ func languageOf(path string) string {
 
 // sceneHeaders are a language's scene heading words, as Lexington's
 // parser takes them ("INT", "EXT"); English for an unknown language.
-func sceneHeaders(lang string) []string {
-	if h := sceneConf[lang]; h != nil {
+func sceneHeaders(lang string) []string { return machineLex().headers(lang) }
+
+func (c lexConf) headers(lang string) []string {
+	if h := c.Scenes[lang]; h != nil {
 		return h
 	}
-	return sceneConf["en"]
+	if h := c.Scenes["en"]; h != nil {
+		return h
+	}
+	return rules.DefaultConf().Scenes["en"]
 }
 
 // sceneStarts are what a language's scene headings start with, for
 // telling them apart while typing: each word with a dot or a space.
-func sceneStarts(lang string) []string {
+func sceneStarts(lang string) []string { return machineLex().starts(lang) }
+
+func (c lexConf) starts(lang string) []string {
 	var out []string
-	for _, w := range sceneHeaders(lang) {
+	for _, w := range c.headers(lang) {
 		h := strings.TrimSuffix(strings.ToUpper(w), ".")
 		if last, _ := utf8.DecodeLastRuneInString(h); h != "" && !unicode.IsLetter(last) && !unicode.IsDigit(last) {
 			out = append(out, h) // a sign needs nothing after it: ○喫茶店

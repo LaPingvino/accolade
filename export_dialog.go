@@ -114,7 +114,7 @@ func (ed *ExportDialog) createWidgets() {
 	ed.filenameEntry.SetText(ed.getDefaultFilename())
 
 	// PDF, HTML, DOCX and ODT: the script format (Lexington's presets)
-	ed.scriptFormatSelect = newScriptFormatSelect(nil, nil)
+	ed.scriptFormatSelect = newScriptFormatSelect(ed.window.lex, nil, nil)
 	fyne.SetAccessibleLabel(ed.scriptFormatSelect, "Script format")
 	// DOCX and ODT: the paper, or the one the script format suggests
 	ed.documentPageSelect = widget.NewSelect(documentPages, nil)
@@ -331,7 +331,7 @@ func (ed *ExportDialog) loadSettings() {
 		ed.outputDirEntry.SetText(dir)
 	}
 
-	selectScriptFormat(ed.scriptFormatSelect, ed.settings.GetString("script-format"))
+	ed.window.lex().selectFormat(ed.scriptFormatSelect, ed.window.scriptFormatKey())
 	ed.documentPageSelect.SetSelected(documentPageLabel(ed.settings.GetString("page-size")))
 
 	ed.includeTitlePageCheck.SetChecked(ed.settings.GetBoolean("include-title-page"))
@@ -352,7 +352,7 @@ func (ed *ExportDialog) saveSettings() {
 	ed.settings.SetString("export-format", ed.formatSelect.Selected)
 	ed.settings.SetString("export-directory", ed.outputDirEntry.Text)
 	ed.settings.SetString("page-size", ed.chosenPage())
-	ed.settings.SetString("script-format", selectedScriptFormat(ed.scriptFormatSelect))
+	ed.window.setScriptFormat(ed.window.lex().selectedFormat(ed.scriptFormatSelect))
 	ed.settings.SetBoolean("include-title-page", ed.includeTitlePageCheck.Checked)
 	ed.settings.SetBoolean("fountain-scene-numbers", ed.sceneNumbersCheck.Checked)
 	ed.settings.SetBoolean("export-colors", ed.colorsCheck.Checked)
@@ -557,12 +557,13 @@ func (ed *ExportDialog) job() exportJob {
 // plainJob is the export as the dialog sets it up, without revisions.
 func (ed *ExportDialog) plainJob() exportJob {
 	return exportJob{
-		format:        selectedScriptFormat(ed.scriptFormatSelect),
+		format:        ed.window.lex().selectedFormat(ed.scriptFormatSelect),
+		conf:          ed.window.lex(),
 		page:          ed.documentPage(),
 		template:      strings.TrimSpace(ed.templateEntry.Text),
 		omitTitlePage: !ed.includeTitlePageCheck.Checked,
 		numberScenes:  ed.sceneNumbersCheck.Checked,
-		scenes:        sceneHeaders(ed.window.language),
+		scenes:        ed.window.sceneHeaders(),
 		colors:        ed.colorsCheck.Checked,
 		colorStyle:    ed.chosenColorStyle(),
 		colorBlock:    ed.colorBlockCheck.Checked,
@@ -622,7 +623,8 @@ func (ed *ExportDialog) chosenPage() string {
 // documentPage is the chosen paper's name for Lexington.
 func (ed *ExportDialog) documentPage() string {
 	if ed.documentPageSelect.Selected == documentPages[0] {
-		return scriptFormat(selectedScriptFormat(ed.scriptFormatSelect)).Page
+		conf := ed.window.lex()
+		return conf.format(conf.selectedFormat(ed.scriptFormatSelect)).Page
 	}
 	return strings.ToLower(ed.documentPageSelect.Selected)
 }

@@ -144,9 +144,9 @@ func newRibbon(w *MainWindow) *ribbonBar {
 	}
 	r.palette = newRibbonButton(r, cmd("app.palette"), false)
 	r.palette.iconOnly = true
-	r.format = newScriptFormatSelect(nil, func(key string) {
+	r.format = newScriptFormatSelect(w.lex, nil, func(key string) {
 		if !r.showing {
-			w.settings.SetString("script-format", key)
+			w.setScriptFormat(key)
 			_ = w.settings.Save()
 			w.app.applySettingsToWindows()
 		}
@@ -238,7 +238,7 @@ func (r *ribbonBar) refresh() {
 	}
 	r.stage = stage
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc),
-		boolKey(phone), string(rune('0' + stage + 1)), w.settings.GetString("script-format"), w.language}, "\x00")
+		boolKey(phone), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
 		r.phone = phone
@@ -351,8 +351,9 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 				continue
 			}
 			r.showing = true
-			r.format.SetOptions(scriptFormatNames())
-			selectScriptFormat(r.format, r.w.settings.GetString("script-format"))
+			conf := r.w.lex()
+			r.format.SetOptions(conf.formatNames())
+			conf.selectFormat(r.format, r.w.scriptFormatKey())
 			r.showing = false
 			addSmall(r.format)
 			continue
@@ -360,7 +361,7 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 			if env.markdown {
 				continue
 			}
-			for _, fb := range formatButtons(r.w.settings.GetString("script-format")) {
+			for _, fb := range r.w.lex().formatButtons(r.w.scriptFormatKey()) {
 				fb := fb
 				b := newRibbonButton(r, nil, false)
 				b.label, b.icon = fb.Label, theme.ContentAddIcon()
@@ -938,7 +939,7 @@ func newRibbonButton(r *ribbonBar, c *command, large bool) *ribbonButton {
 			b.label = c.text
 		}
 		if c.id == "write.place" { // in the script's language: BIN./BUI. in Dutch
-			if _, _, both, ok := placeWords(sceneHeaders(r.w.language)); ok {
+			if _, _, both, ok := placeWords(r.w.sceneHeaders()); ok {
 				b.label = both
 			}
 		}

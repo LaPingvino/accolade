@@ -114,6 +114,7 @@ func (w *MainWindow) NewMarkdownFile() {
 		w.currentFile, w.suggestedName = "", ""
 		w.plainBundle = ""
 		w.setBundle(nil)
+		w.setCarried(nil, "")
 		w.hasChanges = false
 		w.updateTitle()
 		w.updateStatusBar()

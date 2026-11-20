@@ -116,7 +116,7 @@ func (s *sourcePane) showReading(picked bool) {
 		v.box.Hide()
 		return
 	}
-	in, out, either, ok := placeWords(sceneHeaders(s.w.language))
+	in, out, either, ok := placeWords(s.w.sceneHeaders())
 	if !ok {
 		in, out, either = "INT.", "EXT.", "INT./EXT."
 	}

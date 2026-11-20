@@ -111,7 +111,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.languageSelect = widget.NewSelect(scriptLanguages(), nil)
 	pd.scriptFormatDesc = widget.NewLabel("")
 	pd.scriptFormatDesc.Wrapping = fyne.TextWrapWord
-	pd.scriptFormatSelect = newScriptFormatSelect(pd.scriptFormatDesc, func(string) { pd.showFormatButtons() })
+	pd.scriptFormatSelect = newScriptFormatSelect(machineLex, pd.scriptFormatDesc, func(string) { pd.showFormatButtons() })
 	fyne.SetAccessibleLabel(pd.scriptFormatSelect, "Script format")
 	pd.exportFormatSelect = widget.NewSelect(exportFormats, nil)
 	pd.yourNameEntry = widget.NewEntry()
@@ -225,7 +225,7 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 			container.NewVBox(pd.scriptFormatSelect, pd.scriptFormatDesc,
 				container.NewHBox(widget.NewButton("Edit Format…", pd.editFormat),
 					widget.NewButton("New Format from This…", pd.newFormat), pd.formatRemoveButton()),
-				container.NewHBox(widget.NewButton("Edit Lexington Settings…", pd.editLexington))),
+				container.NewHBox(widget.NewButton("Edit Lexington Settings…", pd.editLexington), pd.addSettingsButton())),
 		),
 		widget.NewCard("Language", "Of a new script: its scene headings (INT./EXT., EN./EKST., BIN./BUI., ...). A file named like scene.eo.fountain says its own.",
 			labelled("Language:", pd.languageSelect),
@@ -276,7 +276,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.autoCloseBracketsCheck.SetChecked(s.GetBoolean("auto-close-brackets"))
 	pd.keysSelect.SetSelected((&MainWindow{settings: s}).editorKeys())
 
-	selectScriptFormat(pd.scriptFormatSelect, s.GetString("script-format"))
+	machineLex().selectFormat(pd.scriptFormatSelect, s.GetString("script-format"))
 	pd.languageSelect.SetSelected(s.GetString("script-language"))
 	pd.exportFormatSelect.SetSelected(exportFormatLabel(s.GetString("export-format")))
 	pd.exportDirEntry.SetText(s.GetString("export-directory"))
@@ -330,7 +330,7 @@ func (pd *PreferencesDialog) saveSettings() {
 		s.SetBoolean("vim-mode", false) // the older setting
 	}
 
-	s.SetString("script-format", selectedScriptFormat(pd.scriptFormatSelect))
+	s.SetString("script-format", machineLex().selectedFormat(pd.scriptFormatSelect))
 	if pd.languageSelect.Selected != "" {
 		s.SetString("script-language", pd.languageSelect.Selected)
 	}
@@ -367,7 +367,7 @@ func (pd *PreferencesDialog) saveSettings() {
 // built-in one.
 func (pd *PreferencesDialog) formatRemoveButton() *widget.Button {
 	pd.removeFormatButton = widget.NewButton("Remove", func() {
-		key := selectedScriptFormat(pd.scriptFormatSelect)
+		key := machineLex().selectedFormat(pd.scriptFormatSelect)
 		what := "Remove the format " + scriptFormat(key).Name + "?"
 		if builtinFormat(key) {
 			what = "Forget your changes to " + scriptFormat(key).Name + ", and use the built-in one?"
@@ -396,7 +396,7 @@ func (pd *PreferencesDialog) showFormatButtons() {
 	if b == nil {
 		return
 	}
-	key := selectedScriptFormat(pd.scriptFormatSelect)
+	key := machineLex().selectedFormat(pd.scriptFormatSelect)
 	b.SetText("Remove")
 	if builtinFormat(key) {
 		b.SetText("Use the Built-in")
@@ -411,7 +411,7 @@ func (pd *PreferencesDialog) showFormatButtons() {
 // editFormat edits the chosen format's file (a built-in one: a changed
 // copy of one's own).
 func (pd *PreferencesDialog) editFormat() {
-	key := selectedScriptFormat(pd.scriptFormatSelect)
+	key := machineLex().selectedFormat(pd.scriptFormatSelect)
 	editTOML(pd.host, "Format: "+scriptFormat(key).Name, formatText(key),
 		"Written as Lexington's presets are: a Name, the format it starts from (Base) and the [Elements.…] that differ, with Accolade's toolbar buttons ([[Accolade.Buttons]]), which Lexington skips. Saved as "+key+".toml in your formats folder.",
 		nil, func(text string) error { return saveFormat(key, text) }, func() { pd.formatsChanged(key) })
@@ -419,7 +419,7 @@ func (pd *PreferencesDialog) editFormat() {
 
 // newFormat makes a format of one's own from the chosen one.
 func (pd *PreferencesDialog) newFormat() {
-	from := selectedScriptFormat(pd.scriptFormatSelect)
+	from := machineLex().selectedFormat(pd.scriptFormatSelect)
 	name := widget.NewEntry()
 	name.SetPlaceHolder("My " + scriptFormat(from).Name)
 	dialog.ShowForm("New Format from "+scriptFormat(from).Name, "Make", "Cancel",
@@ -440,18 +440,42 @@ func (pd *PreferencesDialog) newFormat() {
 // formatsChanged shows the formats again, key chosen.
 func (pd *PreferencesDialog) formatsChanged(key string) {
 	pd.scriptFormatSelect.SetOptions(scriptFormatNames())
-	selectScriptFormat(pd.scriptFormatSelect, key)
+	machineLex().selectFormat(pd.scriptFormatSelect, key)
 	pd.showFormatButtons()
 	pd.app.scriptFormatsChanged()
+}
+
+// addSettingsButton is Add to My Settings for an open script that brought
+// settings of its own (an .accolade's, lexington_carried.go); hidden if
+// none did.
+func (pd *PreferencesDialog) addSettingsButton() *widget.Button {
+	var from *MainWindow
+	if pd.app != nil {
+		for _, w := range pd.app.windows {
+			if !w.carried.empty() {
+				from = w
+				break
+			}
+		}
+	}
+	b := widget.NewButton("Add the Script's Settings…", func() {
+		if from != nil {
+			from.addToMySettings()
+		}
+	})
+	if from == nil {
+		b.Hide()
+	}
+	return b
 }
 
 // editLexington edits Lexington's settings: formats and languages of
 // one's own show here and in the windows after saving.
 func (pd *PreferencesDialog) editLexington() {
 	editLexingtonSettings(pd.host, func() {
-		format, lang := selectedScriptFormat(pd.scriptFormatSelect), pd.languageSelect.Selected
+		format, lang := machineLex().selectedFormat(pd.scriptFormatSelect), pd.languageSelect.Selected
 		pd.scriptFormatSelect.SetOptions(scriptFormatNames())
-		selectScriptFormat(pd.scriptFormatSelect, format)
+		machineLex().selectFormat(pd.scriptFormatSelect, format)
 		pd.languageSelect.SetOptions(scriptLanguages())
 		pd.languageSelect.SetSelected(lang)
 		pd.app.scriptFormatsChanged()

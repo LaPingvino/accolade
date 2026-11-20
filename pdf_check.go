@@ -23,7 +23,7 @@ func pdfWarning(content string, scenes []string) string {
 // Chromium browser on the computer there is no need to ask: exportAs has
 // it make the PDF.
 func (w *MainWindow) pdfOrPrint(content string, makePDF func()) {
-	warning := pdfWarning(content, sceneHeaders(w.language))
+	warning := pdfWarning(content, w.sceneHeaders())
 	if warning == "" || localBrowser() != "" { // a browser makes it (exportAs)
 		makePDF()
 		return

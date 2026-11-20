@@ -22,7 +22,7 @@ func TestLexingtonSettings(t *testing.T) {
 	if !slices.Contains(scriptFormatNames(), "mine") {
 		t.Errorf("formats: %v", scriptFormatNames())
 	}
-	if scriptFormatElements("mine") == nil {
+	if machineLex().formatElements("mine") == nil {
 		t.Error("no elements for mine")
 	}
 	if !slices.Contains(scriptLanguages(), "xx") || !slices.Contains(scriptLanguages(), "en") {

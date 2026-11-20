@@ -38,7 +38,7 @@ type saveAsAsk struct {
 func (w *MainWindow) showSaveAs() {
 	offered := w.offeredName()
 	now := cmp.Or(w.scriptName(), offered)
-	types := scriptTypes(w.markdown, inBrowser, now, w.language)
+	types := scriptTypes(w.lex(), w.markdown, inBrowser, now, w.language)
 	rec := recommendedType(w.markdown, w.hasProductionData())
 	current := typeOfName(now, w.markdown)
 	if w.currentFile == "" && w.suggestedName == "" { // nothing yet: the recommended one
@@ -61,7 +61,7 @@ func (w *MainWindow) showSaveAs() {
 	w.saveAsAsked = ask
 	sel := max(0, indexOfType(types, current))
 	keepsRow := func(t fileType) fyne.CanvasObject {
-		l := widget.NewLabel(t.keeps(w.markdown, inBrowser, w.language))
+		l := widget.NewLabel(t.keeps(w.lex(), w.markdown, inBrowser, w.language))
 		l.Wrapping = fyne.TextWrapWord
 		return container.NewBorder(nil, nil, container.NewGridWrap(fyne.NewSize(theme.IconInlineSize()+theme.Padding()*2, 1)), nil, l)
 	}
@@ -107,7 +107,7 @@ func (w *MainWindow) showSaveAs() {
 			label += " — " + strings.Join(marks, ", ")
 		}
 		radio := widget.NewRadioGroup([]string{label}, nil)
-		fyne.SetAccessibleLabel(radio, t.label+": "+t.keeps(w.markdown, inBrowser, w.language))
+		fyne.SetAccessibleLabel(radio, t.label+": "+t.keeps(w.lex(), w.markdown, inBrowser, w.language))
 		radio.OnChanged = func(s string) {
 			if setting {
 				return

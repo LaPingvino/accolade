@@ -61,36 +61,36 @@ func TestScriptTypes(t *testing.T) {
 		}
 		return strings.Join(s, " ")
 	}
-	if got := ids(scriptTypes(false, false, "a.fountain", "en")); got != "fountain accolade highland textpack textbundle markdown" {
+	if got := ids(scriptTypes(machineLex(), false, false, "a.fountain", "en")); got != "fountain accolade highland textpack textbundle markdown" {
 		t.Errorf("screenplay: %s", got)
 	}
-	if got := ids(scriptTypes(true, true, "a.md", "eo")); got != "markdown accolade highland textpack fountain" {
+	if got := ids(scriptTypes(machineLex(), true, true, "a.md", "eo")); got != "markdown accolade highland textpack fountain" {
 		t.Errorf("Markdown in the browser: %s", got)
 	}
-	ts := scriptTypes(false, false, "a.txt", "en")
+	ts := scriptTypes(machineLex(), false, false, "a.txt", "en")
 	if ts[0].id != "asis" || ts[0].ext != ".txt" {
 		t.Errorf("a .txt: %+v", ts[0])
 	}
 	for _, md := range []bool{false, true} {
-		for _, ty := range scriptTypes(md, false, "a.txt", "eo") {
-			if ty.keeps(md, false, "eo") == "" {
+		for _, ty := range scriptTypes(machineLex(), md, false, "a.txt", "eo") {
+			if ty.keeps(machineLex(), md, false, "eo") == "" {
 				t.Errorf("%s says nothing", ty.id)
 			}
 		}
 	}
-	if !strings.Contains(typeHighland.keeps(false, false, "en"), "may drop") {
+	if !strings.Contains(typeHighland.keeps(machineLex(), false, false, "en"), "may drop") {
 		t.Error("Highland's warning is missing")
 	}
 	// a script in Esperanto: standard Fountain and its dialect, each named
-	eo := scriptTypes(false, false, "film.eo.fountain", "eo")
+	eo := scriptTypes(machineLex(), false, false, "film.eo.fountain", "eo")
 	if got := ids(eo); got != "fountain dialect accolade highland textpack textbundle markdown" {
 		t.Errorf("Esperanto: %s", got)
 	}
 	if eo[1].label != "Esperanto Fountain" || eo[1].shownExt() != ".eo.fountain" || typeOfName("film.eo.fountain", false) != eo[1] {
 		t.Errorf("the dialect: %+v", eo[1])
 	}
-	if !strings.Contains(eo[1].keeps(false, false, "eo"), "won't see") || !strings.Contains(eo[0].keeps(false, false, "eo"), "/* Language: eo */") {
-		t.Errorf("their lines: %q, %q", eo[1].keeps(false, false, "eo"), eo[0].keeps(false, false, "eo"))
+	if !strings.Contains(eo[1].keeps(machineLex(), false, false, "eo"), "won't see") || !strings.Contains(eo[0].keeps(machineLex(), false, false, "eo"), "/* Language: eo */") {
+		t.Errorf("their lines: %q, %q", eo[1].keeps(machineLex(), false, false, "eo"), eo[0].keeps(machineLex(), false, false, "eo"))
 	}
 	if recommendedType(false, true) != typeAccolade || recommendedType(false, false) != typeFountain || recommendedType(true, true) != typeMarkdown {
 		t.Error("recommended")

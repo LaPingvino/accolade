@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,6 +74,10 @@ type exportJob struct {
 	// OMITTED" (the production block's setting, omitted_runs.go): every
 	// format but FDX and Fountain, the pages and their lock alike
 	mergeOmitted bool
+
+	// conf is the script's Lexington configuration (MainWindow.lex), its
+	// formats among the element sets; unset: the machine's files
+	conf lexConf
 }
 
 // options are Lexington's options for the job, writing as to to output.
@@ -95,6 +100,20 @@ func (j exportJob) options(to, output string) cli.Options {
 		LineTags:     j.lineTags,
 		SceneLengths: j.sceneLengths,
 		MergeOmitted: j.mergeOmitted,
+	}
+	if j.conf.Scenes != nil { // the script's own, with what it brought
+		conf := j.conf.TOMLConf
+		conf.Elements = maps.Clone(conf.Elements)
+		if conf.Elements == nil {
+			conf.Elements = map[string]rules.Set{}
+		}
+		for _, p := range j.conf.formats() {
+			conf.Elements[p.Key] = p.Elements
+		}
+		o.Conf, o.FormatDir = &conf, ""
+		if o.Page == "" {
+			o.Page = j.conf.format(j.format).Page
+		}
 	}
 	if j.colors { // (a style alone would switch colors on)
 		o.ColorStyle = string(j.colorStyle)

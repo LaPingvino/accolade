@@ -90,11 +90,17 @@ func formatFile(key string) string {
 func fileExists(p string) bool { _, err := os.Stat(p); return err == nil }
 
 // formatButtons are the buttons of the format with key, from its file.
-func formatButtons(key string) []formatButton {
+func formatButtons(key string) []formatButton { return machineLex().formatButtons(key) }
+
+// formatButtons are the buttons of the format with key, from its file:
+// the one the script brought, else the machine's.
+func (c lexConf) formatButtons(key string) []formatButton {
 	var f struct {
 		Accolade struct{ Buttons []formatButton }
 	}
-	if p := formatFile(key); p != "" {
+	if c.carried != nil && c.carried.formats[key] != nil {
+		_, _ = toml.Decode(string(c.carried.formats[key]), &f)
+	} else if p := formatFile(key); p != "" {
 		_, _ = toml.DecodeFile(p, &f)
 	}
 	return f.Accolade.Buttons

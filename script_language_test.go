@@ -31,11 +31,11 @@ func TestChangedLine(t *testing.T) {
 		var words map[string]string
 		if c.how == translateHeadings {
 			words = map[string]string{}
-			for _, p := range proposedWords(c.line, c.from, c.to) {
+			for _, p := range machineLex().proposedWords(c.line, c.from, c.to) {
 				words[p.tag] = p.word
 			}
 		}
-		if got, _, _ := changedLine(c.line, c.from, c.to, c.how, words); got != c.want {
+		if got, _, _ := machineLex().changedLine(c.line, c.from, c.to, c.how, words); got != c.want {
 			t.Errorf("%q %s->%s (%d): got %q, want %q", c.line, c.from, c.to, c.how, got, c.want)
 		}
 	}
@@ -43,7 +43,7 @@ func TestChangedLine(t *testing.T) {
 
 func TestProposedWords(t *testing.T) {
 	text := "Title: X\n\nINT. ROOM - DAY\n\nHe waits.\n\nEXT. ROAD - NIGHT\n\nINT. HALL\n\nEST. CITY - DAY\n"
-	props := proposedWords(text, "en", "nl")
+	props := machineLex().proposedWords(text, "en", "nl")
 	want := []wordProposal{{"INT", 2, "BIN."}, {"EXT", 1, "BUI."}, {"EST", 1, "BUI."}}
 	if len(props) != len(want) {
 		t.Fatalf("got %v, want %v", props, want)
@@ -56,7 +56,7 @@ func TestProposedWords(t *testing.T) {
 	// the writer's choice: EST. typed as OPEN., INT. cleared
 	words := map[string]string{"INT": "", "EXT": "BUI.", "EST": "OPEN."}
 	// something uncommon typed: it goes in with a dot, a heading anyway
-	if got, _, _ := changedLine("EXT. GARDEN", "en", "nl", translateHeadings, map[string]string{"EXT": "TUIN."}); got != ".TUIN. GARDEN" {
+	if got, _, _ := machineLex().changedLine("EXT. GARDEN", "en", "nl", translateHeadings, map[string]string{"EXT": "TUIN."}); got != ".TUIN. GARDEN" {
 		t.Errorf("uncommon word: got %q", got)
 	}
 	for line, want := range map[string]string{
@@ -64,11 +64,11 @@ func TestProposedWords(t *testing.T) {
 		"EST. CITY - DAY": "OPEN. CITY - DAY",
 		"EXT. ROAD":       "BUI. ROAD",
 	} {
-		if got, _, _ := changedLine(line, "en", "nl", translateHeadings, words); got != want {
+		if got, _, _ := machineLex().changedLine(line, "en", "nl", translateHeadings, words); got != want {
 			t.Errorf("%q: got %q, want %q", line, got, want)
 		}
 	}
-	if changed, kept, _ := headingChanges(text, "en", "nl", translateHeadings, words); changed != 4 || kept != 2 {
+	if changed, kept, _ := machineLex().headingChanges(text, "en", "nl", translateHeadings, words); changed != 4 || kept != 2 {
 		t.Errorf("got %d changed, %d kept; want 4, 2", changed, kept)
 	}
 }
@@ -111,7 +111,7 @@ func TestSceneStartsKeepTheDot(t *testing.T) {
 
 func TestActionLinesKeepAction(t *testing.T) {
 	text := "EXT./INT. CAR - DAY\n\nEne de la aŭto li dormas.\n\nINT. ROOM\n\nEk al la laboro!\nEne de tio, nenio.\n"
-	out, headings, _, actions := changedLines(strings.Split(text, "\n"), "en", "eo", translateHeadings,
+	out, headings, _, actions := machineLex().changedLines(strings.Split(text, "\n"), "en", "eo", translateHeadings,
 		map[string]string{"EXT./INT": "EKST./EN.", "INT": "EN."})
 	want := "EKST./EN. CAR - DAY\n\n!Ene de la aŭto li dormas.\n\nEN. ROOM\n\n!Ek al la laboro!\nEne de tio, nenio.\n"
 	if got := strings.Join(out, "\n"); got != want || headings != 2 || actions != 2 {
@@ -119,15 +119,15 @@ func TestActionLinesKeepAction(t *testing.T) {
 	}
 	// back to English: the !s are no longer needed, and go
 	// marking changes nothing: the text is read as written
-	if marked, _, _, n := changedLines(out, "eo", "en", markLanguage, nil); strings.Join(marked, "\n") != strings.Join(out, "\n") || n != 0 {
+	if marked, _, _, n := machineLex().changedLines(out, "eo", "en", markLanguage, nil); strings.Join(marked, "\n") != strings.Join(out, "\n") || n != 0 {
 		t.Errorf("marking changed %d lines", n)
 	}
-	back, _, _, actions := changedLines(out, "eo", "en", fountainForm, nil)
+	back, _, _, actions := machineLex().changedLines(out, "eo", "en", fountainForm, nil)
 	if got := strings.Join(back, "\n"); !strings.Contains(got, "\n\nEne de la aŭto") || !strings.Contains(got, "\n\nEk al la laboro!") || actions != 2 {
 		t.Errorf("back, %d actions:\n%s", actions, got)
 	}
 	// a ! that is there for another reason stays
-	if got := actionLine("!SHOUTING IN CAPS", "eo", "en"); got != "!SHOUTING IN CAPS" {
+	if got := machineLex().actionLine("!SHOUTING IN CAPS", "eo", "en"); got != "!SHOUTING IN CAPS" {
 		t.Errorf("other !: %q", got)
 	}
 }

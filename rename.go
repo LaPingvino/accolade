@@ -142,7 +142,7 @@ func (p *planPanel) show(r relocation) {
 	}
 	fromKind, toKind := w.kinds(r)
 	var extra []fyne.CanvasObject
-	if lang, _ := w.langAfter(r); !w.markdown && dialect(lang) && strings.EqualFold(filepath.Ext(r.to), typeAccolade.ext) {
+	if lang, _ := w.langAfter(r); !w.markdown && w.lex().dialect(lang) && strings.EqualFold(filepath.Ext(r.to), typeAccolade.ext) {
 		extra = append(extra, p.copy)
 	}
 	if fromKind != notBundle && toKind == notBundle && w.bundle != nil && len(w.bundle.extras) > 0 {
@@ -179,7 +179,7 @@ func (w *MainWindow) renameScript() {
 	base := widget.NewEntry()
 	base.SetText(parts.base)
 	fyne.SetAccessibleLabel(base, "Name")
-	langs := scriptLanguages()
+	langs := w.lex().languages()
 	langLabels := make([]string, len(langs))
 	for i, l := range langs {
 		langLabels[i] = languageLabel(l)
@@ -192,7 +192,7 @@ func (w *MainWindow) renameScript() {
 	// the types for a language: its dialect among them; the type picked
 	// stays (a dialect another language's)
 	setTypes := func(l string, keep fileType) {
-		types = scriptTypes(w.markdown, inBrowser, old, l)
+		types = scriptTypes(w.lex(), w.markdown, inBrowser, old, l)
 		labels := make([]string, len(types))
 		for i, t := range types {
 			labels[i] = t.label + " (" + t.shownExt() + ")"
@@ -200,7 +200,7 @@ func (w *MainWindow) renameScript() {
 		kind.Options = labels
 		if keep.id == "dialect" {
 			keep = dialectType(l)
-			if !dialect(l) && languageOf(old) != l {
+			if !w.lex().dialect(l) && languageOf(old) != l {
 				keep = typeFountain
 			}
 		}
@@ -270,7 +270,7 @@ func (w *MainWindow) renameScript() {
 			setting = false
 		}
 		l, t := picked()
-		keeps.SetText(t.keeps(w.markdown, inBrowser, l))
+		keeps.SetText(t.keeps(w.lex(), w.markdown, inBrowser, l))
 		n := renamedName(name(), old)
 		if n == "" {
 			result.SetText("Becomes: (no name yet)")
@@ -280,7 +280,7 @@ func (w *MainWindow) renameScript() {
 		r := target()
 		becomes := "Becomes: " + n
 		if lang, _ := w.langAfter(r); !w.markdown && !isMarkdownFile(n) && languageOf(n) == "" &&
-			languageHome(n, lang, w.languageSaid || r.lang != "", bundleKindOf(n)) != "" {
+			languageHome(w.lex(), n, lang, w.languageSaid || r.lang != "", bundleKindOf(n)) != "" {
 			becomes += "  (" + languageName(lang) + " inside)" // the Language row says where
 		}
 		result.SetText(becomes)

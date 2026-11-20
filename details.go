@@ -201,7 +201,7 @@ func minutes(lines int) string {
 
 // showStatistics shows the script's statistics.
 func (w *MainWindow) showStatistics() {
-	d := detailsOf(w.textEditor.Text(), sceneHeaders(w.language), currentScriptFormat())
+	d := detailsOf(w.textEditor.Text(), w.sceneHeaders(), w.currentScriptFormat())
 	row := func(label, value string) fyne.CanvasObject {
 		v := widget.NewLabel(value)
 		v.Alignment = fyne.TextAlignTrailing

@@ -18,6 +18,8 @@ A script's language sets the words a scene heading starts with: EN. and EKST. in
 - **`film.fountain`** — standard Fountain, for any app: a scene heading only the language knows gets Fountain's force mark (`.EN. DOMO - TAGO`), a line English would take for a heading but the language does not gets `!` (action) or `@` (a character), and the language is kept in a last line, `/* Language: eo */`, which no app prints. Accolade takes the marks and the line back when it opens the file, so you see the script as written; a mark you put on purpose stays. (A line inside a speech has no force mark: one starting INT. there is read as a heading by other apps.) A .fountain that says no language is read in the language set in the Preferences and saved exactly as it is: only a language the file says, or you choose (the rename editor, Edit > Script Language…, Save As), is written this way. Which words are "standard" is Lexington's setting (`Standard`, English unless changed), and every language's words come from its `[Scenes]` (Preferences > Script); Lexington's parser decides each mark, so a language you add there works the same way.
 - **a bundle** (.accolade, .highland, .textpack, .textbundle) — the name never says the language; `info.json` does (Accolade's entry, `"language": "eo"`). The bundle holds the script twice from the same text: `text.eo.fountain` as written, the one Accolade reads, and `text.fountain` as standard Fountain for Highland and other apps, which ignore the other file. An .accolade may leave `text.fountain` out (*Keep a plain Fountain copy inside*, in the rename editor and Save As; on by default). If another app changed `text.fountain` since Accolade saved it, that change wins when you open the bundle: its force marks are taken back, the script as it was before is kept as a draft, and the status line says so (Collaboration > Compare… shows what changed). A bundle from before, named `film.eo.highland`, is still read in Esperanto.
 
+A language of your own goes along in an .accolade, so the script reads the same on a machine without it (see [Settings that travel with an .accolade](#settings-that-travel-with-an-accolade)); a plain .fountain or another app's bundle does not take it along.
+
 A Markdown document has no script language. Edit > Script Language… changes the language: a plain file's name follows (`film.eo.fountain`), a bundle is saved with the new one inside.
 
 ## Markdown documents
@@ -49,7 +51,7 @@ To hand a script to someone else, use File > Export… (PDF, Final Draft, Founta
 
 A bundle keeps the text and everything that goes with it in one file. All of them are TextBundles inside: an `info.json`, the text (`text.fountain` or `text.md`), and an `assets/` folder.
 
-- **.accolade** — Accolade's own: a Highland bundle plus Accolade's drafts and production files under `assets/`. Save As recommends it once a script has drafts or a lock.
+- **.accolade** — Accolade's own: a Highland bundle plus Accolade's drafts and production files under `assets/`, and the Lexington settings its script uses (below). Save As recommends it once a script has drafts or a lock.
 - **.highland** — Highland 2's file. Accolade opens and saves it, and keeps everything Highland put in it. A .highland that is not a zip is read as plain Fountain. Saving drafts or production files into a .highland works, and Accolade says once per file that Highland may not keep them.
 - **.textpack** — a TextBundle zipped.
 - **.textbundle** — a TextBundle folder. Open goes into the folder and opens its text. Desktop only.
@@ -57,6 +59,20 @@ A bundle keeps the text and everything that goes with it in one file. All of the
 Whether the text is a screenplay or Markdown comes from the text file's name inside. A screenplay in another language than English keeps it in `info.json` and holds `text.eo.fountain` beside `text.fountain` (see [A script in another language](#a-script-in-another-language)).
 
 On save, Accolade changes only the text, its own entry in `info.json` and its own files. Every other file in the bundle is copied as it was, so another app's data survives. A script's source can live in the bundle too, as `assets/source.md` (see [Adapting a Story](adapting.md#where-the-source-is-kept)).
+
+### Settings that travel with an .accolade
+
+A language or a script format of your own (Preferences > Script: Edit Lexington Settings…, New Format from This…) lives in your settings, so another machine would not know it. An .accolade takes along what its script uses, so it reads and prints the same anywhere:
+
+- `assets/lexington/lexington.toml` — the script's language's scene words and matchup, which language is standard Fountain's (`Standard`) and its words, in full — even when they are Lexington's own, so the script reads the same on a machine whose words for that language were changed — and a format kept in your Lexington settings if it differs from Lexington's defaults;
+- `assets/lexington/formats/name.toml` — the script's format, if it is one of your own, and any of your own it starts from (`Base`);
+- `info.json` names the format (Accolade's entry, `"format": "my-radio"`): an .accolade keeps its own format, whatever the one chosen for new scripts.
+
+Opening it, these are used for that script only, over your own settings: its own wins for it, other scripts and windows keep yours, and nothing in your settings changes. Saving it again takes them along again. If it brought something you do not have, or have otherwise under the same name, the status line says so.
+
+**File > Add to My Settings…** (also on Preferences > Script while such a script is open) lists what the script brought and copies it into your settings. Something you have none of is added (untick it to leave it out). Something you have under the same name but otherwise shows both, yours and theirs, with a choice: **Keep mine** (the default: nothing of yours changes), **Take theirs** (replaces yours), or **Keep both** (theirs added under another name, `xq-2`, which this script then uses). Nothing is overwritten without that choice. Your lexington.toml is changed as text, its comments and the rest left as they are; if it is written in a way Accolade cannot add to safely, nothing is changed and you are told so.
+
+Only an .accolade carries them: a .highland, .textpack, .textbundle or plain .fountain made from it leaves them out (the script there reads your settings), and Save As or a rename to one of those writes the file anew without them. In the browser, your settings are the ones it keeps.
 
 ### Saving a bundle as plain Fountain
 

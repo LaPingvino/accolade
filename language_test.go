@@ -48,7 +48,7 @@ func TestEsperantoScript(t *testing.T) {
 	if c := completeAt(esperanto+"\nEN", len([]rune(esperanto))+3, w.sceneStarts()); c == nil || c.candidates[0] != "EN. KUIREJO - TAGO" {
 		t.Errorf("completion %+v", c)
 	}
-	s := exportJob{scenes: sceneHeaders(w.language)}.script(w.textEditor.Text())
+	s := exportJob{scenes: w.sceneHeaders()}.script(w.textEditor.Text())
 	scenes := 0
 	for _, l := range s {
 		if l.Type == "scene" {

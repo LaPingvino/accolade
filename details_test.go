@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/LaPingvino/lexington/rules"
 )
 
 func TestDetails(t *testing.T) {
@@ -58,7 +60,7 @@ func TestInsideOutside(t *testing.T) {
 // Scenes tallied by their heading's start as written, and inside or
 // outside, in the script's language.
 func TestDetailsTags(t *testing.T) {
-	d := detailsOf("EN. DOMO - TAGO\n\nPluvas.\n\nEKST. KAMPO - NOKTO\n\nVento.\n\nEN. KUIREJO - TAGO\n\nFajro.\n\nEN/EKST. AŬTO - TAGO\n\nVojo.\n", sceneHeaders("eo"), currentScriptFormat())
+	d := detailsOf("EN. DOMO - TAGO\n\nPluvas.\n\nEKST. KAMPO - NOKTO\n\nVento.\n\nEN. KUIREJO - TAGO\n\nFajro.\n\nEN/EKST. AŬTO - TAGO\n\nVojo.\n", sceneHeaders("eo"), rules.Default)
 	if d.Interior != 3 || d.Exterior != 2 {
 		t.Errorf("inside %d, outside %d", d.Interior, d.Exterior)
 	}

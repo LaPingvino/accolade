@@ -74,6 +74,15 @@ type MainWindow struct {
 	// noFountainCopy: the script's .accolade keeps no text.fountain beside
 	// its language's text (script_text.go)
 	noFountainCopy bool
+	// carried is the Lexington configuration the script brought (an
+	// .accolade's, lexington_carried.go), laid over the machine's for it
+	// only; nil for none
+	carried *carriedConf
+	// ownFormat is the script's format when its .accolade names one
+	// (else the settings' "script-format"), scriptFormatKey
+	ownFormat string
+	// adoptAsked is the Add to My Settings dialog shown last (for tests)
+	adoptAsked *adoptDialog
 	// languageSaid: the script's language was said (by its file, or chosen
 	// since), not only assumed from the preferences (script_text.go)
 	languageSaid bool
@@ -371,14 +380,31 @@ func (w *MainWindow) applyEditorSettings() {
 	w.applyScriptFormat()
 }
 
+// setCarried makes c what the script brought and format its own format
+// ("" the settings'), as a document is opened or made.
+func (w *MainWindow) setCarried(c *carriedConf, format string) {
+	if c == w.carried && format == w.ownFormat {
+		return
+	}
+	w.carried, w.ownFormat = c, format
+	if w.textEditor == nil {
+		return
+	}
+	w.applyScriptFormat()
+	if w.headerBar != nil && w.headerBar.format != nil {
+		w.headerBar.showFormats()
+	}
+	w.ribbonRefresh()
+}
+
 // applyScriptFormat lays the editor out in the script format's columns.
 func (w *MainWindow) applyScriptFormat() {
-	w.textEditor.Format, w.textEditor.PageColumns = editorFormat(currentScriptFormat())
+	w.textEditor.Format, w.textEditor.PageColumns = editorFormat(w.currentScriptFormat())
 	if w.markdown { // prose: a column of text, no screenplay layout
 		w.textEditor.Format, w.textEditor.PageColumns = nil, markdownColumns
 	}
 	w.textEditor.Refresh()
-	w.shareMeta("format", w.settings.GetString("script-format"))
+	w.shareMeta("format", w.scriptFormatKey())
 }
 
 func setVisible(o fyne.CanvasObject, visible bool) {
@@ -429,6 +455,12 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	w.plainBundle = plain
 	w.setBundle(bundle)
 	w.forgetUnsavedExtras()
+	// what an .accolade brought, for this script only (lexington_carried.go)
+	if bundle != nil && carriesConf(filePath) {
+		w.setCarried(bundle.carried, bundle.ours.Format)
+	} else {
+		w.setCarried(nil, "")
+	}
 
 	// as stored: Windows-1252, a byte order mark, CR LF are kept for saving
 	text, format := decodeScript(content)
@@ -451,7 +483,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 		text, lang = plainFileText(filePath, text)
 	}
 	if bundle != nil && !w.markdown { // a bundle saying none is standard Fountain
-		lang = cmp.Or(lang, standardLanguage())
+		lang = cmp.Or(lang, w.lex().standard())
 	}
 	w.setLanguage(lang) // none: the preferences', assumed
 	w.languageSaid = lang != ""
@@ -474,6 +506,10 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	if before != "" {
 		w.setStatus("text.fountain was changed in another app: that change is the script now; the script before it " +
 			"is kept as a draft (Collaboration > Compare… shows the change)")
+	} else if msg := w.carried.broughtStatus(); msg != "" {
+		w.setStatus(msg)
+	} else if f := w.ownFormat; f != "" && !w.lex().hasFormat(f) {
+		w.setStatus("This script's format, " + f + ", is not here: it is shown as a screenplay")
 	}
 
 	return nil
@@ -485,14 +521,15 @@ func (w *MainWindow) LoadFile(filePath string) error {
 // — then that, its force marks taken back, and before is the language's
 // text it replaces.
 func bundleScriptText(b *textBundle, content []byte, text string) (now, before string) {
+	conf := b.lex()
 	if b.native == "" {
-		return dialectFountain(text, b.lang), ""
+		return conf.dialectFountain(text, b.lang), ""
 	}
 	native, _ := decodeScript(b.nativeText)
 	if b.noText {
 		return native, ""
 	}
-	theirs := dialectFountain(text, b.lang)
+	theirs := conf.dialectFountain(text, b.lang)
 	changed := theirs != native
 	if h := b.ours.FountainHash; h != "" {
 		changed = h != fountainHash(content) && changed
@@ -551,6 +588,7 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.filledWith = w.textEditor.Text()
 	w.currentFile, w.plainBundle = "", ""
 	w.setBundle(nil)
+	w.setCarried(nil, "")
 	w.suggestedName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)) + ".fountain"
 	w.hasChanges = true
 	w.updateTitle()
@@ -705,6 +743,8 @@ func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
 			return fmt.Errorf("a .textbundle is a folder, which the browser cannot save: use .textpack")
 		}
 		markdown, gen, lang, noCopy := w.markdown, w.bundleGen, w.language, !w.keepsFountainCopy(filePath)
+		conf, format := w.lex(), w.scriptFormatKey()
+		carry := carryFor(conf, lang, format)
 		var extra []bundleFile
 		if w.bundle == nil { // a plain script made a bundle: its extras carried in
 			var err error
@@ -723,7 +763,7 @@ func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {
 				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra, source: source,
-					highlandWarned: warn, native: native, lang: lang, noCopy: noCopy})
+					highlandWarned: warn, native: native, lang: lang, noCopy: noCopy, conf: conf, carry: carry, format: format})
 			},
 			done: func(err error) {
 				if err == nil && warn {
@@ -878,19 +918,20 @@ func (w *MainWindow) setLanguage(lang string) {
 	if lang == "" && w.settings != nil {
 		lang = w.settings.GetString("script-language")
 	}
-	if sceneConf[lang] == nil {
+	conf := w.lex()
+	if !conf.knows(lang) {
 		lang = "en"
 	}
 	w.language = lang
 	if w.headerBar != nil && w.headerBar.place != nil {
 		// the place button in the language: BIN./BUI. in Dutch
-		if _, _, both, ok := placeWords(sceneHeaders(lang)); ok {
+		if _, _, both, ok := placeWords(conf.headers(lang)); ok {
 			w.headerBar.place.SetText(both)
 		}
 	}
 	w.ribbonRefresh() // its place button too
 	if w.textEditor != nil {
-		w.textEditor.SceneStarts = sceneStarts(lang)
+		w.textEditor.SceneStarts = conf.starts(lang)
 		w.textEditor.Refresh()
 	}
 	w.shareMeta("language", lang)
@@ -902,7 +943,7 @@ func (w *MainWindow) sceneStarts() []string {
 	if w == nil {
 		return nil
 	}
-	return sceneStarts(w.language)
+	return w.lex().starts(w.language)
 }
 
 // newScriptTemplate is what a new script starts with: a title page and
@@ -949,6 +990,7 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.textEditor.SetText(text)
 	w.currentFile, w.plainBundle = "", ""
 	w.setBundle(nil)
+	w.setCarried(nil, "")
 	w.hasChanges = false
 	w.updateTitle()
 	w.updateStatusBar()
@@ -1712,7 +1754,8 @@ func (w *MainWindow) cyclePane(step int) {
 // settings, for the preview and printing.
 func (w *MainWindow) savedExportJob() exportJob {
 	return exportJob{
-		format:        w.settings.GetString("script-format"),
+		format:        w.scriptFormatKey(),
+		conf:          w.lex(),
 		page:          w.settings.GetString("page-size"),
 		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
 		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
@@ -1722,7 +1765,7 @@ func (w *MainWindow) savedExportJob() exportJob {
 		colorTint:     w.settings.GetBoolean("export-color-tint"),
 		colorPatterns: w.settings.GetBoolean("export-color-patterns"),
 		pagination:    w.settings.GetString("export-pagination"),
-		scenes:        sceneHeaders(w.language),
+		scenes:        w.sceneHeaders(),
 		continueds:    w.settings.GetBoolean(continuedsPref),
 	}
 }

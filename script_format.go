@@ -14,20 +14,28 @@ import (
 
 // scriptFormats are the formats: Lexington's presets, Accolade's and
 // one's own (format files, format_buttons.go), then the element sets of
-// Lexington's settings.
-func scriptFormats() []rules.Preset {
+// Lexington's settings; a script's (lexConf.formats) with what it
+// brought over them.
+func scriptFormats() []rules.Preset { return machineLex().formats() }
+
+func (c lexConf) formats() []rules.Preset {
 	out, _ := rules.PresetsIn(builtinFormatDir(), userFormatDir())
-	for _, k := range customFormats() {
+	for _, k := range c.customFormats() {
 		if !slices.ContainsFunc(out, func(p rules.Preset) bool { return p.Key == k }) {
-			out = append(out, rules.Preset{Key: k, Name: k, Description: "Your own, from the Lexington settings.", Elements: lexSettings.Elements[k]})
+			out = append(out, rules.Preset{Key: k, Name: k, Description: "Your own, from the Lexington settings.", Elements: c.Elements[k]})
 		}
+	}
+	if c.carried != nil && len(c.carried.formats) > 0 {
+		out, _ = rules.WithPresetFiles(out, c.carried.formats)
 	}
 	return out
 }
 
 // scriptFormat is the format with key, or the screenplay's.
-func scriptFormat(key string) rules.Preset {
-	for _, p := range scriptFormats() {
+func scriptFormat(key string) rules.Preset { return machineLex().format(key) }
+
+func (c lexConf) format(key string) rules.Preset {
+	for _, p := range c.formats() {
 		if p.Key == key {
 			return p
 		}
@@ -36,24 +44,50 @@ func scriptFormat(key string) rules.Preset {
 	return p
 }
 
-// scriptFormatElements are the element rules of the format with key.
-func scriptFormatElements(key string) rules.Set {
-	if p := scriptFormat(key); p.Elements != nil {
+// hasFormat tells whether there is a format with key.
+func (c lexConf) hasFormat(key string) bool {
+	return slices.ContainsFunc(c.formats(), func(p rules.Preset) bool { return p.Key == key })
+}
+
+// formatElements are the element rules of the format with key.
+func (c lexConf) formatElements(key string) rules.Set {
+	if p := c.format(key); p.Elements != nil {
 		return p.Elements
 	}
 	return rules.Default
 }
 
-// currentScriptFormat is the element rules of the format in the settings.
-func currentScriptFormat() rules.Set {
-	return scriptFormatElements(GetSettings().GetString("script-format"))
+// scriptFormatKey is the key of the script's format: the one its
+// .accolade names, else the one in the settings.
+func (w *MainWindow) scriptFormatKey() string {
+	if w.ownFormat != "" {
+		return w.ownFormat
+	}
+	return w.settings.GetString("script-format")
 }
 
-// newScriptFormatSelect is a choice of the formats by name, showing the
-// chosen one's description in desc; changed gets the chosen key.
-func newScriptFormatSelect(desc *widget.Label, changed func(key string)) *widget.Select {
-	return widget.NewSelect(scriptFormatNames(), func(name string) {
-		for _, p := range scriptFormats() {
+// setScriptFormat makes key the script's format: the settings' too (the
+// one new scripts start with), unless only the script has it.
+func (w *MainWindow) setScriptFormat(key string) {
+	if machineLex().hasFormat(key) {
+		w.ownFormat = ""
+		w.settings.SetString("script-format", key)
+		return
+	}
+	w.ownFormat = key
+}
+
+// currentScriptFormat is the element rules of the script's format.
+func (w *MainWindow) currentScriptFormat() rules.Set {
+	return w.lex().formatElements(w.scriptFormatKey())
+}
+
+// newScriptFormatSelect is a choice of the formats by name (conf's: the
+// machine's, or a script's), showing the chosen one's description in
+// desc; changed gets the chosen key.
+func newScriptFormatSelect(conf func() lexConf, desc *widget.Label, changed func(key string)) *widget.Select {
+	return widget.NewSelect(conf().formatNames(), func(name string) {
+		for _, p := range conf().formats() {
 			if p.Name == name {
 				if desc != nil {
 					desc.SetText(p.Description)
@@ -61,26 +95,29 @@ func newScriptFormatSelect(desc *widget.Label, changed func(key string)) *widget
 				if changed != nil {
 					changed(p.Key)
 				}
+				return
 			}
 		}
 	})
 }
 
 // scriptFormatNames are the formats' names, in order.
-func scriptFormatNames() []string {
+func scriptFormatNames() []string { return machineLex().formatNames() }
+
+func (c lexConf) formatNames() []string {
 	var names []string
-	for _, p := range scriptFormats() {
+	for _, p := range c.formats() {
 		names = append(names, p.Name)
 	}
 	return names
 }
 
 // selectScriptFormat shows the format with key in s.
-func selectScriptFormat(s *widget.Select, key string) { s.SetSelected(scriptFormat(key).Name) }
+func (c lexConf) selectFormat(s *widget.Select, key string) { s.SetSelected(c.format(key).Name) }
 
-// selectedScriptFormat is the key of the format chosen in s.
-func selectedScriptFormat(s *widget.Select) string {
-	for _, p := range scriptFormats() {
+// selectedFormat is the key of the format chosen in s.
+func (c lexConf) selectedFormat(s *widget.Select) string {
+	for _, p := range c.formats() {
 		if p.Name == s.Selected {
 			return p.Key
 		}

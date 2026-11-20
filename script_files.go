@@ -103,7 +103,7 @@ func hasTypeExt(name string) bool {
 // plain type last (it switches the document); a current name with
 // another plain extension adds "as it is" first. The browser has no
 // folders.
-func scriptTypes(markdown, browser bool, current, lang string) []fileType {
+func scriptTypes(c lexConf, markdown, browser bool, current, lang string) []fileType {
 	own, other := typeFountain, typeMarkdown
 	if markdown {
 		own, other = typeMarkdown, typeFountain
@@ -113,7 +113,7 @@ func scriptTypes(markdown, browser bool, current, lang string) []fileType {
 		ts = append(ts, t)
 	}
 	ts = append(ts, own)
-	if !markdown && (dialect(lang) || (lang != "" && languageOf(current) == lang)) { // film.en.fountain too, as it is
+	if !markdown && (c.dialect(lang) || (lang != "" && languageOf(current) == lang)) { // film.en.fountain too, as it is
 		ts = append(ts, dialectType(lang))
 	}
 	ts = append(ts, typeAccolade, typeHighland, typeTextPack)
@@ -125,7 +125,7 @@ func scriptTypes(markdown, browser bool, current, lang string) []fileType {
 
 // keeps is the one line saying what a type keeps, for a script in
 // language lang.
-func (t fileType) keeps(markdown, browser bool, lang string) string {
+func (t fileType) keeps(c lexConf, markdown, browser bool, lang string) string {
 	doc := "the script"
 	if markdown {
 		doc = "the document"
@@ -139,7 +139,7 @@ func (t fileType) keeps(markdown, browser bool, lang string) string {
 		if markdown {
 			return "Makes the document a screenplay, as plain Fountain."
 		}
-		if dialect(lang) {
+		if c.dialect(lang) {
 			return "Standard Fountain, for any Fountain app: a line only " + languageName(lang) + "'s words make a scene heading " +
 				"gets Fountain's force mark (.), the language kept in a last /* Language: " + lang + " */ line; " + extras + "."
 		}
@@ -153,14 +153,14 @@ func (t fileType) keeps(markdown, browser bool, lang string) string {
 		}
 		return "Plain Markdown, for any editor: the document; " + extras + "."
 	case "accolade":
-		if !markdown && dialect(lang) {
+		if !markdown && c.dialect(lang) {
 			doc = "the script (text." + lang + ".fountain, and a standard text.fountain if kept)"
 		}
 		return "Accolade's own: everything in one file — " + doc + ", its source, drafts and production files."
 	case "highland":
-		return "For Highland 2: one file Highland opens. Highland may drop Accolade's drafts and source when it saves." + inside(markdown, lang)
+		return "For Highland 2: one file Highland opens. Highland may drop Accolade's drafts and source when it saves." + inside(c, markdown, lang)
 	case "textpack":
-		return "A zipped TextBundle, for other TextBundle apps: " + doc + ", with Accolade's files under assets/." + inside(markdown, lang)
+		return "A zipped TextBundle, for other TextBundle apps: " + doc + ", with Accolade's files under assets/." + inside(c, markdown, lang)
 	case "textbundle":
 		return "A TextBundle folder (desktop only): the same as a TextPack, unzipped, for version control."
 	case "asis":
@@ -171,8 +171,8 @@ func (t fileType) keeps(markdown, browser bool, lang string) string {
 
 // inside is what a bundle says of a script's language: other apps read
 // its standard text.fountain.
-func inside(markdown bool, lang string) string {
-	if markdown || !dialect(lang) {
+func inside(c lexConf, markdown bool, lang string) string {
+	if markdown || !c.dialect(lang) {
 		return ""
 	}
 	return " Its text.fountain is standard Fountain; Accolade reads text." + lang + ".fountain beside it."
@@ -271,14 +271,14 @@ func (w *MainWindow) diskForm(path, lang string, noCopy, said bool, kind bundleK
 	case w.markdown:
 		return "markdown"
 	case kind != notBundle:
-		if !dialect(lang) {
+		if !w.lex().dialect(lang) {
 			return "bundle"
 		}
 		copied := !noCopy || !strings.EqualFold(filepath.Ext(path), typeAccolade.ext)
 		return fmt.Sprintf("bundle %s %v", lang, copied)
 	case languageOf(path) != "":
 		return "dialect"
-	case dialect(lang) && said:
+	case w.lex().dialect(lang) && said:
 		return "standard " + lang
 	}
 	return "plain"
@@ -289,15 +289,19 @@ func (w *MainWindow) diskForm(path, lang string, noCopy, said bool, kind bundleK
 func (w *MainWindow) reforms(r relocation) bool {
 	fromKind, toKind := w.kinds(r)
 	lang, noCopy := w.langAfter(r)
+	if toKind == bundleZip && carriesConf(r.from) != carriesConf(r.to) && !w.markdown &&
+		(carryFor(w.lex(), lang, w.scriptFormatKey()) != nil || (w.bundle != nil && len(w.bundle.carriedNames) > 0)) {
+		return true // only an .accolade carries the settings it uses (lexington_carried.go)
+	}
 	return w.diskForm(r.from, w.language, w.noFountainCopy, w.languageSaid, fromKind) !=
 		w.diskForm(r.to, lang, noCopy, w.languageSaid || r.lang != "", toKind)
 }
 
 // languageHome is where a script's language is kept in a file, "" for
 // the standard language.
-func languageHome(path, lang string, said bool, kind bundleKind) string {
+func languageHome(c lexConf, path, lang string, said bool, kind bundleKind) string {
 	switch {
-	case !dialect(lang) || (!said && kind == notBundle && languageOf(path) == ""):
+	case !c.dialect(lang) || (!said && kind == notBundle && languageOf(path) == ""):
 		return ""
 	case kind != notBundle:
 		return "in info.json, its text as text." + lang + ".fountain"
@@ -397,7 +401,7 @@ func (b *textBundle) otherFiles() []string {
 			}
 		}
 		if rel == "" || strings.HasSuffix(rel, "/") || junkEntry(e.name) || rel == b.textName || rel == b.native ||
-			strings.EqualFold(rel, "info.json") || rel == b.source || isExtra(rel) {
+			strings.EqualFold(rel, "info.json") || rel == b.source || isExtra(rel) || isCarriedEntry(rel) {
 			continue
 		}
 		out = append(out, rel)
@@ -430,21 +434,21 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 
 	lang, noCopy := w.langAfter(r)
 	// the language: where it is kept now and after
-	if !w.markdown && !isMarkdownFile(r.to) && (dialect(w.language) || dialect(lang)) {
+	if !w.markdown && !isMarkdownFile(r.to) && (w.lex().dialect(w.language) || w.lex().dialect(lang)) {
 		row := planRow{what: "Language: " + languageName(lang)}
 		if lang != w.language {
 			row.what = "Language: " + languageName(w.language) + " → " + languageName(lang)
 		}
-		std := languageName(standardLanguage()) + ": nowhere"
-		row.now = cmp.Or(languageHome(r.from, w.language, true, fromKind), std)
+		std := languageName(w.lex().standard()) + ": nowhere"
+		row.now = cmp.Or(languageHome(w.lex(), r.from, w.language, true, fromKind), std)
 		switch {
 		case r.from == "":
 			row.now = "not saved yet"
 		case !w.languageSaid && fromKind == notBundle:
 			row.now = "nowhere (the Preferences' language, assumed)"
 		}
-		row.after = languageHome(r.to, lang, w.languageSaid || r.lang != "", toKind)
-		if row.after == "" && dialect(lang) {
+		row.after = languageHome(w.lex(), r.to, lang, w.languageSaid || r.lang != "", toKind)
+		if row.after == "" && w.lex().dialect(lang) {
 			row.after = "nowhere (the Preferences' language, assumed): the text as it is"
 		}
 		row.after = cmp.Or(row.after, std)
@@ -460,7 +464,7 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 		if fromKind != notBundle && w.bundle != nil {
 			text = w.bundle.textName
 		}
-		if !w.markdown && dialect(lang) {
+		if !w.markdown && w.lex().dialect(lang) {
 			copied := !noCopy || !strings.EqualFold(filepath.Ext(r.to), typeAccolade.ext)
 			text = "text." + lang + ".fountain"
 			if copied {
@@ -571,6 +575,21 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 			}
 			rows = append(rows, row)
 		}
+	}
+
+	// the Lexington settings the script uses that are not the defaults:
+	// only an .accolade carries them (lexington_carried.go)
+	if lang, _ := w.langAfter(r); !w.markdown && carryFor(w.lex(), lang, w.scriptFormatKey()) != nil {
+		row := planRow{what: "Lexington settings it uses (" + bundleLexDir + ")", now: "your settings"}
+		if w.bundle != nil && len(w.bundle.carriedNames) > 0 && carriesConf(r.from) {
+			row.now = inside(old)
+		}
+		if carriesConf(r.to) {
+			row.after, row.fixed = inside(newName), true
+		} else {
+			row.after, row.warn = "left out: only an .accolade takes them along", true
+		}
+		rows = append(rows, row)
 	}
 
 	// another app's files in the bundle

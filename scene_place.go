@@ -48,7 +48,7 @@ func withPlace(line, word string, scenes []string) string {
 // start the cursor's line, a scene heading, with; and the script's
 // language itself, to change (script_language.go).
 func (w *MainWindow) pickPlace(at fyne.CanvasObject) {
-	scenes := sceneHeaders(w.language)
+	scenes := w.sceneHeaders()
 	var items []*fyne.MenuItem
 	if in, out, both, ok := placeWords(scenes); ok {
 		for _, word := range []string{in, out, both} {
@@ -63,7 +63,7 @@ func (w *MainWindow) pickPlace(at fyne.CanvasObject) {
 
 // setPlace starts the cursor's line with word, the cursor at its end.
 func (w *MainWindow) setPlace(word string) {
-	scenes := sceneHeaders(w.language)
+	scenes := w.sceneHeaders()
 	w.textEditor.Edit(func(b *buffer.Buffer) {
 		b.Group(func() {
 			line, _ := b.Position(b.Cursor())

@@ -377,7 +377,7 @@ func (a *addCard) Tapped(*fyne.PointEvent) {
 
 // newHeadingHint is an example heading in the script's language.
 func newHeadingHint(w *MainWindow) string {
-	if in, _, _, ok := placeWords(sceneHeaders(w.language)); ok {
+	if in, _, _, ok := placeWords(w.sceneHeaders()); ok {
 		return strings.TrimSpace(in) + " PLACE - DAY"
 	}
 	return "INT. PLACE - DAY"

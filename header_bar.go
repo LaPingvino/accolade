@@ -99,9 +99,9 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.elementMarks = marks
 	hb.elementBox = container.NewStack()
 	hb.showElementKind()
-	hb.format = newScriptFormatSelect(nil, func(key string) {
+	hb.format = newScriptFormatSelect(window.lex, nil, func(key string) {
 		if !hb.showing {
-			window.settings.SetString("script-format", key)
+			window.setScriptFormat(key)
 			_ = window.settings.Save()
 			window.app.applySettingsToWindows()
 		}
@@ -268,12 +268,12 @@ func (hb *HeaderBar) showElement(el string) {
 func (hb *HeaderBar) showFormats() {
 	hb.showing = true
 	defer func() { hb.showing = false }()
-	key := hb.window.settings.GetString("script-format")
-	hb.format.SetOptions(scriptFormatNames())
-	selectScriptFormat(hb.format, key)
 	w := hb.window
+	key, conf := w.scriptFormatKey(), w.lex()
+	hb.format.SetOptions(conf.formatNames())
+	conf.selectFormat(hb.format, key)
 	hb.formatBox.RemoveAll()
-	for _, fb := range formatButtons(key) {
+	for _, fb := range conf.formatButtons(key) {
 		b := widget.NewButton(fb.Label, func() {
 			w.textEditor.Edit(func(b *buffer.Buffer) { insertButton(b, fb) })
 			w.fyneWindow.Canvas().Focus(w.textEditor)

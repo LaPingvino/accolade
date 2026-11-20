@@ -80,7 +80,7 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 	if !joining {
 		s.synced = true
 		w.shareMeta("language", w.language)
-		w.shareMeta("format", w.settings.GetString("script-format"))
+		w.shareMeta("format", w.scriptFormatKey())
 		w.shareMeta("markdown", strconv.FormatBool(w.markdown))
 	}
 	w.connect(ctx, s)
@@ -202,8 +202,8 @@ func (w *MainWindow) applyShared(key, value string) {
 			w.setMarkdown(on)
 		}
 	case "format":
-		if value != w.settings.GetString("script-format") {
-			w.settings.SetString("script-format", value)
+		if value != w.scriptFormatKey() {
+			w.setScriptFormat(value)
 			_ = w.settings.Save()
 			w.app.applySettingsToWindows()
 		}

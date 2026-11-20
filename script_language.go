@@ -45,25 +45,25 @@ const (
 // headingLine splits a line that may be a scene heading in language lang
 // into its direction marks, whether it is forced (a dot) and the rest;
 // ok false for a line that is no heading there, forced or not.
-func headingLine(line, lang string) (marks string, forced bool, bare string, ok bool) {
+func (lc lexConf) headingLine(line, lang string) (marks string, forced bool, bare string, ok bool) {
 	bare = strings.TrimLeft(line, directionMarks)
 	marks = line[:len(line)-len(bare)]
 	if r := []rune(bare); len(r) > 1 && r[0] == '.' && (unicode.IsLetter(r[1]) || unicode.IsDigit(r[1])) {
 		return marks, true, bare[1:], true // .EN. KUIRO; not ...and so
 	}
-	return marks, false, bare, isSceneHeadingIn(bare, sceneStarts(lang))
+	return marks, false, bare, isSceneHeadingIn(bare, lc.starts(lang))
 }
 
 // changedLine is a line of a script in language from as it is after the
 // change to language to, and whether that changed a heading; kept is a
 // heading that stays as it is. Translating, words are what each heading
 // word (as headingTag has it: INT, I/E) becomes: "" or none keeps it.
-func changedLine(line, from, to string, how languageChange, words map[string]string) (out string, changed, kept bool) {
-	marks, forced, bare, ok := headingLine(line, from)
+func (lc lexConf) changedLine(line, from, to string, how languageChange, words map[string]string) (out string, changed, kept bool) {
+	marks, forced, bare, ok := lc.headingLine(line, from)
 	if !ok || how == markLanguage {
 		return line, false, false
 	}
-	heading := func(s string) bool { return isSceneHeadingIn(s, sceneStarts(to)) }
+	heading := func(s string) bool { return isSceneHeadingIn(s, lc.starts(to)) }
 	switch how {
 	case fountainForm:
 		switch known := heading(bare); {
@@ -74,9 +74,9 @@ func changedLine(line, from, to string, how languageChange, words map[string]str
 		}
 		return line, false, false
 	case translateHeadings:
-		t, tag := bare, headingTag(bare, sceneHeaders(from))
+		t, tag := bare, headingTag(bare, lc.headers(from))
 		if word := strings.TrimSpace(words[tag]); tag != "" && word != "" {
-			t = withPlace(bare, word, sceneHeaders(from))
+			t = withPlace(bare, word, lc.headers(from))
 		} else {
 			kept = true
 		}
@@ -98,15 +98,15 @@ type wordProposal struct {
 
 // proposedWords are the heading words a text in language from uses, in
 // the order they first come, each with Lexington's matchup in language to.
-func proposedWords(text, from, to string) []wordProposal {
+func (lc lexConf) proposedWords(text, from, to string) []wordProposal {
 	var out []wordProposal
 	at := map[string]int{}
 	for _, line := range strings.Split(text, "\n") {
-		_, _, bare, ok := headingLine(line, from)
+		_, _, bare, ok := lc.headingLine(line, from)
 		if !ok {
 			continue
 		}
-		tag := headingTag(bare, sceneHeaders(from))
+		tag := headingTag(bare, lc.headers(from))
 		if tag == "" {
 			continue
 		}
@@ -114,7 +114,7 @@ func proposedWords(text, from, to string) []wordProposal {
 			out[i].count++
 			continue
 		}
-		word, _ := lexSettings.Translate(tag, from, to)
+		word, _ := lc.Translate(tag, from, to)
 		at[tag] = len(out)
 		out = append(out, wordProposal{tag: tag, count: 1, word: word})
 	}
@@ -128,18 +128,18 @@ func proposedWords(text, from, to string) []wordProposal {
 // Esperanto) gets a ! to stay action, and a ! only the old language
 // needed is dropped; marking leaves the text as written, to be read in
 // the new language.
-func changedLines(lines []string, from, to string, how languageChange, words map[string]string) (out []string, headings, kept, actions int) {
+func (lc lexConf) changedLines(lines []string, from, to string, how languageChange, words map[string]string) (out []string, headings, kept, actions int) {
 	out = make([]string, len(lines))
 	for i, line := range lines {
-		c, changed, k := changedLine(line, from, to, how, words)
+		c, changed, k := lc.changedLine(line, from, to, how, words)
 		if k {
 			kept++
 		}
 		if changed {
 			headings++
 		}
-		if _, _, _, heading := headingLine(line, from); how != markLanguage && !heading && (i == 0 || strings.TrimSpace(lines[i-1]) == "") {
-			c = actionLine(line, from, to)
+		if _, _, _, heading := lc.headingLine(line, from); how != markLanguage && !heading && (i == 0 || strings.TrimSpace(lines[i-1]) == "") {
+			c = lc.actionLine(line, from, to)
 			if c != line {
 				actions++
 			}
@@ -152,16 +152,16 @@ func changedLines(lines []string, from, to string, how languageChange, words map
 // actionLine is an action line after a blank one, as it is in language
 // to: with a ! if to would read it as a scene heading, without the one it
 // had only because from would have.
-func actionLine(line, from, to string) string {
+func (lc lexConf) actionLine(line, from, to string) string {
 	bare := strings.TrimLeft(line, directionMarks)
 	marks := line[:len(line)-len(bare)]
 	if rest, bang := strings.CutPrefix(bare, "!"); bang {
-		if isSceneHeadingIn(rest, sceneStarts(from)) && !isSceneHeadingIn(rest, sceneStarts(to)) {
+		if isSceneHeadingIn(rest, lc.starts(from)) && !isSceneHeadingIn(rest, lc.starts(to)) {
 			return marks + rest
 		}
 		return line
 	}
-	if strings.TrimSpace(bare) != "" && isSceneHeadingIn(bare, sceneStarts(to)) {
+	if strings.TrimSpace(bare) != "" && isSceneHeadingIn(bare, lc.starts(to)) {
 		return marks + "!" + bare
 	}
 	return line
@@ -170,8 +170,8 @@ func actionLine(line, from, to string) string {
 // headingChanges counts a text's headings in language from that changing
 // to language to would change, those it would leave as they are, and the
 // action lines that would get or lose a !.
-func headingChanges(text, from, to string, how languageChange, words map[string]string) (changed, kept, actions int) {
-	_, changed, kept, actions = changedLines(strings.Split(text, "\n"), from, to, how, words)
+func (lc lexConf) headingChanges(text, from, to string, how languageChange, words map[string]string) (changed, kept, actions int) {
+	_, changed, kept, actions = lc.changedLines(strings.Split(text, "\n"), from, to, how, words)
 	return changed, kept, actions
 }
 
@@ -185,7 +185,7 @@ func (w *MainWindow) changeHeadings(lang string, how languageChange, words map[s
 			for i := range lines {
 				lines[i] = b.Line(i)
 			}
-			out, h, _, a := changedLines(lines, from, lang, how, words)
+			out, h, _, a := w.lex().changedLines(lines, from, lang, how, words)
 			headings, actions = h, a
 			for i := len(out) - 1; i >= 0; i-- { // from the end: earlier offsets stay
 				if out[i] != lines[i] {
@@ -271,7 +271,7 @@ func (w *MainWindow) changeLanguage(lang string, how languageChange, words map[s
 // pickLanguage asks for the script's language and what changing to it
 // does: only mark it, keep the words in Fountain form, or translate.
 func (w *MainWindow) pickLanguage() {
-	langs := scriptLanguages()
+	langs := w.lex().languages()
 	labels := make([]string, len(langs))
 	for i, l := range langs {
 		labels[i] = languageLabel(l)
@@ -303,7 +303,7 @@ func (w *MainWindow) pickLanguage() {
 		mark.Enable()
 		form.Enable()
 		translate.Enable()
-		f, _, a := headingChanges(text, w.language, lang, fountainForm, nil)
+		f, _, a := w.lex().headingChanges(text, w.language, lang, fountainForm, nil)
 		bangs := func(n int) string {
 			if n == 0 {
 				return ""
@@ -334,7 +334,7 @@ func (w *MainWindow) pickLanguage() {
 // translating to lang proposes for each, to change or clear (cleared, a
 // word stays as it is), and then translates.
 func (w *MainWindow) pickTranslation(lang string) {
-	props := proposedWords(w.textEditor.Text(), w.language, lang)
+	props := w.lex().proposedWords(w.textEditor.Text(), w.language, lang)
 	if len(props) == 0 {
 		dialog.ShowInformation("Translate Headings", "The script has no scene headings with words to translate; marking it as "+languageLabel(lang)+" is enough.", w.fyneWindow)
 		return

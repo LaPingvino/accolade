@@ -219,6 +219,7 @@ func (w *MainWindow) showImportedMarkdown(path, md, from string, dropped int) {
 	w.filledWith = w.textEditor.Text()
 	w.currentFile, w.plainBundle = "", ""
 	w.setBundle(nil)
+	w.setCarried(nil, "")
 	w.suggestedName = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)) + ".md"
 	w.hasChanges = true
 	w.updateTitle()

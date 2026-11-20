@@ -129,6 +129,11 @@ func zipFile(t *testing.T, data []byte, name string) (string, bool) {
 func sameExceptText(t *testing.T, before, after []byte, text string, infoChanges bool) {
 	t.Helper()
 	b, a := rawEntries(t, before), rawEntries(t, after)
+	// an .accolade's save adds the Lexington settings it carries (its
+	// language in full): those aside, nothing else may change
+	a = slices.DeleteFunc(a, func(e rawEntry) bool {
+		return strings.Contains(e.name, bundleLexDir) && !slices.ContainsFunc(b, func(x rawEntry) bool { return x.name == e.name })
+	})
 	if len(a) != len(b) {
 		t.Fatalf("entries %d, were %d", len(a), len(b))
 	}
