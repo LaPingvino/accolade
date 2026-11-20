@@ -2,12 +2,15 @@ package main
 
 import (
 	"fmt"
+	"image/png"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"fyne.io/fyne/v2"
 
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/pdfin"
@@ -140,9 +143,94 @@ func TestLockPagesUndo(t *testing.T) {
 	}
 }
 
+// issueWait issues set s (lockFrom: the offered first lock's text) and
+// waits for it.
+func issueWait(t *testing.T, w *MainWindow, name string, day int, lockFrom string) {
+	t.Helper()
+	done := false
+	w.issueDraft(lex.RevisionSet{Name: name, Date: time.Date(2026, 11, day, 0, 0, 0, 0, time.Local)}, lockFrom,
+		func(err error) {
+			if err != nil {
+				t.Error(err)
+			}
+			done = true
+		})
+	waitFor(t, name+" issued", func() bool { return done })
+}
+
+// pdfJob is the PDF export as Preview PDF makes it: the revisions, the
+// pages the revision prints against; only: revised pages only.
+func pdfJob(w *MainWindow, only bool) exportJob {
+	text := w.textEditor.Text()
+	return w.withIssuedPages(w.withRevisions(w.savedExportJob(), text, only, false), text)
+}
+
+// revisedOnly are the page numbers revised pages only prints (page 1
+// prints none: "1" for it).
+func revisedOnly(t *testing.T, w *MainWindow) []string {
+	t.Helper()
+	file := filepath.Join(t.TempDir(), "only.pdf")
+	if err := exportAs(w.textEditor.Text(), file, "pdf", pdfJob(w, true)); err != nil {
+		t.Fatal(err)
+	}
+	pages, err := pdfin.Pages(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out []string
+	for _, p := range pages {
+		f := strings.Fields(p[0].Text)
+		if last := f[len(f)-1]; strings.HasSuffix(last, ".") && strings.Contains(p[0].Text, "Revision") {
+			out = append(out, strings.TrimSuffix(last, "."))
+		} else {
+			out = append(out, "1")
+		}
+	}
+	return out
+}
+
+func lockLabelsOf(t *testing.T, w *MainWindow) []string {
+	t.Helper()
+	l := pageLockOf(w.textEditor.Text())
+	if l == nil {
+		t.Fatal("not locked")
+	}
+	var out []string
+	for _, p := range l.lock.Pages {
+		out = append(out, p.Label)
+	}
+	return out
+}
+
+// pageStartToken is the text in the script that the locked page's first
+// row starts with: its paragraph's token (R3P2), its heading, or its
+// speech's first line's token for a cue.
+func pageStartToken(t *testing.T, w *MainWindow, page int) string {
+	t.Helper()
+	l := pageLockOf(w.textEditor.Text())
+	rows := lex.Printable(w.savedExportJob().script(w.textEditor.Text()), nil)
+	at := lex.LocatePages(rows, l.lock)[page]
+	if at == lex.Missing {
+		t.Fatalf("page %d not found", page)
+	}
+	r := at.Row
+	switch rows[r].Type {
+	case lex.TypeScene:
+		return rows[r].Contents
+	case lex.TypeSpeaker:
+		r++
+	}
+	f := strings.Fields(rows[r].Contents)
+	if len(f) == 0 || !strings.HasPrefix(f[0], "R") {
+		t.Fatalf("page %d starts in %q", page, rows[r].Contents)
+	}
+	return f[0]
+}
+
 // TestIssueLocksPages: the first revision's Issue locks the pages as White
-// printed them (the changes are A-pages), the next locks them again with
-// their A-pages; FDX carries them.
+// printed them, so Blue prints its changes on A-pages; the block then
+// holds Blue's pages (Blue's A-page stays, what grows before it is aA);
+// Pink locks again; FDX carries them, and the import keeps them.
 func TestIssueLocksPages(t *testing.T) {
 	w, _ := scriptWindow(t, pagesScript())
 	issueNow(t, w, "White", time.Date(2026, 11, 1, 0, 0, 0, 0, time.Local))
@@ -153,58 +241,39 @@ func TestIssueLocksPages(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	done := false
-	w.issueDraft(lex.RevisionSet{Name: "Blue", Date: time.Date(2026, 11, 20, 0, 0, 0, 0, time.Local)},
-		strings.Join(chain.issues[0].lines, "\n"), func(err error) {
-			if err != nil {
-				t.Error(err)
-			}
-			done = true
-		})
-	waitFor(t, "Blue issued", func() bool { return done })
-	l := pageLockOf(w.textEditor.Text())
-	if l == nil || len(l.lock.Pages) != len(white)+1 {
-		t.Fatalf("lock %v, White's pages %v", l, white)
+	issueWait(t, w, "Blue", 20, strings.Join(chain.issues[0].lines, "\n"))
+	labels := lockLabelsOf(t, w)
+	if len(labels) != len(white)+2 { // (page 1 is not in white)
+		t.Fatalf("lock %v, White's pages %v", labels, white)
 	}
-	blue := pdfLabels(t, w, w.savedExportJob())
-	var a string
+	blue := pdfLabels(t, w, pdfJob(w, false))
+	a := ""
 	for _, p := range blue {
 		if strings.HasSuffix(p, "A") {
 			a = p
 		}
 	}
-	if a == "" || len(blue) != len(white)+1 {
-		t.Fatalf("Blue prints %v, White %v", blue, white)
+	if a == "" || len(blue) != len(white)+1 || !slices.Contains(labels, a) {
+		t.Fatalf("Blue prints %v, White %v, locked %v", blue, white, labels)
 	}
-	// revised pages only: the changed page and its A-page
-	job := w.withRevisions(w.savedExportJob(), w.textEditor.Text(), true, false)
-	only, n := pdfLabelsAll(t, w, job)
 	base := strings.TrimSuffix(a, "A")
-	if want := []string{base, a}; base == "1" && n == 2 { // (page 1 prints no number)
-		want = want[1:]
-		if !slices.Equal(only, want) {
-			t.Fatalf("revised pages only %v, want %v", only, want)
-		}
-	} else if !slices.Equal(only, want) {
-		t.Fatalf("revised pages only %v (%d pages), want %v", only, n, want)
+	if got := revisedOnly(t, w); !slices.Equal(got, []string{base, a}) {
+		t.Fatalf("revised pages only %v, want %s and %s", got, base, a)
 	}
-	// Pink: locked again, the A-page kept
-	replaceText(t, w, "R8P1 ", "R8P1 Pink. ")
-	done = false
-	w.issueDraft(lex.RevisionSet{Name: "Pink", Date: time.Date(2026, 11, 25, 0, 0, 0, 0, time.Local)}, "", func(err error) {
-		if err != nil {
-			t.Error(err)
-		}
-		done = true
-	})
-	waitFor(t, "Pink issued", func() bool { return done })
-	again := pageLockOf(w.textEditor.Text())
-	var labels []string
-	for _, p := range again.lock.Pages {
-		labels = append(labels, p.Label)
+	// Pink grows the same page before Blue's text: Blue's A-page keeps
+	// its number, the new page is between
+	replaceText(t, w, "R3P1 ", "R3P1 "+strings.Repeat("Pink words come first. ", 30))
+	pink := pdfLabels(t, w, pdfJob(w, false))
+	if !slices.Contains(pink, a) || !slices.Contains(pink, base+"aA") {
+		t.Fatalf("Pink prints %v", pink)
 	}
-	if !slices.Contains(labels, a) {
-		t.Fatalf("locked again: %v", labels)
+	issueWait(t, w, "Pink", 25, "")
+	if got := lockLabelsOf(t, w); !slices.Contains(got, a) || !slices.Contains(got, base+"aA") {
+		t.Fatalf("locked again: %v", got)
+	}
+	// Pink as issued prints against Blue's pages: its new page revised
+	if got := revisedOnly(t, w); !slices.Contains(got, base+"aA") {
+		t.Fatalf("Pink's revised pages %v", got)
 	}
 	// FDX: the locked pages
 	fdxFile := filepath.Join(t.TempDir(), "script.fdx")
@@ -228,8 +297,50 @@ func TestIssueLocksPages(t *testing.T) {
 	for _, p := range back.lock.Pages {
 		backLabels = append(backLabels, p.Label)
 	}
-	if !slices.Equal(backLabels, labels) {
-		t.Fatalf("imported lock %v, exported %v", backLabels, labels)
+	if want := lockLabelsOf(t, w); !slices.Equal(backLabels, want) {
+		t.Fatalf("imported lock %v, exported %v", backLabels, want)
+	}
+}
+
+// TestIssuePushedPage: locked before White, a short paragraph near a
+// page's top pushes text onto an A-page with no change on it: Blue's
+// revised pages are the page and its A-page; a page whose text is cut
+// prints "n-m" in revised pages only.
+func TestIssuePushedPage(t *testing.T) {
+	w, _ := scriptWindow(t, pagesScript())
+	lockNow(t, w)
+	issueWait(t, w, "White", 1, "")
+	labels := lockLabelsOf(t, w)
+	// before the page's second paragraph
+	text := w.textEditor.Text()
+	at := strings.Index(text, pageStartToken(t, w, 2))
+	next := at + strings.Index(text[at:], "\n\nR") + 2
+	n := len([]rune(text[:next]))
+	w.textEditor.Replace(n, n, "Blue's paragraph."+strings.Repeat(" Blue goes on.", 18)+"\n\n")
+	issueWait(t, w, "Blue", 20, "")
+	want := []string{labels[2], labels[2] + "A"}
+	if got := revisedOnly(t, w); !slices.Equal(got, want) {
+		t.Fatalf("revised pages only %v, want %v", got, want)
+	}
+	// Pink: a page's text cut whole (from its first paragraph to the next
+	// page's)
+	text = w.textEditor.Text()
+	locked := lockLabelsOf(t, w)
+	k := slices.Index(locked, "3")
+	from := strings.Index(text, pageStartToken(t, w, k))
+	to := strings.Index(text, pageStartToken(t, w, k+1))
+	if from < 0 || to <= from {
+		t.Fatal("pages 3 and the next not found")
+	}
+	cut := []rune(text[:from])
+	w.textEditor.Replace(len(cut), len(cut)+len([]rune(text[from:to])), "")
+	pink := pdfLabels(t, w, pdfJob(w, false))
+	rng := locked[k-1] + "-3"
+	if !slices.Contains(pink, rng) {
+		t.Fatalf("Pink prints %v, want %s", pink, rng)
+	}
+	if got := revisedOnly(t, w); !slices.Contains(got, rng) {
+		t.Fatalf("Pink's revised pages %v, want %s among them", got, rng)
 	}
 }
 
@@ -253,4 +364,35 @@ func pdfLabelsAll(t *testing.T, w *MainWindow, job exportJob) ([]string, int) {
 		}
 	}
 	return out, len(pages)
+}
+
+// TestIssueOffersLock: the first revision's Issue dialog offers the lock;
+// SHOT_DIR renders it wide and on a phone.
+func TestIssueOffersLock(t *testing.T) {
+	w, _ := scriptWindow(t, pagesScript())
+	issueNow(t, w, "White", time.Date(2026, 11, 1, 0, 0, 0, 0, time.Local))
+	replaceText(t, w, "R3P2 ", "R3P2 Blue words. ")
+	menuItemByLabel(t, w, "Lock Pages")
+	menuItemByLabel(t, w, "Unlock Pages…")
+	for _, size := range []struct {
+		name string
+		size fyne.Size
+	}{{"wide", fyne.NewSize(1100, 650)}, {"phone", fyne.NewSize(380, 800)}} {
+		w.fyneWindow.Resize(size.size)
+		w.showIssueDraft()
+		if !dialogShows(w, "Lock the pages as White printed them") {
+			t.Fatal("no offer to lock the pages")
+		}
+		if dir := os.Getenv("SHOT_DIR"); dir != "" {
+			f, err := os.Create(filepath.Join(dir, "lockedpages-issue-"+size.name+".png"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			png.Encode(f, w.fyneWindow.Canvas().Capture())
+			f.Close()
+		}
+		for _, o := range w.fyneWindow.Canvas().Overlays().List() {
+			w.fyneWindow.Canvas().Overlays().Remove(o)
+		}
+	}
 }

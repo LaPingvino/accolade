@@ -128,14 +128,48 @@ func (l pageLock) applyTo(j exportJob) exportJob {
 }
 
 // withLockedPages is the job as it exports content: in its page lock's
-// layout, for a PDF or an FDX of the whole script.
+// layout, for a PDF or an FDX of the whole script (a PDF's lock made from
+// lockFrom first: withIssuedPages).
 func withLockedPages(content, to string, j exportJob) exportJob {
+	if j.lock == nil && j.lockFrom != "" && to == "pdf" {
+		if l, err := cli.LockPages(j.script(j.lockFrom), j.options("pdf", "")); err == nil {
+			j.lock = &l
+		}
+	}
 	if j.lock != nil || (to != "pdf" && to != "fdx") || len(j.tags) > 0 || j.character != "" {
 		return j
 	}
 	if l := pageLockOf(content); l != nil {
 		return l.applyTo(j)
 	}
+	return j
+}
+
+// withIssuedPages is a PDF job of text in the pages its revision prints
+// against: the block's lock is the last issue's pages, which the next
+// revision is written against; the last issue itself, while the script
+// is as issued, prints against the issue before's (its A-pages new
+// pages, a page whose text went "12-13"): that issue's lock, or its pages
+// as they printed when it had none (the first lock, offered at the first
+// revision's Issue).
+func (w *MainWindow) withIssuedPages(j exportJob, text string) exportJob {
+	cur := pageLockOf(text)
+	if cur == nil || j.lock != nil || len(j.tags) > 0 || j.character != "" {
+		return j
+	}
+	chain, err := w.revisionChainNow()
+	if err != nil || chain == nil || len(chain.issues) < 2 {
+		return j
+	}
+	last, prev := chain.issues[len(chain.issues)-1], chain.issues[len(chain.issues)-2]
+	if !sameLines(last.lines, bodyLines(text)) {
+		return j
+	}
+	if prev.lock != nil {
+		return prev.lock.applyTo(j)
+	}
+	j = cur.applyTo(j)
+	j.lock, j.lockFrom = nil, strings.Join(prev.lines, "\n")
 	return j
 }
 

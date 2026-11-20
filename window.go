@@ -469,7 +469,11 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.hasChanges = true
 	w.updateTitle()
 	w.updateStatusBar()
-	w.setStatus("Imported from " + from)
+	if pageLockOf(text) != nil {
+		w.setStatus("Imported from " + from + ", its locked pages kept: where Accolade prints a page longer, it goes on to an A-page")
+	} else {
+		w.setStatus("Imported from " + from)
+	}
 }
 
 // importPDFAsync reads a PDF in the background (a scanned one needs OCR,
@@ -1136,6 +1140,7 @@ func (w *MainWindow) makePreviewPDF() {
 	if w.settings.GetBoolean("export-revisions") {
 		job = w.withRevisions(job, content, false, w.settings.GetBoolean("export-page-colours"))
 	}
+	job = w.withIssuedPages(job, content)
 	w.setStatus("Preparing the PDF...")
 	go func() {
 		err := exportAs(content, out, "pdf", job)

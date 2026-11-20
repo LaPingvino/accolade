@@ -61,6 +61,7 @@ type exportJob struct {
 	// for PDF (and the lock for FDX)
 	lock       *lex.PageLock
 	continueds bool
+	lockFrom   string // a text whose pages are the lock (the PDF's; withIssuedPages)
 }
 
 // options are Lexington's options for the job, writing as to to output.

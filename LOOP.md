@@ -304,8 +304,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   `Continueds` ((CONTINUED) / CONTINUED: (2)), FDX `<LockedPages>` out and in (Position as DeletedText's offset,
   checked on one Final Draft file; LockLevel for A-pages a guess), `-lock`, `-lockpages`, `-continueds`. Accolade:
   Production > Lock Pages / Unlock Pages… (one undo step each; the lock in the production block, `pages: locked,
-  letter, format …, pagination …` and a line per page, for bundles too), export/preview/FDX in the lock's layout, every
-  Issue of a locked script locks again, the first revision's Issue offers to lock the pages as White printed them,
+  letter, format …, pagination …` and a line per page, for bundles too), export/preview/FDX in the lock's layout; the
+  block holds the last issue's pages (every Issue locks again, A-pages kept; the first revision's Issue offers to lock
+  the pages as White printed them) and a PDF of the script as last issued prints against the issue before's pages,
   Preferences "CONTINUED where a scene breaks over pages", an FDX's locked pages kept on import. Shots: Lexington's
-  `LOCKED_SHOT=… go test -run TestLockedShot ./pdf` (page 12 with CONTINUED:, 12A with its Blue header). Rough:
+  `LOCKED_SHOT=… go test -run TestLockedShot ./pdf` (page 12 with CONTINUED:, 12A with its Blue header), the Issue
+  dialog's offer `SHOT_DIR=… go test -run TestIssueOffersLock` (lockedpages-issue-wide/phone.png). Print (HTML) keeps
+  no locked pages. Rough:
   reports give the current pages, not locked labels. Next: PRODUCTION step 6, the Production pane.

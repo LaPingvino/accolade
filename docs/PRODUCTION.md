@@ -807,7 +807,8 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
   `lex.SceneNumberBetween`): 12, 12A, 12B. 12AA comes between 12A and 12B, and 12aA between 12 and 12A.
   - 12A, 12B: Wikipedia's Shooting script; WriterDuet's 2A (§2).
   - 12AA after a second lock: WriterDuet ("1AA, 2AA … for any new additions after that point",
-    https://www.writerduet.com/article/112-lock-pages) and Filmustage (10AA between 10A and 10B).
+    https://www.writerduet.com/article/112-lock-pages). Filmustage gives 10AA between 10A and 10B, but for scene numbers,
+    and I saw it only as a search snippet.
   - Small letters: Scripto falls back to them "unless that would break sort order"
     (https://help.scripto.live/en/articles/11689842-page-locking). A Final Draft user's "4aA" is seen as a
     search snippet of its knowledge base only, whose pages refuse robots.
@@ -823,7 +824,10 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
   in both margins. Sources:
   - johnaugust.com/?p=3959: "most screenwriting software will offer to put CONTINUED: at the top left of the next
     page, next to the scene number"; only when "headed into production".
-  - The format guides of Charles Deemer and SimplyScripts for the "(CONTINUED)" at the foot.
+  - The "(CONTINUED)" at the foot: SimplyScripts' format sample (https://www.simplyscripts.com/WR_format.html) has it
+    under a page's (MORE). A school's format page puts it "at the bottom of the page where the break occurs"; I saw
+    that page only as a search snippet. Charles Deemer's guide (https://www.oocities.org/cdeemer/format.htm) covers
+    the top's CONTINUED: and an old "CONTINUED 2:".
   - "CONTINUED: (2)" on a scene's second page after its first, and on: Final Draft's way as I remember it.
     *Unverified.*
   - A page always keeps its last line free for the foot's mark, and a continued page starts two lines down. So a
@@ -841,13 +845,16 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
   1. its first words at their place in its scene, with the words before them;
   2. the only place they stand with those words before them;
   3. their place in the scene;
-  4. right after the words before it (its first line was edited);
-  5. near: three of its first words in a row.
+  4. right after the words before it (its first line was edited).
+
+  A page found by none of these is gone: both sides of its break were rewritten. There is no nearer matching,
+  because a few words in a row ("he looks at her") repeat too often in a script to tell a page by.
   - A page found by the words before it at the next page's place is gone, as is one whose words are past the next
     page's place.
   - A page whose scene is gone (cut or omitted) is looked for anywhere after the page before.
 - In the PDF (`pdf.PDFWriter.Lock`), each found page gets a break of its own before its first row, or within the
-  row. A break within an action paragraph splits it at the word. One within a speech adds (MORE) and NAME (CONT'D).
+  row. A break within an action paragraph splits it at the word. One within a speech adds (MORE) and NAME (CONT'D)
+  when the pagination breaks speeches so (`more`); without it, the speech splits as a paragraph does.
   - The labels are printed once the text is laid out, so "12-13" can be known.
   - No page starts with a blank line any more, and page numbers print without a title page too.
 - A lock carries its paper and CONTINUEDs, and the writer prints a locked script so.
@@ -862,14 +869,18 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
   `cli.LockPages` and `cli.Pages`.
 - Tests:
   - Locked and printed again, the same script gives the same pages and the same lock. This holds in every
-    pagination, on Letter, A4 and A5, with and without CONTINUEDs, and for all of Big Fish (FDX fixture) with and
-    without them.
+    pagination (`none` and `keep+widows` too, with long speeches breaking over pages), on Letter, A4 and A5, with
+    and without CONTINUEDs, and for all of Big Fish (FDX fixture) with and without them.
   - Growth gives one A-page, then two, on two pages at once, and at the boundary.
   - A paragraph cut gives a short page; a whole page's text cut gives 4-5.
   - A page's first words edited: it is still found.
   - Locked again: an A-page keeps its number, then 4aA and 4B.
-  - Revised pages only gives the page, its A-page and their headers.
+  - Revised pages only gives the page, its A-page and their headers. A deletion at a page's foot also counts the
+    short page.
   - CONTINUED marks pair up, including "(2)".
+  - Final Draft's EuroMechanical.fdx read with `ParseLockedPages`: its page 4 starts at "I'm pushing to do a video",
+    mid-speech as in the file. Lexington prints its four pages with no A-page. Checked by hand; the file is not
+    committed.
 
 **FDX** (`FDXWriter.Lock`, `fdx.ParseLockedPages`)
 
@@ -913,10 +924,19 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
 - Each is one undo step.
 - **Export, Preview PDF, FDX** use the lock's layout whatever the Export dialog says, when exporting a whole
   script. Filters (tags, sides) leave the lock out. Print (HTML) keeps no locked pages.
-- **Issue:**
-  - every Issue of a locked script locks the pages again (Lock A Pages), so an issued 12A stays 12A;
-  - the first revision's Issue (Blue) offers, checked by default, to lock the pages as White printed them, so that
-    Blue's changed pages are A-pages. Later issues of an unlocked script offer it unchecked.
+- **Issue:** revision N prints against N−1's pages, and N+1 is written against N's.
+  - The block always holds the last issue's pages. Every Issue of a locked script locks them again from the text
+    as issued, keeping the A-pages (Lock A Pages), so an issued 12A stays 12A. Text written later before it makes
+    12aA, not 12B.
+  - The first revision's Issue (Blue) offers, checked by default, to lock the pages as White printed them. The
+    pages are locked so and then locked again as Blue prints, A-pages included. Later issues of an unlocked script
+    offer it unchecked.
+  - A PDF of the script as last issued, unchanged since, prints against the issue before's pages:
+    - that issue's own lock (its snapshot's production block);
+    - else that issue's text locked now (`withIssuedPages`).
+
+    So the issue's A-pages are new pages. An A-page holding only pushed-down text is a revised page, and a page
+    whose text went prints "12-13". An FDX gets the block's pages: the issue's own, A-pages included.
 - **Preferences > Script > Production** has "CONTINUED where a scene breaks over pages (PDF)" (`export-continueds`,
   off). A lock keeps its own.
 - **FDX import** puts an FDX's locked pages into the production block, at Final Draft's breaks. Lexington's layout
@@ -926,8 +946,14 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
   - text that grows exports 2A;
   - Unlock and its Undo;
   - Issue White; grow; Issue Blue with the offer: one A-page, revised pages only that page and its A-page;
-  - Issue Pink: locked again, the A-page kept;
-  - FDX out with the A-page, and the import keeps the lock.
+  - Pink grows the same page before Blue's text: Blue's 1A stays, the new page is 1aA;
+  - Pink issued: locked again with both, and revised pages only has 1aA;
+  - locked before White, a short paragraph pushes unmarked text onto an A-page: Blue's revised pages are the page
+    and its A-page;
+  - a page's text cut: "2-3", in the full PDF and in revised pages only;
+  - FDX out with the A-page, and the import keeps the lock (its status says that pages printed longer go on to
+    A-pages);
+  - the Issue dialog's offer (shots `lockedpages-issue-wide/phone.png`).
 
 **Rough**
 
@@ -938,3 +964,4 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
 - `LockLevel` and `LevelIndex` for A-pages are unverified, and nothing written here has been opened in Final Draft.
 - Pages whose text repeats word for word (the same 16 words around the break) can be told apart only by their order
   in the scene.
+- Print (File > Print, through HTML) does not keep locked pages: use the PDF.

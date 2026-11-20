@@ -538,11 +538,15 @@ func (ed *ExportDialog) runExport() {
 func (ed *ExportDialog) job() exportJob {
 	j := ed.plainJob()
 	f := exportFormatByLabel(ed.formatSelect.Selected).id
+	text := ed.window.textEditor.Text()
 	switch {
 	case f == "pdf" && ed.revisionsCheck.Checked:
-		j = ed.window.withRevisions(j, ed.window.textEditor.Text(), ed.revisedOnlyCheck.Checked, ed.pageColoursCheck.Checked)
+		j = ed.window.withRevisions(j, text, ed.revisedOnlyCheck.Checked, ed.pageColoursCheck.Checked)
 	case f == "fdx" && ed.revisionsCheck.Checked:
-		j = ed.window.withAllRevisions(j, ed.window.textEditor.Text())
+		j = ed.window.withAllRevisions(j, text)
+	}
+	if f == "pdf" { // in the pages its revision prints against
+		j = ed.window.withIssuedPages(j, text)
 	}
 	return j
 }

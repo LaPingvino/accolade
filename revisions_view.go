@@ -53,8 +53,9 @@ func (w *MainWindow) showIssueDraft() {
 		var lockCheck *widget.Check
 		if !first && !locked {
 			last := chain.issues[len(chain.issues)-1]
-			lockCheck = widget.NewCheck("Lock the pages as "+last.set.Name+" printed them (pages that grew get A-pages: 12A)", nil)
+			lockCheck = widget.NewCheck("Lock the pages as "+last.set.Name+" printed them", nil)
 			lockCheck.SetChecked(len(chain.issues) == 1)
+			what += "\n\nLocked, each page keeps its number: a page that grew goes on to an A-page (12A)."
 		}
 		text := widget.NewLabel(what)
 		text.Wrapping = fyne.TextWrapWord

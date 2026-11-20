@@ -114,6 +114,7 @@ type issue struct {
 	lines    []string
 	imported []string
 	sets     []lex.RevisionSet // an imported issue's earlier sets
+	lock     *pageLock         // the pages it was locked in (its production block's; nil none)
 }
 
 // revisionChain are the script's issues, oldest first.
@@ -307,7 +308,7 @@ func readRevisionChain(r extrasReader) (*revisionChain, error) {
 			return nil, fmt.Errorf("could not read the issue %s: %v", d.Name, err)
 		}
 		text, _ := decodeScript(data)
-		is := issue{set: lex.RevisionSet{Name: d.Colour, Date: issueDate(d)}, lines: bodyLines(text)}
+		is := issue{set: lex.RevisionSet{Name: d.Colour, Date: issueDate(d)}, lines: bodyLines(text), lock: pageLockOf(text)}
 		if is.set.Name == "" {
 			is.set.Name = lex.RevisionName(len(c.issues))
 		}
@@ -627,21 +628,31 @@ func (w *MainWindow) issueDraft(s lex.RevisionSet, lockFrom string, done func(er
 			finish(err)
 		})
 	}
-	from := ""
+	// the block holds the last issue's pages: locked again as this one
+	// prints them, its A-pages kept (Final Draft's Lock A Pages); offered
+	// a first lock, locked as the issue before printed them, then so
+	again := func(job exportJob) {
+		lockedPagesOf(text, job, func(l *pageLock, err error) {
+			if err != nil {
+				finish(fmt.Errorf("the pages could not be locked: %v", err))
+				return
+			}
+			issue(l)
+		})
+	}
 	switch {
 	case pageLockOf(text) != nil:
-		from = text // locked again, its A-pages kept (Final Draft's Lock A Pages)
+		again(w.lockJob(text))
 	case lockFrom != "":
-		from = lockFrom
+		job := w.lockJob(text)
+		lockedPagesOf(lockFrom, job, func(l *pageLock, err error) {
+			if err != nil {
+				finish(fmt.Errorf("the pages could not be locked: %v", err))
+				return
+			}
+			again(l.applyTo(job))
+		})
 	default:
 		issue(nil)
-		return
 	}
-	lockedPagesOf(from, w.lockJob(text), func(l *pageLock, err error) {
-		if err != nil {
-			finish(fmt.Errorf("the pages could not be locked: %v", err))
-			return
-		}
-		issue(l)
-	})
 }
