@@ -90,3 +90,4 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   unlinked asks in the pane: mark it as cut? Rough: in insert mode the skip question only comes after an undo;
   a duplicate passage can be cut but Next's link to it is ambiguous, so it stays to do; placeholder is English-only
   ("…" in other languages). Next: step 5, the characters and dialogue heuristics.
+- 2026-11-20 (Joop): the bundle as the project container. A .highland that comes in is saved as it is; Accolade's own format is the same TextBundle plus what Accolade adds (production sidecars, the adaptation source, …), saved as .highland (Highland-compatible), as .accolade (same structure, our extension), or as individual files when needed; with export options for on set. Sidecars use existing standards where any fit (the production research, docs/PRODUCTION.md when written). To test with a real Highland: does it keep unknown files on its own save?
