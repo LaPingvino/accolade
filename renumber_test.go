@@ -142,16 +142,17 @@ func TestUnlockDialogDefault(t *testing.T) {
 // a locked script with A-numbers, a gap and an OMITTED scene
 const renumberScript = "INT. HOUSE - DAY #1#\n\nRain.\n\nINT. HALL - DAY #1A#\n\nCoats.\n\nEXT. GARDEN - DAY #3# [[red]]\n\nMore rain.\n\n.OMITTED #4#\n\n/* Omitted 4\nINT. CELLAR - NIGHT #4#\n\nDark.\n*/\n\nINT. HOUSE - NIGHT #5#\n\nDry.\n\n/* Production\nscene numbers: locked, 10A\nnumbered before the lock: none\n*/\n"
 
-// Renumber: 1…n in order, A-numbers and gaps gone, the OMITTED scene's
-// number too (its text kept as boneyard); one undo step; at once before
-// an issue.
+// Renumber, Clean 1…n (the preset before an issue): 1…n in order,
+// A-numbers and gaps gone, the OMITTED scene's number too (its text kept
+// as boneyard); one undo step.
 func TestRenumber(t *testing.T) {
 	holdUI(t)
 	w, _ := scriptWindow(t, renumberScript)
 	w.renumberScenes()
-	if len(w.fyneWindow.Canvas().Overlays().List()) > 0 {
-		t.Error("Renumber asked before an issue")
+	if !dialogShows(w, presetClean) {
+		t.Error("no dialog, or not the Clean preset, before an issue")
 	}
+	test.Tap(overlayButton(t, w, "Renumber"))
 	want := "INT. HOUSE - DAY #1#\n\nRain.\n\nINT. HALL - DAY #2#\n\nCoats.\n\nEXT. GARDEN - DAY #3# [[red]]\n\nMore rain.\n\n/* Omitted scene\nINT. CELLAR - NIGHT\n\nDark.\n*/\n\nINT. HOUSE - NIGHT #4#\n\nDry.\n\n/* Production\nscene numbers: locked, 10A\nnumbered before the lock: none\n*/\n"
 	if got := w.textEditor.Text(); got != want {
 		t.Errorf("renumbered:\n%s", got)
@@ -190,6 +191,13 @@ func TestRenumberAfterIssue(t *testing.T) {
 		t.Fatal("Cancel renumbered")
 	}
 	w.renumberScenes()
+	if w.renumbering.preset.Selected != presetSent {
+		t.Errorf("after an issue the preset is %q", w.renumbering.preset.Selected)
+	}
+	if !overlayButton(t, w, "Save a Draft, Then Renumber").Disabled() {
+		t.Error("Keep sent scenes: every number went out, yet something to renumber")
+	}
+	w.renumbering.preset.SetSelected(presetClean)
 	test.Tap(overlayButton(t, w, "Save a Draft, Then Renumber"))
 	waitFor(t, "renumbered", func() bool { return strings.Contains(w.textEditor.Text(), "INT. HALL - DAY #2#") })
 	ds, err := readDrafts(w.extrasHome())
@@ -280,6 +288,7 @@ func TestRenumberKeepsTagsAndStrips(t *testing.T) {
 	}
 	check("locked", "3")
 	w.renumberScenes()
+	test.Tap(overlayButton(t, w, "Renumber"))
 	if !strings.Contains(w.textEditor.Text(), "INT. KITCHEN - NIGHT #4#") {
 		t.Fatal("not renumbered")
 	}
@@ -393,6 +402,7 @@ func TestProductionUnlockRenumberButtons(t *testing.T) {
 	}
 	replaceText(t, w, "#2#", "#1A#")
 	test.Tap(p.renumber)
+	test.Tap(overlayButton(t, w, "Renumber"))
 	if !strings.Contains(w.textEditor.Text(), "#2#") || strings.Contains(w.textEditor.Text(), "#1A#") {
 		t.Errorf("Renumber:\n%s", w.textEditor.Text())
 	}

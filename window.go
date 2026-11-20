@@ -152,6 +152,7 @@ type MainWindow struct {
 	breakdown        breakdownState // the script's breakdown and its tags as found
 	breakdownGen     int            // the breakdown read again (an import)
 	numbers          numbersSeen    // the scene numbers the extras follow (renumber_follow.go)
+	renumbering      *renumberDlg   // Renumber Scenes… as last opened (renumber_dialog.go)
 	breakdownRun     int            // the tags being found
 	schedule         scheduleState  // the shooting schedule (schedule_state.go)
 	stripsVisible    bool           // the stripboard in the editor's place (stripboard.go)

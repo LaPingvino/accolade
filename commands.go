@@ -412,7 +412,7 @@ func newRegistry() *registry {
 	add(
 		prod("production.lockNumbers", "Lock Scene Numbers", (*MainWindow).lockSceneNumbers),
 		unlock,
-		prod("production.renumber", "Renumber Scenes", (*MainWindow).renumberScenes),
+		prod("production.renumber", "Renumber Scenes…", (*MainWindow).renumberScenes),
 		prod("production.omit", "Omit Scene", (*MainWindow).omitScene),
 		prod("production.restore", "Restore Scene", (*MainWindow).restoreScene),
 		prod("production.issue", "Issue Draft…", (*MainWindow).showIssueDraft),

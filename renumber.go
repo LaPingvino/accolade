@@ -31,18 +31,23 @@ import (
 // lock made before this line existed has no record: then Remove takes
 // every number out, and the dialog says so.
 //
-// Production > Renumber Scenes numbers the scenes 1…n again, in script
-// order: A-numbers and gaps go. An OMITTED scene loses its number too:
-// OMITTED keeps a number that went out with the script from being given
-// again (Wikipedia, Shooting script), and renumbering is what closes those
-// gaps (StudioBinder, Scene numbering); a renumbered script starts its
-// numbers afresh, so none is kept. Its text stays where it was, as
-// boneyard (/* Omitted scene … */), as Remove leaves an OMITTED scene
-// whose number goes. Before the first issue Renumber just does it; after
-// one it warns that what went out uses the old numbers, and offers to save
-// a draft first. Each is one undo step, the page lock's scene numbers
-// following in the same step; the breakdown and the schedule, kept beside
-// the script, follow by the scenes' places (renumber_follow.go).
+// Production > Renumber Scenes… asks how (renumber_dialog.go,
+// renumber_strategy.go; Lexington's lex.Renumber does the numbering):
+// which scenes, which numbers stay or only which go, A-scenes folded or
+// kept, OMITTED dropped, kept or merged into one "OMITTED #12-14#", with
+// presets (Clean 1…n; after an issue, keep sent scenes; last used) and a
+// preview of old → new made by the plan Apply writes. Clean 1…n numbers
+// the scenes 1…n again, in script order: A-numbers and gaps go. An
+// OMITTED scene loses its number too: OMITTED keeps a number that went
+// out with the script from being given again (Wikipedia, Shooting
+// script), and renumbering is what closes those gaps (StudioBinder, Scene
+// numbering). Its text stays where it was, as boneyard (/* Omitted scene
+// … */), as Remove leaves an OMITTED scene whose number goes. After an
+// issue the dialog warns that what went out uses the old numbers, and
+// offers to save a draft first. Each is one undo step, the page lock's
+// scene numbers following in the same step; the breakdown and the
+// schedule, kept beside the script, follow by the scenes' places
+// (renumber_follow.go).
 
 // handNumbersKey is the key of the line naming the numbers there before
 // the lock.
@@ -101,11 +106,19 @@ func handNumbersLine(heads []sceneHead) string {
 
 // numberPlan is what Remove or Renumber does to each heading: its new
 // number ("" none), or, for an OMITTED one, drop: its number goes, and
-// with it the heading; its scene stays as boneyard.
+// with it the heading; its scene stays as boneyard; or merge: the heading
+// goes into the OMITTED run's first, which has the run's range (12-14),
+// its block staying under it. free are the headings Renumber gave a new
+// number (nil for Remove).
 type numberPlan struct {
-	nums []string
-	drop []bool
+	nums  []string
+	drop  []bool
+	merge []bool
+	free  []bool
 }
+
+// merged tells whether heading i goes into the OMITTED run before it.
+func (p numberPlan) merged(i int) bool { return i < len(p.merge) && p.merge[i] }
 
 // isOmitted tells whether a heading is an OMITTED one.
 func isOmitted(h sceneHead) bool {
@@ -126,22 +139,6 @@ func removePlan(heads []sceneHead, keep map[string]bool) numberPlan {
 	return p
 }
 
-// renumberPlan numbers the scenes 1…n in order, the OMITTED ones left
-// out.
-func renumberPlan(heads []sceneHead) numberPlan {
-	p := numberPlan{nums: make([]string, len(heads)), drop: make([]bool, len(heads))}
-	n := 0
-	for i, h := range heads {
-		if isOmitted(h) {
-			p.drop[i] = true
-			continue
-		}
-		n++
-		p.nums[i] = fmt.Sprint(n)
-	}
-	return p
-}
-
 // omittedOpenLine is how an OMITTED scene's text is kept once its number
 // is gone.
 const omittedOpenLine = "/* Omitted scene"
@@ -156,6 +153,18 @@ func planEdits(b *buffer.Buffer, lines []string, heads []sceneHead, p numberPlan
 	for i, h := range heads {
 		if p.drop[i] {
 			out = append(out, dropOmitted(b, lines, h))
+			continue
+		}
+		if p.merged(i) { // the heading and the blank lines after it go
+			next := h.line + 1
+			for next < len(lines) && strings.TrimSpace(lines[next]) == "" {
+				next++
+			}
+			end := b.LineEnd(h.line)
+			if next < len(lines) {
+				end = b.LineStart(next)
+			}
+			out = append(out, lineEdit{b.LineStart(h.line), end, ""})
 			continue
 		}
 		if p.nums[i] == h.num && !h.stray {
@@ -415,8 +424,8 @@ func (w *MainWindow) unlockNow(remove bool) {
 	w.setStatus("Scene numbers unlocked: " + plural(n, "number") + " taken out (Undo puts them back)")
 }
 
-// renumberScenes is Production > Renumber Scenes: at once before the
-// first issue; after one, it warns and offers a draft first.
+// renumberScenes is Production > Renumber Scenes…: the dialog of
+// strategies (renumber_dialog.go).
 func (w *MainWindow) renumberScenes() {
 	if w.markdown || w.textEditor == nil {
 		return
@@ -432,64 +441,49 @@ func (w *MainWindow) renumberScenes() {
 		return
 	}
 	w.afterBundleWrites(func() {
-		if issued, _ := w.firstIssue(); !issued {
-			w.renumberNow()
-			return
-		}
-		w.renumberDialog().Show()
+		w.renumbering = w.newRenumberDialog()
+		w.renumbering.d.Show()
 	})
 }
 
-// renumberDialog is Renumber's warning after an issue (not shown).
-func (w *MainWindow) renumberDialog() dialog.Dialog {
-	_, what := w.firstIssue()
-	label := widget.NewLabel("The script was issued: " + what + ". Sides, schedules and printed pages that went out use the old numbers; " +
-		"renumbering gives every scene a new one (1, 2, 3 …), A-numbers, gaps and OMITTED gone.\n\n" +
-		"Accolade's breakdown, schedule and locked pages follow the scenes, but nothing printed or sent does. " +
-		"Save a draft first, so the script as numbered now can be found again (File > Drafts…)?")
-	label.Wrapping = fyne.TextWrapWord
-	var d dialog.Dialog
-	draftFirst := widget.NewButton("Save a Draft, Then Renumber", func() {
-		d.Hide()
-		w.addDraft("Before renumbering", false, func(sd savedDraft, _ bool, err error) {
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("could not save the draft, so the scenes are not renumbered: %v", err), w.fyneWindow)
-				return
-			}
-			w.setStatus("Draft “" + sd.Name + "” saved; " + w.renumberNow())
-		})
-	})
-	draftFirst.Importance = widget.HighImportance
-	now := widget.NewButton("Renumber", func() { d.Hide(); w.renumberNow() })
-	cancel := widget.NewButton("Cancel", func() { d.Hide() })
-	d = dialog.NewCustomWithoutButtons("Renumber Scenes", container.NewBorder(nil, w.dialogButtons(cancel, now, draftFirst), nil, nil, label), w.fyneWindow)
-	d.Resize(fitDialog(w.fyneWindow, 560, 300))
-	return d
-}
-
-// renumberNow numbers the scenes 1…n again: one undo step. It says so
-// in the status bar, and returns what it said.
+// renumberNow numbers the scenes 1…n again (the Clean preset): one undo
+// step. It says so in the status bar, and returns what it said.
 func (w *MainWindow) renumberNow() string {
 	text := w.textEditor.Text()
 	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
-	p := renumberPlan(heads)
+	return w.renumberWith(cleanChoice(), w.renumberContextNow(text, heads))
+}
+
+// renumberWith numbers the scenes as c says, read against ctx: one undo
+// step, the lock's "numbered before" line, the locked pages and (after)
+// the breakdown and the schedule following. It says what it did in the
+// status bar, and returns that.
+func (w *MainWindow) renumberWith(c renumberChoice, ctx renumberContext) string {
+	text := w.textEditor.Text()
+	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
+	p := strategyPlan(heads, c, ctx)
 	inside, _ := productionBlock(text)
-	if sceneLockOf(text).locked { // every number is the lock's now
-		inside = withBlockLine(inside, handNumbersKey, "none")
+	if sceneLockOf(text).locked {
+		inside = withBlockLine(inside, handNumbersKey, handLineAfter(heads, p, ctx))
 	}
 	inside = pageLockFollowing(text, inside, heads, p)
 	w.applyNumberPlan(heads, p, inside)
-	n, dropped := 0, 0
+	_, changed := previewRows(heads, p)
+	dropped, merged := 0, 0
 	for i := range heads {
 		if p.drop[i] {
 			dropped++
-		} else {
-			n++
+		}
+		if p.merged(i) {
+			merged++
 		}
 	}
-	msg := "Scenes renumbered 1–" + fmt.Sprint(n)
+	msg := "Scenes renumbered: " + plural(changed, "heading") + " changed"
 	if dropped > 0 {
 		msg += "; " + plural(dropped, "OMITTED scene") + " kept as boneyard"
+	}
+	if merged > 0 {
+		msg += "; " + plural(merged, "OMITTED heading") + " merged into a range"
 	}
 	msg += " (Undo takes it back)"
 	w.setStatus(msg)

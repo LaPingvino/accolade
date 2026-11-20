@@ -389,6 +389,21 @@ func (w *MainWindow) restoreScene() {
 		w.setStatus("This scene is not omitted")
 		return
 	}
+	if _, _, isRange := lex.NumberRange(n); isRange { // a merged run: one OMITTED a scene again
+		out, ok := fountain.SplitOmitted(scene)
+		if !ok {
+			w.setStatus("OMITTED " + n + " has no scenes under it (no /* Omitted … */ blocks) to restore")
+			return
+		}
+		w.textEditor.Edit(func(b *buffer.Buffer) {
+			b.Group(func() {
+				b.Replace(start, end, out)
+				b.SetCursor(start, false)
+			})
+		})
+		w.setStatus("OMITTED " + n + " split into its scenes: Restore Scene on one brings it back")
+		return
+	}
 	out, ok := fountain.RestoreScene(scene)
 	if !ok {
 		w.setStatus("Scene " + n + "'s text is not under its heading (no /* Omitted " + n + " … */ block): write it again over OMITTED")

@@ -362,8 +362,9 @@ const adaptationMenu = `# Adaptation
 // Source As… leave File, the source's group leaves Format (its separator
 // too), and the Adaptation menu comes before Production; in a Markdown
 // document's, Format loses the separator it ended with (the source's
-// group's, left behind). The shortcuts, header bar and context menu are
-// as they were.
+// group's, left behind). And Renumber Scenes became Renumber Scenes… (a
+// dialog of strategies since). The shortcuts, header bar and context menu
+// are as they were.
 func adaptationMoves(name, golden string) string {
 	if !strings.HasPrefix(name, "menu-") {
 		return golden
@@ -382,6 +383,7 @@ func adaptationMoves(name, golden string) string {
   Update Source Links
   Keep Source in the Script
 `, "", 1)
+	golden = strings.Replace(golden, "  Renumber Scenes\n", "  Renumber Scenes…\n", 1) // a dialog since its strategies
 	return strings.Replace(golden, "# Production\n", adaptationMenu+"# Production\n", 1)
 }
 

@@ -119,7 +119,7 @@ func newProductionPane(w *MainWindow) *productionPane {
 	p.unlockNumbers = widget.NewButtonWithIcon("Unlock…", theme.ContentUndoIcon(), w.unlockSceneNumbers)
 	fyne.SetAccessibleLabel(p.unlockNumbers, "Unlock Scene Numbers…")
 	p.renumber = widget.NewButtonWithIcon("Renumber", theme.ViewRefreshIcon(), w.renumberScenes)
-	fyne.SetAccessibleLabel(p.renumber, "Renumber Scenes")
+	fyne.SetAccessibleLabel(p.renumber, "Renumber Scenes…")
 	p.numbersRow = container.NewBorder(nil, nil, nil, container.NewHBox(p.unlockNumbers, p.renumber), p.lockNumbers)
 	p.lockPages = button("Lock Pages", theme.FileIcon(), w.lockPages)
 	p.issueWhite = button("Issue White…", theme.ConfirmIcon(), w.showIssueDraft)
