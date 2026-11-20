@@ -130,9 +130,10 @@ type MainWindow struct {
 		text string
 		ok   bool
 	}
-	draftTimer    *uiTimer      // the browser keeping the script, after typing
-	sourceGen     int           // the Choose Source under way
-	autoSaveDelay time.Duration // overrides the setting; for tests
+	draftTimer       *uiTimer      // the browser keeping the script, after typing
+	sceneNumberTimer *uiTimer      // a locked script's new scenes numbered, after typing (production.go)
+	sourceGen        int           // the Choose Source under way
+	autoSaveDelay    time.Duration // overrides the setting; for tests
 
 	statusLabel *widget.Label
 	statusHint  string   // the "Tab: …" hint shown, "" none (status_hint.go)
@@ -973,6 +974,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.updateTitle()
 	w.updateStatusBar()
 	w.updateCurrentElement()
+	w.scheduleSceneNumbers()
 	if w.outlineVisible && w.outline != nil {
 		w.outline.update(text)
 	}
@@ -1040,7 +1042,8 @@ func (w *MainWindow) updateStatusBar() {
 
 func (w *MainWindow) onCursorChanged() {
 	w.updateCurrentElement()
-	w.updateStatusBar() // the scene under the cursor
+	w.scheduleSceneNumbers() // the heading just left
+	w.updateStatusBar()      // the scene under the cursor
 	if w.notes != nil {
 		w.followSource() // the scene's passages
 	}

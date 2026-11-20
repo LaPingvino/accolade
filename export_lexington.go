@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/LaPingvino/lexington/cli"
@@ -96,8 +95,12 @@ func (j exportJob) script(content string) lex.Screenplay {
 	if j.omitTitlePage {
 		s = withoutTitlePage(s)
 	}
-	if j.numberScenes {
-		s = numberScenes(s)
+	// a locked script's numbers are always shown: a scene written last
+	// may not have its number yet (production.go)
+	if l := sceneLockOf(content); l.locked {
+		s = lex.NumberScenes(s, lex.NumberOptions{Locked: true, Style: l.style})
+	} else if j.numberScenes {
+		s = lex.NumberScenes(s, lex.NumberOptions{})
 	}
 	return s
 }
@@ -114,28 +117,6 @@ func withoutTitlePage(s lex.Screenplay) lex.Screenplay {
 		}
 	}
 	return nil
-}
-
-// numberScenes gives the scenes without a number (#12#) the next one:
-// 1, 2, 3, or after a scene numbered 7, 8.
-func numberScenes(s lex.Screenplay) lex.Screenplay {
-	out := make(lex.Screenplay, len(s))
-	copy(out, s)
-	n := 0
-	for i, l := range out {
-		if l.Type != lex.TypeScene {
-			continue
-		}
-		if _, num := lex.SceneNumber(l.Contents); num != "" {
-			if v, err := strconv.Atoi(num); err == nil {
-				n = v
-			}
-			continue
-		}
-		n++
-		out[i].Contents = strings.TrimSpace(l.Contents) + " #" + strconv.Itoa(n) + "#"
-	}
-	return out
 }
 
 // exportAs writes the script as Lexington's format to (its -to), with

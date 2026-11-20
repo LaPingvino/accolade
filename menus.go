@@ -160,11 +160,23 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		view.Items = withoutItems(view.Items, "Cards", "Statistics…", "Source") // a screenplay's
 	}
 
+	// a shooting script's (docs/PRODUCTION.md; production.go)
+	production := fyne.NewMenu("Production",
+		fyne.NewMenuItem("Lock Scene Numbers", w.lockSceneNumbers),
+		fyne.NewMenuItem("Unlock Scene Numbers…", w.unlockSceneNumbers),
+		fyne.NewMenuItemSeparator(),
+		fyne.NewMenuItem("Omit Scene", w.omitScene),
+		fyne.NewMenuItem("Restore Scene", w.restoreScene),
+	)
+
 	help := fyne.NewMenu("Help",
 		fyne.NewMenuItem("About Accolade", func() { w.app.showAbout() }),
 	)
 
-	return fyne.NewMainMenu(file, edit, format, view, help)
+	if w.markdown {
+		return fyne.NewMainMenu(file, edit, format, view, help)
+	}
+	return fyne.NewMainMenu(file, edit, format, production, view, help)
 }
 
 // withoutItems is a menu's items without those labelled so.

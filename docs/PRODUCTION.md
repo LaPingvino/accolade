@@ -22,8 +22,8 @@ Nothing here is built. Sources for claims about other products are linked inline
   `Paragraph Number` (fdx/write.go:188), and the layout package has it as `Line.SceneNumber`.
 - The PDF reader finds numbers in the margins (pdfin/classify.go:260-278).
 - Accolade numbers the unnumbered scenes at export: the Export dialog's "Number the scenes (those without a
-  number)" (export_dialog.go:128, Accolade's own `numberScenes` in export_lexington.go:121). It counts on from the last explicit
-  number, so after 7 comes 8. Nothing locks the numbers, makes A-scenes or writes OMITTED.
+  number)" (export_dialog.go:128). It counts on from the last explicit number, so after 7 comes 8. Since step 1
+  (§7) this is Lexington's `lex.NumberScenes`, and Production > Lock Scene Numbers, A-scenes and OMITTED exist.
 
 **Cards, outline and title page**
 
@@ -174,7 +174,13 @@ the text as boneyard. Its offsets go stale as soon as Accolade edits the text (�
 **Convention**
 
 - Once the script circulates, page numbers are fixed. A page that grows continues on 45A, 45B.
-- Scene numbers are fixed too. A scene inserted between 10 and 11 is A11 in the US and 10A in the UK.
+- Scene numbers are fixed too. Wikipedia: a scene inserted between 10 and 11 is A11 in the US (10A would read
+  as set-up A of scene 10 on an American slate) and 10A in the UK. The software says otherwise: Final Draft
+  (American) gives inserted scenes "28A"
+  (https://kb.finaldraft.com/hc/en-us/articles/27810301418132-How-do-I-number-scenes), WriterDuet 2A, 2B, and
+  Movie Magic Screenwriter has A11 as an option, "Flipped - A1"
+  (https://techsupport.screenplay.com/hc/en-us/articles/115001068631). So the labels are disputed. Accolade names
+  the two by what they make (10A, A11), not by country, and defaults to 10A (§7).
 - A cut scene keeps its number as "OMITTED" and can come back
   (https://en.wikipedia.org/wiki/Shooting_script).
 
@@ -488,6 +494,65 @@ breakdown as "changed in Blue: check", which the stages before can't show.
 
 Open questions for Joop:
 
-- US or UK A-numbering by default: A11 or 10A?
+- A-numbering by default: answered (Joop): 10A, with a setting for A11. He called 10A "US"; Wikipedia calls it UK
+  (above). If he meant A11, the default is one line (settings.go `scene-number-style`).
 - Should `.accolade` be the default Save for a script that has production data, or should `.highland` stay the
   default with the warning?
+
+## 7. Step 1, built: locked scene numbers, A-scenes, OMITTED (2026-11-20)
+
+Branch scenelock (Accolade), Lexington v1.7.0 (tagged locally).
+
+**Lexington**
+
+- `lex.NumberScenes(s, lex.NumberOptions{Locked, Style})`, with `lex.NumberLabels` (the same on a list of numbers,
+  what Accolade uses on its editor's lines) and `lex.SceneNumberBetween`. Unlocked it counts on from the last whole
+  number, as Accolade's export did. Locked, it keeps every number and gives a new scene one between its neighbours,
+  never one that is taken anywhere in the script (an OMITTED scene keeps its number):
+  - `lex.NumberAfter` (default, "10A"): 10, 10A, 10B, 11; between 10A and 10B, 10AA; between 10 and 10A, 10aA (a
+    small a before the letter: Wikipedia's form, since nothing comes between 10 and 10A). Past Z: 10ZA.
+  - `lex.NumberBefore` ("A11"): 10, A11, B11, 11; between 10 and A11, AA11; between A11 and B11, AB11 (Wikipedia's
+    examples).
+  - Both: before the first numbered scene A1 (then B1); after the last, the next number (88 after 87), as Final Draft
+    letters only scenes "inserted between previously numbered scene headings". A number that is not digits and
+    letters (Storyboarder's `3-x2k9q`) is no neighbour, but is never given again.
+- `lex.WithSceneNumber` puts `#n#` in a heading before its notes. `-number count|10A|A11` on the command line.
+- `fountain.OmitScene` / `fountain.RestoreScene` (and `lex.OmittedNumber`): `.OMITTED #12#`, a blank line, then
+  `/* Omitted 12`, the scene exactly as it was (heading with its number and notes included), `*/`. A `*/` inside is
+  kept as `* /`, as the notes block does (so a literal `* /` in an omitted scene comes back as `*/`).
+- FDX: the number stays `Number="12A"`; OMITTED is a Scene Heading `<Text>OMITTED</Text>` with `Number="12"`, as
+  OpenDraft's golden file writes it (*unverified* against Final Draft itself). It reads back as `.OMITTED #12#`. No
+  `<SceneNumberOptions>` is written: I have seen no real file's values. Fixed on the way: FDX wrote Fountain's
+  boneyard (notes blocks too) as General paragraphs, which Final Draft prints; it is left out now. So an omitted
+  scene's text does not survive FDX: Restore needs the Fountain (or the bundle).
+
+**Accolade** (production.go; a Production menu, hidden for Markdown; no pane yet: that is step 6)
+
+- **Lock Scene Numbers** writes `#n#` into every heading without one (locked numbering, so numbers already there
+  are kept and gaps get letters) and the lock into a boneyard block at the script's end, with the source and
+  adaptation blocks (read in any order, before the notes):
+
+  ```
+  /* Production
+  scene numbers: locked, 10A
+  */
+  ```
+
+  `10A` / `A11` is the lettering the script was locked with, so a locked script keeps its style on every machine;
+  Preferences > Script > Production > "A new scene's number" (`scene-number-style`, default 10A) is for new locks.
+  Other lines in the block are kept (later steps add theirs). One undo step; the cursor stays.
+- **New scenes while locked** get their number once the cursor has left the heading and typing pauses (700 ms; on
+  every text and cursor change a debounce, never per key), as part of the writer's last undo step (`buffer.Amend`,
+  as the learned notes): Undo takes the heading and its number together. Not while Redo is possible, text is
+  selected, before any edit (a script written elsewhere is numbered at the first edit), or while shared (each peer
+  would number it). Export and print number a locked script's unnumbered scene the same way, always.
+- **Unlock Scene Numbers…** asks, then takes the lock line out (the block too if empty), nothing else: the numbers
+  stay, as they went out with the script. Lock's own Undo takes its numbers away again; a later "remove the numbers"
+  would need to know which were Lock's, which nothing records.
+- **Omit Scene** (cursor in a numbered scene): the heading becomes `.OMITTED #12#` with the scene in a boneyard under
+  it. Unnumbered: it says to lock first. **Restore Scene** (cursor on the OMITTED heading) puts it back exactly. One
+  undo step each. The outline and cards skip boneyard, so the old heading is no scene there.
+- Rough: the editor shows the omitted scene's boneyard as plain text (boneyard has no colour of its own yet); the
+  outline doesn't show numbers; a heading edited after its number (text typed after `#1A#`) loses it as a number and
+  gets a second one.
+

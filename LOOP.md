@@ -220,3 +220,17 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   mislearn); a link added under a heading the script had when opened teaches no place; open on a phone the list
   takes most of the pane (it scrolls, folded by default); extra blank line kept before the block when it is first
   written with the cursor at the script's end. Next: step 8 (AI) only if wanted; else PRODUCTION from step 1.
+- 2026-11-20: PRODUCTION step 1, locked scene numbers (branch scenelock, not merged; production.go; decisions in
+  docs/PRODUCTION.md §7). Lexington v1.7.0 (tagged locally, not pushed): `lex.NumberScenes` (count, or locked: 10A,
+  10B, 10AA between 10A and 10B, 10aA between 10 and 10A; or A11, B11, AA11, AB11; A1 before the first, the next
+  number after the last; nothing taken twice), `fountain.OmitScene`/`RestoreScene`, `-number`, FDX OMITTED as the
+  heading with its Number, and FDX no longer prints the boneyard. Accolade: a Production menu (not in Markdown) with
+  Lock Scene Numbers (numbers every heading, the lock in a `/* Production` block: `scene numbers: locked, 10A`),
+  Unlock Scene Numbers… (asks; the numbers stay), Omit Scene (`.OMITTED #12#`, the scene in `/* Omitted 12 … */`
+  under it) and Restore Scene, one undo step each; a new scene while locked is numbered once the cursor left its
+  heading and typing paused (part of the last undo step); Preferences > Script > Production: 10A or A11 (default
+  10A, Joop; Wikipedia calls 10A the UK way, Final Draft uses it). Export numbers a locked script always; the
+  Export dialog's own numbering is lex.NumberScenes now. go.mod has `replace github.com/LaPingvino/lexington =>
+  ../lexington` until v1.7.0 is pushed (then go get it and drop the replace). Shots: combo-production-*.png
+  (SHOT_DIR=… go test -run TestProductionScreenshots). Rough: an omitted scene's boneyard shows as plain text; text
+  typed after a heading's number makes it lose it. Next: PRODUCTION step 2, the basic reports.

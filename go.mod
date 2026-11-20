@@ -74,3 +74,5 @@ require (
 replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261024175256-1ec26e7c7c6b
 
 replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4
+
+replace github.com/LaPingvino/lexington => ../lexington

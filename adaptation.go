@@ -52,10 +52,10 @@ type tailBlock struct {
 // window asks for it several times per event, of the same text.
 var tails struct {
 	sync.Mutex
-	text       string
-	src, adapt tailBlock
-	notes      int // notesStart, in bytes
-	ok         bool
+	text             string
+	src, adapt, prod tailBlock
+	notes            int // notesStart, in bytes
+	ok               bool
 }
 
 // tailBlocks are the script's source and adaptation blocks, the last
@@ -68,19 +68,25 @@ func tailBlocks(text string) (src, adapt tailBlock) {
 // tailsOf is tailBlocks, and where the notes block starts (in bytes; the
 // text's length without one); remembered for the last text asked about.
 func tailsOf(text string) (src, adapt tailBlock, notes int) {
+	src, adapt, _, notes = allTails(text)
+	return src, adapt, notes
+}
+
+// allTails is tailsOf with the production block (production.go).
+func allTails(text string) (src, adapt, prod tailBlock, notes int) {
 	tails.Lock()
 	defer tails.Unlock()
 	if tails.ok && sameString(tails.text, text) {
-		return tails.src, tails.adapt, tails.notes
+		return tails.src, tails.adapt, tails.prod, tails.notes
 	}
-	src, adapt, notes = findTails(text)
-	tails.text, tails.src, tails.adapt, tails.notes, tails.ok = text, src, adapt, notes, true
-	return src, adapt, notes
+	src, adapt, prod, notes = findTails(text)
+	tails.text, tails.src, tails.adapt, tails.prod, tails.notes, tails.ok = text, src, adapt, prod, notes, true
+	return src, adapt, prod, notes
 }
 
 // findTails scans for the tail blocks, in bytes, then gives their places
 // in runes too.
-func findTails(text string) (src, adapt tailBlock, notes int) {
+func findTails(text string) (src, adapt, prod tailBlock, notes int) {
 	notes = fountainNotes.startByte(text)
 	end := notes
 	for {
@@ -89,7 +95,7 @@ func findTails(text string) (src, adapt tailBlock, notes int) {
 		for _, b := range []struct {
 			marks *notesMarks
 			to    *tailBlock
-		}{{&sourceMarks, &src}, {&adaptationMarks, &adapt}} {
+		}{{&sourceMarks, &src}, {&adaptationMarks, &adapt}, {&productionMarks, &prod}} {
 			if b.to.ok {
 				continue
 			}
@@ -121,17 +127,18 @@ func findTails(text string) (src, adapt tailBlock, notes int) {
 		at = b
 		return n
 	}
-	first, second := &src, &adapt
-	if adapt.ok && (!src.ok || adapt.bstart < src.bstart) {
-		first, second = &adapt, &src
-	}
-	for _, t := range []*tailBlock{first, second} {
+	found := []*tailBlock{}
+	for _, t := range []*tailBlock{&src, &adapt, &prod} {
 		if t.ok {
-			t.start = runes(t.bstart)
-			t.end = runes(t.bend)
+			found = append(found, t)
 		}
 	}
-	return src, adapt, notes
+	slices.SortFunc(found, func(a, b *tailBlock) int { return a.bstart - b.bstart })
+	for _, t := range found {
+		t.start = runes(t.bstart)
+		t.end = runes(t.bend)
+	}
+	return src, adapt, prod, notes
 }
 
 // sameString reports whether a and b are the same text, at once if they
@@ -154,12 +161,11 @@ func bodyEnd(text string) int {
 
 // bodyEndByte is bodyEnd in bytes.
 func bodyEndByte(text string) int {
-	src, adapt, end := tailsOf(text)
-	if src.ok {
-		end = min(end, src.bstart)
-	}
-	if adapt.ok {
-		end = min(end, adapt.bstart)
+	src, adapt, prod, end := allTails(text)
+	for _, t := range []tailBlock{src, adapt, prod} {
+		if t.ok {
+			end = min(end, t.bstart)
+		}
 	}
 	return end
 }

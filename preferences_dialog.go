@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
 )
 
@@ -54,6 +55,7 @@ type PreferencesDialog struct {
 	paperSelect           *widget.Select
 	includeTitlePageCheck *widget.Check
 	numberScenesCheck     *widget.Check
+	sceneLettersSelect    *widget.Select
 	nextInsertsCheck      *widget.Check
 	suggestCheck          *widget.Check
 }
@@ -113,6 +115,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.paperSelect = widget.NewSelect(documentPages, nil)
 	pd.includeTitlePageCheck = widget.NewCheck("Include the title page", nil)
 	pd.numberScenesCheck = widget.NewCheck("Number the scenes (those without a number)", nil)
+	pd.sceneLettersSelect = widget.NewSelect(sceneLetterings, nil)
 	pd.nextInsertsCheck = widget.NewCheck("Next Source Passage starts a scene for it (else it shows the passage and offers to)", nil)
 	pd.suggestCheck = widget.NewCheck("Suggest from the source while writing: lines, action, headings (Tab takes them)", nil)
 }
@@ -217,6 +220,10 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 			pd.nextInsertsCheck,
 			pd.suggestCheck,
 		)),
+		widget.NewCard("Production", "Once the scene numbers are locked (Production > Lock Scene Numbers)", container.NewVBox(
+			labelled("A new scene's number:", pd.sceneLettersSelect),
+			hint("For a script locked from now on; a locked script keeps the lettering it was locked with."),
+		)),
 	)
 }
 
@@ -247,6 +254,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.numberScenesCheck.SetChecked(s.GetBoolean("fountain-scene-numbers"))
 	pd.nextInsertsCheck.SetChecked(s.GetBoolean("next-passage-inserts"))
 	pd.suggestCheck.SetChecked(s.GetBoolean(suggestPref))
+	pd.sceneLettersSelect.SetSelected(sceneLettering(lex.ParseNumberStyle(s.GetString(sceneNumberStylePref))))
 }
 
 func (pd *PreferencesDialog) saveSettings() {
@@ -290,6 +298,7 @@ func (pd *PreferencesDialog) saveSettings() {
 	s.SetBoolean("fountain-scene-numbers", pd.numberScenesCheck.Checked)
 	s.SetBoolean("next-passage-inserts", pd.nextInsertsCheck.Checked)
 	s.SetBoolean(suggestPref, pd.suggestCheck.Checked)
+	s.SetString(sceneNumberStylePref, letteringStyle(pd.sceneLettersSelect.Selected).String())
 
 	s.Save()
 }
@@ -463,4 +472,25 @@ func (pd *PreferencesDialog) keys() {
 func (pd *PreferencesDialog) turnPage(step int) {
 	n := len(pd.tabs.Items)
 	pd.tabs.SelectIndex(((pd.tabs.SelectedIndex()+step)%n + n) % n)
+}
+
+// sceneLetterings are the Preferences' choices for a new scene's number
+// in a locked script (lex.NumberStyle), named by what they make.
+var sceneLetterings = []string{
+	"10A: a letter after the scene before (10A, 10B)",
+	"A11: a letter before the scene after (A11, B11)",
+}
+
+func sceneLettering(s lex.NumberStyle) string {
+	if s == lex.NumberBefore {
+		return sceneLetterings[1]
+	}
+	return sceneLetterings[0]
+}
+
+func letteringStyle(choice string) lex.NumberStyle {
+	if choice == sceneLetterings[1] {
+		return lex.NumberBefore
+	}
+	return lex.NumberAfter
 }
