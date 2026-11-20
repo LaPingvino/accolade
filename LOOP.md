@@ -548,7 +548,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   refused. Only .accolade: a rename/Save As to another bundle rewrites without them (plan row warns). Rough: a plain
   film.xq.fountain of a carried language does not read back where the language is unknown; the place button keeps
   INT./EXT. for a language with no A/B word; Matchups/Standard keep-both renames only the copy.
-- 2026-11-20: a language's direction as the last resort only (branch rtlfallback, not merged; Lexington v1.18.0
+- 2026-11-20: a language's direction as the last resort only (branch rtlfallback, merged; Lexington v1.18.0 pushed
   tagged locally, not pushed: `[Directions]` ar/he rtl by default, lex.OwnDirection, the HTML writer's dir="rtl" for a
   neutral line; Accolade: ScriptEditor.LanguageRTL, Right to Left Line, the export's SceneIn, carried and added with
   its language). go.mod has `replace => ../lexington` until v1.18.0 is pushed. Shots: rtlfallback-before/after.png.
