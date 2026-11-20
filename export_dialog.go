@@ -43,6 +43,10 @@ type ExportDialog struct {
 	colorBlockCheck, colorTintCheck *widget.Check // with marker, background or text; with the line
 	colorPatternsCheck              *widget.Check // with the line
 
+	// revisions (PDF, FDX; revisions.go), shown once the script has an
+	// issue: the marks, the revised pages only, their colour's paper
+	revisionsCheck, revisedOnlyCheck, pageColoursCheck *widget.Check
+
 	// page breaks (export_pagination.go)
 	paginationSelect                                 *widget.Select
 	paginationKeep, paginationWidows, paginationMore *widget.Check
@@ -138,6 +142,20 @@ func (ed *ExportDialog) createWidgets() {
 	ed.colorPatternsCheck = widget.NewCheck("Patterns on the line (for colour blindness)", nil)
 	ed.colorOptions = container.NewVBox(labelled("Style:", ed.colorStyleSelect),
 		container.NewHBox(ed.colorBlockCheck, ed.colorTintCheck), ed.colorPatternsCheck)
+
+	ed.revisionsCheck = widget.NewCheck("Revision marks: * at changed lines, the changed pages' header", func(on bool) {
+		if ed.revisedOnlyCheck != nil {
+			if on {
+				ed.revisedOnlyCheck.Enable()
+				ed.pageColoursCheck.Enable()
+			} else {
+				ed.revisedOnlyCheck.Disable()
+				ed.pageColoursCheck.Disable()
+			}
+		}
+	})
+	ed.revisedOnlyCheck = widget.NewCheck("Revised pages only (the pages with a change)", nil)
+	ed.pageColoursCheck = widget.NewCheck("Changed pages on their colour's paper", nil)
 
 	ed.paginationBox = ed.paginationWidgets()
 	ed.createFilterWidgets()
@@ -248,6 +266,16 @@ func (ed *ExportDialog) updateFormatSettings() {
 	case "fdx", "latex", "latexpdf":
 		labelled("Template:", ed.templateEntry)
 	}
+	if ed.window.scriptIssued() {
+		switch f.id {
+		case "pdf":
+			ed.formatSettingsContainer.Add(ed.revisionsCheck)
+			ed.formatSettingsContainer.Add(ed.revisedOnlyCheck)
+			ed.formatSettingsContainer.Add(ed.pageColoursCheck)
+		case "fdx":
+			ed.formatSettingsContainer.Add(ed.revisionsCheck)
+		}
+	}
 	switch f.id {
 	case "docx", "odt":
 		note("Every element is a paragraph style, to restyle in Word or LibreOffice.")
@@ -315,6 +343,8 @@ func (ed *ExportDialog) loadSettings() {
 	ed.colorPatternsCheck.SetChecked(ed.settings.GetBoolean("export-color-patterns"))
 	ed.setPagination(ed.settings.GetString("export-pagination"))
 	ed.enableColorStyle()
+	ed.revisionsCheck.SetChecked(ed.settings.GetBoolean("export-revisions"))
+	ed.pageColoursCheck.SetChecked(ed.settings.GetBoolean("export-page-colours"))
 }
 
 func (ed *ExportDialog) saveSettings() {
@@ -331,6 +361,8 @@ func (ed *ExportDialog) saveSettings() {
 	ed.settings.SetBoolean("export-color-tint", ed.colorTintCheck.Checked)
 	ed.settings.SetBoolean("export-color-patterns", ed.colorPatternsCheck.Checked)
 	ed.settings.SetString("export-pagination", ed.chosenPagination())
+	ed.settings.SetBoolean("export-revisions", ed.revisionsCheck.Checked)
+	ed.settings.SetBoolean("export-page-colours", ed.pageColoursCheck.Checked)
 
 	ed.settings.Save()
 }
@@ -504,6 +536,17 @@ func (ed *ExportDialog) runExport() {
 
 // job is the export as the dialog sets it up.
 func (ed *ExportDialog) job() exportJob {
+	j := ed.plainJob()
+	f := exportFormatByLabel(ed.formatSelect.Selected).id
+	if (f == "pdf" || f == "fdx") && ed.revisionsCheck.Checked {
+		j = ed.window.withRevisions(j, ed.window.textEditor.Text(), f == "pdf" && ed.revisedOnlyCheck.Checked,
+			f == "pdf" && ed.pageColoursCheck.Checked)
+	}
+	return j
+}
+
+// plainJob is the export as the dialog sets it up, without revisions.
+func (ed *ExportDialog) plainJob() exportJob {
 	return exportJob{
 		format:        selectedScriptFormat(ed.scriptFormatSelect),
 		page:          ed.documentPage(),

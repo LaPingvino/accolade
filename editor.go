@@ -55,6 +55,7 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		e.Folds = w.editorFoldRanges
 		e.OnUnfold = w.unfoldAt
 		e.Headings = w.headingLines
+		e.Marks = w.revisionMarksShown
 		e.OnFoldTapped = w.foldLine
 		e.OnShiftTab = w.cycleAll
 	}

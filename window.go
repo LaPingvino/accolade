@@ -143,6 +143,10 @@ type MainWindow struct {
 	}
 	draftTimer       *uiTimer      // the browser keeping the script, after typing
 	sceneNumberTimer *uiTimer      // a locked script's new scenes numbered, after typing (production.go)
+	revisionTimer    *uiTimer      // the revision marks updated, after typing (revisions.go)
+	revisions        revisionState // the script's issues and the marks shown
+	revisionGen      int           // a new issue (the issues read again)
+	revisionRun      int           // the marks being computed
 	sourceGen        int           // the Choose Source under way
 	autoSaveDelay    time.Duration // overrides the setting; for tests
 
@@ -424,6 +428,8 @@ func (w *MainWindow) LoadFile(filePath string) error {
 func (w *MainWindow) importFile(filePath string) error {
 	var text, from string
 	var err error
+	var sets []lex.RevisionSet
+	var marks []importedMark
 	if strings.EqualFold(filepath.Ext(filePath), ".pdf") {
 		w.importPDFAsync(filePath)
 		return nil
@@ -433,7 +439,7 @@ func (w *MainWindow) importFile(filePath string) error {
 			return fmt.Errorf("failed to read file: %v", err)
 		}
 		defer f.Close()
-		text, err = importFDX(f)
+		text, sets, marks, err = importFDXRevised(f)
 		from = "Final Draft"
 	}
 	if err != nil {
@@ -441,6 +447,9 @@ func (w *MainWindow) importFile(filePath string) error {
 	}
 
 	w.showImported(filePath, text, from)
+	if len(sets) > 0 {
+		w.keepImportedRevisions(filepath.Base(filePath), sets, marks)
+	}
 	return nil
 }
 
@@ -990,6 +999,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.updateStatusBar()
 	w.updateCurrentElement()
 	w.scheduleSceneNumbers()
+	w.scheduleRevisionMarks()
 	if w.outlineVisible && w.outline != nil {
 		w.outline.update(text)
 	}
@@ -1121,6 +1131,9 @@ func (w *MainWindow) makePreviewPDF() {
 	}
 	out := filepath.Join(dir, strings.TrimSuffix(name, filepath.Ext(name))+".pdf")
 	content := w.textEditor.Text()
+	if w.settings.GetBoolean("export-revisions") {
+		job = w.withRevisions(job, content, false, w.settings.GetBoolean("export-page-colours"))
+	}
 	w.setStatus("Preparing the PDF...")
 	go func() {
 		err := exportAs(content, out, "pdf", job)

@@ -51,6 +51,11 @@ type exportJob struct {
 	character string
 	sides     lex.SidesMode
 	cueWords  int
+
+	// revisions: the sets and each line of the content's mark (revisions.go;
+	// nil: none), for PDF and FDX
+	revisions *lex.Revisions
+	marks     []string
 }
 
 // options are Lexington's options for the job, writing as to to output.
@@ -66,6 +71,7 @@ func (j exportJob) options(to, output string) cli.Options {
 		Colors:       j.colors,
 		Tags:         j.tags,
 		Pagination:   j.pagination,
+		Revisions:    j.revisions,
 	}
 	if j.colors { // (a style alone would switch colors on)
 		o.ColorStyle = string(j.colorStyle)
@@ -91,7 +97,17 @@ func (j exportJob) script(content string) lex.Screenplay {
 	if scenes == nil {
 		scenes = englishScenes
 	}
-	s := fountain.Parse(scenes, strings.NewReader(content))
+	var s lex.Screenplay
+	if j.revisions != nil {
+		s = fountain.ParseLines(scenes, strings.NewReader(content))
+		for i := range s {
+			if n := s[i].Source - 1; n >= 0 && n < len(j.marks) {
+				s[i].Revision = j.marks[n]
+			}
+		}
+	} else {
+		s = fountain.Parse(scenes, strings.NewReader(content))
+	}
 	if j.omitTitlePage {
 		s = withoutTitlePage(s)
 	}
@@ -156,15 +172,51 @@ func lexingtonConfig() string { return filepath.Join(getConfigDir(), "lexington.
 
 // importFDX converts a Final Draft document to Fountain text.
 func importFDX(r io.Reader) (string, error) {
-	screenplay, err := fdx.ParseWithError(r)
+	text, _, _, err := importFDXRevised(r)
+	return text, err
+}
+
+// importFDXRevised is importFDX with the document's revisions: the sets
+// its text uses (oldest first) and the marked lines of the text
+// (revisions.go keeps them).
+func importFDXRevised(r io.Reader) (text string, sets []lex.RevisionSet, marks []importedMark, err error) {
+	screenplay, sets, err := fdx.ParseRevisions(r)
 	if err != nil {
-		return "", err
+		return "", nil, nil, err
 	}
 	var buf bytes.Buffer
 	if err := (&fountain.FountainWriter{SceneConfig: englishScenes}).Write(&buf, screenplay); err != nil {
-		return "", err
+		return "", nil, nil, err
 	}
-	return buf.String(), nil
+	text = buf.String()
+	if len(sets) > 0 {
+		marks = marksOnText(screenplay, text)
+	}
+	return text, sets, marks, nil
+}
+
+// marksOnText are a screenplay's revised rows as lines of the Fountain
+// written from it: each row found in the next lines that hold its text.
+func marksOnText(s lex.Screenplay, text string) []importedMark {
+	lines := strings.Split(text, "\n")
+	var out []importedMark
+	at := 0
+	for _, row := range s {
+		key := strings.ToUpper(strings.TrimSpace(lex.StripNotes(row.Contents)))
+		if key == "" || row.Type == lex.TypeBoneyard {
+			continue
+		}
+		for k := at; k < len(lines) && k < at+40; k++ {
+			if strings.Contains(strings.ToUpper(lines[k]), key) {
+				if row.Revision != "" {
+					out = append(out, importedMark{Line: k, Set: row.Revision, Text: strings.TrimSpace(lines[k])})
+				}
+				at = k + 1
+				break
+			}
+		}
+	}
+	return out
 }
 
 // importPDF reads a screenplay from a PDF as Fountain text. Scanned

@@ -59,6 +59,10 @@ type ScriptEditor struct {
 	// shows ▾ on them (▸ folded), and a tap there goes to OnFoldTapped.
 	Headings     func() map[int]bool
 	OnFoldTapped func(line int)
+	// Marks, when set, are the lines with a mark in a colour of their
+	// own: a bar beside them in the fold marks' column (production's
+	// revision colours). Read at each layout, as Headings.
+	Marks func() map[int]color.Color
 	// OnShiftTab handles Shift+Tab, and reports whether it did.
 	OnShiftTab func() bool
 	// PageColumns, when set, is the page's width (NewPageScroll's columns).
@@ -106,6 +110,7 @@ type ScriptEditor struct {
 	draw                drawing      // what relayout found, to draw rows with
 	foldAt              map[int]bool // the folded headings' lines
 	headings            map[int]bool // the lines that can fold (Headings)
+	marks               map[int]*widget.CustomTextGridStyle // the lines' marks (Marks), as drawn
 	laid                laidOut      // the last layout, for its key
 }
 
@@ -332,6 +337,15 @@ func (e *ScriptEditor) relayout() {
 	if e.Headings != nil {
 		e.headings = e.Headings()
 	}
+	e.marks = nil
+	if e.Marks != nil {
+		for line, c := range e.Marks() {
+			if e.marks == nil {
+				e.marks = map[int]*widget.CustomTextGridStyle{}
+			}
+			e.marks[line] = &widget.CustomTextGridStyle{FGColor: c}
+		}
+	}
 
 	th := e.Theme()
 	v := theme.VariantLight
@@ -507,6 +521,9 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		for _, ch := range mark {
 			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
 		}
+		if m := e.marks[r.Line]; m != nil { // the mark's bar, on each of the line's rows
+			cells[len(cells)-1] = widget.TextGridCell{Rune: markBar, Style: m}
+		}
 	}
 	for c := 0; c < r.Indent; c++ {
 		cells = append(cells, widget.TextGridCell{Rune: ' '})
@@ -549,6 +566,9 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 	}
 	return widget.TextGridRow{Cells: cells}
 }
+
+// markBar is a marked line's bar (Marks).
+const markBar = '┃'
 
 // wideFill is the cell after a wide character, which it is drawn over.
 const wideFill = rune(0)
@@ -644,6 +664,10 @@ func (d drawing) inOther(off int) bool {
 // Refresh redraws the editor with the current theme's colours: Fyne
 // refreshes every widget when the theme changes, and the syntax colours
 // are baked into the grid's cell styles.
+// RedrawMarks draws the rows again with the Marks as they are now (the
+// text's layout kept).
+func (e *ScriptEditor) RedrawMarks() { e.relayout() }
+
 func (e *ScriptEditor) Refresh() {
 	e.laid.ok = false // its settings may have changed (Format, SceneStarts)
 	e.relayout()

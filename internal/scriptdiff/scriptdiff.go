@@ -384,3 +384,9 @@ func myers(a, b []string) []Kind {
 	}
 	return ops
 }
+
+// Lines is the edit script from the old lines to the new: Same, Removed
+// (the old's next) or Added (the new's next) in order, as the elements
+// are compared (bounded the same way). Production's revision marks
+// follow a script's lines through its issues with it.
+func Lines(old, new []string) []Kind { return diff(old, new) }

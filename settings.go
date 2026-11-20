@@ -70,6 +70,16 @@ func (s *Settings) loadDefaults() {
 		// a locked script's new scenes: 10A after 10, or A11 before 11
 		// (production.go, lex.NumberStyle)
 		"scene-number-style": "10A",
+		// revision marks (revisions.go): the current revision's ("last")
+		// or every issue's in its colour ("all"); a changed page's header
+		// ({set}, {date}) and the date's layout (Go's)
+		"revision-marks":  "last",
+		"revision-header": "{set} Revision – {date}",
+		"revision-date":   "02/01/06",
+		// the export's revisions (PDF, FDX): the marks, the pages on
+		// their set's paper
+		"export-revisions":    true,
+		"export-page-colours": false,
 		// the report Production > Reports… shows first (reports.go)
 		"report-kind": "scenes",
 

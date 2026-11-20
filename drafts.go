@@ -50,8 +50,11 @@ type savedDraft struct {
 	Name string    `json:"name"`
 	Date time.Time `json:"date"`
 	Kind string    `json:"kind"`
-	// Colour is an issue's revision colour (step 4)
+	// Colour is an issue's revision set ("Blue": lex.RevisionName), and
+	// Issued the date it was issued with ("2026-11-20"), which may be
+	// another than the day it was kept (revisions.go)
 	Colour string `json:"colour,omitempty"`
+	Issued string `json:"issued,omitempty"`
 	// Text is the file holding its text, in the bundle's names; Source
 	// its source's ("" none, or kept in the script itself)
 	Text   string `json:"text"`
@@ -131,6 +134,13 @@ func draftSlug(name string) string {
 // not stored again. With skipSame, nothing is added if the text and the
 // source are both the same as a stored draft's (no files, ok false).
 func newDraft(r extrasReader, name, kind string, text []byte, ext string, source []byte, now time.Time, skipSame bool) (d savedDraft, files []bundleFile, ok bool, err error) {
+	return newDraftAs(r, savedDraft{Name: name, Kind: kind}, text, ext, source, now, skipSame)
+}
+
+// newDraftAs is newDraft for a draft as like is (its name, kind, an
+// issue's colour and date).
+func newDraftAs(r extrasReader, like savedDraft, text []byte, ext string, source []byte, now time.Time, skipSame bool) (d savedDraft, files []bundleFile, ok bool, err error) {
+	name, kind := like.Name, like.Kind
 	ds, err := readDrafts(r)
 	if err != nil {
 		return savedDraft{}, nil, false, err
@@ -139,7 +149,8 @@ func newDraft(r extrasReader, name, kind string, text []byte, ext string, source
 	if name == "" {
 		name = fmt.Sprintf("Draft %d", len(ds)+1)
 	}
-	d = savedDraft{Name: name, Date: now.UTC().Truncate(time.Second), Kind: cmp.Or(kind, kindDraft)}
+	d = savedDraft{Name: name, Date: now.UTC().Truncate(time.Second), Kind: cmp.Or(kind, kindDraft),
+		Colour: like.Colour, Issued: like.Issued}
 	taken := map[string]bool{}
 	for _, o := range ds {
 		taken[o.ID] = true
@@ -216,7 +227,17 @@ func (w *MainWindow) draftSource() []byte {
 // written in the background (bundle_queue.go); a plain script's go to its
 // kept copy or its folder (extras.go), a kept copy made if it has none.
 func (w *MainWindow) addDraft(name string, skipSame bool, done func(d savedDraft, added bool, err error)) {
+	w.addDraftAs(name, kindDraft, "", time.Time{}, skipSame, done)
+}
+
+// addDraftAs is addDraft for a draft of a kind: an issue with its set
+// (colour) and the date it is issued with (zero for a draft).
+func (w *MainWindow) addDraftAs(name, kind, colour string, issued time.Time, skipSame bool, done func(d savedDraft, added bool, err error)) {
 	text, ext, src, now := []byte(w.textEditor.Text()), draftExt(w.markdown), w.draftSource(), time.Now()
+	like := savedDraft{Name: name, Kind: kind, Colour: colour}
+	if !issued.IsZero() {
+		like.Issued = issued.Format("2006-01-02")
+	}
 	finish := func(d savedDraft, ok bool, err error) {
 		if done != nil {
 			done(d, ok, err)
@@ -232,7 +253,7 @@ func (w *MainWindow) addDraft(name string, skipSame bool, done func(d savedDraft
 				if b == nil {
 					return nil, errors.New("the script's bundle is gone")
 				}
-				d0, files, ok0, err := newDraft(b, name, kindDraft, text, ext, src, now, skipSame)
+				d0, files, ok0, err := newDraftAs(b, like, text, ext, src, now, skipSame)
 				if err != nil || !ok0 {
 					return b, err
 				}
@@ -264,7 +285,7 @@ func (w *MainWindow) addDraft(name string, skipSame bool, done func(d savedDraft
 			keepDraft(w.draft()) // a reload keeps the drafts with the script
 		}
 	}
-	d, files, ok, err := newDraft(home, name, kindDraft, text, ext, src, now, skipSame)
+	d, files, ok, err := newDraftAs(home, like, text, ext, src, now, skipSame)
 	if err == nil && ok {
 		err = home.dir.write(files)
 	}

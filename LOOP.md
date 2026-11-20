@@ -281,3 +281,18 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   side or stacked on a phone; Restore… keeps the script first, one undo step). Identical texts and sources stored
   once (drafts.json names each one's files). Bundle writes now run in the background, one after another
   (PERF-SOURCE item 7 done); the browser's Save As asks for a name. Still to do: test with a real Highland.
+- 2026-11-20: PRODUCTION step 4, issues and revision sets (branch revisions, not merged; revisions.go,
+  revisions_view.go; docs/PRODUCTION.md §10). Lexington v1.9.0 (tagged locally, not pushed; go.mod has `replace =>
+  ../lexington` until it is): `lex.Line.Revision`, `lex.Revisions` (PDF: * at 7.75" on each printed line of a
+  changed row, the changed pages' header "Blue Revision – 20/11/26", revised pages only, coloured paper), the WGA's
+  colour order (`lex.RevisionName`: White … Cherry, then Second Blue; the brief's "double white" is in no
+  WGA-attributed list), FDX `<Revisions>`/`RevisionID` out and `fdx.ParseRevisions` in (DeletedText places too),
+  `fountain.ParseLines`. Accolade: Production > Issue Draft… (date; the first, White, locks the scene numbers; the
+  issue in the drafts store, kind issue + colour + issued date; `revision: Blue, 2026-11-20` in the production
+  block); marks never in the text, from diffing the issues' bodies line by line (scriptdiff.Lines), a deletion
+  marking the line after; the open set in the next colour; marks of the last issue or of all issues (Preferences);
+  a coloured bar in the editor's margin; Export > PDF "Revision marks", "Revised pages only", "Coloured paper", FDX
+  "Revision marks"; an FDX with revisions is kept as an imported issue with its marks in
+  assets/production/revisions.json until the next Issue. Shots: combo-revisions-*.png (SHOT_DIR=… go test -run
+  TestRevisionScreenshots, which writes revisions.pdf too). Print (HTML) has no marks. Next: PRODUCTION step 5,
+  locked pages and A-pages.

@@ -56,6 +56,9 @@ type PreferencesDialog struct {
 	includeTitlePageCheck *widget.Check
 	numberScenesCheck     *widget.Check
 	sceneLettersSelect    *widget.Select
+	revisionMarksSelect   *widget.Select // the current revision's marks, or all issues'
+	revisionHeaderEntry   *widget.Entry  // a changed page's header
+	revisionDateSelect    *widget.Select // its date's layout
 	nextInsertsCheck      *widget.Check
 	suggestCheck          *widget.Check
 }
@@ -116,6 +119,15 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.includeTitlePageCheck = widget.NewCheck("Include the title page", nil)
 	pd.numberScenesCheck = widget.NewCheck("Number the scenes (those without a number)", nil)
 	pd.sceneLettersSelect = widget.NewSelect(sceneLetterings, nil)
+	pd.revisionMarksSelect = widget.NewSelect(revisionMarkChoices, nil)
+	pd.revisionHeaderEntry = widget.NewEntry()
+	pd.revisionHeaderEntry.SetPlaceHolder(lex.DefaultRevisionHeader)
+	fyne.SetAccessibleLabel(pd.revisionHeaderEntry, "Revised page header")
+	var dates []string
+	for _, d := range revisionDates {
+		dates = append(dates, d.label)
+	}
+	pd.revisionDateSelect = widget.NewSelect(dates, nil)
 	pd.nextInsertsCheck = widget.NewCheck("Next Source Passage starts a scene for it (else it shows the passage and offers to)", nil)
 	pd.suggestCheck = widget.NewCheck("Suggest from the source while writing: lines, action, headings (Tab takes them)", nil)
 }
@@ -223,6 +235,11 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 		widget.NewCard("Production", "Once the scene numbers are locked (Production > Lock Scene Numbers)", container.NewVBox(
 			labelled("A new scene's number:", pd.sceneLettersSelect),
 			hint("A scene written between 10 and 11: a letter after the scene before (10A) or before the scene after (A11). For scripts locked from now on; a locked script keeps its own."),
+			labelled("Revision marks since:", pd.revisionMarksSelect),
+			hint("Once issued (Production > Issue Draft…): the changed lines, in the editor's margin and as * in the PDF. Since the last issue: the current revision's, in its colour; all issues: each line in the colour of the last set it changed in."),
+			labelled("Revised page header:", pd.revisionHeaderEntry),
+			labelled("Its date:", pd.revisionDateSelect),
+			hint("{set} is the revision's colour, {date} its date: \"{set} Revision – {date}\" prints \"Blue Revision – 20/11/26\". \"-\" prints none."),
 		)),
 	)
 }
@@ -255,6 +272,17 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.nextInsertsCheck.SetChecked(s.GetBoolean("next-passage-inserts"))
 	pd.suggestCheck.SetChecked(s.GetBoolean(suggestPref))
 	pd.sceneLettersSelect.SetSelected(sceneLettering(lex.ParseNumberStyle(s.GetString(sceneNumberStylePref))))
+	pd.revisionMarksSelect.SetSelected(revisionMarkChoices[0])
+	if s.GetString(revisionMarksPref) == "all" {
+		pd.revisionMarksSelect.SetSelected(revisionMarkChoices[1])
+	}
+	pd.revisionHeaderEntry.SetText(s.GetString(revisionHeaderPref))
+	pd.revisionDateSelect.SetSelected(revisionDates[0].label)
+	for _, d := range revisionDates {
+		if d.layout == s.GetString(revisionDatePref) {
+			pd.revisionDateSelect.SetSelected(d.label)
+		}
+	}
 }
 
 func (pd *PreferencesDialog) saveSettings() {
@@ -299,6 +327,17 @@ func (pd *PreferencesDialog) saveSettings() {
 	s.SetBoolean("next-passage-inserts", pd.nextInsertsCheck.Checked)
 	s.SetBoolean(suggestPref, pd.suggestCheck.Checked)
 	s.SetString(sceneNumberStylePref, letteringStyle(pd.sceneLettersSelect.Selected).String())
+	marks := "last"
+	if pd.revisionMarksSelect.Selected == revisionMarkChoices[1] {
+		marks = "all"
+	}
+	s.SetString(revisionMarksPref, marks)
+	s.SetString(revisionHeaderPref, strings.TrimSpace(pd.revisionHeaderEntry.Text))
+	for _, d := range revisionDates {
+		if d.label == pd.revisionDateSelect.Selected {
+			s.SetString(revisionDatePref, d.layout)
+		}
+	}
 
 	s.Save()
 }

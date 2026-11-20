@@ -103,9 +103,14 @@ the text as boneyard. Its offsets go stale as soon as Accolade edits the text (�
 
 **Convention**
 
-- The page colours run white, blue, pink, yellow, green, goldenrod, buff, salmon, cherry, tan, ivory, then
-  "double white", "double blue" and so on (https://en.wikipedia.org/wiki/Shooting_script; Final Draft cites WGA
-  West for the same order: https://kb.finaldraft.com/hc/en-us/articles/15575314119316).
+- The page colours: the WGA West's order is white, blue, pink, yellow, green, goldenrod, buff, salmon, cherry, then
+  second blue … second cherry, with no second white (Final Draft's knowledge base, "Per the WGA west, the standard
+  script revision color sets are: …", https://kb.finaldraft.com/hc/en-us/articles/15575314119316, seen as a search
+  snippet: the page itself answers 403; Quote-Unquote's "The WGA script revision order",
+  https://blog.quoteunquoteapps.com/script-revision-colors-how-to-track-your-screenplay-changes/). Productions differ:
+  Wikipedia has tan and ivory after cherry, then "double white", "double blue"
+  (https://en.wikipedia.org/wiki/Shooting_script), and Final Draft's own default sets in a real FDX end Cherry, Tan,
+  2nd White, 2nd Blue. Accolade follows the WGA's (§10).
 - Each changed line gets an asterisk in the right margin.
 - Each revised page has a header slug with the date and the colour, and the title page lists the slugs issued
   (Wikipedia, above).
@@ -481,7 +486,7 @@ breakdown as "changed in Blue: check", which the stages before can't show.
    Highland warning, with the drafts store (LOOP.md, Joop 2026-11-20). Built (§9); still to test with a real
    Highland.
 4. **Issue and revision sets:** snapshots, the diff, margin colours, Lexington's asterisks, headers and revised pages
-   only. FDX `<Revisions>` and `RevisionID` out, and in as marks.
+   only. FDX `<Revisions>` and `RevisionID` out, and in as marks. Built (§10).
 5. **Locked pages and A-pages** in Lexington's paginator, with `CONTINUED`. FDX `<LockedPages>`.
 6. **The Production pane** with Lock and Revise, so the workflow stands before breakdown starts.
 7. **Breakdown:** the categories, tagging by words, Next scene, eighths, breakdown sheets and element reports. FDX
@@ -712,3 +717,78 @@ Rough: Compare renders up to 400 changed elements as plain widgets (enough for d
 unrelated scripts get a note); the list's dates are local time; a draft saved while a bundle save is under way
 shows in Drafts… once the write is done (Drafts… waits for it); the kept copy of a `.fountain` saved as
 `.accolade` stays remembered for the old path rather than being deleted (after a rename it is left over).
+
+## 10. Step 4, built: issues and revision sets (2026-11-20)
+
+Branch revisions (Accolade), Lexington v1.9.0 (tagged locally, not pushed; Accolade's go.mod has `replace
+github.com/LaPingvino/lexington => ../lexington` until it is).
+
+**The colours.** The WGA West's order, as two sources give it (§2): White, Blue, Pink, Yellow, Green, Goldenrod,
+Buff, Salmon, Cherry, then Second Blue … Second Cherry, Third Blue (`lex.RevisionName`). Not "double white": none of
+the WGA-attributed lists has a second white (Wikipedia's tan/ivory/double white is one production's way, and Final
+Draft's own defaults another). A file's own set names (an FDX's) are kept.
+
+**Issue Draft…** (Production menu; revisions.go, revisions_view.go) asks for the date (today by default) and keeps
+the script as it is now in the drafts store as kind `issue`, `colour` the set ("Blue"), `issued` the date
+("2026-11-20"), next to the drafts (§9). The first issue is White, the production draft: it locks the scene numbers
+first (Lock Scene Numbers) if they are not. The production block records the current revision:
+
+```
+/* Production
+scene numbers: locked, 10A
+revision: Blue, 2026-11-20
+*/
+```
+
+The store is the record: Undo after an issue takes the block's line away, not the issue.
+
+**The marks.** Never in the text. Each issue's body (the text before the blocks at its end) is diffed with the one
+before, line by line, blank lines left out (`scriptdiff.Lines`, the same bounded Myers as Compare): a line the same
+keeps the mark it had, a new or changed line gets the issue's set, a deletion marks the line after it (none after
+it: the last line), unless a changed line is there already. The script now, if it differs from the last issue, is
+the open set, in the next colour, dated today. Preferences > Script > Production > "Revision marks since":
+
+- the last issue (the default): the current revision's marks only, the open set's, or, right after an issue, that
+  issue's against the one before (what its pages print);
+- all issues: each line in the colour of the last set it changed in.
+
+The editor shows them as a bar in the fold marks' column, in the set's colour (`lex.RevisionInk`), computed in the
+background 400 ms after typing pauses; the issues are read again for another script or a new issue only.
+
+**Printing** (Lexington's PDF; the export's and File > Preview PDF's when "Revision marks" is on, the default once
+the script has an issue): an asterisk at 7.75" (Final Draft's `<Revisions Location>`; right of a numbered
+heading's number) on every printed line of a marked row, and on each changed page a header on the page number's
+line, ending before it: Preferences' "Revised page header", `{set} Revision – {date}` by default ("Blue Revision –
+20/11/26"; the date 20/11/26, 11/20/26, 2026-11-20 or 20.11.2026; `-` none), the latest set on the page. Export >
+PDF also has "Revised pages only" (the pages with a mark, numbered as in the whole script; the others are left out
+of the PDF's page tree; bookmarks are left out then) and "Changed pages on their colour's paper" (off by default; a
+tint of Final Draft's paper colours). Accolade maps its lines to Lexington's rows by `fountain.ParseLines` (each
+row's source line), so the marks are those the editor shows. File > Print goes through HTML and prints no marks:
+use the PDF.
+
+**FDX out:** `<Revisions>` with a `<Revision>` per set after White (IDs 1 on, Name "Blue Rev. 20/11/26", Final
+Draft's PageColor, Mark `*`, Location 7.75, ActiveSet the last) and `RevisionID` on a marked paragraph's runs. No
+`<DeletedText>`: its offsets are unverified beyond one file.
+
+**FDX in:** Lexington reads each paragraph's set from its runs' `RevisionID` (the latest), or from a
+`<DeletedTextLocation>` within it: the offset counts the runs' characters plus one per paragraph end, which is how
+the one real sample's offsets fall (*unverified* beyond it). Only the sets the text uses are kept; "Blue Rev.
+(mm/dd/yy)" reads as Blue. Accolade then keeps the imported text as an issue of the latest set ("Pink (imported)"),
+writes the block's line (`revision: Pink (imported from X.fdx)`) and the marks, by line of that issue's text (which
+never changes), in the extras:
+
+```
+assets/production/revisions.json
+{"version": 1, "imported": {"from": "X.fdx", "draft": "01-pink-imported",
+  "sets": [{"name": "Blue"}, {"name": "Pink"}],
+  "marks": [{"line": 12, "set": "Blue", "text": "She runs."}]}}
+```
+
+That issue starts the chain with those marks: until the next Issue they are the last issue's marks, edits after it
+are the next set's (Yellow after Pink); from then on the snapshots take over (all issues' marks still show the
+imported ones on lines nothing changed since). A mark whose line's text is not what was recorded is dropped.
+
+Rough: a deletion next to a changed line has no mark of its own; the editor's bar is the fold column's second cell
+(no column of its own); the title page does not list the issued sets yet; locked pages and A-pages are step 5, so
+"changed pages" are by the current pagination; the browser's PDF export of a script the PDF writer cannot print
+(right to left, CJK) goes through HTML and has no marks.
