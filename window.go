@@ -92,6 +92,7 @@ type MainWindow struct {
 	notesVisible   bool
 	narrow         bool             // a phone's width: the panes under the script (relayout)
 	paneSplit      *container.Split // the script over the panes, while narrow
+	sideSplit      *container.Split // the panes beside the script, while wide
 	paneTaller     *tooltip.Button  // makes them taller, or half again
 	unsavedSource  string           // the source chosen for a script not saved yet (source.go)
 	unsavedExtras  string           // the kept extras of a script not saved yet (extras.go)
@@ -141,12 +142,12 @@ type MainWindow struct {
 		text string
 		ok   bool
 	}
-	draftTimer       *uiTimer      // the browser keeping the script, after typing
-	sceneNumberTimer *uiTimer      // a locked script's new scenes numbered, after typing (production.go)
-	revisionTimer    *uiTimer      // the revision marks updated, after typing (revisions.go)
-	revisions        revisionState // the script's issues and the marks shown
-	revisionGen      int           // a new issue (the issues read again)
-	revisionRun      int           // the marks being computed
+	draftTimer       *uiTimer       // the browser keeping the script, after typing
+	sceneNumberTimer *uiTimer       // a locked script's new scenes numbered, after typing (production.go)
+	revisionTimer    *uiTimer       // the revision marks updated, after typing (revisions.go)
+	revisions        revisionState  // the script's issues and the marks shown
+	revisionGen      int            // a new issue (the issues read again)
+	revisionRun      int            // the marks being computed
 	breakdownTimer   *uiTimer       // the tags found again, after typing (breakdown_view.go)
 	breakdown        breakdownState // the script's breakdown and its tags as found
 	breakdownGen     int            // the breakdown read again (an import)
@@ -154,8 +155,8 @@ type MainWindow struct {
 	lastTagCategory  string         // the category last tagged in (offered first)
 	lastReports      *reportsDialog // the reports last shown (tests)
 	lastPicker       *tagPicker     // the tag picker last shown (tests)
-	sourceGen        int           // the Choose Source under way
-	autoSaveDelay    time.Duration // overrides the setting; for tests
+	sourceGen        int            // the Choose Source under way
+	autoSaveDelay    time.Duration  // overrides the setting; for tests
 
 	statusLabel *widget.Label
 	statusHint  string   // the "Tab: …" hint shown, "" none (status_hint.go)
@@ -292,6 +293,9 @@ func (w *MainWindow) setupCallbacks() {
 	// Window close callback
 	var askClose func()
 	askClose = func() {
+		if w.sideSplit != nil { // the side panes' width, for next time
+			w.settings.SetFloat("side-pane-offset", w.sideSplit.Offset)
+		}
 		if w.bundleBusy() { // a save under way finishes first, then asks as ever
 			w.setStatus("Saving...")
 			w.afterBundleWrites(askClose)
@@ -1298,7 +1302,20 @@ func (w *MainWindow) relayout() {
 		w.showPaneSize()
 		center = w.paneSplit
 	} else if side != nil {
-		left = container.NewHBox(side, widget.NewSeparator())
+		// beside the script, in a split the writer can drag (Joop: the
+		// side panes could not change size); the width stays across
+		// relayouts and sessions
+		offset := w.settings.GetFloat("side-pane-offset")
+		if w.sideSplit != nil {
+			offset = w.sideSplit.Offset
+			w.settings.SetFloat("side-pane-offset", offset)
+		}
+		if offset <= 0.05 || offset >= 0.9 {
+			offset = sidePaneDefault
+		}
+		w.sideSplit = container.NewHSplit(side, center)
+		w.sideSplit.Offset = offset
+		center = w.sideSplit
 	}
 	// the objects in the order they are seen, which is the order Tab and
 	// screen readers go through them (NewBorder puts the centre first:
@@ -1320,6 +1337,9 @@ func (w *MainWindow) relayout() {
 
 // The script's share of a narrow window over the panes: half, or a
 // little with the panes made taller.
+// sidePaneDefault is the side panes' share of a wide window at first.
+const sidePaneDefault = 0.28
+
 const (
 	paneHalf = 0.5
 	paneTall = 0.15
