@@ -313,7 +313,7 @@ func readCommandsGolden(t *testing.T, name string) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return onThisSystem(strings.ReplaceAll(string(b), "\r\n", "\n")) // a Windows checkout may give CRLF
+	return strings.ReplaceAll(string(b), "\r\n", "\n") // a Windows checkout may give CRLF
 }
 
 // TestCommandsGolden: the menus, shortcuts, header bar and context menu
@@ -333,7 +333,7 @@ func TestCommandsGolden(t *testing.T) {
 		return
 	}
 	for name, s := range got {
-		want := regroupMoves(name, helpMoves(name, adaptationMoves(name, readCommandsGolden(t, name))))
+		want := onThisSystem(regroupMoves(name, helpMoves(name, adaptationMoves(name, readCommandsGolden(t, name))))) // the moves write Linux keys too
 		if s != want {
 			t.Errorf("%s differs from the golden (with the Adaptation, Help and regrouping moves):\n%s", name, lineDiff(want, s))
 		}

@@ -20,6 +20,9 @@ import (
 // ribbonWindow is w in Ribbon mode.
 func ribbonOnFor(t *testing.T, w *MainWindow) *ribbonBar {
 	t.Helper()
+	old := pandocPath // the goldens have pandoc's items (CI's runners have no pandoc)
+	pandocPath = func() string { return "/usr/bin/pandoc" }
+	t.Cleanup(func() { pandocPath = old })
 	w.settings.SetString(lookPref, "ribbon")
 	t.Cleanup(func() { w.settings.SetString(lookPref, "menus") })
 	w.applyEditorSettings()
@@ -100,8 +103,9 @@ func ribbonGolden(t *testing.T, name, got string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(want) != onThisSystem(got) && string(want) != got {
-		t.Errorf("%s differs from the golden:\n%s", name, lineDiff(string(want), got))
+	w := onThisSystem(strings.ReplaceAll(string(want), "\r\n", "\n")) // the golden has Linux's keys
+	if w != got {
+		t.Errorf("%s differs from the golden:\n%s", name, lineDiff(w, got))
 	}
 }
 
