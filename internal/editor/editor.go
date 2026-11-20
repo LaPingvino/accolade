@@ -44,6 +44,10 @@ type ScriptEditor struct {
 	// OnKey, when set, sees every key first (a vim mode: Escape); it
 	// reports whether it handled the key.
 	OnKey func(k *fyne.KeyEvent) bool
+	// OnKeyUp, if set, sees each key let go (Alt alone: the ribbon's key
+	// tips); OnFocusLost the keyboard going elsewhere
+	OnKeyUp     func(k *fyne.KeyEvent)
+	OnFocusLost func()
 	// OnTaggedStep, when set, is asked before a tagged step (TagLastStep)
 	// is undone (redo false) or redone, by any way in (a menu, Ctrl+Z,
 	// vim's u): it does what the step means beyond its text (Accolade's
@@ -129,12 +133,12 @@ type ScriptEditor struct {
 	onView              func() // the view again (after a resize)
 	viewTop, viewHeight float32
 	gridFirst, gridEnd  int
-	draw                drawing      // what relayout found, to draw rows with
-	foldAt              map[int]bool // the folded headings' lines
-	headings            map[int]bool // the lines that can fold (Headings)
+	draw                drawing                             // what relayout found, to draw rows with
+	foldAt              map[int]bool                        // the folded headings' lines
+	headings            map[int]bool                        // the lines that can fold (Headings)
 	marks               map[int]*widget.CustomTextGridStyle // the lines' marks (Marks), as drawn
 	inks                map[int][]Ink                       // the lines' inked words (Inks)
-	laid                laidOut      // the last layout, for its key
+	laid                laidOut                             // the last layout, for its key
 }
 
 // Ink is words of a line drawn in Color and underlined: the line's
@@ -843,7 +847,14 @@ func (e *ScriptEditor) changed(edited bool) {
 // so the cursor is redrawn after it, not in it.
 
 func (e *ScriptEditor) FocusGained() { e.focused = true; fyne.Do(e.relayout) }
-func (e *ScriptEditor) FocusLost()   { e.focused = false; e.shift = false; fyne.Do(e.relayout) }
+func (e *ScriptEditor) FocusLost() {
+	e.focused = false
+	e.shift = false
+	if e.OnFocusLost != nil {
+		e.OnFocusLost()
+	}
+	fyne.Do(e.relayout)
+}
 
 // Tapped focuses the editor and places the cursor at the click (Shift
 // extends the selection).
@@ -1029,6 +1040,9 @@ func (e *ScriptEditor) KeyDown(k *fyne.KeyEvent) {
 func (e *ScriptEditor) KeyUp(k *fyne.KeyEvent) {
 	if k.Name == desktop.KeyShiftLeft || k.Name == desktop.KeyShiftRight {
 		e.shift = false
+	}
+	if e.OnKeyUp != nil {
+		e.OnKeyUp(k)
 	}
 }
 

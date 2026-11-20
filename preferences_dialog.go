@@ -30,6 +30,8 @@ type PreferencesDialog struct {
 	settings *Settings
 
 	// General
+	roleSelect            *widget.Select // Writer or Production (role.go)
+	productionCard        *widget.Card   // the Script tab's production settings: Production's only
 	themeSelect           *widget.Select
 	lookSelect            *widget.Select // the header's rows or the ribbon
 	toolbarVisibleCheck   *widget.Check
@@ -91,6 +93,7 @@ func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDial
 }
 
 func (pd *PreferencesDialog) createWidgets() {
+	pd.roleSelect = widget.NewSelect(roleLabels, func(string) { pd.showRole() })
 	pd.themeSelect = widget.NewSelect([]string{"system", "light", "dark", "sepia"}, nil)
 	pd.lookSelect = widget.NewSelect(lookChoices, nil)
 	pd.toolbarVisibleCheck = widget.NewCheck("Show toolbar", nil)
@@ -179,10 +182,14 @@ func hint(text string) *widget.Label {
 
 func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
 	return container.NewVBox(
+		widget.NewCard("Working As", "", container.NewVBox(
+			labelled("I am working as:", pd.roleSelect),
+			hint("Writer puts production away: the Production menu, its pane and ribbon tab, and its settings here. A script locked or issued for production stays as it is, and prints as it is. View > Working As switches, for every script or only one."),
+		)),
 		widget.NewCard("Appearance", "", container.NewVBox(
 			labelled("Theme:", pd.themeSelect),
 			labelled("Look:", pd.lookSelect),
-			hint("Menus: the menu bar and the toolbar's two rows. Ribbon: the menu bar and, for the toolbar, tabs of large buttons (F10 or Alt shows their keys)."),
+			hint("Menus: the menu bar and the toolbar's two rows. Ribbon: tabs of large buttons in their place, the menus under ☰ at the tab row's end (a Mac keeps its menu bar); F10, or Alt pressed alone, shows their keys."),
 			pd.toolbarVisibleCheck,
 			pd.statusbarVisibleCheck,
 		)),
@@ -241,7 +248,7 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 			pd.nextInsertsCheck,
 			pd.suggestCheck,
 		)),
-		widget.NewCard("Production", "Once the scene numbers are locked (Production > Lock Scene Numbers)", container.NewVBox(
+		pd.newProductionCard(container.NewVBox(
 			labelled("A new scene's number:", pd.sceneLettersSelect),
 			hint("A scene written between 10 and 11: a letter after the scene before (10A) or before the scene after (A11). For scripts locked from now on; a locked script keeps its own."),
 			labelled("Revision marks since:", pd.revisionMarksSelect),
@@ -255,10 +262,25 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 	)
 }
 
+// newProductionCard is the Production card, shown as the role chosen says.
+func (pd *PreferencesDialog) newProductionCard(content fyne.CanvasObject) *widget.Card {
+	pd.productionCard = widget.NewCard("Production", "Once the scene numbers are locked (Production > Lock Scene Numbers)", content)
+	pd.showRole()
+	return pd.productionCard
+}
+
+// showRole shows the Production card for Production, not for Writer.
+func (pd *PreferencesDialog) showRole() {
+	if pd.productionCard != nil {
+		setVisible(pd.productionCard, pd.roleSelect.Selected != roleLabels[0])
+	}
+}
+
 func (pd *PreferencesDialog) loadCurrentSettings() { pd.loadFrom(pd.settings) }
 
 // loadFrom shows the settings of s in the window.
 func (pd *PreferencesDialog) loadFrom(s *Settings) {
+	pd.roleSelect.SetSelected(roleLabel(s.GetString(rolePref)))
 	pd.themeSelect.SetSelected(s.GetString("theme"))
 	pd.lookSelect.SetSelected(lookChoices[0])
 	if s.GetString(lookPref) == "ribbon" {
@@ -303,6 +325,9 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 
 func (pd *PreferencesDialog) saveSettings() {
 	s := pd.settings
+	if pd.roleSelect.Selected != "" {
+		s.SetString(rolePref, roleOfLabel(pd.roleSelect.Selected))
+	}
 	if pd.themeSelect.Selected != "" {
 		s.SetString("theme", pd.themeSelect.Selected)
 		pd.app.setColorScheme(pd.themeSelect.Selected)
@@ -493,6 +518,13 @@ func (pd *PreferencesDialog) resetToDefaults() {
 				// preferences, so they stay
 				defaults := &Settings{data: map[string]interface{}{}}
 				defaults.loadDefaults()
+				if pd.roleSelect.Selected == roleLabels[0] {
+					// production's settings are out of sight: kept as
+					// they are, as a writer's locked script prints them
+					for _, k := range productionPrefs {
+						defaults.data[k] = pd.settings.get(k)
+					}
+				}
 				pd.loadFrom(defaults)
 			}
 		},

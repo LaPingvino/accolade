@@ -39,6 +39,9 @@ func (s *Settings) loadDefaults() {
 		"auto-indent":       true,
 		"show-line-numbers": false,
 
+		// Writer or Production (role.go): what the window shows
+		rolePref: defaultRole,
+
 		// Window settings
 		"toolbar-visible":   true,
 		"look":              "menus", // or "ribbon" (ribbon.go)
@@ -124,6 +127,11 @@ func (s *Settings) load() {
 	for key, value := range loadedData {
 		s.data[key] = value
 	}
+	// a user from before the role: as their settings show (role.go)
+	if _, ok := loadedData[rolePref]; !ok {
+		s.data[rolePref] = migratedRole(loadedData, readSmall)
+		s.dirty = true
+	}
 
 	log.Println("Settings loaded successfully")
 }
@@ -164,6 +172,13 @@ func (s *Settings) save() error {
 
 func (s *Settings) Save() error {
 	return s.save()
+}
+
+// get is a setting's value as it is kept (nil if none).
+func (s *Settings) get(key string) any {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.data[key]
 }
 
 // String settings

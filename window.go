@@ -176,6 +176,8 @@ type MainWindow struct {
 	sceneNumberTimer *uiTimer       // a locked script's new scenes numbered, after typing (production.go)
 	revisionTimer    *uiTimer       // the revision marks updated, after typing (revisions.go)
 	revisions        revisionState  // the script's issues and the marks shown
+	unsavedRole      string         // an unsaved script's own role, "" none (role.go)
+	menuGone         bool           // the ribbon replaces the in-window menu bar (ribbon.go)
 	revisionGen      int            // a new issue (the issues read again)
 	revisionRun      int            // the marks being computed
 	breakdownTimer   *uiTimer       // the tags found again, after typing (breakdown_view.go)
@@ -296,11 +298,19 @@ func (w *MainWindow) setupShortcuts() {
 
 	// Lines are formatted when completed with Enter (editor.go)
 
-	// Keyboard shortcuts are attached to the main menu items (see menus.go)
-	w.fyneWindow.SetMainMenu(w.buildMainMenu())
+	// Keyboard shortcuts are attached to the main menu items (see menus.go);
+	// in Ribbon mode, with no menu bar, to the window (refreshMenu)
+	w.refreshMenu()
 	// the keys not on a menu item (keyPreview)
 	if c, ok := w.fyneWindow.Canvas().(desktop.KeyPreviewCanvas); ok {
 		c.SetOnKeyPreview(w.keyPreview)
+	}
+	// Alt let go alone: the ribbon's key tips (ribbon.go), seen where the
+	// keyboard is: the script, the ribbon, or nothing focused
+	w.textEditor.OnKeyUp = func(k *fyne.KeyEvent) { w.altUp(k.Name) }
+	w.textEditor.OnFocusLost = w.altCancel
+	if c, ok := w.fyneWindow.Canvas().(desktop.Canvas); ok {
+		c.SetOnKeyUp(func(k *fyne.KeyEvent) { w.altUp(k.Name) })
 	}
 }
 
@@ -503,6 +513,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	w.updateTitle()
 	w.updateStatusBar()
 	w.readBeatTags()
+	w.roleChanged(false) // its own role, if it keeps one (role.go)
 	if before != "" {
 		w.setStatus("text.fountain was changed in another app: that change is the script now; the script before it " +
 			"is kept as a draft (Collaboration > Compare… shows the change)")
@@ -510,6 +521,8 @@ func (w *MainWindow) LoadFile(filePath string) error {
 		w.setStatus(msg)
 	} else if f := w.ownFormat; f != "" && !w.lex().hasFormat(f) {
 		w.setStatus("This script's format, " + f + ", is not here: it is shown as a screenplay")
+	} else if msg := w.lockedForWriter(); msg != "" {
+		w.setStatus(msg) // quietly, last: production put away (role.go)
 	}
 
 	return nil
@@ -995,6 +1008,7 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.hasChanges = false
 	w.updateTitle()
 	w.updateStatusBar()
+	w.roleChanged(false) // the preferences' role again (role.go)
 }
 
 // statusRow lays out the status bar: the Tab chip of a hint, if shown;
@@ -1604,7 +1618,8 @@ func (w *MainWindow) toggleFullscreen() {
 }
 
 // refreshMenu builds the menu again (the recent files changed): in the
-// menu bar, or in full screen only its shortcuts.
+// menu bar, or in full screen and where the ribbon replaces the menu bar
+// (menuless) only its shortcuts.
 func (w *MainWindow) refreshMenu() {
 	c := w.fyneWindow.Canvas()
 	for _, sc := range w.menuShortcuts {
@@ -1612,10 +1627,12 @@ func (w *MainWindow) refreshMenu() {
 	}
 	w.menuShortcuts = nil
 	w.ribbonRefresh() // what the commands can give changed too
-	if !w.isFullscreen {
+	w.menuGone = w.menuless()
+	if !w.isFullscreen && !w.menuGone {
 		w.fyneWindow.SetMainMenu(w.buildMainMenu())
 		return
 	}
+	w.fyneWindow.SetMainMenu(nil) // the ribbon's place (or full screen): its keys only
 	w.menuShortcuts = map[string]menuShortcut{}
 	var add func(items []*fyne.MenuItem)
 	add = func(items []*fyne.MenuItem) {

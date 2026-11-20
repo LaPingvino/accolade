@@ -164,6 +164,9 @@ func resourceName(r fyne.Resource) string {
 // row's "more" menu.
 func dumpOverflowRow(b *strings.Builder, r *overflowRow) {
 	for _, it := range r.items {
+		if it.off {
+			continue // put away (a role's)
+		}
 		if c, ok := it.obj.(*fyne.Container); ok && len(c.Objects) == 0 {
 			b.WriteString("  gap\n")
 			continue
@@ -288,6 +291,23 @@ func commandsGolden(t *testing.T) map[string]string {
 				out["fullscreen-"+mode+".golden"] = dumpFullscreenShortcuts(w)
 				w.toggleFullscreen()
 			}
+			if !md { // and as a writer sees it (role.go): writerMoves
+				w.lastTagCategory = ""
+				workAsFor(t, w, roleWriter)
+				m := w.fyneWindow.MainMenu()
+				out["menu-"+mode+suffix+"-writer.golden"] = dumpMainMenu(m)
+				out["shortcuts-"+mode+suffix+"-writer.golden"] = dumpShortcuts(m)
+				if !pandoc {
+					out["header-"+mode+"-writer.golden"] = dumpHeader(w.headerBar)
+					out["context-"+mode+"-writer.golden"] = dumpContextMenu(w)
+					w.lastTagCategory = "Props"
+					out["context-screenplay-tagged-writer.golden"] = dumpContextMenu(w)
+					w.toggleFullscreen()
+					out["fullscreen-"+mode+"-writer.golden"] = dumpFullscreenShortcuts(w)
+					w.toggleFullscreen()
+				}
+				workAsFor(t, w, roleProduction)
+			}
 		}
 		pandocPath = old
 	}
@@ -326,6 +346,9 @@ func TestCommandsGolden(t *testing.T) {
 			t.Fatal(err)
 		}
 		for name, s := range got {
+			if strings.HasSuffix(name, "-writer.golden") {
+				continue // the moves make them (writerMoves)
+			}
 			if err := os.WriteFile(filepath.Join(dir, name), []byte(s), 0o644); err != nil {
 				t.Fatal(err)
 			}
@@ -333,7 +356,15 @@ func TestCommandsGolden(t *testing.T) {
 		return
 	}
 	for name, s := range got {
-		want := onThisSystem(regroupMoves(name, helpMoves(name, adaptationMoves(name, readCommandsGolden(t, name))))) // the moves write Linux keys too
+		base, writer := strings.CutSuffix(name, "-writer.golden")
+		if writer {
+			base += ".golden"
+		}
+		want := roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))) // the moves write Linux keys too
+		if writer {
+			want = writerMoves(base, want)
+		}
+		want = onThisSystem(want)
 		if s != want {
 			t.Errorf("%s differs from the golden (with the Adaptation, Help and regrouping moves):\n%s", name, lineDiff(want, s))
 		}
@@ -654,4 +685,62 @@ func regroupMoves(name, golden string) string {
 		out = append(out, m)
 	}
 	return joinMenus(out)
+}
+
+// workAsFor makes the window work as role (the preferences'), put back
+// to Production after the test.
+func workAsFor(t *testing.T, w *MainWindow, role string) {
+	t.Helper()
+	t.Cleanup(func() {
+		w.settings.SetString(rolePref, roleProduction)
+		w.settings.SetStringSlice(scriptRolesPref, nil)
+	})
+	w.workAs(role)
+}
+
+// roleMoves: View > Working As (role.go) after Document Type, in a
+// screenplay's menu bar, working as Production.
+func roleMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-screenplay") {
+		return golden
+	}
+	return strings.Replace(golden, "    Markdown\n# Help\n",
+		"    Markdown\n  Working As\n    Writer\n    Production (checked)\n    ---\n    Only for This Script\n# Help\n", 1)
+}
+
+// writerMoves is a Production golden as a writer sees it (role.go): the
+// Production menu gone, and View's Production pane; Working As on
+// Writer; Tag Selection's key with its menu; the header's Production
+// button; the context menu's tagging. Nothing else.
+func writerMoves(name, golden string) string {
+	switch {
+	case strings.HasPrefix(name, "menu-"):
+		ms := parseGoldenMenus(golden)
+		takeItem(ms, "View", "Production")
+		var out []goldenMenu
+		for _, m := range ms {
+			if m.title == "Production" {
+				continue
+			}
+			for i, it := range m.items {
+				if m.title == "View" && m.labelOf(it) == "Working As" {
+					it = strings.Replace(it, "    Writer\n", "    Writer (checked)\n", 1)
+					m.items[i] = strings.Replace(it, "    Production (checked)", "    Production", 1)
+				}
+			}
+			out = append(out, m)
+		}
+		return joinMenus(out)
+	case strings.HasPrefix(name, "shortcuts-"):
+		return strings.Replace(golden, "Primary+Shift+B = Tag Selection…\n", "", 1)
+	case strings.HasPrefix(name, "fullscreen-"):
+		return strings.Replace(golden, "Primary+Shift+B\n", "", 1)
+	case strings.HasPrefix(name, "header-"):
+		return strings.Replace(golden, "  button foreground_production.svg tip=Production: lock, revise, and the stages to the shoot\n"+
+			"    menu:Production: lock, revise, and the stages to the shoot icon=foreground_production.svg\n", "", 1)
+	case strings.HasPrefix(name, "context-"):
+		golden = strings.Replace(golden, "Tag as Props\n", "", 1)
+		return strings.Replace(golden, "Tag Selection…\n---\n", "", 1)
+	}
+	return golden
 }

@@ -20,6 +20,15 @@ import (
 // is greyed and, run, says why on the status line, as from its menu. Open
 // Recent and the like are listed by their items. The same in the browser,
 // where the page keeps those keys from the browser as it does Ctrl+O.
+//
+// Working as a writer (role.go), Production's commands are found too once
+// something is typed (not in the list before: a writer opening the
+// palette is not shown production), marked "(Production)"; run, the
+// script switches to Production first and says so. A writer asking for
+// Lock Scene Numbers by name means it, and its result (the lock, the pane
+// with Unlock) is then where it can be seen and taken back, not done
+// behind a view that hides how to undo it. Only this script switches;
+// View > Working As goes back.
 
 // paletteEntry is one line of the palette.
 type paletteEntry struct {
@@ -29,15 +38,17 @@ type paletteEntry struct {
 	keys   string
 	action func() // a submenu item's, else the command's
 	off    bool   // it cannot be given now
+	away   bool   // put away by the role: found once something is typed (role.go)
 }
 
 // paletteEntries are the commands of env, in the registry's order.
 func (w *MainWindow) paletteEntries(env cmdEnv) []paletteEntry {
 	var out []paletteEntry
 	for _, c := range commands().commands {
-		if !c.applies(env) || c.id == "app.palette" || (c.id == "view.keyTips" && !w.ribbonOn()) {
+		if !c.appliesForRole(env) || c.id == "app.palette" || (c.id == "view.keyTips" && !w.ribbonOn()) {
 			continue
 		}
+		away := !c.applies(env)
 		home := ""
 		if hs := homesOf(c.id); len(hs) > 0 {
 			home = hs[0]
@@ -47,12 +58,18 @@ func (w *MainWindow) paletteEntries(env cmdEnv) []paletteEntry {
 				if it.IsSeparator || it.Action == nil {
 					continue
 				}
-				out = append(out, paletteEntry{c: c, label: c.labelIn(env) + " > " + it.Label, home: home, action: it.Action})
+				out = append(out, paletteEntry{c: c, label: c.labelIn(env) + " > " + it.Label, home: home, action: it.Action, away: away})
 			}
 			continue
 		}
 		keys := strings.Join(commandKeys(c), ", ")
-		out = append(out, paletteEntry{c: c, label: c.labelIn(env), home: home, keys: keys, off: !c.canRun(env)})
+		label := c.labelIn(env)
+		if away {
+			label += " (Production)"
+		}
+		e := env
+		e.writer = false
+		out = append(out, paletteEntry{c: c, label: label, home: home, keys: keys, off: !c.canRun(e), away: away})
 	}
 	return out
 }
@@ -118,7 +135,11 @@ func paletteMatches(entries []paletteEntry, query string) []paletteEntry {
 		i     int
 	}
 	var ss []scored
+	typed := strings.TrimSpace(query) != ""
 	for i, e := range entries {
+		if e.away && !typed {
+			continue // the role's put away: only asked for by name
+		}
 		s := fuzzyScore(query, e.label) * 2
 		if h := fuzzyScore(query, e.home); h > s {
 			s = h
@@ -283,10 +304,19 @@ func (p *palette) run() {
 	p.pop.Hide()
 	w := p.w
 	w.fyneWindow.Canvas().Focus(w.textEditor)
+	said := ""
+	if e.away { // asked for by name: this script works as Production now
+		w.setOwnRole(roleProduction)
+		said = "Working as Production for this script (" + e.c.label + " is production's): View > Working As goes back"
+		w.setStatus(said)
+	}
 	if e.action != nil {
 		e.action()
 	} else {
 		w.tapped(e.c, nil)()
+	}
+	if said != "" && w.statusLabel != nil && w.statusLabel.Text != said && w.statusLabel.Text != "" {
+		w.setStatus(w.statusLabel.Text + " · working as Production for this script now")
 	}
 	w.ribbonRefresh()
 }

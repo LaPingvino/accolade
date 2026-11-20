@@ -298,6 +298,7 @@ func (app *Application) scriptFormatsChanged() {
 func (app *Application) applySettingsToWindows() {
 	for _, w := range app.windows {
 		w.applyEditorSettings()
+		w.roleChanged(false) // Writer or Production (role.go)
 		w.applyFontSettings()
 		w.headerBar.showFormats()
 	}

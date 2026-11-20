@@ -86,6 +86,9 @@ func shortcutLine(c *command, env cmdEnv, both bool) string {
 			notes = append(notes, "“"+c.mdLabel+"” in Markdown")
 		}
 	}
+	if c.role == productionRole { // put away for a writer (role.go)
+		notes = append(notes, "working as Production")
+	}
 	inBrowser := c.applies(cmdEnv{markdown: env.markdown, browser: true})
 	if both { // in either mode's browser
 		inBrowser = c.applies(cmdEnv{browser: true}) || c.applies(cmdEnv{markdown: true, browser: true})
@@ -222,7 +225,7 @@ func paletteRibbonKeys() []string {
 	palette := strings.Join(commandKeys(cmd("app.palette")), "** or **")
 	return []string{
 		"- **" + palette + "** — the command palette: type part of a command's name (the letters in order: “nsp” finds Next Source Passage), **Up**/**Down** choose, **Enter** runs it, **Esc** closes",
-		"- **F10**, or **Alt** pressed and let go alone (not on a Mac) — the ribbon's key tips (Preferences > General > Look: Ribbon): a letter on each tab; type one to open that tab, then the letter on a button to press it",
+		"- **F10**, or **Alt** pressed and let go alone (not on a Mac) — the ribbon's key tips (Preferences > General > Look: Ribbon): a letter on each tab, the palette and ☰ (the menus); type one to open that tab, then the letter on a button to press it",
 		"- **Esc** in the key tips — back to the tabs' letters, again to leave them",
 		"- **Tab**, **Shift+Tab** — through the ribbon's tabs and buttons; **Left**/**Right** along a row, **Down** from a tab to its buttons, **Up** back; **Enter** or **Space** presses",
 	}

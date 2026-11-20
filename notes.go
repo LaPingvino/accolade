@@ -215,6 +215,10 @@ func (n *notesPanel) box() fyne.CanvasObject {
 		n.setTabs(n.notesTab, n.helpTab)
 		return n.mdBox
 	}
+	if n.w.writerView() { // production put away (role.go)
+		n.setTabs(n.notesTab, n.sourceTab, n.helpTab)
+		return n.tabbed
+	}
 	n.setTabs(n.notesTab, n.sourceTab, n.productionTab, n.helpTab)
 	return n.tabbed
 }

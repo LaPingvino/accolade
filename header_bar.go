@@ -31,6 +31,7 @@ type HeaderBar struct {
 	elementButtons             map[string]*widget.Button // by element
 	formatBox                  *fyne.Container           // the format's own buttons
 	screenplayRow, markdownRow fyne.CanvasObject         // the editing row for each
+	top                        *overflowRow              // the top row
 	showing                    bool                      // the selects show, not choose
 }
 
@@ -118,6 +119,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	// the rows from the registry (commands.go); both put what does not fit
 	// in a menu
 	top := newOverflowRow(tips, hb.rowItems(commands().topRow, env, true), hb.titleLabel, 6)
+	hb.top = top
 	editing := newOverflowRow(tips, hb.rowItems(commands().screenplayRow, env, false), nil, 0)
 	hb.screenplayRow = container.NewBorder(nil, nil, nil, hb.format, editing.Container)
 	hb.markdownRow = newOverflowRow(tips, hb.rowItems(commands().markdownRow, cmdEnv{markdown: true, browser: inBrowser}, false), nil, 0).Container
@@ -227,6 +229,17 @@ func (hb *HeaderBar) setMarkdown(on bool) {
 	}
 	hb.container.Objects[1] = row
 	hb.container.Refresh()
+}
+
+// showRole puts the top row's buttons of commands the role puts away
+// away (role.go: the Production pane's in Writer), or back.
+func (hb *HeaderBar) showRole(env cmdEnv) {
+	if hb.top == nil {
+		return
+	}
+	for id, b := range hb.buttons {
+		hb.top.setOff(b, !cmd(id).role.in(env))
+	}
 }
 
 // gap is a little space between groups of buttons.

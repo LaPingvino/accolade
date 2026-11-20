@@ -311,6 +311,7 @@ func (w *MainWindow) hasProductionData() bool {
 // another document takes the window's place.
 func (w *MainWindow) forgetUnsavedExtras() {
 	w.dropRenameUndo() // another document: the last rename is not taken back now
+	w.unsavedRole = "" // and an unsaved script's role was its own (role.go)
 	w.revisionGen++    // its issues too (revisions.go)
 	if d := w.unsavedExtras; d != "" {
 		w.unsavedExtras = ""

@@ -39,6 +39,9 @@ type cmdEnv struct {
 	renamed  bool // the last rename can be taken back (relocate.go)
 	brought  bool // the script brought Lexington settings of its own (lexington_carried.go)
 	issued   bool // the script has an issue (revisions.go)
+	// writer: production is put away (role.go); the zero value shows
+	// everything, so an env made for a document's kind alone hides nothing
+	writer bool
 }
 
 // cmdEnv is the window's.
@@ -51,6 +54,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 		e.pages = pageLockOf(text) != nil
 		e.issued = w.scriptIssued()
 	}
+	e.writer = w.writerView()
 	e.renamed = w.canUndoRename()
 	e.brought = !w.carried.empty()
 	return e
@@ -107,10 +111,23 @@ type command struct {
 	checked func(w *MainWindow) bool
 	// submenu, if set, is made when the menu is (Open Recent)
 	submenu func(w *MainWindow) *fyne.Menu
+	// role: who it is for (role.go); production's are put away in Writer,
+	// from menus, the ribbon, the header and their keys alike (the
+	// palette still finds them: palette.go)
+	role cmdRole
 }
 
-// applies reports whether c is there in env.
-func (c *command) applies(e cmdEnv) bool { return c.when == nil || c.when(e) }
+// applies reports whether c is there in env: its rule, and its role.
+func (c *command) applies(e cmdEnv) bool {
+	return (c.when == nil || c.when(e)) && c.role.in(e)
+}
+
+// appliesForRole reports whether c is there in env, whatever the role
+// (the palette's: Production's commands found in Writer too).
+func (c *command) appliesForRole(e cmdEnv) bool {
+	e.writer = false
+	return c.applies(e)
+}
 
 // canRun reports whether c applies and can be given now.
 func (c *command) canRun(e cmdEnv) bool {
@@ -212,7 +229,8 @@ type home struct {
 	label string
 	sep   bool
 	items func(w *MainWindow) []*fyne.MenuItem
-	large bool // on the ribbon: a large button (a common action)
+	large bool    // on the ribbon: a large button (a common action)
+	role  cmdRole // made items' role (a command's is its own)
 }
 
 func at(id string) home                              { return home{id: id} }
@@ -220,12 +238,16 @@ func as(id, label string) home                       { return home{id: id, label
 func sep() home                                      { return home{sep: true} }
 func made(f func(*MainWindow) []*fyne.MenuItem) home { return home{items: f} }
 func big(id string) home                             { return home{id: id, large: true} }
-func bigAs(id, label string) home                    { return home{id: id, label: label, large: true} }
+func madeFor(r cmdRole, f func(*MainWindow) []*fyne.MenuItem) home {
+	return home{items: f, role: r}
+}
+func bigAs(id, label string) home { return home{id: id, label: label, large: true} }
 
 // menuDef is a menu of the menu bar.
 type menuDef struct {
 	title string
 	when  func(cmdEnv) bool
+	role  cmdRole
 	homes []home
 }
 
@@ -239,6 +261,7 @@ type registry struct {
 	topRow, screenplayRow, markdownRow []home
 	context                            []home // the editor's right-click menu
 	ribbon                             []ribbonTab
+	ribbonEnd                          []home // the tab row's end: the palette, ☰
 	previewKeys                        []previewKey
 }
 
@@ -473,7 +496,7 @@ func newRegistry() *registry {
 	// Production: a shooting script's (docs/PRODUCTION.md; production.go);
 	// text is the Production pane's button's, if shorter
 	prod := func(id, label string, ic func() fyne.Resource, run func(*MainWindow)) *command {
-		return &command{id: id, label: label, icon: ic, when: screenplayOnly, run: run}
+		return &command{id: id, label: label, icon: ic, when: screenplayOnly, run: run, role: productionRole}
 	}
 	unlock := prod("production.unlockNumbers", "Unlock Scene Numbers…", theme.ContentUndoIcon, (*MainWindow).unlockSceneNumbers)
 	unlock.enabled, unlock.text = numbersLocked, "Unlock…"
@@ -539,7 +562,7 @@ func newRegistry() *registry {
 		&command{id: "view.source", label: "Source", tip: "Source: the story the script adapts", icon: func() fyne.Resource { return sourceIcon },
 			when: screenplayOnly, run: (*MainWindow).toggleSource},
 		&command{id: "view.production", label: "Production", tip: "Production: lock, revise, and the stages to the shoot", icon: func() fyne.Resource { return productionIcon },
-			when: screenplayOnly, run: (*MainWindow).toggleProduction},
+			when: screenplayOnly, role: productionRole, run: (*MainWindow).toggleProduction},
 		&command{id: "view.changes", label: "Changes", keys: []fyne.Shortcut{shortcut(fyne.KeyH, fyne.KeyModifierShift)}, icon: theme.HistoryIcon, run: (*MainWindow).toggleChanges},
 		&command{id: "view.statistics", label: "Statistics…", icon: theme.InfoIcon, when: screenplayOnly, run: (*MainWindow).showStatistics},
 		// Alt+Enter too, as in many programs
@@ -547,6 +570,10 @@ func newRegistry() *registry {
 			keys: []fyne.Shortcut{shortcut(fyne.KeyF, fyne.KeyModifierShift), plainKey(fyne.KeyReturn, fyne.KeyModifierAlt), plainKey(fyne.KeyEnter, fyne.KeyModifierAlt)},
 			run:  (*MainWindow).toggleFullscreen},
 		&command{id: "view.documentType", label: "Document Type", icon: theme.FileIcon, submenu: func(w *MainWindow) *fyne.Menu { return w.documentTypeMenu().ChildMenu }},
+		// Writer or Production (role.go), as Preferences > General has it
+		&command{id: "view.role", label: "Working As", icon: theme.AccountIcon, when: screenplayOnly, submenu: func(w *MainWindow) *fyne.Menu { return w.roleMenu().ChildMenu }},
+		// the ribbon's ☰: the menus as the menu bar has them (ribbon.go)
+		&command{id: "view.menu", label: "Menus…", tip: "All the menus", icon: theme.MenuIcon, pick: (*MainWindow).showMenusAt},
 		// F6 and Shift+F6: the next or previous pane (editor, outline,
 		// notes, search), whatever has the focus
 		&command{id: "view.nextPane", label: "Next Pane", keys: []fyne.Shortcut{plainKey(fyne.KeyF6, 0)}, run: func(w *MainWindow) { w.cyclePane(1) }},
@@ -605,7 +632,7 @@ func newRegistry() *registry {
 			sep(), at("source.link"), at("source.next"), at("source.cut"), at("source.suggest"), at("source.update"), at("source.sections"),
 			sep(), at("source.learned"),
 		}},
-		{title: "Production", when: screenplayOnly, homes: []home{
+		{title: "Production", when: screenplayOnly, role: productionRole, homes: []home{
 			at("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
 			sep(), at("production.omit"), at("production.restore"),
 			sep(), at("production.issue"), at("production.withdraw"), at("production.lockPages"), at("production.unlockPages"),
@@ -621,7 +648,7 @@ func newRegistry() *registry {
 			at("view.preview"), at("view.outline"), at("view.cards"), at("view.foldHere"), at("view.foldSections"),
 			at("view.headingsOnly"), at("view.unfoldAll"), at("view.notes"), at("view.source"), at("view.production"),
 			at("view.help"), at("view.changes"), at("view.statistics"), at("view.fullscreen"),
-			sep(), at("view.documentType"),
+			sep(), at("view.documentType"), at("view.role"),
 		}},
 		{title: "Help", homes: helpMenu()},
 	}
@@ -646,10 +673,11 @@ func newRegistry() *registry {
 		sep(), at("file.startScreenplay"),
 	}
 	r.context = []home{
-		made((*MainWindow).tagAsLastItems), at("production.tag"), made((*MainWindow).untagHereItems),
+		madeFor(productionRole, (*MainWindow).tagAsLastItems), at("production.tag"), madeFor(productionRole, (*MainWindow).untagHereItems),
 		sep(), at("edit.cut"), at("edit.copy"), at("edit.paste"),
 	}
 	r.ribbon = ribbonLayout()
+	r.ribbonEnd = []home{at("app.palette"), at("view.menu")}
 	r.previewKeys = previewKeysOf(r)
 	return r
 }
@@ -666,6 +694,9 @@ func (w *MainWindow) menuItems(homes []home, env cmdEnv) []*fyne.MenuItem {
 			pendingSep = len(items) > 0
 			continue
 		case h.items != nil:
+			if !h.role.in(env) {
+				continue
+			}
 			got = h.items(w)
 		default:
 			c := cmd(h.id)
@@ -710,7 +741,7 @@ func (w *MainWindow) menuItem(c *command, label string, env cmdEnv) *fyne.MenuIt
 func (w *MainWindow) menuBar(env cmdEnv) *fyne.MainMenu {
 	var menus []*fyne.Menu
 	for _, m := range commands().menuBar {
-		if m.when != nil && !m.when(env) {
+		if m.when != nil && !m.when(env) || !m.role.in(env) {
 			continue
 		}
 		menus = append(menus, fyne.NewMenu(m.title, w.menuItems(m.homes, env)...))
@@ -722,7 +753,7 @@ func (w *MainWindow) menuBar(env cmdEnv) *fyne.MainMenu {
 // name with mod, if one applies; it reports whether one did.
 func (w *MainWindow) previewKey(name fyne.KeyName, mod fyne.KeyModifier) bool {
 	for _, pk := range commands().previewKeys {
-		if pk.key.Key() == name && pk.key.Mod() == mod && pk.c.applies(cmdEnv{markdown: w.markdown, browser: inBrowser}) {
+		if pk.key.Key() == name && pk.key.Mod() == mod && pk.c.applies(cmdEnv{markdown: w.markdown, browser: inBrowser, writer: w.writerView()}) {
 			w.do(pk.c)()
 			return true
 		}
@@ -797,6 +828,7 @@ func homesOf(id string) []string {
 type ribbonTab struct {
 	title  string
 	when   func(cmdEnv) bool
+	role   cmdRole
 	groups []ribbonGroup
 }
 
@@ -852,7 +884,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Start", homes: []home{big("file.startScreenplay")}},
 		}},
 		// the stage's actions first, as the Production pane has them
-		{title: "Production", when: screenplayOnly, groups: []ribbonGroup{
+		{title: "Production", when: screenplayOnly, role: productionRole, groups: []ribbonGroup{
 			{title: "Lock", stage: 1 + stageLock, homes: []home{big("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
 				big("production.lockPages"), big("production.issue")}},
 			{title: "Revise", stage: 1 + stageRevise, homes: []home{big("production.issue"), big("production.revisedPages"), at("production.compare"), at("production.withdraw")}},
@@ -872,7 +904,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Panes", homes: []home{big("view.outline"), big("view.cards"), big("view.notes"), at("view.source"), at("view.production"), at("view.help"), at("view.changes")}},
 			{title: "Preview", homes: []home{big("view.preview"), at("view.statistics")}},
 			{title: "Folding", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll")}},
-			{title: "Window", homes: []home{big("view.fullscreen"), at("view.documentType"), at("app.palette")}},
+			{title: "Window", homes: []home{big("view.fullscreen"), at("view.documentType"), at("view.role"), at("app.palette")}},
 		}},
 	}
 }

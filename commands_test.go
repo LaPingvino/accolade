@@ -62,6 +62,7 @@ func TestRegistryIsWhole(t *testing.T) {
 	note(r.screenplayRow)
 	note(r.markdownRow)
 	note(r.context)
+	note(r.ribbonEnd)
 	for _, tab := range r.ribbon {
 		for _, g := range tab.groups {
 			note(g.homes)

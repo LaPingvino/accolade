@@ -18,10 +18,21 @@ type overflowItem struct {
 	obj  fyne.CanvasObject
 	menu func(anchor fyne.CanvasObject) []*fyne.MenuItem
 	keep bool // stays on the row however narrow (a pane's toggle)
+	off  bool // not there at all, on the row or in the menu (a role's: role.go)
 }
 
-// hidden reports whether item i is in the menu, not on the row.
-func (r *overflowRow) hidden(i int) bool { return i >= r.first && !r.items[i].keep }
+// hidden reports whether item i is in the menu (or off), not on the row.
+func (r *overflowRow) hidden(i int) bool { return r.items[i].off || i >= r.first && !r.items[i].keep }
+
+// setOff puts the item showing o away (or back).
+func (r *overflowRow) setOff(o fyne.CanvasObject, off bool) {
+	for i := range r.items {
+		if r.items[i].obj == o && r.items[i].off != off {
+			r.items[i].off = off
+			r.Container.Refresh()
+		}
+	}
+}
 
 // overflowRow puts its items left to right, as many as fit, and the rest
 // in the menu of a "more" button at its end, so a narrow window (a phone)
@@ -45,7 +56,7 @@ func newOverflowRow(tips *tooltip.Layer, items []overflowItem, fill fyne.CanvasO
 	r.more.OnTapped = func() {
 		var menu []*fyne.MenuItem
 		for i, it := range r.items {
-			if r.hidden(i) && it.menu != nil {
+			if r.hidden(i) && !it.off && it.menu != nil {
 				menu = append(menu, it.menu(r.more)...)
 			}
 		}
@@ -78,7 +89,14 @@ func (r *overflowRow) MinSize(objects []fyne.CanvasObject) fyne.Size {
 
 func (r *overflowRow) Layout(_ []fyne.CanvasObject, size fyne.Size) {
 	pad := theme.Padding()
-	width := func(o fyne.CanvasObject) float32 { return o.MinSize().Width + pad }
+	width := func(o fyne.CanvasObject) float32 {
+		for _, it := range r.items {
+			if it.obj == o && it.off {
+				return 0
+			}
+		}
+		return o.MinSize().Width + pad
+	}
 	all := float32(0)
 	for _, it := range r.items {
 		all += width(it.obj)

@@ -43,7 +43,7 @@ type fileJournal struct {
 }
 
 // journalKeys are the settings a rename changes.
-var journalKeys = []string{"source-files", "production-files", "document-types", "recent-files"}
+var journalKeys = []string{"source-files", "production-files", "document-types", "recent-files", scriptRolesPref}
 
 // windowState is the window's part in a rename.
 type windowState struct {

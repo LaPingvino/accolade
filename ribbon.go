@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"image/color"
+	"runtime"
 	"strings"
 	"time"
 	"unicode"
@@ -23,7 +23,11 @@ import (
 // it comes from the command registry (commands.go: ribbonLayout), so a
 // command is defined once and its rules (when it applies, when it can be
 // given) grey or hide its button here as they do elsewhere. The menu bar
-// stays; the header's two rows are hidden while the ribbon shows.
+// is taken away where Fyne draws it in the window (Linux, Windows, the
+// browser: menuless), so there is one bar, not two; its keys stay (as in
+// full screen) and the ☰ button at the tab row's end opens the same menus.
+// A Mac's menu bar is the system's and stays. The header's two rows are
+// hidden while the ribbon shows.
 //
 // The Production tab follows the script's stage (the Production pane's
 // strip: Lock, Revise, Break down, Schedule): its first group is that
@@ -34,8 +38,9 @@ import (
 // At a phone's width the tabs are one row and the groups one row that
 // scrolls sideways, every button at least 44 px high.
 //
-// Keyboard: F10, or Alt pressed and let go alone (where Fyne's in-window
-// menu bar opens for it: Linux, Windows, the browser), shows key tips: a
+// Keyboard: F10, or Alt pressed and let go with no key between (where the
+// ribbon took the menu bar's place; seen with the focus in the script or
+// on the ribbon), shows key tips: a
 // letter on each tab, then (a tab chosen by its letter) on each button
 // of its groups; the letter runs it. Esc goes back a level, then leaves.
 // Tab and the arrow keys move between the tabs and buttons; Enter or
@@ -68,6 +73,40 @@ func (w *MainWindow) applyLook() {
 		w.headerArea.Objects[0] = top
 		w.headerArea.Refresh()
 	}
+	if w.menuless() != w.menuGone { // the menu bar away, or back
+		w.refreshMenu()
+	}
+}
+
+// nativeMenus: the menu bar is the system's (a Mac's), not in the window.
+var nativeMenus = runtime.GOOS == "darwin" && !inBrowser
+
+// menuless reports whether the ribbon replaces the in-window menu bar:
+// it shows, and the menu bar is Fyne's own.
+func (w *MainWindow) menuless() bool { return !nativeMenus && w.ribbonShown() }
+
+// showMenusAt is the ☰ button: the menu bar's menus, as the role and the
+// document have them, in a menu by anchor.
+func (w *MainWindow) showMenusAt(anchor fyne.CanvasObject) {
+	showMenuBy(w, anchor, w.menusMenu())
+}
+
+// menusMenu is the menu bar as one menu, a menu's items under its title;
+// Quit last, as Fyne puts it in the menu bar's first menu.
+func (w *MainWindow) menusMenu() *fyne.Menu {
+	var items []*fyne.MenuItem
+	for i, m := range w.buildMainMenu().Items {
+		sub := fyne.NewMenu(m.Label, m.Items...)
+		if i == 0 && !inBrowser {
+			quit := fyne.NewMenuItem("Quit", func() { fyne.CurrentApp().Quit() })
+			quit.IsQuit = true
+			sub = fyne.NewMenu(m.Label, append(append([]*fyne.MenuItem{}, m.Items...), fyne.NewMenuItemSeparator(), quit)...)
+		}
+		item := fyne.NewMenuItem(m.Label, nil)
+		item.ChildMenu = sub
+		items = append(items, item)
+	}
+	return fyne.NewMenu("Menus", items...)
 }
 
 // ribbonShown reports whether the ribbon is in sight.
@@ -101,6 +140,7 @@ type ribbonBar struct {
 	tabs     []*ribbonTabButton
 	title    *scriptTitle
 	palette  *ribbonButton // the command palette's, at the tab row's end
+	menus    *ribbonButton // ☰: the menus, beside it
 	tabRow   *fyne.Container
 	groupBox *fyne.Container // the groups of the tab chosen
 	groups   *container.Scroll
@@ -121,9 +161,7 @@ type ribbonBar struct {
 	tipLevel int    // 1: the tabs', 2: the buttons'
 	typed    string // the key tip's letters typed so far
 	tipsFrom fyne.Focusable
-	altAlone bool           // Alt went down with no other key yet
-	altFrom  fyne.Focusable // the focus then
-	altPolls int
+	altAlone bool // Alt went down with no other key yet
 }
 
 func newRibbon(w *MainWindow) *ribbonBar {
@@ -142,8 +180,12 @@ func newRibbon(w *MainWindow) *ribbonBar {
 	if w.headerBar != nil {
 		r.title.SetText(w.headerBar.titleLabel.Text)
 	}
-	r.palette = newRibbonButton(r, cmd("app.palette"), false)
+	end := commands().ribbonEnd // the palette's, then ☰
+	r.palette = newRibbonButton(r, cmd(end[0].id), false)
 	r.palette.iconOnly = true
+	r.menus = newRibbonButton(r, cmd(end[1].id), false)
+	r.menus.iconOnly = true
+	r.menus.homeLabel = "Menus"
 	r.format = newScriptFormatSelect(w.lex, nil, func(key string) {
 		if !r.showing {
 			w.setScriptFormat(key)
@@ -154,7 +196,7 @@ func newRibbon(w *MainWindow) *ribbonBar {
 	fyne.SetAccessibleLabel(r.format, "Script format")
 	r.groupBox = container.NewHBox()
 	r.groups = container.NewHScroll(r.groupBox)
-	r.tabRow = container.New(&tabRowLayout{tabs: r.tabBox}, container.NewHScroll(r.tabBox), r.title, r.palette)
+	r.tabRow = container.New(&tabRowLayout{tabs: r.tabBox}, container.NewHScroll(r.tabBox), r.title, container.NewHBox(r.palette, r.menus))
 	r.box = container.NewVBox(r.tabRow, widget.NewSeparator(), r.groups)
 	return r
 }
@@ -184,7 +226,7 @@ func (l *tabRowLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 }
 
 // tabShown reports whether the tab titled t applies in env.
-func tabShown(t ribbonTab, env cmdEnv) bool { return t.when == nil || t.when(env) }
+func tabShown(t ribbonTab, env cmdEnv) bool { return (t.when == nil || t.when(env)) && t.role.in(env) }
 
 // selectTab shows a tab's groups.
 func (r *ribbonBar) selectTab(title string) {
@@ -226,6 +268,7 @@ func (r *ribbonBar) refresh() {
 	for i, t := range commands().ribbon {
 		setVisible(r.tabs[i], tabShown(t, env))
 	}
+	r.menus.follow(env)
 	if t, ok := tabOf(r.selected); !ok || !tabShown(t, env) {
 		r.selected = "Write"
 	}
@@ -237,7 +280,7 @@ func (r *ribbonBar) refresh() {
 		stage = w.productionStage()
 	}
 	r.stage = stage
-	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc),
+	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
 		boolKey(phone), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
@@ -557,21 +600,23 @@ func (r *ribbonBar) assignTips(level int) {
 		t.setTip("")
 	}
 	r.palette.setTip("")
+	r.menus.setTip("")
 	for _, b := range r.buttons {
 		b.setTip("")
 	}
 	if level == 1 {
 		tabs := r.shownTabs()
-		labels := make([]string, 0, len(tabs)+1)
+		labels := make([]string, 0, len(tabs)+2)
 		for _, t := range tabs {
 			labels = append(labels, t.title)
 		}
-		labels = append(labels, "Command Palette")
+		labels = append(labels, "Command Palette", "Menus")
 		tips := keyTipsFor(labels)
 		for i, t := range tabs {
 			t.setTip(tips[i])
 		}
 		r.palette.setTip(tips[len(tabs)])
+		r.menus.setTip(tips[len(tabs)+1])
 		return
 	}
 	var bs []*ribbonButton
@@ -636,6 +681,12 @@ func (r *ribbonBar) keyTipTyped(ch rune) bool {
 				r.w.showPalette()
 			}
 		}
+		if r.menus.tip == typed {
+			match = func() {
+				r.leaveKeyTips(true)
+				r.w.showMenusAt(r.menus)
+			}
+		}
 	} else {
 		for _, b := range r.buttons {
 			if b.tip == "" {
@@ -689,6 +740,7 @@ func (r *ribbonBar) leaveKeyTips(restore bool) {
 		t.setTip("")
 	}
 	r.palette.setTip("")
+	r.menus.setTip("")
 	for _, b := range r.buttons {
 		b.setTip("")
 	}
@@ -703,68 +755,45 @@ func (r *ribbonBar) leaveKeyTips(restore bool) {
 	r.tipsFrom = nil
 }
 
-// altKey sees each key go down (keyPreview): Alt alone, in Ribbon mode,
-// shows the key tips (or takes them away). Fyne opens the menu bar when
-// Alt is let go alone, giving its first menu the focus; that is how
-// Alt alone is seen (a key with Alt cancels both), and the menu closes
-// again. A window left with Alt+Tab opens no menu, so no key tips.
+// altKey sees each key go down (keyPreview): Alt going down alone, where
+// the ribbon took the menu bar's place, may be Alt alone (altUp); any
+// other key between makes it Alt with a key (Alt+J, Alt+Enter).
 func (w *MainWindow) altKey(name fyne.KeyName) {
-	if !w.ribbonShown() {
+	r := w.ribbon
+	if r == nil {
 		return
 	}
-	r := w.ribbon
-	if name != desktop.KeyAltLeft && name != desktop.KeyAltRight {
+	if name != desktop.KeyAltLeft && name != desktop.KeyAltRight || !w.menuGone || !w.ribbonShown() {
 		r.altAlone = false
 		return
 	}
-	if r.altAlone {
-		return // held: the key repeats
-	}
-	r.altAlone, r.altFrom, r.altPolls = true, w.fyneWindow.Canvas().Focused(), 0
-	w.watchAlt()
+	r.altAlone = true // held, it repeats: still alone
 }
 
-// watchAlt looks for the menu bar Alt opened, a while (3 s).
-func (w *MainWindow) watchAlt() {
-	w.after(40*time.Millisecond, func() {
-		r := w.ribbon
-		if r == nil || !r.altAlone {
-			return
-		}
-		if !w.altOpenedMenu() && r.altPolls < 75 {
-			r.altPolls++
-			w.watchAlt()
-		}
-	})
-}
-
-// menuBarFocus reports whether f is the in-window menu bar's (Fyne's own
-// type, not exported).
-var menuBarFocus = func(f fyne.Focusable) bool {
-	return f != nil && strings.HasSuffix(fmt.Sprintf("%T", f), ".menuBarItem")
-}
-
-// altOpenedMenu shows the key tips (or takes them away) if Alt alone
-// opened the menu bar, closing it; it reports whether it had.
-func (w *MainWindow) altOpenedMenu() bool {
+// altUp sees a key let go: Alt let go alone shows the key tips, or takes
+// them away.
+func (w *MainWindow) altUp(name fyne.KeyName) {
 	r := w.ribbon
-	c := w.fyneWindow.Canvas()
-	if r == nil || !r.altAlone || !menuBarFocus(c.Focused()) {
-		return false
+	if r == nil || !r.altAlone || name != desktop.KeyAltLeft && name != desktop.KeyAltRight {
+		return
 	}
 	r.altAlone = false
-	if m, ok := c.(interface{ DismissMenu() bool }); ok {
-		m.DismissMenu()
+	if !w.menuGone || !w.ribbonShown() {
+		return
 	}
 	if r.tipsOn {
 		r.leaveKeyTips(true)
-		return true
-	}
-	if r.altFrom != nil {
-		c.Focus(r.altFrom)
+		return
 	}
 	r.showKeyTips()
-	return true
+}
+
+// altCancel: the keyboard went elsewhere while Alt was down (Alt+Tab to
+// another window, which sends Alt's let-go after): no key tips for it.
+func (w *MainWindow) altCancel() {
+	if w.ribbon != nil {
+		w.ribbon.altAlone = false
+	}
 }
 
 // The tabs and buttons.
@@ -817,7 +846,15 @@ func (t *ribbonTabButton) FocusLost() {
 	t.focused = false
 	t.Refresh()
 	t.r.focusLeft()
+	t.r.w.altCancel()
 }
+
+// KeyDown and KeyUp: Alt let go alone takes the key tips away (altUp).
+func (t *ribbonTabButton) KeyDown(*fyne.KeyEvent) {}
+func (t *ribbonTabButton) KeyUp(k *fyne.KeyEvent) { t.r.w.altUp(k.Name) }
+func (b *ribbonButton) KeyDown(*fyne.KeyEvent)    {}
+func (b *ribbonButton) KeyUp(k *fyne.KeyEvent)    { b.r.w.altUp(k.Name) }
+func (b *ribbonButton) onTabRow() bool            { return b == b.r.palette || b == b.r.menus }
 func (t *ribbonTabButton) TypedRune(ch rune) {
 	if ch == ' ' && !t.r.tipsOn {
 		t.onTap()
@@ -1030,6 +1067,7 @@ func (b *ribbonButton) FocusLost() {
 	b.focused = false
 	b.Refresh()
 	b.r.focusLeft()
+	b.r.w.altCancel()
 }
 func (b *ribbonButton) TypedRune(ch rune) {
 	if ch == ' ' && !b.r.tipsOn {
@@ -1045,11 +1083,11 @@ func (b *ribbonButton) TypedKey(k *fyne.KeyEvent) {
 	case fyne.KeyRight:
 		b.r.move(b, 1)
 	case fyne.KeyUp:
-		if b != b.r.palette {
+		if !b.onTabRow() {
 			b.r.up()
 		}
 	case fyne.KeyDown:
-		if b == b.r.palette {
+		if b.onTabRow() {
 			b.r.down()
 		}
 	case fyne.KeyReturn, fyne.KeyEnter:
@@ -1132,8 +1170,8 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 	objects = append(objects, badge.bg, badge.text)
 	r := &ribbonRenderer{objects: objects}
 	texts := func() []string {
-		if b.iconOnly && b.r.phone {
-			return nil // the palette's, on a phone's tab row
+		if b.iconOnly && b.r.phone || b == b.r.menus {
+			return nil // the palette's on a phone's tab row; ☰ always
 		}
 		if b.large || b.r.phone {
 			if b.r.phone {

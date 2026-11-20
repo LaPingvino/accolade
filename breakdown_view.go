@@ -128,7 +128,8 @@ func (w *MainWindow) breakdownNowFound() (*breakdownFile, *bdText, []placed) {
 
 // breakdownInksShown are the editor's inks (its Inks).
 func (w *MainWindow) breakdownInksShown() map[int][]editor.Ink {
-	if w.settings != nil && w.settings.GetBoolean(breakdownHiddenPref) || w.breakdown.inks == nil {
+	// production's colours, put away in Writer (role.go); the tags are kept
+	if w.settings != nil && w.settings.GetBoolean(breakdownHiddenPref) || w.breakdown.inks == nil || w.writerView() {
 		return nil
 	}
 	fg := w.textEditor.Theme().Color(theme.ColorNameForeground, fyne.CurrentApp().Settings().ThemeVariant())

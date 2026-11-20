@@ -2,7 +2,7 @@
 
 When a script goes into production, its scene numbers and pages must stop moving, changes must be marked, and the scenes broken down and scheduled. Accolade does this in the Production menu and the Production pane, on the same Fountain file.
 
-The Production menu is there for screenplays (not for Markdown documents).
+The Production menu is there for screenplays (not for Markdown documents), when you work as Production (Preferences > General > I am working as, or View > Working As). Working as a writer puts it away, with the pane and the production settings; the script keeps its locks, marks and tags, and prints the same.
 
 ## The Production pane
 
