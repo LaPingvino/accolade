@@ -16,6 +16,7 @@ import (
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/lexington/cli"
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // The Production pane (docs/PRODUCTION.md §6, step 6): the Notes pane's
@@ -75,6 +76,7 @@ type productionPane struct {
 	pages     changedPages
 	pagesRun  int
 	shownKey  string // what the list shows (the rows made again only when it changes)
+	listView  int    // the stage the list was scrolled to the top for
 }
 
 // changedPages are the revised pages of a text, as the PDF prints them.
@@ -86,7 +88,7 @@ type changedPages struct {
 }
 
 func newProductionPane(w *MainWindow) *productionPane {
-	p := &productionPane{w: w, picked: -1}
+	p := &productionPane{w: w, picked: -1, listView: -1}
 	for i, name := range []string{"1 Lock", "2 Revise"} {
 		p.stages[i] = widget.NewButton(name, func() { p.pick(i) })
 	}
@@ -252,8 +254,11 @@ func (p *productionPane) setRows(key string, make func() []fyne.CanvasObject) {
 	}
 	p.shownKey = key
 	p.rows.Objects = make()
-	p.scroll.Refresh() // its content laid out again: rows of other heights
-	p.scroll.ScrollToTop()
+	p.scroll.Refresh()                  // its content laid out again: rows of other heights
+	if v := p.view(); v != p.listView { // another stage's list; an edit keeps the place
+		p.listView = v
+		p.scroll.ScrollToTop()
+	}
 }
 
 // showLock is the Lock stage: the check and the lock's buttons.
@@ -347,6 +352,9 @@ func (p *productionPane) showRevise(text string, chain *revisionChain, issued bo
 		return
 	}
 	if !sameString(w.revisions.text, text) {
+		if w.revisionTimer != nil {
+			return // typing: the marks' timer brings them, after the pause
+		}
 		w.updateRevisionMarks() // follows again when they are made
 		if !sameString(w.revisions.text, text) {
 			return
@@ -435,7 +443,14 @@ func (p *productionPane) countPages(text, set string) {
 	p.pagesRun++
 	run := p.pagesRun
 	job := p.w.revisedPagesJob(text)
+	chain, _ := p.w.revisionChainNow()
 	inBackground(func() changedPages {
+		if chain != nil && len(chain.issues) > 0 { // the current revision's marks (a diff: here, not on the UI goroutine)
+			marks, sets, _ := chain.marksOf(text, false, time.Now())
+			r := *job.revisions
+			r.Sets = sets
+			job.revisions, job.marks = &r, marks
+		}
 		return revisedPageCount(text, set, job)
 	}, func(r changedPages) {
 		if run != p.pagesRun {
@@ -468,13 +483,16 @@ func revisedPageCount(text, set string, job exportJob) (r changedPages) {
 	return r
 }
 
-// revisedPagesJob is the PDF of the text's current revision: its marks
-// (the last issue's, whatever the margin shows), in the pages it prints
-// against. Revised Pages PDF… prints the same with the export's setting.
+// revisedPagesJob is the PDF of the text's current revision, in the
+// pages it prints against: its marks (the current revision's, whatever
+// the margin shows) are put in by countPages, in the background.
+// Revised Pages PDF… prints the same with the export's setting.
 func (w *MainWindow) revisedPagesJob(text string) exportJob {
 	j := w.savedExportJob()
-	if r, marks := w.exportRevisions(text, false); r != nil {
-		j.revisions, j.marks = r, marks
+	j.revisions = &lex.Revisions{}
+	if w.settings != nil {
+		j.revisions.Header = w.settings.GetString(revisionHeaderPref)
+		j.revisions.DateLayout = w.settings.GetString(revisionDatePref)
 	}
 	return w.withIssuedPages(j, text)
 }

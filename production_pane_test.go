@@ -262,6 +262,15 @@ func TestProductionFollowsAfterPause(t *testing.T) {
 	if now != before {
 		t.Errorf("the count changed at the key: %q", now)
 	}
+	// a late result's refresh while the pause is pending starts no work
+	uiTurn.Lock()
+	runs, pages := w.revisionRun, p.pagesRun
+	p.refresh()
+	moved := w.revisionRun != runs || p.pagesRun != pages
+	uiTurn.Unlock()
+	if moved {
+		t.Error("a refresh while typing started the marks or the page count before the pause")
+	}
 	waitFor(t, "the count", func() bool { return strings.Contains(p.count.Text, "scene 2") })
 	waitFor(t, "the pages", func() bool { return strings.Contains(p.count.Text, "1 page changed") })
 }
