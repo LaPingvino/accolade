@@ -341,6 +341,32 @@ func (w *MainWindow) saveBundleSource(md string) error {
 	return nil
 }
 
+// sourceNameKey is a file name as a link's is compared: its base, without its
+// extension (story.md, story.html: a link written for the exported page
+// is the source's too), in lower case.
+func sourceNameKey(name string) string {
+	name = path.Base(filepath.ToSlash(name))
+	return strings.ToLower(strings.TrimSuffix(name, path.Ext(name)))
+}
+
+// sourceNames are the names a link's file part may give the script's
+// source (textfrag.go): the one in use, and those of every layer that
+// has one (the file beside the script, the bundle's entry, the one
+// chosen). One source for now: a link naming another is read against it.
+func (w *MainWindow) sourceNames(r sourceRef) map[string]bool {
+	names := map[string]bool{sourceNameKey(w.sourceName(r)): true}
+	if c := companionOf(w.currentFile); c != "" {
+		names[sourceNameKey(c)] = true
+	}
+	if b := w.bundle; b != nil && b.source != "" {
+		names[sourceNameKey(b.source)] = true
+	}
+	if s := w.chosenSource(w.currentFile); s != "" {
+		names[sourceNameKey(s)] = true
+	}
+	return names
+}
+
 // sourceName is the name Save Source As offers.
 func (w *MainWindow) sourceName(r sourceRef) string {
 	if r.Path != "" {

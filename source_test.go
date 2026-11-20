@@ -167,26 +167,28 @@ func TestLinkMatching(t *testing.T) {
 }
 
 // A new link quotes enough to be unique: more than its first words if
-// another passage opens with them.
-func TestAnchorFor(t *testing.T) {
+// another passage opens with them; the words before it if that does not
+// do.
+func TestFragmentForUnique(t *testing.T) {
 	src := "The door was open and the wind came in from the sea.\n\nThe door was open and the wind came in from the hills.\n\nShort.\n\nShort.\n"
 	ps := passagesOf(src)
-	q, unique := anchorFor(ps, 1)
-	if !unique || q != "The door was open and the wind came in from the hills." {
-		t.Errorf("anchor %q %v", q, unique)
+	lm := newLinkMatcher(ps)
+	d, unique := fragmentFor(lm, 1, 1)
+	if !unique || d != (textDirective{Start: "The door was open and the wind came in from the hills."}) {
+		t.Errorf("fragment %+v %v", d, unique)
 	}
-	if m := matchLink(normWords(q), ps); m.Kind != linkFound || m.Passages[0] != 1 {
+	if m := lm.matchRef(linkRef{Dir: d}); m.Kind != linkFound || m.Passages[0] != 1 {
 		t.Errorf("found as %+v", m)
 	}
-	q, _ = anchorFor(passagesOf(sourceStory), 2)
-	if q != "She opened the door to the garden and…" {
-		t.Errorf("eight words: %q", q)
+	d, _ = fragmentFor(newLinkMatcher(passagesOf(sourceStory)), 2, 2)
+	if d.Start != "She opened the door to the garden and" || d.End == "" {
+		t.Errorf("eight words and the end: %+v", d)
 	}
-	if _, unique := anchorFor(ps, 2); unique {
-		t.Error("identical paragraphs cannot be told apart")
+	if d, unique := fragmentFor(lm, 3, 3); !unique || d.Prefix != "Short." || d.Start != "Short." {
+		t.Errorf("the second Short. by its prefix: %+v %v", d, unique)
 	}
-	if linkNote(`a "b" ]] c`) != `[[from: "a “b” ] ] c"]]` {
-		t.Errorf("note %q", linkNote(`a "b" ]] c`))
+	if note := fragmentNote("", []textDirective{{Start: `a "b" ]] c, d-e & 5%`}}); note != `[[from: #:~:text=a "b" %5D%5D c%2C d%2De %26 5%25]]` {
+		t.Errorf("note %q", note)
 	}
 }
 
@@ -441,7 +443,7 @@ func TestLinkInserted(t *testing.T) {
 	s.list.Select(door)
 	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(4))
 	w.linkToSource()
-	note := `[[from: "She opened the door to the garden and…"]]`
+	note := `[[from: #:~:text=She opened the door to the garden and,out into the rain.]]`
 	want := "INT. HOUSE - NIGHT\n\nShe looks out.\n\n" + note + "\n\nANNA\nWho's there?\n"
 	if got := w.textEditor.Text(); got != want {
 		t.Fatalf("on an empty line:\n%q\nwant\n%q", got, want)
@@ -450,7 +452,7 @@ func TestLinkInserted(t *testing.T) {
 	s.list.Select(who)
 	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineEnd(lineWith(t, w, "Who's there?")))
 	w.linkToSource()
-	if l := w.textEditor.Buffer().Line(lineWith(t, w, "Who's there?")); l != `Who's there? [[from: "“Who's there?” Anna called, but nobody answered."]]` {
+	if l := w.textEditor.Buffer().Line(lineWith(t, w, "Who's there?")); l != `Who's there? [[from: #:~:text="Who's there?" Anna called%2C but nobody answered.]]` {
 		t.Errorf("after dialogue: %q", l)
 	}
 	// a scene heading: below it

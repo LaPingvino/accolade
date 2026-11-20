@@ -603,11 +603,21 @@ func (s *sourcePane) current() *sourceModel {
 	text := s.w.textEditor.Text()
 	if s.model == nil || !sameString(s.modelFor, text) {
 		if s.matcher == nil || !samePassages(s.matcher.ps, s.passages) {
-			s.matcher = newLinkMatcher(s.passages)
+			s.matcher = matcherFor(s.passages)
 		}
 		s.model, s.modelFor = newSourceModelWith(s.matcher, text, s.w.sceneStarts()), text
 	}
 	return s.model
+}
+
+// changedIn reports whether a passage the link found is in changed.
+func changedIn(changed map[int]bool, mt linkMatch) bool {
+	for p := mt.Passages[0]; p <= mt.last(); p++ {
+		if changed[p] {
+			return true
+		}
+	}
+	return false
 }
 
 // samePassages reports whether a and b are the same passages, not
@@ -656,16 +666,27 @@ func (s *sourcePane) follow() {
 	lit, doubt := map[int]bool{}, map[int]bool{}
 	var problems []string
 	first := -1
+	var names map[string]bool // the source's names, if a link names a file
 	for _, i := range m.inSpan(line) {
 		mt := m.matches[i]
 		q := "“" + shortQuote(m.links[i].Quote) + "”"
+		if f := m.links[i].Ref.File; f != "" {
+			if names == nil {
+				names = s.w.sourceNames(s.ref)
+			}
+			if !names[sourceNameKey(f)] {
+				problems = append(problems, q+" names "+f+", not this script's source: read against it")
+			}
+		}
 		switch mt.Kind {
 		case linkFound, linkNear:
-			lit[mt.Passages[0]] = true
+			for p := mt.Passages[0]; p <= mt.last(); p++ {
+				lit[p] = true
+			}
 			if first < 0 || mt.Passages[0] < first {
 				first = mt.Passages[0]
 			}
-			if mt.Kind == linkNear || s.changed[mt.Passages[0]] {
+			if mt.Kind == linkNear || changedIn(s.changed, mt) {
 				problems = append(problems, q+": the source changed since it was linked; "+
 					"check the scene, then Link to Source Passage again")
 			}
@@ -675,7 +696,11 @@ func (s *sourcePane) follow() {
 			}
 			problems = append(problems, fmt.Sprintf("%s fits %d passages: quote more of it", q, len(mt.Passages)))
 		case linkMissing:
-			problems = append(problems, q+" is not in the source")
+			if bad := m.links[i].Ref.Bad; bad != "" {
+				problems = append(problems, "A link cannot be read: "+bad)
+			} else {
+				problems = append(problems, q+" is not in the source")
+			}
 		}
 	}
 	span := spanAt(m.spans, line)
@@ -1108,8 +1133,8 @@ func (w *MainWindow) linkToSource() {
 		w.setStatus("Pick the passage in the source first")
 		return
 	}
-	quote, unique := anchorFor(s.passages, s.selected)
-	note := linkNote(quote)
+	d, unique := fragmentFor(matcherFor(s.passages), s.selected, s.selected)
+	note, quote := fragmentNote("", []textDirective{d}), d.Start
 	e := w.textEditor
 	at, insert, after := insertLink(e.Text(), e.CursorOffset(), note, w.sceneStarts())
 	m := s.current()

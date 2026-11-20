@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/accolade/internal/storyread"
 )
@@ -132,6 +133,30 @@ func splitPair(s string) (left, right string, ok bool) {
 	return "", "", false
 }
 
+// splitSkipped parts a skipped links: entry, "heading = link": the link
+// in the new form from the word with its #:~: (an = in text= is no
+// separator), else as splitPair.
+func splitSkipped(s string) (heading, link string, ok bool) {
+	i := strings.Index(s, "#:~:")
+	if i < 0 {
+		return splitPair(s)
+	}
+	at := 0 // the file's start: after the last space or separator before it
+	if k := strings.LastIndexAny(s[:i], " \t=→>"); k >= 0 {
+		_, n := utf8.DecodeRuneInString(s[k:])
+		at = k + n
+	}
+	heading = strings.TrimSpace(s[:at])
+	for _, sep := range []string{"=", "→", "->"} {
+		if h, found := strings.CutSuffix(heading, sep); found {
+			heading = strings.TrimSpace(h)
+			link = strings.TrimSpace(s[at:])
+			return heading, link, heading != "" && link != ""
+		}
+	}
+	return "", "", false
+}
+
 // splitList parts a list of names by commas and semicolons.
 func splitList(s string) []string {
 	var out []string
@@ -193,15 +218,15 @@ func parseLearned(inside string) learned {
 		return ok
 	})
 	each(secSkipped, func(e string) bool {
-		heading, quote, ok := splitPair(e)
+		heading, quote, ok := splitSkipped(e)
 		if !ok {
 			return false
 		}
-		c, ok := parseCutEntry(quote)
-		if ok {
+		cs := parseCutEntries(quote)
+		for _, c := range cs {
 			l.addSkip(heading, c)
 		}
-		return ok
+		return len(cs) > 0
 	})
 	return l
 }
@@ -324,7 +349,7 @@ func (l *learned) dropPlace(place string) {
 func (l *learned) addSkip(heading string, c cutMark) {
 	hk := wordsKey(heading)
 	for _, s := range l.Skipped {
-		if wordsKey(s.Heading) == hk && slices.Equal(s.Link.Words, c.Words) && s.Link.Nth == c.Nth {
+		if wordsKey(s.Heading) == hk && s.Link.key() == c.key() {
 			return
 		}
 	}
@@ -514,9 +539,11 @@ func (l *learned) skippedFor(ps []passage) map[string][]int {
 	}
 	out := map[string][]int{}
 	for _, s := range l.Skipped {
-		if p := resolveCut(s.Link, ps); p >= 0 {
+		if c := resolveCut(s.Link, ps); c.first >= 0 {
 			k := wordsKey(s.Heading)
-			out[k] = append(out[k], p)
+			for p := c.first; p <= c.last; p++ {
+				out[k] = append(out[k], p)
+			}
 		}
 	}
 	return out

@@ -3,6 +3,7 @@ package main
 import (
 	"slices"
 	"strings"
+	"sync"
 	"unicode"
 	"unicode/utf8"
 
@@ -95,12 +96,15 @@ func normWords(text string) []string {
 	return words
 }
 
-// sourceLink is a [[from: "…"]] note in the script.
+// sourceLink is a [[from: …]] note in the script, or one directive of
+// it (a note with several text= is as many links, at the same place).
 type sourceLink struct {
 	Start, End int // where the note is in the script (runes)
 	Line       int
-	Quote      string   // the words as written
-	Words      []string // normalised
+	Quote      string   // the words, as the pane quotes them
+	Words      []string // its first words, normalised
+	Ref        linkRef  // what it names
+	Key        string   // Ref's rawKey (the new form's; key() for both)
 }
 
 // linkWords is the number of words a new link quotes, at least: enough
@@ -113,6 +117,7 @@ func parseLinks(text string) []sourceLink {
 	_, _, notes := tailsOf(text)
 	text = text[:notes]
 	var links []sourceLink
+	var refs []linkRef // room for each note's
 	off := 0 // in runes, of the line
 	inBoneyard := false
 	for i, line := range strings.Split(text, "\n") {
@@ -131,10 +136,16 @@ func parseLinks(text string) []sourceLink {
 					break
 				}
 				e += s + 2
-				if q, ok := linkQuote(line[s+2 : e-2]); ok {
+				if refs = appendLinkRefs(refs[:0], line[s+2:e-2]); len(refs) > 0 {
 					start := off + utf8.RuneCountInString(line[:s])
-					links = append(links, sourceLink{Start: start, End: start + utf8.RuneCountInString(line[s:e]), Line: i,
-						Quote: q, Words: normWords(q)})
+					for _, r := range refs {
+						l := sourceLink{Start: start, End: start + utf8.RuneCountInString(line[s:e]), Line: i,
+							Quote: r.shown(), Words: r.words(), Ref: r}
+						if !r.Old {
+							l.Key = r.rawKey()
+						}
+						links = append(links, l)
+					}
 				}
 				at = e
 			}
@@ -142,6 +153,22 @@ func parseLinks(text string) []sourceLink {
 		off += utf8.RuneCountInString(line) + 1
 	}
 	return links
+}
+
+// appendLinkRefs is dst with what a note's inside links to if it is a
+// link: the new form's directives (textfrag.go), or the old form's quote.
+func appendLinkRefs(dst []linkRef, inside string) []linkRef {
+	t := strings.TrimSpace(inside)
+	if len(t) < 5 || !strings.EqualFold(t[:5], "from:") {
+		return dst
+	}
+	if rest := t[5:]; isFragmentRef(rest) {
+		return append(dst, fragmentRefs(rest)...)
+	}
+	if q, ok := linkQuote(inside); ok {
+		return append(dst, linkRef{Old: true, Quote: q})
+	}
+	return dst
 }
 
 // linkQuote is the quoted words of a note's inside if it is a link,
@@ -171,15 +198,22 @@ const (
 	linkMissing                    // none does
 )
 
-// linkMatch is a link found in the source: the passage, or for an
-// ambiguous link those that fit.
+// linkMatch is a link found in the source: its passages, from
+// Passages[0] to Last, or for an ambiguous link those that fit.
 type linkMatch struct {
 	Kind     matchKind
 	Passages []int
+	Last     int // found: the last passage of its range
 }
 
-// found reports whether the link has its one passage.
+// found reports whether the link has its one passage (or range).
 func (m linkMatch) found() bool { return m.Kind == linkFound || m.Kind == linkNear }
+
+// covers reports whether the link found passage p (in its range).
+func (m linkMatch) covers(p int) bool { return m.found() && p >= m.Passages[0] && p <= m.Last }
+
+// last is the last passage the link found (its only one if not a range).
+func (m linkMatch) last() int { return max(m.Last, m.Passages[0]) }
 
 // matchLink finds a link's passage. The rules:
 //
@@ -222,7 +256,7 @@ func matchIn(words []string, ps []passage, byFirst map[string][]int, row *[]int)
 	}
 	switch {
 	case len(exact) == 1:
-		return linkMatch{Kind: linkFound, Passages: exact}
+		return linkMatch{Kind: linkFound, Passages: exact, Last: exact[0]}
 	case len(exact) > 1:
 		return linkMatch{Kind: linkAmbiguous, Passages: exact}
 	case len(words) < 4:
@@ -249,7 +283,7 @@ func matchIn(words []string, ps []passage, byFirst map[string][]int, row *[]int)
 	}
 	switch {
 	case len(bestAt) == 1:
-		return linkMatch{Kind: linkNear, Passages: bestAt}
+		return linkMatch{Kind: linkNear, Passages: bestAt, Last: bestAt[0]}
 	case len(bestAt) > 1:
 		return linkMatch{Kind: linkAmbiguous, Passages: bestAt}
 	}
@@ -266,6 +300,9 @@ type linkMatcher struct {
 	byFirst map[string][]int // the linkable passages, by their first word
 	found   map[string]linkMatch
 	row     []int
+	mu      sync.Mutex // found and row
+	fi      *fragIndex // the new form's (textfrag.go), when first needed
+	fiOnce  sync.Once
 }
 
 // maxRemembered is how many links' matches a matcher keeps; past it, it
@@ -285,7 +322,9 @@ func newLinkMatcher(ps []passage) *linkMatcher {
 // match is matchLink(words, the matcher's passages). The match it gives
 // is shared: not to be changed.
 func (lm *linkMatcher) match(words []string) linkMatch {
-	key := strings.Join(words, "\x00")
+	lm.mu.Lock()
+	defer lm.mu.Unlock()
+	key := strings.Join(words, "\x00") // (the new form's keys have \x01 in them: textfrag.go)
 	if mt, ok := lm.found[key]; ok {
 		return mt
 	}
@@ -343,39 +382,6 @@ func prefixDistanceIn(a, b []string, limit int, room *[]int) int {
 	}
 	// an opening of b: any length, the rest of b does not count
 	return min(slices.Min(row), limit+1)
-}
-
-// anchorFor is what a link to passage i quotes: its first linkWords
-// words, and more until no other passage opens with them; unique is
-// false if even all of them do not tell it from another.
-func anchorFor(ps []passage, i int) (quote string, unique bool) {
-	words := strings.Fields(ps[i].Plain)
-	for n := min(linkWords, len(words)); n <= len(words); n++ {
-		quote = strings.Join(words[:n], " ")
-		norm := normWords(quote)
-		unique = true
-		for _, p := range ps {
-			if p.Index != i && p.linkable() && len(p.Words) >= len(norm) && slices.Equal(p.Words[:len(norm)], norm) {
-				unique = false
-				break
-			}
-		}
-		if unique {
-			if n < len(words) {
-				quote += "…"
-			}
-			break
-		}
-	}
-	return quote, unique
-}
-
-// linkNote is the note that links to a passage, quoting it so; the
-// quote's own straight double quotes become curly ones, to read better
-// inside the link's (they do not count for matching).
-func linkNote(quote string) string {
-	quote = strings.NewReplacer("]]", "] ]", "[[", "[ [", "\n", " ").Replace(quote)
-	return `[[from: "` + curlyQuotes(quote) + `"]]`
 }
 
 // curlyQuotes are a quote's straight double quotes made curly, opening
@@ -440,7 +446,7 @@ type sourceModel struct {
 	matches  []linkMatch // the links'
 	spans    []sceneSpan
 	cuts     []cutMark       // the adaptation block's cut: entries
-	cutAt    []int           // the passage each names (-1: none)
+	cutAt    []cutSpan       // the passages each names (first -1: none)
 	status   []passageStatus // the passages' (adaptation.go)
 }
 
@@ -454,13 +460,21 @@ func newSourceModelWith(lm *linkMatcher, script string, starts []string) *source
 	ps := lm.ps
 	m := &sourceModel{passages: ps, links: parseLinks(script), spans: sceneSpans(script, starts)}
 	for _, l := range m.links {
-		m.matches = append(m.matches, lm.match(l.Words))
+		if l.Ref.Old { // its words read already
+			m.matches = append(m.matches, lm.match(l.Words))
+		} else {
+			m.matches = append(m.matches, lm.matchRef(l.Ref))
+		}
 	}
 	if inside, ok := adaptationBlock(script); ok {
 		m.cuts = parseCuts(inside)
 	}
 	for _, c := range m.cuts {
-		m.cutAt = append(m.cutAt, cutAt(c, lm.match(c.Words)))
+		if r := c.ref(); r.Old {
+			m.cutAt = append(m.cutAt, cutAt(c, lm.match(c.Words)))
+		} else {
+			m.cutAt = append(m.cutAt, cutAt(c, lm.matchRef(r)))
+		}
 	}
 	m.status = statusesOf(ps, m.matches, m.cutAt)
 	return m
@@ -483,7 +497,7 @@ func (m *sourceModel) inSpan(line int) []int {
 func (m *sourceModel) linked(p int) []int {
 	var lines []int
 	for i, l := range m.links {
-		if m.matches[i].found() && m.matches[i].Passages[0] == p {
+		if m.matches[i].covers(p) {
 			if s := spanAt(m.spans, l.Line).Line; !slices.Contains(lines, s) {
 				lines = append(lines, s)
 			}

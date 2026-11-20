@@ -28,13 +28,62 @@ pandoc, when installed on the desktop, adds the rest (EPUB, RTF, LaTeX …).
 
 `story.md` next to `story.fountain` is the script's source. The Notes pane can show it.
 
-- **Links** are ordinary Fountain notes in the script: `[[from: "She opened the door to…"]]`. They hold the
-  passage's first words, so a link is found again by its text, and edits elsewhere in the draft don't break it.
+- **Links** are ordinary Fountain notes in the script, in the browsers' Text Fragments syntax (below):
+  `[[from: #:~:text=She opened the door to the garden and,out into the rain.]]`. They hold the passage's words,
+  so a link is found again by its text, and edits elsewhere in the draft don't break it.
 - **Moving the cursor** in a scene highlights its passages in the source; clicking a passage goes to its scene.
 - **Each passage has a status:** not started, adapted, or cut on purpose. The status shows as a bar beside the passage,
   with a count ("62% adapted").
 - **Next passage** jumps to the first passage not yet adapted and starts a scene for it, with the link in place.
 - **Chapters become sections:** Markdown `## Chapter 3` can be carried over as the Fountain section `## Chapter 3`.
+
+### The link format
+
+Joop, 2026-11-20: the WICG's URL Fragment Text Directives (https://wicg.github.io/scroll-to-text-fragment/, in
+Chrome, Safari and Firefox), so a link is also an address into the source as a web page. Built in textfrag.go.
+
+```
+[[from: #:~:text=She opened the door,stepped out]]
+[[from: story.md#:~:text=said Anna.-,Yes.]]
+[[from: #:~:text=The rain kept falling.,-It was late]]
+[[from: #:~:text=One,two&text=Five]]
+```
+
+- After `from:` an optional file, then `#:~:` and one or more `text=` joined by `&`; each is
+  `text=[prefix-,]textStart[,textEnd][,-suffix]`.
+- **textStart[,textEnd] is the passage range:** from the passage textStart is in to the passage of the first
+  textEnd after it. One passage, short (up to 12 words): textStart is all of it; longer: its first 8 words and
+  its last 4. A link may span consecutive passages (a suggestion of neighbours is one link). Several `text=` are
+  one link each, at the note's place.
+- **prefix- and -suffix** are the words just before and after: in the passage, or at the end of the one before
+  (the start of the one after). Written only when needed: when the words are found elsewhere too, Accolade first
+  quotes more of textStart (then of textEnd), then adds the words before, then those after. They replace the old
+  form's "(2)". Two passages whose words and neighbours are all alike cannot be told apart: the link is ambiguous.
+- **The file** is optional: none is the script's source. A name is the source's when it is the name of any of
+  its layers (the file beside the script, the bundle's entry, the file chosen, story.md for one kept in the
+  script), its extension aside (story.html, the source exported, is it too). One source for now: a link naming
+  another is read against it, and the pane says so. Accolade writes no file part.
+- **Written readable:** the passage's own characters (the browser compares the text), only `,` `-` `&` `%`
+  percent-encoded as the grammar needs, and `[` `]` so the note's `]]` stays its own; spaces stay spaces. Read
+  both encoded and plain: `%20` or a space, a `-` inside a word taken as text (the spec rejects it), spaces
+  around the parts aside, an `&` not followed by `text=` part of the text before it. A fragment that cannot be
+  read stays a link, shown as one that cannot be read.
+- **Matching** is the spec's, on the passages (each one block): every term within one passage, as whole words;
+  the prefix right before textStart, the suffix right after the match (whitespace and wordless breaks between
+  allowed, as the spec's "next non-whitespace position"); textEnd the first after textStart that the suffix
+  follows. Unlike a browser: words are compared normalised (case, quotes and punctuation aside; accents count),
+  a link that fits more than one place is ambiguous (a browser takes the first), and near matches are kept: a
+  textStart of 4 or more words with a quarter edited, near a passage's opening; a textEnd of 4 or more near the
+  end of one of the next 40 passages; textEnd or the context not found, the start's passage alone. Near links
+  say the source changed since they were linked.
+- **The old form,** `[[from: "first words…"]]` (the words a passage opens with), and `"…" (2)` in the block,
+  are read as before. Format > Update Source Links writes every link and block entry that is found in the new
+  form, for the same passages, in one undo step; a near one keeps its words (so it still says the source
+  changed); ambiguous and missing ones, and those the new form cannot tell apart, stay as they were.
+- **Exports:** the source exported or printed as a web page (Export, Print) is the page the fragments are
+  written for: `story.html#:~:text=…` opens at the passage. A link's words are the passage's text as the page
+  shows it (tested against the spec's algorithm on the exported page). The script's own HTML export does not
+  print notes (Lexington leaves them out), so its links are not hyperlinks there yet.
 
 ## 4. The reading helpers: heuristics, local, no AI needed
 
@@ -86,9 +135,9 @@ characters: ANNA = Anna, Annie, Miss Kovač
 not characters: Monday, Lord
 places: the house = INT. KOVAČ HOUSE
 skipped links:
-  INT. KITCHEN - NIGHT = "Anna opened the kitchen door."
+  INT. KITCHEN - NIGHT = #:~:text=Anna opened the kitchen door.
 cut:
-  "The rain kept falling." (2)
+  #:~:text=It was late.-,The rain kept falling.
 */
 ```
 
@@ -105,8 +154,10 @@ and more one per line below, in the order above.
 - `places:` a place as the source reads it (KITCHEN, the house; a leading article does not count), then the
   heading the writer gave it, without the time. A heading suggested for that place is that one, with the time read.
 - `skipped links:` a scene's heading, then a passage offered to it as a link and skipped: not offered to it again.
-- `cut:` (step 4) the passages cut on purpose, by their first words as a link quotes them, "(2)" for the second of
-  passages that open alike.
+  The link in the link format (section 3; an `=` inside `text=` is no separator); the old form's quote is read.
+- `cut:` (step 4) the passages cut on purpose, each as a link names it (section 3), one per line (or after
+  `cut:`, parted by `;`); a range cuts each passage in it. The old form, the first words with "(2)" for the
+  second of passages that open alike, is read.
 
 When it learns (quietly: no question, no status; on the pane's follow after typing pauses, the pane shown or not,
 the cursor's scene only; only the block changes, as part of the writer's last undo step, so Undo takes both):

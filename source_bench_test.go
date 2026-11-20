@@ -19,6 +19,7 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -161,6 +162,55 @@ func BenchmarkSourceModelKeystroke(b *testing.B) {
 	for b.Loop() {
 		newSourceModelWith(lm, edited[i%2], benchStarts)
 		i++
+	}
+}
+
+// benchFixtureNew is the bench screenplay with its links and cuts in the
+// new form (as Update Source Links writes them; the near and missing
+// keep their words).
+var benchFixtureNew = sync.OnceValue(func() string {
+	md, script := benchFixture()
+	edits, _, _ := updateLinksEdits(script, newLinkMatcher(passagesOf(md)))
+	r := []rune(script)
+	for _, e := range edits {
+		r = slices.Concat(r[:e.Start], []rune(e.Text), r[e.End:])
+	}
+	return string(r)
+})
+
+// The model made anew with new-form links: the source's word index too.
+func BenchmarkSourceModelColdNew(b *testing.B) {
+	md, _ := benchFixture()
+	script := benchFixtureNew()
+	ps := passagesOf(md)
+	for b.Loop() {
+		newSourceModel(ps, script, benchStarts)
+	}
+}
+
+// A keystroke's model with new-form links (BenchmarkSourceModelKeystroke's).
+func BenchmarkSourceModelKeystrokeNew(b *testing.B) {
+	md, _ := benchFixture()
+	script := benchFixtureNew()
+	ps := passagesOf(md)
+	lm := newLinkMatcher(ps)
+	if m := newSourceModelWith(lm, script, benchStarts); m.count(linkFound) < 150 || m.links[0].Ref.Old {
+		b.Fatalf("new-form bench script: %d found", m.count(linkFound))
+	}
+	edited := []string{script + "x", script + "y"}
+	i := 0
+	for b.Loop() {
+		newSourceModelWith(lm, edited[i%2], benchStarts)
+		i++
+	}
+}
+
+// Format > Update Source Links on the bench screenplay.
+func BenchmarkUpdateSourceLinks(b *testing.B) {
+	md, script := benchFixture()
+	lm := newLinkMatcher(passagesOf(md))
+	for b.Loop() {
+		updateLinksEdits(script, lm)
 	}
 }
 

@@ -132,13 +132,17 @@ func TestStatuses(t *testing.T) {
 		t.Fatalf("passage 9 is %q", ps[rain2].Plain)
 	}
 	c2 := cutFor(ps, rain2)
-	if c2.Nth != 2 || c2.String() != `"The rain kept falling." (2)` {
+	if !strings.HasPrefix(c2.String(), "#:~:text=") || !strings.Contains(c2.String(), "-,The rain kept falling.") ||
+		resolveCut(c2, ps) != (cutSpan{rain2, rain2}) {
 		t.Errorf("cut entry for the second rain: %q", c2.String())
+	}
+	if old, ok := parseCutEntry(`"The rain kept falling." (2)`); !ok || resolveCut(old, ps) != (cutSpan{rain2, rain2}) {
+		t.Errorf("the old form's (2): %+v", old)
 	}
 	cuts := []cutMark{cutFor(ps, item), c2, {Quote: "Nothing like it", Words: normWords("Nothing like it")}}
 	script := sourceScript + "\n/* Adaptation\n" + withCuts("", cuts) + "\n*/\n"
 	m = newSourceModel(ps, script, nil)
-	if m.status[item] != statusCut || m.status[rain2] != statusCut || m.status[6] != statusToDo || m.cutAt[2] != -1 {
+	if m.status[item] != statusCut || m.status[rain2] != statusCut || m.status[6] != statusToDo || m.cutAt[2] != noCut {
 		t.Errorf("cut: %v %v %v %v", m.status[item], m.status[rain2], m.status[6], m.cutAt)
 	}
 	if c := countOf(m.status); c.String() != "60% adapted · 2 cut · 2 to go" {
@@ -177,7 +181,7 @@ func TestMarkAsCut(t *testing.T) {
 	s.cut.OnTapped()
 	text := w.textEditor.Text()
 	inside, ok := adaptationBlock(text)
-	if !ok || inside != "cut:\n  \"a list item of its own\"" {
+	if !ok || inside != "cut:\n  #:~:text=a list item of its own" {
 		t.Fatalf("block %q %v in\n%s", inside, ok, text)
 	}
 	if notesOf(text) != "my notes" || w.sourceRef().Origin != sourceInside {
@@ -206,13 +210,13 @@ func TestMarkAsCut(t *testing.T) {
 	s.list.Select(9)
 	s.toggleCut()
 	inside, _ = adaptationBlock(w.textEditor.Text())
-	if inside != "cut:\n  \"The rain kept falling.\" (1)\n  \"The rain kept falling.\" (2)" {
+	if inside != "cut:\n  #:~:text=another-,The rain kept falling.\n  #:~:text=open.-,The rain kept falling." {
 		t.Errorf("twice there: %q", inside)
 	}
 	s.list.Select(6)
 	s.toggleCut() // unmark the first only
 	inside, _ = adaptationBlock(w.textEditor.Text())
-	if inside != "cut:\n  \"The rain kept falling.\" (2)" || s.statusOf(6) != statusToDo || s.statusOf(9) != statusCut {
+	if inside != "cut:\n  #:~:text=open.-,The rain kept falling." || s.statusOf(6) != statusToDo || s.statusOf(9) != statusCut {
 		t.Errorf("unmarked one: %q", inside)
 	}
 	// an adapted passage or a heading is not cut
@@ -220,13 +224,13 @@ func TestMarkAsCut(t *testing.T) {
 	if !s.cut.Disabled() {
 		t.Error("cut enabled for an adapted passage")
 	}
-	// linking a cut passage takes its entry out, in the same step
-	// (an ambiguous link does not adapt it: the entry stays)
+	// linking a cut passage takes its entry out, in the same step (the
+	// second of two alike too: its prefix tells it apart)
 	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(lineWith(t, w, "ANNA")) - 1)
 	s.list.Select(9)
 	w.linkToSource()
-	if s.statusOf(9) != statusCut {
-		t.Errorf("an ambiguous link uncut it: %v", s.statusOf(9))
+	if inside, _ = adaptationBlock(w.textEditor.Text()); s.statusOf(9) != statusAdapted || inside != "" {
+		t.Errorf("linking the second rain: %v, block %q", s.statusOf(9), inside)
 	}
 	w.textEditor.Undo()
 	s.list.Select(item)
@@ -263,7 +267,7 @@ func TestNextInserts(t *testing.T) {
 	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(lineWith(t, w, "Anna at the door")))
 	w.nextSourcePassage()
 	who := passageNamed(t, s.passages, `"Who's`)
-	note := "[[from: \"“Who's there?” Anna called, but nobody answered.\"]]"
+	note := `[[from: #:~:text="Who's there?" Anna called%2C but nobody answered.]]`
 	want := strings.Replace(nextScript, "INT. LATER", "INT. PLACE - DAY\n\n"+note+"\n\nINT. LATER", 1)
 	if got := w.textEditor.Text(); got != want {
 		t.Fatalf("inserted:\n%s\nwant\n%s", got, want)
@@ -286,8 +290,8 @@ func TestNextInserts(t *testing.T) {
 	if s.selected != passageNamed(t, s.passages, "and another") {
 		t.Errorf("third: picked %q", s.passages[s.selected].Plain)
 	}
-	// the rain is there twice: Next starts it, but its link is ambiguous,
-	// so it stays to do; Mark as Cut in the pane settles it
+	// the rain is there twice: Next starts it, its link telling it from
+	// the other by the words before it (prefix-), so it is adapted
 	w.nextSourcePassage()
 	if s.selected != 6 {
 		t.Fatalf("fourth: %q", s.passages[s.selected].Plain)
@@ -295,11 +299,13 @@ func TestNextInserts(t *testing.T) {
 	if s.prompt.box.Visible() {
 		t.Error("asked about a skip")
 	}
-	s.setCut(6, true)
+	if !strings.Contains(w.textEditor.Text(), "[[from: #:~:text=another-,The rain kept falling.]]") || s.statusOf(6) != statusAdapted {
+		t.Errorf("the first rain: %v\n%s", s.statusOf(6), w.textEditor.Text())
+	}
 	// a new chapter: its section first
 	w.nextSourcePassage()
 	text := w.textEditor.Text()
-	if !strings.Contains(text, "## Chapter 2\n\nINT. PLACE - DAY\n\n[[from: \"The next morning the garden was white with…\"]]") {
+	if !strings.Contains(text, "## Chapter 2\n\nINT. PLACE - DAY\n\n[[from: #:~:text=The next morning the garden was white with,the door stood open.]]") {
 		t.Errorf("chapter 2:\n%s", text)
 	}
 	if strings.Count(text, "## Chapter 1") != 0 {

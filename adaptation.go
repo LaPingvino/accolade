@@ -176,15 +176,21 @@ func adaptationBlock(text string) (string, bool) {
 	return a.inside, a.ok
 }
 
-// cutMark is a cut: entry, the passage it names.
+// cutMark is a cut: entry (or a skipped links: entry's link), the
+// passage it names: in the new form a text directive (textfrag.go), in
+// the old its first words and which of the passages opening so.
 type cutMark struct {
-	Quote string   // the words as written
-	Nth   int      // which of the passages opening so (1, 2 …); 0: the one
+	Quote string   // the words as written (the new form's: as shown)
+	Nth   int      // old form: which of the passages opening so (1, 2 …); 0: the one
 	Words []string // normalised
+	Ref   linkRef
 }
 
 // String is the entry as the block writes it.
 func (c cutMark) String() string {
+	if !c.Ref.Old && c.Ref.Bad == "" && c.Ref.Dir.Start != "" {
+		return c.Ref.String()
+	}
 	q := curlyQuotes(strings.ReplaceAll(c.Quote, "\n", " "))
 	s := `"` + q + `"`
 	if c.Nth > 0 {
@@ -193,10 +199,51 @@ func (c cutMark) String() string {
 	return s
 }
 
-// parseCutEntry reads an entry: a quote (straight quotes around it, or
-// curly ones), or bare words, with "(2)" after it for the second of
-// passages alike; a leading "-" or "*" is a list's.
+// key is the entry's identity: its link's, and which one.
+func (c cutMark) key() string { return c.ref().key() + "\x02" + strconv.Itoa(c.Nth) }
+
+// ref is what the entry names (an entry made with words only: those, in
+// the old form).
+func (c cutMark) ref() linkRef {
+	if !c.Ref.Old && c.Ref.Bad == "" && c.Ref.Dir.Start == "" {
+		return linkRef{Old: true, Quote: c.Quote}
+	}
+	return c.Ref
+}
+
+// cutOf is the entry for a link in the new form.
+func cutOf(r linkRef) cutMark { return cutMark{Quote: r.shown(), Words: r.words(), Ref: r} }
+
+// parseCutEntries reads an entry: in the new form (#:~:text=…, a file
+// before it or not) each directive of it; else as parseCutEntry.
+func parseCutEntries(s string) []cutMark {
+	t := strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(s), "-*•"))
+	if isFragmentRef(t) {
+		var out []cutMark
+		for _, r := range fragmentRefs(t) {
+			if r.Bad == "" {
+				out = append(out, cutOf(r))
+			}
+		}
+		return out
+	}
+	if c, ok := parseCutEntry(s); ok {
+		return []cutMark{c}
+	}
+	return nil
+}
+
+// parseCutEntry reads an old-form entry: a quote (straight quotes around
+// it, or curly ones), or bare words, with "(2)" after it for the second
+// of passages alike; a leading "-" or "*" is a list's.
 func parseCutEntry(s string) (cutMark, bool) {
+	if isFragmentRef(strings.TrimLeft(strings.TrimSpace(s), "-*•")) {
+		cs := parseCutEntries(s)
+		if len(cs) == 0 {
+			return cutMark{}, false
+		}
+		return cs[0], true
+	}
 	s = strings.TrimSpace(s)
 	s = strings.TrimSpace(strings.TrimLeft(s, "-*•"))
 	nth := 0
@@ -215,7 +262,7 @@ func parseCutEntry(s string) (cutMark, bool) {
 	if s == "" {
 		return cutMark{}, false
 	}
-	return cutMark{Quote: s, Nth: nth, Words: normWords(s)}, len(normWords(s)) > 0
+	return cutMark{Quote: s, Nth: nth, Words: normWords(s), Ref: linkRef{Old: true, Quote: s}}, len(normWords(s)) > 0
 }
 
 // splitCutEntries parts what follows "cut:" on its line: several
@@ -224,6 +271,20 @@ func splitCutEntries(s string) []string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil
+	}
+	if isFragmentRef(s) { // new-form entries: parted by ;
+		var out []string
+		for _, e := range strings.Split(s, ";") {
+			if len(out) > 0 && !isFragmentRef(e) { // a ; in the text
+				out[len(out)-1] += ";" + e
+				continue
+			}
+			out = append(out, e)
+		}
+		for i := range out {
+			out[i] = strings.TrimSpace(out[i])
+		}
+		return out
 	}
 	if strings.Count(s, `"`) >= 4 && strings.HasPrefix(s, `"`) {
 		var out []string
@@ -257,11 +318,11 @@ func splitCutEntries(s string) []string {
 // isBlockKey reports whether a line of the block opens a section of it,
 // "name: …" at the line's start (not an entry of the one before).
 func isBlockKey(line string) (key, rest string, ok bool) {
-	if line == "" || line[0] == ' ' || line[0] == '\t' || strings.ContainsRune(`-*•"“„«'‘`, []rune(line)[0]) {
+	if line == "" || line[0] == ' ' || line[0] == '\t' || strings.ContainsRune(`-*•"“„«'‘#`, []rune(line)[0]) {
 		return "", "", false
 	}
 	k, rest, found := strings.Cut(line, ":")
-	if !found || strings.ContainsAny(k, `"“”`) || len(strings.Fields(k)) > 3 {
+	if !found || strings.ContainsAny(k, `"“”#`) || len(strings.Fields(k)) > 3 {
 		return "", "", false
 	}
 	return strings.ToLower(strings.TrimSpace(k)), rest, true
@@ -281,17 +342,13 @@ func parseCuts(inside string) []cutMark {
 			in = key == "cut" || key == "cuts"
 			if in {
 				for _, e := range splitCutEntries(rest) {
-					if c, ok := parseCutEntry(e); ok {
-						out = append(out, c)
-					}
+					out = append(out, parseCutEntries(e)...)
 				}
 			}
 			continue
 		}
 		if in {
-			if c, ok := parseCutEntry(line); ok {
-				out = append(out, c)
-			}
+			out = append(out, parseCutEntries(line)...)
 		}
 	}
 	return out
@@ -360,35 +417,37 @@ func withAdaptationBlock(text, inside string) (start, end int, block string) {
 	return start, end, block
 }
 
-// resolveCut is the passage a cut entry names, or -1.
-func resolveCut(c cutMark, ps []passage) int {
-	return cutAt(c, matchLink(c.Words, ps))
+// cutSpan is the passages a cut entry names, [first, last]; first -1:
+// none.
+type cutSpan struct{ first, last int }
+
+var noCut = cutSpan{-1, -1}
+
+// has reports whether the entry names passage p.
+func (c cutSpan) has(p int) bool { return c.first >= 0 && p >= c.first && p <= c.last }
+
+// resolveCut is the passages a cut entry names.
+func resolveCut(c cutMark, ps []passage) cutSpan {
+	return cutAt(c, matchRefIn(c.ref(), ps))
 }
 
-// cutAt is the passage a cut entry names, given what its words found.
-func cutAt(c cutMark, mt linkMatch) int {
+// cutAt is the passages a cut entry names, given what its link found.
+func cutAt(c cutMark, mt linkMatch) cutSpan {
 	switch {
 	case c.Nth > 0 && (mt.found() || mt.Kind == linkAmbiguous) && c.Nth <= len(mt.Passages):
-		return mt.Passages[c.Nth-1]
+		p := mt.Passages[c.Nth-1]
+		return cutSpan{p, p}
 	case c.Nth <= 1 && mt.found():
-		return mt.Passages[0]
+		return cutSpan{mt.Passages[0], mt.last()}
 	}
-	return -1
+	return noCut
 }
 
-// cutFor is the entry that names passage i: its link's words, and which
-// of the passages opening so it is if more do.
+// cutFor is the entry that names passage i: a link to it (fragmentFor),
+// its prefix or suffix telling it from passages alike.
 func cutFor(ps []passage, i int) cutMark {
-	quote, unique := anchorFor(ps, i)
-	c := cutMark{Quote: strings.TrimSuffix(quote, "…"), Words: normWords(quote)}
-	if !unique {
-		mt := matchLink(c.Words, ps)
-		c.Nth = slices.Index(mt.Passages, i) + 1
-	}
-	if strings.HasSuffix(quote, "…") {
-		c.Quote += "…"
-	}
-	return c
+	d, _ := fragmentFor(matcherFor(ps), i, i)
+	return cutOf(linkRef{Dir: d})
 }
 
 // passageStatus is what the script has done with a passage.
@@ -418,8 +477,8 @@ func (st passageStatus) String() string {
 func (p passage) counted() bool { return p.linkable() && p.Kind != prose.Heading }
 
 // statusesOf are the passages' statuses: adapted by the links that found
-// one, cut by the entries that name one.
-func statusesOf(ps []passage, matches []linkMatch, cuts []int) []passageStatus {
+// them, cut by the entries that name them.
+func statusesOf(ps []passage, matches []linkMatch, cuts []cutSpan) []passageStatus {
 	st := make([]passageStatus, len(ps))
 	for i, p := range ps {
 		if p.counted() {
@@ -427,13 +486,20 @@ func statusesOf(ps []passage, matches []linkMatch, cuts []int) []passageStatus {
 		}
 	}
 	for _, c := range cuts {
-		if c >= 0 && st[c] == statusToDo {
-			st[c] = statusCut
+		for p := max(c.first, 0); c.first >= 0 && p <= c.last && p < len(st); p++ {
+			if st[p] == statusToDo {
+				st[p] = statusCut
+			}
 		}
 	}
 	for _, mt := range matches {
-		if mt.found() && st[mt.Passages[0]] != statusNone {
-			st[mt.Passages[0]] = statusAdapted
+		if !mt.found() {
+			continue
+		}
+		for p := mt.Passages[0]; p <= mt.last() && p < len(st); p++ {
+			if st[p] != statusNone {
+				st[p] = statusAdapted
+			}
 		}
 	}
 	return st
@@ -479,7 +545,7 @@ func (m *sourceModel) position(line int) int {
 		at := -1
 		for i, l := range m.links {
 			if mt := m.matches[i]; mt.found() && l.Line >= m.spans[k].Line && l.Line < m.spans[k].End {
-				at = max(at, mt.Passages[0])
+				at = max(at, mt.last())
 			}
 		}
 		if at >= 0 {
@@ -494,8 +560,8 @@ func (m *sourceModel) position(line int) int {
 func (m *sourceModel) lastLinked() (passage, line int) {
 	passage, line = -1, -1
 	for i, mt := range m.matches {
-		if mt.found() && mt.Passages[0] > passage {
-			passage, line = mt.Passages[0], m.links[i].Line
+		if mt.found() && mt.last() > passage {
+			passage, line = mt.last(), m.links[i].Line
 		}
 	}
 	return passage, line
@@ -591,8 +657,8 @@ func sceneForPassage(text string, starts []string, ps []passage, p, from, cursor
 	}
 	start, words := headingPlaceholder(starts)
 	heading := start + " " + words
-	quote, _ := anchorFor(ps, p)
-	parts = append(parts, heading, linkNote(quote))
+	note, _ := linkNoteFor(matcherFor(ps), p, p)
+	parts = append(parts, heading, note)
 	block := strings.Join(parts, "\n\n")
 
 	// where: the line the next scene starts on, or the end of the script

@@ -510,11 +510,15 @@ func (sg *suggester) sceneOf(s *sourcePane, line int, head bool) *sceneCtx {
 	}
 	c := &sceneCtx{head: h, end: end, lineKeys: map[string]bool{}}
 	if s.matcher == nil || !samePassages(s.matcher.ps, s.passages) {
-		s.matcher = newLinkMatcher(s.passages)
+		s.matcher = matcherFor(s.passages)
 	}
 	for _, l := range parseLinks(strings.Join(body, "\n")) {
-		if mt := s.matcher.match(l.Words); mt.found() && !slices.Contains(c.passages, mt.Passages[0]) {
-			c.passages = append(c.passages, mt.Passages[0])
+		if mt := s.matcher.matchRef(l.Ref); mt.found() {
+			for p := mt.Passages[0]; p <= mt.last(); p++ {
+				if !slices.Contains(c.passages, p) {
+					c.passages = append(c.passages, p)
+				}
+			}
 		}
 	}
 	slices.Sort(c.passages)
@@ -548,8 +552,8 @@ func (sg *suggester) nextAfterLinks(s *sourcePane, line int) int {
 	last := -1
 	for i := line - 1; i >= 0 && last < 0; i-- {
 		for _, l := range parseLinks(sg.lines[i]) {
-			if mt := s.matcher.match(l.Words); mt.found() {
-				last = max(last, mt.Passages[0])
+			if mt := s.matcher.matchRef(l.Ref); mt.found() {
+				last = max(last, mt.last())
 			}
 		}
 	}

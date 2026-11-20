@@ -403,11 +403,15 @@ func (s *sourcePane) acceptSuggestion() {
 		return
 	}
 	var notes []string
+	var in []int
 	for _, p := range sg.Passages {
 		if p < len(s.passages) {
-			q, _ := anchorFor(s.passages, p)
-			notes = append(notes, linkNote(q))
+			in = append(in, p)
 		}
+	}
+	for _, run := range runsOf(s.passages, in) { // neighbours: one link to the range
+		note, _ := linkNoteFor(matcherFor(s.passages), run[0], run[1])
+		notes = append(notes, note)
 	}
 	e := s.w.textEditor
 	b := e.Buffer()
@@ -417,7 +421,7 @@ func (s *sourcePane) acceptSuggestion() {
 	e.Edit(func(b *buffer.Buffer) {
 		b.Group(func() { b.Replace(at, at, insert) })
 	})
-	s.w.setStatus("Linked " + sg.Heading + " to " + plural(len(notes), "passage"))
+	s.w.setStatus("Linked " + sg.Heading + " to " + plural(len(in), "passage"))
 	s.showSuggestion(true)
 }
 

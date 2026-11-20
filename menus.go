@@ -132,10 +132,11 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItem("Mark Source Passage as Cut", w.toggleCutHere),
 		fyne.NewMenuItem("Source Headings as Sections", w.sectionsFromSourceHere),
 		fyne.NewMenuItem("Suggest Links to the Source", w.suggestSourceLinks),
+		fyne.NewMenuItem("Update Source Links", w.updateSourceLinks),
 		w.sourceInsideItem(),
 	)
 	if w.markdown { // a screenplay's elements, language, colours and source
-		format.Items = withoutItems(format.Items, "Link to Source Passage", "Next Source Passage", "Mark Source Passage as Cut", "Source Headings as Sections", "Suggest Links to the Source", "Keep Source in the Script", "Scene Heading", "Action", "Character", "Parenthetical",
+		format.Items = withoutItems(format.Items, "Link to Source Passage", "Next Source Passage", "Mark Source Passage as Cut", "Source Headings as Sections", "Suggest Links to the Source", "Update Source Links", "Keep Source in the Script", "Scene Heading", "Action", "Character", "Parenthetical",
 			"Dialogue", "Transition", "Centered", "Lyrics", "Script Language…", "Scene or Section Color…", "Underline")
 	}
 

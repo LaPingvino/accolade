@@ -439,8 +439,8 @@ func TestLearnSkippedLink(t *testing.T) {
 		t.Fatalf("asked %q", s.prompt.label.Text)
 	}
 	s.prompt.skip.OnTapped()
-	if b := learnedBlock(w); b != "skipped links:\n  INT. LIGHTHOUSE STAIRS - NIGHT = \"Mara climbed the stairs of the old lighthouse,…\"\n"+
-		"  INT. LIGHTHOUSE STAIRS - NIGHT = \"“Is anyone up there?” Mara called into the…\"" {
+	if b := learnedBlock(w); b != "skipped links:\n  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=Mara climbed the stairs of the old lighthouse,every step out loud.\n"+
+		"  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=\"Is anyone up there?\" Mara called into the dark." {
 		t.Fatalf("block %q", b)
 	}
 	if body(w) != strings.TrimRight(comboNoLinks, "\n") {

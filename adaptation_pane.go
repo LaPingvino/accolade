@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"slices"
+	"strconv"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -212,15 +213,22 @@ func (s *sourcePane) showStatuses(m *sourceModel) {
 		if !mt.found() {
 			continue
 		}
-		p := mt.Passages[0]
-		key := strings.Join(m.links[i].Words, " ")
-		if seen, ok := s.linkedWords[key]; !ok {
-			s.linkedWords[key] = s.passages[p].Words
-		} else if !slices.Equal(seen, s.passages[p].Words) {
-			changed[p] = true
-		}
-		if mt.Kind == linkNear {
-			changed[p] = true
+		for p := mt.Passages[0]; p <= mt.last(); p++ {
+			key := m.links[i].Key
+			if m.links[i].Ref.Old {
+				key = strings.Join(m.links[i].Words, " ")
+			}
+			if p > mt.Passages[0] {
+				key += "\x03" + strconv.Itoa(p-mt.Passages[0])
+			}
+			if seen, ok := s.linkedWords[key]; !ok {
+				s.linkedWords[key] = s.passages[p].Words
+			} else if !slices.Equal(seen, s.passages[p].Words) {
+				changed[p] = true
+			}
+			if mt.Kind == linkNear {
+				changed[p] = true
+			}
 		}
 	}
 	if !slices.Equal(m.status, s.statuses) || !sameSet(changed, s.changed) {
@@ -310,7 +318,7 @@ func (s *sourcePane) setCut(p int, on bool) {
 func (s *sourcePane) cutsWithout(m *sourceModel, p int) []cutMark {
 	var cuts []cutMark
 	for i, c := range m.cuts {
-		if m.cutAt[i] != p {
+		if !m.cutAt[i].has(p) {
 			cuts = append(cuts, c)
 		}
 	}
