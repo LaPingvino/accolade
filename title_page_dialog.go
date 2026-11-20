@@ -59,7 +59,7 @@ func NewTitlePageDialog(window *MainWindow) *TitlePageDialog {
 	d.SetOnEscape(d.Hide) // as its Cancel button
 	tpd.dialog = d
 
-	tpd.dialog.Resize(fyne.NewSize(500, 600))
+	tpd.dialog.Resize(fitDialog(window.fyneWindow, 500, 600))
 
 	return tpd
 }
@@ -173,7 +173,7 @@ func (tpd *TitlePageDialog) createContent() fyne.CanvasObject {
 		tpd.insertButton,
 	)
 	scrollContent := container.NewVScroll(container.NewVBox(titleSection, contactSection, optionsSection))
-	scrollContent.SetMinSize(fyne.NewSize(480, 480))
+	scrollContent.SetMinSize(fitDialog(tpd.window.fyneWindow, 480+dialogMargin, 480+dialogMargin).SubtractWidthHeight(dialogMargin, dialogMargin))
 	return container.NewBorder(nil, container.NewVBox(widget.NewSeparator(), buttonContainer), nil, nil, scrollContent)
 }
 
@@ -237,7 +237,7 @@ func (tpd *TitlePageDialog) previewTitlePage() {
 		tpd.window.fyneWindow,
 	)
 
-	previewDialog.Resize(fyne.NewSize(550, 450))
+	previewDialog.Resize(fitDialog(tpd.window.fyneWindow, 550, 450))
 	previewDialog.Show()
 }
 

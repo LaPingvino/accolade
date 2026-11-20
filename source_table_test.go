@@ -158,6 +158,24 @@ func TestNarrowPanes(t *testing.T) {
 	if !w.headerBar.sourceButton.Visible() {
 		t.Error("the source button went into the menu")
 	}
+	// a finger cannot drag the split in the browser: a button makes the
+	// panes taller, and half again
+	half := s.box.Size().Height
+	w.paneTaller.OnTapped()
+	if s.box.Size().Height <= half+100 || w.editorView.Size().Height < 50 {
+		t.Errorf("taller: pane %v (was %v), script %v", s.box.Size().Height, half, w.editorView.Size())
+	}
+	w.paneTaller.OnTapped()
+	if w.paneSplit.Offset != paneHalf {
+		t.Errorf("half again: %v", w.paneSplit.Offset)
+	}
+	// turning wide and narrow again keeps the editor's focus
+	w.fyneWindow.Canvas().Focus(w.textEditor)
+	w.fyneWindow.Resize(fyne.NewSize(1100, 800))
+	w.fyneWindow.Resize(fyne.NewSize(380, 800))
+	if w.fyneWindow.Canvas().Focused() != w.textEditor || !w.narrow {
+		t.Errorf("after wide and narrow: focus %T, narrow %v", w.fyneWindow.Canvas().Focused(), w.narrow)
+	}
 	w.headerBar.sourceButton.OnTapped() // closed: the script alone
 	if s.shown() || w.editorView.Size().Height < 600 {
 		t.Errorf("closed: shown %v, script %v", s.shown(), w.editorView.Size())

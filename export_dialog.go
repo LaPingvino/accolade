@@ -91,7 +91,7 @@ func NewExportDialog(window *MainWindow) *ExportDialog {
 		window.fyneWindow,
 	)
 
-	ed.dialog.Resize(fyne.NewSize(600, 700))
+	ed.dialog.Resize(fitDialog(window.fyneWindow, 600, 700))
 	ed.dialog.SetOnEscape(ed.cancel) // as its Cancel button
 
 	return ed
@@ -208,8 +208,13 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 		ed.exportButton,
 	)
 	// the buttons stay below the settings, which scroll
-	scrollContent := container.NewVScroll(container.NewVBox(outputSection, formatSection, fountainSection, filterSection, progressSection))
-	scrollContent.SetMinSize(fyne.NewSize(580, 560))
+	settings := container.NewVBox(outputSection, formatSection, fountainSection, filterSection, progressSection)
+	size := fitDialog(ed.window.fyneWindow, 580+dialogMargin, 560+dialogMargin).SubtractWidthHeight(dialogMargin, dialogMargin)
+	scrollContent := container.NewVScroll(settings)
+	if size.Width < 580 { // a phone: sideways too, rather than past the screen's edge
+		scrollContent = container.NewScroll(settings)
+	}
+	scrollContent.SetMinSize(size)
 	ed.scroll = scrollContent
 	return container.NewBorder(nil, container.NewVBox(widget.NewSeparator(), buttonContainer), nil, nil, scrollContent)
 }

@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"image/png"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 )
 
@@ -55,4 +57,30 @@ func TestPhoneScreenshots(t *testing.T) {
 	w.notes.tabs.Select(w.notes.sourceTab)
 	w.toggleSource()
 	snap("5-script-again")
+	// the dialogs, no wider than the phone
+	c := w.fyneWindow.Canvas()
+	for _, d := range []struct {
+		name string
+		show func()
+	}{
+		{"export", w.showExportDialog},
+		{"title-page", w.showTitlePageDialog},
+		{"error", func() {
+			dialog.ShowError(errors.New("could not use story.docx as the source: it is not a Word file"), w.fyneWindow)
+		}},
+	} {
+		d.show()
+		top := c.Overlays().Top()
+		if top == nil {
+			t.Errorf("%s: no dialog", d.name)
+			continue
+		}
+		snap("dialog-" + d.name)
+		if mw := top.MinSize().Width; mw > 380 {
+			t.Errorf("%s dialog is %v wide", d.name, mw)
+		}
+		for c.Overlays().Top() != nil {
+			c.Overlays().Remove(c.Overlays().Top())
+		}
+	}
 }

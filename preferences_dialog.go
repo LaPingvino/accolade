@@ -69,7 +69,7 @@ func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDial
 
 	if inBrowser && parent != nil {
 		pd.dlg = dialog.NewCustomWithoutButtons("Preferences", content, parent)
-		pd.dlg.Resize(fyne.NewSize(640, 540))
+		pd.dlg.Resize(fitDialog(parent, 640, 540))
 		pd.host = parent
 		return pd
 	}

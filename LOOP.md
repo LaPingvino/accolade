@@ -135,4 +135,6 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Markdown table in a scroller of its own, and a touch drag (a wheel scroll in the browser, turned sideways) went to it.
   Rows (and the Markdown preview) show a table as lines now, "Column: cell · …", with its size; a long row is cut
   with Show All; no row holds a scroller or is wider than the pane. Under 600 px wide the panes go under the script
-  in a split (half each, the drag kept); a toolbar button toggles the source and stays on the row however narrow.
+  in a split (half each; an arrow over the panes makes them taller, as a finger cannot drag the split in the
+  browser); a toolbar button toggles the source and stays on the row however narrow. Export, Title Page and
+  Preferences dialogs fit a phone's width. Phone shots: SHOT_DIR=… go test -run TestPhoneScreenshots.

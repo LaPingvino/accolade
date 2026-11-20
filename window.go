@@ -87,7 +87,8 @@ type MainWindow struct {
 	notesVisible   bool
 	narrow         bool             // a phone's width: the panes under the script (relayout)
 	paneSplit      *container.Split // the script over the panes, while narrow
-	unsavedSource  string // the source chosen for a script not saved yet (source.go)
+	paneTaller     *tooltip.Button  // makes them taller, or half again
+	unsavedSource  string           // the source chosen for a script not saved yet (source.go)
 	// markdown: the document is Markdown, not a screenplay (markdown.go)
 	markdown       bool
 	previewPane    *previewPanel // a Markdown document's preview
@@ -1143,13 +1144,27 @@ func (w *MainWindow) relayout() {
 	var left fyne.CanvasObject
 	if side != nil && w.narrow {
 		// a phone: the panes under the script, both in sight, the split
-		// dragged where it was (a pane beside the script left it no room)
-		offset := 0.5
+		// where it was (a pane beside the script left it no room); a
+		// finger cannot drag the split in the browser (a drag scrolls),
+		// so a button over the panes' top right makes them taller
+		offset := paneHalf
 		if w.paneSplit != nil {
 			offset = w.paneSplit.Offset
 		}
-		w.paneSplit = container.NewVSplit(center, narrowFit(side))
+		w.paneTaller = tooltip.NewButton(theme.MoveUpIcon(), "", nil, w.tooltips)
+		w.paneTaller.Importance = widget.LowImportance
+		w.paneTaller.OnTapped = func() {
+			if w.paneSplit.Offset > paneTall+0.05 {
+				w.paneSplit.SetOffset(paneTall)
+			} else {
+				w.paneSplit.SetOffset(paneHalf)
+			}
+			w.showPaneSize()
+		}
+		over := container.NewVBox(container.NewHBox(layout.NewSpacer(), w.paneTaller))
+		w.paneSplit = container.NewVSplit(center, narrowFit(container.NewStack(side, over)))
 		w.paneSplit.Offset = offset
+		w.showPaneSize()
 		center = w.paneSplit
 	} else if side != nil {
 		left = container.NewHBox(side, widget.NewSeparator())
@@ -1172,6 +1187,23 @@ func (w *MainWindow) relayout() {
 	w.setContent(content)
 }
 
+// The script's share of a narrow window over the panes: half, or a
+// little with the panes made taller.
+const (
+	paneHalf = 0.5
+	paneTall = 0.15
+)
+
+// showPaneSize shows what the panes' size button does next.
+func (w *MainWindow) showPaneSize() {
+	if w.paneSplit.Offset > paneTall+0.05 {
+		w.paneTaller.Icon, w.paneTaller.Tip = theme.MoveUpIcon(), "Make the panes taller"
+	} else {
+		w.paneTaller.Icon, w.paneTaller.Tip = theme.MoveDownIcon(), "Make the panes half the height again"
+	}
+	w.paneTaller.Refresh()
+}
+
 // narrowWidth is the window's width under which the panes go under the
 // script rather than beside it.
 const narrowWidth = 600
@@ -1180,7 +1212,12 @@ const narrowWidth = 600
 func (w *MainWindow) onWindowWidth(width float32) {
 	if narrow := width < narrowWidth; narrow != w.narrow {
 		w.narrow = narrow
+		c := w.fyneWindow.Canvas()
+		focused := c.Focused() // a new content drops the focus
 		w.relayout()
+		if focused != nil {
+			c.Focus(focused)
+		}
 	}
 }
 
@@ -1448,4 +1485,20 @@ func (w *MainWindow) savedExportJob() exportJob {
 // the window has (a .highland that is no zip).
 func (w *MainWindow) isPlainBundle(p string) bool {
 	return w.plainBundle != "" && sameFile(p, w.plainBundle)
+}
+
+// dialogMargin is the room a dialog leaves around it on a phone, and
+// takes for its own padding inside.
+const dialogMargin = 32
+
+// fitDialog is a dialog's size: as wanted, but no bigger than the window
+// (a phone's), less a margin.
+func fitDialog(win fyne.Window, width, height float32) fyne.Size {
+	if win != nil {
+		if c := win.Canvas().Size(); c.Width > 0 && c.Height > 0 {
+			width = min(width, c.Width-dialogMargin)
+			height = min(height, c.Height-dialogMargin)
+		}
+	}
+	return fyne.NewSize(max(width, 100), max(height, 100))
 }
