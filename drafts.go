@@ -272,24 +272,34 @@ func (w *MainWindow) addDraftAs(name, kind, colour string, issued time.Time, ski
 		})
 		return
 	}
-	home := w.extrasHome()
-	if home.kind == extrasNone {
-		dir, err := newKeptExtras(cmp.Or(w.currentFile, w.suggestedName, w.untitledName()))
-		if err != nil {
-			finish(savedDraft{}, false, err)
-			return
-		}
-		w.rememberExtras(w.currentFile, string(dir))
-		home = extrasHome{kind: extrasKept, dir: dir}
-		if inBrowser && w.currentFile == "" {
-			keepDraft(w.draft()) // a reload keeps the drafts with the script
-		}
+	home, err := w.ensureExtrasHome()
+	if err != nil {
+		finish(savedDraft{}, false, err)
+		return
 	}
 	d, files, ok, err := newDraftAs(home, like, text, ext, src, now, skipSame)
 	if err == nil && ok {
 		err = home.dir.write(files)
 	}
 	finish(d, ok && err == nil, err)
+}
+
+// ensureExtrasHome is a plain script's extras' home, a kept copy made
+// for it if it has none yet.
+func (w *MainWindow) ensureExtrasHome() (extrasHome, error) {
+	home := w.extrasHome()
+	if home.kind != extrasNone {
+		return home, nil
+	}
+	dir, err := newKeptExtras(cmp.Or(w.currentFile, w.suggestedName, w.untitledName()))
+	if err != nil {
+		return home, err
+	}
+	w.rememberExtras(w.currentFile, string(dir))
+	if inBrowser && w.currentFile == "" {
+		keepDraft(w.draft()) // a reload keeps the extras with the script
+	}
+	return extrasHome{kind: extrasKept, dir: dir}, nil
 }
 
 // restoreDraft makes a draft's text the script's again, as a new draft:

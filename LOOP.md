@@ -333,3 +333,16 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   they run between the test's steps, as on a real driver's UI goroutine. No more `//go:build !race` on
   autosave_timer_test, background_real_test, lockedpages_test, production_pane_test, production_pane_real_test:
   their 23 tests run in CI's race job (-race -count=3 clean). A new test of real background work: holdUI(t) first.
+- 2026-11-20: PRODUCTION step 7, the breakdown (branch breakdown, not merged; breakdown.go, breakdown_view.go,
+  breakdown_io.go, production_breakdown.go; Lexington v1.11.0 local tag, go.mod replace; docs/PRODUCTION.md §13).
+  Categories: Final Draft 13's ids/names (= Movie Magic's), colours from a Final Draft v5 file and OSF 4.0 (the
+  same); one's own addable. Tags in assets/production/breakdown.json (bundle, kept copy, Name.production/), anchored
+  by scene (number, else heading + nth) and words (a Text Fragment directive); lost tags listed, never dropped.
+  Production > Tag Selection… (Ctrl+Shift+B; picker with filter/new category), Untag, Show Tagged Words, the
+  editor's right click; tagged words coloured and underlined, found again 400 ms after typing pauses. Pane stage 3
+  "Break down": "33% broken down · 2 scenes to go", the scene's eighths, location, cast (from cues, numbered; and
+  tagged), elements by category, suggestions, lost tags; Next Scene, Mark Scene Done, Breakdown Sheets…. Reports:
+  Breakdown sheets (CSV; PDF in the classic layout via gofpdf) and Elements. FDX out: SceneProperties Length/Page
+  always, TagData + TagNumber with a breakdown (cast from cues tagged); FDX and Beat tags in. MMS reads only
+  sluglines and speaking characters from FDX (its docs): tags reach it only via .sex. Shots: SHOT_DIR=… go test -run
+  TestBreakdownScreenshots. Next: PRODUCTION step 8, the schedule.

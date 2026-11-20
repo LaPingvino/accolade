@@ -1,6 +1,7 @@
 package editor
 
 import (
+	"image/color"
 	"strings"
 	"testing"
 
@@ -136,5 +137,27 @@ func TestMarkdownStyles(t *testing.T) {
 	}
 	if r := e.layout.Rows[4]; r.Indent != 0 {
 		t.Errorf("laid out as a screenplay: indent %d", r.Indent)
+	}
+}
+
+// Inks draw a line's words in a colour, underlined; the other lines and
+// columns as they are.
+func TestInks(t *testing.T) {
+	e := newEditor(t, "first line\nthe revolver on the table", 40)
+	e.FocusLost()
+	red := color.NRGBA{R: 200, A: 255}
+	e.Inks = func() map[int][]Ink { return map[int][]Ink{1: {{Start: 4, End: 12, Color: red}}} }
+	e.RedrawMarks()
+	cells := e.grid.Rows[1].Cells
+	for i, c := range cells {
+		inked := c.Style != nil && c.Style.Style().Underline && c.Style.TextColor() == color.Color(red)
+		if want := i >= 4 && i < 12; inked != want {
+			t.Errorf("cell %d (%q) inked %v", i, c.Rune, inked)
+		}
+	}
+	for _, c := range e.grid.Rows[0].Cells {
+		if c.Style != nil && c.Style.Style().Underline {
+			t.Error("the first line inked")
+		}
 	}
 }

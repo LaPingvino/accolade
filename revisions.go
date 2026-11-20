@@ -550,9 +550,9 @@ func (w *MainWindow) writeExtra(rel string, v any) error {
 		}})
 		return nil
 	}
-	home := w.extrasHome()
-	if home.kind == extrasNone {
-		return errors.New("the script has no place for its production files yet")
+	home, err := w.ensureExtrasHome()
+	if err != nil {
+		return err
 	}
 	return home.dir.write(files)
 }

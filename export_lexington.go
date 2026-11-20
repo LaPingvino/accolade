@@ -62,6 +62,12 @@ type exportJob struct {
 	lock       *lex.PageLock
 	continueds bool
 	lockFrom   string // a text whose pages are the lock (the PDF's; withIssuedPages)
+
+	// the breakdown (breakdown_io.go; nil: none) and the tags by line,
+	// and the scenes' lengths, for FDX
+	breakdown    *lex.TagSet
+	lineTags     map[int][]lex.LineTag
+	sceneLengths bool
 }
 
 // options are Lexington's options for the job, writing as to to output.
@@ -80,6 +86,9 @@ func (j exportJob) options(to, output string) cli.Options {
 		Revisions:    j.revisions,
 		Lock:         j.lock,
 		Continueds:   j.continueds,
+		Breakdown:    j.breakdown,
+		LineTags:     j.lineTags,
+		SceneLengths: j.sceneLengths,
 	}
 	if j.colors { // (a style alone would switch colors on)
 		o.ColorStyle = string(j.colorStyle)
@@ -106,7 +115,7 @@ func (j exportJob) script(content string) lex.Screenplay {
 		scenes = englishScenes
 	}
 	var s lex.Screenplay
-	if j.revisions != nil {
+	if j.revisions != nil || j.lineTags != nil {
 		s = fountain.ParseLines(scenes, strings.NewReader(content))
 		for i := range s {
 			if n := s[i].Source - 1; n >= 0 && n < len(j.marks) {
@@ -190,28 +199,36 @@ func importFDX(r io.Reader) (string, error) {
 // (revisions.go keeps them). Its locked pages go into the text's
 // production block (lockedpages.go).
 func importFDXRevised(r io.Reader) (text string, sets []lex.RevisionSet, marks []importedMark, err error) {
+	text, sets, marks, _, err = importFDXTagged(r)
+	return text, sets, marks, err
+}
+
+// importFDXTagged is importFDXRevised with the document's breakdown tags
+// as Accolade's (breakdown_io.go).
+func importFDXTagged(r io.Reader) (text string, sets []lex.RevisionSet, marks []importedMark, tags breakdownFile, err error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, tags, err
 	}
 	screenplay, sets, err := fdx.ParseRevisions(bytes.NewReader(data))
 	if err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, tags, err
 	}
 	var buf bytes.Buffer
 	if err := (&fountain.FountainWriter{SceneConfig: englishScenes}).Write(&buf, screenplay); err != nil {
-		return "", nil, nil, err
+		return "", nil, nil, tags, err
 	}
 	text = buf.String()
 	if len(sets) > 0 {
 		marks = marksOnText(screenplay, text)
 	}
+	tags, _ = fdxBreakdown(data, text, englishScenes)
 	if lock, err := fdx.ParseLockedPages(bytes.NewReader(data)); err == nil && lock != nil {
 		start, end, block := withProductionBlock(text, withPageLock("", &pageLock{lock: lock}))
 		runes := []rune(text)
 		text = string(runes[:start]) + block + string(runes[end:])
 	}
-	return text, sets, marks, nil
+	return text, sets, marks, tags, nil
 }
 
 // marksOnText are a screenplay's revised rows as lines of the Fountain

@@ -147,6 +147,13 @@ type MainWindow struct {
 	revisions        revisionState // the script's issues and the marks shown
 	revisionGen      int           // a new issue (the issues read again)
 	revisionRun      int           // the marks being computed
+	breakdownTimer   *uiTimer       // the tags found again, after typing (breakdown_view.go)
+	breakdown        breakdownState // the script's breakdown and its tags as found
+	breakdownGen     int            // the breakdown read again (an import)
+	breakdownRun     int            // the tags being found
+	lastTagCategory  string         // the category last tagged in (offered first)
+	lastReports      *reportsDialog // the reports last shown (tests)
+	lastPicker       *tagPicker     // the tag picker last shown (tests)
 	sourceGen        int           // the Choose Source under way
 	autoSaveDelay    time.Duration // overrides the setting; for tests
 
@@ -419,6 +426,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	w.hasChanges = false
 	w.updateTitle()
 	w.updateStatusBar()
+	w.readBeatTags()
 
 	return nil
 }
@@ -432,6 +440,7 @@ func (w *MainWindow) importFile(filePath string) error {
 	var err error
 	var sets []lex.RevisionSet
 	var marks []importedMark
+	var tags breakdownFile
 	if strings.EqualFold(filepath.Ext(filePath), ".pdf") {
 		w.importPDFAsync(filePath)
 		return nil
@@ -441,7 +450,7 @@ func (w *MainWindow) importFile(filePath string) error {
 			return fmt.Errorf("failed to read file: %v", err)
 		}
 		defer f.Close()
-		text, sets, marks, err = importFDXRevised(f)
+		text, sets, marks, tags, err = importFDXTagged(f)
 		from = "Final Draft"
 	}
 	if err != nil {
@@ -451,6 +460,11 @@ func (w *MainWindow) importFile(filePath string) error {
 	w.showImported(filePath, text, from)
 	if len(sets) > 0 {
 		w.keepImportedRevisions(filepath.Base(filePath), sets, marks)
+	}
+	if len(tags.Tags) > 0 {
+		if n := w.keepImportedBreakdown(tags, from); n > 0 {
+			w.setStatus("Imported from " + from + " with its breakdown: " + plural(n, "tag") + ", kept by their words")
+		}
 	}
 	return nil
 }
@@ -1006,6 +1020,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.updateCurrentElement()
 	w.scheduleSceneNumbers()
 	w.scheduleRevisionMarks()
+	w.scheduleBreakdown()
 	if w.outlineVisible && w.outline != nil {
 		w.outline.update(text)
 	}
@@ -1073,6 +1088,7 @@ func (w *MainWindow) updateStatusBar() {
 
 func (w *MainWindow) onCursorChanged() {
 	w.updateCurrentElement()
+	w.breakdownFollowCursor()
 	w.scheduleSceneNumbers() // the heading just left
 	w.updateStatusBar()      // the scene under the cursor
 	if w.notes != nil {

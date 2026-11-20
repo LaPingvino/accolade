@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -63,6 +64,14 @@ type ScriptEditor struct {
 	// own: a bar beside them in the fold marks' column (production's
 	// revision colours). Read at each layout, as Headings.
 	Marks func() map[int]color.Color
+	// Inks, when set, are words drawn in a colour of their own and
+	// underlined (production's breakdown tags), by line: each a range of
+	// the line's columns (runes). Read at each layout, as Marks.
+	Inks func() map[int][]Ink
+	// OnSecondaryTapped, when set, is told of a right click (a long press
+	// on a touch screen) at a position on the canvas: the cursor is put
+	// there first, unless it is in the selection.
+	OnSecondaryTapped func(at fyne.Position)
 	// OnShiftTab handles Shift+Tab, and reports whether it did.
 	OnShiftTab func() bool
 	// PageColumns, when set, is the page's width (NewPageScroll's columns).
@@ -111,7 +120,15 @@ type ScriptEditor struct {
 	foldAt              map[int]bool // the folded headings' lines
 	headings            map[int]bool // the lines that can fold (Headings)
 	marks               map[int]*widget.CustomTextGridStyle // the lines' marks (Marks), as drawn
+	inks                map[int][]Ink                       // the lines' inked words (Inks)
 	laid                laidOut      // the last layout, for its key
+}
+
+// Ink is words of a line drawn in Color and underlined: the line's
+// columns [Start, End), in runes.
+type Ink struct {
+	Start, End int
+	Color      color.Color
 }
 
 // drawing is what rows are drawn with: the text, its kinds and styles.
@@ -337,6 +354,10 @@ func (e *ScriptEditor) relayout() {
 	if e.Headings != nil {
 		e.headings = e.Headings()
 	}
+	e.inks = nil
+	if e.Inks != nil {
+		e.inks = e.Inks()
+	}
 	e.marks = nil
 	if e.Marks != nil {
 		for line, c := range e.Marks() {
@@ -462,6 +483,14 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 	case kinds == nil && e.Syntax:
 		kinds = syntax.ClassifyWith(lines, e.SceneStarts)
 	}
+	if l.lineStart == nil { // where each line starts, for Inks
+		l.lineStart = make([]int, len(lines))
+		off := 0
+		for i, ln := range lines {
+			l.lineStart[i] = off
+			off += utf8.RuneCountInString(ln) + 1
+		}
+	}
 	l.kinds = kinds
 	return l
 }
@@ -533,11 +562,17 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		lineStyle = kindStyle(kinds[r.Line], th, v)
 	}
 	spans := d.inline[r.Line]
+	inks := e.inks[r.Line]
 	for off := r.Start; off < r.End; off++ {
 		cell := widget.TextGridCell{Rune: text[off], Style: lineStyle}
 		for _, s := range spans {
 			if at := off - d.lineStart[r.Line]; at >= s.Start && at < s.End {
 				cell.Style = inlineStyle(lineStyle, s.Kind, th, v)
+			}
+		}
+		for _, k := range inks {
+			if at := off - d.lineStart[r.Line]; at >= k.Start && at < k.End {
+				cell.Style = inked(cell.Style, k.Color)
 			}
 		}
 		switch {
@@ -734,6 +769,17 @@ func mix(a, b color.Color, t float64) color.Color {
 	return color.NRGBA{R: f(ar, br), G: f(ag, bg), B: f(ab, bb), A: 0xff}
 }
 
+// inked is a style in an ink's colour, underlined (the underline is
+// drawn in the text's colour).
+func inked(s widget.TextGridStyle, c color.Color) widget.TextGridStyle {
+	out := &widget.CustomTextGridStyle{FGColor: c}
+	if s != nil {
+		out.TextStyle, out.BGColor = s.Style(), s.BackgroundColor()
+	}
+	out.TextStyle.Underline = true
+	return out
+}
+
 // withBackground is a line style with a background colour added.
 func withBackground(s widget.TextGridStyle, bg color.Color) widget.TextGridStyle {
 	out := &widget.CustomTextGridStyle{BGColor: bg}
@@ -774,6 +820,22 @@ func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
 	e.buf.SetCursor(e.offsetAt(ev.Position), e.shift)
 	e.goalCol = -1
 	e.changed(false)
+}
+
+// TappedSecondary puts the cursor at a right click (unless it is in the
+// selection) and tells OnSecondaryTapped.
+func (e *ScriptEditor) TappedSecondary(ev *fyne.PointEvent) {
+	if e.OnSecondaryTapped == nil {
+		return
+	}
+	e.focus()
+	off := e.offsetAt(ev.Position)
+	if start, end := e.buf.Selection(); start == end || off < start || off > end {
+		e.buf.SetCursor(off, false)
+		e.goalCol = -1
+		e.changed(false)
+	}
+	e.OnSecondaryTapped(ev.AbsolutePosition)
 }
 
 // foldMarkAt is the heading whose fold mark is at p, if p is on one.

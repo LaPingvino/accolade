@@ -176,6 +176,11 @@ func (w *MainWindow) buildMainMenu() *fyne.MainMenu {
 		fyne.NewMenuItem("Lock Pages", w.lockPages),
 		fyne.NewMenuItem("Unlock Pages…", w.unlockPages),
 		fyne.NewMenuItemSeparator(),
+		menuItem("Tag Selection…", shortcut(fyne.KeyB, fyne.KeyModifierShift), w.showTagPicker),
+		fyne.NewMenuItem("Untag", w.untagSelection),
+		w.showTagsItem(),
+		fyne.NewMenuItem("Break Down…", w.showBreakdownStage),
+		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Reports…", w.showReports),
 	)
 

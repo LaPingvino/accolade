@@ -545,6 +545,9 @@ func (ed *ExportDialog) job() exportJob {
 	case f == "fdx" && ed.revisionsCheck.Checked:
 		j = ed.window.withAllRevisions(j, text)
 	}
+	if f == "fdx" { // the scenes' lengths, and the breakdown's tags
+		j = ed.window.withBreakdown(j, text)
+	}
 	if f == "pdf" { // in the pages its revision prints against
 		j = ed.window.withIssuedPages(j, text)
 	}

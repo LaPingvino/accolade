@@ -35,6 +35,8 @@ var reportKinds = []struct{ kind, label string }{
 	{lexreport.KindLocations, "Locations"},
 	{lexreport.KindCharacters, "Characters"},
 	{lexreport.KindCast, "Cast"},
+	{lexreport.KindSheets, "Breakdown sheets"},
+	{lexreport.KindElements, "Elements"},
 }
 
 // scriptReport makes the reports of a script as the export would print
@@ -71,6 +73,8 @@ type reportsDialog struct {
 	w       *MainWindow
 	dialog  *dialog.CustomDialog
 	rep     lexreport.Report
+	bd      lexreport.Breakdown // the tags, for the breakdown's reports
+	lost    int                 // the tags lost
 	kind    *widget.Select
 	sortBy  *widget.Select
 	reverse *widget.Button
@@ -88,22 +92,79 @@ func (w *MainWindow) showReports() {
 		return
 	}
 	content, job := w.textEditor.Text(), w.savedExportJob()
+	f, _, ps := w.breakdownNowFound()
+	bd, lost := reportBreakdown(f, ps), 0
+	for _, p := range ps {
+		if p.lost {
+			lost++
+		}
+	}
 	w.setStatus("Making the reports...")
-	go func() {
+	type made struct {
+		r   lexreport.Report
+		err error
+	}
+	inBackground(func() made {
 		r, err := scriptReport(content, job)
-		fyne.Do(func() {
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("could not make the reports: %v", err), w.fyneWindow)
-				return
+		return made{r, err}
+	}, func(m made) {
+		if m.err != nil {
+			dialog.ShowError(fmt.Errorf("could not make the reports: %v", m.err), w.fyneWindow)
+			return
+		}
+		w.setStatus("")
+		rd := newReportsDialogWith(w, m.r, bd, lost)
+		rd.dialog.Show()
+		w.lastReports = rd
+	})
+}
+
+// showReportsOf is Reports… showing a report first (the pane's
+// Breakdown Sheets…).
+func (w *MainWindow) showReportsOf(kind string) {
+	if w.settings != nil {
+		w.settings.SetString("report-kind", kind)
+	}
+	w.showReports()
+}
+
+// tableOf is a report as a table: the breakdown's made with the tags.
+func (rd *reportsDialog) tableOf(kind string) (lexreport.Table, error) {
+	switch kind {
+	case lexreport.KindSheets:
+		return rd.bd.SheetTable(rd.rep.Sheets(rd.bd)), nil
+	case lexreport.KindElements:
+		return rd.rep.ElementTable(rd.bd), nil
+	}
+	return rd.rep.Table(kind)
+}
+
+// shownOf are a table's columns shown: a breakdown's without the
+// categories nothing is tagged in (the CSV has them all).
+func shownOf(t lexreport.Table) []int {
+	shown := t.Shown()
+	if t.Kind != lexreport.KindSheets {
+		return shown
+	}
+	return slices.DeleteFunc(shown, func(i int) bool {
+		if i < 10 { // the scene's own columns
+			return false
+		}
+		for _, row := range t.Rows {
+			if row[i].String() != "" {
+				return false
 			}
-			w.setStatus("")
-			newReportsDialog(w, r).dialog.Show()
-		})
-	}()
+		}
+		return true
+	})
 }
 
 func newReportsDialog(w *MainWindow, r lexreport.Report) *reportsDialog {
-	rd := &reportsDialog{w: w, rep: r}
+	return newReportsDialogWith(w, r, lexreport.Breakdown{}, 0)
+}
+
+func newReportsDialogWith(w *MainWindow, r lexreport.Report, bd lexreport.Breakdown, lost int) *reportsDialog {
+	rd := &reportsDialog{w: w, rep: r, bd: bd, lost: lost}
 	size := fitDialog(w.fyneWindow, 900+dialogMargin, 620+dialogMargin).SubtractWidthHeight(dialogMargin, dialogMargin)
 	rd.narrow = size.Width < 600
 	var labels []string
@@ -173,9 +234,9 @@ func (rd *reportsDialog) kindChanged() {
 		rd.w.settings.SetString("report-kind", kind)
 		_ = rd.w.settings.Save()
 	}
-	t, _ := rd.rep.Table(kind)
+	t, _ := rd.tableOf(kind)
 	options := []string{ownOrder(kind)}
-	for _, i := range t.Shown() {
+	for _, i := range shownOf(t) {
 		options = append(options, t.Columns[i].Title)
 	}
 	rd.desc = false
@@ -185,8 +246,11 @@ func (rd *reportsDialog) kindChanged() {
 
 // ownOrder is a report's own order, the first way to sort it.
 func ownOrder(kind string) string {
-	if kind == lexreport.KindCast {
+	switch kind {
+	case lexreport.KindCast:
 		return "Cast number"
+	case lexreport.KindElements:
+		return "Category order"
 	}
 	return "Script order"
 }
@@ -217,7 +281,7 @@ func sortedTable(t lexreport.Table, by string, desc bool) lexreport.Table {
 // show shows the report as chosen and sorted.
 func (rd *reportsDialog) show() {
 	kind := rd.kindOf()
-	t, err := rd.rep.Table(kind)
+	t, err := rd.tableOf(kind)
 	if err != nil {
 		return
 	}
@@ -227,7 +291,11 @@ func (rd *reportsDialog) show() {
 	} else {
 		rd.reverse.SetIcon(theme.MoveDownIcon())
 	}
-	rd.summary.SetText(reportSummary(rd.rep, kind, rd.w.savedExportJob().page))
+	sum := reportSummary(rd.rep, kind, rd.w.savedExportJob().page)
+	if kind == lexreport.KindSheets || kind == lexreport.KindElements {
+		sum = breakdownSummary(rd.bd, rd.lost) + " " + sum
+	}
+	rd.summary.SetText(sum)
 	if rd.narrow {
 		rd.body.Objects = []fyne.CanvasObject{stackedRows(rd.table)}
 	} else {
@@ -275,7 +343,7 @@ func reportSummary(r lexreport.Report, kind, page string) string {
 // reversed), each column as wide as its widest cell (within reason).
 func (rd *reportsDialog) tableView() fyne.CanvasObject {
 	t := rd.table
-	shown := t.Shown()
+	shown := shownOf(t)
 	tab := widget.NewTable(
 		func() (int, int) { return len(t.Rows), len(shown) },
 		func() fyne.CanvasObject { return widget.NewLabel("") },
@@ -333,8 +401,9 @@ func (rd *reportsDialog) tableView() fyne.CanvasObject {
 // (the scene's number, place and time; the name) on its first line, the
 // rest as "Title value" below.
 func stackedRows(t lexreport.Table) fyne.CanvasObject {
-	shown := t.Shown()
-	head := map[string]int{lexreport.KindScenes: 4, lexreport.KindLocations: 2, lexreport.KindCharacters: 1, lexreport.KindCast: 2}[t.Kind]
+	shown := shownOf(t)
+	head := map[string]int{lexreport.KindScenes: 4, lexreport.KindLocations: 2, lexreport.KindCharacters: 1, lexreport.KindCast: 2,
+		lexreport.KindSheets: 4, lexreport.KindElements: 2}[t.Kind]
 	box := container.NewVBox()
 	for _, row := range t.Rows {
 		var first, rest []string
@@ -430,6 +499,10 @@ func (rd *reportsDialog) reportPage() ([]byte, error) {
 // savePDF makes a PDF of the report shown: Chromium writes it, or the
 // print dialog does (Save as PDF), as a Markdown document's export.
 func (rd *reportsDialog) savePDF() {
+	if rd.kindOf() == lexreport.KindSheets { // the classic sheets, a page a scene
+		rd.saveSheetsPDF()
+		return
+	}
 	page, err := rd.reportPage()
 	if err != nil {
 		dialog.ShowError(err, rd.w.fyneWindow)
@@ -466,4 +539,36 @@ func (rd *reportsDialog) savePDF() {
 		}()
 		return nil
 	})
+}
+
+// saveSheetsPDF saves the breakdown sheets as a PDF, a page a scene in
+// the classic layout (Lexington writes it: no browser needed).
+func (rd *reportsDialog) saveSheetsPDF() {
+	var b bytes.Buffer
+	name := strings.TrimSuffix(rd.w.scriptName(), filepath.Ext(rd.w.scriptName()))
+	if err := lexreport.WriteSheetsPDF(&b, name, rd.rep.Sheets(rd.bd), rd.w.savedExportJob().page); err != nil {
+		dialog.ShowError(err, rd.w.fyneWindow)
+		return
+	}
+	rd.saveFile(rd.reportFileName("pdf"), func(p string) error {
+		if err := writeFileAtomic(p, b.Bytes()); err != nil {
+			return err
+		}
+		rd.w.setStatus("Breakdown sheets saved as " + filepath.Base(p))
+		return nil
+	})
+}
+
+// breakdownSummary is the line about the tags above the breakdown's
+// reports.
+func breakdownSummary(bd lexreport.Breakdown, lost int) string {
+	n := 0
+	for _, es := range bd.Elements {
+		n += len(es)
+	}
+	s := "Breakdown: " + plural(n, "tag") + " in " + plural(len(bd.Elements), "scene")
+	if lost > 0 {
+		s += ", " + plural(lost, "lost tag") + " left out (the Production pane lists them)"
+	}
+	return s + ". The cast is who speaks, and who is tagged as a cast member."
 }

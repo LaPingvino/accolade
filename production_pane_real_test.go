@@ -32,3 +32,28 @@ func TestProductionFollowsAfterPause(t *testing.T) {
 	waitFor(t, "the count", func() bool { return strings.Contains(p.count.Text, "scene 2") })
 	waitFor(t, "the pages", func() bool { return strings.Contains(p.count.Text, "1 page changed") })
 }
+
+// The tags are found again when typing pauses, in the background: a key
+// starts no finding.
+func TestBreakdownFollowsAfterPause(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, bdScript)
+	tagNow(t, w, "dog", 0, "Animals")
+	inks := w.breakdownInksShown()
+	if len(inks[14]) != 1 {
+		t.Fatalf("inks %v", inks)
+	}
+	realPaths(t)
+	runs := w.breakdownRun
+	replaceText(t, w, "The taxi waits.", "The yellow taxi waits.")
+	if w.breakdownRun != runs || w.breakdownTimer == nil {
+		t.Error("the tags were found again at the key, or nothing waits for the pause")
+	}
+	if got := w.breakdownInksShown()[14][0].Start; got != 18 {
+		t.Errorf("moved before the pause: %d", got)
+	}
+	waitFor(t, "the tags found again", func() bool {
+		in := w.breakdownInksShown()[14]
+		return len(in) == 1 && in[0].Start == 25
+	})
+}

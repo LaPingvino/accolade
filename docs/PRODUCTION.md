@@ -48,7 +48,7 @@ Nothing here is built. Sources for claims about other products are linked inline
   - FDX keeps the colour as SceneProperties Color (fdx/colors.go).
 - Any note on a heading or section is a tag. The Export dialog's "Only scenes and sections tagged" exports just
   those scenes (export_filters.go:18-60, 133-189; Lexington's `lex.FilterTags`, `-tag`).
-- These are scene-level tags only. There are no breakdown categories and no tagged words in the text.
+- These are scene-level tags. Breakdown categories and tagged words came with step 7 (§13), kept outside the text.
 
 **Sides**
 
@@ -67,7 +67,7 @@ Nothing here is built. Sources for claims about other products are linked inline
   - each role's speeches and words.
 - The status bar shows "Scene 2 of 3 · 412 words · ~2 pages" (stats.go).
 - Since step 2 (§8): Production > Reports… has the scene, location, character and cast reports, on screen, as
-  CSV and as PDF. Breakdown sheets wait for tagging.
+  CSV and as PDF. Breakdown sheets and the element report since step 7 (§13).
 
 **Notes and collaboration**
 
@@ -84,8 +84,8 @@ Nothing here is built. Sources for claims about other products are linked inline
 - FDX keeps the title page, dual dialogue, styles, scene numbers, scene colours and script notes.
 - FDX writes `RevisionID="0"` on every text run (fdx/write.go:232) and reads `RevisionID` without using it
   (fdx/parse.go:64, 188).
-- FDX has no `<TagData>` or `<SceneProperties Length=…>` (`<Revisions>` since step 4, `<LockedPages>` since step
-  5).
+- FDX has `<Revisions>` since step 4, `<LockedPages>` since step 5, and `<TagData>` and `<SceneProperties Length=…
+  Page=…>` since step 7 (§13).
 
 **Bundles**
 
@@ -95,8 +95,9 @@ Nothing here is built. Sources for claims about other products are linked inline
 
 **Not handled: Beat's data block**
 
-Accolade doesn't read Beat's data block, the trailing `/* If you're seeing this … BEAT: {…} END_BEAT */`. It stays in
-the text as boneyard. Its offsets go stale as soon as Accolade edits the text (§3).
+Accolade doesn't read Beat's data block, the trailing `/* If you're seeing this … BEAT: {…} END_BEAT */`, except its
+tags (since step 7, §13: read once on open, while its Text Length matches). It stays in the text as boneyard. Its
+offsets go stale as soon as Accolade edits the text (§3).
 
 ## 2. What the field does
 
@@ -214,13 +215,15 @@ the text as boneyard. Its offsets go stale as soon as Accolade edits the text (�
   - Beat's FDX writer is the readable reference:
     https://github.com/lmparppei/Beat/blob/main/Frameworks/BeatFileExport/BeatFileExport/Export/Modules/Final%20Draft/BeatFDXExport.m.
   - OSF has the same list.
-- **Movie Magic Scheduling** imports .fdx directly and makes breakdown sheets from its scenes and tags, adding
-  categories it lacks (https://mms-docs.ep.com/Breakdown/ImportingBreakdownSheets.html).
+- **Movie Magic Scheduling** imports .fdx directly, but its own page says the import brings "the header (slugline) and
+  the talking characters" only. Its tags-to-breakdown route, "adding categories it lacks", is for a tagged script
+  exported as `.sex` (https://mms-docs.ep.com/Breakdown/ImportingBreakdownSheets.html, read 2026-11-20).
   - Its other route, `.sex`, is closed. Fade In: "a closed, proprietary format", so it doesn't write it
     (https://fadeinpro.com/kb/content/1/85/en/export-to-movie-magic-scheduling-or-movie-magic-budgeting.html).
   - Final Draft seems to say tags map fully only through .sex. This comes from a search snippet of
     https://kb.finaldraft.com/hc/en-us/articles/15575252743316-Can-Final-Draft-export-to-Movie-Magic-Scheduling-and-Budgeting;
-    the page itself returned 403. *Test* tagged FDX against MMS.
+    the page itself returned 403. Its snippet says it plainly: "although MMS can import a .fdx file, it cannot read
+    the tag information". So a tagged FDX does not carry tags into MMS (§13).
 - **StudioBinder** imports FDX, Fountain and PDF and tags in its own app
   (https://intercom.help/studiobinder/en/articles/7156315-importing-your-screenplay).
 - **Yamdu** imports FDX, PDF and Fountain (https://yamdu.com/hu/blog/a-blog-article-heading/).
@@ -327,7 +330,7 @@ export.
 | `revisions/01-white.fountain`, `02-blue.fountain`, … | each issued draft's text, as sent out | Fountain, whole |
 | `revisions.json` | the sets: name, colour, page colour, mark, date, issued or open; FDX `<Revision>`'s fields | JSON (own, after FDX and OSF) |
 | ~~`pages.json`~~ | locked pages: built in the production block instead (§11), for every kind of file | — |
-| `breakdown.json` | tag definitions in FDX's categories (with their UUIDs and numbers), and each tag's scene number and quoted words | JSON (own; FDX/OSF categories) |
+| `breakdown.json` | categories of one's own, the elements (by category name), each tag's scene and words as a Text Fragment directive, the scenes marked done (built: §13) | JSON (own; FDX/OSF categories) |
 | `schedule.json` | shoot days, strips in order, day breaks, banners, units | JSON (own) |
 | `cast.vcf`, `crew.vcf` | contacts, with the role or department | vCard |
 | `shots.otio` | shot list per scene, with boards as media references | OpenTimelineIO |
@@ -403,7 +406,7 @@ Effort is rough: S is a day or two of ticks, M a week, L more.
    - FDX: write `<TagData>` and `TagNumber` as Beat does, and `<SceneProperties Length Page>`. That is the route
      into Movie Magic, Gorilla, StudioBinder and Yamdu. Read FDX and Beat tags.
    - Effort: M. Where: Accolade (a Breakdown pane, the editor's tint for tagged words); Lexington (eighths from the
-     layout, FDX TagData).
+     layout, FDX TagData). **Built: §13.**
 5. **Reports.**
    - What:
      - scene report (number, heading, page, eighths, D/N, cast);
@@ -468,7 +471,7 @@ The **Production pane** (View > Production, a tab beside Notes and Source) shows
    - the eighths shown;
    - suggestions for the rest, from words found in earlier scenes' tags.
 
-   Done marks it done.
+   Done marks it done. **Built: §13.**
 4. **Schedule.** "18 of 87 scenes on a day · 3 days". The stripboard, with the unscheduled strips at the end and
    Next Day.
 5. **Day pack.** Per day: sides, call sheet and .ics, as one export. FDX or CSV goes out to an office using other
@@ -491,7 +494,7 @@ breakdown as "changed in Blue: check", which the stages before can't show.
 5. **Locked pages and A-pages** in Lexington's paginator, with `CONTINUED`. FDX `<LockedPages>`. Built (§11).
 6. **The Production pane** with Lock and Revise, so the workflow stands before breakdown starts. Built (§12).
 7. **Breakdown:** the categories, tagging by words, Next scene, eighths, breakdown sheets and element reports. FDX
-   `<TagData>` and `<SceneProperties>` out (test against MMS), Beat's and FDX's tags in.
+   `<TagData>` and `<SceneProperties>` out (test against MMS), Beat's and FDX's tags in. Built (§13).
 8. **Schedule:** the stripboard (built on the cards), days, one-liner, DOOD, .ics and CSV.
 9. **Day packs:** sides by scene list and the call sheet with vCard contacts.
 10. **OSF** reader and writer.
@@ -976,8 +979,8 @@ Branch prodpane (Accolade only; production_pane.go, production_checks.go).
 the end of its list, so the list has the half screen (fixed under it, they left one row). Not in Markdown (menu item,
 button, tab). The Production menu stays as it was; the pane is the guided way to the same actions.
 
-**The strip.** `1 Lock` and `2 Revise` are buttons; under them, greyed, "3 Break down · 4 Schedule · 5 Day pack:
-coming". The stage shown stands out; the script's own stage, when another is looked at, is the plain button; Lock
+**The strip.** `1 Lock` and `2 Revise` are buttons (since step 7 `3 Break down` too, §13); under them, greyed, "4
+Schedule · 5 Day pack: coming". The stage shown stands out; the script's own stage, when another is looked at, is the plain button; Lock
 gets a tick once issued. Either stage can be looked at again (§6: "each stage can be returned to"); the pane goes
 back to the script's stage when it changes (White issued).
 
@@ -1049,3 +1052,140 @@ TestProductionPaneScreenshots` (combo-prodpane-lock/revise-wide/phone.png).
   that is one goroutine without yields, so a very long script may stall the page briefly. Revised Pages PDF… prints
   with the margin's setting (all issues' marks if chosen), while the count is the current revision's.
 - The "unsaved title page" of §6 is "no title page": a title page is part of the text, so it is saved with it.
+
+## 13. Step 7, built: the breakdown (2026-11-20)
+
+Branch breakdown (Accolade), Lexington v1.11.0 (tagged locally, not pushed; Accolade's go.mod has `replace
+github.com/LaPingvino/lexington => ../lexington` until it is).
+
+**The categories** (`lex.TagCategories`, Lexington lex/tags.go)
+
+- Ids, names and numbers as Final Draft 13 writes them in a new script (fdx-mcp-server's NewFile.fdx, Version 6):
+  Cast Members, Background Actors, Stunts, Vehicles, Props, Camera, Special Effects, Wardrobe, Makeup/Hair, Animals,
+  Animal Wrangler, Music, Sound, Art Department, Set Dressing, Greenery, Special Equipment, Security, Additional Labor,
+  Visual Effects, Mechanical Effects, Miscellaneous, Notes, Script Day, Unit, Sequence, Location, Comments, Synopsis.
+  These are Movie Magic's names too.
+- Colours: Final Draft 13 gives every category but Cast the same dark red (`#94AA11150000`), useless for telling tags
+  apart. So the colours are those of a Final Draft Version 5 file (screenplay-tools' TestFDX-FD.fdx), which Fade In's
+  OSF 4.0 `<tag_categories>` has too, value for value: Cast blue `#0000FF`, Background Actors `#00BFFF`, Stunts orange,
+  Vehicles `#8B0000`, Props red, Camera `#CCFF00`, Special Effects `#1E90FF`, Wardrobe purple, Makeup/Hair `#9370DB`,
+  Animals `#CD853F`, Animal Wrangler `#8B4513`, Music `#20B2AA`, Sound teal, Set Dressing `#BA55D3`, Greenery green,
+  Special Equipment `#BDB76B`, Security `#DAA520`, Additional Labor `#B8860B`, Visual Effects `#32CD32`, Mechanical
+  Effects `#B22222`, Miscellaneous `#708090`, Notes gold. The seven Final Draft 13 added since (Art Department, Script
+  Day, Unit, Sequence, Location, Comments, Synopsis) have colours of Lexington's own.
+- Read as the same: Version 5's names (Cast, Animal Handler) and its Miscellaneous's other Id; Beat's keys (`prop`,
+  `costume`, `setDesign`, `other` …, BeatTagging.m).
+- One's own: Tag Selection… takes a new name ("New category “Puppets”"); it gets a colour in turn. In FDX it is
+  written after the standard ones, numbered on from 31.
+
+**Where tags live.** `assets/production/breakdown.json`, in the script's extras (§9): the bundle's, else the kept copy
+of a plain script (made at the first tag, as for the first draft), else `Name.production/` beside it. Not the
+production block: a breakdown is hundreds of tags, which would bury the block (and the lock's pages) other apps print
+as boneyard; and the file is the record the bundle was made for. Undo does not cover it: Untag takes a tag away.
+
+```
+{"version": 1,
+ "categories": [{"id": "…", "name": "Puppets", "color": "#C71585"}],
+ "elements": [{"id": "…", "category": "Props", "name": "revolver"}],
+ "tags": [{"element": "…", "scene": "12", "heading": "int kitchen night", "nth": 1,
+           "at": "text=the table. A-,revolver,-again. ANNA Where"}],
+ "done": [{"scene": "12", "heading": "int kitchen night"}]}
+```
+
+- An element is a name in a category, tagged once and found wherever it is tagged again (the same name, any case).
+- A tag's scene: its written number (`#12#`) when it has one, the heading's words, and which of the scenes with that
+  heading it is (`nth`). Its words: a Text Fragment directive (textfrag.go's syntax) with up to three words before and
+  after in the scene.
+- **Found again** (breakdown.go `locate`): in its scene (by number, else heading and nth, else any scene with that
+  heading), the place with the words whose words around them match best. If they are not in that scene: anywhere, if
+  that place is told apart (some words around it match, or the words are more than one, or stand once). Otherwise
+  the tag is **lost**: shown in the pane, kept in the file, found again if the words come back.
+- Tested: words before it in its line, a new scene before all, the same word earlier in its scene, Lock Scene Numbers
+  after tagging, a numbered scene's heading changed, the words cut and restored.
+
+**Tagging** (Production menu; breakdown_view.go)
+
+- **Tag Selection…** (Ctrl+Shift+B) opens a picker: a filter that also names a new category, then the categories
+  with their colours, the last used first; a tap, or Enter for the first, tags. With nothing selected it takes the
+  word at the cursor. A tag stays within one line. Cast Members' names are written in capitals, as cues are.
+- **Untag** takes away the tags at the cursor or in the selection. An element left without tags goes too.
+- The editor's **right click** (a long press on touch) offers "Tag as Props" (the last used), Tag Selection…, Untag
+  "revolver" (Props), and Cut/Copy/Paste. *Unverified* in the browser: on a phone the pane's Tag Selection… button and
+  the menu are the sure way.
+- **Show Tagged Words** (checked by default): tagged words in their category's colour (mixed 30% towards the text's
+  colour, so that light ones read) and underlined. The editor draws them per line (`editor.Ink`, looked up by line as
+  Markdown's emphasis is). The tags are found again in the background 400 ms after typing pauses, as the revision
+  marks are, never per key (tested with the real timers).
+
+**The Break down stage** (production_breakdown.go; the pane's third button)
+
+- "62% broken down · 33 scenes to go" (OMITTED scenes left out; "· 2 lost tags" when there are).
+- The scene at the cursor: "Scene 12 · done", its heading with its eighths (from the reports, made in the background
+  once per text while the stage is shown: "measuring…" before), its location ("KITCHEN (INT, NIGHT)"), its cast (who
+  speaks, numbered as the cast report numbers them: "1 ANNA (speaks)", then those tagged as Cast Members: a silent
+  part), its elements by category in their colours (a tap selects the words). Then "Tagged in other scenes, found
+  here": an element tagged elsewhere whose words this scene has, a tap tags it here. Then the lost tags, anywhere (a
+  tap asks to remove one).
+- **Next Scene** goes to the first scene not marked done (the list shows its cast and location at once: they need no
+  tagging). **Mark Scene Done** / **Mark Scene Not Done**. **Tag Selection…**. **Breakdown Sheets…** (the reports).
+- The script's stage is Break down once White is issued and the breakdown has begun (a tag or a scene done); it can
+  be looked at any time. Production > Break Down… opens it.
+
+**Sheets and reports** (Production > Reports…, two more kinds; Lexington report/breakdown.go)
+
+- **Breakdown sheets**: a row a scene (OMITTED ones left out). On screen the categories nothing is tagged in are left
+  out; the CSV has them all. **PDF…** writes the classic sheet, a page a scene, with Lexington's gofpdf (no browser
+  needed, so in the browser too): BREAKDOWN SHEET, sheet n of N, the title; a head of SCENE, INT/EXT, SET / LOCATION,
+  D/N, PAGES (eighths), PAGE; the SYNOPSIS (the scene's first `= synopsis`); then a box per category in its colour,
+  Cast Members first by cast number, the classic sixteen always, others when they have elements.
+- **Elements**: each element with its scenes, its eighths (the sum of its scenes'), its first scene and page; the
+  cast with their numbers.
+- Cast numbers: who speaks as the cast report numbers them (§8), then those only tagged, in order of first tag.
+
+**CSV layouts** (stable; golden files in Lexington's report/testdata; RFC 4180 as §8's)
+
+| Report | Columns, in order |
+|---|---|
+| breakdown | `order`, `number`, `int_ext`, `location`, `time`, `page`, `eighths`, `length`, `synopsis`, `cast` (`1 ANNA; 3 CARL`), then a column per category but the cast, location and synopsis, in the standard order, keyed by name in lower case with `_` (`background_actors`, `makeup_hair`, … `comments`), then one's own categories (`puppets`) |
+| elements | `category`, `element`, `cast_number` (the cast's), `scene_count`, `scenes`, `eighths`, `length`, `first_scene`, `first_page` |
+
+**FDX**
+
+- Out (Export > FDX, always): each heading's `<SceneProperties Length="1 3/8" Page="12">` from the PDF's measure with
+  the export's settings (`cli.Options.SceneLengths`, `-lengths`). Final Draft writes lengths so (`1`, `2/8`, `1 3/8`
+  in Big Fish). With a breakdown: `<TagData>` with all the categories (Final Draft 13's list, these colours, one's
+  own after), a `<TagDefinition CatId Id Label Number>` per element, a `<Tag Number><DefId>…</DefId></Tag>` per place
+  tagged (two DefIds where the same words are tagged twice), and `TagNumber` on the runs of the tagged words (split
+  out of their run, emphasis kept). The cast from the cues is tagged on each cue's name. The form of definitions,
+  tags and TagNumber is Beat's FDX writer's (BeatFDXExport.m): no Final Draft file with tags was at hand, so that
+  part is *unverified* against Final Draft.
+- **Movie Magic Scheduling**: its documentation says an FDX import reads "the header (slugline) and the talking
+  characters", and Final Draft's knowledge base that MMS "cannot read the tag information" of an FDX (tags reach MMS
+  through `.sex`, which is closed, §3). So what MMS gets from Accolade's FDX is what it documents: Scene Heading
+  paragraphs (with numbers and INT/EXT, set, D/N in the heading) and Character paragraphs; both are tested in the FDX
+  out. The tags are for Final Draft, Beat, Fade In, StudioBinder and the others that read TagData; for MMS the
+  breakdown CSV is the way (mapped by hand). Not tried in a real MMS.
+- In (Open of an .fdx): `fdx.ParseTags` reads the TagData (standard categories by Id, else by name; others as one's
+  own) and each run's TagNumber, with its text and place in the line; Accolade anchors them on the imported text by
+  their words, as its own. Round trip tested: written, read back, the same elements on the same words, the cues'
+  cast with them.
+
+**Beat's tags in.** On opening a script with Beat's data block: its `TagDefinitions` (`type`, `name`, `id`) are the
+elements (Beat's types read as the standard categories), its `Tags` (`range` in UTF-16 units of the text before the
+block, `definition`) the places, anchored by their words. Read only while the block's `Text Length` is the text's
+(give or take the line breaks before the block): after an edit elsewhere the ranges point at other words, and nothing
+is read ("Beat's tags not read: the script was changed since Beat saved them"). Tags already in the breakdown are not
+added again, so opening again adds nothing. Accolade does not write Beat's block (§3). Tested with an emoji before the
+tags (two UTF-16 units).
+
+**Rough**
+
+- A tag stays within one line; an element's words over a line break need two tags.
+- The editor underlines in the word's colour (Fyne draws the underline in the text's colour), so a tagged word is
+  coloured as well as underlined.
+- Suggestions look for an element's exact words only (not plurals).
+- The pane's eighths need the reports' layout, made in the background on each pause while Break down is shown (as
+  Revise's page count; no yields in the browser).
+- Undo does not take a tag back (Untag does), and tags are written when made, also before the script is saved.
+- The sheet's PDF prints the boxes that fit on a page (a scene with very many elements: the CSV has them all), and its
+  title is the script's file name.
