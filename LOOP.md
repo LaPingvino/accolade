@@ -118,3 +118,4 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   language without lists (Italian, Latin) is not detected as a listed one (hit-rate floor) and reads with
   English's. Whole Gutenberg novels read in 0.03–0.5 s natively, no panics. Rough: French narrators' "l'inconnu"/"l'hôte" pairs, three-way talk, pronoun gender, German nouns
   as names, the narrator-as-addressee ("disse-me"). Next: step 6, suggestions while writing.
+- 2026-11-20: NEXT, before step 6 (Joop: "loading and editing source files kinda freezes the web app"): the fixes in docs/PERF-SOURCE.md, worst first; with them the autosave/theme data race seen under -race.
