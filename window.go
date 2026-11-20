@@ -73,12 +73,17 @@ type MainWindow struct {
 	language string
 	// format is how the script's file stores it (encoding.go)
 	format fileFormat
-	// bundle is the TextBundle (.textbundle, .textpack, .highland) the
+	// bundle is the TextBundle (.textbundle, .textpack, .highland, .accolade) the
 	// script is the text of, nil for a plain file (bundle.go)
 	bundle *textBundle
 	// plainBundle is a file with a bundle's name holding plain text (a
 	// .highland that is no zip), saved as plain text again
 	plainBundle string
+	// bundleQ are the writes into the bundle, in the background
+	// (bundle_queue.go); bundleGen counts the bundles the window had
+	bundleQ    bundleQueue
+	bundleGen  int
+	srcPending *pendingSource // a source being written into the bundle (source_file.go)
 	// imported is closed when the PDF import under way is in
 	imported       chan struct{}
 	outline        *outlinePanel
@@ -269,6 +274,11 @@ func (w *MainWindow) keyPreview(key fyne.KeyName, mod fyne.KeyModifier) bool {
 func (w *MainWindow) setupCallbacks() {
 	// Window close callback
 	w.fyneWindow.SetCloseIntercept(func() {
+		if w.bundleBusy() { // a save under way finishes first
+			w.setStatus("Saving...")
+			w.afterBundleWrites(func() { w.fyneWindow.Close() })
+			return
+		}
 		if w.hasChanges {
 			dialog.ShowConfirm(
 				"Unsaved Changes",
@@ -375,7 +385,8 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read file: %v", err)
 	}
-	w.bundle, w.plainBundle = bundle, plain
+	w.plainBundle = plain
+	w.setBundle(bundle)
 
 	// as stored: Windows-1252, a byte order mark, CR LF are kept for saving
 	text, format := decodeScript(content)
@@ -432,7 +443,8 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.setMarkdown(false)
 	w.textEditor.SetText(text)
 	w.filledWith = w.textEditor.Text()
-	w.currentFile, w.bundle, w.plainBundle = "", nil, ""
+	w.currentFile, w.plainBundle = "", ""
+	w.setBundle(nil)
 	w.suggestedName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)) + ".fountain"
 	w.hasChanges = true
 	w.updateTitle()
@@ -537,7 +549,8 @@ func (w *MainWindow) SaveFile() error {
 		return err
 	}
 	if inBrowser { // kept in the browser, and a copy to download
-		offerDownload(w.currentFile)
+		p := w.currentFile
+		w.afterBundleWrites(func() { offerDownload(p) })
 	}
 	return nil
 }
@@ -558,7 +571,7 @@ func (w *MainWindow) SaveFileAs() error {
 		if err := w.saveToFile(p); err != nil {
 			return err
 		}
-		offerDownload(p)
+		w.afterBundleWrites(func() { offerDownload(p) })
 		w.typeAfterRename(w.currentFile, cmp.Or(w.currentFile, name), p, p)
 		w.currentFile, w.suggestedName = p, ""
 		w.updateTitle()
@@ -630,20 +643,32 @@ func (w *MainWindow) writeScript(filePath string, data []byte) error {
 		if inBrowser && bundleKindOf(filePath) == bundleFolder {
 			return fmt.Errorf("a .textbundle is a folder, which the browser cannot save: use .textpack")
 		}
-		b, err := saveBundleText(w.bundle, filePath, data, w.markdown)
-		if err != nil {
-			return err
-		}
-		w.bundle, w.plainBundle = b, ""
+		markdown, gen := w.markdown, w.bundleGen
+		w.plainBundle = ""
+		// in the background (bundle_queue.go): an error makes the script
+		// unsaved again
+		w.queueBundle(bundleJob{
+			run: func(b *textBundle) (*textBundle, error) {
+				return saveBundleText(b, filePath, data, markdown)
+			},
+			done: func(err error) {
+				if err != nil && w.bundleGen == gen {
+					w.saveFailed(filePath, err)
+				} else if err != nil {
+					w.setStatus("Could not save " + filepath.Base(filePath) + ": " + err.Error())
+				}
+			},
+		})
 		return nil
 	}
 	if err := writeFileAtomic(filePath, data); err != nil {
 		return err
 	}
-	if b := w.bundle; b != nil {
-		w.bundle = nil
-		if b.source != "" && w.chosenSource(filePath) == "" {
-			if kept, err := keepSourceCopy(w.sourceName(sourceRef{}), string(b.srcText)); err == nil {
+	if w.bundle != nil {
+		entry, src := w.bundleSource()
+		w.setBundle(nil)
+		if entry != "" && w.chosenSource(filePath) == "" {
+			if kept, err := keepSourceCopy(w.sourceName(sourceRef{}), string(src)); err == nil {
 				w.rememberSource(filePath, kept)
 			}
 		}
@@ -833,7 +858,8 @@ func (w *MainWindow) createNewFile(empty bool) {
 		text = ""
 	}
 	w.textEditor.SetText(text)
-	w.currentFile, w.bundle, w.plainBundle = "", nil, ""
+	w.currentFile, w.plainBundle = "", ""
+	w.setBundle(nil)
 	w.hasChanges = false
 	w.updateTitle()
 	w.updateStatusBar()

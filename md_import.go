@@ -217,7 +217,8 @@ func (w *MainWindow) showImportedMarkdown(path, md, from string, dropped int) {
 	w.textEditor.SetText(md)
 	w.textEditor.SetCursorOffset(0)
 	w.filledWith = w.textEditor.Text()
-	w.currentFile, w.bundle, w.plainBundle = "", nil, ""
+	w.currentFile, w.plainBundle = "", ""
+	w.setBundle(nil)
 	w.suggestedName = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)) + ".md"
 	w.hasChanges = true
 	w.updateTitle()

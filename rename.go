@@ -100,6 +100,9 @@ func (w *MainWindow) renameTo(name string) error {
 	if name == "" {
 		return fmt.Errorf("that is no name for a file")
 	}
+	if w.bundleBusy() {
+		return errStillSaving
+	}
 	oldPath, oldName := w.currentFile, cmp.Or(w.currentFile, w.suggestedName, w.untitledName())
 	if w.currentFile == "" {
 		w.suggestedName = name
@@ -125,7 +128,7 @@ func (w *MainWindow) renameTo(name string) error {
 				w.bundle.path = to
 			}
 		case from == notBundle && into == bundleZip:
-			// a plain script made a .highland or .textpack: written as
+			// a plain script made a .highland, .accolade or .textpack: written as
 			// one, the plain file gone (its text is all in the bundle)
 			if err := w.saveToFile(to); err != nil {
 				return err

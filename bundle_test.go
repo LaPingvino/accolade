@@ -159,6 +159,8 @@ func TestBundleZipRoundTrip(t *testing.T) {
 		{"Root.highland", ""},
 		{"Pack.textpack", "Pack.textbundle/"},
 		{"Root.textpack", ""},
+		{"Script.accolade", "Script.textbundle/"},
+		{"Root.accolade", ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			w, _ := newDialogTestWindow(t)
@@ -263,7 +265,7 @@ func TestBundleFromPlain(t *testing.T) {
 		name     string
 		markdown bool
 	}{
-		{"New.highland", false}, {"New.textpack", false}, {"Story.textpack", true}, {"New.textbundle", false}, {"Story.textbundle", true},
+		{"New.highland", false}, {"New.accolade", false}, {"New.textpack", false}, {"Story.textpack", true}, {"New.textbundle", false}, {"Story.textbundle", true},
 	} {
 		w, _ := newDialogTestWindow(t)
 		dir := t.TempDir()
@@ -410,6 +412,23 @@ func TestHighlandPlainText(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(p); string(b) != bundleScript+"More.\n" {
 		t.Errorf("saved %q", b)
+	}
+}
+
+// A .accolade is always a zip: one of plain text does not open (only
+// Highland's name is borrowed by plain Fountain files).
+func TestAccoladePlainTextRefused(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	p := filepath.Join(t.TempDir(), "Plain.accolade")
+	os.WriteFile(p, []byte(bundleScript), 0o644)
+	if err := w.LoadFile(p); err == nil {
+		t.Fatal("a .accolade of plain text opened")
+	}
+	if md, known := kindOfName("x.accolade"); md || !known {
+		t.Error("a .accolade is not known as a screenplay")
+	}
+	if !slices.Contains(openExtensions, ".accolade") {
+		t.Error("Open does not offer .accolade")
 	}
 }
 

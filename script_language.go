@@ -236,6 +236,9 @@ func (w *MainWindow) nameLanguage(lang string) error {
 	if to == w.currentFile {
 		return nil
 	}
+	if w.bundleBusy() {
+		return errStillSaving
+	}
 	if _, err := os.Stat(to); err == nil {
 		return fmt.Errorf("%s already exists", filepath.Base(to))
 	}

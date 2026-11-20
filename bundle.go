@@ -16,11 +16,15 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/LaPingvino/accolade/internal/pace"
 )
 
 // The TextBundle family (docs/HIGHLAND.md): a .textbundle is a folder
 // (info.json, text.fountain or text.md, assets/), a .textpack the same
-// zipped, and Highland's .highland a zipped TextBundle of its own. In a
+// zipped, Highland's .highland a zipped TextBundle of its own, and
+// Accolade's .accolade the same as a .highland with Accolade's drafts
+// and production files added (extras.go). In a
 // zip the bundle's files sit at the root or inside one top-level
 // Name.textbundle/ folder; a bundle is written back as it was read.
 //
@@ -55,7 +59,7 @@ func bundleKindOf(name string) bundleKind {
 	switch strings.ToLower(filepath.Ext(strings.TrimRight(name, `/\`))) {
 	case ".textbundle":
 		return bundleFolder
-	case ".textpack", ".highland":
+	case ".textpack", ".highland", ".accolade":
 		return bundleZip
 	}
 	return notBundle
@@ -336,7 +340,19 @@ func bundleTextMarkdown(textName string, info []byte, bundle string) bool {
 			}
 		}
 	}
-	return !strings.EqualFold(filepath.Ext(bundle), ".highland")
+	return !screenplayBundle(bundle)
+}
+
+// screenplayBundle tells whether a bundle's name says it holds a
+// screenplay: Highland's .highland and Accolade's own .accolade (the same
+// zipped TextBundle, with Accolade's drafts and production files added:
+// extras.go).
+func screenplayBundle(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".highland", ".accolade":
+		return true
+	}
+	return false
 }
 
 // newBundleInfo is info.json for a bundle Accolade makes.
@@ -591,6 +607,7 @@ func zipBundle(b *textBundle, prefix string, files []bundleFile) ([]byte, error)
 		}
 	}
 	for _, e := range es {
+		pace.Yield() // the browser's page draws meanwhile (bundle_queue.go)
 		name := e.name
 		rel, inside := strings.CutPrefix(name, oldPrefix)
 		if b != nil && !b.zipped {

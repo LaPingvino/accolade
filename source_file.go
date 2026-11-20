@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"fyne.io/fyne/v2/dialog"
 )
 
 // Where a script's source is kept, in layers, looked for in this order:
@@ -19,7 +21,7 @@ import (
 //     default). Other Fountain apps ignore a boneyard, so one .fountain
 //     file carries the script and its source anywhere.
 //  2. In the bundle, when the script is a TextBundle (.textbundle,
-//     .textpack, .highland; bundle.go): assets/source.md (or the entry
+//     .textpack, .highland, .accolade; bundle.go): assets/source.md (or the entry
 //     Accolade's key in info.json names, or a source.md beside the text).
 //     The bundle carries it wherever it goes; Choose Source puts the
 //     source there for such a script, and edits are written into it.
@@ -182,8 +184,8 @@ func (w *MainWindow) sourceRef() sourceRef {
 	if _, _, _, ok := sourceBlock(w.textEditor.Text()); ok {
 		return sourceRef{Origin: sourceInside}
 	}
-	if b := w.bundle; b != nil && b.source != "" {
-		return sourceRef{Origin: sourceBundle, Entry: b.source}
+	if entry, _ := w.bundleSource(); entry != "" {
+		return sourceRef{Origin: sourceBundle, Entry: entry}
 	}
 	if s := w.chosenSource(w.currentFile); s != "" {
 		if _, err := os.Stat(s); err == nil {
@@ -315,7 +317,7 @@ func (w *MainWindow) sourceText(r sourceRef) (string, error) {
 		_, _, md, _ := sourceBlock(w.textEditor.Text())
 		return md, nil
 	case sourceBundle: // decoded once per bundle as read (the pane asks on every cursor move)
-		raw := w.bundle.srcText
+		_, raw := w.bundleSource()
 		if c := &w.bundleSrc; c.ok && len(c.raw) == len(raw) && (len(raw) == 0 || &c.raw[0] == &raw[0]) {
 			return c.text, nil
 		}
@@ -330,15 +332,49 @@ func (w *MainWindow) sourceText(r sourceRef) (string, error) {
 	return "", nil
 }
 
-// saveBundleSource writes md as the source in the script's bundle, now
-// (the text in the bundle as it was saved last).
+// saveBundleSource writes md as the source in the script's bundle (the
+// text in the bundle as it was saved last), in the background
+// (bundle_queue.go); meanwhile the source is md already.
 func (w *MainWindow) saveBundleSource(md string) error {
-	b, err := saveBundleSource(w.bundle, []byte(md))
-	if err != nil {
-		return fmt.Errorf("could not write the source into %s: %v", filepath.Base(w.bundle.path), err)
-	}
-	w.bundle = b
+	entry, _ := w.bundleSource()
+	p := &pendingSource{entry: cmp.Or(entry, bundleSourceName), raw: []byte(md)}
+	w.srcPending = p
+	name := filepath.Base(w.bundle.path)
+	w.queueBundle(bundleJob{
+		run: func(b *textBundle) (*textBundle, error) {
+			if b == nil {
+				return nil, fmt.Errorf("no bundle")
+			}
+			return saveBundleSource(b, p.raw)
+		},
+		done: func(err error) {
+			if w.srcPending == p {
+				w.srcPending = nil
+			}
+			if err != nil && w.fyneWindow != nil {
+				dialog.ShowError(fmt.Errorf("could not write the source into %s: %v", name, err), w.fyneWindow)
+			}
+		},
+	})
 	return nil
+}
+
+// pendingSource is a source being written into the bundle.
+type pendingSource struct {
+	entry string
+	raw   []byte
+}
+
+// bundleSource is the bundle's source: its entry ("" none) and what it
+// holds, a write under way included.
+func (w *MainWindow) bundleSource() (string, []byte) {
+	if w.bundle == nil {
+		return "", nil
+	}
+	if p := w.srcPending; p != nil {
+		return p.entry, p.raw
+	}
+	return w.bundle.source, w.bundle.srcText
 }
 
 // sourceNameKey is a file name as a link's is compared: its base, without its
@@ -358,8 +394,8 @@ func (w *MainWindow) sourceNames(r sourceRef) map[string]bool {
 	if c := companionOf(w.currentFile); c != "" {
 		names[sourceNameKey(c)] = true
 	}
-	if b := w.bundle; b != nil && b.source != "" {
-		names[sourceNameKey(b.source)] = true
+	if entry, _ := w.bundleSource(); entry != "" {
+		names[sourceNameKey(entry)] = true
 	}
 	if s := w.chosenSource(w.currentFile); s != "" {
 		names[sourceNameKey(s)] = true

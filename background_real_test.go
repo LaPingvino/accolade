@@ -120,3 +120,45 @@ func TestChooseAndImportInBackground(t *testing.T) {
 	w.importDocument(docx)
 	waitFor(t, "the import", func() bool { return w.markdown && strings.Contains(w.textEditor.Text(), "It was day.") })
 }
+
+// Bundle writes run in the background, one after another, each from the
+// bundle the one before left: a Save and the source's Done right after
+// it both end up in the file, and what waits for them runs after.
+func TestBundleWritesInBackground(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	p := filepath.Join(t.TempDir(), "Script.accolade")
+	os.WriteFile(p, makeZip(t, bundleItems("Script.textbundle/")), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	realPaths(t)
+	saved := false
+	uiTurn.Lock()
+	w.textEditor.SetText(bundleScript + "Bram eats.\n")
+	if err := w.saveToFile(p); err != nil {
+		t.Fatal(err)
+	}
+	w.saveBundleSource("# Novel\n")
+	if entry, src := w.bundleSource(); entry != bundleSourceName || string(src) != "# Novel\n" {
+		t.Errorf("the source while it is written: %q %q", entry, src)
+	}
+	w.afterBundleWrites(func() { saved = true })
+	uiTurn.Unlock()
+	waitFor(t, "the writes", func() bool { return saved && !w.bundleBusy() })
+	data, _ := os.ReadFile(p)
+	if got, _ := zipFile(t, data, "Script.textbundle/text.fountain"); got != bundleScript+"Bram eats.\n" {
+		t.Errorf("text %q", got)
+	}
+	if got, _ := zipFile(t, data, "Script.textbundle/assets/source.md"); got != "# Novel\n" {
+		t.Errorf("source %q", got)
+	}
+	uiTurn.Lock()
+	defer uiTurn.Unlock()
+	if w.bundle == nil || string(w.bundle.srcText) != "# Novel\n" || w.srcPending != nil || w.hasChanges {
+		t.Errorf("the window's bundle after: %+v, pending %v, changes %v", w.bundle, w.srcPending, w.hasChanges)
+	}
+	if err := w.renameTo("Other.accolade"); err != nil {
+		t.Errorf("rename after the writes: %v", err)
+	}
+}
