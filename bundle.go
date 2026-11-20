@@ -389,6 +389,8 @@ type bundleSave struct {
 	// extra are Accolade's files carried in (a plain script's drafts,
 	// saved as a bundle), added to or replacing the bundle's
 	extra []bundleFile
+	// source is a plain script's source carried in (assets/source.md)
+	source []byte
 	// highlandWarned marks the Highland warning given (flatten.go)
 	highlandWarned bool
 }
@@ -403,11 +405,18 @@ func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error
 			textName = "text.md"
 		}
 		info := newBundleInfo(s.markdown)
-		if ours := (accoladeInfo{Version: 1, HighlandWarned: s.highlandWarned, Drafts: draftsIndexIn(s.extra)}); !ours.empty() {
+		ours := accoladeInfo{Version: 1, HighlandWarned: s.highlandWarned, Drafts: draftsIndexIn(s.extra)}
+		if s.source != nil {
+			ours.Source = bundleSourceName
+		}
+		if !ours.empty() {
 			val, _ := json.Marshal(ours)
 			info, _ = setInfoValue(info, accoladeInfoKey, val)
 		}
 		files := append([]bundleFile{{"info.json", info}, {textName, s.text}, {"assets/", nil}}, s.extra...)
+		if s.source != nil {
+			files = append(files, bundleFile{bundleSourceName, s.source})
+		}
 		return writeBundle(nil, dst, files)
 	}
 	if sameFile(dst, b.path) {

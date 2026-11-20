@@ -617,6 +617,8 @@ func regroupMoves(name, golden string) string {
 	case !strings.HasPrefix(name, "menu-"):
 		return golden
 	}
+	// File: Rename… and Undo Rename after Save As (relocate.go)
+	golden = strings.Replace(golden, "  Save As… [Primary+Shift+S]\n", "  Save As… [Primary+Shift+S]\n  Rename…\n  Undo Rename\n", 1)
 	ms := parseGoldenMenus(golden)
 	together, join := takeItem(ms, "File", "Edit Together…"), takeItem(ms, "File", "Join a Shared Script…")
 	saveDraft, drafts := takeItem(ms, "File", "Save Draft…"), takeItem(ms, "File", "Drafts…")

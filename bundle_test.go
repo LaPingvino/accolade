@@ -643,7 +643,8 @@ func TestHighlandFiles(t *testing.T) {
 }
 
 // A rename keeps a bundle a bundle: to another zip's name, the file is
-// renamed; a plain script given a bundle's name is written as one.
+// renamed; to a plain name it becomes plain; a plain script given a
+// bundle's name is written as one.
 func TestBundleRename(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	dir := t.TempDir()
@@ -656,8 +657,15 @@ func TestBundleRename(t *testing.T) {
 	if w.bundle.path != filepath.Join(dir, "Script.textpack") {
 		t.Errorf("bundle at %s", w.bundle.path)
 	}
-	if err := w.renameTo("Script.fountain"); err == nil {
-		t.Error("a bundle renamed to a plain file")
+	// to a plain name: converted (relocate.go), never refused
+	if err := w.renameTo("Script.fountain"); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(filepath.Join(dir, "Script.fountain")); string(got) != bundleScript || w.bundle != nil {
+		t.Errorf("renamed to plain: %q, bundle %v", got, w.bundle)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "Script.textpack")); err == nil {
+		t.Error("the bundle is still there")
 	}
 	plain := filepath.Join(dir, "Plain.fountain")
 	os.WriteFile(plain, []byte(bundleScript), 0o644)

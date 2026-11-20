@@ -98,9 +98,17 @@ type MainWindow struct {
 	unsavedExtras  string           // the kept extras of a script not saved yet (extras.go)
 	// flattenTo is where a bundle's extras go when it is saved as a plain
 	// file, as asked (flatten.go); then back to the kept copy
-	flattenTo      flattenChoice
-	flattenAsked   *flattenAsk     // the question last asked (saveas.go)
-	highlandWarned map[string]bool // the files the Highland warning was given for
+	flattenTo    flattenChoice
+	flattenAsked *flattenAsk // the question last asked (saveas.go)
+	// a rename or Save As under way, and the last rename, to take back
+	// (relocate.go); the source carried into a new bundle, or put beside
+	// a plain file leaving one, as it is written
+	relocating, renameUndo *fileJournal
+	carrySource            []byte
+	renameAsked            *renameAsk // the rename editor last opened (rename.go)
+	saveAsAsked            *saveAsAsk // the Save As chooser last opened (saveas_dialog.go)
+	sourceBeside           string
+	highlandWarned         map[string]bool // the files the Highland warning was given for
 	// markdown: the document is Markdown, not a screenplay (markdown.go)
 	markdown       bool
 	previewPane    *previewPanel // a Markdown document's preview
@@ -599,24 +607,9 @@ func (w *MainWindow) SaveFile() error {
 }
 
 func (w *MainWindow) SaveFileAs() error {
-	if inBrowser { // the browser asks for a name, for the download
-		w.askBrowserName()
-		return nil
-	}
-	fileDialog := dialog.NewFileSave(func(closer fyne.URIWriteCloser, err error) {
-		if err != nil || closer == nil {
-			return
-		}
-		filePath := closer.URI().Path()
-		// written as Save does, safely: not through the dialog's file,
-		// which truncates first
-		closer.Close()
-		w.saveAs(filePath)
-	}, w.fyneWindow)
-	// the file's name, or one for it; .accolade once it has production
-	// data (saveas.go)
-	fileDialog.SetFileName(w.offeredName())
-	fileDialog.Show()
+	// the type first, then where (saveas_dialog.go); the browser asks
+	// the name there, for the download
+	w.showSaveAs()
 	return nil
 }
 
@@ -653,13 +646,17 @@ func (w *MainWindow) writeScript(filePath string, data []byte) error {
 				return fmt.Errorf("could not read the drafts to carry in: %v", err)
 			}
 		}
-		warn := w.warnsHighland(filePath, extra)
+		var source []byte
+		if w.bundle == nil { // and its source (relocate.go)
+			source = w.carrySource
+		}
+		warn := w.warnsHighland(filePath, extra) || (source != nil && w.warnsHighland(filePath, []bundleFile{{bundleSourceName, source}}))
 		w.plainBundle = ""
 		// in the background (bundle_queue.go): an error makes the script
 		// unsaved again
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {
-				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra, highlandWarned: warn})
+				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra, source: source, highlandWarned: warn})
 			},
 			done: func(err error) {
 				if err == nil && warn {
@@ -682,7 +679,13 @@ func (w *MainWindow) writeScript(filePath string, data []byte) error {
 		how := w.flattenTo
 		w.flattenTo = flattenKept
 		w.setBundle(nil)
-		if entry != "" && w.chosenSource(filePath) == "" {
+		switch {
+		case entry == "":
+		case w.sourceBeside != "": // beside it, with the drafts' folder (relocate.go)
+			if err := writeFileAtomic(w.sourceBeside, src); err != nil {
+				return fmt.Errorf("the script is saved, but its source could not be put beside it: %v", err)
+			}
+		case w.chosenSource(filePath) == "":
 			if kept, err := keepSourceCopy(w.sourceName(sourceRef{}), string(src)); err == nil {
 				w.rememberSource(filePath, kept)
 			}

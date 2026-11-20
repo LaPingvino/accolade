@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 	"unicode"
@@ -236,26 +235,7 @@ func (w *MainWindow) nameLanguage(lang string) error {
 	if to == w.currentFile {
 		return nil
 	}
-	if w.bundleBusy() {
-		return errStillSaving
-	}
-	if _, err := os.Stat(to); err == nil {
-		return fmt.Errorf("%s already exists", filepath.Base(to))
-	}
-	if err := os.Rename(w.currentFile, to); err != nil {
-		return err
-	}
-	if w.bundle != nil { // the same kind of bundle, named anew
-		w.bundle.path = to
-	}
-	if w.plainBundle == w.currentFile {
-		w.plainBundle = to
-	}
-	w.typeAfterRename(w.currentFile, w.currentFile, to, to) // its type, source and drafts follow
-	w.currentFile = to
-	w.rememberRecent(to)
-	w.updateTitle()
-	return nil
+	return w.renameTo(filepath.Base(to)) // its files along (relocate.go)
 }
 
 // changeLanguage makes the script's language lang, its headings changed

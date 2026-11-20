@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -50,28 +49,6 @@ func (w *MainWindow) offeredName() string {
 	return saveAsName(w.currentFile, w.suggestedName, w.untitledName(), w.hasProductionData(), w.markdown)
 }
 
-// askBrowserName is the browser's Save As: a name for the file kept here
-// and downloaded.
-func (w *MainWindow) askBrowserName() {
-	entry := widget.NewEntry()
-	entry.SetText(w.offeredName())
-	d := dialog.NewForm("Save As", "Save", "Cancel", []*widget.FormItem{widget.NewFormItem("Name", entry)}, func(ok bool) {
-		if !ok {
-			return
-		}
-		p, err := browserSavePath(entry.Text)
-		if err != nil {
-			dialog.ShowError(err, w.fyneWindow)
-			return
-		}
-		w.saveAs(p)
-	}, w.fyneWindow)
-	entry.OnSubmitted = func(string) { d.Submit() }
-	d.Resize(fitDialog(w.fyneWindow, 440, 180))
-	d.Show()
-	w.fyneWindow.Canvas().Focus(entry)
-}
-
 // browserSavePath is where the browser keeps a file named name.
 func browserSavePath(name string) (string, error) {
 	name = filepath.Base(strings.TrimSpace(name))
@@ -89,56 +66,69 @@ func browserSavePath(name string) (string, error) {
 
 // saveAs saves the script as filePath, once the writes under way are
 // done; a bundle's drafts saved plain are asked about first.
-func (w *MainWindow) saveAs(filePath string) {
+func (w *MainWindow) saveAs(filePath string) { w.saveAsWith(filePath, nil) }
+
+// saveAsWith saves the script as filePath with the choices Save As's
+// chooser made (nil: none made; where a bundle's drafts go is asked).
+func (w *MainWindow) saveAsWith(filePath string, chosen *relocation) {
 	w.afterBundleWrites(func() {
-		if w.bundle != nil && len(w.bundle.extras) > 0 && bundleKindOf(filePath) == notBundle {
+		flattening := w.bundle != nil && len(w.bundle.extras) > 0 && bundleKindOf(filePath) == notBundle
+		if flattening && chosen == nil {
 			w.askFlatten(filePath, func(how flattenChoice) {
-				w.flattenTo = how
-				w.finishSaveAs(filePath)
+				w.finishSaveAs(filePath, relocation{how: how})
 			})
 			return
 		}
-		w.finishSaveAs(filePath)
+		r := relocation{}
+		if chosen != nil {
+			r = *chosen
+		}
+		if flattening && r.how == flattenDrop {
+			ask := &flattenAsk{}
+			w.flattenAsked = ask
+			ask.confirmDrop = func(ok bool) {
+				if ok {
+					w.finishSaveAs(filePath, r)
+				}
+			}
+			dialog.ShowConfirm("Leave the Drafts Out?",
+				filepath.Base(filePath)+" will be saved without its drafts and production files. "+
+					filepath.Base(w.bundle.path)+" keeps them, as it is on disk now.", ask.confirmDrop, w.fyneWindow)
+			return
+		}
+		w.finishSaveAs(filePath, r)
 	})
 }
 
-// finishSaveAs writes the script to filePath and makes it the window's
-// file.
-func (w *MainWindow) finishSaveAs(filePath string) {
+// finishSaveAs writes the script to filePath, with every file belonging
+// to it (relocate.go), and makes it the window's file.
+func (w *MainWindow) finishSaveAs(filePath string, r relocation) {
 	flattening := w.bundle != nil && len(w.bundle.extras) > 0 && bundleKindOf(filePath) == notBundle
-	how := w.flattenTo
-	failures := w.saveFailures
-	if err := w.saveToFile(filePath); err != nil {
-		w.flattenTo = flattenKept
-		dialog.ShowError(fmt.Errorf("failed to save file: %v", err), w.fyneWindow)
-		return
-	}
-	oldPath, oldName := w.currentFile, cmp.Or(w.currentFile, w.suggestedName, w.untitledName())
-	w.currentFile = filePath
-	w.suggestedName = ""
-	w.rememberRecent(filePath)
-	w.typeAfterRename(oldPath, oldName, filePath, filePath)
-	if l := languageOf(filePath); l != "" {
-		w.setLanguage(l)
-	}
-	w.hasChanges = false
-	w.updateTitle()
-	if flattening {
-		w.setStatus(map[flattenChoice]string{
-			flattenKept:   "Saved; its drafts are kept by Accolade, found again when you open it here",
-			flattenFolder: "Saved; its drafts are in " + filepath.Base(productionFolderOf(filePath)) + " beside it",
-			flattenDrop:   "Saved, without its drafts",
-		}[how])
-	}
-	if inBrowser {
-		w.afterBundleWrites(func() { offerDownload(filePath) })
-		return
-	}
-	w.afterBundleWrites(func() {
-		if !flattening && w.saveFailures == failures { // a background save that failed said so
+	r.rename, r.from, r.to = false, w.currentFile, filePath
+	how := r.how
+	err := w.relocate(r, func(err error) {
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("failed to save file: %v", err), w.fyneWindow)
+			return
+		}
+		if flattening {
+			w.setStatus(map[flattenChoice]string{
+				flattenKept:   "Saved; its drafts are kept by Accolade, found again when you open it here",
+				flattenFolder: "Saved; its drafts are in " + filepath.Base(productionFolderOf(filePath)) + " beside it",
+				flattenDrop:   "Saved, without its drafts",
+			}[how])
+		}
+		if inBrowser {
+			offerDownload(filePath)
+			return
+		}
+		if !flattening && w.fyneWindow != nil {
 			dialog.ShowInformation("File Saved", fmt.Sprintf("File saved to %s", filepath.Base(filePath)), w.fyneWindow)
 		}
 	})
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("failed to save file: %v", err), w.fyneWindow)
+	}
 }
 
 // flattenChoices are where a bundle's drafts can go as it is saved plain:

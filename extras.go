@@ -294,7 +294,8 @@ func (w *MainWindow) hasProductionData() bool {
 // forgetUnsavedExtras lets go of the extras of a script not saved yet, as
 // another document takes the window's place.
 func (w *MainWindow) forgetUnsavedExtras() {
-	w.revisionGen++ // its issues too (revisions.go)
+	w.dropRenameUndo() // another document: the last rename is not taken back now
+	w.revisionGen++    // its issues too (revisions.go)
 	if d := w.unsavedExtras; d != "" {
 		w.unsavedExtras = ""
 		if isKeptExtras(d) {
@@ -323,8 +324,7 @@ func (w *MainWindow) extrasAfterRename(oldPath, newPath string) {
 		}
 		return
 	}
-	_, statErr := os.Stat(oldPath)
-	oldGone := oldPath == "" || statErr != nil
+	oldGone := w.oldGoes(oldPath)
 	if bundleKindOf(newPath) != notBundle && !w.isPlainBundle(newPath) {
 		// carried into the bundle: an unsaved script's copy let go of once
 		// the bundle is written (bundle_queue.go)
@@ -333,7 +333,7 @@ func (w *MainWindow) extrasAfterRename(oldPath, newPath string) {
 			dir := string(old.dir)
 			w.afterBundleWrites(func() {
 				if w.bundle != nil && sameFile(w.bundle.path, newPath) {
-					os.RemoveAll(dir)
+					w.discard(dir) // parked while a rename can be taken back
 				}
 			})
 		}
@@ -341,6 +341,17 @@ func (w *MainWindow) extrasAfterRename(oldPath, newPath string) {
 	}
 	switch old.kind {
 	case extrasKept:
+		if !oldGone { // Save As: a copy of its own, the old file keeping its
+			if files, err := old.all(); err == nil {
+				if dir, err := newKeptExtras(newPath); err == nil {
+					if dir.write(files) == nil {
+						w.rememberExtras(newPath, string(dir))
+						return
+					}
+					os.RemoveAll(string(dir))
+				}
+			}
+		}
 		w.rememberExtras(oldPath, "")
 		w.rememberExtras(newPath, string(old.dir))
 	case extrasBeside:

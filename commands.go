@@ -36,6 +36,7 @@ type cmdEnv struct {
 	source   bool // the screenplay has a source (Adaptation)
 	locked   bool // its scene numbers are locked (Production)
 	pages    bool // its pages are locked (Production)
+	renamed  bool // the last rename can be taken back (relocate.go)
 }
 
 // cmdEnv is the window's.
@@ -47,6 +48,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 		e.locked = sceneLockOf(text).locked
 		e.pages = pageLockOf(text) != nil
 	}
+	e.renamed = w.canUndoRename()
 	return e
 }
 
@@ -60,6 +62,7 @@ func withPandoc(e cmdEnv) bool     { return e.pandoc && !e.browser }
 func withSource(e cmdEnv) bool    { return e.source }
 func numbersLocked(e cmdEnv) bool { return e.locked }
 func pagesLocked(e cmdEnv) bool   { return e.pages }
+func renameToUndo(e cmdEnv) bool  { return e.renamed }
 
 // command is one thing the user can do.
 type command struct {
@@ -317,6 +320,8 @@ func newRegistry() *registry {
 			run: func(w *MainWindow) { w.reportErr(w.SaveFile)() }},
 		&command{id: "file.saveAs", label: "Save As…", icon: theme.DocumentSaveIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyS, fyne.KeyModifierShift)},
 			run: func(w *MainWindow) { w.reportErr(w.SaveFileAs)() }},
+		&command{id: "file.rename", label: "Rename…", icon: theme.DocumentCreateIcon, run: (*MainWindow).renameScript},
+		&command{id: "file.undoRename", label: "Undo Rename", icon: theme.ContentUndoIcon, enabled: renameToUndo, run: (*MainWindow).undoRename},
 		&command{id: "file.saveDraft", label: "Save Draft…", icon: theme.StorageIcon, run: (*MainWindow).showSaveDraft},
 		&command{id: "file.drafts", label: "Drafts…", icon: theme.HistoryIcon, run: (*MainWindow).showDrafts},
 		&command{id: "file.share", label: "Edit Together…", icon: theme.AccountIcon, run: (*MainWindow).shareDialog},
@@ -563,7 +568,7 @@ func newRegistry() *registry {
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
 			at("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
-			sep(), at("file.save"), at("file.saveAs"),
+			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"),
 			sep(), at("file.export"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 		}},
@@ -805,7 +810,7 @@ func ribbonLayout() []ribbonTab {
 		{title: "File", groups: []ribbonGroup{
 			{title: "New", homes: []home{big("file.new"), at("file.newEmpty"), at("file.newMarkdown"), at("file.newWindow"), at("file.newEmptyWindow")}},
 			{title: "Open", homes: []home{big("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc")}},
-			{title: "Save", homes: []home{big("file.save"), at("file.saveAs")}},
+			{title: "Save", homes: []home{big("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename")}},
 			{title: "Out", homes: []home{big("file.export"), big("file.print")}},
 			// a source to adapt: the Adaptation tab once there is one
 			{title: "Adapt", when: noSource, homes: []home{big("source.choose")}},

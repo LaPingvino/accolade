@@ -249,6 +249,14 @@ func (w *MainWindow) sourceAfterRename(oldPath, newPath string) {
 	source := w.chosenSource(oldPath)
 	if source == "" {
 		source = companionOf(oldPath)
+	} else if !w.oldGoes(oldPath) && strings.HasPrefix(source, keptSourcesDir()+string(filepath.Separator)) {
+		// Save As: a copy of its own, the old file keeping its
+		if md, err := os.ReadFile(source); err == nil {
+			if kept, err := keepSourceCopy(filepath.Base(source), string(md)); err == nil {
+				w.rememberSource(newPath, kept)
+				return
+			}
+		}
 	}
 	if oldPath != "" {
 		w.rememberSource(oldPath, "")
@@ -258,6 +266,19 @@ func (w *MainWindow) sourceAfterRename(oldPath, newPath string) {
 	if source != "" && companionOf(newPath) == "" {
 		w.rememberSource(newPath, source)
 	}
+}
+
+// oldGoes tells whether a script's old file goes as it gets a new name:
+// a rename (relocate.go), or it is gone already; not a Save As.
+func (w *MainWindow) oldGoes(oldPath string) bool {
+	if oldPath == "" {
+		return true
+	}
+	if j := w.relocating; j != nil {
+		return j.rename
+	}
+	_, err := os.Stat(oldPath)
+	return err != nil
 }
 
 // useSource makes a file the script's source: read as Markdown

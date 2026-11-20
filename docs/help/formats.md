@@ -18,11 +18,30 @@ A language code before the extension says the script's language, which sets the 
 
 View > Document Type > Screenplay or Markdown switches a file without renaming it; Accolade remembers the choice for that file. Renaming a file to .md or .fountain switches it too. Syntax: [Markdown Syntax](cheat-markdown.md).
 
+## Save As and Rename
+
+**File > Save As…** (Ctrl+Shift+S) first asks for the type, each with a line saying what it keeps: Fountain, Accolade, Highland, TextPack, TextBundle (desktop only), and Markdown — the other kind of document last, since it switches the document. The type the file has now is chosen; the recommended one is marked (Accolade once a screenplay has drafts or a lock, else Fountain; Markdown for a document). Then comes the system's save dialog, showing that type's files and giving the name its extension. In the browser the name is asked in the same window, and the file is downloaded.
+
+**Renaming:** click the name over the editor, or File > Rename…. The rename editor has the name, the script's **Language** (it writes the `.eo` part of `film.eo.fountain`) and the **Type**, and shows the resulting name as you type. Typing a whole name with its extensions (`film.eo.md`) works too: the pickers follow it. Changing the type to or from a bundle converts the file; nothing is refused.
+
+Both show **every file that belongs to the script** and where each goes:
+
+- the script itself;
+- its source: in the script, inside the bundle (`assets/source.md`), kept by Accolade, or beside it (`story.md`);
+- its drafts and production files (`breakdown.json`, `schedule.json`, `revisions.json`): inside the bundle under `assets/`, kept by Accolade, or in `story.production/` beside it;
+- another app's files inside a bundle (Highland's `sprints.json`, pictures).
+
+They move together by what the new type needs: renaming `story.fountain` to `film.fountain` renames `story.md` to `film.md` and `story.production/` to `film.production/` (untick *Keep the source's own name* to leave `story.md` as it is); making it `film.accolade` moves them inside the bundle; making a bundle plain again asks where its drafts go (kept by Accolade, or in a folder beside it, with the source as `film.md`). Names a format fixes — `text.fountain`, `info.json`, `assets/…` — are shown as fixed. Save As copies these files; a rename moves them.
+
+A rename is all or nothing: if any step fails, everything is put back as it was. **File > Undo Rename** takes the last rename back — the old files return exactly as they were, the new ones go — until another document is opened or the window is closed. A plain file cannot hold another app's files from a bundle: the list warns before a rename leaves them out, and Undo Rename brings them back.
+
+To hand a script to someone else, use File > Export… (PDF, Final Draft, Fountain as written); the Save As window links there.
+
 ## Bundles
 
 A bundle keeps the text and everything that goes with it in one file. All of them are TextBundles inside: an `info.json`, the text (`text.fountain` or `text.md`), and an `assets/` folder.
 
-- **.accolade** — Accolade's own: a Highland bundle plus Accolade's drafts and production files under `assets/`. Save As offers it once a script has drafts or a lock.
+- **.accolade** — Accolade's own: a Highland bundle plus Accolade's drafts and production files under `assets/`. Save As recommends it once a script has drafts or a lock.
 - **.highland** — Highland 2's file. Accolade opens and saves it, and keeps everything Highland put in it. A .highland that is not a zip is read as plain Fountain. Saving drafts or production files into a .highland works, and Accolade says once per file that Highland may not keep them.
 - **.textpack** — a TextBundle zipped.
 - **.textbundle** — a TextBundle folder. Open goes into the folder and opens its text. Desktop only.
@@ -33,13 +52,13 @@ On save, Accolade changes only the text, its own entry in `info.json` and its ow
 
 ### Saving a bundle as plain Fountain
 
-Save As… to a .fountain asks where the drafts and production files go:
+Save As… or a rename to a .fountain asks where the drafts and production files go (in the list of the script's files):
 
 - **kept by Accolade,** found again when you open the .fountain here;
 - **in a folder beside it,** `Name.production/` (desktop only);
-- **left out,** after asking a second time.
+- **left out,** after asking a second time (Save As only: the bundle keeps them).
 
-Saving a plain script as .accolade carries them in.
+Saving or renaming a plain script as .accolade carries them in, with its source.
 
 ## Opening other apps' scripts
 

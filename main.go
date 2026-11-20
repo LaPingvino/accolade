@@ -171,6 +171,7 @@ func (app *Application) newWindow() *MainWindow {
 
 	// Set up window close handler
 	window.fyneWindow.SetOnClosed(func() {
+		window.dropRenameUndo() // what the last rename parked goes
 		app.onWindowClosed(window)
 	})
 
