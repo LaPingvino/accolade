@@ -1359,7 +1359,7 @@ this line existed has no record; Remove then takes every number out, and the dia
   back", and Lock never wrote them.
 - Remove is the default (the highlighted button) while the drafts store holds no issue, and Keep once it does. An
   issue means the numbers went out ("The script was issued: White (1 Nov 2026)…"). An FDX kept as an imported issue
-  counts too.
+  counts too: it is kept in the drafts store as an issue (readRevisionChain).
 - One undo step either way. The page lock's scene numbers follow in the same step (a page's scene whose number went
   is "none": Lexington then looks for its words after the page before).
 
@@ -1381,13 +1381,14 @@ OMITTED scene whose number goes. Why:
 - Once the numbers are out, continuity is the rule: "With rare exception, you always maintain scene number
   continuity" (John August, [Renumbering when moving a scene](https://johnaugust.com/?p=730), 2007).
 - Renumbering is what closes those gaps. StudioBinder, [Scene numbering](https://studiobinder.com/blog/scene-numbering):
-  omitted scenes leave gaps, and renumbering makes sense "after a rewrite leaves gaps and lettered scenes". It also
-  warns that renumbering assigns the breakdown, shot lists and schedules "to a different scene", which is why Accolade's
+  omitted scenes leave gaps in the numbering, and renumbering makes sense once a rewrite has left gaps and lettered
+  scenes (paraphrased). It also warns that renumbering assigns the breakdown, shot lists and schedules "to a different scene", which is why Accolade's
   sidecars follow (below) and why the warning after an issue exists.
 - Final Draft's own help page on Scene Numbers (Number/Renumber, Remove Numbers) refused the fetch (403). It is not
   cited further.
 
-So a renumbered script starts its numbers afresh, and no placeholder keeps one. A numberless `.OMITTED` heading was
+So a renumbered script starts its numbers afresh, and no placeholder keeps one. None of the three sources says
+this in so many words; it is my inference from what OMITTED is for. A numberless `.OMITTED` heading was
 rejected: the lock would give it a letter at the next pause, and export would print it with a number.
 
 **The breakdown and the schedule follow** (renumber_follow.go). Tags, scenes marked done and strips name their scene
@@ -1397,7 +1398,12 @@ Lock, Remove, Renumber, Undo and Redo (the menu's, and the editor's own Ctrl+Z o
 retypes a number. Each tag or strip found in the text before (by its anchors, as shown) gets the number its scene has
 now. A lost one is renamed only from a number (old → new). A done mark is renamed by number, else by heading and
 which of those it is. A strip's words sum (it counts the heading's number) is taken over when its scene was
-unchanged, so Renumber or Lock does not flag every strip "changed". The board's own Undo snapshot follows too. Before
+unchanged, so Renumber or Lock does not flag every strip "changed". The board's own Undo snapshot follows too.
+Two guards apply. A number that two scenes share belongs to neither: nothing is renamed into a text that has a
+number twice, and the window waits for the next text (a number being retyped, #2# → #1# → #5#, passes through one).
+A number shared in the text before is renamed only where a tag or strip was found. And an OMITTED scene that
+Renumber or Remove takes away takes its number with it: its strip, tag or done mark is lost, never moved to the
+scene that now has that number. Undo of that step does not move it either. Before
 this change, Renumber would have pointed a strip numbered 3 at the scene now numbered 3.
 
 **The pane.** The Lock stage shows *Unlock…* and *Renumber* beside *Scene Numbers Locked* ("Locked" on a phone). The
@@ -1408,7 +1414,9 @@ dialog's default before and after an issue, Cancel; Renumber with an A-scene, a 
 OMITTED, Restore after Undo; Renumber after an issue (Cancel, then Save a Draft, Then Renumber with the draft stored);
 a tag on a word in two scenes, a done mark and two strips through Renumber, Undo, Redo, the editor's own Undo,
 Remove, and Undo of Remove (stored numbers, nothing flagged changed); the locked pages' scene numbers through
-Renumber and Undo; the pane's buttons. Shots: `SHOT_DIR=… go test -run TestUnlockDialogScreenshots` (unlock-wide.png,
+Renumber, Undo and Remove (three long scenes, pages starting in 1A and 2); a tag, done mark and strip on a scene
+that is then omitted, through Renumber, Undo and Remove (none moves to the hall, which gets its number); a number
+retyped through a duplicate, and Renumber from a duplicate; the pane's buttons. Shots: `SHOT_DIR=… go test -run TestUnlockDialogScreenshots` (unlock-wide.png,
 unlock-phone.png, combo-prodpane-locked-wide/phone.png).
 
 **Rough**

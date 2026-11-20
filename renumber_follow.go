@@ -19,6 +19,12 @@ import (
 // The window keeps the numbers it last saw; they are compared once typing
 // pauses (updateBreakdown), whenever the tags or strips are found
 // (breakdownNowFound), and right around the commands that change them.
+// A number two scenes share is no one's: it is renamed only where a tag or
+// strip was found, and the window does not take a text with a number
+// twice as the one it saw (a number being retyped, #12# → #1# → #13#,
+// passes through one), but waits for the next. An OMITTED scene that went
+// (Renumber, Remove) takes its number with it: what named it is lost, not
+// moved to the scene that has the number now.
 
 // numbersSeen is the scene numbers the extras were last brought in line
 // with: the script's (key), its text, its headings' words and numbers
@@ -27,24 +33,58 @@ type numbersSeen struct {
 	key, text string
 	heads     []string
 	nums      []string
+	omitted   []string // the OMITTED scenes' numbers
 }
 
 // sceneSignature are a text's headings (their words, without number) and
-// numbers, in order, OMITTED ones left out.
-func sceneSignature(text string, starts []string) (heads, nums []string) {
+// numbers, in order, OMITTED ones left out (their numbers apart).
+func sceneSignature(text string, starts []string) (heads, nums, omitted []string) {
 	for _, h := range sceneHeads(text[:bodyEndByte(text)], starts) {
 		if isOmitted(h) {
+			omitted = append(omitted, h.num)
 			continue
 		}
 		heads = append(heads, bdHeadingKey(h.text))
 		nums = append(nums, h.num)
 	}
-	return heads, nums
+	return heads, nums, omitted
+}
+
+// counts is how often each number is in nums.
+func counts(nums []string) map[string]int {
+	c := map[string]int{}
+	for _, n := range nums {
+		if n != "" {
+			c[n]++
+		}
+	}
+	return c
+}
+
+// hasTwice tells whether a number is in nums more than once.
+func hasTwice(nums ...[]string) bool {
+	c := map[string]int{}
+	for _, ns := range nums {
+		for _, n := range ns {
+			if n != "" {
+				c[n]++
+				if c[n] > 1 {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // followSceneNumbers brings the breakdown and the schedule in line with
 // the script's numbers, if only those changed since it last looked.
-func (w *MainWindow) followSceneNumbers() {
+func (w *MainWindow) followSceneNumbers() { w.followNumbers(false) }
+
+// followNumbers is followSceneNumbers; anyway: take the text as seen even
+// with a number twice (before Renumber or Remove, which end that), though
+// nothing is renamed into it.
+func (w *MainWindow) followNumbers(anyway bool) {
 	if w.markdown || w.textEditor == nil {
 		return
 	}
@@ -54,9 +94,13 @@ func (w *MainWindow) followSceneNumbers() {
 		return
 	}
 	starts := w.sceneStarts()
-	heads, nums := sceneSignature(text, starts)
-	w.numbers = numbersSeen{key: key, text: text, heads: heads, nums: nums}
-	if old.key != key || !slices.Equal(old.heads, heads) || slices.Equal(old.nums, nums) {
+	heads, nums, omitted := sceneSignature(text, starts)
+	twice := hasTwice(nums, omitted)
+	if twice && !anyway && old.key == key {
+		return // a number being retyped, say: wait for the next
+	}
+	w.numbers = numbersSeen{key: key, text: text, heads: heads, nums: nums, omitted: omitted}
+	if twice || old.key != key || !slices.Equal(old.heads, heads) || (slices.Equal(old.nums, nums) && slices.Equal(old.omitted, omitted)) {
 		return
 	}
 	// old number → new; a scene that had none, by its heading and which
@@ -68,10 +112,18 @@ func (w *MainWindow) followSceneNumbers() {
 	}
 	given := map[place]string{}
 	nth := map[string]int{}
+	once := counts(append(append([]string(nil), old.nums...), old.omitted...))
+	for _, n := range old.omitted {
+		if once[n] == 1 && !slices.Contains(omitted, n) {
+			to[n] = "" // the OMITTED scene went, its number with it
+		}
+	}
 	for i, n := range old.nums {
 		switch {
 		case n != "" && n != nums[i]:
-			to[n] = nums[i]
+			if once[n] == 1 {
+				to[n] = nums[i]
+			}
 		case n == "" && nums[i] != "":
 			given[place{heads[i], nth[heads[i]]}] = nums[i]
 		}

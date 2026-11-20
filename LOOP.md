@@ -375,6 +375,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   is one undo step, with the page lock's scene numbers in the same step. The breakdown's tags and done marks and the
   schedule's strips (and the board's Undo) follow by place when only the numbers changed. That covers Lock, Remove,
   Renumber, and Undo/Redo, including the editor's own Ctrl+Z after the pause. Strips' sums are carried over, so
-  nothing is flagged as changed. The pane's Lock stage has Unlock… and Renumber beside "Scene Numbers Locked", and
+  nothing is flagged as changed. Nothing is renamed into a duplicate number (a retyped number waits), and an OMITTED
+  scene that went takes its number with it. The pane's Lock stage has Unlock… and Renumber beside "Scene Numbers Locked", and
   its count says "Numbers locked, not issued". Shots: SHOT_DIR=… go test -run TestUnlockDialogScreenshots. Rough:
   the pre-lock check rows don't offer them; anchors keep old numbers as context words. Next: the Adaptation menu.

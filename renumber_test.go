@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +11,8 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/lexington/lex"
 )
 
 // a script with one number typed by hand before the lock (#7#), a note
@@ -298,39 +302,77 @@ func TestRenumberKeepsTagsAndStrips(t *testing.T) {
 	check("remove undone", "3")
 }
 
-// The locked pages' scenes follow Renumber in the same undo step.
+// threeLongScenes is three scenes, each over a page long.
+func threeLongScenes() string {
+	var b strings.Builder
+	b.WriteString("Title: Pages\n\n")
+	for _, h := range []string{"INT. HOUSE - DAY", "EXT. GARDEN - DAY", "INT. HOUSE - NIGHT"} {
+		b.WriteString(h + "\n\n")
+		for i := range 40 {
+			fmt.Fprintf(&b, "Line %d of %s goes on for a while, long enough to wrap once on the page.\n\n", i, strings.ToLower(h))
+		}
+	}
+	return b.String()
+}
+
+// The locked pages' scenes follow Renumber and Remove in the same undo
+// step.
 func TestRenumberFollowsLockedPages(t *testing.T) {
 	holdUI(t)
-	w, _ := scriptWindow(t, revScript)
+	w, _ := scriptWindow(t, threeLongScenes())
 	w.lockSceneNumbers()
-	text := w.textEditor.Text()
-	// make the second scene an A-scene, so Renumber changes the numbers after it
-	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
-	if len(heads) < 3 {
-		t.Fatalf("heads %v", heads)
-	}
+	// the second scene an A-scene, so Renumber changes the numbers from it
 	replaceText(t, w, "#2#", "#1A#")
+	replaceText(t, w, "#3#", "#2#")
 	w.lockPages()
 	waitFor(t, "the pages locked", func() bool { return pageLockOf(w.textEditor.Text()) != nil })
 	before := pageLockOf(w.textEditor.Text())
+	var scenes []string
+	for _, p := range before.lock.Pages {
+		scenes = append(scenes, p.Scene)
+	}
+	if !slices.Contains(scenes, "1A") || !slices.Contains(scenes, "2") {
+		t.Fatalf("pages' scenes %v: none starts in 1A or 2", scenes)
+	}
 	w.renumberNow()
 	after := pageLockOf(w.textEditor.Text())
 	if after == nil || len(after.lock.Pages) != len(before.lock.Pages) {
 		t.Fatalf("the page lock: %+v", after)
 	}
+	to := map[string]string{"1": "1", "1A": "2", "2": "3", "": ""}
 	for i, p := range before.lock.Pages {
-		want := p.Scene
-		if want == "1A" {
-			want = "2"
-		}
-		if after.lock.Pages[i].Scene != want {
-			t.Errorf("page %s: scene %q, want %q", p.Label, after.lock.Pages[i].Scene, want)
+		if got := after.lock.Pages[i].Scene; got != to[p.Scene] {
+			t.Errorf("page %s: scene %q, want %q", p.Label, got, to[p.Scene])
 		}
 	}
 	w.undo()
-	if got := pageLockOf(w.textEditor.Text()); got.lock.Pages[len(got.lock.Pages)-1].Scene != before.lock.Pages[len(before.lock.Pages)-1].Scene {
-		t.Error("Undo did not bring the page lock's numbers back")
+	if got := pageLockOf(w.textEditor.Text()); !slices.EqualFunc(got.lock.Pages, before.lock.Pages, func(a, b lex.LockedPage) bool { return a == b }) {
+		t.Error("Undo did not bring the page lock back")
 	}
+	w.unlockNow(true)
+	removed := pageLockOf(w.textEditor.Text())
+	if removed == nil {
+		t.Fatal("Remove took the page lock out")
+	}
+	for _, p := range removed.lock.Pages {
+		if p.Scene != "" {
+			t.Errorf("page %s still names scene %q", p.Label, p.Scene)
+		}
+	}
+	// every page still in the block (its scene "none": found by its words)
+	if got := len(lex.ParsePageLock(mustProductionBlock(t, w)).Pages); got != len(before.lock.Pages) {
+		t.Errorf("%d pages after Remove, %d before", got, len(before.lock.Pages))
+	}
+}
+
+// mustProductionBlock is the script's production block's inside.
+func mustProductionBlock(t *testing.T, w *MainWindow) string {
+	t.Helper()
+	inside, ok := productionBlock(w.textEditor.Text())
+	if !ok {
+		t.Fatal("no production block")
+	}
+	return inside
 }
 
 // The pane's Lock stage: Unlock and Renumber beside Lock once locked.
@@ -388,4 +430,102 @@ func TestUnlockDialogScreenshots(t *testing.T) {
 	// the pane's Lock stage, locked: Unlock and Renumber beside it
 	prodPane(t, w)
 	comboShot(t, w, "prodpane-locked")
+}
+
+// a locked script whose third scene will be omitted
+const omitFollowScript = "INT. HOUSE - DAY #1#\n\nRain.\n\nINT. HALL - DAY #1A#\n\nCoats.\n\nINT. CELLAR - NIGHT #2#\n\nDark cellar stairs creak.\n\nINT. HOUSE - NIGHT #3#\n\nDry stairs creak too.\n\n/* Production\nscene numbers: locked, 10A\nnumbered before the lock: none\n*/\n"
+
+// What named an OMITTED scene that Renumber or Remove takes away does not
+// move to the scene that gets its number; Undo keeps it off it too.
+func TestRenumberDropsOmittedKeys(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, omitFollowScript)
+	tagNow(t, w, "stairs creak", 0, "Props")
+	w.markSceneDone(2)
+	sb := board(t, w)
+	w.addShootDay()
+	sb.selectScene(2, false)
+	sb.moveSelected(0, 0)
+	w.textEditor.SetCursorOffset(len([]rune(omitFollowScript[:strings.Index(omitFollowScript, "Dark cellar")])))
+	w.omitScene()
+	if !strings.Contains(w.textEditor.Text(), ".OMITTED #2#") {
+		t.Fatalf("not omitted:\n%s", w.textEditor.Text())
+	}
+	// none of it on another scene: the hall gets the cellar's 2, the house
+	// at night shares its words
+	notOnHouseNight := func(what string) {
+		t.Helper()
+		others := []int{editorLineWith(t, w, "INT. HALL - DAY"), editorLineWith(t, w, "INT. HOUSE - NIGHT")}
+		dry := editorLineWith(t, w, "Dry stairs creak")
+		if got := tagLine(w, "stairs creak"); got == dry {
+			t.Errorf("%s: the cellar's tag moved to the house at night", what)
+		}
+		f, bt, p := w.scheduleFound()
+		for _, sc := range p.scenesOf(0) {
+			if slices.Contains(others, bt.scenes[sc].line) {
+				t.Errorf("%s: the cellar's strip moved to %q (%+v)", what, bt.scenes[sc].heading, f.Days[0].Strips)
+			}
+		}
+		for _, s := range bt.scenes {
+			if slices.Contains(others, s.line) && w.breakdownNow().isDone(s) {
+				t.Errorf("%s: %q marked done", what, s.heading)
+			}
+		}
+	}
+	w.renumberNow()
+	if !strings.Contains(w.textEditor.Text(), "INT. HOUSE - NIGHT #3#") || strings.Contains(w.textEditor.Text(), "OMITTED") {
+		t.Fatalf("renumbered:\n%s", w.textEditor.Text())
+	}
+	notOnHouseNight("renumbered")
+	w.undo()
+	notOnHouseNight("undone")
+	w.unlockNow(true)
+	notOnHouseNight("removed")
+}
+
+// A number retyped through a number twice (#2# → #1# → #5#) and a
+// Renumber from a number twice keep what names a scene on it.
+func TestFollowThroughDuplicateNumbers(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, followScript)
+	w.lockSceneNumbers()
+	tagNow(t, w, "revolver", 1, "Props") // the second kitchen, 3
+	w.markSceneDone(0)
+	sb := board(t, w)
+	w.addShootDay()
+	sb.selectScene(1, false) // the street, 2
+	sb.moveSelected(0, 0)
+	keys := func() (string, string) {
+		f := w.scheduleNow()
+		return f.Days[0].Strips[0].Scene, w.breakdownNow().Tags[0].Scene
+	}
+	replaceText(t, w, "EXT. STREET - NIGHT #2#", "EXT. STREET - NIGHT #1#")
+	w.updateBreakdown()
+	replaceText(t, w, "EXT. STREET - NIGHT #1#", "EXT. STREET - NIGHT #5#")
+	w.updateBreakdown()
+	if s, tag := keys(); s != "5" || tag != "3" {
+		t.Errorf("retyped: strip %q, tag %q", s, tag)
+	}
+	_, _, p := w.scheduleFound()
+	if got := p.scenesOf(0); len(got) != 1 || got[0] != 1 {
+		t.Errorf("retyped: the strip on %v", got)
+	}
+	// a number twice, then Renumber
+	replaceText(t, w, "EXT. STREET - NIGHT #5#", "EXT. STREET - NIGHT #1#")
+	w.updateBreakdown()
+	w.renumberNow()
+	if !strings.Contains(w.textEditor.Text(), "EXT. STREET - NIGHT #2#") {
+		t.Fatalf("renumbered:\n%s", w.textEditor.Text())
+	}
+	_, bt, p := w.scheduleFound()
+	if got := p.scenesOf(0); len(got) != 1 || got[0] != 1 {
+		t.Errorf("renumbered: the strip on %v", got)
+	}
+	bf := w.breakdownNow()
+	if !bf.isDone(bt.scenes[0]) || bf.isDone(bt.scenes[1]) || bf.isDone(bt.scenes[2]) {
+		t.Errorf("done marks %+v", bf.Done)
+	}
+	if got := tagLine(w, "revolver"); got != editorLineWith(t, w, "The revolver is gone") {
+		t.Errorf("the tag on line %d", got)
+	}
 }

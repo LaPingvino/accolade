@@ -248,7 +248,7 @@ func (w *MainWindow) applyNumberPlan(heads []sceneHead, p numberPlan, inside str
 	text := e.Text()
 	lines := strings.Split(text, "\n")
 	_, _, pb, _ := allTails(text)
-	w.followSceneNumbers() // the extras in line with the text before
+	w.followNumbers(true) // the extras in line with the text before
 	start, end, block := withProductionBlock(text, inside)
 	if strings.TrimSpace(inside) == "" { // the block goes
 		block = ""
