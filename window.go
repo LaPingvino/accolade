@@ -116,10 +116,16 @@ type MainWindow struct {
 
 	// Auto-save (autosave.go)
 	autoSaveTimer *uiTimer
-	timers        uiTimers      // the window's (background.go)
-	followTimer   *uiTimer      // the source pane's follow, after typing
-	seenRev       uint64        // the text's revision the cursor was last seen in
-	importGen     int           // the import under way (a later one wins)
+	timers        uiTimers // the window's (background.go)
+	followTimer   *uiTimer // the source pane's follow, after typing
+	seenRev       uint64   // the text's revision the cursor was last seen in
+	importGen     int      // the import under way (a later one wins)
+	bundleSrc     struct { // the bundle's source, decoded (sourceText)
+		raw  []byte
+		text string
+		ok   bool
+	}
+	draftTimer    *uiTimer      // the browser keeping the script, after typing
 	sourceGen     int           // the Choose Source under way
 	autoSaveDelay time.Duration // overrides the setting; for tests
 
@@ -861,10 +867,16 @@ func (w *MainWindow) restore(d kept) {
 	w.setStatus("Your script not saved yet, as this browser kept it")
 }
 
+// draftPause is how long typing pauses before the browser keeps the
+// script (browser_js.go's keepDraft).
+const draftPause = time.Second
+
 func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
-	if inBrowser {
-		keepDraft(kept{Text: text, Language: w.language, File: w.currentFile, Name: w.suggestedName, Markdown: w.markdown})
+	if inBrowser { // kept when typing pauses: the whole script is written each time
+		w.debounce(&w.draftTimer, draftPause, func() {
+			keepDraft(kept{Text: w.textEditor.Text(), Language: w.language, File: w.currentFile, Name: w.suggestedName, Markdown: w.markdown})
+		})
 	}
 	w.shareEdit(text)
 	w.updateTitle()

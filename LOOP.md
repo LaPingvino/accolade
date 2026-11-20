@@ -122,3 +122,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   as names, the narrator-as-addressee ("disse-me"). Next: step 6, suggestions while writing.
 - 2026-11-20: NEXT, before step 6 (Joop: "loading and editing source files kinda freezes the web app"): the fixes in docs/PERF-SOURCE.md, worst first; with them the autosave/theme data race seen under -race.
 - 2026-11-20 (Joop): after the PERF fixes, before step 6 — work through every combination of source × screenplay and make each feel natural: source none / exists (beside, kept, in the script, in a bundle) / partial; screenplay none (new, empty) / exists / partial; and both partial. For each: what a writer sees first, what they can do next, where it is awkward. Likely gaps to look for: starting a screenplay from only a source (a new script with the source attached and its chapters as sections, Next ready); adding a source to an existing screenplay with no links (suggest links by matching scenes' dialogue/action to passages, accept per scene); a screenplay that already covers part of the source (statuses right from the start, Next continuing after the covered part); a source that is still being written (passages added later, links holding). A scenario test per combination (fyne test driver), screenshots of the first view for each, fixes for what is awkward.
+- 2026-11-20: PERF-SOURCE 1–9 on branch perfsource (not merged). The source is edited in our editor; the tail blocks
+  are found by a scan of the text's end, cached per text; link matches are cached; the pane follows edits after a
+  200 ms pause; rows are estimated, then measured in stretches; the source is split into passages, and Choose
+  Source and Import convert, in the background, yielding every ~20 ms (internal/pace); the draft is kept after a 1 s
+  pause; old kept copies are deleted; stats and the editor layout are cached; a window's timers stop with it (the
+  auto-save race). Per keystroke with the pane shown: 173→20 ms, with the source in the script 799→60 ms. Cursor
+  move: 39→6 ms, inside 365→9 ms. First open: 3.2 s→29 ms on the UI goroutine. Numbers: docs/PERF-SOURCE.md.
+  Left: incremental wrap in the editor; bundle zipping off the UI goroutine.

@@ -264,12 +264,35 @@ func (w *MainWindow) useSourceText(path, md string) error {
 	if w.bundle != nil {
 		return w.saveBundleSource(md)
 	}
+	old := w.chosenSource(w.currentFile)
 	kept, err := keepSourceCopy(filepath.Base(path), md)
 	if err != nil {
 		return fmt.Errorf("could not keep the source: %v", err)
 	}
 	w.rememberSource(w.currentFile, kept)
+	w.dropKeptCopy(old)
 	return nil
+}
+
+// dropKeptCopy deletes a source copy Accolade kept, once no script has it
+// (a novel per copy soon filled the browser's storage).
+func (w *MainWindow) dropKeptCopy(p string) {
+	dir := keptSourcesDir() + string(filepath.Separator)
+	if p == "" || !strings.HasPrefix(p, dir) || p == w.unsavedSource {
+		return
+	}
+	if w.settings != nil {
+		for _, e := range w.settings.GetStringSlice("source-files") {
+			if strings.HasSuffix(e, "\t"+p) {
+				return
+			}
+		}
+	}
+	if folder := filepath.Dir(p); folder+string(filepath.Separator) != dir {
+		os.RemoveAll(folder) // its own folder (keepSourceCopy)
+	} else {
+		os.Remove(p)
+	}
 }
 
 // sourceText is the source's Markdown as it is now.
@@ -278,8 +301,13 @@ func (w *MainWindow) sourceText(r sourceRef) (string, error) {
 	case sourceInside:
 		_, _, md, _ := sourceBlock(w.textEditor.Text())
 		return md, nil
-	case sourceBundle:
-		text, _ := decodeScript(w.bundle.srcText)
+	case sourceBundle: // decoded once per bundle as read (the pane asks on every cursor move)
+		raw := w.bundle.srcText
+		if c := &w.bundleSrc; c.ok && len(c.raw) == len(raw) && (len(raw) == 0 || &c.raw[0] == &raw[0]) {
+			return c.text, nil
+		}
+		text, _ := decodeScript(raw)
+		w.bundleSrc.raw, w.bundleSrc.text, w.bundleSrc.ok = raw, text, true
 		return text, nil
 	case sourceKept, sourceBeside:
 		data, err := os.ReadFile(r.Path)

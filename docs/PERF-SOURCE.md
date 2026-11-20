@@ -7,8 +7,8 @@ The test fixture:
 - a novel of 536 KB: 101k words in 2592 passages;
 - a script of 160 KB: 200 scenes and 200 links (180 exact, 15 near, 5 missing).
 
-The benchmarks are kept outside the repo (perf_bench_test.go, in the session scratchpad). They are to be added as
-real benchmarks with the fixes.
+The benchmarks are in source_bench_test.go now, with the fixture made in the test
+(`go test -run '^$' -bench . -benchmem`). What was done, and the numbers after, are under "Done" at the end.
 
 In the browser, Go runs on the page's one thread. A goroutine only gives control back to the page when every
 goroutine is blocked, and `runtime.Gosched` is not enough for that. So long work also has to block now and then,
@@ -77,3 +77,78 @@ No action is needed on `inSpan`, `count`, `spanAt`, `linked` (each a microsecond
 
 Also to look at with these fixes: an occasional data race between the autosave timer and Fyne's theme code
 (autosave.go), seen in the race test run of step 5.
+
+## Done (2026-11-20, branch perfsource)
+
+Native numbers come from this VPS, which was under load, so they are rough. Wasm numbers come from node, with
+`GOOS=js GOARCH=wasm go test -c`, a small page shim and 5 runs each. In the browser most of the remaining slow work
+runs in the background now, and pauses for 1 ms every ~20 ms (internal/pace).
+
+| Hotspot | Before | After |
+|---|---|---|
+| 1. Edit opens the novel / a key in it | 17.6 s / 1.8 s per key at 100 KB (Entry) | 51 ms / 44 ms per key for the whole 536 KB novel (internal/editor, Markdown mode) |
+| 2. Tail-block scan, script plus source kept in it | 82 ms native, 765 ms wasm, ×7 per key | 2.5 ms native, 5 ms wasm for a new text; 0.1 µs for the same text again |
+| 2. The same for the plain script | 5.4 ms | 0.33 ms |
+| 3. Model rebuild per key | 110 ms (inside: 205 ms) | 4.9 ms native, 11 ms wasm; runs once, 200 ms after typing pauses |
+| 3. One near or missing link | 3.4 ms | 0.85 ms (prefixDistance stops at len(a)+limit; matches kept per link) |
+| 3. Keystroke with the pane shown (UI goroutine) | 173 ms (inside: 799 ms) | 20 ms (inside: 60 ms) |
+| 3. The follow after the pause | — | 4.5 ms (inside: 5.7 ms) |
+| 8./9. Cursor move, pane shown | 39 ms (inside: 365 ms) | 5.6 ms (inside: 8.8 ms) |
+| 8./9. Cursor move, pane hidden | 35 ms (inside: 296 ms†) | 4.5 ms (inside: 13 ms) |
+| 4. passagesOf(novel) | 206 ms | 93 ms native, 843 ms wasm; in the background |
+| 4. First open on the UI goroutine | 3.2 s | 29 ms (rows estimated; measuring follows in stretches, rows in view first) |
+| 4. A width change (split-drag step) | 1.76–2.2 s | 33 ms, after a 150 ms debounce |
+| 5. Convert DOCX / ODT / HTML | 143 / 154 / 79 ms native; DOCX 619 ms wasm | 104 / 71 / 28 ms native; 507 / 294 / 124 ms wasm, in the background |
+| 9. computeStats on a cursor move | 18 ms (inside: 87 ms) | 2 µs native, ~3 ms wasm (counted once per text) |
+
+† measured for a keystroke with the pane hidden.
+
+What changed:
+1. **Source editor.** The source is edited in `sourceEditor`, which is internal/editor in Markdown mode inside a scroll.
+2. **Tail blocks.** `notesMarks.at` is a plain scan of the text's end:
+   - forward `strings.Index` only, since `LastIndex` was slow;
+   - the old regexp is kept in tails_test.go and compared with the scan on 20 000 generated texts.
+
+   `tailsOf` works in bytes and remembers the last text it was given. `Buffer.Text` is now made once per change
+   (`Buffer.Rev`), so the many calls in one event all get the same string and hit that cache. The Notes block uses
+   the same code.
+3. **Links.**
+   - `linkMatcher` keeps every link's match for as long as the passages stay the same, and finds exact matches through
+     a first-word index.
+   - `prefixDistanceIn` is bounded and reuses its row.
+   - `followSource` follows a cursor move at once, and an edit once, after a 200 ms pause.
+   - A direct `follow` cancels a pending one.
+4. **Rows.**
+   - The rows are estimated first, then measured a stretch at a time on the UI goroutine (`repeat`), the rows in view
+     first.
+   - Many `SetItemHeight` calls are made with the list briefly empty, because each call lays the whole list out again.
+   - A row's RichText is parsed again only when its Markdown changed.
+   - A source of 64 KB or more is split into passages in a goroutine.
+   - `prose.collapse` is a loop now; it was half of `passagesOf`.
+5. **Choose Source and Import** convert in `inBackground`. A result is dropped if another Choose Source or Import came
+   after it, or if another script was opened meanwhile (`takeChosenSource`). The PDF progress callback yields.
+6. **Browser.**
+   - `keepDraft` waits for a 1 s pause in typing.
+   - memfs.js no longer keeps `*.tmp` files and encodes in 32 KB chunks.
+   - Choosing a new source deletes the copy Accolade kept of the old one, once no script uses it.
+7. **Bundles.** `fresh` reads the zip again only if its file's time or size changed since Accolade last read or wrote it.
+8. **Cursor moves.** A bundle's source is decoded once per bundle read. The file `Stat`s stay on the cursor path: a
+   source changed in another app is still seen on the next cursor move.
+9. **Stats and layout.**
+   - The stats are counted once per text.
+   - The editor keeps its wrap and classification while the text, the width and the cursor's line stay the same (a
+     cursor move used to wrap the whole script again).
+   - The status bar takes the line kinds from the editor's layout.
+
+The data race: a window's timers (`after`, background.go) stop when the window closes, and in the tests at cleanup.
+Before, the 30 s auto-save timer of an earlier test's window fired during TestBundleFromPlain. Under the test driver,
+`fyne.Do` runs on the timer's goroutine. The tests run debounces and background work at once (background_test.go).
+The real paths have their own tests in background_real_test.go, which does not build under -race.
+
+Left:
+- A keystroke still makes the editor wrap and classify the whole text again: 20 ms for the 160 KB script, 60 ms with
+  the novel kept in it. An incremental wrap is the next step for long scripts.
+- Saving a bundle still zips on the UI goroutine. Making it a goroutine needs the bundle state handed over with care.
+- goldmark's parse and x/net/html's parse cannot yield inside. In wasm they are about 10% of a novel's
+  conversion.
+- The window benchmarks don't run under node yet: Fyne's wasm driver wants more of a page than the shim gives.

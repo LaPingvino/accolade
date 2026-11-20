@@ -165,3 +165,29 @@ func TestChosenSourceForItsScript(t *testing.T) {
 		t.Errorf("not kept: %+v", w.sourceRef())
 	}
 }
+
+// A source chosen again replaces the copy kept of the one before: its
+// folder goes (the browser's storage filled with old copies).
+func TestOldKeptCopyDropped(t *testing.T) {
+	w, _ := sourceWindow(t, sourceScript, sourceStory)
+	dir := t.TempDir()
+	a, b := filepath.Join(dir, "a.md"), filepath.Join(dir, "b.md")
+	os.WriteFile(a, []byte("# A\n"), 0o644)
+	os.WriteFile(b, []byte("# B\n"), 0o644)
+	if err := w.useSource(a); err != nil {
+		t.Fatal(err)
+	}
+	first := w.sourceRef().Path
+	if err := w.useSource(b); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Dir(first)); !os.IsNotExist(err) {
+		t.Errorf("the old copy's folder is still there: %v", err)
+	}
+	if _, err := os.Stat(w.sourceRef().Path); err != nil {
+		t.Errorf("the new copy: %v", err)
+	}
+	if _, err := os.Stat(a); err != nil {
+		t.Errorf("the chosen file itself went: %v", err)
+	}
+}

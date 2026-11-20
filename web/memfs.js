@@ -26,15 +26,21 @@
 	const parent = (p) => norm(p.replace(/\/[^/]*$/, "") || "/");
 	// files under globalThis.memfsPersist's folders are kept in the
 	// browser's local storage: written, renamed into place, removed
-	const keep = (p) => (globalThis.memfsPersist || []).some((d) => p.startsWith(d));
+	// (not a temporary file: a save writes one and renames it into place,
+	// and keeping it too encoded every save twice)
+	const keep = (p) => !p.endsWith(".tmp") && (globalThis.memfsPersist || []).some((d) => p.startsWith(d));
 	const store = (p) => {
 		if (!keep(p)) return;
 		const n = nodes.get(p);
 		try {
 			if (!n || n.dir) localStorage.removeItem("memfs:" + p);
 			else {
-				let s = ""; for (const b of n.data) s += String.fromCharCode(b);
-				localStorage.setItem("memfs:" + p, btoa(s));
+				// to a binary string in chunks (a character at a time took tens
+				// of milliseconds for a novel)
+				const parts = [];
+				for (let i = 0; i < n.data.length; i += 0x8000)
+					parts.push(String.fromCharCode.apply(null, n.data.subarray(i, i + 0x8000)));
+				localStorage.setItem("memfs:" + p, btoa(parts.join("")));
 			}
 		} catch (e) { console.warn("could not keep " + p + ": " + e); }
 	};

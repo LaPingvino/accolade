@@ -82,6 +82,10 @@ type textBundle struct {
 	path   string
 	zipped bool
 	raw    []byte // a zip as read or written last: what is copied through
+	// a zip's file's time and size as read or written last: fresh reads
+	// it again only if they changed (another app wrote it)
+	stampTime time.Time
+	stampSize int64
 	// prefix is the folder holding the bundle in a zip ("Name.textbundle/"),
 	// "" for files at its root
 	prefix   string
@@ -186,7 +190,11 @@ func readBundle(p string) (*textBundle, []byte, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	return parseZipBundle(p, data)
+	b, text, err := parseZipBundle(p, data)
+	if err == nil && st.Size() == int64(len(data)) {
+		b.stampTime, b.stampSize = st.ModTime(), st.Size()
+	}
+	return b, text, err
 }
 
 // parseZipBundle reads a zipped bundle from its bytes.
@@ -391,6 +399,11 @@ func saveBundleSource(b *textBundle, md []byte) (*textBundle, error) {
 // bundle (its layout and text file): what another app changed in it since
 // is kept. Else (gone, emptied by a save dialog, made over) as read.
 func (b *textBundle) fresh() *textBundle {
+	if b.zipped && !b.stampTime.IsZero() { // unchanged since read or written here: as it is
+		if st, err := os.Stat(b.path); err == nil && st.Size() == b.stampSize && st.ModTime().Equal(b.stampTime) {
+			return b
+		}
+	}
 	nb, _, err := readBundle(b.path)
 	if err != nil || nb.zipped != b.zipped || nb.prefix != b.prefix || nb.textName != b.textName {
 		return b
@@ -478,6 +491,9 @@ func writeBundle(b *textBundle, dst string, files []bundleFile) (*textBundle, er
 		return nil, err
 	}
 	nb, _, err := parseZipBundle(dst, data)
+	if st, serr := os.Stat(dst); err == nil && serr == nil && st.Size() == int64(len(data)) {
+		nb.stampTime, nb.stampSize = st.ModTime(), st.Size()
+	}
 	return nb, err
 }
 
