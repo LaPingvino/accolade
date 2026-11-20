@@ -50,7 +50,7 @@ type windowState struct {
 	currentFile, suggestedName, plainBundle, language string
 	unsavedSource, unsavedExtras                      string
 	bundle                                            *textBundle
-	markdown, hasChanges                              bool
+	markdown, hasChanges, noFountainCopy              bool
 }
 
 // beginJournal starts a journal of the window as it is.
@@ -64,7 +64,7 @@ func (w *MainWindow) beginJournal(from, to string) *fileJournal {
 	j.state = windowState{
 		currentFile: w.currentFile, suggestedName: w.suggestedName, plainBundle: w.plainBundle, language: w.language,
 		unsavedSource: w.unsavedSource, unsavedExtras: w.unsavedExtras,
-		bundle: w.bundle, markdown: w.markdown, hasChanges: w.hasChanges,
+		bundle: w.bundle, markdown: w.markdown, hasChanges: w.hasChanges, noFountainCopy: w.noFountainCopy,
 	}
 	return j
 }
@@ -204,6 +204,7 @@ func (w *MainWindow) rollback(j *fileJournal) error {
 	if w.language != s.language {
 		w.setLanguage(s.language)
 	}
+	w.noFountainCopy = s.noFountainCopy
 	w.hasChanges = s.hasChanges || w.textEditor.Text() != j.text
 	w.updateTitle()
 	w.ribbonRefresh()
@@ -335,21 +336,37 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	if r.rename && r.how == flattenDrop { // the bundle goes: nothing would keep them
 		r.how = flattenKept
 	}
+	lang, noCopy := w.langAfter(r)
 	if r.rename && r.from == "" { // not saved yet: only the name it will be saved by
 		w.suggestedName = filepath.Base(r.to)
+		w.setLanguage(lang)
+		w.noFountainCopy = noCopy
 		w.afterNewName(oldName, "", filepath.Base(r.to))
 		done(nil)
 		return nil
 	}
 	same := r.from != "" && (absPath(r.from) == absPath(r.to) || sameFile(r.from, r.to))
 	if same && r.rename && filepath.Base(r.from) == filepath.Base(r.to) {
-		done(nil)
-		return nil // nothing to do
+		if !w.reforms(r) && lang == w.language && noCopy == w.noFountainCopy {
+			done(nil)
+			return nil // nothing to do
+		}
+		// the same file, in another language: saved so (Edit > Script
+		// Language… changes it back)
+		w.setLanguage(lang)
+		w.noFountainCopy = noCopy
+		w.hasChanges = true
+		if err := w.saveToFile(r.from); err != nil {
+			return err
+		}
+		w.afterBundleWrites(func() { done(nil) })
+		return nil
 	}
 	if _, err := os.Lstat(r.to); err == nil && r.rename && !same {
 		return fmt.Errorf("%s already exists", filepath.Base(r.to))
 	}
 	fromKind, toKind := w.kinds(r)
+	reform := w.reforms(r)
 	ref := sourceRef{}
 	if !w.markdown {
 		ref = w.sourceRef()
@@ -359,6 +376,9 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	j.rename = r.rename
 	j.carried = carries(fromKind, toKind, ref)
 	w.relocating = j
+	// the language and the Fountain copy as chosen (rollback puts them back)
+	w.setLanguage(lang)
+	w.noFountainCopy = noCopy
 	// what may be made for the new name, to know it was
 	keptSource, keptExtras := w.chosenSource(r.to), w.chosenExtras(r.to)
 	oldSource, oldExtras := w.chosenSource(r.from), w.chosenExtras(r.from) // moved, not made
@@ -405,7 +425,7 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	}
 	var after []func() // once the script is written: what the rename leaves behind
 	failures := w.saveFailures
-	if r.rename && sameKind(fromKind, toKind) {
+	if r.rename && sameKind(fromKind, toKind) && !reform {
 		// the same kind of file: renamed, the folder beside it too
 		wasPlain := w.isPlainBundle(r.from)
 		if err := j.move(r.from, r.to); err != nil {
@@ -545,7 +565,7 @@ func (w *MainWindow) afterNewName(oldName, oldPath, newName string) {
 	if w.currentFile != "" {
 		newPath = w.currentFile
 	}
-	if l := languageOf(newName); l != "" && l != w.language {
+	if l := languageOf(newName); l != "" && l != w.language && bundleKindOf(newName) == notBundle {
 		w.setLanguage(l)
 	}
 	w.typeAfterRename(oldPath, oldName, newPath, newName)

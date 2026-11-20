@@ -28,8 +28,9 @@ import (
 //   - translate: the headings' words become what is chosen for each, from
 //     a proposal by Lexington's matchups (INT. to BIN.).
 //
-// Each way the file's name takes the language (scene.nl.fountain, an
-// English one none), which is where it is kept.
+// Each way a plain file's name takes the language (scene.nl.fountain, an
+// English one none), which is where it is kept; a bundle keeps it in its
+// info.json (script_text.go).
 
 // A languageChange is what changing the script's language does to its
 // text.
@@ -230,6 +231,10 @@ func (w *MainWindow) nameLanguage(lang string) error {
 			w.suggestedName = n
 		}
 		return nil
+	}
+	if w.writesBundle(w.currentFile) { // a bundle keeps it inside, its name as it is
+		w.hasChanges = true
+		return w.SaveFile()
 	}
 	to := withLanguageName(w.currentFile, lang)
 	if to == w.currentFile {

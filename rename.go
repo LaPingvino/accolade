@@ -74,6 +74,8 @@ type planPanel struct {
 	how      *widget.Select
 	hows     []flattenChoice
 	keepName *widget.Check
+	// copy: an .accolade in another language keeps text.fountain too
+	copy     *widget.Check
 	content  *fyne.Container
 	onChange func()
 }
@@ -95,6 +97,9 @@ func (w *MainWindow) newPlanPanel(rename bool, onChange func()) *planPanel {
 	p.how.OnChanged = func(string) { p.changed() }
 	fyne.SetAccessibleLabel(p.how, "Where the drafts and production files go")
 	p.keepName = widget.NewCheck("Keep the source's own name", func(bool) { p.changed() })
+	p.copy = widget.NewCheck("Keep a plain Fountain copy inside (text.fountain)", nil)
+	p.copy.Checked = !w.noFountainCopy
+	p.copy.OnChanged = func(bool) { p.changed() }
 	p.content = container.NewVBox(p.rows)
 	return p
 }
@@ -112,6 +117,8 @@ func (p *planPanel) fill(r *relocation) {
 		r.how = p.hows[i]
 	}
 	r.keepBesideName = p.keepName.Checked
+	noCopy := !p.copy.Checked
+	r.noCopy = &noCopy
 }
 
 // show shows r's plan, and the choices that matter for it.
@@ -135,6 +142,9 @@ func (p *planPanel) show(r relocation) {
 	}
 	fromKind, toKind := w.kinds(r)
 	var extra []fyne.CanvasObject
+	if lang, _ := w.langAfter(r); !w.markdown && dialect(lang) && strings.EqualFold(filepath.Ext(r.to), typeAccolade.ext) {
+		extra = append(extra, p.copy)
+	}
 	if fromKind != notBundle && toKind == notBundle && w.bundle != nil && len(w.bundle.extras) > 0 {
 		extra = append(extra, widget.NewLabel("Its drafts and production files go:"), p.how)
 	}
@@ -155,32 +165,52 @@ func (p *planPanel) show(r relocation) {
 // renameScript opens the rename editor: the base name, the script's
 // language and type, the resulting name live, and every file that
 // belongs to the script with where it goes. A full name typed with its
-// extension is taken as it is.
+// extension is taken as it is. The language is the script's: a plain
+// file's name says it as a dialect of Fountain (film.eo.fountain) if that
+// type is picked; a bundle keeps it in info.json, its name plain.
 func (w *MainWindow) renameScript() {
 	old := cmp.Or(w.scriptName(), w.untitledName())
 	parts := splitScriptName(old)
-	types := scriptTypes(w.markdown, inBrowser, old)
 	current := typeOfName(old, w.markdown)
+	if w.bundle == nil && w.isPlainBundle(w.currentFile) {
+		current = typeFountain
+	}
 
 	base := widget.NewEntry()
 	base.SetText(parts.base)
 	fyne.SetAccessibleLabel(base, "Name")
-	langs := append([]string{""}, scriptLanguages()...)
+	langs := scriptLanguages()
 	langLabels := make([]string, len(langs))
 	for i, l := range langs {
-		langLabels[i] = "Not in the name"
-		if l != "" {
-			langLabels[i] = languageLabel(l)
-		}
+		langLabels[i] = languageLabel(l)
 	}
 	lang := widget.NewSelect(langLabels, nil)
 	fyne.SetAccessibleLabel(lang, "Language")
-	typeLabels := make([]string, len(types))
-	for i, t := range types {
-		typeLabels[i] = t.label + " (" + t.ext + ")"
-	}
-	kind := widget.NewSelect(typeLabels, nil)
+	kind := widget.NewSelect(nil, nil)
 	fyne.SetAccessibleLabel(kind, "Type")
+	var types []fileType
+	// the types for a language: its dialect among them; the type picked
+	// stays (a dialect another language's)
+	setTypes := func(l string, keep fileType) {
+		types = scriptTypes(w.markdown, inBrowser, old, l)
+		labels := make([]string, len(types))
+		for i, t := range types {
+			labels[i] = t.label + " (" + t.shownExt() + ")"
+		}
+		kind.Options = labels
+		if keep.id == "dialect" {
+			keep = dialectType(l)
+			if !dialect(l) {
+				keep = typeFountain
+			}
+		}
+		if i := indexOfType(types, keep); i >= 0 {
+			kind.SetSelectedIndex(i)
+		} else {
+			kind.ClearSelected()
+		}
+		kind.Refresh()
+	}
 	keeps := widget.NewLabel("")
 	keeps.Wrapping = fyne.TextWrapWord
 	result := widget.NewLabel("")
@@ -195,11 +225,11 @@ func (w *MainWindow) renameScript() {
 	}
 
 	picked := func() (string, fileType) {
-		l, t := "", current
-		if i := lang.SelectedIndex(); i > 0 {
+		l, t := w.language, current
+		if i := lang.SelectedIndex(); i >= 0 && !w.markdown {
 			l = langs[i]
 		}
-		if i := kind.SelectedIndex(); i >= 0 {
+		if i := kind.SelectedIndex(); i >= 0 && i < len(types) {
 			t = types[i]
 		}
 		return l, t
@@ -208,12 +238,13 @@ func (w *MainWindow) renameScript() {
 	var d *dialog.ConfirmDialog
 	setting := false
 	name := func() string {
-		l, t := picked()
-		return composedName(base.Text, l, t)
+		_, t := picked()
+		return composedName(base.Text, t)
 	}
 	target := func() relocation {
 		n := renamedName(name(), old)
-		r := relocation{rename: true, from: w.currentFile, to: n}
+		l, _ := picked()
+		r := relocation{rename: true, from: w.currentFile, to: n, lang: l}
 		if w.currentFile != "" && n != "" {
 			r.to = filepath.Join(filepath.Dir(w.currentFile), n)
 		}
@@ -228,33 +259,46 @@ func (w *MainWindow) renameScript() {
 		if hasTypeExt(typed) { // a full name: the pickers follow it
 			setting = true
 			p := splitScriptName(typed)
-			lang.SetSelectedIndex(max(0, indexOf(langs, p.lang)))
-			t := typeOfName(typed, w.markdown)
-			if i := indexOfType(types, t); i >= 0 {
-				kind.SetSelectedIndex(i)
-			} else {
-				kind.ClearSelected()
+			l, _ := picked()
+			if p.lang != "" {
+				l = p.lang
+				lang.SetSelectedIndex(max(0, indexOf(langs, l)))
 			}
+			setTypes(l, typeOfName(typed, w.markdown))
 			setting = false
 		}
-		_, t := picked()
-		keeps.SetText(t.keeps(w.markdown, inBrowser))
+		l, t := picked()
+		keeps.SetText(t.keeps(w.markdown, inBrowser, l))
 		n := renamedName(name(), old)
 		if n == "" {
 			result.SetText("Becomes: (no name yet)")
 			plan.rows.RemoveAll()
 			return
 		}
-		result.SetText("Becomes: " + n)
-		plan.show(target())
+		r := target()
+		becomes := "Becomes: " + n
+		if lang, _ := w.langAfter(r); !w.markdown && !isMarkdownFile(n) && dialect(lang) && languageOf(n) == "" {
+			becomes += "  · " + languageName(lang) + ", " + languageHome(n, lang, bundleKindOf(n))
+		}
+		result.SetText(becomes)
+		plan.show(r)
 	}
 	plan = w.newPlanPanel(true, update)
 	base.OnChanged = func(string) { update() }
-	lang.OnChanged = func(string) { update() }
+	lang.OnChanged = func(string) {
+		if setting {
+			return
+		}
+		setting = true
+		l, t := picked()
+		setTypes(l, t)
+		setting = false
+		update()
+	}
 	kind.OnChanged = func(string) { update() }
 
 	form := widget.NewForm(widget.NewFormItem("Name", base))
-	if !w.markdown { // a document's name says no script language
+	if !w.markdown { // a document has no script language
 		form.Append("Language", lang)
 	}
 	form.Append("Type", kind)
@@ -278,10 +322,8 @@ func (w *MainWindow) renameScript() {
 		w.doRename(r)
 	}, w.fyneWindow)
 	setting = true
-	lang.SetSelectedIndex(max(0, indexOf(langs, parts.lang)))
-	if i := indexOfType(types, current); i >= 0 {
-		kind.SetSelectedIndex(i)
-	}
+	lang.SetSelectedIndex(max(0, indexOf(langs, w.language)))
+	setTypes(w.language, current)
 	setting = false
 	update()
 	w.renameAsked = &renameAsk{base: base, lang: lang, kind: kind, plan: plan, confirm: d.Confirm, result: result, scroll: scroll}
@@ -312,7 +354,7 @@ func indexOf(ss []string, s string) int {
 
 func indexOfType(ts []fileType, t fileType) int {
 	for i, x := range ts {
-		if x.id == t.id && (t.id != "asis" || x.ext == t.ext) {
+		if x.id == t.id && (t.id != "asis" || x.ext == t.ext) && x.lang == t.lang {
 			return i
 		}
 	}
@@ -327,7 +369,10 @@ func (w *MainWindow) doRename(r relocation) {
 			dialog.ShowError(err, w.fyneWindow)
 			return
 		}
-		if from != "" && r.from != "" {
+		switch {
+		case from != "" && r.from != "" && filepath.Base(r.from) == filepath.Base(r.to):
+			w.setStatus("Saved in " + languageName(w.language) + ": " + filepath.Base(r.to))
+		case from != "" && r.from != "":
 			w.setStatus("Renamed " + from + " to " + filepath.Base(r.to) + " — File > Undo Rename takes it back")
 		}
 	})

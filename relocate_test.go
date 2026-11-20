@@ -33,13 +33,19 @@ func TestScriptNameParts(t *testing.T) {
 			t.Errorf("%s comes back as %s", c.name, got)
 		}
 	}
-	if got := composedName("film", "eo", typeAccolade); got != "film.eo.accolade" {
+	if got := composedName("film", typeAccolade); got != "film.accolade" {
 		t.Errorf("composed %s", got)
 	}
-	if got := composedName(" story.md ", "eo", typeAccolade); got != "story.md" {
+	if got := composedName("film", dialectType("eo")); got != "film.eo.fountain" {
+		t.Errorf("a dialect: %s", got)
+	}
+	if got := composedName(" story.md ", typeAccolade); got != "story.md" {
 		t.Errorf("a full name typed: %s", got)
 	}
-	if got := composedName("Mr. Smith", "", typeFountain); got != "Mr. Smith.fountain" {
+	if got := composedName("film.eo.accolade", typeAccolade); got != "film.accolade" {
+		t.Errorf("a bundle's name says no language: %s", got)
+	}
+	if got := composedName("Mr. Smith", typeFountain); got != "Mr. Smith.fountain" {
 		t.Errorf("a dot in the name: %s", got)
 	}
 }
@@ -55,25 +61,36 @@ func TestScriptTypes(t *testing.T) {
 		}
 		return strings.Join(s, " ")
 	}
-	if got := ids(scriptTypes(false, false, "a.fountain")); got != "fountain accolade highland textpack textbundle markdown" {
+	if got := ids(scriptTypes(false, false, "a.fountain", "en")); got != "fountain accolade highland textpack textbundle markdown" {
 		t.Errorf("screenplay: %s", got)
 	}
-	if got := ids(scriptTypes(true, true, "a.md")); got != "markdown accolade highland textpack fountain" {
+	if got := ids(scriptTypes(true, true, "a.md", "eo")); got != "markdown accolade highland textpack fountain" {
 		t.Errorf("Markdown in the browser: %s", got)
 	}
-	ts := scriptTypes(false, false, "a.txt")
+	ts := scriptTypes(false, false, "a.txt", "en")
 	if ts[0].id != "asis" || ts[0].ext != ".txt" {
 		t.Errorf("a .txt: %+v", ts[0])
 	}
 	for _, md := range []bool{false, true} {
-		for _, ty := range scriptTypes(md, false, "a.txt") {
-			if ty.keeps(md, false) == "" {
+		for _, ty := range scriptTypes(md, false, "a.txt", "eo") {
+			if ty.keeps(md, false, "eo") == "" {
 				t.Errorf("%s says nothing", ty.id)
 			}
 		}
 	}
-	if !strings.Contains(typeHighland.keeps(false, false), "may drop") {
+	if !strings.Contains(typeHighland.keeps(false, false, "en"), "may drop") {
 		t.Error("Highland's warning is missing")
+	}
+	// a script in Esperanto: standard Fountain and its dialect, each named
+	eo := scriptTypes(false, false, "film.eo.fountain", "eo")
+	if got := ids(eo); got != "fountain dialect accolade highland textpack textbundle markdown" {
+		t.Errorf("Esperanto: %s", got)
+	}
+	if eo[1].label != "Esperanto Fountain" || eo[1].shownExt() != ".eo.fountain" || typeOfName("film.eo.fountain", false) != eo[1] {
+		t.Errorf("the dialect: %+v", eo[1])
+	}
+	if !strings.Contains(eo[1].keeps(false, false, "eo"), "won't see") || !strings.Contains(eo[0].keeps(false, false, "eo"), "/* Language: eo */") {
+		t.Errorf("their lines: %q, %q", eo[1].keeps(false, false, "eo"), eo[0].keeps(false, false, "eo"))
 	}
 	if recommendedType(false, true) != typeAccolade || recommendedType(false, false) != typeFountain || recommendedType(true, true) != typeMarkdown {
 		t.Error("recommended")
@@ -323,25 +340,37 @@ func TestRenameEditor(t *testing.T) {
 	w, p := relocWindow(t)
 	w.renameScript()
 	a := w.renameAsked
-	if a == nil || a.base.Text != "story" || a.kind.Selected != "Fountain (.fountain)" || a.lang.SelectedIndex() != 0 {
+	if a == nil || a.base.Text != "story" || a.kind.Selected != "Fountain (.fountain)" || a.lang.Selected != languageLabel("en") {
 		t.Fatalf("opened as %+v", a)
 	}
 	a.base.SetText("film")
 	a.lang.SetSelected(languageLabel("eo"))
+	if !slices.Contains(a.kind.Options, "Esperanto Fountain (.eo.fountain)") || a.kind.Selected != "Fountain (.fountain)" {
+		t.Errorf("types in Esperanto: %v, %q", a.kind.Options, a.kind.Selected)
+	}
 	a.kind.SetSelected("Accolade (.accolade)")
-	if a.result.Text != "Becomes: film.eo.accolade" {
+	if a.result.Text != "Becomes: film.accolade  · Esperanto, in info.json, its text as text.eo.fountain" {
 		t.Errorf("result %q", a.result.Text)
 	}
-	if !strings.Contains(planText(a.plan), "assets/source.md") {
-		t.Errorf("plan:\n%s", planText(a.plan))
+	plan := planText(a.plan)
+	for _, want := range []string{"assets/source.md", "Language: English → Esperanto", "text.eo.fountain, text.fountain (standard Fountain)"} {
+		if !strings.Contains(plan, want) {
+			t.Errorf("plan has no %q:\n%s", want, plan)
+		}
 	}
 	a.base.SetText("draft.md")
-	if a.kind.Selected != "Markdown (.md)" || a.lang.SelectedIndex() != 0 || a.result.Text != "Becomes: draft.md" {
-		t.Errorf("typed a full name: %q %d %q", a.kind.Selected, a.lang.SelectedIndex(), a.result.Text)
+	if a.kind.Selected != "Markdown (.md)" || a.result.Text != "Becomes: draft.md" {
+		t.Errorf("typed a full name: %q %q", a.kind.Selected, a.result.Text)
+	}
+	a.base.SetText("film.nl.fountain") // a dialect's full name: its language picked
+	if a.lang.Selected != languageLabel("nl") || a.kind.Selected != "Nederlands Fountain (.nl.fountain)" {
+		t.Errorf("typed a dialect's name: %q %q", a.lang.Selected, a.kind.Selected)
 	}
 	a.base.SetText("film")
 	a.lang.SetSelected(languageLabel("eo"))
-	a.kind.SetSelected("Fountain (.fountain)")
+	if a.kind.Selected != "Esperanto Fountain (.eo.fountain)" {
+		t.Errorf("the dialect follows the language: %q", a.kind.Selected)
+	}
 	a.confirm()
 	if w.currentFile != filepath.Join(filepath.Dir(p), "film.eo.fountain") || w.language != "eo" {
 		t.Errorf("renamed to %s (%s)", w.currentFile, w.language)

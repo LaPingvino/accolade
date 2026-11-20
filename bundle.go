@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"cmp"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -81,10 +83,22 @@ type accoladeInfo struct {
 	// HighlandWarned: Save as .highland has said once that Highland may
 	// drop Accolade's files (flatten.go).
 	HighlandWarned bool `json:"highlandWarned,omitempty"`
+	// Language is a screenplay's language, other than English: its text
+	// is text.<language>.fountain, as Accolade writes it, and text.fountain
+	// the same as standard Fountain (fountain_dialect.go). A bundle's name
+	// never says it.
+	Language string `json:"language,omitempty"`
+	// FountainHash is the hash of the text.fountain Accolade wrote beside
+	// the language's text: another, and another app changed it.
+	FountainHash string `json:"fountainHash,omitempty"`
+	// NoFountainCopy: an .accolade keeps only the language's text, no
+	// text.fountain (the script's choice).
+	NoFountainCopy bool `json:"noFountainCopy,omitempty"`
 }
 
 func (a accoladeInfo) empty() bool {
-	return a.DocumentType == "" && a.Source == "" && a.Drafts == "" && !a.HighlandWarned
+	return a.DocumentType == "" && a.Source == "" && a.Drafts == "" && !a.HighlandWarned &&
+		a.Language == "" && a.FountainHash == "" && !a.NoFountainCopy
 }
 
 // textBundle is a bundle as read: where it is and what it holds besides
@@ -101,6 +115,16 @@ type textBundle struct {
 	// "" for files at its root
 	prefix   string
 	textName string // the text file, in the bundle ("text.fountain")
+	// noText: there is no textName in the bundle, only the language's
+	// text (an .accolade without its Fountain copy)
+	noText bool
+	// lang is the screenplay's language, "" for English: Accolade's key's,
+	// else (a bundle from before) as the bundle's name says
+	lang string
+	// native is the language's text's entry (text.eo.fountain), "" none,
+	// and nativeText what it holds
+	native     string
+	nativeText []byte
 	info     []byte // info.json as it is, nil for none
 	natural  bool   // Markdown, as the text file's name and "type" say
 	ours     accoladeInfo
@@ -158,8 +182,32 @@ func isTextName(name string) bool {
 	return strings.HasPrefix(strings.ToLower(name), "text.") && len(name) > len("text.")
 }
 
+// nativeTextName is the entry of a screenplay's text in language lang.
+func nativeTextName(lang string) string { return "text." + lang + ".fountain" }
+
+// nativeLanguage is the language a text entry is in (text.eo.fountain:
+// "eo"), "" for none.
+func nativeLanguage(name string) string {
+	mid, ok := strings.CutPrefix(strings.ToLower(name), "text.")
+	if !ok {
+		return ""
+	}
+	if l, ok := strings.CutSuffix(mid, ".fountain"); ok && dialect(l) {
+		return l
+	}
+	return ""
+}
+
+// fountainHash is the hash Accolade's key keeps of the text.fountain it
+// wrote.
+func fountainHash(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:12])
+}
+
 // pickText is the bundle's text among the files at its root: text.fountain,
-// text.md, text.markdown, text.txt, else another text.*.
+// text.md, text.markdown, text.txt, else another text.* (a language's
+// text, text.eo.fountain, is no other app's: not that).
 func pickText(names []string) string {
 	rank := func(n string) int {
 		switch strings.ToLower(path.Ext(n)) {
@@ -176,7 +224,7 @@ func pickText(names []string) string {
 	}
 	best := ""
 	for _, n := range names {
-		if !isTextName(n) {
+		if !isTextName(n) || nativeLanguage(n) != "" {
 			continue
 		}
 		if best == "" || rank(n) < rank(best) || (rank(n) == rank(best) && n < best) {
@@ -294,11 +342,20 @@ func readFolderBundle(dir string) (*textBundle, []byte, error) {
 // its root and how to read one.
 func (b *textBundle) fill(p string, root []string, read func(string) ([]byte, error)) (*textBundle, []byte, error) {
 	b.textName = pickText(root)
-	if b.textName == "" {
+	var natives []string
+	for _, n := range root {
+		if nativeLanguage(n) != "" {
+			natives = append(natives, n)
+		}
+	}
+	if b.textName == "" && len(natives) == 0 {
 		return nil, nil, fmt.Errorf("%s holds no text file (text.fountain, text.md…)", filepath.Base(p))
 	}
-	text, err := read(b.textName)
-	if err != nil {
+	var text []byte
+	var err error
+	if b.textName == "" { // only the language's text
+		b.textName, b.noText = "text.fountain", true
+	} else if text, err = read(b.textName); err != nil {
 		return nil, nil, err
 	}
 	for _, n := range root {
@@ -315,6 +372,30 @@ func (b *textBundle) fill(p string, root []string, read func(string) ([]byte, er
 		_ = json.Unmarshal(raw, &b.ours)
 	}
 	b.natural = bundleTextMarkdown(b.textName, b.info, p)
+	// the language: Accolade's key's, else the name's (a bundle from
+	// before the key had it); its text, else the one there is
+	if !b.markdown() {
+		b.lang = b.ours.Language
+		if !dialect(b.lang) {
+			b.lang = languageOf(p)
+		}
+		pick := ""
+		for _, n := range natives {
+			if strings.EqualFold(n, nativeTextName(b.lang)) {
+				pick = n
+			}
+		}
+		if pick == "" && len(natives) > 0 && (b.lang == "" || b.noText) {
+			slices.Sort(natives)
+			pick = natives[0]
+		}
+		if pick != "" {
+			if b.nativeText, err = read(pick); err != nil {
+				return nil, nil, err
+			}
+			b.native, b.lang = pick, nativeLanguage(pick)
+		}
+	}
 	// the source: as Accolade's key names it, else one where Accolade or
 	// a person would put it
 	for _, n := range []string{b.ours.Source, bundleSourceName, "source.md", "source.markdown"} {
@@ -393,6 +474,40 @@ type bundleSave struct {
 	source []byte
 	// highlandWarned marks the Highland warning given (flatten.go)
 	highlandWarned bool
+	// native is a screenplay's text in its language, lang (text is then
+	// the same as standard Fountain), nil for English; noCopy leaves
+	// text.fountain out (an .accolade's choice)
+	native []byte
+	lang   string
+	noCopy bool
+}
+
+// language is what Accolade's key says of the language, and the text
+// entries written and gone.
+func (s bundleSave) language(ours *accoladeInfo, textName, oldNative string, oldNoText bool) (files []bundleFile, gone []string) {
+	ours.Language, ours.FountainHash, ours.NoFountainCopy = "", "", false
+	native := ""
+	if s.native != nil && dialect(s.lang) {
+		native = nativeTextName(s.lang)
+		ours.Language = s.lang
+		files = append(files, bundleFile{native, s.native})
+	}
+	if oldNative != "" && oldNative != native {
+		gone = append(gone, oldNative)
+	}
+	switch {
+	case native == "" || !s.noCopy:
+		files = append(files, bundleFile{textName, s.text})
+		if native != "" {
+			ours.FountainHash = fountainHash(s.text)
+		}
+	case !oldNoText:
+		gone = append(gone, textName)
+		ours.NoFountainCopy = true
+	default:
+		ours.NoFountainCopy = true
+	}
+	return files, gone
 }
 
 // saveBundleText writes the bundle (b; nil for a new one) to dst with s's
@@ -409,11 +524,13 @@ func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error
 		if s.source != nil {
 			ours.Source = bundleSourceName
 		}
+		texts, _ := s.language(&ours, textName, "", true)
 		if !ours.empty() {
 			val, _ := json.Marshal(ours)
 			info, _ = setInfoValue(info, accoladeInfoKey, val)
 		}
-		files := append([]bundleFile{{"info.json", info}, {textName, s.text}, {"assets/", nil}}, s.extra...)
+		files := append(append([]bundleFile{{"info.json", info}}, texts...), bundleFile{"assets/", nil})
+		files = append(files, s.extra...)
 		if s.source != nil {
 			files = append(files, bundleFile{bundleSourceName, s.source})
 		}
@@ -429,11 +546,12 @@ func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error
 	}
 	ours.HighlandWarned = ours.HighlandWarned || s.highlandWarned
 	ours.Drafts = cmp.Or(draftsIndexIn(s.extra), ours.Drafts)
-	files := append([]bundleFile{{b.textName, s.text}}, s.extra...)
+	files, gone := s.language(&ours, b.textName, b.native, b.noText)
+	files = append(files, s.extra...)
 	if info, changed := b.infoWith(ours); changed {
 		files = append(files, bundleFile{b.infoName(), info})
 	}
-	return writeBundle(b, dst, files)
+	return writeBundleWithout(b, dst, files, gone)
 }
 
 // saveBundleFiles writes files into the bundle, in place, the text as it
@@ -533,8 +651,14 @@ func (b *textBundle) infoWith(ours accoladeInfo) ([]byte, bool) {
 // writeBundle writes a bundle to dst: b's entries (none for a new
 // bundle) copied through, files replacing theirs or added after them.
 func writeBundle(b *textBundle, dst string, files []bundleFile) (*textBundle, error) {
+	return writeBundleWithout(b, dst, files, nil)
+}
+
+// writeBundleWithout is writeBundle with the entries gone (names in the
+// bundle) left out.
+func writeBundleWithout(b *textBundle, dst string, files []bundleFile, gone []string) (*textBundle, error) {
 	if bundleKindOf(dst) == bundleFolder {
-		if err := writeFolderBundle(b, dst, files); err != nil {
+		if err := writeFolderBundle(b, dst, files, gone); err != nil {
 			return nil, err
 		}
 		nb, _, err := readFolderBundle(dst)
@@ -551,7 +675,7 @@ func writeBundle(b *textBundle, dst string, files []bundleFile) (*textBundle, er
 			prefix = b.prefix
 		}
 	}
-	data, err := zipBundle(b, prefix, files)
+	data, err := zipBundle(b, prefix, files, gone)
 	if err != nil {
 		return nil, err
 	}
@@ -603,7 +727,7 @@ func (b *textBundle) entries() ([]bundleEntry, error) {
 }
 
 // zipBundle is the zip of a bundle, its files in prefix.
-func zipBundle(b *textBundle, prefix string, files []bundleFile) ([]byte, error) {
+func zipBundle(b *textBundle, prefix string, files []bundleFile, gone []string) ([]byte, error) {
 	es, err := b.entries()
 	if err != nil {
 		return nil, err
@@ -668,6 +792,9 @@ func zipBundle(b *textBundle, prefix string, files []bundleFile) ([]byte, error)
 		if inside {
 			name = prefix + rel
 		}
+		if inside && slices.Contains(gone, rel) {
+			continue
+		}
 		if inside && rel != "" {
 			if f, ok := take(rel); ok {
 				var like *zip.FileHeader
@@ -728,11 +855,18 @@ func zipBundle(b *textBundle, prefix string, files []bundleFile) ([]byte, error)
 // change; elsewhere a new folder with b's entries and files, put in place
 // whole (replacing an empty file the save dialog left, or a bundle chosen
 // to be overwritten).
-func writeFolderBundle(b *textBundle, dst string, files []bundleFile) error {
+func writeFolderBundle(b *textBundle, dst string, files []bundleFile, gone []string) error {
 	if b != nil && !b.zipped && sameFile(b.path, dst) {
 		for _, f := range files {
 			if err := writeBundleFile(dst, f); err != nil {
 				return err
+			}
+		}
+		for _, g := range gone {
+			if fs.ValidPath(g) {
+				if err := os.Remove(filepath.Join(dst, filepath.FromSlash(g))); err != nil && !errors.Is(err, fs.ErrNotExist) {
+					return err
+				}
 			}
 		}
 		return nil
@@ -755,7 +889,7 @@ func writeFolderBundle(b *textBundle, dst string, files []bundleFile) error {
 		if e.zf == nil {
 			rel, inside = e.name, true
 		}
-		if !inside || rel == "" || junkEntry(e.name) {
+		if !inside || rel == "" || junkEntry(e.name) || slices.Contains(gone, rel) {
 			continue
 		}
 		if slices.ContainsFunc(files, func(f bundleFile) bool { return f.name == rel }) {

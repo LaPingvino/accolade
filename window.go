@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -70,6 +71,9 @@ type MainWindow struct {
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
+	// noFountainCopy: the script's .accolade keeps no text.fountain beside
+	// its language's text (script_text.go)
+	noFountainCopy bool
 	// format is how the script's file stores it (encoding.go)
 	format fileFormat
 	// bundle is the TextBundle (.textbundle, .textpack, .highland, .accolade) the
@@ -425,23 +429,71 @@ func (w *MainWindow) LoadFile(filePath string) error {
 
 	// as stored: Windows-1252, a byte order mark, CR LF are kept for saving
 	text, format := decodeScript(content)
+	if bundle != nil && bundle.noText {
+		_, format = decodeScript(bundle.nativeText)
+	}
 	w.format = format
-	w.setLanguage(languageOf(filePath))
 	// as chosen for it (View > Document Type), else as its extension says
 	w.setMarkdown(w.typeOf(filePath))
+	// the language, and the text in it (script_text.go)
+	lang, before := "", ""
+	w.noFountainCopy = bundle != nil && bundle.ours.NoFountainCopy
+	switch {
+	case w.markdown:
+		lang = languageOf(filePath)
+	case bundle != nil:
+		text, before = bundleScriptText(bundle, content, text)
+		lang = bundle.lang
+	default:
+		text, lang = plainFileText(filePath, text)
+	}
+	w.setLanguage(cmp.Or(lang, "en"))
 	if !w.markdown { // Markdown's indents are its own (lists, code)
 		text = withoutIndents(text, w.sceneStarts())
+		before = withoutIndents(before, w.sceneStarts())
+	}
+	if before != "" { // another app changed text.fountain: kept as a draft first
+		w.textEditor.SetText(before)
+		w.addDraft("Before the change to text.fountain made in another app", true, nil)
 	}
 	w.textEditor.SetText(text)
 	w.currentFile = filePath
 	w.suggestedName = ""
 	w.rememberRecent(filePath)
-	w.hasChanges = false
+	w.hasChanges = before != "" // both texts the same again on the next save
 	w.updateTitle()
 	w.updateStatusBar()
 	w.readBeatTags()
+	if before != "" {
+		w.setStatus("text.fountain was changed in another app: that change is the script now; the script before it " +
+			"is kept as a draft (Collaboration > Compare… shows the change)")
+	}
 
 	return nil
+}
+
+// bundleScriptText is a screenplay bundle's text for the editor, given
+// its text.fountain as stored (content) and read (text): the language's
+// text, unless another app changed text.fountain since Accolade wrote it
+// — then that, its force marks taken back, and before is the language's
+// text it replaces.
+func bundleScriptText(b *textBundle, content []byte, text string) (now, before string) {
+	if b.native == "" {
+		return dialectFountain(text, b.lang), ""
+	}
+	native, _ := decodeScript(b.nativeText)
+	if b.noText {
+		return native, ""
+	}
+	theirs := dialectFountain(text, b.lang)
+	changed := theirs != native
+	if h := b.ours.FountainHash; h != "" {
+		changed = h != fountainHash(content) && changed
+	}
+	if !changed {
+		return native, ""
+	}
+	return theirs, native
 }
 
 // importFile opens a Final Draft document or a PDF of a screenplay
@@ -614,8 +666,15 @@ func (w *MainWindow) SaveFileAs() error {
 }
 
 func (w *MainWindow) saveToFile(filePath string) error {
-	data, utf8Instead := encodeScript(w.textEditor.Text(), w.format)
-	if err := w.writeScript(filePath, data); err != nil {
+	main, native, hasNative := w.scriptTexts(filePath, w.textEditor.Text())
+	data, utf8Instead := encodeScript(main, w.format)
+	var nativeData []byte
+	if hasNative {
+		var also bool
+		nativeData, also = encodeScript(native, w.format)
+		utf8Instead = utf8Instead || also
+	}
+	if err := w.writeScript(filePath, data, nativeData); err != nil {
 		return fmt.Errorf("failed to write file: %v", err)
 	}
 	if utf8Instead {
@@ -633,12 +692,12 @@ func (w *MainWindow) saveToFile(filePath string) error {
 // came from or a new one for a bundle's name (bundle.go), else as a plain
 // file (a bundle saved under a plain name leaves the bundle, its source
 // kept by Accolade).
-func (w *MainWindow) writeScript(filePath string, data []byte) error {
-	if bundleKindOf(filePath) != notBundle && (w.bundle != nil || !w.isPlainBundle(filePath)) {
+func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
+	if w.writesBundle(filePath) {
 		if inBrowser && bundleKindOf(filePath) == bundleFolder {
 			return fmt.Errorf("a .textbundle is a folder, which the browser cannot save: use .textpack")
 		}
-		markdown, gen := w.markdown, w.bundleGen
+		markdown, gen, lang, noCopy := w.markdown, w.bundleGen, w.language, !w.keepsFountainCopy(filePath)
 		var extra []bundleFile
 		if w.bundle == nil { // a plain script made a bundle: its extras carried in
 			var err error
@@ -656,7 +715,8 @@ func (w *MainWindow) writeScript(filePath string, data []byte) error {
 		// unsaved again
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {
-				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra, source: source, highlandWarned: warn})
+				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra, source: source,
+					highlandWarned: warn, native: native, lang: lang, noCopy: noCopy})
 			},
 			done: func(err error) {
 				if err == nil && warn {

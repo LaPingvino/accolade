@@ -1,12 +1,14 @@
 package main
 
 import (
+	"cmp"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 // The script's files: the types it can be saved as, its name's parts, and
@@ -19,6 +21,7 @@ type fileType struct {
 	id, label, ext string
 	kind           bundleKind
 	desktopOnly    bool
+	lang           string // a dialect's language: film.eo.fountain
 }
 
 var (
@@ -36,6 +39,30 @@ func asItIs(ext string) fileType {
 	return fileType{id: "asis", label: "As it is", ext: ext}
 }
 
+// dialectType is plain Fountain in a language's own words, named for it
+// (film.eo.fountain): Lexington's convention; to other Fountain apps its
+// scene headings are action (fountain_dialect.go).
+func dialectType(lang string) fileType {
+	return fileType{id: "dialect", label: languageName(lang) + " Fountain", ext: ".fountain", lang: lang}
+}
+
+// languageName is a language's name in itself, without its code.
+func languageName(lang string) string {
+	name := []rune(strings.TrimSuffix(languageLabel(lang), " ("+lang+")"))
+	if len(name) > 0 { // as a name stands: Esperanto, not esperanto
+		name[0] = unicode.ToUpper(name[0])
+	}
+	return string(name)
+}
+
+// shownExt is the type's extension as the name has it: .eo.fountain.
+func (t fileType) shownExt() string {
+	if t.id == "dialect" {
+		return "." + t.lang + t.ext
+	}
+	return t.ext
+}
+
 // knownTypes are the types by extension.
 var knownTypes = []fileType{typeFountain, typeMarkdown, typeAccolade, typeHighland, typeTextPack, typeTextBundle}
 
@@ -46,6 +73,9 @@ var plainExts = []string{".fountain", ".spmd", ".txt", ".md", ".markdown"}
 // extension is "as it is", no extension Fountain (or Markdown).
 func typeOfName(name string, markdown bool) fileType {
 	ext := strings.ToLower(filepath.Ext(strings.TrimRight(name, `/\`)))
+	if l := languageOf(name); ext == ".fountain" && l != "" && !markdown {
+		return dialectType(l)
+	}
 	for _, t := range knownTypes {
 		if t.ext == ext {
 			return t
@@ -68,10 +98,12 @@ func hasTypeExt(name string) bool {
 }
 
 // scriptTypes are the types offered, in order: the document's own plain
-// type first, the bundles, the other kind's plain type last (it switches
-// the document); a current name with another plain extension adds "as it
-// is" first. The browser has no folders.
-func scriptTypes(markdown, browser bool, current string) []fileType {
+// type first (a script in another language than English: standard
+// Fountain, then its language's dialect), the bundles, the other kind's
+// plain type last (it switches the document); a current name with
+// another plain extension adds "as it is" first. The browser has no
+// folders.
+func scriptTypes(markdown, browser bool, current, lang string) []fileType {
 	own, other := typeFountain, typeMarkdown
 	if markdown {
 		own, other = typeMarkdown, typeFountain
@@ -80,15 +112,20 @@ func scriptTypes(markdown, browser bool, current string) []fileType {
 	if t := typeOfName(current, markdown); t.id == "asis" {
 		ts = append(ts, t)
 	}
-	ts = append(ts, own, typeAccolade, typeHighland, typeTextPack)
+	ts = append(ts, own)
+	if !markdown && dialect(lang) {
+		ts = append(ts, dialectType(lang))
+	}
+	ts = append(ts, typeAccolade, typeHighland, typeTextPack)
 	if !browser {
 		ts = append(ts, typeTextBundle)
 	}
 	return append(ts, other)
 }
 
-// keeps is the one line saying what a type keeps.
-func (t fileType) keeps(markdown, browser bool) string {
+// keeps is the one line saying what a type keeps, for a script in
+// language lang.
+func (t fileType) keeps(markdown, browser bool, lang string) string {
 	doc := "the script"
 	if markdown {
 		doc = "the document"
@@ -102,24 +139,43 @@ func (t fileType) keeps(markdown, browser bool) string {
 		if markdown {
 			return "Makes the document a screenplay, as plain Fountain."
 		}
+		if dialect(lang) {
+			return "Standard Fountain, for any Fountain app: " + languageName(lang) + " scene headings forced (.EN. DOMO), " +
+				"the language kept in a last /* Language: " + lang + " */ line; " + extras + "."
+		}
 		return "Plain Fountain, for any Fountain app: the script with Accolade's blocks inside; " + extras + "."
+	case "dialect":
+		return "Accolade and Lexington's " + languageName(lang) + " keywords, as written: other Fountain apps won't see its " +
+			"scene headings; " + extras + "."
 	case "markdown":
 		if !markdown {
 			return "Makes the script a Markdown document, as plain Markdown."
 		}
 		return "Plain Markdown, for any editor: the document; " + extras + "."
 	case "accolade":
+		if !markdown && dialect(lang) {
+			doc = "the script (text." + lang + ".fountain, and a standard text.fountain if kept)"
+		}
 		return "Accolade's own: everything in one file — " + doc + ", its source, drafts and production files."
 	case "highland":
-		return "For Highland 2: one file Highland opens. Highland may drop Accolade's drafts and source when it saves."
+		return "For Highland 2: one file Highland opens. Highland may drop Accolade's drafts and source when it saves." + inside(markdown, lang)
 	case "textpack":
-		return "A zipped TextBundle, for other TextBundle apps: " + doc + ", with Accolade's files under assets/."
+		return "A zipped TextBundle, for other TextBundle apps: " + doc + ", with Accolade's files under assets/." + inside(markdown, lang)
 	case "textbundle":
 		return "A TextBundle folder (desktop only): the same as a TextPack, unzipped, for version control."
 	case "asis":
 		return "Plain text under its own name (" + t.ext + "), as it is now."
 	}
 	return ""
+}
+
+// inside is what a bundle says of a script's language: other apps read
+// its standard text.fountain.
+func inside(markdown bool, lang string) string {
+	if markdown || !dialect(lang) {
+		return ""
+	}
+	return " Its text.fountain is standard Fountain; Accolade reads text." + lang + ".fountain beside it."
 }
 
 // recommendedType is the type a script is best kept in: Markdown for a
@@ -167,14 +223,20 @@ func (p nameParts) String() string {
 }
 
 // composedName is the name the rename editor makes: a typed name with an
-// extension as it is (for those who know), else the base with the
-// language and type picked.
-func composedName(typed, lang string, t fileType) string {
+// extension as it is (for those who know; a bundle's without a language,
+// which its info.json keeps), else the base with the type picked (a
+// dialect's language in it).
+func composedName(typed string, t fileType) string {
 	typed = strings.TrimSpace(typed)
 	if hasTypeExt(typed) {
-		return typed
+		if bundleKindOf(typed) == notBundle {
+			return typed
+		}
+		p := splitScriptName(typed)
+		p.lang = ""
+		return p.String()
 	}
-	return nameParts{base: typed, lang: lang, ext: t.ext}.String()
+	return nameParts{base: typed, lang: t.lang, ext: t.ext}.String()
 }
 
 // relocation is a rename or a Save As: the script from its file (""
@@ -187,6 +249,61 @@ type relocation struct {
 	// keepBesideName: the source beside the script (story.md) keeps its
 	// name, instead of following the script's (film.md)
 	keepBesideName bool
+	// lang is the script's language after ("" as now), noCopy whether an
+	// .accolade leaves text.fountain out (nil as now)
+	lang   string
+	noCopy *bool
+}
+
+// langAfter are r's language and Fountain copy choice, those now filled in.
+func (w *MainWindow) langAfter(r relocation) (lang string, noCopy bool) {
+	lang, noCopy = cmp.Or(r.lang, w.language), w.noFountainCopy
+	if r.noCopy != nil {
+		noCopy = *r.noCopy
+	}
+	return lang, noCopy
+}
+
+// diskForm is how a script is written to path in language lang: two
+// that differ are different files for the same text (script_text.go).
+func (w *MainWindow) diskForm(path, lang string, noCopy bool, kind bundleKind) string {
+	switch {
+	case w.markdown:
+		return "markdown"
+	case kind != notBundle:
+		if !dialect(lang) {
+			return "bundle"
+		}
+		copied := !noCopy || !strings.EqualFold(filepath.Ext(path), typeAccolade.ext)
+		return fmt.Sprintf("bundle %s %v", lang, copied)
+	case languageOf(path) != "":
+		return "dialect"
+	case dialect(lang):
+		return "standard " + lang
+	}
+	return "plain"
+}
+
+// reforms tells whether r writes the script in another form than it is
+// now: then written anew, not only renamed.
+func (w *MainWindow) reforms(r relocation) bool {
+	fromKind, toKind := w.kinds(r)
+	lang, noCopy := w.langAfter(r)
+	return w.diskForm(r.from, w.language, w.noFountainCopy, fromKind) != w.diskForm(r.to, lang, noCopy, toKind)
+}
+
+// languageHome is where a script's language is kept in a file, "" for
+// English.
+func languageHome(path, lang string, kind bundleKind) string {
+	switch {
+	case !dialect(lang):
+		return ""
+	case kind != notBundle:
+		return "in info.json, its text as text." + lang + ".fountain"
+	case languageOf(path) != "":
+		return "in the name"
+	}
+	return "in a last /* Language: " + lang + " */ line"
 }
 
 // kinds are what the script is now and will be: a plain .highland stays
@@ -278,7 +395,7 @@ func (b *textBundle) otherFiles() []string {
 				continue
 			}
 		}
-		if rel == "" || strings.HasSuffix(rel, "/") || junkEntry(e.name) || rel == b.textName ||
+		if rel == "" || strings.HasSuffix(rel, "/") || junkEntry(e.name) || rel == b.textName || rel == b.native ||
 			strings.EqualFold(rel, "info.json") || rel == b.source || isExtra(rel) {
 			continue
 		}
@@ -310,6 +427,21 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 	inside := func(name string) string { return "inside " + name }
 	beside := func(name string) string { return name + " beside it" }
 
+	lang, noCopy := w.langAfter(r)
+	// the language: where it is kept now and after
+	if !w.markdown && !isMarkdownFile(r.to) && (dialect(w.language) || dialect(lang)) {
+		row := planRow{what: "Language: " + languageName(lang)}
+		if lang != w.language {
+			row.what = "Language: " + languageName(w.language) + " → " + languageName(lang)
+		}
+		row.now = cmp.Or(languageHome(r.from, w.language, fromKind), "English: nowhere")
+		if r.from == "" {
+			row.now = "not saved yet"
+		}
+		row.after = cmp.Or(languageHome(r.to, lang, toKind), "English: nowhere")
+		rows = append(rows, row)
+	}
+
 	// the text inside a bundle: a name the format fixes
 	if toKind != notBundle {
 		text := "text.fountain"
@@ -318,6 +450,13 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 		}
 		if fromKind != notBundle && w.bundle != nil {
 			text = w.bundle.textName
+		}
+		if !w.markdown && dialect(lang) {
+			copied := !noCopy || !strings.EqualFold(filepath.Ext(r.to), typeAccolade.ext)
+			text = "text." + lang + ".fountain"
+			if copied {
+				text += ", text.fountain (standard Fountain)"
+			}
 		}
 		now := "the file itself"
 		if fromKind != notBundle && w.bundle != nil {

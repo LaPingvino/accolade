@@ -38,7 +38,7 @@ type saveAsAsk struct {
 func (w *MainWindow) showSaveAs() {
 	offered := w.offeredName()
 	now := cmp.Or(w.scriptName(), offered)
-	types := scriptTypes(w.markdown, inBrowser, now)
+	types := scriptTypes(w.markdown, inBrowser, now, w.language)
 	rec := recommendedType(w.markdown, w.hasProductionData())
 	current := typeOfName(now, w.markdown)
 	if w.currentFile == "" && w.suggestedName == "" { // nothing yet: the recommended one
@@ -48,7 +48,7 @@ func (w *MainWindow) showSaveAs() {
 		current = typeFountain // a .highland of plain text is Fountain
 	}
 	base := splitScriptName(offered)
-	base.ext = ""
+	base.ext, base.lang = "", "" // the type picked names a dialect's language
 
 	dir := ""
 	if w.currentFile != "" {
@@ -61,7 +61,7 @@ func (w *MainWindow) showSaveAs() {
 	w.saveAsAsked = ask
 	sel := max(0, indexOfType(types, current))
 	keepsRow := func(t fileType) fyne.CanvasObject {
-		l := widget.NewLabel(t.keeps(w.markdown, inBrowser))
+		l := widget.NewLabel(t.keeps(w.markdown, inBrowser, w.language))
 		l.Wrapping = fyne.TextWrapWord
 		return container.NewBorder(nil, nil, container.NewGridWrap(fyne.NewSize(theme.IconInlineSize()+theme.Padding()*2, 1)), nil, l)
 	}
@@ -75,9 +75,9 @@ func (w *MainWindow) showSaveAs() {
 
 	target := func() relocation {
 		t := types[sel]
-		n := composedName(name.Text, "", t)
+		n := composedName(name.Text, t)
 		if n == "" || strings.TrimSpace(name.Text) == "" {
-			n = base.String() + t.ext
+			n = composedName(base.base, t)
 		}
 		r := relocation{from: w.currentFile, to: filepath.Join(dir, filepath.Base(n))}
 		if dir == "" {
@@ -95,7 +95,7 @@ func (w *MainWindow) showSaveAs() {
 	setting := false
 	var list []fyne.CanvasObject
 	for i, t := range types {
-		label := t.label + " (" + t.ext + ")"
+		label := t.label + " (" + t.shownExt() + ")"
 		var marks []string
 		if t.id == current.id && (w.currentFile != "" || w.suggestedName != "") {
 			marks = append(marks, "now")
@@ -107,7 +107,7 @@ func (w *MainWindow) showSaveAs() {
 			label += " — " + strings.Join(marks, ", ")
 		}
 		radio := widget.NewRadioGroup([]string{label}, nil)
-		fyne.SetAccessibleLabel(radio, t.label+": "+t.keeps(w.markdown, inBrowser))
+		fyne.SetAccessibleLabel(radio, t.label+": "+t.keeps(w.markdown, inBrowser, w.language))
 		radio.OnChanged = func(s string) {
 			if setting {
 				return

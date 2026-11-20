@@ -10,7 +10,15 @@ Accolade's own files are plain text: a screenplay is Fountain, a story or any ot
 
 Accolade saves a file the way it found it: a Windows-1252 file stays Windows-1252, a byte order mark and Windows line endings (CR LF) are kept.
 
-A language code before the extension says the script's language, which sets the words a scene heading starts with: `scene.eo.fountain` is in Esperanto, `scene.nl.fountain` in Dutch. Edit > Script Language… sets it for a script without one in its name.
+### A script in another language
+
+A script's language sets the words a scene heading starts with: EN. and EKST. in Esperanto, BIN. and BUI. in Dutch. INT. and EXT. are part of Fountain itself, so a script in another language is a dialect of Fountain: other Fountain apps read `EN. DOMO - TAGO` as action. Where the language is kept decides which one a file holds:
+
+- **`film.eo.fountain`** — *Esperanto Fountain*: the name says the language, the text is as written, in Accolade's and Lexington's Esperanto keywords. Other Fountain apps won't see its scene headings.
+- **`film.fountain`** — standard Fountain, for any app: a scene heading only the language knows gets Fountain's force mark (`.EN. DOMO - TAGO`), a line English would take for a heading but the language does not gets `!` (action) or `@` (a character), and the language is kept in a last line, `/* Language: eo */`, which no app prints. Accolade takes the marks and the line back when it opens the file, so you see the script as written; a mark you put on purpose stays. (A line inside a speech has no force mark: one starting INT. there is read as a heading by other apps.) A .fountain without such a line opens in the language its headings are in, English when they could be.
+- **a bundle** (.accolade, .highland, .textpack, .textbundle) — the name never says the language; `info.json` does (Accolade's entry, `"language": "eo"`). The bundle holds the script twice from the same text: `text.eo.fountain` as written, the one Accolade reads, and `text.fountain` as standard Fountain for Highland and other apps, which ignore the other file. An .accolade may leave `text.fountain` out (*Keep a plain Fountain copy inside*, in the rename editor and Save As; on by default). If another app changed `text.fountain` since Accolade saved it, that change wins when you open the bundle: its force marks are taken back, the script as it was before is kept as a draft, and the status line says so (Collaboration > Compare… shows what changed). A bundle from before, named `film.eo.highland`, is still read in Esperanto.
+
+A Markdown document has no script language. Edit > Script Language… changes the language: a plain file's name follows (`film.eo.fountain`), a bundle is saved with the new one inside.
 
 ## Markdown documents
 
@@ -22,11 +30,11 @@ View > Document Type > Screenplay or Markdown switches a file without renaming i
 
 **File > Save As…** (Ctrl+Shift+S) first asks for the type, each with a line saying what it keeps: Fountain, Accolade, Highland, TextPack, TextBundle (desktop only), and Markdown — the other kind of document last, since it switches the document. The type the file has now is chosen; the recommended one is marked (Accolade once a screenplay has drafts or a lock, else Fountain; Markdown for a document). Then comes the system's save dialog, showing that type's files and giving the name its extension. In the browser the name is asked in the same window, and the file is downloaded.
 
-**Renaming:** click the name over the editor, or File > Rename…. The rename editor has the name, the script's **Language** (it writes the `.eo` part of `film.eo.fountain`) and the **Type**, and shows the resulting name as you type. Typing a whole name with its extensions (`film.eo.md`) works too: the pickers follow it. Changing the type to or from a bundle converts the file; nothing is refused.
+**Renaming:** click the name over the editor, or File > Rename…. The rename editor has the name, the script's **Language** and the **Type**, and shows the resulting name as you type, with where the language will be kept. For a script in another language the types include its dialect, *Esperanto Fountain (.eo.fountain)*, beside standard *Fountain (.fountain)* (see [A script in another language](#a-script-in-another-language)); a bundle keeps the language inside and its name stays plain. Typing a whole name with its extensions (`film.nl.fountain`) works too: the pickers follow it. Changing the type to or from a bundle converts the file; nothing is refused.
 
 Both show **every file that belongs to the script** and where each goes:
 
-- the script itself;
+- the script itself, and where its language is kept (the name, a last line, or `info.json` with `text.eo.fountain`);
 - its source: in the script, inside the bundle (`assets/source.md`), kept by Accolade, or beside it (`story.md`);
 - its drafts and production files (`breakdown.json`, `schedule.json`, `revisions.json`): inside the bundle under `assets/`, kept by Accolade, or in `story.production/` beside it;
 - another app's files inside a bundle (Highland's `sprints.json`, pictures).
@@ -46,7 +54,7 @@ A bundle keeps the text and everything that goes with it in one file. All of the
 - **.textpack** — a TextBundle zipped.
 - **.textbundle** — a TextBundle folder. Open goes into the folder and opens its text. Desktop only.
 
-Whether the text is a screenplay or Markdown comes from the text file's name inside.
+Whether the text is a screenplay or Markdown comes from the text file's name inside. A screenplay in another language than English keeps it in `info.json` and holds `text.eo.fountain` beside `text.fountain` (see [A script in another language](#a-script-in-another-language)).
 
 On save, Accolade changes only the text, its own entry in `info.json` and its own files. Every other file in the bundle is copied as it was, so another app's data survives. A script's source can live in the bundle too, as `assets/source.md` (see [Adapting a Story](adapting.md#where-the-source-is-kept)).
 

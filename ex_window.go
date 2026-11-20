@@ -143,7 +143,9 @@ func (w *MainWindow) runEx(cmd string) {
 				p = filepath.Join(filepath.Dir(w.currentFile), p)
 			}
 			w.currentFile = p
-			w.setLanguage(languageOf(p))
+			if l := languageOf(p); l != "" && bundleKindOf(p) == notBundle {
+				w.setLanguage(l) // a bundle's is its own
+			}
 		}
 		if err := w.SaveFile(); err != nil {
 			w.setStatus(err.Error())
