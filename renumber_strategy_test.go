@@ -191,6 +191,14 @@ func TestFixedLabelsStay(t *testing.T) {
 	if got := only(); got != fixed {
 		t.Errorf("unlock, remove: %q (%s)", got, headNums(w))
 	}
+	w.undo()
+	// the page lock names fixed labels as any other, and reads them back
+	w.lockPages()
+	waitFor(t, "the pages locked", func() bool { return pageLockOf(w.textEditor.Text()) != nil })
+	l := pageLockOf(w.textEditor.Text())
+	if len(l.lock.Pages) == 0 || l.lock.Pages[0].Scene != "I-1-A" {
+		t.Errorf("locked pages %+v", l.lock.Pages)
+	}
 }
 
 // The lock's "numbered before" line keeps the hand-typed numbers whose
@@ -231,7 +239,11 @@ func TestOldOmittedRunRewritten(t *testing.T) {
 	if got := sceneNumbersFor(heads, lex.NumberOptions{Locked: true}); got[2] != "6" {
 		t.Errorf("a new scene after 4-5 got %s", got[2])
 	}
+	w.textEditor.SetCursorOffset(offsetOf(t, w, "Aitch."))
 	w.renumberScenes()
+	if w.textEditor.CursorOffset() != offsetOf(t, w, "Aitch.") {
+		t.Errorf("the cursor left its text: at %d", w.textEditor.CursorOffset())
+	}
 	text := w.textEditor.Text()
 	if !strings.Contains(text, ".OMITTED #4#\n\n/* Omitted 4\n") || !strings.Contains(text, ".OMITTED #5#\n\n/* Omitted 5\n") ||
 		strings.Contains(text, "4-5") || !omittedRunsPrinted(text) {
@@ -240,19 +252,33 @@ func TestOldOmittedRunRewritten(t *testing.T) {
 	if !strings.Contains(w.statusText(), "OMITTED 4-5 written as one OMITTED heading a scene") {
 		t.Errorf("status %q", w.statusText())
 	}
-	if got := w.renumbering.choice(); got != cleanChoice() {
+	if got := w.renumbering.choice(); got.Scope != scopeAll || got.List != listNone || got.Omitted != omitDrop || got.KeepLetters {
 		t.Errorf("the dialog's choice %+v", got)
 	}
-	clearOverlays(w)
+	// Apply says so too
+	test.Tap(overlayButton(t, w, "Renumber"))
+	if st := w.statusText(); !strings.Contains(st, "OMITTED 4-5 written as one") || !strings.Contains(st, "Scenes renumbered") {
+		t.Errorf("status after Apply %q", st)
+	}
+	w.undo()
 	w.undo()
 	if w.textEditor.Text() != old {
 		t.Fatalf("the rewrite is not one undo step:\n%s", w.textEditor.Text())
 	}
-	// on Save
+	w.settings.SetString(renumberLastPref, "")
+	// autosave leaves it; Save rewrites it
 	file := t.TempDir() + "/old.fountain"
 	if err := w.saveToFile(file); err != nil {
 		t.Fatal(err)
 	}
+	if data, _ := os.ReadFile(file); !strings.Contains(string(data), "4-5") {
+		t.Errorf("autosave rewrote it")
+	}
+	w.currentFile = file
+	if err := w.SaveFile(); err != nil {
+		t.Fatal(err)
+	}
+	w.afterBundleWrites(func() {})
 	if data, _ := os.ReadFile(file); strings.Contains(string(data), "4-5") || !strings.Contains(string(data), ".OMITTED #5#") {
 		t.Errorf("saved:\n%s", data)
 	}

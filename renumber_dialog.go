@@ -59,6 +59,7 @@ type renumberDlg struct {
 	apply    *widget.Button
 	draft    *widget.Button // after an issue: Save a Draft, Then Renumber
 	filling  bool           // a preset is setting the controls
+	note     string         // the rewrite of v1.13.0's OMITTED runs when it opened, for Apply's status
 }
 
 // sceneLabel is heading i as the range's pickers show it.
@@ -415,7 +416,12 @@ func (r *renumberDlg) fresh() bool {
 func (r *renumberDlg) applyNow() string {
 	c := r.choice()
 	r.w.rememberChoice(c)
-	return r.w.renumberWith(c, r.ctx)
+	msg := r.w.renumberWith(c, r.ctx)
+	if r.note != "" {
+		msg = r.note + ". " + msg
+		r.w.setStatus(msg)
+	}
+	return msg
 }
 
 // draftThenApply saves a draft, then renumbers.

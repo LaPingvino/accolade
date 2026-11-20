@@ -108,6 +108,7 @@ func (w *MainWindow) finishSaveAs(filePath string) {
 	flattening := w.bundle != nil && len(w.bundle.extras) > 0 && bundleKindOf(filePath) == notBundle
 	how := w.flattenTo
 	failures := w.saveFailures
+	w.splitOldRunsOnSave()
 	if err := w.saveToFile(filePath); err != nil {
 		w.flattenTo = flattenKept
 		dialog.ShowError(fmt.Errorf("failed to save file: %v", err), w.fyneWindow)

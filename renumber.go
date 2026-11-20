@@ -423,7 +423,7 @@ func (w *MainWindow) renumberScenes() {
 	if w.markdown || w.textEditor == nil {
 		return
 	}
-	w.splitOldOmittedRuns() // v1.13.0's OMITTED #12-14#: one heading a scene first
+	note := w.splitOldOmittedRuns() // v1.13.0's OMITTED #12-14#: one heading a scene first
 	text := w.textEditor.Text()
 	heads := sceneHeads(text[:bodyEndByte(text)], w.sceneStarts())
 	numbered := false
@@ -436,6 +436,7 @@ func (w *MainWindow) renumberScenes() {
 	}
 	w.afterBundleWrites(func() {
 		w.renumbering = w.newRenumberDialog()
+		w.renumbering.note = note
 		w.renumbering.d.Show()
 	})
 }

@@ -136,7 +136,7 @@ type sceneHead struct {
 }
 
 // strayNumber is a scene number inside a heading, not at its end.
-var strayNumber = regexp.MustCompile(`\s#([A-Za-z0-9]+)#\s`)
+var strayNumber = regexp.MustCompile(`\s#([^#\s]+)#\s`)
 
 // sceneHeads are the script's scene headings, in order: not those in a
 // boneyard (an omitted scene's old heading, the blocks at the end).

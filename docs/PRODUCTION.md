@@ -1528,10 +1528,13 @@ joined by a dash, in order (`lex.OmittedRange`; `I-1-A` on an OMITTED heading, o
 Lexington's Fountain reader splits it into one OMITTED heading a `/* Omitted n` block under it, keeping the run's
 first and last where their block is gone (a number between them without a block is lost: nothing says what it was);
 until rewritten, locked numbering never gives a number inside it. Accolade rewrites it in the text
-(`fountain.SplitOmitted`) on the next Renumber, Unlock or Save (not on Save in a shared session: the next Renumber
-does it): one undo step of its own, the print setting switched on so that it prints as before, a page of the lock
+(`fountain.SplitOmitted`) on the next Renumber (when its dialog opens, so Cancel keeps the rewrite), Unlock or Save
+(File > Save and Save As; not autosave, which would add an undo step while the writer types; not in a shared
+session: the next Renumber does it): one undo step of its own, the cursor kept on its text, the print setting switched on so that it prints as before, a page of the lock
 starting at the run now starting at its first, and a status note ("OMITTED 4-5 written as one OMITTED heading a
-scene …"). Restore Scene on such a heading still splits it, then each restores.
+scene …", repeated in front of Renumber's own message on Apply). Restore Scene on such a heading still splits it,
+then each restores. The run's ends are scheme numbers, so this check orders two of them: the one comparison of labels
+outside the letter generator. A stray number typed inside a heading (`INT. A #1-A# - DAY`) is any label now.
 
 **Tests.** Lexington: the scheme (every Fountain example form), fixed labels through locked and unlocked numbering
 and every Renumber strategy (table and the 3000-script property test: a fixed label never changes, is never dropped
@@ -1558,5 +1561,8 @@ setting alone, the HTML print, the FDX and the PDF (pdftotext), Keep taking it o
 - A merged OMITTED run's page can anchor its page lock to "12-14" (a page starting at it); switching the setting off
   then finds that page by its words.
 - "OMITTED 12-14" as one line is the form I know from shooting scripts (*unverified*: no source checked).
+- The scheme is narrower than the old engine: `01`, `10a`, `12b` are fixed labels now (never renumbered).
+- In a v1.13.0 run a number between its ends without a block (an FDX round trip has no blocks) is lost, so after the
+  rewrite a new scene can get it.
 - After an issue, Renumber marks every renumbered heading as revised in the next colour. That is correct (the
   headings changed), but it is a lot of asterisks.

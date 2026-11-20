@@ -29,7 +29,9 @@ import (
 // Lexington v1.13.0 (Accolade's first Renumber strategies) wrote a run
 // into the text as one heading, ".OMITTED #12-14#". Accolade reads it as
 // its scenes, and writes it as one heading a scene (fountain.SplitOmitted)
-// on the next Renumber, Unlock or Save: one undo step, the setting
+// on the next Renumber (when its dialog opens, so Cancel keeps it),
+// Unlock or Save (File > Save and Save As; not autosave, which
+// would add an undo step while the writer types): one undo step, the setting
 // switched on so that it prints as before, the page lock's "12-14" its
 // first scene's, with a note in the status bar.
 
@@ -72,10 +74,11 @@ func oldOmittedRun(h sceneHead) bool {
 
 // splitOldOmittedRuns writes v1.13.0's merged OMITTED headings as one
 // heading a scene: one undo step, the setting on, the page lock
-// following; it says so in the status bar. false if there were none.
-func (w *MainWindow) splitOldOmittedRuns() bool {
+// following, the cursor on its text; it says so in the status bar, and
+// returns what it said ("" if there were none).
+func (w *MainWindow) splitOldOmittedRuns() string {
 	if w.markdown || w.textEditor == nil {
-		return false
+		return ""
 	}
 	e := w.textEditor
 	text := e.Text()
@@ -88,7 +91,7 @@ func (w *MainWindow) splitOldOmittedRuns() bool {
 		}
 	}
 	if len(runs) == 0 {
-		return false
+		return ""
 	}
 	// the page lock: a page that starts at the run now starts at its first
 	p := numberPlan{nums: make([]string, len(heads)), drop: make([]bool, len(heads))}
@@ -121,15 +124,31 @@ func (w *MainWindow) splitOldOmittedRuns() bool {
 			names = append(names, heads[i].num)
 		}
 		bs, be, block := withProductionBlock(text, inside)
-		line, col := b.Position(b.Cursor())
+		// the cursor stays on its text: moved by what grew before it
+		cursor := b.Cursor()
+		moved := 0
+		for _, ed := range append([]lineEdit{{bs, be, block}}, edits...) {
+			if ed.end <= cursor {
+				moved += len([]rune(ed.text)) - (ed.end - ed.start)
+			}
+		}
 		b.Group(func() {
 			b.Replace(bs, be, block) // after the script: the headings' places hold
 			applyBackwards(edits, b.Replace)
-			b.SetCursor(b.Offset(line, col), false)
+			b.SetCursor(cursor+moved, false)
 		})
 	})
 	w.followSceneNumbers()
-	w.setStatus("OMITTED " + strings.Join(names, ", ") + " written as one OMITTED heading a scene, as the text keeps them now; " +
-		"they still print as one (Production > Renumber Scenes…, OMITTED) — Undo takes it back")
-	return true
+	msg := "OMITTED " + strings.Join(names, ", ") + " written as one OMITTED heading a scene, as the text keeps them now; " +
+		"they still print as one (Production > Renumber Scenes…, OMITTED) — Undo takes it back"
+	w.setStatus(msg)
+	return msg
+}
+
+// splitOldRunsOnSave is Save's rewrite of v1.13.0's runs: not while
+// shared (every peer would; the next Renumber does it).
+func (w *MainWindow) splitOldRunsOnSave() {
+	if w.shared == nil {
+		w.splitOldOmittedRuns()
+	}
 }
