@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/LaPingvino/accolade/internal/pace"
 )
 
 // ReadDOCX reads a Word document: its paragraphs, headings (by their
@@ -215,6 +217,7 @@ func (x *docxReader) body(n *node) []*Block {
 	var paras []docxPara
 	var walk func(n *node)
 	walk = func(n *node) {
+		pace.Yield()
 		if n == nil {
 			return
 		}

@@ -21,6 +21,12 @@ func newDialogTestWindow(t *testing.T) (*MainWindow, *Application) {
 	app := &Application{fyneApp: a}
 	w := NewMainWindow(app)
 	app.windows = append(app.windows, w)
+	t.Cleanup(func() { // no timer of this test's fires into the next one
+		w.stopTimers()
+		for _, o := range app.windows {
+			o.stopTimers()
+		}
+	})
 	w.fyneWindow.Resize(fyne.NewSize(1100, 650))
 	return w, app
 }

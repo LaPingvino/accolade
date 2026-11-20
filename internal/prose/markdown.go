@@ -9,6 +9,8 @@ import (
 	"github.com/yuin/goldmark/text"
 
 	"github.com/yuin/goldmark/extension"
+
+	"github.com/LaPingvino/accolade/internal/pace"
 )
 
 // Markdown is the goldmark Accolade reads Markdown with: GitHub's
@@ -49,6 +51,7 @@ type mdReader struct {
 func (r *mdReader) blocks(parent ast.Node) []*Block {
 	var out []*Block
 	for n := parent.FirstChild(); n != nil; n = n.NextSibling() {
+		pace.Yield() // a novel takes a while in the browser
 		if b := r.block(n); b != nil {
 			out = append(out, b)
 		}

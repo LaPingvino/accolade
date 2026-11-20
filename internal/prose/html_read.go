@@ -8,6 +8,8 @@ import (
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 	"golang.org/x/net/html/charset"
+
+	"github.com/LaPingvino/accolade/internal/pace"
 )
 
 // ReadHTML reads a web page: its headings, paragraphs, lists, quotes,
@@ -97,6 +99,7 @@ var blockAtoms = map[atom.Atom]bool{
 // blocks reads the blocks in n: its block elements, and the text between
 // them as paragraphs.
 func (x *htmlReader) blocks(n *html.Node) []*Block {
+	pace.Yield()
 	var out []*Block
 	var loose []Span // inline content not in a paragraph
 	flush := func() {

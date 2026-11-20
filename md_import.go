@@ -158,18 +158,34 @@ func (w *MainWindow) ImportWithPandoc() {
 }
 
 // importDocument reads a document into this window as a new Markdown
-// document: a PDF in the background, the rest at once.
+// document, in the background (background.go).
 func (w *MainWindow) importDocument(path string) {
 	if strings.EqualFold(filepath.Ext(path), ".pdf") {
 		w.importProsePDFAsync(path)
 		return
 	}
-	md, dropped, from, err := toMarkdown(path)
-	if err != nil {
-		dialog.ShowError(fmt.Errorf("could not import %s: %v", filepath.Base(path), err), w.fyneWindow)
-		return
+	type read struct {
+		md, from string
+		dropped  int
+		err      error
 	}
-	w.showImportedMarkdown(path, md, from, dropped)
+	w.importGen++
+	gen := w.importGen
+	w.setStatus("Reading " + filepath.Base(path) + "…")
+	inBackground(func() read { // converting a novel took seconds in the browser
+		var r read
+		r.md, r.dropped, r.from, r.err = toMarkdown(path)
+		return r
+	}, func(r read) {
+		if gen != w.importGen {
+			return // another import since
+		}
+		if r.err != nil {
+			dialog.ShowError(fmt.Errorf("could not import %s: %v", filepath.Base(path), r.err), w.fyneWindow)
+			return
+		}
+		w.showImportedMarkdown(path, r.md, r.from, r.dropped)
+	})
 }
 
 // importProsePDFAsync reads a PDF as prose in the background, asking

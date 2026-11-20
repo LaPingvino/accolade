@@ -16,6 +16,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/LaPingvino/accolade/internal/pace"
 )
 
 // Kind is a block's kind.
@@ -106,6 +108,7 @@ func (m *mdWriter) blocks(bs []*Block, indent, first string) {
 // a paragraph follows it without a blank line, so the list stays tight.
 func (m *mdWriter) items(bs []*Block, indent, first string, item bool) {
 	for i, b := range bs {
+		pace.Yield()
 		lead := indent
 		if i == 0 && first != "" {
 			lead = first
@@ -256,9 +259,29 @@ func (m *mdWriter) inline(spans []Span, indent string) string {
 	return strings.TrimSpace(b.String())
 }
 
-var spaces = regexp.MustCompile(`[ \t\r\n]+`)
-
-func collapse(s string) string { return spaces.ReplaceAllString(s, " ") }
+// collapse makes each run of spaces, tabs and line breaks one space (a
+// loop: the regexp it was took half of reading a novel's passages).
+func collapse(s string) string {
+	if !strings.ContainsAny(s, "\t\r\n") && !strings.Contains(s, "  ") {
+		return s
+	}
+	var b strings.Builder
+	b.Grow(len(s))
+	space := false
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
+		case ' ', '\t', '\r', '\n':
+			if !space {
+				b.WriteByte(' ')
+			}
+			space = true
+		default:
+			b.WriteByte(c)
+			space = false
+		}
+	}
+	return b.String()
+}
 
 func linkTarget(url string) string {
 	if strings.ContainsAny(url, " ()<>") {
@@ -333,6 +356,7 @@ func (d *Doc) Plain() string {
 			b.WriteString("\n")
 		}
 		for _, bl := range bs {
+			pace.Yield()
 			switch bl.Kind {
 			case Para, Heading:
 				line(text(bl.Spans))

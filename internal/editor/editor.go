@@ -106,6 +106,7 @@ type ScriptEditor struct {
 	draw                drawing      // what relayout found, to draw rows with
 	foldAt              map[int]bool // the folded headings' lines
 	headings            map[int]bool // the lines that can fold (Headings)
+	laid                laidOut      // the last layout, for its key
 }
 
 // drawing is what rows are drawn with: the text, its kinds and styles.
@@ -314,32 +315,18 @@ func (e *ScriptEditor) cellHeight() float32 { return max(e.cellSize().Height, 1)
 
 // relayout re-wraps the text and redraws the grid.
 func (e *ScriptEditor) relayout() {
-	text := []rune(e.buf.Text())
 	g := e.gutter()
-	var kinds []syntax.Kind
-	lines := strings.Split(string(text), "\n")
-	e.rtl = make([]bool, len(lines))
-	for i, l := range lines {
-		e.rtl[i] = RTL(l)
-	}
+	line := -1 // the kinds depend on the cursor's line only while typing a screenplay
 	if e.Format != nil && !e.Markdown {
-		line, _ := e.buf.Position(e.buf.Cursor())
-		kinds = syntax.ClassifyTyping(lines, e.SceneStarts, line)
-		formats := make([]wrap.Format, len(kinds))
-		page := e.PageColumns
-		if page <= 0 {
-			page = max(e.columns-g, 1)
-		}
-		for i, k := range kinds {
-			formats[i] = e.Format(k)
-			if e.rtl[i] {
-				formats[i] = mirrored(formats[i], page)
-			}
-		}
-		e.layout = wrap.WrapFormatted(text, max(e.columns-g, 1), formats)
-	} else {
-		e.layout = wrap.Wrap(text, max(e.columns-g, 1))
+		line, _ = e.buf.Position(e.buf.Cursor())
 	}
+	key := layoutKey{rev: e.buf.Rev(), columns: e.columns, gutter: g, page: e.PageColumns, line: line,
+		markdown: e.Markdown, syntax: e.Syntax, format: e.Format != nil}
+	if !e.laid.ok || e.laid.key != key {
+		e.laid = e.layOut(key)
+	}
+	text, kinds, inline, lineStart := e.laid.text, e.laid.kinds, e.laid.inline, e.laid.lineStart
+	e.rtl, e.layout = e.laid.rtl, e.laid.layout
 	e.foldAt = e.fold()
 	e.headings = nil
 	if e.Headings != nil {
@@ -363,26 +350,6 @@ func (e *ScriptEditor) relayout() {
 	}
 	selStart, selEnd := e.buf.Selection()
 	curRow, curCol := e.layout.RowCol(e.buf.Cursor())
-	var inline map[int][]syntax.Span
-	var lineStart []int
-	switch {
-	case e.Markdown && e.Syntax:
-		kinds = syntax.ClassifyMarkdown(lines)
-		inline, lineStart = map[int][]syntax.Span{}, make([]int, len(lines))
-		off := 0
-		for i, l := range lines {
-			lineStart[i] = off
-			off += len([]rune(l)) + 1
-			switch kinds[i] {
-			case syntax.Action, syntax.MdHeading, syntax.MdQuote, syntax.MdListItem:
-				if s := syntax.MarkdownInline(l); s != nil {
-					inline[i] = s
-				}
-			}
-		}
-	case kinds == nil && e.Syntax:
-		kinds = syntax.ClassifyWith(lines, e.SceneStarts)
-	}
 
 	number := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}
 	others := e.buf.Spans()[1:]
@@ -398,6 +365,91 @@ func (e *ScriptEditor) relayout() {
 		highlight: highlight, number: number, selStart: selStart, selEnd: selEnd,
 		curRow: curRow, curCol: curCol, gutter: g, others: others, otherCursors: otherCursors}
 	e.drawRows()
+}
+
+// layoutKey is what a layout was made for: when a cursor move leaves it
+// the same, the text is not wrapped and classified again (that took
+// tens of milliseconds a move in a long script).
+type layoutKey struct {
+	rev                      uint64
+	columns, gutter, page    int
+	line                     int
+	markdown, syntax, format bool
+}
+
+// laidOut is the text laid out for a key.
+type laidOut struct {
+	key       layoutKey
+	ok        bool
+	text      []rune
+	rtl       []bool
+	layout    wrap.Layout
+	kinds     []syntax.Kind
+	inline    map[int][]syntax.Span
+	lineStart []int
+}
+
+// TypingKinds are the lines' kinds as the editor has them laid out now
+// (syntax.ClassifyTyping at the cursor's line), when it has: ok is false
+// for Markdown, without Format, or before the editor laid out this text.
+func (e *ScriptEditor) TypingKinds() (kinds []syntax.Kind, ok bool) {
+	k := e.laid.key
+	if !e.laid.ok || !k.format || k.markdown || k.rev != e.buf.Rev() {
+		return nil, false
+	}
+	if line, _ := e.buf.Position(e.buf.Cursor()); line != k.line {
+		return nil, false
+	}
+	return e.laid.kinds, true
+}
+
+// layOut wraps and classifies the text.
+func (e *ScriptEditor) layOut(key layoutKey) laidOut {
+	l := laidOut{key: key, ok: true, text: []rune(e.buf.Text())}
+	text, g := l.text, key.gutter
+	lines := strings.Split(e.buf.Text(), "\n")
+	l.rtl = make([]bool, len(lines))
+	for i, ln := range lines {
+		l.rtl[i] = RTL(ln)
+	}
+	var kinds []syntax.Kind
+	if e.Format != nil && !e.Markdown {
+		kinds = syntax.ClassifyTyping(lines, e.SceneStarts, key.line)
+		formats := make([]wrap.Format, len(kinds))
+		page := e.PageColumns
+		if page <= 0 {
+			page = max(e.columns-g, 1)
+		}
+		for i, k := range kinds {
+			formats[i] = e.Format(k)
+			if l.rtl[i] {
+				formats[i] = mirrored(formats[i], page)
+			}
+		}
+		l.layout = wrap.WrapFormatted(text, max(e.columns-g, 1), formats)
+	} else {
+		l.layout = wrap.Wrap(text, max(e.columns-g, 1))
+	}
+	switch {
+	case e.Markdown && e.Syntax:
+		kinds = syntax.ClassifyMarkdown(lines)
+		l.inline, l.lineStart = map[int][]syntax.Span{}, make([]int, len(lines))
+		off := 0
+		for i, ln := range lines {
+			l.lineStart[i] = off
+			off += len([]rune(ln)) + 1
+			switch kinds[i] {
+			case syntax.Action, syntax.MdHeading, syntax.MdQuote, syntax.MdListItem:
+				if s := syntax.MarkdownInline(ln); s != nil {
+					l.inline[i] = s
+				}
+			}
+		}
+	case kinds == nil && e.Syntax:
+		kinds = syntax.ClassifyWith(lines, e.SceneStarts)
+	}
+	l.kinds = kinds
+	return l
 }
 
 // drawRows puts the rows in view (and viewMargin around them) in the grid.
@@ -592,7 +644,10 @@ func (d drawing) inOther(off int) bool {
 // Refresh redraws the editor with the current theme's colours: Fyne
 // refreshes every widget when the theme changes, and the syntax colours
 // are baked into the grid's cell styles.
-func (e *ScriptEditor) Refresh() { e.relayout() }
+func (e *ScriptEditor) Refresh() {
+	e.laid.ok = false // its settings may have changed (Format, SceneStarts)
+	e.relayout()
+}
 
 // kindStyle is how a Fountain element is shown (nil for plain action and
 // dialogue). Scene headings, the landmarks of a script, are the only

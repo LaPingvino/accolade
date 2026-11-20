@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/accolade/internal/prose"
 )
@@ -109,7 +110,8 @@ const linkWords = 8
 // parseLinks finds the source links in a script: not in a boneyard
 // (/* … */) or the notes block at its end.
 func parseLinks(text string) []sourceLink {
-	text = string([]rune(text)[:notesStart(text)])
+	_, _, notes := tailsOf(text)
+	text = text[:notes]
 	var links []sourceLink
 	off := 0 // in runes, of the line
 	inBoneyard := false
@@ -130,14 +132,14 @@ func parseLinks(text string) []sourceLink {
 				}
 				e += s + 2
 				if q, ok := linkQuote(line[s+2 : e-2]); ok {
-					start := off + len([]rune(line[:s]))
-					links = append(links, sourceLink{Start: start, End: start + len([]rune(line[s:e])), Line: i,
+					start := off + utf8.RuneCountInString(line[:s])
+					links = append(links, sourceLink{Start: start, End: start + utf8.RuneCountInString(line[s:e]), Line: i,
 						Quote: q, Words: normWords(q)})
 				}
 				at = e
 			}
 		}
-		off += len([]rune(line)) + 1
+		off += utf8.RuneCountInString(line) + 1
 	}
 	return links
 }
@@ -191,13 +193,31 @@ func (m linkMatch) found() bool { return m.Kind == linkFound || m.Kind == linkNe
 //     the link's words (at least 1), and no other passage is as near.
 //     A tie is ambiguous; nothing near enough is missing.
 func matchLink(words []string, ps []passage) linkMatch {
+	return matchIn(words, ps, nil, nil)
+}
+
+// matchIn is matchLink; with byFirst (the linkable passages by their
+// first word) the exact ones are looked for only among those opening
+// with the link's first word, and row is room for prefixDistance.
+func matchIn(words []string, ps []passage, byFirst map[string][]int, row *[]int) linkMatch {
 	if len(words) == 0 {
 		return linkMatch{Kind: linkMissing}
 	}
 	var exact []int
-	for _, p := range ps {
-		if p.linkable() && len(p.Words) >= len(words) && slices.Equal(p.Words[:len(words)], words) {
-			exact = append(exact, p.Index)
+	opens := func(p passage) bool {
+		return p.linkable() && len(p.Words) >= len(words) && slices.Equal(p.Words[:len(words)], words)
+	}
+	if byFirst != nil {
+		for _, i := range byFirst[words[0]] {
+			if opens(ps[i]) {
+				exact = append(exact, ps[i].Index)
+			}
+		}
+	} else {
+		for _, p := range ps {
+			if opens(p) {
+				exact = append(exact, p.Index)
+			}
 		}
 	}
 	switch {
@@ -210,11 +230,15 @@ func matchLink(words []string, ps []passage) linkMatch {
 	}
 	limit := max(1, len(words)/4)
 	best, bestAt := limit+1, []int(nil)
-	for _, p := range ps {
+	var scratch []int
+	if row == nil {
+		row = &scratch
+	}
+	for _, p := range ps { // a near one may differ in any word, the first too: all of them
 		if !p.linkable() {
 			continue
 		}
-		d := prefixDistance(words, p.Words, limit)
+		d := prefixDistanceIn(words, p.Words, limit, row)
 		switch {
 		case d > limit:
 		case d < best:
@@ -232,12 +256,71 @@ func matchLink(words []string, ps []passage) linkMatch {
 	return linkMatch{Kind: linkMissing}
 }
 
+// linkMatcher matches links against one source's passages, and
+// remembers what each link's words found: while the passages stay the
+// same, a keystroke matches again only the link it changed (a near or
+// missing link is compared with every passage, which is what took the
+// time).
+type linkMatcher struct {
+	ps      []passage
+	byFirst map[string][]int // the linkable passages, by their first word
+	found   map[string]linkMatch
+	row     []int
+}
+
+// maxRemembered is how many links' matches a matcher keeps; past it, it
+// starts again (typing a link makes a new one per letter).
+const maxRemembered = 4096
+
+func newLinkMatcher(ps []passage) *linkMatcher {
+	lm := &linkMatcher{ps: ps, byFirst: map[string][]int{}, found: map[string]linkMatch{}}
+	for i, p := range ps {
+		if p.linkable() {
+			lm.byFirst[p.Words[0]] = append(lm.byFirst[p.Words[0]], i)
+		}
+	}
+	return lm
+}
+
+// match is matchLink(words, the matcher's passages). The match it gives
+// is shared: not to be changed.
+func (lm *linkMatcher) match(words []string) linkMatch {
+	key := strings.Join(words, "\x00")
+	if mt, ok := lm.found[key]; ok {
+		return mt
+	}
+	mt := matchIn(words, lm.ps, lm.byFirst, &lm.row)
+	if len(lm.found) >= maxRemembered {
+		clear(lm.found)
+	}
+	lm.found[key] = mt
+	return mt
+}
+
 // prefixDistance is how many words a, edited, is from the nearest
 // opening of b (b's first len(a) words, give or take): Levenshtein over
 // words. Past limit it gives up and says limit+1.
 func prefixDistance(a, b []string, limit int) int {
+	return prefixDistanceIn(a, b, limit, nil)
+}
+
+// prefixDistanceIn is prefixDistance with row as room for its row. Only
+// b's first len(a)+limit words can count: an opening longer than that
+// is more than limit away.
+func prefixDistanceIn(a, b []string, limit int, room *[]int) int {
+	if len(b) > len(a)+limit {
+		b = b[:len(a)+limit]
+	}
 	// row[j]: the distance from a[:i] to b[:j]
-	row := make([]int, len(b)+1)
+	var row []int
+	if room != nil && cap(*room) >= len(b)+1 {
+		row = (*room)[:len(b)+1]
+	} else {
+		row = make([]int, len(b)+1)
+		if room != nil {
+			*room = row
+		}
+	}
 	for j := range row {
 		row[j] = j
 	}
@@ -355,15 +438,22 @@ type sourceModel struct {
 }
 
 func newSourceModel(ps []passage, script string, starts []string) *sourceModel {
+	return newSourceModelWith(newLinkMatcher(ps), script, starts)
+}
+
+// newSourceModelWith is newSourceModel with lm's passages, the links
+// matched through it (what it found for earlier models is kept).
+func newSourceModelWith(lm *linkMatcher, script string, starts []string) *sourceModel {
+	ps := lm.ps
 	m := &sourceModel{passages: ps, links: parseLinks(script), spans: sceneSpans(script, starts)}
 	for _, l := range m.links {
-		m.matches = append(m.matches, matchLink(l.Words, ps))
+		m.matches = append(m.matches, lm.match(l.Words))
 	}
 	if inside, ok := adaptationBlock(script); ok {
 		m.cuts = parseCuts(inside)
 	}
 	for _, c := range m.cuts {
-		m.cutAt = append(m.cutAt, resolveCut(c, ps))
+		m.cutAt = append(m.cutAt, cutAt(c, lm.match(c.Words)))
 	}
 	m.status = statusesOf(ps, m.matches, m.cutAt)
 	return m

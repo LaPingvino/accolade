@@ -15,6 +15,7 @@ func newTestWindow(t *testing.T, text string) *MainWindow {
 	t.Cleanup(a.Quit)
 
 	w := NewMainWindow(&Application{fyneApp: a})
+	t.Cleanup(w.stopTimers)
 	w.textEditor.SetText(text)
 	w.hasChanges = false
 	w.textEditor.SetCursorOffset(0)

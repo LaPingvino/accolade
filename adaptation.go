@@ -5,6 +5,9 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
+	"unicode/utf8"
+	"unsafe"
 
 	"github.com/LaPingvino/accolade/internal/prose"
 )
@@ -36,20 +39,52 @@ var adaptationMarks = newNotesMarks("/* Adaptation", "*/", "* /")
 
 // tailBlock is one of the boneyard blocks at a script's end: where it is
 // in runes (from the blank lines before it to the next block, the notes
-// or the end) and what is inside it.
+// or the end), the same in bytes, and what is inside it.
 type tailBlock struct {
-	start, end int
-	inside     string
+	start, end   int
+	bstart, bend int
+	inside       string
+	md           string // the source block's: inside, ending with a new line
+	ok           bool
+}
+
+// tails is what tailBlocks found last, for the text it found it in: the
+// window asks for it several times per event, of the same text.
+var tails struct {
+	sync.Mutex
+	text       string
+	src, adapt tailBlock
+	notes      int // notesStart, in bytes
 	ok         bool
 }
 
 // tailBlocks are the script's source and adaptation blocks, the last
 // things before its notes (or its end), in either order.
 func tailBlocks(text string) (src, adapt tailBlock) {
-	r := []rune(text)
-	end := notesStart(text)
+	src, adapt, _ = tailsOf(text)
+	return src, adapt
+}
+
+// tailsOf is tailBlocks, and where the notes block starts (in bytes; the
+// text's length without one); remembered for the last text asked about.
+func tailsOf(text string) (src, adapt tailBlock, notes int) {
+	tails.Lock()
+	defer tails.Unlock()
+	if tails.ok && sameString(tails.text, text) {
+		return tails.src, tails.adapt, tails.notes
+	}
+	src, adapt, notes = findTails(text)
+	tails.text, tails.src, tails.adapt, tails.notes, tails.ok = text, src, adapt, notes, true
+	return src, adapt, notes
+}
+
+// findTails scans for the tail blocks, in bytes, then gives their places
+// in runes too.
+func findTails(text string) (src, adapt tailBlock, notes int) {
+	notes = fountainNotes.startByte(text)
+	end := notes
 	for {
-		before := string(r[:end])
+		before := text[:end]
 		found := false
 		for _, b := range []struct {
 			marks *notesMarks
@@ -59,29 +94,57 @@ func tailBlocks(text string) (src, adapt tailBlock) {
 				continue
 			}
 			if i, inside := b.marks.at(before); i >= 0 {
-				s := len([]rune(before[:i]))
-				*b.to = tailBlock{start: s, end: end, ok: true,
+				*b.to = tailBlock{bstart: i, bend: end, ok: true,
 					inside: strings.ReplaceAll(inside, b.marks.escaped, b.marks.close)}
-				end, found = s, true
+				end, found = i, true
 				break
 			}
 		}
 		if !found {
-			return src, adapt
+			break
 		}
 	}
+	if src.ok {
+		src.md = src.inside
+		if src.md != "" && !strings.HasSuffix(src.md, "\n") { // the block's last line ends as a file's
+			src.md += "\n"
+		}
+	}
+	runes := func(b int) int { return utf8.RuneCountInString(text[:b]) }
+	for _, t := range []*tailBlock{&src, &adapt} {
+		if t.ok {
+			t.start, t.end = runes(t.bstart), runes(t.bend)
+		}
+	}
+	return src, adapt, notes
+}
+
+// sameString reports whether a and b are the same text, at once if they
+// are the same string (a text asked for again).
+func sameString(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	if len(a) == 0 || unsafe.StringData(a) == unsafe.StringData(b) {
+		return true
+	}
+	return a == b
 }
 
 // bodyEnd is where the script proper ends, in runes: before its source,
 // adaptation and notes blocks.
 func bodyEnd(text string) int {
-	end := notesStart(text)
-	src, adapt := tailBlocks(text)
+	return utf8.RuneCountInString(text[:bodyEndByte(text)])
+}
+
+// bodyEndByte is bodyEnd in bytes.
+func bodyEndByte(text string) int {
+	src, adapt, end := tailsOf(text)
 	if src.ok {
-		end = min(end, src.start)
+		end = min(end, src.bstart)
 	}
 	if adapt.ok {
-		end = min(end, adapt.start)
+		end = min(end, adapt.bstart)
 	}
 	return end
 }
@@ -278,7 +341,11 @@ func withAdaptationBlock(text, inside string) (start, end int, block string) {
 
 // resolveCut is the passage a cut entry names, or -1.
 func resolveCut(c cutMark, ps []passage) int {
-	mt := matchLink(c.Words, ps)
+	return cutAt(c, matchLink(c.Words, ps))
+}
+
+// cutAt is the passage a cut entry names, given what its words found.
+func cutAt(c cutMark, mt linkMatch) int {
 	switch {
 	case c.Nth > 0 && (mt.found() || mt.Kind == linkAmbiguous) && c.Nth <= len(mt.Passages):
 		return mt.Passages[c.Nth-1]

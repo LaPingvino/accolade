@@ -9,10 +9,12 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
+	"github.com/LaPingvino/accolade/internal/pace"
 	"github.com/LaPingvino/accolade/internal/tooltip"
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -113,7 +115,12 @@ type MainWindow struct {
 	suggestedName string
 
 	// Auto-save (autosave.go)
-	autoSaveTimer *time.Timer
+	autoSaveTimer *uiTimer
+	timers        uiTimers      // the window's (background.go)
+	followTimer   *uiTimer      // the source pane's follow, after typing
+	seenRev       uint64        // the text's revision the cursor was last seen in
+	importGen     int           // the import under way (a later one wins)
+	sourceGen     int           // the Choose Source under way
 	autoSaveDelay time.Duration // overrides the setting; for tests
 
 	statusLabel *widget.Label
@@ -477,6 +484,7 @@ func (w *MainWindow) readPDFInBackground(filePath, what string,
 		defer close(finished)
 		defer cancel()
 		text, skipped, err := read(ctx, func(n, pages int) {
+			pace.YieldNow() // the browser's page draws and takes input meanwhile (internal/pace)
 			fyne.Do(func() {
 				bar.SetValue(float64(n) / float64(max(pages, 1)))
 				label.SetText(fmt.Sprintf("Read %d of %d pages", n, pages))
@@ -870,7 +878,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	}
 	if w.notesVisible && w.notes != nil {
 		w.notes.update(text)
-		w.notes.source.follow()
+		w.followSource()
 	}
 	if w.previewVisible && w.previewPane != nil {
 		w.previewPane.update(text)
@@ -937,7 +945,7 @@ func (w *MainWindow) onCursorChanged() {
 	w.updateCurrentElement()
 	w.updateStatusBar() // the scene under the cursor
 	if w.notes != nil {
-		w.notes.source.follow() // the scene's passages
+		w.followSource() // the scene's passages
 	}
 	// what Tab would complete, or nothing once it no longer applies
 	if w.markdown {
@@ -963,7 +971,10 @@ func (w *MainWindow) updateCurrentElement() {
 		w.currentElement = markdownNames[kinds[min(line, len(kinds)-1)]]
 		return
 	}
-	kinds := syntax.ClassifyTyping(strings.Split(text, "\n"), w.sceneStarts(), line)
+	kinds, ok := w.textEditor.TypingKinds() // as the editor laid them out
+	if !ok || !slices.Equal(w.textEditor.SceneStarts, w.sceneStarts()) {
+		kinds = syntax.ClassifyTyping(strings.Split(text, "\n"), w.sceneStarts(), line)
+	}
 	w.currentElement = elementNames[kinds[min(line, len(kinds)-1)]]
 	if w.headerBar != nil {
 		w.headerBar.showElement(w.currentElement)

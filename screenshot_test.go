@@ -28,6 +28,7 @@ func TestScreenshots(t *testing.T) {
 	a := test.NewApp()
 	t.Cleanup(a.Quit)
 	w := NewMainWindow(&Application{fyneApp: a})
+	t.Cleanup(w.stopTimers)
 	w.fyneWindow.Resize(fyne.NewSize(1000, 650))
 	w.textEditor.SetCursorOffset(len([]rune(w.textEditor.Text())) / 3)
 
@@ -61,6 +62,7 @@ func TestMarkdownScreenshots(t *testing.T) {
 	a := test.NewApp()
 	t.Cleanup(a.Quit)
 	w := NewMainWindow(&Application{fyneApp: a})
+	t.Cleanup(w.stopTimers)
 	w.fyneWindow.Resize(fyne.NewSize(1200, 700))
 	md := filepath.Join(t.TempDir(), "story.md")
 	if err := os.WriteFile(md, []byte(story), 0o644); err != nil {

@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -270,5 +271,15 @@ func TestListsGoOn(t *testing.T) {
 	h, err := ReadHTML(strings.NewReader(page))
 	if err != nil || h.Markdown() != "Café\n" {
 		t.Errorf("%q %v", h.Markdown(), err)
+	}
+}
+
+// collapse is a loop now; it does what the regexp `[ \t\r\n]+` → " " did.
+func TestCollapseAsBefore(t *testing.T) {
+	re := regexp.MustCompile(`[ \t\r\n]+`)
+	for _, s := range []string{"", " ", "a", "a b", "a  b", " a\t\tb\r\nc ", "\n\n", "é  ü\t中", "x \t \n y", "a\fb", "ab  "} {
+		if got, want := collapse(s), re.ReplaceAllString(s, " "); got != want {
+			t.Errorf("collapse(%q) = %q, want %q", s, got, want)
+		}
 	}
 }

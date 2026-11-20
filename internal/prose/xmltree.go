@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"strings"
+
+	"github.com/LaPingvino/accolade/internal/pace"
 )
 
 // node is an element of an XML document, read whole: DOCX and ODT parts
@@ -25,6 +27,7 @@ func parseXML(r io.Reader) (*node, error) {
 	root := &node{}
 	stack := []*node{root}
 	for {
+		pace.Yield() // a long document takes a while in the browser
 		t, err := d.Token()
 		if err == io.EOF {
 			break

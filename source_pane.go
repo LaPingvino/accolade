@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -15,7 +17,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/pace"
 	"github.com/LaPingvino/accolade/internal/storyread"
 )
 
@@ -45,7 +49,8 @@ type sourcePane struct {
 	err      error
 
 	model    *sourceModel
-	modelFor string // the script text the model was made from
+	modelFor string       // the script text the model was made from
+	matcher  *linkMatcher // the passages' links found, kept while they stay
 
 	selected int          // the passage picked (-1 none)
 	cycle    int          // which of its scenes the last tap went to
@@ -61,8 +66,17 @@ type sourcePane struct {
 	readingFor string
 	view       *readingView
 
-	heights []float32
-	width   float32 // the passages were measured at
+	heights          []float32 // the rows' heights, estimated or measured
+	exact            []bool    // measured
+	width            float32   // the passages were measured at
+	est              rowEstimate
+	measuring        int                         // the measuring under way (a new one stops it)
+	scanned          int                         // rows before it are measured, in the measuring's order
+	measureT, widthT *uiTimer                    // the measuring's next stretch; a width change waited out
+	shownMD          map[*widget.RichText]string // what each row shows
+	measureRow       *fyne.Container
+	loading          *sourceRead // the source being read in the background
+	hideRows         bool        // the list is told it has none (setHeights)
 
 	title   *widget.Label
 	info    *widget.Label
@@ -73,7 +87,7 @@ type sourcePane struct {
 	next    *widget.Button
 	cut     *widget.Button
 	prompt  *statusPrompt
-	editor  *widget.Entry
+	editor  *sourceEditor
 	editing bool
 	empty   fyne.CanvasObject
 	body    *fyne.Container // the list, the editor or the empty state
@@ -89,7 +103,12 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.info.SizeName = theme.SizeNameCaptionText
 	s.info.Importance = widget.LowImportance
 	s.list = widget.NewList(
-		func() int { return len(s.passages) },
+		func() int {
+			if s.hideRows {
+				return 0
+			}
+			return len(s.passages)
+		},
 		func() fyne.CanvasObject { return newPassageRow() },
 		func(id widget.ListItemID, o fyne.CanvasObject) {
 			if id < len(s.passages) {
@@ -119,14 +138,12 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.cut.Disable()
 	fyne.SetAccessibleLabel(s.cut, "Mark the picked passage as cut on purpose")
 	s.prompt = newStatusPrompt(s)
-	s.editor = widget.NewMultiLineEntry()
-	s.editor.Wrapping = fyne.TextWrapWord
-	fyne.SetAccessibleLabel(s.editor, "Source text")
+	s.editor = newSourceEditor()
 	none := widget.NewLabel("No source yet. A Markdown file with the script's name beside it " +
 		"(story.md for story.fountain) is its source; or choose one.")
 	none.Wrapping = fyne.TextWrapWord
 	s.empty = container.NewVBox(none, widget.NewButtonWithIcon("Choose Source…", theme.FolderOpenIcon(), w.chooseSource))
-	s.body = container.NewStack(newWidthWatch(s.list, s.measure))
+	s.body = container.NewStack(newWidthWatch(s.list, s.onWidth))
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(s.edit, s.choose), s.title)
 	tools := container.NewBorder(nil, nil, nil, container.NewHBox(s.next, s.cut), s.count)
 	s.view = newReadingView(s)
@@ -175,30 +192,203 @@ func (s *sourcePane) show(row *fyne.Container, id int) {
 	}
 	bg.Refresh()
 	bar.Refresh()
-	text.ParseMarkdown(p.Markdown)
+	if s.shownMD == nil {
+		s.shownMD = map[*widget.RichText]string{}
+	}
+	if md, ok := s.shownMD[text]; !ok || md != p.Markdown { // wrapping it again is what takes the time
+		text.ParseMarkdown(p.Markdown)
+		s.shownMD[text] = p.Markdown
+	}
 }
 
-// measure sets the rows' heights for the list's width.
+// The rows' heights. Measuring a row (wrapping its text) takes about a
+// millisecond, all of a novel's rows seconds: so each row's height is
+// estimated from its length first, and then measured a stretch at a time
+// on the UI goroutine, the rows in view first, with the page given back
+// between the stretches. A change of width is waited out (a split being
+// dragged) before the rows are measured again.
+
+// widthPause is how long the width has to stay before the rows are
+// measured again for it.
+const widthPause = 150 * time.Millisecond
+
+// onWidth is the list's width changing.
+func (s *sourcePane) onWidth(width float32) {
+	if width <= 0 {
+		return
+	}
+	if s.width == 0 || len(s.heights) != len(s.passages) { // the first time: at once
+		cancel(&s.widthT)
+		s.measure(width)
+		return
+	}
+	s.w.debounce(&s.widthT, widthPause, func() { s.measure(width) })
+}
+
+// rowEstimate is how a row's height is estimated at a width: a line's
+// height, the next lines', and how many characters fit on a line.
+type rowEstimate struct {
+	width, one, step, perLine float32
+}
+
+// measured is the height of a row showing md at the width.
+func (s *sourcePane) measured(md string, width float32) float32 {
+	if s.measureRow == nil {
+		s.measureRow = newPassageRow()
+	}
+	inner := s.measureRow.Objects[1].(*fyne.Container)
+	text := inner.Objects[0].(*widget.RichText)
+	text.ParseMarkdown(md)
+	s.measureRow.Resize(fyne.NewSize(width, 1))
+	return s.measureRow.MinSize().Height
+}
+
+// estimateFor finds how rows are estimated at a width: one line's row
+// and a two lines' row measured, and the characters of the source's
+// opening that fit on a line.
+func (s *sourcePane) estimateFor(width float32) rowEstimate {
+	e := rowEstimate{width: width, one: s.measured("x", width)}
+	inner := s.measureRow.Objects[1].(*fyne.Container)
+	text := inner.Objects[0].(*widget.RichText)
+	pad := theme.InnerPadding()
+	lineW := max(text.Size().Width-2*pad, 10)
+	var sample strings.Builder
+	for _, p := range s.passages {
+		if sample.Len() > 2000 {
+			break
+		}
+		sample.WriteString(p.Plain + " ")
+	}
+	if sample.Len() == 0 {
+		sample.WriteString("The quick brown fox jumps over the lazy dog. ")
+	}
+	str := sample.String()
+	sz := fyne.MeasureText(str, theme.TextSize(), fyne.TextStyle{})
+	charW := max(sz.Width/float32(max(utf8.RuneCountInString(str), 1)), 1)
+	e.perLine = max(lineW/charW*0.92, 1) // words wrap a little before the edge
+	two := strings.Repeat("x ", int(e.perLine*1.5)/2+1)
+	e.step = max(s.measured(two, width)-e.one, 1)
+	return e
+}
+
+// estimate is a passage's row's height, by its length.
+func (e rowEstimate) estimate(p passage) float32 {
+	n := utf8.RuneCountInString(p.Plain)
+	lines := max(1, int(math.Ceil(float64(float32(n)/e.perLine))))
+	return e.one + float32(lines-1)*e.step
+}
+
+// measure sets the rows' heights for the list's width: estimated now,
+// measured over time (measureStretch).
 func (s *sourcePane) measure(width float32) {
 	if width <= 0 {
 		return
 	}
 	s.width = width
-	row := newPassageRow()
+	s.measuring++
+	s.scanned = 0
+	s.est = s.estimateFor(width)
 	s.heights = make([]float32, len(s.passages))
-	for id := range s.passages {
-		s.show(row, id)
-		row.Resize(fyne.NewSize(width, 1))
-		s.heights[id] = row.MinSize().Height
+	s.exact = make([]bool, len(s.passages))
+	for id, p := range s.passages {
+		s.heights[id] = s.est.estimate(p)
+	}
+	s.setHeights(0, len(s.passages))
+	gen := s.measuring
+	s.w.repeat(&s.measureT, func() bool { return s.measureStretch(gen) })
+}
+
+// setHeights gives the list the heights of rows [from, to). The list
+// lays itself out again at each one, so with many it is told it has no
+// rows meanwhile (its scroll offset kept).
+func (s *sourcePane) setHeights(from, to int) {
+	if to-from > 8 {
+		off := s.list.GetScrollOffset()
+		s.hideRows = true
+		for id := from; id < to; id++ {
+			s.list.SetItemHeight(id, s.heights[id])
+		}
+		s.hideRows = false
+		s.list.Refresh()
+		s.list.ScrollToOffset(off)
+		return
+	}
+	for id := from; id < to; id++ {
 		s.list.SetItemHeight(id, s.heights[id])
 	}
-	s.list.Refresh()
+}
+
+// measureStretch measures rows for a while: those in view first, then on
+// from the first not measured; it reports whether rows are left.
+func (s *sourcePane) measureStretch(gen int) bool {
+	if gen != s.measuring || len(s.exact) != len(s.passages) {
+		return false
+	}
+	start := time.Now()
+	one := func(id int) {
+		if s.exact[id] {
+			return
+		}
+		s.exact[id] = true
+		if h := s.measured(s.passages[id].Markdown, s.width); h != s.heights[id] {
+			s.heights[id] = h
+			s.list.SetItemHeight(id, h)
+		}
+	}
+	first := s.firstInView()
+	for id := first; id < min(first+40, len(s.passages)); id++ {
+		one(id)
+	}
+	for ; s.scanned < len(s.passages); s.scanned++ {
+		if time.Since(start) > pace.Work {
+			return true
+		}
+		one(s.scanned)
+	}
+	return false
+}
+
+// firstInView is the first row in the list's view.
+func (s *sourcePane) firstInView() int {
+	top, pad := s.list.GetScrollOffset(), theme.Padding()
+	y := float32(0)
+	for id, h := range s.heights {
+		if y+h > top {
+			return id
+		}
+		y += h + pad
+	}
+	return 0
 }
 
 // load reads the window's script's source again if it is another one
 // now, or it changed: its block in the script, or its file's time or
 // size.
-func (s *sourcePane) load() {
+func (s *sourcePane) load() { s.loadSource(false) }
+
+// sourceRead is a source read: where it is, its file's time and size,
+// its Markdown.
+type sourceRead struct {
+	ref     sourceRef
+	modTime time.Time
+	size    int64
+	src     string
+	err     error
+}
+
+func (r *sourceRead) same(o *sourceRead) bool {
+	return o != nil && r.ref == o.ref && r.modTime.Equal(o.modTime) && r.size == o.size &&
+		sameString(r.src, o.src) && (r.err == nil) == (o.err == nil)
+}
+
+// backgroundSource is how long a source is (bytes) before it is parted
+// into passages in the background: a short one is at once.
+const backgroundSource = 64 << 10
+
+// loadSource is load; in the background (the pane follows the cursor), a
+// long source is parted into passages in a goroutine, the pane as it was
+// meanwhile, and follows again when they are in.
+func (s *sourcePane) loadSource(background bool) {
 	ref := s.w.sourceRef()
 	var mod time.Time
 	var size int64
@@ -211,21 +401,45 @@ func (s *sourcePane) load() {
 	var err error
 	if ref.Origin == sourceInside || ref.Origin == sourceBundle { // in memory
 		src, _ = s.w.sourceText(ref)
-		if ref == s.ref && src == s.src {
+		if ref == s.ref && sameString(src, s.src) {
+			s.loading = nil
 			return
 		}
 	} else {
 		if ref == s.ref && mod.Equal(s.modTime) && size == s.size && s.err == nil {
+			s.loading = nil
 			return
 		}
 		src, err = s.w.sourceText(ref)
 	}
-	if (ref.Origin == sourceInside) != (s.ref.Origin == sourceInside) {
+	r := &sourceRead{ref: ref, modTime: mod, size: size, src: src, err: err}
+	if !background || len(src) < backgroundSource {
+		s.loading = nil
+		s.use(r, passagesOf(src))
+		return
+	}
+	if r.same(s.loading) {
+		return // being read
+	}
+	s.loading = r
+	inBackground(func() []passage { return passagesOf(r.src) }, func(ps []passage) {
+		if s.loading != r {
+			return // another one since
+		}
+		s.loading = nil
+		s.use(r, ps)
+		s.follow()
+	})
+}
+
+// use shows a source read, parted into passages.
+func (s *sourcePane) use(r *sourceRead, ps []passage) {
+	if (r.ref.Origin == sourceInside) != (s.ref.Origin == sourceInside) {
 		s.w.refreshMenu() // Keep Source in the Script (an undo can change it)
 	}
-	s.ref, s.modTime, s.size, s.src, s.err = ref, mod, size, src, err
-	s.passages = passagesOf(s.src)
-	s.model, s.modelFor = nil, ""
+	s.ref, s.modTime, s.size, s.src, s.err = r.ref, r.modTime, r.size, r.src, r.err
+	s.passages = ps
+	s.model, s.modelFor, s.matcher = nil, "", nil
 	s.reading = nil
 	if s.selected >= len(s.passages) {
 		s.selected = -1
@@ -256,7 +470,7 @@ func (s *sourcePane) showBody() {
 		s.edit.Show()
 		o = s.body.Objects[0]
 		if wl, ok := o.(*widthWatch); !ok || wl.content != s.list {
-			o = newWidthWatch(s.list, s.measure)
+			o = newWidthWatch(s.list, s.onWidth)
 		}
 	}
 	if s.err != nil {
@@ -272,10 +486,19 @@ func (s *sourcePane) showBody() {
 // script changed.
 func (s *sourcePane) current() *sourceModel {
 	text := s.w.textEditor.Text()
-	if s.model == nil || s.modelFor != text {
-		s.model, s.modelFor = newSourceModel(s.passages, text, s.w.sceneStarts()), text
+	if s.model == nil || !sameString(s.modelFor, text) {
+		if s.matcher == nil || !samePassages(s.matcher.ps, s.passages) {
+			s.matcher = newLinkMatcher(s.passages)
+		}
+		s.model, s.modelFor = newSourceModelWith(s.matcher, text, s.w.sceneStarts()), text
 	}
 	return s.model
+}
+
+// samePassages reports whether a and b are the same passages, not
+// read again since.
+func samePassages(a, b []passage) bool {
+	return len(a) == len(b) && (len(a) == 0 || &a[0] == &b[0])
 }
 
 // shown reports whether the source is in sight.
@@ -288,10 +511,16 @@ func (s *sourcePane) shown() bool {
 // them if none is in sight, and says what of the scene's links was not
 // found.
 func (s *sourcePane) follow() {
+	cancel(&s.w.followTimer) // done now
 	if !s.shown() {
 		return
 	}
-	s.load()
+	s.loadSource(true)
+	if s.loading != nil { // being read: the pane follows when it is in
+		s.title.SetText(s.loading.ref.describe())
+		s.setInfo("Reading the source…")
+		return
+	}
 	if s.ref.Origin == sourceNone {
 		s.setInfo("")
 		s.count.SetText("")
@@ -348,6 +577,28 @@ func (s *sourcePane) follow() {
 			s.list.ScrollTo(first)
 		}
 	}
+}
+
+// followPause is how long typing pauses before the source pane follows
+// the text: the links are read again then, once.
+const followPause = 200 * time.Millisecond
+
+// followSource has the source pane follow the cursor: at once when it
+// moves, once after a pause when the text changes (the cursor and the
+// text both say they changed on a keystroke).
+func (w *MainWindow) followSource() {
+	if w.notes == nil {
+		return
+	}
+	s := w.notes.source
+	rev := w.textEditor.Buffer().Rev()
+	edited := rev != w.seenRev
+	w.seenRev = rev
+	if edited || w.followTimer != nil {
+		w.debounce(&w.followTimer, followPause, s.follow)
+		return
+	}
+	s.follow()
 }
 
 // setInfo says what the scene's links found; the pane is laid out again
@@ -449,7 +700,7 @@ func (s *sourcePane) toggleEdit() {
 		fyne.SetAccessibleLabel(s.edit, "Done: save the source")
 		s.showBody()
 		s.showReading(false)
-		s.w.fyneWindow.Canvas().Focus(s.editor)
+		s.w.fyneWindow.Canvas().Focus(s.editor.ed)
 		return
 	}
 	if s.editor.Text != s.src {
@@ -480,9 +731,40 @@ func (s *sourcePane) toggleEdit() {
 // focusTarget is what takes the keyboard in the pane.
 func (s *sourcePane) focusTarget() fyne.Focusable {
 	if s.editing {
-		return s.editor
+		return s.editor.ed
 	}
 	return s.list
+}
+
+// sourceEditor is the source as text, being edited: in Accolade's own
+// editor, as Markdown (Fyne's Entry took seconds to open a novel, and
+// most of a second per key); Text is the text as it is now.
+type sourceEditor struct {
+	widget.BaseWidget
+	ed   *editor.ScriptEditor
+	view fyne.CanvasObject
+	Text string
+}
+
+func newSourceEditor() *sourceEditor {
+	se := &sourceEditor{ed: editor.New("")}
+	se.ed.Markdown, se.ed.Syntax = true, true
+	se.ed.AccessibleName = "Source text"
+	se.ed.OnChanged = func(text string) { se.Text = text }
+	se.view = editor.NewScroll(se.ed)
+	se.ExtendBaseWidget(se)
+	return se
+}
+
+// SetText puts text in the editor, with the cursor at its start and no
+// undo history.
+func (se *sourceEditor) SetText(text string) {
+	se.ed.SetText(text)
+	se.Text = se.ed.Text()
+}
+
+func (se *sourceEditor) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(se.view)
 }
 
 // widthWatch lays out its content to its size, and says when its width
@@ -542,18 +824,54 @@ func (w *MainWindow) toggleSource() {
 // source, kept by Accolade (source_file.go) and remembered for it.
 func (w *MainWindow) chooseSource() {
 	exts := []string{".md", ".markdown", ".txt", ".docx", ".odt", ".html", ".htm", ".xhtml"}
-	w.chooseFile(exts, func(path string) {
-		if err := w.useSource(path); err != nil {
-			dialog.ShowError(fmt.Errorf("could not use %s as the source: %v", filepath.Base(path), err), w.fyneWindow)
-			return
-		}
-		w.showSource()
-		if w.bundle != nil {
-			w.setStatus("Source: " + filepath.Base(path) + ", put in " + filepath.Base(w.bundle.path))
-		} else {
-			w.setStatus("Source: " + filepath.Base(path) + ", kept by Accolade")
+	w.chooseFile(exts, func(path string) { w.chooseSourceFile(path) })
+}
+
+// chooseSourceFile makes path the script's source: converted in the
+// background (a Word novel took seconds in the browser), then kept for
+// the script it was chosen for, if the window still has that one.
+func (w *MainWindow) chooseSourceFile(path string) {
+	type read struct {
+		md  string
+		err error
+	}
+	w.sourceGen++
+	gen, script, bundle := w.sourceGen, w.currentFile, w.bundle
+	w.setStatus("Reading " + filepath.Base(path) + "…")
+	inBackground(func() read {
+		md, _, _, err := toMarkdown(path)
+		return read{md, err}
+	}, func(r read) {
+		if w.takeChosenSource(gen, script, bundle, path, r.md, r.err) {
+			w.showSource()
+			if w.bundle != nil {
+				w.setStatus("Source: " + filepath.Base(path) + ", put in " + filepath.Base(w.bundle.path))
+			} else {
+				w.setStatus("Source: " + filepath.Base(path) + ", kept by Accolade")
+			}
 		}
 	})
+}
+
+// takeChosenSource makes what Choose Source read the script's source, if
+// it is still for the script it was chosen for (gen: no later Choose
+// Source; the same file and bundle open) and could be read.
+func (w *MainWindow) takeChosenSource(gen int, script string, bundle *textBundle, path, md string, err error) bool {
+	if gen != w.sourceGen {
+		return false // another one chosen since
+	}
+	if w.currentFile != script || w.bundle != bundle {
+		w.setStatus("Another script is open now: " + filepath.Base(path) + " was not made its source")
+		return false
+	}
+	if err == nil {
+		err = w.useSourceText(path, md)
+	}
+	if err != nil {
+		dialog.ShowError(fmt.Errorf("could not use %s as the source: %v", filepath.Base(path), err), w.fyneWindow)
+		return false
+	}
+	return true
 }
 
 // showSource shows the source pane, the source read again.

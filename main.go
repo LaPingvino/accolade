@@ -190,6 +190,7 @@ func (app *Application) newScriptWindow(empty bool) *MainWindow {
 
 func (app *Application) onWindowClosed(window *MainWindow) {
 	window.cancelAutoSave()
+	window.stopTimers()
 
 	// Remove window from list
 	for i, w := range app.windows {

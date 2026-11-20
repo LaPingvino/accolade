@@ -2,8 +2,8 @@ package main
 
 import (
 	"image/color"
-	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -25,12 +25,10 @@ import (
 // boneyard, Markdown's HTML comment (neither shows in what is printed).
 type notesMarks struct {
 	open, close, escaped string // escaped: close, when it is in the notes
-	block                *regexp.Regexp
 }
 
 func newNotesMarks(open, close, escaped string) notesMarks {
-	return notesMarks{open, close, escaped,
-		regexp.MustCompile(`(?s)^` + regexp.QuoteMeta(open) + `\n(.*?)\n?` + regexp.QuoteMeta(close) + `\s*$`)}
+	return notesMarks{open, close, escaped}
 }
 
 var (
@@ -42,19 +40,65 @@ var (
 // it closes at the very end (an earlier boneyard of the same name is
 // the script's, not the notes); its byte offset (with the blank lines
 // before it) and the notes, or -1.
+//
+// It is a plain scan of the text's end (a regexp over a source kept in
+// the script took a tenth of a second, several times per keystroke): the
+// block's first close mark must have only white space after it, and the
+// notes are what is before that mark, less one new line.
 func (m notesMarks) at(text string) (int, string) {
-	i := strings.LastIndex(text, m.open+"\n")
+	// only the end is read: the text must close with the mark (white
+	// space after it), and the block open before that with no other
+	// close between (the notes cannot hold one)
+	c := len(text)
+	for c > 0 && blankTail(text[c-1:c]) {
+		c--
+	}
+	if !strings.HasSuffix(text[:c], m.close) {
+		return -1, ""
+	}
+	c -= len(m.close)
+	// forward scans (strings.Index is fast, LastIndex is not): the last
+	// close before it, and the last opening after that
+	from := 0
+	for off := 0; ; {
+		j := strings.Index(text[off:c], m.close)
+		if j < 0 {
+			break
+		}
+		from = off + j + len(m.close)
+		off = from
+	}
+	open := m.open + "\n"
+	i := -1
+	for off := from; ; {
+		j := strings.Index(text[off:c], open)
+		if j < 0 {
+			break
+		}
+		i = off + j
+		off = i + 1
+	}
 	if i < 0 || (i > 0 && text[i-1] != '\n') {
 		return -1, ""
 	}
-	found := m.block.FindStringSubmatch(text[i:])
-	if found == nil || strings.Contains(found[1], m.close) {
-		return -1, ""
-	}
+	notes := strings.TrimSuffix(text[i+len(open):c], "\n")
 	for i > 0 && text[i-1] == '\n' {
 		i--
 	}
-	return i, found[1]
+	return i, notes
+}
+
+// blankTail reports whether s is only white space as a regexp's \s
+// means it (ASCII: space, tab, new line, form feed, carriage return).
+func blankTail(s string) bool {
+	for i := 0; i < len(s); i++ {
+		switch s[i] {
+		case ' ', '\t', '\n', '\f', '\r':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // of are the notes at the end of a script.
@@ -63,13 +107,19 @@ func (m notesMarks) of(text string) string {
 	return notes
 }
 
+// startByte is where the notes block starts (the text's length if there
+// is none), in bytes.
+func (m notesMarks) startByte(text string) int {
+	if i, _ := m.at(text); i >= 0 {
+		return i
+	}
+	return len(text)
+}
+
 // start is where the notes block starts (the text's length if there is
 // none), in runes.
 func (m notesMarks) start(text string) int {
-	if i, _ := m.at(text); i >= 0 {
-		return len([]rune(text[:i]))
-	}
-	return len([]rune(text))
+	return utf8.RuneCountInString(text[:m.startByte(text)])
 }
 
 // text is the block for notes ("" for none); a "*/" (Markdown: "-->")

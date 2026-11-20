@@ -6,6 +6,8 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/LaPingvino/accolade/internal/pace"
 )
 
 // ReadODT reads an OpenDocument text (LibreOffice, Google Docs, Word's
@@ -162,6 +164,7 @@ func (x *odtReader) blocks(n *node, list string) []*Block {
 	var ps []odtPara
 	var walk func(n *node)
 	walk = func(n *node) {
+		pace.Yield()
 		if n == nil {
 			return
 		}
@@ -261,7 +264,7 @@ func (x *odtReader) spans(n *node, f Span) []Span {
 	for _, c := range n.Children {
 		switch c.Name.Local {
 		case "":
-			add(spaces.ReplaceAllString(c.Text, " "))
+			add(collapse(c.Text))
 		case "span":
 			out = append(out, x.spans(c, x.textStyle(c.attr("style-name"), f))...)
 		case "a":

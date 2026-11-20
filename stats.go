@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"slices"
 	"strings"
+	"sync"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
 )
@@ -26,18 +29,62 @@ const (
 )
 
 // computeStats counts scenes, words and pages, and finds the scene the
-// cursor (a rune offset) is in.
+// cursor (a rune offset) is in. The counts are made once per text (a
+// cursor move only finds its scene again).
 func computeStats(text string, cursor int, starts []string) scriptStats {
-	var st scriptStats
 	if strings.TrimSpace(text) == "" {
-		return st
+		return scriptStats{}
 	}
-	runes := []rune(text)
-	if start, _, _, ok := sourceBlock(text); ok { // the source kept in it is not the script
-		runes = runes[:start]
-		text = string(runes)
+	c := countsOf(text, starts)
+	st := c.stats
+	cursorLine, n := 0, 0
+	for _, r := range c.body {
+		if n >= cursor {
+			break
+		}
+		if r == '\n' {
+			cursorLine++
+		}
+		n++
 	}
-	cursorLine := strings.Count(string(runes[:min(max(cursor, 0), len(runes))]), "\n")
+	st.Scene, _ = slices.BinarySearch(c.headings, cursorLine+1) // the headings on lines up to the cursor's
+	return st
+}
+
+// scriptCounts are a text's counts, without the cursor's scene.
+type scriptCounts struct {
+	stats    scriptStats
+	body     string // the text counted: without the source kept in it
+	headings []int  // the scene headings' lines
+}
+
+// counted is the last text counted, as computeStats asks of every event.
+var counted struct {
+	sync.Mutex
+	text   string
+	starts []string
+	counts scriptCounts
+	ok     bool
+}
+
+func countsOf(text string, starts []string) scriptCounts {
+	counted.Lock()
+	defer counted.Unlock()
+	if counted.ok && sameString(counted.text, text) && slices.Equal(counted.starts, starts) {
+		return counted.counts
+	}
+	c := countScript(text, starts)
+	counted.text, counted.starts, counted.counts, counted.ok = text, slices.Clone(starts), c, true
+	return c
+}
+
+func countScript(text string, starts []string) scriptCounts {
+	var c scriptCounts
+	if src, _ := tailBlocks(text); src.ok { // the source kept in it is not the script
+		text = text[:src.bstart]
+	}
+	c.body = text
+	st := &c.stats
 	lines := strings.Split(text, "\n")
 	rows := 0
 	for i, k := range syntax.ClassifyWith(lines, starts) {
@@ -46,9 +93,7 @@ func computeStats(text string, cursor int, starts []string) scriptStats {
 		}
 		if k == syntax.SceneHeading {
 			st.Scenes++
-			if i <= cursorLine {
-				st.Scene = st.Scenes
-			}
+			c.headings = append(c.headings, i)
 		}
 		line := strings.TrimSpace(lines[i])
 		st.Words += countWordsIn(line)
@@ -59,12 +104,12 @@ func computeStats(text string, cursor int, starts []string) scriptStats {
 		case syntax.Parenthetical:
 			width = parenColumns
 		}
-		rows += max(1, (len([]rune(line))+width-1)/width)
+		rows += max(1, (utf8.RuneCountInString(line)+width-1)/width)
 	}
 	if st.Words > 0 {
 		st.Pages = max(1, (rows+linesPerPage-1)/linesPerPage)
 	}
-	return st
+	return c
 }
 
 // String is the status bar text, e.g. "Scene 2 of 3 · 412 words · ~2 pages".

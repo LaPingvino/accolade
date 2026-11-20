@@ -5,8 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"time"
-
-	"fyne.io/fyne/v2"
 )
 
 // Auto-save writes the open file a fixed delay after the first unsaved
@@ -30,9 +28,7 @@ func (w *MainWindow) scheduleAutoSave() {
 	if w.currentFile == "" || !w.settings.GetBoolean("auto-save") || w.autoSaveTimer != nil {
 		return
 	}
-	w.autoSaveTimer = time.AfterFunc(w.autoSaveInterval(), func() {
-		fyne.Do(w.autoSaveNow)
-	})
+	w.autoSaveTimer = w.after(w.autoSaveInterval(), w.autoSaveNow) // stopped with the window (background.go)
 }
 
 func (w *MainWindow) autoSaveNow() {

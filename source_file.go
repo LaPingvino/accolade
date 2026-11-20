@@ -86,11 +86,7 @@ func sourceBlock(text string) (start, end int, md string, ok bool) {
 	if !b.ok {
 		return 0, 0, "", false
 	}
-	md = b.inside
-	if md != "" && !strings.HasSuffix(md, "\n") { // the block's last line ends as a file's
-		md += "\n"
-	}
-	return b.start, b.end, md, true
+	return b.start, b.end, b.md, true // its last line ending as a file's
 }
 
 // withSourceBlock is the edit that puts md in the script as its source
@@ -260,6 +256,11 @@ func (w *MainWindow) useSource(path string) error {
 	if err != nil {
 		return err
 	}
+	return w.useSourceText(path, md)
+}
+
+// useSourceText makes md, read from path, the script's source.
+func (w *MainWindow) useSourceText(path, md string) error {
 	if w.bundle != nil {
 		return w.saveBundleSource(md)
 	}

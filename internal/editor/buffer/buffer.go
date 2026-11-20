@@ -35,13 +35,29 @@ type Buffer struct {
 	undo, redo []step
 	group      *step // the step being built by Group
 	depth      int
+
+	// rev counts the text's changes; str is the text as a string, made
+	// once per change (Text is asked for many times per keystroke)
+	rev    uint64
+	str    string
+	strRev uint64
+	strOK  bool
 }
 
 // New creates a buffer holding text, with the cursor at the start.
 func New(text string) *Buffer { return &Buffer{text: []rune(text)} }
 
-// Text is the whole text.
-func (b *Buffer) Text() string { return string(b.text) }
+// Text is the whole text. It is made once per change: the same string
+// comes back until the text changes.
+func (b *Buffer) Text() string {
+	if !b.strOK || b.strRev != b.rev {
+		b.str, b.strRev, b.strOK = string(b.text), b.rev, true
+	}
+	return b.str
+}
+
+// Rev is the text's revision: it changes whenever the text does.
+func (b *Buffer) Rev() uint64 { return b.rev }
 
 // Len is the length of the text in runes.
 func (b *Buffer) Len() int { return len(b.text) }
@@ -59,6 +75,7 @@ func (b *Buffer) Slice(start, end int) string {
 // file).
 func (b *Buffer) SetText(text string) {
 	b.text = []rune(text)
+	b.rev++
 	b.cursor, b.anchor = 0, 0
 	b.undo, b.redo = nil, nil
 }
@@ -260,6 +277,7 @@ func (b *Buffer) breakTyping() {
 
 func (b *Buffer) splice(start, end int, inserted []rune) {
 	b.text = append(b.text[:start], append(append([]rune(nil), inserted...), b.text[end:]...)...)
+	b.rev++
 	for i := range b.others { // the other selections move with the text
 		b.others[i].Anchor = shifted(b.others[i].Anchor, start, end, len(inserted))
 		b.others[i].Cursor = shifted(b.others[i].Cursor, start, end, len(inserted))
@@ -273,7 +291,7 @@ func isSeparator(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(
 // Lines.
 
 // LineCount is the number of lines (an empty text has one).
-func (b *Buffer) LineCount() int { return strings.Count(string(b.text), "\n") + 1 }
+func (b *Buffer) LineCount() int { return strings.Count(b.Text(), "\n") + 1 }
 
 // LineStart is the offset where line i (0-based) begins.
 func (b *Buffer) LineStart(i int) int {
