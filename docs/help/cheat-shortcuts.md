@@ -4,8 +4,8 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 
 ## Writing
 
-- **Tab** empty line → cue → dialogue → (parenthetical)
-- **Enter** cue → dialogue; empty dialogue → action; heading → action
+- **Tab** on an empty line: a cue; after the cue: its dialogue; in dialogue: (a parenthetical)
+- **Enter** after a cue or parenthetical: dialogue; on an empty dialogue line: action; after a heading: action
 - **Enter** in a list → the next item
 - **Tab** on “Tab: …” — take it; **Esc** — put it away
 

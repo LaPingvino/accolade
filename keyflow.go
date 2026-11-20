@@ -52,7 +52,15 @@ func (w *MainWindow) flowOn() bool {
 		return false
 	}
 	b := w.textEditor.Buffer()
-	return !b.HasSelection() && !b.HasOthers()
+	return !b.HasSelection() && !b.HasOthers() && !inBoneyard(b.Slice(0, b.Cursor()))
+}
+
+// inBoneyard reports whether the end of before is inside a /* … */
+// block: the boneyard, or Accolade's Notes, Source, Adaptation and
+// Production blocks, which are not screenplay.
+func inBoneyard(before string) bool {
+	open := strings.LastIndex(before, "/*")
+	return open >= 0 && !strings.Contains(before[open:], "*/")
 }
 
 // cueHere reports whether the cursor is on the line Tab made a cue of.
@@ -138,20 +146,22 @@ func (w *MainWindow) flowTab() bool {
 		// a cue: Fountain's blank line before it (and after it, before
 		// action that follows, which would be read as its dialogue)
 		before, after := "", ""
+		defer w.updateCurrentElement()
 		if i > 0 && strings.TrimSpace(lines[i-1]) != "" {
 			before = "\n"
 		}
 		if i+1 < len(lines) && strings.TrimSpace(lines[i+1]) != "" {
 			after = "\n"
 		}
-		e.Edit(func(b *buffer.Buffer) {
-			b.Group(func() {
-				b.Replace(start, end, before+after)
-				b.SetCursor(start+len(before), false)
+		if before+after != "" || start != end { // nothing to write: no undo step
+			e.Edit(func(b *buffer.Buffer) {
+				b.Group(func() {
+					b.Replace(start, end, before+after)
+					b.SetCursor(start+len(before), false)
+				})
 			})
-		})
+		}
 		w.flow.cue = i + len(before) + 1
-		w.updateCurrentElement()
 		w.setStatus("Character: type the name; Enter or Tab for the dialogue")
 		return true
 

@@ -217,7 +217,8 @@ func shortcutsSheet(env cmdEnv, both bool) string {
 	var b strings.Builder
 	b.WriteString("# Keyboard Shortcuts\n\nCtrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).\n\n## Writing\n\n")
 	if !env.markdown || both {
-		b.WriteString("- **Tab** empty line → cue → dialogue → (parenthetical)\n- **Enter** cue → dialogue; empty dialogue → action; heading → action\n")
+		b.WriteString("- **Tab** on an empty line: a cue; after the cue: its dialogue; in dialogue: (a parenthetical)\n" +
+			"- **Enter** after a cue or parenthetical: dialogue; on an empty dialogue line: action; after a heading: action\n")
 	}
 	if env.markdown || both {
 		b.WriteString("- **Enter** in a list → the next item\n")

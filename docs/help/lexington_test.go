@@ -36,10 +36,15 @@ func lexingtonUsage(t *testing.T) string {
 	}
 	old := os.Stderr
 	os.Stderr = w
+	read := make(chan []byte)
+	go func() { // drained while written: a pipe holds only so much
+		b, _ := io.ReadAll(r)
+		read <- b
+	}()
 	code := cli.Main(context.Background(), []string{"-help"})
 	os.Stderr = old
 	w.Close()
-	out, _ := io.ReadAll(r)
+	out := <-read
 	if code != 0 {
 		t.Fatalf("lexington -help: exit %d", code)
 	}

@@ -199,6 +199,21 @@ func TestKeyFlowVimHelix(t *testing.T) {
 	}
 }
 
+// In a /* … */ block (the boneyard, the Notes and Source blocks) Tab and
+// Enter are a text editor's.
+func TestKeyFlowNotInBlocks(t *testing.T) {
+	start := "INT. BARN - DAY\n\nRain.\n\n/* Notes\nkeep\n\n"
+	w := flowWindow(t, start)
+	typeKeys(t, w, "\t")
+	if w.cueHere() {
+		t.Errorf("Tab started a cue in the notes block")
+	}
+	typeKeys(t, w, "int. x\nab")
+	if got := w.textEditor.Text(); !strings.HasSuffix(strings.ToUpper(got), "\nKEEP\n\nINT. X\nAB") || strings.Contains(got, "INT. X\n\n") {
+		t.Errorf("in the notes block: %q", got)
+	}
+}
+
 // Markdown documents, auto-indent off and a selection keep Tab as it was.
 func TestKeyFlowOff(t *testing.T) {
 	w := flowWindow(t, "Rain.\n\n")

@@ -188,7 +188,7 @@ func completeLine(w *MainWindow, e *editor.ScriptEditor) bool {
 	}
 	// after a scene heading, the blank line Fountain wants and the action
 	breaks := "\n"
-	if kind == "Scene Heading" && w != nil {
+	if kind == "Scene Heading" && w.flowOn() {
 		breaks = "\n\n"
 	}
 

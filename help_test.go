@@ -4,6 +4,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -27,14 +28,15 @@ func TestShortcutsHelp(t *testing.T) {
 			if !c.applies(env) {
 				continue
 			}
+			label := strings.TrimSuffix(c.labelIn(env), "…")
+			pageKeys, sheetKeys := keysOnLine(page, "- **"+label+"** — "), keysOnSheet(sheet, label)
 			for _, k := range commandKeys(c) {
 				n++
-				line := "**" + strings.TrimSuffix(c.labelIn(env), "…") + "** — "
-				if !strings.Contains(page, line) || !strings.Contains(page, k) {
-					t.Errorf("%+v: the page has no %q with %s (%s)", env, line, k, c.id)
+				if !slices.Contains(pageKeys, k) {
+					t.Errorf("%+v: the page's %q line has no %s (%s)", env, label, k, c.id)
 				}
-				if !strings.Contains(sheet, k) {
-					t.Errorf("%+v: the sheet has no %s (%s)", env, k, c.id)
+				if !slices.Contains(sheetKeys, k) {
+					t.Errorf("%+v: the sheet's %q line has no %s (%s)", env, label, k, c.id)
 				}
 			}
 		}
@@ -58,6 +60,28 @@ func TestShortcutsHelp(t *testing.T) {
 			t.Errorf("%s is not what the registry makes: UPDATE_HELP=1 go test -run TestShortcutsHelp .", path)
 		}
 	}
+}
+
+// keysOnLine are the keys on page's line starting with prefix: "a, b"
+// up to a note in brackets.
+func keysOnLine(page, prefix string) []string {
+	for _, l := range strings.Split(page, "\n") {
+		if rest, ok := strings.CutPrefix(l, prefix); ok {
+			rest, _, _ = strings.Cut(rest, " (")
+			return strings.Split(rest, ", ")
+		}
+	}
+	return nil
+}
+
+// keysOnSheet are the keys of the sheet's line for label: "- **a, b** label".
+func keysOnSheet(sheet, label string) []string {
+	for _, l := range strings.Split(sheet, "\n") {
+		if strings.HasSuffix(l, "** "+label) && strings.HasPrefix(l, "- **") {
+			return strings.Split(strings.TrimSuffix(strings.TrimPrefix(l, "- **"), "** "+label), ", ")
+		}
+	}
+	return nil
 }
 
 func TestKeyName(t *testing.T) {
@@ -221,7 +245,7 @@ func TestHelpPickerFollowsMode(t *testing.T) {
 	if got := firstCheat(); got != "Cheat sheet: Keyboard Shortcuts" {
 		t.Errorf("screenplay's first: %q", got)
 	}
-	if !strings.Contains(h.page.Markdown, "Tab** empty line") {
+	if !strings.Contains(h.page.Markdown, "Tab** on an empty line: a cue") {
 		t.Errorf("the screenplay's sheet has no Tab flow")
 	}
 	w.setMarkdown(true)
@@ -236,7 +260,7 @@ func TestHelpPickerFollowsMode(t *testing.T) {
 	if strings.Join(tabs, " ") != "Notes Help" {
 		t.Errorf("Markdown's tabs %q", tabs)
 	}
-	if strings.Contains(h.page.Markdown, "Tab** empty line") || strings.Contains(h.page.Markdown, "Scene Heading") {
+	if strings.Contains(h.page.Markdown, "Tab** on an empty line: a cue") || strings.Contains(h.page.Markdown, "Scene Heading") {
 		t.Errorf("a Markdown document's sheet has the screenplay's keys")
 	}
 	// the picker opens what is picked
