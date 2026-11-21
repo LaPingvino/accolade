@@ -151,8 +151,9 @@ type MainWindow struct {
 	// a plain file leaving one, as it is written
 	relocating, renameUndo *fileJournal
 	carrySource            []byte
-	renameAsked            *renameAsk // the rename editor last opened (rename.go)
-	saveAsAsked            *saveAsAsk // the Save As chooser last opened (saveas_dialog.go)
+	renameAsked            *renameAsk        // the rename editor last opened (rename.go)
+	cleanAsked             *cleanFountainDlg // Export Clean Fountain… last opened (clean_fountain.go)
+	saveAsAsked            *saveAsAsk        // the Save As chooser last opened (saveas_dialog.go)
 	sourceBeside           string
 	highlandWarned         map[string]bool // the files the Highland warning was given for
 	// markdown: the document is Markdown, not a screenplay (markdown.go)

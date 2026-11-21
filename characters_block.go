@@ -4,6 +4,8 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/LaPingvino/lexington/fountain"
+
 	lexreport "github.com/LaPingvino/lexington/report"
 )
 
@@ -36,7 +38,7 @@ import (
 // name in this list) reads listedNames, and the editor's "add the name to
 // the list" is addedName's edit (LOOP.md, the language-rules item).
 
-var charactersMarks = newNotesMarks("/* Characters", "*/", "* /")
+var charactersMarks = endMarks(fountain.EndCharacters)
 
 // charactersBlock is what is inside the script's character list.
 func charactersBlock(text string) (string, bool) {

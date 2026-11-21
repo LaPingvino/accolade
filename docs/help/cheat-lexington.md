@@ -48,6 +48,7 @@
 - `-character` — Keep this character's sides; needs -sides.
 - `-sides` — With -character …
 - `-cuewords` — With -sides cue: the cue's last words only, this many (0: the whole speech before).
+- `-strip` — Take out of the Fountain input, as a comma list …
 
 ### Other
 

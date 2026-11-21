@@ -35,7 +35,7 @@ import (
 // and puts the scene in a boneyard under it (fountain.OmitScene), so
 // Restore Scene brings it back whole; each is one undo step.
 
-var productionMarks = newNotesMarks("/* Production", "*/", "* /")
+var productionMarks = endMarks(fountain.EndProduction)
 
 // productionBlock is what is inside the script's production block.
 func productionBlock(text string) (string, bool) {

@@ -282,7 +282,8 @@ func (ed *ExportDialog) updateFormatSettings() {
 	case "fountain":
 		note("Fountain as Lexington writes it: tidied up, every element marked as it is meant.")
 	case "text-fountain":
-		note("The script's text as it is: a copy of the .fountain file.")
+		note("The script's text as it is: a copy of the .fountain file, Accolade's blocks and links in it " +
+			"(File > Export Clean Fountain… leaves them out).")
 	case "txt":
 		note("The script's text as it is, as a .txt file.")
 	}

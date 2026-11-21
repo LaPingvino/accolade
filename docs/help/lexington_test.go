@@ -79,7 +79,7 @@ var flagGroups = []struct {
 	{"Format, paper and pagination", []string{"e", "presets", "formats", "page", "pagination", "config", "dumpconfig", "scenein", "sceneout"}},
 	{"Scene numbers, pages and reports", []string{"number", "mergeomitted", "continueds", "lockpages", "lock", "lengths", "report"}},
 	{"Colours", []string{"colors", "colorstyle", "colorscope", "colortint", "colorpatterns"}},
-	{"Parts of the script and sides", []string{"tag", "character", "sides", "cuewords"}},
+	{"Parts of the script and sides", []string{"tag", "character", "sides", "cuewords", "strip"}},
 	{"Other", []string{"lint", "help", "version"}},
 }
 

@@ -471,13 +471,22 @@ func (rd *reportsDialog) saveCSV() {
 	rd.saveFile(rd.reportFileName("csv"), func(p string) error { return writeFileAtomic(p, b.Bytes()) })
 }
 
-// saveFile saves the report's file (saveNamedFile).
+// saveFile saves the report's file (saveNamedFile), and says so (a PDF
+// says so itself, once made).
 func (rd *reportsDialog) saveFile(name string, write func(p string) error) {
-	rd.w.saveNamedFile(name, write)
+	rd.w.saveNamedFile(name, func(p string) error {
+		if err := write(p); err != nil {
+			return err
+		}
+		if !inBrowser && !strings.HasSuffix(p, ".pdf") {
+			rd.w.setStatus("Report saved as " + filepath.Base(p))
+		}
+		return nil
+	})
 }
 
 // saveNamedFile asks where to save name (the browser downloads it), and
-// writes it there.
+// writes it there; write says what was saved.
 func (w *MainWindow) saveNamedFile(name string, write func(p string) error) {
 	if inBrowser {
 		p := filepath.Join("/files", name)
@@ -499,11 +508,7 @@ func (w *MainWindow) saveNamedFile(name string, write func(p string) error) {
 		p := c.URI().Path()
 		c.Close()
 		if err := write(p); err != nil {
-			dialog.ShowError(fmt.Errorf("could not save the report: %v", err), w.fyneWindow)
-			return
-		}
-		if !strings.HasSuffix(p, ".pdf") { // the PDF says so itself, once made
-			w.setStatus("Report saved as " + filepath.Base(p))
+			dialog.ShowError(fmt.Errorf("could not save %s: %v", filepath.Base(p), err), w.fyneWindow)
 		}
 	}, w.fyneWindow)
 	d.SetFileName(name)

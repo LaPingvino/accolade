@@ -9,6 +9,8 @@ import (
 	"unicode/utf8"
 	"unsafe"
 
+	"github.com/LaPingvino/lexington/fountain"
+
 	"github.com/LaPingvino/accolade/internal/prose"
 )
 
@@ -35,7 +37,7 @@ import (
 // to do. Headings and breaks have none: they are not counted.
 
 // adaptationMarks are the block's, as the notes' (notes.go).
-var adaptationMarks = newNotesMarks("/* Adaptation", "*/", "* /")
+var adaptationMarks = endMarks(fountain.EndAdaptation)
 
 // tailBlock is one of the boneyard blocks at a script's end: where it is
 // in runes (from the blank lines before it to the next block, the notes
@@ -96,33 +98,33 @@ func tailSetOf(text string) tailSet {
 	return tails.tailSet
 }
 
-// findTails scans for the tail blocks, in bytes, then gives their places
-// in runes too. They are found from the notes back, in any order: one
-// not known here would hide those before it.
+// findTails finds the tail blocks as Lexington's fountain.EndBlocks does
+// (the notes block last, the others before it in any order; one not
+// known there hides those before it), in bytes, then gives their places
+// in runes too.
 func findTails(text string) (t tailSet) {
 	src, adapt, prod, chars := &t.src, &t.adapt, &t.prod, &t.chars
-	t.notes = fountainNotes.startByte(text)
-	end := t.notes
-	for {
-		before := text[:end]
-		found := false
-		for _, b := range []struct {
-			marks *notesMarks
-			to    *tailBlock
-		}{{&sourceMarks, src}, {&adaptationMarks, adapt}, {&productionMarks, prod}, {&charactersMarks, chars}} {
-			if b.to.ok {
-				continue
-			}
-			if i, inside := b.marks.at(before); i >= 0 {
-				*b.to = tailBlock{bstart: i, bend: end, ok: true,
-					inside: strings.ReplaceAll(inside, b.marks.escaped, b.marks.close)}
-				end, found = i, true
-				break
-			}
+	blocks, _ := fountain.EndBlocks(text)
+	t.notes = len(text)
+	for _, b := range blocks {
+		var to *tailBlock
+		marks := endMarks(b.Name)
+		switch b.Name {
+		case fountain.EndNotes:
+			t.notes = b.Start
+			continue
+		case fountain.EndSource:
+			to = src
+		case fountain.EndAdaptation:
+			to = adapt
+		case fountain.EndProduction:
+			to = prod
+		case fountain.EndCharacters:
+			to = chars
+		default:
+			continue
 		}
-		if !found {
-			break
-		}
+		*to = tailBlock{bstart: b.Start, bend: b.End, ok: true, inside: strings.ReplaceAll(b.Inside, marks.escaped, marks.close)}
 	}
 	if src.ok {
 		src.md = src.inside

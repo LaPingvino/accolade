@@ -316,6 +316,8 @@ Ask Tom about the ending.
 
 Notes always comes last. Accolade puts a new Production, Adaptation or Characters block straight after the script and the Source block just before Notes, and it reads the others in any order. You can read and edit the blocks by hand; lines Accolade does not know are kept.
 
+Other apps ignore the blocks, but they travel with the file. To hand the script on without them, use File > Export Clean Fountain… (see [File Formats](formats.md#clean-fountain)).
+
 ### Breakdown tags
 
 Breakdown tags are not written in the script. Accolade keeps them in a file beside it (in a bundle, or in its own data folder), found again by their words. See [Production](production.md#breakdown).

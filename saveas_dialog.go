@@ -147,15 +147,24 @@ func (w *MainWindow) showSaveAs() {
 	help.Importance = widget.LowImportance
 	help.Alignment = widget.ButtonAlignLeading
 	// a copy to hand on (PDF, Final Draft, Fountain as written) is an
-	// export; Clean Fountain joins it there (LOOP.md)
+	// export; so is a Fountain without Accolade's data (clean_fountain.go)
 	export := widget.NewButtonWithIcon("A copy for someone else: Export…", theme.DownloadIcon(), func() { w.showExportDialog() })
 	export.Importance = widget.LowImportance
 	export.Alignment = widget.ButtonAlignLeading
+	exports := []fyne.CanvasObject{export}
+	if !w.markdown {
+		clean := widget.NewButtonWithIcon("Without Accolade's data: Export Clean Fountain…", theme.DocumentIcon(), w.showCleanFountain)
+		clean.Importance = widget.LowImportance
+		clean.Alignment = widget.ButtonAlignLeading
+		exports = append(exports, clean)
+	}
 	files := widget.NewLabel("Its files")
 	files.TextStyle = fyne.TextStyle{Bold: true}
 	parts := []fyne.CanvasObject{heading}
 	parts = append(parts, list...)
-	parts = append(parts, help, export, widget.NewSeparator())
+	parts = append(parts, help)
+	parts = append(parts, exports...)
+	parts = append(parts, widget.NewSeparator())
 	if inBrowser { // no system dialog asks it
 		parts = append(parts, widget.NewForm(widget.NewFormItem("Name", name)))
 	}

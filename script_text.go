@@ -2,6 +2,8 @@ package main
 
 import (
 	"strings"
+
+	"github.com/LaPingvino/lexington/fountain"
 )
 
 // The script's text as it is on disk, which is not always the text in
@@ -27,8 +29,9 @@ import (
 //
 // A Markdown document has no language here.
 
-// languageLinePrefix starts the line keeping a plain file's language.
-const languageLinePrefix = "/* Language: "
+// languageLinePrefix starts the line keeping a plain file's language
+// (Lexington's: fountain.LanguageLine).
+const languageLinePrefix = fountain.LanguageLinePrefix
 
 // withLanguageLine is a standard Fountain text with the line saying its
 // language after it.
@@ -40,24 +43,14 @@ func withLanguageLine(text, lang string) string {
 }
 
 // cutLanguageLine takes the language line off a text: the text before it
-// and the language, ok false if it has none.
+// and the language, ok false if it has none (or names no language known
+// here).
 func cutLanguageLine(text string) (string, string, bool) {
-	body := strings.TrimRight(text, "\r\n")
-	nl := strings.LastIndexByte(body, '\n')
-	last := body[nl+1:]
-	rest, ok := strings.CutPrefix(strings.TrimSpace(last), languageLinePrefix)
-	if !ok {
+	at, lang := fountain.LanguageLine(text)
+	if lang = strings.ToLower(lang); at < 0 || sceneConf[lang] == nil {
 		return text, "", false
 	}
-	lang, ok := strings.CutSuffix(rest, " */")
-	if lang = strings.ToLower(strings.TrimSpace(lang)); !ok || sceneConf[lang] == nil || nl < 0 {
-		return text, "", false
-	}
-	before := body[:nl+1]
-	if strings.HasSuffix(before, "\n\n") { // the blank line written before it
-		before = before[:len(before)-1]
-	}
-	return before, lang, true
+	return text[:at], lang, true
 }
 
 // plainFileText is a plain screenplay file's text as the editor has it,

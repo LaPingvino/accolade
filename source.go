@@ -7,6 +7,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/LaPingvino/lexington/fountain"
+
 	"github.com/LaPingvino/accolade/internal/prose"
 )
 
@@ -182,11 +184,10 @@ func parseLinks(text string) []sourceLink {
 // appendLinkRefs is dst with what a note's inside links to if it is a
 // link: the new form's directives (textfrag.go), or the old form's quote.
 func appendLinkRefs(dst []linkRef, inside string) []linkRef {
-	t := strings.TrimSpace(inside)
-	if len(t) < 5 || !strings.EqualFold(t[:5], "from:") {
+	if !fountain.IsSourceLink(inside) {
 		return dst
 	}
-	if rest := t[5:]; isFragmentRef(rest) {
+	if rest := strings.TrimSpace(inside)[5:]; isFragmentRef(rest) {
 		return append(dst, fragmentRefs(rest)...)
 	}
 	if q, ok := linkQuote(inside); ok {
@@ -199,11 +200,10 @@ func appendLinkRefs(dst []linkRef, inside string) []linkRef {
 // `from: "…"`: from its first quote to its last (a passage may open with
 // dialogue, quotes of its own), with a closing ellipsis left out.
 func linkQuote(inside string) (string, bool) {
-	t := strings.TrimSpace(inside)
-	if len(t) < 5 || !strings.EqualFold(t[:5], "from:") {
+	if !fountain.IsSourceLink(inside) {
 		return "", false
 	}
-	t = strings.TrimSpace(t[5:])
+	t := strings.TrimSpace(strings.TrimSpace(inside)[5:])
 	const quotes = `"“”„«»'‘’`
 	if r := []rune(t); len(r) >= 2 && strings.ContainsRune(quotes, r[0]) && strings.ContainsRune(quotes, r[len(r)-1]) {
 		t = string(r[1 : len(r)-1])

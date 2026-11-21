@@ -72,6 +72,7 @@ Made from Lexington's own list, so none is missing. `-i` and `-o` default to sta
 - `-character string` — Keep this character's sides; needs -sides.
 - `-sides string` — With -character: full (the scenes they speak in), cue (their speeches after their cues) or isolated (their speeches only).
 - `-cuewords int` — With -sides cue: the cue's last words only, this many (0: the whole speech before).
+- `-strip string` — Take out of the Fountain input, as a comma list: Accolade's data always (its end blocks, the language line, [[from: …]] links), and the presets clean (Accolade's data only), reading (notes and outline), writer (scene numbers and OMITTED); or the options notes (every note [[…]]), boneyard (every boneyard /* … */, an omitted scene's kept text too), numbers (the scene numbers #12#), omitted (the OMITTED headings, with the scene kept under each), titlepage (the title page), outline (the writer's outline: sections # and synopses =). They add up: writer,notes. Fountain out (the default with -strip) is the text as it was, less what went.
 
 ### Other
 
@@ -127,6 +128,13 @@ One actor's sides, the scenes they speak in:
 
 ```sh
 lexington -i script.fountain -character ANNA -sides full -o anna.pdf
+```
+
+A clean Fountain copy for another app (Accolade's blocks and source links left out, as File > Export Clean Fountain… does), and the writer's version without scene numbers, OMITTED headings and notes:
+
+```sh
+lexington -i script.fountain -strip clean -o clean.fountain
+lexington -i script.fountain -strip writer,notes -o draft.fountain
 ```
 
 See also the [Lexington Flags](cheat-lexington.md) cheat sheet and [File Formats](formats.md).

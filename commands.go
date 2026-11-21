@@ -442,6 +442,9 @@ func newRegistry() *registry {
 			run: (*MainWindow).showTitlePageDialog},
 		&command{id: "file.export", label: "Export…", tip: "Export to PDF, HTML, FDX…", mdTip: "Export to Word, ODT, HTML, PDF…",
 			keys: []fyne.Shortcut{shortcut(fyne.KeyE, 0)}, icon: theme.DownloadIcon, run: (*MainWindow).showExportDialog},
+		// a copy without Accolade's data, for other apps (clean_fountain.go)
+		&command{id: "file.exportClean", label: "Export Clean Fountain…", tip: "A .fountain without Accolade's data, for other apps",
+			icon: theme.DocumentIcon, when: screenplayOnly, run: (*MainWindow).showCleanFountain},
 		&command{id: "file.print", label: "Print…", icon: theme.DocumentPrintIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyP, 0)}, run: (*MainWindow).print},
 		&command{id: "app.preferences", label: "Preferences…", tip: "Preferences", keys: []fyne.Shortcut{shortcut(fyne.KeyComma, 0)}, icon: theme.SettingsIcon,
 			run: func(w *MainWindow) { w.app.showPreferences() }},
@@ -687,7 +690,7 @@ func newRegistry() *registry {
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
 			at("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
-			sep(), at("file.export"), at("file.print"),
+			sep(), at("file.export"), at("file.exportClean"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 		}},
 		{title: "Edit", homes: []home{
@@ -942,7 +945,8 @@ var ribbonLabels = map[string]string{
 	"file.open": "Open", "file.save": "Save",
 	"file.newEmpty": "Empty", "file.newMarkdown": "Markdown", "file.newWindow": "Window", "file.newEmptyWindow": "Empty Window",
 	"file.recent": "Recent", "file.import": "Import", "file.importPandoc": "With pandoc",
-	"source.choose": "Choose Source", "file.startScreenplay": "Start Screenplay",
+	"file.exportClean": "Clean Fountain",
+	"source.choose":    "Choose Source", "file.startScreenplay": "Start Screenplay",
 	// Write
 	"format.rtl": "Right to Left", "md.rule": "Rule", "md.bullets": "Bullets", "md.numbers": "Numbered", "md.tasks": "Tasks",
 	"md.code": "Code", "md.strike": "Strike",
@@ -981,7 +985,7 @@ func ribbonLayout() []ribbonTab {
 				at("set.newLanguage")}}, // "New in: English": the language they are in
 			{title: "Open", homes: []home{big("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc")}},
 			{title: "Save", homes: []home{big("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename")}},
-			{title: "Output", homes: []home{big("file.export"), big("file.print")}},
+			{title: "Output", homes: []home{big("file.export"), big("file.print"), at("file.exportClean")}},
 			// a source to adapt: the Adaptation tab once there is one
 			{title: "Adapt", when: noSource, homes: []home{big("source.choose")}},
 			{title: "Adapt", homes: []home{big("file.startScreenplay")}},

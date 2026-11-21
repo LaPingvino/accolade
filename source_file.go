@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LaPingvino/lexington/fountain"
+
 	"fyne.io/fyne/v2/dialog"
 )
 
@@ -77,7 +79,7 @@ func (r sourceRef) describe() string {
 }
 
 // sourceMarks are the source block's, as the notes block's (notes.go).
-var sourceMarks = newNotesMarks("/* Source", "*/", "* /")
+var sourceMarks = endMarks(fountain.EndSource)
 
 // sourceBlock is the source kept in the script: the block closing just
 // before the notes (or at the end), or before the adaptation block

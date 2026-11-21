@@ -47,7 +47,7 @@ They move together by what the new type needs: renaming `story.fountain` to `fil
 
 A rename is all or nothing: if any step fails, everything is put back as it was. **File > Undo Rename** takes the last rename back — the old files return exactly as they were, the new ones go — until another document is opened or the window is closed. A plain file cannot hold another app's files from a bundle: the list warns before a rename leaves them out, and Undo Rename brings them back.
 
-To hand a script to someone else, use File > Export… (PDF, Final Draft, Fountain as written); the Save As window links there.
+To hand a script to someone else, use File > Export… (PDF, Final Draft, Fountain as written) or File > Export Clean Fountain…; the Save As window links to both.
 
 ## Bundles
 
@@ -117,6 +117,12 @@ File > Export… (Ctrl+E) writes:
 - With other programs installed: PDF through HTML (wkhtmltopdf), PDF through LaTeX, EPUB, RTF, Markdown, reStructuredText and other text formats (pandoc), Kindle and other e-book formats (Calibre). A format that needs a missing program says so.
 
 The dialog's options: the script format and paper, the title page, scene numbers, colours from the scenes' colour notes, revision marks, only the scenes with a tag or colour, and one character's sides. FDX and LaTeX take a template.
+
+### Clean Fountain
+
+File > Export Clean Fountain… writes a `.fountain` copy for other apps and other people, without Accolade's data: the end blocks (Notes, Source, Adaptation, Production, Characters) and the source links `[[from: …]]` always go. Ticked, more goes too: all notes, all boneyard (an omitted scene's kept text too), scene numbers, OMITTED headings (with the scene kept under each), the title page, and sections and synopses (the writer's outline). The ticks are remembered. Three presets set them: **Clean** (Accolade's data only), **Reading copy** (no notes, no outline) and **Writer's version** (no scene numbers, no OMITTED: the writer's draft without the shooting script's layers).
+
+The rest of the file stays exactly as written. A line that held only what was taken out goes with it, and a line that would read as something else without it gets its force mark, so the copy reads as the script does. A script in another language is written as standard Fountain, as other apps read it. The script itself is never changed; in the browser the copy downloads. On the command line it is Lexington's `-strip` (see [Lexington on the Command Line](lexington.md)).
 
 File > Print… (Ctrl+P) prints through a web page, with the system's or the browser's print dialog. It has no revision marks and no locked pages; use a PDF for those.
 

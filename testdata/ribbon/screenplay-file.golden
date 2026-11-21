@@ -19,5 +19,6 @@ tabs: [File] Write Edit Production Collaboration View
 ## Output
   L Export icon=foreground_download.svg name=Export… (Ctrl+E)
   L Print icon=foreground_document-print.svg name=Print… (Ctrl+P)
+  S Clean Fountain icon=foreground_document.svg name=Export Clean Fountain…
 ## Adapt
   L Choose Source icon=foreground_folder-open.svg name=Choose Source…

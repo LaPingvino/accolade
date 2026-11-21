@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/lexington/fountain"
 )
 
 // The notepad (View > Notes) keeps notes with the script: at its end, in
@@ -29,73 +30,23 @@ func newNotesMarks(open, close, escaped string) notesMarks {
 }
 
 var (
-	fountainNotes = newNotesMarks("/* Notes", "*/", "* /")
+	fountainNotes = endMarks(fountain.EndNotes)
 	markdownNotes = newNotesMarks("<!-- Notes", "-->", "-- >")
 )
 
-// at finds the notes block: the last "/* Notes" in the script, if
-// it closes at the very end (an earlier boneyard of the same name is
-// the script's, not the notes); its byte offset (with the blank lines
-// before it) and the notes, or -1.
-//
-// It is a plain scan of the text's end (a regexp over a source kept in
-// the script took a tenth of a second, several times per keystroke): the
-// block's first close mark must have only white space after it, and the
-// notes are what is before that mark, less one new line.
+// at finds the block at the end of a text (Lexington's
+// fountain.BlockMarks.At, which says what Accolade's end blocks are): its
+// byte offset (with the blank lines before it) and what is inside it as
+// written, or -1.
 func (m notesMarks) at(text string) (int, string) {
-	// only the end is read: the text must close with the mark (white
-	// space after it), and the block open before that with no other
-	// close between (the notes cannot hold one)
-	c := len(text)
-	for c > 0 && blankTail(text[c-1:c]) {
-		c--
-	}
-	if !strings.HasSuffix(text[:c], m.close) {
-		return -1, ""
-	}
-	c -= len(m.close)
-	// forward scans (strings.Index is fast, LastIndex is not): the last
-	// close before it, and the last opening after that
-	from := 0
-	for off := 0; ; {
-		j := strings.Index(text[off:c], m.close)
-		if j < 0 {
-			break
-		}
-		from = off + j + len(m.close)
-		off = from
-	}
-	open := m.open + "\n"
-	i := -1
-	for off := from; ; {
-		j := strings.Index(text[off:c], open)
-		if j < 0 {
-			break
-		}
-		i = off + j
-		off = i + 1
-	}
-	if i < 0 || (i > 0 && text[i-1] != '\n') {
-		return -1, ""
-	}
-	notes := strings.TrimSuffix(text[i+len(open):c], "\n")
-	for i > 0 && text[i-1] == '\n' {
-		i--
-	}
-	return i, notes
+	return fountain.BlockMarks{Open: m.open, Close: m.close, Escaped: m.escaped}.At(text)
 }
 
-// blankTail reports whether s is only white space as a regexp's \s
-// means it (ASCII: space, tab, new line, form feed, carriage return).
-func blankTail(s string) bool {
-	for i := 0; i < len(s); i++ {
-		switch s[i] {
-		case ' ', '\t', '\n', '\f', '\r':
-		default:
-			return false
-		}
-	}
-	return true
+// endMarks are the marks of Accolade's end block of that name
+// (fountain.EndBlockMarks).
+func endMarks(name string) notesMarks {
+	b := fountain.EndBlockMarks(name)
+	return notesMarks{b.Open, b.Close, b.Escaped}
 }
 
 // of are the notes at the end of a script.
