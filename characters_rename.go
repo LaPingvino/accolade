@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"slices"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/LaPingvino/accolade/internal/collab"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/lexington/lex"
 )
@@ -95,7 +97,14 @@ func casedLike(was, name string) string {
 // nameEdits are the edits in the script's body that rename the character
 // with key to name: its cues (renameCues), or the name as a word wherever
 // it stands (renameEverywhere). In runes, in order.
-func nameEdits(text string, starts []string, key, name string, scope renameScope) []lineEdit {
+//
+// Everywhere, a place counts when it is written in capitals (ANNA), with a
+// capital each word (Anna), or as the character is spelled in a cue or the
+// list (known: McCLANE, ben); so a character called WILL leaves "I will
+// go" alone. The title page (Author: Ben Smith) and the source links'
+// quotes ([[from: …text=Anna opened…]], which must keep finding their
+// passage) are left as they are.
+func nameEdits(text string, starts []string, key, name string, scope renameScope, known []string) []lineEdit {
 	var out []lineEdit
 	if scope == renameCues {
 		m := screenplayChars(text, starts)
@@ -114,7 +123,8 @@ func nameEdits(text string, starts []string, key, name string, scope renameScope
 	if len(want) == 0 {
 		return nil
 	}
-	for i := 0; i+len(want) <= len(body); i++ {
+	skip := leftAlone(body)
+	for i := titleRunes(body); i+len(want) <= len(body); i++ {
 		if i > 0 && isWordRune(body[i-1]) {
 			continue
 		}
@@ -125,11 +135,77 @@ func nameEdits(text string, starts []string, key, name string, scope renameScope
 		if j < len(body) && isWordRune(body[j]) {
 			continue
 		}
+		if k, ok := skip[i]; ok { // a source link's: past it
+			i = k - 1
+			continue
+		}
 		was := string(body[i:j])
+		if !namelike(was) && !slices.Contains(known, was) {
+			continue
+		}
 		out = append(out, lineEdit{i, j, casedLike(was, name)})
 		i = j - 1
 	}
 	return out
+}
+
+// namelike reports whether s is written as a name is: in capitals, or
+// with a capital each word and small letters after it.
+func namelike(s string) bool {
+	if strings.ToUpper(s) == s && strings.ToLower(s) != s {
+		return true
+	}
+	start := true
+	for _, r := range s {
+		switch {
+		case !unicode.IsLetter(r):
+			start = true
+			continue
+		case start && !unicode.IsUpper(r), !start && unicode.IsUpper(r):
+			return false
+		}
+		start = false
+	}
+	return true
+}
+
+// leftAlone are the stretches of body a rename leaves as they are, the
+// source links ([[from: …]]): each rune in one, the stretch's end.
+func leftAlone(body []rune) map[int]int {
+	out := map[int]int{}
+	s := string(body)
+	at := 0 // runes before s[b:]
+	for b := 0; ; {
+		i := strings.Index(s[b:], "[[from:")
+		if i < 0 {
+			return out
+		}
+		at += utf8.RuneCountInString(s[b : b+i])
+		b += i
+		j := strings.Index(s[b:], "]]")
+		if j < 0 {
+			j = len(s) - b
+		} else {
+			j += 2
+		}
+		n := utf8.RuneCountInString(s[b : b+j])
+		for k := at; k < at+n; k++ {
+			out[k] = at + n
+		}
+		at += n
+		b += j
+	}
+}
+
+// titleRunes is where the script's title page ends, in runes (0: it has
+// none), as the title page dialog reads it (titlePageEnd).
+func titleRunes(body []rune) int {
+	lines := strings.Split(string(body), "\n")
+	n := 0
+	for _, l := range lines[:titlePageEnd(lines)] {
+		n += utf8.RuneCountInString(l) + 1
+	}
+	return min(n, len(body))
 }
 
 // sameUpper reports whether rs in capitals are want (want in capitals,
@@ -147,19 +223,23 @@ func sameUpper(rs, want []rune) bool {
 }
 
 // renamed is the last rename made, for Undo and Redo to take the
-// breakdown and the schedule back and forth with it.
+// breakdown and the schedule back and forth with it: as they were kept
+// before and after it (the files as JSON), put back while nothing else
+// changed them; else, for a rename, followed back by its edits.
 type renamed struct {
 	before, after string
 	fwd, back     []lineEdit // the edits from before to after, and back
 	from, to      string     // the cast member's names (capitals)
 	merge         bool
 	atAfter       bool // the extras follow after
+	bd, sched     [2][]byte
 }
 
 // renameCharacter renames the character with key to name (scope) as one
 // undo step, the list, the learned notes and the extras following; it
-// reports how many places changed.
-func (w *MainWindow) renameCharacter(key, name string, scope renameScope) int {
+// reports how many places changed. known are the character's spellings
+// (nameEdits).
+func (w *MainWindow) renameCharacter(key, name string, scope renameScope, known []string) int {
 	name = strings.Join(strings.Fields(name), " ")
 	newKey := charKey(name)
 	if w.textEditor == nil || key == "" || newKey == "" {
@@ -167,7 +247,7 @@ func (w *MainWindow) renameCharacter(key, name string, scope renameScope) int {
 	}
 	e := w.textEditor
 	before := e.Text()
-	edits := nameEdits(before, w.sceneStarts(), key, name, scope)
+	edits := nameEdits(before, w.sceneStarts(), key, name, scope, known)
 	// the list: the entry renamed, or for Merge put into the other's
 	list := charListOf(before)
 	entries := slices.Clone(list.entries)
@@ -204,8 +284,17 @@ func (w *MainWindow) renameCharacter(key, name string, scope renameScope) int {
 		return 0
 	}
 	w.followNumbers(true) // the extras in line with the text before
-	fwd := append(slices.Clone(edits), blocks...)
+	fwd := slices.Clone(edits)
+	rs := []rune(before)
+	for _, b := range blocks { // a block's lines and words that changed, not the block
+		for _, d := range collab.Edits(string(rs[b.start:b.end]), b.text) {
+			fwd = append(fwd, lineEdit{b.start + d.Pos, b.start + d.Pos + d.Del, d.Text})
+		}
+	}
 	slices.SortFunc(fwd, func(a, b lineEdit) int { return a.start - b.start })
+	r := &renamed{before: before, fwd: fwd, from: key, to: newKey, merge: scope == renameCues}
+	r.bd[0], r.sched[0] = w.extrasKept()
+	w.shareEditsFirst(fwd)
 	e.Edit(func(b *buffer.Buffer) {
 		b.Group(func() {
 			for i := len(fwd) - 1; i >= 0; i-- { // the last first: the places before stay
@@ -213,14 +302,45 @@ func (w *MainWindow) renameCharacter(key, name string, scope renameScope) int {
 			}
 		})
 	})
-	after := e.Text()
-	r := &renamed{before: before, after: after, fwd: fwd, from: key, to: newKey, merge: scope == renameCues}
+	r.after = e.Text()
 	r.back = invertEdits(before, r.fwd)
 	w.charRenamed = r
-	w.followRename(before, after, r.fwd, key, newKey, r.merge)
+	w.followRename(before, r.after, r.fwd, key, newKey, r.merge)
+	r.bd[1], r.sched[1] = w.extrasKept()
 	r.atAfter = true
 	w.followNumbers(true) // the headings that changed are the ones seen now
 	return len(edits)
+}
+
+// shareEditsFirst gives a shared script's session a change made of many
+// small edits (in order, in runes) as those edits, before the editor makes
+// it: the editor's change then finds the Doc as it is already. Doc.SetText
+// would find them by its own diff, which gives up past 2000 lines changed
+// (scriptdiff's maxEdits) and then takes the whole stretch between, a
+// co-writer's typing in it lost; a lead's rename in a feature is that many.
+func (w *MainWindow) shareEditsFirst(edits []lineEdit) {
+	if w.shared == nil {
+		return
+	}
+	var ops []collab.Op
+	w.shared.session.Do(func(d *collab.Doc) {
+		for i := len(edits) - 1; i >= 0; i-- {
+			e := edits[i]
+			ops = append(ops, d.Delete(e.start, e.end-e.start)...)
+			ops = append(ops, d.Insert(e.start, e.text)...)
+		}
+	})
+	w.shared.session.Local(ops)
+}
+
+// extrasKept are the breakdown and the schedule as kept now (JSON).
+func (w *MainWindow) extrasKept() (bd, sched []byte) {
+	if w.markdown {
+		return nil, nil
+	}
+	bd, _ = json.Marshal(w.breakdownNow())
+	sched, _ = json.Marshal(w.scheduleNow())
+	return bd, sched
 }
 
 // listSpelling is name as the list writes it: in the case the entry was
@@ -285,20 +405,57 @@ func mapThrough(edits []lineEdit, off int, end bool) int {
 }
 
 // followRenamed takes the extras with an Undo or Redo of the last rename:
-// the text back as it was before, or again as after.
+// the text back as it was before, or again as after. Each is put back as
+// it was kept then, if nothing changed it since; else a rename is
+// followed by its edits (a merge's cast members cannot be told apart
+// again: left as they are).
 func (w *MainWindow) followRenamed() {
 	r := w.charRenamed
 	if r == nil || w.textEditor == nil {
 		return
 	}
 	text := w.textEditor.Text()
+	var from, to int // the snapshots: as now, to put back
 	switch {
 	case r.atAfter && len(text) == len(r.before) && text == r.before:
-		w.followRename(r.after, r.before, r.back, r.to, r.from, false)
-		r.atAfter = false
+		from, to = 1, 0
 	case !r.atAfter && len(text) == len(r.after) && text == r.after:
-		w.followRename(r.before, r.after, r.fwd, r.from, r.to, r.merge)
-		r.atAfter = true
+		from, to = 0, 1
+	default:
+		return
+	}
+	r.atAfter = to == 1
+	bd, sched := w.extrasKept()
+	follow, tagsFollow, stripsFollow := false, false, false
+	if string(bd) == string(r.bd[from]) {
+		if string(r.bd[to]) != string(r.bd[from]) {
+			var f breakdownFile
+			if json.Unmarshal(r.bd[to], &f) == nil {
+				*w.breakdownNow() = f
+				w.saveBreakdown()
+			}
+		}
+	} else {
+		follow, tagsFollow = true, true
+	}
+	if string(sched) == string(r.sched[from]) {
+		if string(r.sched[to]) != string(r.sched[from]) {
+			var f scheduleFile
+			if json.Unmarshal(r.sched[to], &f) == nil {
+				*w.scheduleNow() = f
+				w.writeSchedule()
+			}
+		}
+	} else {
+		follow, stripsFollow = true, true
+	}
+	if !follow || r.merge {
+		return
+	}
+	if to == 0 {
+		w.followRenameIn(r.after, r.before, r.back, r.to, r.from, false, tagsFollow, stripsFollow)
+	} else {
+		w.followRenameIn(r.before, r.after, r.fwd, r.from, r.to, false, tagsFollow, stripsFollow)
 	}
 }
 
@@ -307,13 +464,19 @@ func (w *MainWindow) followRenamed() {
 // to's own), the tags are anchored again where their words went, the
 // scenes' keys and the strips' sums follow their headings.
 func (w *MainWindow) followRename(before, after string, edits []lineEdit, from, to string, merge bool) {
+	w.followRenameIn(before, after, edits, from, to, merge, true, true)
+}
+
+// followRenameIn is followRename for the breakdown (tags), the schedule
+// (strips), or both.
+func (w *MainWindow) followRenameIn(before, after string, edits []lineEdit, from, to string, merge, tags, strips bool) {
 	if w.markdown {
 		return
 	}
 	bf := w.breakdownNow()
-	hasTags := w.breakdown.err == nil && (len(bf.Tags) > 0 || len(bf.Done) > 0 || len(bf.Elements) > 0)
+	hasTags := tags && w.breakdown.err == nil && (len(bf.Tags) > 0 || len(bf.Done) > 0 || len(bf.Elements) > 0)
 	s := w.scheduleNow()
-	hasStrips := w.schedule.err == nil && len(s.Days) > 0
+	hasStrips := strips && w.schedule.err == nil && len(s.Days) > 0
 	if !hasTags && !hasStrips {
 		return
 	}

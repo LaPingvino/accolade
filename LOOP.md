@@ -662,11 +662,12 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   characters_pane.go, characters_rename.go). A dock pane like the others (View > Characters, the ribbon's Panes, the
   tab menu's Move/Swap; both roles; Markdown too). Rows: everyone who speaks (Lexington's parse: cues with @, ^ and
   extensions; the learned notes' names merged into their cue, as the reports do) and everyone in the list, the most
-  present first; scenes, speeches, words, first scene, "also Annie"; as Production the cast number (report.Cast,
+  present first; scenes, speeches, words, first scene, "also Annie" on a line under the cue; as Production the cast number (report.Cast,
   in the background on a pause). Filter (names, aliases, notes). Tap: the next cue, selected ("ANNA: cue 2 of 3");
   › opens one: Previous/Next Cue, its scenes (tap: the scene), Rename Everywhere…, Merge Into…, Add Alias… and
   Not a Character / A Character After All (the learned notes' characters: and not characters:), Add to the List,
   and the note with Age, Look, Arc (Actor as Production) written into the script as typed, one undo step a field.
+  Swapped with Main it is the main area's view and a tap still goes to the cue (the Script tab lights the scene).
   Markdown: storyread's names, mentions and lines, a tap to the next mention, Rename Everywhere. Insert Character
   keeps its quick picker and offers the list's names that do not speak yet (@ before one in small letters).
   The data model, ready for the language rules: /* Characters */ is a tail block like the others (findTails knows it,
@@ -678,19 +679,26 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   usable under Amend), isListed. Nothing writes to the list unasked (COLLAB's single-writer rule is not built).
   Rename Everywhere: the name as a word anywhere in the body, each place in its own case (ANNA → HANNA, Anna →
   Hanna, INT. ANNA'S FLAT too), the list's entry and the learned cue, one undo step of the least edits (each
-  name's runes, last first); Merge Into…: the cues only, the entries together (notes after, fields kept where
-  the other has none). Decision: "everywhere" includes action, dialogue and headings, Merge only cues. The breakdown
+  name's runes, last first; the blocks by their changed lines and words); Merge Into…: the cues only, the entries
+  together (notes after, fields kept where the other has none). Decisions: "everywhere" includes action, dialogue
+  and headings, Merge only cues; a place counts in capitals, with a capital each word, or as a cue or the list
+  spells it (a character WILL leaves "I will go"); the title page and [[from: …]] quotes are left alone; the
+  dialog says how many places first; a rename onto another character's name is refused (Merge is the way). The breakdown
   follows (renumber_follow's way): the cast member renamed (Merge: its tags to the other's), each tag re-anchored
-  where its words went, Done scenes and strips their new heading, a strip's sum taken over; Undo and Redo take
-  them back and forth (followRenamed, from followSceneNumbers). Collaboration: TestRenameTogether (60 scenes, a peer
-  typing beside a cue and in the list while cut off) converges with both. Phone: the sheet's tabs are one row (the
+  where its words went, Done scenes and strips their new heading, a strip's sum taken over; Undo and Redo put
+  the files back as kept before/after (followRenamed, from followSceneNumbers), or follow a rename's edits back
+  when something changed them since (a merge then left as is). Collaboration: the edits go to the session as
+  such before the editor makes them (shareEditsFirst): Doc.SetText's diff gives up past 2000 changed lines and
+  takes the whole stretch; TestRenameTogether (600 scenes, 1200 places, a peer typing beside a cue and in the list
+  while cut off) converges with both, and fails without it. Phone: the sheet's tabs are one row (the
   ribbon's overflowRow): those that fit, the one in front always, the rest in a More menu; the arrows reach all.
   Ribbon: Changes moved from View > Panes to Collaboration > Together (View was 1084 px with Characters; now fits).
   Goldens: dockMoves gains Characters after Notes; the ribbon's View and Collaboration regenerated (read: Characters
   in, Changes moved). Help: index (the pane, side panes, the phone row), Fountain Reference and the blocks cheat
   sheet (the block's form); COLLAB.md one line. Tests: TestCharListRoundTrip, TestCharactersAmongTailBlocks,
   TestAddedName, TestScreenplayChars, TestCharactersPane, TestRenameEverywhere, TestRenameTogether,
-  TestRenameTags, TestCharactersMarkdown, TestDockSheetOneRow, TestCharactersFocusVisible; shots
+  TestRenameTags, TestRenameLeavesAlone, TestMergeUndoTags, TestCharactersSwapped, TestCharactersMarkdown,
+  TestDockSheetOneRow, TestCharactersFocusVisible; shots
   (SHOT_DIR=… -run TestCharactersScreenshots) /tmp/claude-1000/shots/characters-{desktop,phone}-*.png. Not done:
   the block does not fold (no tail block folds yet: the 2026-11-20 fold item covers it); the list's notes are a
   screenplay's (Markdown has no block); a rename does not touch the Notes or Source blocks; in the screenshots a

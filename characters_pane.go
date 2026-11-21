@@ -49,10 +49,14 @@ type charactersPane struct {
 	modelOf string // the text the model was read from
 	cast    map[string]int
 	castOf  string
-	shown   []int  // the rows: indexes into model.chars, filtered
-	lit     string // the key of the character tapped last
-	open    string // the key of the character opened ("": the list)
-	timer   *uiTimer
+	// castBusy: the cast numbers are being read; castAgain: read them again after
+	castBusy, castAgain bool
+	shown               []int // the rows: indexes into model.chars, filtered
+	// rowH, aliasH are a row's height, and with a line of other names
+	rowH, aliasH float32
+	lit          string // the key of the character tapped last
+	open         string // the key of the character opened ("": the list)
+	timer        *uiTimer
 
 	detail struct {
 		box      *fyne.Container
@@ -63,6 +67,7 @@ type charactersPane struct {
 		note     *widget.Entry
 		fields   [fieldCount]*widget.Entry
 		fieldRow [fieldCount]*widget.FormItem
+		noteRow  *widget.FormItem
 		form     *widget.Form
 		scenes   *fyne.Container
 		listed   *widget.Label
@@ -180,6 +185,11 @@ func (p *charactersPane) readCast(text string) {
 	if w.markdown || w.writerView() || sameString(p.castOf, text) {
 		return
 	}
+	if p.castBusy { // one layout at a time: the text as it is then, after it
+		p.castAgain = true
+		return
+	}
+	p.castBusy = true
 	job := w.savedExportJob()
 	inBackground(func() map[string]int {
 		r, err := scriptReport(text, job)
@@ -192,6 +202,11 @@ func (p *charactersPane) readCast(text string) {
 		}
 		return out
 	}, func(cast map[string]int) {
+		p.castBusy = false
+		if p.castAgain {
+			p.castAgain = false
+			p.readCast(w.textEditor.Text())
+		}
 		if cast == nil || !sameString(w.textEditor.Text(), text) {
 			return
 		}
@@ -246,6 +261,20 @@ func (p *charactersPane) refilter() {
 		}
 	}
 	p.shown = append(rows, not...)
+	// a row with other names is a line taller
+	if p.rowH == 0 {
+		r := newCharRow(p)
+		p.rowH = r.MinSize().Height
+		r.aliases.Show()
+		p.aliasH = r.MinSize().Height
+	}
+	for id, i := range p.shown {
+		h := p.rowH
+		if len(p.model.chars[i].Aliases) > 0 {
+			h = p.aliasH
+		}
+		p.list.SetItemHeight(id, h)
+	}
 	n, listed := 0, 0
 	for _, c := range p.model.chars {
 		if !c.Not {
@@ -331,9 +360,6 @@ func (p *charactersPane) next(key string, step int) {
 		w.setStatus(c.Name + " has no lines yet")
 		return
 	}
-	if w.scriptAway("Going to " + c.Name) { // the script is in the side panes (swap.go)
-		return
-	}
 	e := w.textEditor
 	cur := e.CursorOffset()
 	if a, b := e.Buffer().Selection(); a != b {
@@ -371,6 +397,9 @@ func (p *charactersPane) next(key string, step int) {
 		b.SetCursor(end, false)
 		b.SetCursor(at, true)
 	})
+	if !w.scriptInMain() { // the script is the Script tab (swap.go): it lights the scene
+		w.scriptPane().follow()
+	}
 	what := "cue"
 	if m.markdown {
 		what = "mention"
@@ -383,6 +412,8 @@ func (p *charactersPane) next(key string, step int) {
 type charRow struct {
 	widget.BaseWidget
 	name, stats *widget.Label
+	aliases     *widget.Label // the learned notes' other names, under the cue
+	texts       *fyne.Container
 	cast        *widget.Label
 	bg          *canvas.Rectangle
 	open        *widget.Button
@@ -397,6 +428,11 @@ func newCharRow(p *charactersPane) *charRow {
 	r.stats = widget.NewLabel("")
 	r.stats.SizeName = theme.SizeNameCaptionText
 	r.stats.Truncation = fyne.TextTruncateEllipsis
+	r.aliases = widget.NewLabel("")
+	r.aliases.SizeName = theme.SizeNameCaptionText
+	r.aliases.Truncation = fyne.TextTruncateEllipsis
+	r.aliases.Importance = widget.LowImportance
+	r.aliases.Hide()
 	r.cast = widget.NewLabel("")
 	r.cast.SizeName = theme.SizeNameCaptionText
 	r.cast.Importance = widget.LowImportance
@@ -412,11 +448,14 @@ func (r *charRow) show(p *charactersPane, i int) {
 	c := p.model.chars[i]
 	r.key = c.Key
 	r.name.SetText(c.Name)
-	stats := p.charStats(c)
-	if len(c.Aliases) > 0 {
-		stats += " · also " + strings.Join(c.Aliases, ", ")
+	r.stats.SetText(p.charStats(c))
+	if aliases := len(c.Aliases) > 0; aliases != r.aliases.Visible() || aliases {
+		r.aliases.SetText("also " + strings.Join(c.Aliases, ", "))
+		showIf(r.aliases, aliases)
+		if r.texts != nil {
+			r.texts.Refresh() // laid out again: the line in or out
+		}
 	}
-	r.stats.SetText(stats)
 	if n := p.castOfKey(c.Key); n > 0 {
 		r.cast.SetText(fmt.Sprintf("#%d", n))
 		r.cast.Show()
@@ -439,7 +478,8 @@ func (r *charRow) show(p *charactersPane, i int) {
 
 func (r *charRow) CreateRenderer() fyne.WidgetRenderer {
 	top := container.NewBorder(nil, nil, nil, r.cast, r.name)
-	texts := container.New(layout.NewCustomPaddedVBoxLayout(-2*theme.Padding()), top, r.stats)
+	texts := container.New(layout.NewCustomPaddedVBoxLayout(-2*theme.Padding()), top, r.stats, r.aliases)
+	r.texts = texts
 	return widget.NewSimpleRenderer(container.NewStack(r.bg, container.NewBorder(nil, nil, nil, r.open, texts)))
 }
 
@@ -476,16 +516,17 @@ func (p *charactersPane) makeDetail() {
 	fyne.SetAccessibleLabel(d.note, "Note")
 	d.note.OnChanged = func(s string) {
 		if !d.updating {
-			p.writeEntry(p.open, func(e *charEntry) { e.Note = s })
+			p.writeEntry(p.open, -1, func(e *charEntry) { e.Note = s })
 		}
 	}
-	items := []*widget.FormItem{widget.NewFormItem("Note", d.note)}
+	d.noteRow = widget.NewFormItem("Note", d.note)
+	items := []*widget.FormItem{d.noteRow}
 	for f := range d.fields {
 		en := widget.NewEntry()
 		fyne.SetAccessibleLabel(en, fieldLabels[f])
 		en.OnChanged = func(s string) {
 			if !d.updating {
-				p.writeEntry(p.open, func(e *charEntry) { e.Fields[f] = s })
+				p.writeEntry(p.open, f, func(e *charEntry) { e.Fields[f] = s })
 			}
 		}
 		d.fields[f] = en
@@ -567,12 +608,16 @@ func (p *charactersPane) showDetail() {
 	} else {
 		d.form.Show()
 		d.listed.Show()
-		if p.w.writerView() {
-			d.fieldRow[fieldActor].Widget.Hide()
-		} else {
-			d.fieldRow[fieldActor].Widget.Show()
+		items := []*widget.FormItem{d.noteRow}
+		for f, it := range d.fieldRow {
+			if f != fieldActor || !p.w.writerView() { // the actor is Production's
+				items = append(items, it)
+			}
 		}
-		d.form.Refresh()
+		if len(items) != len(d.form.Items) {
+			d.form.Items = items
+			d.form.Refresh()
+		}
 		if c.Entry >= 0 {
 			d.listed.SetText("Kept in the script's character list (/* Characters */ at its end)")
 		} else {
@@ -633,8 +678,15 @@ func (p *charactersPane) charOf(key string) (charInfo, bool) {
 
 // writeEntry changes the character's entry in the list (made if it has
 // none) and writes it into the script: only what changed, the typing in
-// one field one undo step of the script's (as the notes' documents).
-func (p *charactersPane) writeEntry(key string, change func(*charEntry)) {
+// one field (field; -1 the note) one undo step of the script's.
+// entryTag names the undo step of one field's typing (field -1: the note).
+type entryTag struct {
+	p     *charactersPane
+	key   string
+	field int
+}
+
+func (p *charactersPane) writeEntry(key string, field int, change func(*charEntry)) {
 	w := p.w
 	c, ok := p.charOf(key)
 	if !ok || w.markdown {
@@ -659,14 +711,15 @@ func (p *charactersPane) writeEntry(key string, change func(*charEntry)) {
 		return
 	}
 	start, end, block := withCharactersBlock(text, nu)
-	ours := e.UndoTag() == p
+	tag := entryTag{p, key, field}
+	ours := e.UndoTag() == tag
 	n := e.UndoSteps()
 	e.Edit(func(b *buffer.Buffer) { replaceLeast(b, start, end, block) })
 	if e.UndoSteps() > n {
 		if ours && n > 0 {
 			e.JoinStepsSince(n - 1)
 		}
-		e.TagLastStep(p)
+		e.TagLastStep(tag)
 	}
 }
 
@@ -693,9 +746,11 @@ func (p *charactersPane) askRename(key string) {
 	}
 	entry := widget.NewEntry()
 	entry.SetText(c.Name)
-	what := "Each place the name stands as a word (cues, action, dialogue, headings) is renamed in its own case, in one undo step."
+	n := len(nameEdits(p.w.textEditor.Text(), p.w.sceneStarts(), key, c.Name, renameEverywhere, p.spellings(c)))
+	what := fmt.Sprintf("%s stands in %s (cues, action, dialogue, headings): each is renamed in its own case, in one undo step. "+
+		"The title page and the source links are left as they are.", c.Name, plural(n, "place"))
 	if p.model.markdown {
-		what = "Each place the name stands as a word is renamed in its own case, in one undo step."
+		what = fmt.Sprintf("%s stands in %s: each is renamed in its own case, in one undo step.", c.Name, plural(n, "place"))
 	}
 	note := widget.NewLabel(what)
 	note.Wrapping = fyne.TextWrapWord
@@ -749,7 +804,11 @@ func (p *charactersPane) rename(key, name string, scope renameScope) {
 	if p.w.markdown {
 		scope = renameEverywhere
 	}
-	n := p.w.renameCharacter(key, name, scope)
+	if o, ok := p.charOf(charKey(name)); ok && scope == renameEverywhere && o.Key != key {
+		p.w.setStatus(o.Name + " is a character already: Merge Into… makes one of the two")
+		return
+	}
+	n := p.w.renameCharacter(key, name, scope, p.spellings(c))
 	if n == 0 && charKey(name) == key {
 		return
 	}
@@ -759,6 +818,19 @@ func (p *charactersPane) rename(key, name string, scope renameScope) {
 	}
 	p.lit = charKey(name)
 	p.read()
+}
+
+// spellings are the ways the character is written in the script: its
+// name as listed and its cues (a rename takes them in any case).
+func (p *charactersPane) spellings(c charInfo) []string {
+	out := []string{c.Name}
+	for _, s := range c.Cues {
+		out = append(out, s.name)
+	}
+	if c.Entry >= 0 && c.Entry < len(p.model.list.entries) {
+		out = append(out, p.model.list.entries[c.Entry].Name)
+	}
+	return out
 }
 
 // askAlias asks for another name of the character: the learned notes'

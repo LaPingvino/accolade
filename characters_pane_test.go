@@ -237,13 +237,18 @@ func TestCharactersPane(t *testing.T) {
 	for _, s := range []string{"T", "Th", "The", "The neighbour"} {
 		p.detail.note.SetText(s)
 	}
+	if n := w.textEditor.UndoSteps() - steps; n != 1 {
+		t.Errorf("the note's typing is %d undo steps, want 1", n)
+	}
+	p.detail.fields[fieldAge].SetText("4")
 	p.detail.fields[fieldAge].SetText("40")
 	if !strings.Contains(w.textEditor.Text(), "zoe\n  actor: Ines Ruiz\nBEN: The neighbour\n  age: 40\n*/") {
 		t.Errorf("BEN in the list: %q", w.textEditor.Text()[strings.Index(w.textEditor.Text(), "/* Characters"):])
 	}
-	if n := w.textEditor.UndoSteps() - steps; n != 1 {
-		t.Errorf("the typing is %d undo steps, want 1", n)
+	if n := w.textEditor.UndoSteps() - steps; n != 2 {
+		t.Errorf("the note and the age are %d undo steps, want 2", n)
 	}
+	w.textEditor.Undo()
 	w.textEditor.Undo()
 	if strings.Contains(w.textEditor.Text(), "BEN: ") {
 		t.Error("Undo left BEN's entry")
@@ -251,12 +256,12 @@ func TestCharactersPane(t *testing.T) {
 	// the actor is Production's
 	w.workAs(roleWriter)
 	p.showDetail()
-	if p.detail.fieldRow[fieldActor].Widget.Visible() {
+	if slices.Contains(p.detail.form.Items, p.detail.fieldRow[fieldActor]) {
 		t.Error("the actor shown as Writer")
 	}
 	w.workAs(roleProduction)
 	p.showDetail()
-	if !p.detail.fieldRow[fieldActor].Widget.Visible() {
+	if !slices.Contains(p.detail.form.Items, p.detail.fieldRow[fieldActor]) {
 		t.Error("the actor hidden as Production")
 	}
 	p.closeDetail()
@@ -313,6 +318,13 @@ func TestRenameEverywhere(t *testing.T) {
 			t.Errorf("no %q in\n%s", s, got)
 		}
 	}
+	// onto another character's name: refused, Merge is the way
+	w.textEditor.SetText(charsScript)
+	p.read()
+	p.rename("BEN", "Anna", renameEverywhere)
+	if w.textEditor.Text() != charsScript || !strings.Contains(w.statusText(), "Merge Into") {
+		t.Errorf("renamed onto ANNA: %q", w.statusText())
+	}
 	// Merge: the cues only, the entries together
 	w.textEditor.SetText(charsScript)
 	p.read()
@@ -332,7 +344,7 @@ func TestRenameEverywhere(t *testing.T) {
 // docs/COLLAB.md).
 func TestRenameTogether(t *testing.T) {
 	var sb strings.Builder
-	for i := range 60 {
+	for i := range 600 { // a feature's lead: 1200 places, past the Doc's own diff's bound
 		sb.WriteString("INT. ROOM " + itoa(i) + " - DAY\n\nBen waits.\n\nBEN\nLine " + itoa(i) + ".\n\nANNA\nYes.\n\n")
 	}
 	sb.WriteString("/* Characters\nBEN: the neighbour\nANNA\n*/\n")
@@ -343,7 +355,7 @@ func TestRenameTogether(t *testing.T) {
 	cut() // both edit before they hear from each other
 	a.showPane("characters", false)
 	a.charactersPane().rename("BEN", "HALE", renameEverywhere)
-	mid := strings.Index(start, "Line 030.")
+	mid := strings.Index(start, "Line 250.")
 	b.textEditor.Edit(func(buf *buffer.Buffer) {
 		buf.Replace(len([]rune(start[:mid+4])), len([]rune(start[:mid+4])), " (soft)")
 	})
@@ -353,9 +365,28 @@ func TestRenameTogether(t *testing.T) {
 	})
 	connect(t, a, b)
 	want := strings.NewReplacer("Ben waits", "Hale waits", "\nBEN\n", "\nHALE\n", "BEN: the neighbour", "HALE: the neighbour, tall").Replace(start)
-	want = strings.Replace(want, "Line 030.", "Line (soft) 030.", 1)
-	textIs(t, a, "a", want)
-	textIs(t, b, "b", want)
+	want = strings.Replace(want, "Line 250.", "Line (soft) 250.", 1)
+	for _, side := range []struct {
+		name string
+		w    *MainWindow
+	}{{"a", a}, {"b", b}} {
+		var got string
+		ok := false
+		for range 200 {
+			if got = side.w.textEditor.Text(); got == want {
+				ok = true
+				break
+			}
+			uiSleep(25e6)
+		}
+		if !ok {
+			i := 0
+			for i < len(got) && i < len(want) && got[i] == want[i] {
+				i++
+			}
+			t.Errorf("%s differs at %d: %q, want %q", side.name, i, got[max(0, i-40):min(len(got), i+60)], want[max(0, i-40):min(len(want), i+60)])
+		}
+	}
 }
 
 // The breakdown follows a rename: the cast member's name, a tag whose
@@ -527,6 +558,10 @@ func TestCharactersScreenshots(t *testing.T) {
 		p.detail.fields[fieldAge].SetText("40")
 		w.hidePane("outline") // the pane alone: the whole of it
 		snap("2-opened")
+		w.workAs(roleWriter) // as new users start: no cast number, no actor
+		p.openChar("ANNA")
+		snap("2b-opened-writer")
+		w.workAs(roleProduction)
 		p.closeDetail()
 		for _, q := range w.dock.panes {
 			w.showPane(q.id, false)
@@ -542,5 +577,61 @@ func TestCharactersScreenshots(t *testing.T) {
 		w.showPane("characters", false)
 		p.read()
 		snap("4-markdown")
+	}
+}
+
+// A rename leaves alone what only looks like the name: the word in small
+// letters (a character called WILL), the title page, a source link's quote.
+func TestRenameLeavesAlone(t *testing.T) {
+	script := "Title: Will and Anna\nAuthor: Will Smith\n\nINT. ROOM - DAY\n\nWILL enters. I will go, says Will.\n\n[[from: #:~:text=Will opened the door]]\n\nWILL\nWill you?\n"
+	w := charsWindow(t, script)
+	p := w.charactersPane()
+	p.rename("WILL", "Tom", renameEverywhere)
+	want := "Title: Will and Anna\nAuthor: Will Smith\n\nINT. ROOM - DAY\n\nTOM enters. I will go, says Tom.\n\n[[from: #:~:text=Will opened the door]]\n\nTOM\nTom you?\n"
+	if got := w.textEditor.Text(); got != want {
+		t.Errorf("renamed:\n%s\nwant\n%s", got, want)
+	}
+}
+
+// Undo of a Merge puts the breakdown back as it was kept: the other
+// character's cast member keeps its own name.
+func TestMergeUndoTags(t *testing.T) {
+	w, _ := scriptWindow(t, charsScript)
+	tagNow(t, w, "BEN", 0, "Cast")
+	tagNow(t, w, "Anna", 0, "Cast")
+	before := found(w)
+	w.showPane("characters", false)
+	w.charactersPane().rename("BEN", "ANNA", renameCues)
+	w.undo()
+	if got := found(w); strings.Join(got, " ") != strings.Join(before, " ") {
+		t.Errorf("after Undo of the merge %q, want %q", got, before)
+	}
+	var names []string
+	for _, e := range w.breakdownNow().Elements {
+		names = append(names, e.Name)
+	}
+	if slices.Sort(names); strings.Join(names, "|") != "ANNA|BEN" {
+		t.Errorf("cast members %q", names)
+	}
+}
+
+// Swapped with the main area, the pane still goes to the cues: the
+// script's cursor moves and the Script tab lights the scene.
+func TestCharactersSwapped(t *testing.T) {
+	w := charsWindow(t, charsScript)
+	p := w.charactersPane()
+	w.swapWithMain("characters")
+	if w.swapped != "characters" || !w.swappedIsView() {
+		t.Fatalf("swapped %q", w.swapped)
+	}
+	w.textEditor.SetCursorOffset(0)
+	p.next("BEN", 1)
+	a, _ := w.textEditor.Buffer().Selection()
+	if lineAt(w.textEditor.Text(), a) != 9 {
+		t.Errorf("the cursor is on line %d", lineAt(w.textEditor.Text(), a))
+	}
+	w.swapBack()
+	if w.swapped != "" {
+		t.Error("not put back")
 	}
 }

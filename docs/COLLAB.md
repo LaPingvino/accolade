@@ -157,8 +157,12 @@ messages of their own, batched like the text's runs.
   suggestion taken, a bundle re-read): no change is needed in each of them. Fix (5) makes every change minimal
   where it reaches the Doc, so one rule covers them all. Each stays one undo step for the peer who did it, and (3)
   keeps the other peers' Undo out of it. The Characters pane's Rename Everywhere and Merge Into… make the least
-  edits themselves (each name's runes, the list's entry, the learned cue), so they do not lean on the Doc's
-  bounded diff; TestRenameTogether renames sixty scenes' cues while a peer types beside one and in the list.
+  edits themselves (each name's runes, the lines and words of the list and the learned notes that changed) and
+  give them to the session as such before the editor makes them (`shareEditsFirst`): `Doc.SetText`'s own diff
+  gives up past 2000 changed lines (scriptdiff's `maxEdits`) and then replaces the whole stretch between, which
+  a lead's rename in a feature reaches. TestRenameTogether renames 1200 places while a peer types beside a cue
+  and in the list (it fails without `shareEditsFirst`). Other whole-text actions spread that wide would need the
+  same.
 - **Automatic writes** (auto A-numbers in a locked script, learned notes) run on every peer that sees the trigger,
   so two peers would write the same thing twice, however small the edit. **Decision: a single-writer rule, not
   a permanent guard.** Only the peer who wrote the text an automatic write follows from may make it. The Doc knows
