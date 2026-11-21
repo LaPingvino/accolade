@@ -767,3 +767,13 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   its dialog each time; Preferences' Reset no longer resets the page setup (Page Setup has Defaults). Left: pandoc
   formats ignore a Markdown page setup; Preferences' Page Setup opens in the first window; Page Setup on an issued
   script not shot at phone width.
+- 2026-11-21: COLLAB.md "What is left" steps 1–3 (branch collab2, not merged). (1) The single-writer rule: a locked
+  script's new scene is numbered, and a lesson learned, only by the peer whose replica wrote the line's first rune
+  (`Doc.Writer`, `wroteLine`); the guards in numberNewScenes and learnFromWriting are gone (TestSceneNumbersTogether,
+  TestLearnTogether, both fail with every peer writing). (2) Run-length Doc nodes and kept ops (Op is a run; the
+  old per-rune Doc is the oracle of TestRunsAgreeWithRunes): on a 572k-rune novel heap 178 → 6.5 B a rune, a join
+  1.26 s → 44 ms, a kept state 0.76 s → 39 ms, a key 21 → 3 ms. (3) Named Docs, protocol 5: the source kept outside
+  the script shared in a Doc of its own (collab_source.go), the source document its editor, live both ways; a
+  joiner without one keeps it for the room; protocol 4 peers read the hello and say to update (TestNamedDocs,
+  TestJoinMidEdit, TestStateDocs, TestMixedProtocols, TestSourceTogether, TestSourceJoinMidEdit, TestSourceOldPeer).
+  Gates: TestBrowserPDF* fail inside the sandbox only (chromium's crashpad, read-only ~/.config). Left: steps 4–6.

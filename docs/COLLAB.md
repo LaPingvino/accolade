@@ -146,6 +146,44 @@ The old Doc of a node per rune is kept in oracle_test.go: `TestRunsAgreeWithRune
 at random, shuffled, repeated and out of order, and their text, version, counts and missing runes agree at every
 step (300 seeds; 5000 were run once). It found a delete waiting for its first rune while a later one was there.
 
+**Built (step 3, protocol 5).** A session holds Docs by name: `"script"` and any other (`DoIn`, `LocalIn`,
+`Has`). A message names its Doc (`"d"`, none: the script's); a hello carries each Doc's version and counts
+(`"docs"`), and the peer answers with each Doc's missing ops, a Doc it lacks whole. `OnRemote` says which Doc
+changed. The kept state keeps every Doc (`"docs"` beside `"runs"`, which old readers ignore, so its version
+stays); in the browser a state over 1 MiB is kept with the script's Doc alone (`StateOf`), and a reload then gets
+the source from the peers.
+
+The source (collab_source.go): a source kept outside the script goes in a Doc of its own, `source:<id>`, which the
+shared setting `source` names (last writer wins). Only the peer who shares the script makes it, from its source as
+it is, or a peer who picks another source while shared (Choose Source, Keep Source in the Script turned off); Keep
+Source in the Script turned on clears the setting, the block then travelling in the script. A peer joining, or
+taking up a kept state, takes the Doc as it is and never sets it from its own copy, so nothing doubles. A peer
+with no source of its own keeps the shared one for the room (`sources/shared-<room>/source.md`, one copy however
+often it rejoins); a peer with one (the sharer: in its bundle, a kept copy, beside the script) keeps it there. The
+window's source document (document.go, SWAP.md) is the Doc's editor: `sharedAs` names the Doc, `changed` sends
+each key (`Doc.SetText`, 3 ms a key on the novel), `followShared` brings the peers' edits in outside its undo
+history, and the Source pane reads its passages from it. The pane's Edit/Done and the source swapped into the main
+editor are live for the peers; each peer's home is written on its Save or Done, as for its own edits, so until
+then the source is marked unsaved (•). The script's Characters and Notes are blocks in the script's text
+(characters_block.go, notes.go): they travel in the script's Doc already, nothing to add.
+
+Old peers: protocol 4 unmarshals the hello into its own message before it looks at `p`, so the fields it knows
+keep their JSON types and the new ones have keys of their own; it reads `p: 5` and says "another peer's Accolade
+(…) is newer than yours: update yours"; this side says the other is older and needs updating. Nothing either sends
+is taken by the other. Tests: `TestNamedDocs` (a chain of three, a joiner gets each Doc, edits say their Doc),
+`TestJoinMidEdit` (a peer catching up while the other types in a long source), `TestStateDocs`, `TestMixedProtocols`
+(a frozen v4 message unmarshals the hello and sees p=5; a v4 hello and its edits are not taken nor relayed; a
+session of protocol 4 and one of 5 tell each other apart); in windows `TestSourceTogether` (the sharer's source
+beside the script reaches the joiner as the room's kept copy; edits both ways; Undo only one's own; the pane's
+passages; the sharer's Save writes the file beside the script with the joiner's edit), `TestSourceJoinMidEdit` (a
+third window joins through the second while the first types in the source key by key) and `TestSourceOldPeer`
+(a v4 hello: the status bar says older, its edit not taken). A source Doc with no op yet is one whose ops have not come: the document neither follows it nor
+sends to it, so a browser that kept its state without the source (over 1 MiB) and reloads with nobody online keeps
+the room's copy, and an edit made then stays its own and is replaced when the peers' Doc comes; an empty source is
+therefore not shared (the status line says "yours only"). Not done: a peer's own different source when it
+joins is replaced by the shared one for that session (its file is written only if it saves); two peers picking a
+source at the same moment leave the losing Doc unused in the session; the breakdown and the schedule are step 4.
+
 Benchmarks (internal/collab/bench_test.go, ~100k words, 572k runes; "edited" is that after 3000 scattered edits by
 two replicas, key by key; 3 runs each, this VPS):
 
@@ -212,7 +250,9 @@ messages of their own, batched like the text's runs.
 
 - Every hello carries `p` (the protocol) and `app` (Accolade's version). A peer of another protocol is listened to
   for nothing more, and the status bar says which side runs the older Accolade.
-- Peers before protocol 4 show "another version" as before. They read the v4 hello, see p=4, and stop.
+- Peers before protocol 4 show "another version" as before. They read the v4 hello, see p=4, and stop. Protocol 5
+  (named Docs) is the same for protocol 4 peers: the hello's old fields keep their types, the new ones have new
+  keys, so a v4 peer reads it, sees p=5 and says to update.
 - **Rule**: any change to what goes over the wire (a field whose meaning changes, a new message kind, the named
   Docs) bumps `Protocol`. A field that old peers may simply ignore does not.
 - The kept state files carry their own `"v"`. A file of another version is not read, and the session joins from
@@ -239,7 +279,8 @@ messages of their own, batched like the text's runs.
 1. ~~The single-writer rule for automatic writes (auto A-numbers, learned notes). Then the two guards go:
    production.go `numberNewScenes`, adaptation_learn.go `learnFromWriting`.~~ Done (question 4 above).
 2. ~~Run-length Doc nodes and kept ops, benchmarked on a novel-sized text.~~ Done (question 2 above).
-3. Named Docs in a session (protocol 5). The source shared through them, and the source pane's editing live.
+3. ~~Named Docs in a session (protocol 5). The source shared through them, and the source pane's editing live.~~
+   Done (question 2 above).
 4. The breakdown and the schedule as shared CRDT maps (their own message kind, batched).
 5. A help page on editing together: what is shared and what stays yours, Undo, and leaving.
 6. Presence: each peer's cursor shown in the others' editors, with their name.

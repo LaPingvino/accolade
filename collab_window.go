@@ -137,10 +137,17 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 	}
 	s.session.App = appVersion()
 	s.session.Run = uiDo // the document changes on the UI goroutine only
-	s.session.OnRemote = func(by string) {
-		if w.shared == s {
-			s.synced = true
+	s.session.OnRemote = func(doc, by string) {
+		if w.shared != s {
+			return
+		}
+		s.synced = true
+		switch doc {
+		case collab.Script:
 			w.applyRemote(by)
+		case w.sharedSource(): // the source, in a Doc of its own (collab_source.go)
+			w.bindSource()
+			w.keepSharedState()
 		}
 	}
 	var replica string
@@ -172,7 +179,7 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 	}
 	if restored { // the peers' settings, as they were
 		s.synced = true
-		for _, k := range []string{"markdown", "language", "format"} {
+		for _, k := range []string{"markdown", "language", "format", sourceMeta} {
 			if v := s.session.Meta(k); v != "" {
 				w.applyShared(k, v)
 			}
@@ -183,6 +190,7 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 		w.shareMeta("language", w.language)
 		w.shareMeta("format", w.scriptFormatKey())
 		w.shareMeta("markdown", strconv.FormatBool(w.markdown))
+		w.shareSourceAnew() // the source, if kept outside the script (collab_source.go)
 	}
 	setPageKey(key.String()) // a reload of the page comes back to it
 	w.keepSharedState()
@@ -281,6 +289,9 @@ func (w *MainWindow) keepSharedState() {
 			return
 		}
 		b, err := s.session.State()
+		if err == nil && inBrowser && len(b) > maxKeptState { // a novel for a source: the script's alone
+			b, err = s.session.StateOf(collab.Script)
+		}
 		if err != nil || inBrowser && len(b) > maxKeptState {
 			return
 		}
@@ -342,6 +353,8 @@ func (w *MainWindow) applyShared(key, value string) {
 		if on := value == "true"; on != w.markdown {
 			w.setMarkdown(on)
 		}
+	case sourceMeta:
+		w.adoptSource(value)
 	case "format":
 		if value != w.scriptFormatKey() {
 			w.setScriptFormat(value)

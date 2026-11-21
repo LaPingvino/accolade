@@ -94,6 +94,10 @@ func New(replica string) *Doc {
 // Replica is the replica's name.
 func (d *Doc) Replica() string { return d.replica }
 
+// Empty reports whether the Doc has had no op at all (not even one
+// deleted since): a Doc named by a peer whose ops have not come yet.
+func (d *Doc) Empty() bool { return len(d.log) == 0 && len(d.pending) == 0 }
+
 // Len is the text's length in runes.
 func (d *Doc) Len() int { return d.size }
 

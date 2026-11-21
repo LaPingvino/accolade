@@ -150,7 +150,7 @@ func (w *MainWindow) swapStatus() string {
 	if d := w.mainDoc; d != nil {
 		msg = what + " in the main editor (" + d.where() + "); the script is the Script tab: Swap with Main again puts them back"
 		if w.shared != nil && d.sharedAs() == "" {
-			msg += ". Editing together: the source is yours only, the others do not see its changes (it is not shared yet)"
+			msg += ". Editing together: the source is yours only, the others do not see its changes (it is not shared)"
 		}
 	}
 	return msg

@@ -32,7 +32,7 @@ import (
 //	script  the window's file                       the session's (named "script")
 //	notes   the notes block at the script's end     the script's (it is in its text)
 //	source  in the script (/* Source */)            the script's
-//	        in the bundle, a kept copy, beside it   none yet: named Docs, COLLAB.md (What is left, 3)
+//	        in the bundle, a kept copy, beside it   its own, the one the setting "source" names (collab_source.go)
 //
 // A document kept in the script is a stretch of the script's text: each
 // change is written into the script at once, as the Notes pane does, and
@@ -229,11 +229,14 @@ func (d *document) inScript() bool {
 }
 
 // sharedAs is the Doc of the session the document is shared through:
-// "script" for the script and what it holds, "" for none (a source kept
-// outside the script: named Docs will share it, COLLAB.md What is left 3).
+// "script" for the script and what it holds; for a source kept outside
+// the script, its own Doc (collab_source.go); "" for none (not shared).
 func (d *document) sharedAs() string {
 	if d.kind == docScript || d.inScript() {
-		return "script"
+		return collab.Script
+	}
+	if d.kind == docSource && d.ref == d.w.sourceRef() {
+		return d.w.sharedSource()
 	}
 	return ""
 }
@@ -535,6 +538,11 @@ func (d *document) changed(string) {
 	if !d.fromHome && d.inScript() {
 		_ = d.store() // a stretch of the script: written into it at once
 	}
+	if !d.fromHome && d.kind == docSource && !d.inScript() {
+		if name := d.sharedAs(); name != "" { // a source shared in a Doc of its own
+			w.shareSourceEdit(name, d.ed.Text())
+		}
+	}
 	if w.main() == d {
 		w.mainChanged()
 	}
@@ -614,6 +622,7 @@ func (w *MainWindow) sourceDoc() *document {
 		_ = w.srcDoc.store()
 	}
 	w.srcDoc = newDoc(w, docSource)
+	w.srcDoc.followShared() // shared: the Doc's text, the peers' edits in it
 	return w.srcDoc
 }
 

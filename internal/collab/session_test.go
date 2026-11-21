@@ -135,7 +135,7 @@ func TestEditsSayWhose(t *testing.T) {
 	heard := map[string][]string{}
 	for _, n := range []string{"a", "b", "c"} {
 		s[n] = NewSession(key, New(n))
-		s[n].OnRemote = func(by string) { heard[n] = append(heard[n], by) }
+		s[n].OnRemote = func(_, by string) { heard[n] = append(heard[n], by) }
 	}
 	link := func(x, y string) {
 		s[x].AddPeer(y, func(b []byte) error { return s[y].Receive(x, b) })

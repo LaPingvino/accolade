@@ -1089,6 +1089,7 @@ func (w *MainWindow) toggleSourceInside() {
 	if w.source != nil {
 		w.source.follow()
 	}
+	w.shareSourceAnew() // shared: in the script now, or out of it in a Doc of its own (collab_source.go)
 }
 
 // linkToSource is Adaptation > Link to Source Passage: a link to the passage

@@ -19,7 +19,7 @@ instead: the script's **source** and its **notes**.
 | script | the window's file (bundle, plain file)           | `w.textEditor`'s      | the session's, the script's                  |
 | notes  | the notes block at the script's end              | its own editor's     | the script's: it is in the script's text     |
 | source | `/* Source */` in the script                     | its own editor's     | the script's                                 |
-| source | in the bundle, a kept copy, the file beside it   | its own editor's     | none yet: `sharedAs() == ""` (named Docs, 3) |
+| source | in the bundle, a kept copy, the file beside it   | its own editor's     | its own, named by the setting `source` (collab_source.go) |
 
 `document` holds the kind, its editor (and with it its undo history), its vim state, its view (the editor in its
 scroll, with the editor's fonts), where it is kept (`ref`, for a source), and the text as last read from or
@@ -66,11 +66,11 @@ written to its home.
 ### Named Docs (COLLAB.md, What is left, step 3)
 
 `document.sharedAs()` names the session Doc a document travels in: `"script"` for the script and for what it
-holds, `""` for a source kept outside it. Step 3 gives the source a Doc of its own named `"source"`. Then
-`sharedAs` returns that name, `store` keeps writing the peer's own home, and `followHome` takes the source Doc's
-remote edits the way it takes the script's now (Remote edits outside the undo history). The swap code then needs
-no change. Until then, Swap with Main works in a shared session for every pane. A source kept outside the script
-is this writer's alone, and the status line says so ("yours only, not shared").
+holds; for a source kept outside it, the Doc of its own that the shared setting `source` names (`source:<id>`,
+COLLAB.md step 3, built). `store` keeps writing the peer's own home; `followShared` takes the source Doc's remote
+edits the way `followHome` takes the script's (Remote edits outside the undo history), and `changed` sends the
+document's own. The swap code needed no change. The status line's "yours only, not shared" is left for a source
+the session names no Doc for (one picked before this peer had heard from the others).
 
 ## The audit: each place, what it assumed, the fix
 

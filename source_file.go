@@ -304,6 +304,7 @@ func (w *MainWindow) useSourceText(path, md string) (err error) {
 	defer func() {
 		if err == nil {
 			w.ribbonRefresh()
+			w.shareSourceAnew() // shared: the new source goes to the peers (collab_source.go)
 		}
 	}()
 	if w.bundle != nil {
