@@ -12,20 +12,44 @@ import (
 // Word too): LibreOffice's own styles (Text body, Heading 1–6,
 // Quotations, Preformatted Text), real lists and footnotes.
 func (d *Doc) WriteODT(out io.Writer) error {
-	w := &odtWriter{textStyles: map[string]string{}}
+	w := &odtWriter{textStyles: map[string]string{}, titlePage: len(d.TitlePage) > 0}
+	for i, line := range d.TitlePage {
+		style := "P_title_line"
+		switch {
+		case i == 0:
+			style = "P_title"
+		case i == len(d.TitlePage)-1:
+			style = "P_title_end"
+		}
+		if len(d.TitlePage) == 1 {
+			style = "P_title_only"
+		}
+		b := &w.b
+		b.WriteString(`<text:p text:style-name="` + style + `">` + xmlEsc(line) + `</text:p>`)
+	}
 	w.blocks(&w.b, d.Blocks, "")
 	z := &zipWriter{z: zip.NewWriter(out)}
 	z.part("mimetype", "application/vnd.oasis.opendocument.text", true)
 	z.part("META-INF/manifest.xml", odtManifest, false)
 	z.part("meta.xml", xmlDecl+`<office:document-meta `+odtNS+` office:version="1.3"><office:meta><dc:title>`+xmlEsc(d.Title)+
 		`</dc:title><meta:generator>Accolade</meta:generator></office:meta></office:document-meta>`, false)
-	z.part("styles.xml", odtStyleSheet, false)
+	z.part("styles.xml", odtStyles(d.Paper), false)
 	z.part("content.xml", xmlDecl+`<office:document-content `+odtNS+` office:version="1.3"><office:automatic-styles>`+
 		w.automatic()+`</office:automatic-styles><office:body><office:text>`+w.b.String()+`</office:text></office:body></office:document-content>`, false)
 	if z.err != nil {
 		return z.err
 	}
 	return z.z.Close()
+}
+
+// odtStyles is the style sheet with paper's page size (A4's for "").
+func odtStyles(paper string) string {
+	if paper == "" {
+		return odtStyleSheet
+	}
+	wd, ht := paperSize(paper)
+	return strings.Replace(odtStyleSheet, `fo:page-width="8.27in" fo:page-height="11.69in"`,
+		fmt.Sprintf(`fo:page-width="%.2fin" fo:page-height="%.2fin"`, wd, ht), 1)
 }
 
 const odtNS = `xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" ` +
@@ -43,6 +67,7 @@ type odtWriter struct {
 	textStyles map[string]string // T_bi: its properties
 	notes      int
 	tables     int
+	titlePage  bool // the title page's styles are wanted
 }
 
 // blocks writes blocks; pstyle is the style of their paragraphs ("" Text
@@ -165,6 +190,17 @@ func (w *odtWriter) automatic() string {
 	}
 	b.WriteString(`<style:style style:name="P_break" style:family="paragraph" style:parent-style-name="Text_20_body">` +
 		`<style:paragraph-properties fo:text-align="center"/></style:style>`)
+	if w.titlePage { // centred, the title a third down; the page breaks after the last line
+		title := `<style:paragraph-properties fo:text-align="center" fo:margin-top="3in" fo:margin-bottom="0.33in"`
+		b.WriteString(`<style:style style:name="P_title" style:family="paragraph" style:parent-style-name="Standard">` +
+			title + `/><style:text-properties fo:font-size="20pt"/></style:style>` +
+			`<style:style style:name="P_title_only" style:family="paragraph" style:parent-style-name="Standard">` +
+			title + ` fo:break-after="page"/><style:text-properties fo:font-size="20pt"/></style:style>` +
+			`<style:style style:name="P_title_line" style:family="paragraph" style:parent-style-name="Standard">` +
+			`<style:paragraph-properties fo:text-align="center"/></style:style>` +
+			`<style:style style:name="P_title_end" style:family="paragraph" style:parent-style-name="Standard">` +
+			`<style:paragraph-properties fo:text-align="center" fo:break-after="page"/></style:style>`)
+	}
 	b.WriteString(`<style:style style:name="Tbl" style:family="table"><style:table-properties style:width="6.5in" table:align="margins"/></style:style>` +
 		`<style:style style:name="Tbl_cell" style:family="table-cell"><style:table-cell-properties fo:padding="0.04in" fo:border="0.5pt solid #000000"/></style:style>`)
 	return b.String()

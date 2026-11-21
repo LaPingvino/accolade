@@ -68,6 +68,12 @@ func (s Span) sameFormat(o Span) bool {
 type Doc struct {
 	Title  string
 	Blocks []*Block
+	// Paper is the page's size for Word and ODT: "letter", "a4", "a5"
+	// ("": A4).
+	Paper string
+	// TitlePage is a page of its own before the text, its lines centred
+	// (the title, then who wrote it); nil: none.
+	TitlePage []string
 	// Dropped counts what could not be carried over (images, objects).
 	Dropped int
 }
@@ -425,4 +431,16 @@ func spansText(spans []Span) string {
 		b.WriteString(s.Text)
 	}
 	return strings.TrimSpace(collapse(b.String()))
+}
+
+// paperSizes are the papers' sizes, in inches.
+var paperSizes = map[string][2]float64{"letter": {8.5, 11}, "a4": {8.27, 11.69}, "a5": {5.83, 8.27}}
+
+// paperSize is the paper's size in inches (A4 for one it does not know).
+func paperSize(paper string) (width, height float64) {
+	s, ok := paperSizes[strings.ToLower(paper)]
+	if !ok {
+		s = paperSizes["a4"]
+	}
+	return s[0], s[1]
 }

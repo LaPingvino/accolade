@@ -12,6 +12,21 @@ import (
 // footnotes, so it is restyled in Word or LibreOffice as any other.
 func (d *Doc) WriteDOCX(out io.Writer) error {
 	w := &docxWriter{nextNum: 2}
+	for i, line := range d.TitlePage {
+		w.b.WriteString(`<w:p><w:pPr><w:jc w:val="center"/>`)
+		if i == 0 { // the title, a third down the page
+			w.b.WriteString(`<w:spacing w:before="4320" w:after="480"/>`)
+		}
+		w.b.WriteString(`</w:pPr>`)
+		size := 24
+		if i == 0 {
+			size = 40
+		}
+		fmt.Fprintf(&w.b, `<w:r><w:rPr><w:sz w:val="%d"/></w:rPr><w:t xml:space="preserve">%s</w:t></w:r></w:p>`, size, xmlEsc(line))
+	}
+	if len(d.TitlePage) > 0 {
+		w.b.WriteString(`<w:p><w:r><w:br w:type="page"/></w:r></w:p>`)
+	}
 	w.blocks(d.Blocks, docxCtx{})
 	z := &zipWriter{z: zip.NewWriter(out)}
 	z.part("[Content_Types].xml", docxTypes, false)
@@ -23,12 +38,21 @@ func (d *Doc) WriteDOCX(out io.Writer) error {
 	z.part("word/numbering.xml", w.numbering(), false)
 	z.part("word/footnotes.xml", w.footnotes(), false)
 	z.part("word/document.xml", xmlDecl+`<w:document `+wNS+`><w:body>`+w.b.String()+
-		`<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>`+
+		`<w:sectPr>`+docxPage(d.Paper)+`<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>`+
 		`</w:body></w:document>`, false)
 	if z.err != nil {
 		return z.err
 	}
 	return z.z.Close()
+}
+
+// docxPage is the page size of paper, in twips (A4's for "").
+func docxPage(paper string) string {
+	if paper == "" {
+		return `<w:pgSz w:w="11906" w:h="16838"/>`
+	}
+	wd, ht := paperSize(paper)
+	return fmt.Sprintf(`<w:pgSz w:w="%d" w:h="%d"/>`, int(wd*1440+0.5), int(ht*1440+0.5))
 }
 
 const xmlDecl = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` + "\n"
