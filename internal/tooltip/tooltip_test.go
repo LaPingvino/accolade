@@ -11,18 +11,19 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-func waitFor(t *testing.T, cond func() bool) {
-	t.Helper()
-	for end := time.Now().Add(2 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
-		if cond() {
-			return
-		}
+// manualDelay has a tip's delay end only when the test fires it.
+func manualDelay(t *testing.T) (fire func()) {
+	var f func()
+	afterFunc = func(_ time.Duration, g func()) *time.Timer {
+		f = g
+		return time.NewTimer(time.Hour) // stopped by Out, never fires
 	}
-	t.Fatal("timed out")
+	t.Cleanup(func() { afterFunc = time.AfterFunc })
+	return func() { f() }
 }
 
 func TestTipShowsBelowTheButtonAndHides(t *testing.T) {
-	Delay = 10 * time.Millisecond
+	fire := manualDelay(t)
 	a := test.NewApp()
 	t.Cleanup(a.Quit)
 	layer := NewLayer()
@@ -33,7 +34,10 @@ func TestTipShowsBelowTheButtonAndHides(t *testing.T) {
 	w.Resize(fyne.NewSize(300, 200))
 
 	b.MouseIn(&desktop.MouseEvent{})
-	waitFor(t, func() bool { return layer.Text() == "Save (Ctrl+S)" })
+	fire()
+	if layer.Text() != "Save (Ctrl+S)" {
+		t.Fatalf("tip %q after the delay", layer.Text())
+	}
 	if p := layer.TipPosition(); p.Y < b.Size().Height || p.X < 0 {
 		t.Errorf("tip at %v, want below the button (height %v)", p, b.Size().Height)
 	}
@@ -48,7 +52,7 @@ func TestTipShowsBelowTheButtonAndHides(t *testing.T) {
 	}
 
 	b.MouseIn(&desktop.MouseEvent{})
-	waitFor(t, func() bool { return layer.Text() != "" })
+	fire()
 	b.MouseOut()
 	if layer.Text() != "" {
 		t.Error("tip still shown after the pointer left")
@@ -57,7 +61,7 @@ func TestTipShowsBelowTheButtonAndHides(t *testing.T) {
 	// leaving before the delay: no tip at all
 	b.MouseIn(&desktop.MouseEvent{})
 	b.MouseOut()
-	time.Sleep(3 * Delay)
+	fire() // the stopped delay, had it run anyway
 	if layer.Text() != "" {
 		t.Error("tip shown although the pointer left before the delay")
 	}

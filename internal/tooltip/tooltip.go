@@ -22,6 +22,10 @@ import (
 // Delay is how long the pointer rests on a button before its tip shows.
 var Delay = 500 * time.Millisecond
 
+// afterFunc starts a tip's delay; a test fires it on its own goroutine
+// (Fyne's test driver runs fyne.Do on the caller's).
+var afterFunc = time.AfterFunc
+
 // Layer is where tooltips are drawn. Stack it over the window content:
 //
 //	container.NewStack(content, layer)
@@ -138,7 +142,7 @@ func (h *Hover) In(layer *Layer, obj fyne.CanvasObject, tip func() string) {
 	defer h.mu.Unlock()
 	h.stopLocked()
 	gen := h.gen
-	h.timer = time.AfterFunc(Delay, func() {
+	h.timer = afterFunc(Delay, func() {
 		fyne.Do(func() {
 			h.mu.Lock()
 			current := h.gen == gen && h.timer != nil
