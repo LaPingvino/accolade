@@ -79,6 +79,9 @@ type MainWindow struct {
 	swapped   string
 	scriptTab *scriptPane
 	cardsDock *cardsPane // the Cards pane (cards_pane.go)
+	// the Characters pane, and the last rename for Undo (characters_pane.go, characters_rename.go)
+	charsPane   *charactersPane
+	charRenamed *renamed
 	// linkOffer is the question about links quoting a passage whose
 	// opening changed (source_links_offer.go)
 	linkOffer *linkOfferNotice

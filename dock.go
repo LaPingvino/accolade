@@ -85,6 +85,13 @@ func dockPanes() []*dockPane {
 			focus:  func(w *MainWindow) fyne.Focusable { return w.notesPane().entry },
 			shown:  func(w *MainWindow) { w.notesPane().update(w.textEditor.Text()) },
 			edited: func(w *MainWindow, text string) { w.notesPane().update(text) }},
+		// who speaks, their notes, rename and merge (characters_pane.go)
+		{id: "characters", slot: dockBottom, width: 260, focusOnShow: true,
+			cmd:    &command{label: "Characters", tip: "Characters: who speaks and where, their notes, rename and merge", icon: theme.AccountIcon},
+			box:    func(w *MainWindow) fyne.CanvasObject { return w.charactersPane().box },
+			focus:  func(w *MainWindow) fyne.Focusable { return w.charactersPane().focusTarget() },
+			shown:  func(w *MainWindow) { w.charactersPane().read() },
+			edited: func(w *MainWindow, text string) { w.charactersPane().update(text) }},
 		// the cards beside the script (cards_pane.go); swapped with the
 		// main area, their full view (cards.go)
 		{id: "cards", slot: dockTop, width: 260,
@@ -156,10 +163,15 @@ func dockHomes() []home {
 
 // dockRibbonHomes are the ribbon's Panes group: the first two panes
 // large, the other panes and Side Panes small (moving a pane: its tab's
-// menu, the View menu, the palette).
+// menu, the View menu, the palette). Changes is Collaboration's (with
+// Edit Together: what the others changed), so the View tab stays within
+// a desktop's width.
 func dockRibbonHomes() []home {
 	var homes []home
 	for i, p := range dockPanes() {
+		if p.id == "changes" {
+			continue
+		}
 		if i < 2 {
 			homes = append(homes, big("view."+p.id))
 			continue
@@ -180,7 +192,9 @@ type dock struct {
 	stash  []string  // the panes Side Panes took away, to bring back
 	split  *container.Split
 	tabs   map[string]*dockTab // as last built
-	bodies [3]*fyne.Container  // each slot's pane in front, as last built
+	// sheetRow is a phone's tab row, as last built (nil on a wide window)
+	sheetRow *overflowRow
+	bodies   [3]*fyne.Container // each slot's pane in front, as last built
 	// hideTips name the pane in front on each slot's hide button
 	hideTips [3]func()
 }
@@ -607,6 +621,7 @@ func (d *dock) keepSizes() {
 func (d *dock) object() fyne.CanvasObject {
 	d.keepSizes()
 	d.tabs = map[string]*dockTab{}
+	d.sheetRow = nil
 	d.bodies = [3]*fyne.Container{}
 	d.hideTips = [3]func(){}
 	d.split = nil
@@ -663,7 +678,24 @@ func (d *dock) slot(slot int) fyne.CanvasObject {
 		}
 		buttons = append([]fyne.CanvasObject{d.w.paneTaller}, buttons...)
 	}
-	row := container.NewBorder(nil, nil, nil, container.NewHBox(buttons...), container.New(layout.NewRowWrapLayout(), tabs...))
+	// a phone's row is one line: the tabs that fit, the one in front among
+	// them, the others in the menu of a More button at its end (eight panes
+	// would wrap to three rows of the sheet); a slot beside the script wraps
+	tabRow := fyne.CanvasObject(container.New(layout.NewRowWrapLayout(), tabs...))
+	if slot == dockSheet {
+		var items []overflowItem
+		for _, p := range vis {
+			id, title := p.id, d.titleOf(p)
+			items = append(items, overflowItem{obj: d.tabs[id], menu: func(fyne.CanvasObject) []*fyne.MenuItem {
+				return []*fyne.MenuItem{fyne.NewMenuItem(title, func() { d.pick(id) })}
+			}})
+		}
+		d.sheetRow = newOverflowRow(d.w.tooltips, items, nil, 0)
+		d.sheetRow.more.Tip = "More panes"
+		fyne.SetAccessibleLabel(d.sheetRow.more, "More panes")
+		tabRow = d.sheetRow.Container
+	}
+	row := container.NewBorder(nil, nil, nil, container.NewHBox(buttons...), tabRow)
 	wide := canvas.NewRectangle(color.Transparent) // a nil colour crashes the painter
 	wide.SetMinSize(fyne.NewSize(width, 0))
 	body := container.NewStack()
@@ -698,6 +730,12 @@ func (d *dock) showFront(slot int) {
 		if p.id == front {
 			body.Objects = []fyne.CanvasObject{d.boxOf(p)}
 		}
+	}
+	if r := d.sheetRow; slot == dockSheet && r != nil { // the tab in front stays on the phone's row
+		for i := range r.items {
+			r.items[i].keep = r.items[i].obj == fyne.CanvasObject(d.tabs[front])
+		}
+		r.Container.Refresh()
 	}
 	body.Refresh()
 	if f := d.hideTips[slot]; f != nil {

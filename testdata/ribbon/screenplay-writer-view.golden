@@ -2,10 +2,10 @@ tabs: File Write Edit Collaboration [View]
 ## Panes
   L Outline icon=foreground_list.svg name=Outline (Ctrl+Shift+O)
   L Notes icon=foreground_file-text.svg (checked) name=Notes (Ctrl+Shift+K)
+  S Characters icon=foreground_account.svg name=Characters
   S Cards icon=foreground_grid.svg name=Cards (Ctrl+Shift+D)
   S Source icon=foreground_source.svg name=Source
   S Help icon=foreground_help.svg name=Help
-  S Changes icon=foreground_changes.svg name=Changes (Ctrl+Shift+H)
   S Side Panes icon=foreground_dock.svg (checked) name=Side Panes
 ## Show
   L Preview icon=foreground_visibility.svg name=Preview PDF (Ctrl+Shift+P)

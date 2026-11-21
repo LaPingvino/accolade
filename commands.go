@@ -1038,7 +1038,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Options", homes: []home{at("set.revisionMarks"), at("set.lettering"), at("set.continueds"), at("set.sceneNumbers")}},
 		}},
 		{title: "Collaboration", groups: []ribbonGroup{
-			{title: "Together", homes: []home{big("file.share"), at("file.join")}},
+			{title: "Together", homes: []home{big("file.share"), at("file.join"), at("view.changes")}},
 			{title: "Drafts", homes: []home{big("file.saveDraft"), at("file.drafts"), at("collab.compare"), at("set.draftsSide")}},
 		}},
 		{title: "View", groups: []ribbonGroup{

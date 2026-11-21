@@ -730,8 +730,8 @@ func modeLabelMoves(name, golden string) string {
 // dockMoves: the side dock (dock.go) gathers its panes in the View menu,
 // after the folding, between separators, in the dock's order (Outline
 // moves down from beside Preview to join them), and adds its own: Side
-// Panes (all in and out), Move Pane to Top and Move Pane to Bottom.
-// Nothing else: the keys, header, context menu and full screen are as
+// Panes (all in and out), Move Pane to Top and Move Pane to Bottom;
+// Characters, a pane since, after Notes. Nothing else: the keys, header, context menu and full screen are as
 // they were.
 func dockMoves(name, golden string) string {
 	if !strings.HasPrefix(name, "menu-") {
@@ -742,6 +742,9 @@ func dockMoves(name, golden string) string {
 	for _, l := range []string{"Outline", "Notes", "Cards", "Source", "Production", "Help", "Changes"} { // Cards a pane too (docs/SWAP.md)
 		if it := takeItem(ms, "View", l); it != "" {
 			panes = append(panes, it)
+		}
+		if l == "Notes" {
+			panes = append(panes, "  Characters") // a pane of its own since (characters_pane.go)
 		}
 	}
 	panes = append(panes, "  Side Panes", "  Move Pane to Top", "  Move Pane to Bottom", "  Swap Pane with Main") // docs/SWAP.md

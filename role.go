@@ -227,6 +227,9 @@ func (w *MainWindow) roleChanged(said bool) {
 	if w.textEditor != nil {
 		w.textEditor.RedrawMarks() // the tagged words' colours (breakdown_view.go)
 	}
+	if w.charsPane != nil && w.paneShown("characters") {
+		w.charsPane.read() // the cast numbers and the actor are Production's
+	}
 	if said {
 		if msg := w.lockedForWriter(); msg != "" {
 			w.setStatus(msg)

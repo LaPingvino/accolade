@@ -11,9 +11,11 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
 )
 
-// The character picker (the toolbar's Character button): the script's
-// characters, who speaks most first; one picked goes in as a character
-// cue, ready for the dialogue.
+// The character picker (the toolbar's Character button), the quick one
+// beside the Characters pane (characters_pane.go): the script's
+// characters, who speaks most first, then the character list's who do
+// not speak yet; one picked goes in as a character cue, ready for the
+// dialogue.
 
 // scriptCharacters are the names that speak in text, most speeches first.
 func scriptCharacters(text string, starts []string) []string {
@@ -55,7 +57,19 @@ func (w *MainWindow) pickCharacter(at fyne.CanvasObject) {
 	if w.scriptAway("Character Name") { // the script is in the side panes (swap.go)
 		return
 	}
-	names := scriptCharacters(w.textEditor.Text(), w.sceneStarts())
+	text := w.textEditor.Text()
+	names := scriptCharacters(text, w.sceneStarts())
+	// and the character list's, who speak not yet (characters_block.go)
+	have := map[string]bool{}
+	for _, n := range names {
+		have[charKey(n)] = true
+	}
+	for _, n := range listedNames(text) {
+		if k := charKey(n); k != "" && !have[k] {
+			have[k] = true
+			names = append(names, n)
+		}
+	}
 	if len(names) == 0 {
 		w.setStatus("No characters speak yet")
 		return
@@ -72,6 +86,9 @@ func (w *MainWindow) pickCharacter(at fyne.CanvasObject) {
 // insertCue puts a character cue in as a paragraph of its own, the cursor
 // on the line after it for the dialogue.
 func (w *MainWindow) insertCue(name string) {
+	if name != strings.ToUpper(name) && !strings.HasPrefix(name, "@") {
+		name = "@" + name // a listed name in small letters: Fountain's forced cue (until the language's list rule reads it)
+	}
 	w.textEditor.Edit(func(b *buffer.Buffer) {
 		b.Group(func() { insertButton(b, formatButton{Insert: name + "\n"}) })
 	})

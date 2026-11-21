@@ -79,7 +79,10 @@ func hasTwice(nums ...[]string) bool {
 
 // followSceneNumbers brings the breakdown and the schedule in line with
 // the script's numbers, if only those changed since it last looked.
-func (w *MainWindow) followSceneNumbers() { w.followNumbers(false) }
+func (w *MainWindow) followSceneNumbers() {
+	w.followRenamed() // an Undo of a character's rename (characters_rename.go)
+	w.followNumbers(false)
+}
 
 // followNumbers is followSceneNumbers; anyway: take the text as seen even
 // with a number twice (before Renumber or Remove, which end that), though
