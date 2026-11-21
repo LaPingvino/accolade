@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"path"
 	"path/filepath"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -77,6 +79,9 @@ type document struct {
 	kind docKind
 	ed   *editor.ScriptEditor
 	vim  *vim
+	// folds are its Markdown headings' folds (editor_folds.go); the
+	// script's are the window's (w.scriptFolds)
+	folds *folds
 	// view is the editor in its scroll with the editor's fonts, as the
 	// main area or a pane shows it (the script's: w.editorView)
 	view *container.ThemeOverride
@@ -98,6 +103,15 @@ type document struct {
 	atPassage int
 	atLine    int // the line its cursor was on as the passage was looked at
 	seenRev   uint64
+	// span is where a document kept in the script starts in the script's
+	// text (runes), as its last write left the script at revision rev: a
+	// key typed then goes into the script as the changed span alone
+	// (spanInto)
+	span struct {
+		at  int
+		rev uint64
+		ok  bool
+	}
 }
 
 // newDoc opens the window's document of a kind (not the script,
@@ -114,6 +128,8 @@ func newDoc(w *MainWindow, kind docKind) *document {
 		}
 		return continueList(d.ed) // prose: lists go on
 	}
+	d.folds = newFolds(w, d.ed, markdownOutline)
+	d.ed.OnTab = d.folds.cycleHere // at a heading's start, as in the script: its fold
 	d.vim = attachVim(w, d.ed, false)
 	d.ed.OnChanged = d.changed
 	d.ed.OnCursorChanged = d.cursorMoved
@@ -291,6 +307,8 @@ func (d *document) reload() {
 	d.fromHome = true
 	d.ed.SetText(text)
 	d.fromHome = false
+	d.ed.Buffer().TakeChange()
+	d.span.ok = false
 	d.stored, d.homeSeen = text, text
 	d.linkBase, d.atPassage, d.atLine, d.seenRev = text, -1, -1, d.ed.Buffer().Rev()
 }
@@ -306,24 +324,38 @@ func (d *document) rehome() {
 		d.homeSeen = home
 	}
 	d.stored = d.Text()
+	d.ed.Buffer().TakeChange()
+	d.span.ok = false
 }
 
 // store writes the document to its home if it changed.
 func (d *document) store() error {
 	text := d.ed.Text()
 	if sameString(text, d.stored) {
+		d.ed.Buffer().TakeChange() // back as it was: nothing to write
 		return nil
 	}
 	w := d.w
+	if d.inScript() {
+		start, end, oldEnd, ok := d.ed.Buffer().TakeChange()
+		if ok && d.spanInto(text, start, end, oldEnd) {
+			w.updateTitle()
+			return nil
+		}
+	}
 	switch d.kind {
 	case docNotes:
-		d.intoScript(func() { w.writeNotes(text) })
+		var from int
+		var block string
+		d.intoScript(func() { from, block = w.writeNotesAt(text) })
+		d.spanFrom(from, block, w.notesMarks())
 	case docSource:
 		switch d.ref.Origin {
 		case sourceInside: // into the script's block
 			e := w.textEditor
 			start, end, block := withSourceBlock(e.Text(), text)
 			d.intoScript(func() { e.Edit(func(b *buffer.Buffer) { replaceLeast(b, start, end, block) }) })
+			d.spanFrom(start, block, sourceMarks)
 		case sourceBundle:
 			if err := w.saveBundleSource(text); err != nil {
 				return err
@@ -347,6 +379,94 @@ func (d *document) store() error {
 	return nil
 }
 
+// marks are the marks of the block a document kept in the script is in.
+func (d *document) marks() notesMarks {
+	if d.kind == docNotes {
+		return d.w.notesMarks()
+	}
+	return sourceMarks
+}
+
+// spanFrom notes where the document's text starts in the script, its
+// block just written at from: the block's opening line before it.
+func (d *document) spanFrom(from int, block string, m notesMarks) {
+	d.span.ok = false
+	open := m.open + "\n"
+	i := strings.Index(block, open)
+	if i < 0 {
+		return
+	}
+	d.span.at = from + utf8.RuneCountInString(block[:i+len(open)])
+	d.span.rev, d.span.ok = d.w.textEditor.Buffer().Rev(), true
+}
+
+// spanInto writes the document's change, [start, end) of text that was
+// [start, oldEnd) of d.stored, into its stretch of the script as that
+// span alone: what a key costs is the key, not the stretch (a novel kept
+// in the script). It reports false when the whole stretch is to be
+// written instead (replaceLeast, which finds the same span the long way):
+// the script changed since the document last wrote there, or the text
+// holds what its block writes otherwise (a "*/" kept as "* /", a mark of
+// a block), or the change is in its last new lines (the block keeps
+// none) or makes it empty (no block).
+func (d *document) spanInto(text string, start, end, oldEnd int) bool {
+	e := d.w.textEditor
+	old := d.stored
+	if !d.span.ok || d.span.rev != e.Buffer().Rev() {
+		return false
+	}
+	m := d.marks()
+	for _, s := range []string{old, text} {
+		if m.otherwise(s) || strings.TrimSpace(s) == "" {
+			return false
+		}
+	}
+	n := d.ed.Buffer().Len()
+	nOld := n - end + oldEnd
+	trail := func(s string) int { return len(s) - len(strings.TrimRight(s, "\n")) }
+	if oldEnd+trail(old) > nOld || end+trail(text) > n {
+		return false
+	}
+	bs := byteAt(old, start)
+	bo := bs + byteAt(old[bs:], oldEnd-start)
+	if !strings.HasPrefix(d.homeSeen, old[:bo]) { // the home as last seen: the same text up to the change
+		return false
+	}
+	ins := d.ed.Buffer().Slice(start, end)
+	from, to := d.span.at+start, d.span.at+oldEnd
+	d.intoScript(func() { e.Edit(func(b *buffer.Buffer) { replaceKeeping(b, from, to, ins) }) })
+	d.homeSeen = d.homeSeen[:bs] + ins + d.homeSeen[bo:]
+	d.stored = text
+	d.span.rev = e.Buffer().Rev()
+	return true
+}
+
+// otherwise reports whether s holds what the block writes as something
+// else ("*/" as "* /"), or would read as a mark of a block: then the
+// block's text is not s rune for rune.
+func (m notesMarks) otherwise(s string) bool {
+	opener := m.open
+	if i := strings.IndexByte(opener, ' '); i > 0 {
+		opener = opener[:i] // "/*", "<!--"
+	}
+	return strings.Contains(s, m.close) || strings.Contains(s, m.escaped) || strings.Contains(s, opener)
+}
+
+// byteAt is where the rune at offset r of s starts, in bytes.
+func byteAt(s string, r int) int {
+	if r <= 0 {
+		return 0
+	}
+	n := 0
+	for i := range s {
+		if n == r {
+			return i
+		}
+		n++
+	}
+	return len(s)
+}
+
 // intoScript makes write, a change of the script, one undo step with the
 // document's writes just before it (nothing else wrote there between):
 // the script's step on top is tagged with the document while it is its.
@@ -363,9 +483,6 @@ func (d *document) intoScript(write func()) {
 			e.JoinStepsSince(n - 1)
 		}
 		e.TagLastStep(d)
-	}
-	if home, err := d.home(); err == nil {
-		d.homeSeen = home // the change is this document's own
 	}
 }
 
@@ -385,7 +502,31 @@ func replaceLeast(b *buffer.Buffer, start, end int, text string) {
 	if p == len(old)-q && p == len(nw)-q {
 		return
 	}
-	b.Replace(start+p, end-q, string(nw[p:len(nw)-q]))
+	replaceKeeping(b, start+p, end-q, string(nw[p:len(nw)-q]))
+}
+
+// replaceKeeping replaces [from, to) with text, the cursor and the
+// selection kept where they were, with their text: a document writing
+// into the script leaves the script's cursor in its place.
+func replaceKeeping(b *buffer.Buffer, from, to int, text string) {
+	cursor := b.Cursor()
+	anchor, s1 := b.Selection()
+	if anchor == cursor {
+		anchor = s1
+	}
+	grow := utf8.RuneCountInString(text) - (to - from)
+	keep := func(off int) int {
+		switch {
+		case off >= to:
+			return off + grow
+		case off > from:
+			return from
+		}
+		return off
+	}
+	b.Replace(from, to, text)
+	b.SetCursor(keep(anchor), false)
+	b.SetCursor(keep(cursor), keep(anchor) != keep(cursor))
 }
 
 // changed is a change in the document's editor.
@@ -430,10 +571,23 @@ func (d *document) followHome() {
 		}
 	})
 	d.fromHome = false
+	d.ed.Buffer().TakeChange() // the script's change: not written back
+	d.span.ok = false
 	d.stored, d.homeSeen = d.ed.Text(), home
 }
 
 // The window's open documents (besides the script).
+
+// docWriting reports whether an open document is writing into the
+// script just now: the script's change is its own.
+func (w *MainWindow) docWriting() bool {
+	for _, d := range []*document{w.srcDoc, w.notesDoc} {
+		if d != nil && d.writing {
+			return true
+		}
+	}
+	return false
+}
 
 // openDocs are the documents open besides the script.
 func (w *MainWindow) openDocs() []*document {

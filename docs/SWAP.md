@@ -37,8 +37,14 @@ written to its home.
   `screenplayOnly` and `markdownOnly` stay the file's, so the Adaptation and Production menus, Export and Print
   remain the script's while it is away, and Adaptation is also the way back.
 - A document kept **in the script** (the notes, a source inside it) is a stretch of the script's text. Each change
-  is written into the script at once, as the Notes pane does. Only what differs is replaced (`replaceLeast`), so
-  a co-writer's edit elsewhere in the stretch and the undo steps around it are not touched. The writes are one
+  is written into the script at once, as the Notes pane does. Only what differs is replaced, so a co-writer's edit
+  elsewhere in the stretch and the undo steps around it are not touched. A key goes in as its span alone
+  (`spanInto`): the document's buffer says what changed since its last write (`Buffer.TakeChange`), and the
+  document knows where its text starts in the script while the script is at the revision its own write left. When
+  the script changed since (Undo there, a peer's edit), or the text holds what the block writes otherwise (a `*/`
+  kept as `* /`, a block's mark), or the change is in its last new lines, the whole stretch is written instead
+  (`replaceLeast`, which finds the same span the long way), and the place is read again. Either way the script's
+  cursor stays where it was. Nothing is put off: no delayed write that a shared session would have to merge. The writes are one
   undo step of the script's while nothing else wrote there between: the step on top is tagged with the document
   and the next write joins it. A change to the stretch made in the script (Undo there, a peer's edit, a draft
   restored) comes into the document's editor as `Buffer.Remote` edits, outside its own history
@@ -93,10 +99,10 @@ is this writer's alone, and the status line says so ("yours only, not shared").
 | `notes.go` `notesPanel.save` | the pane writes the block | `writeNotes`, shared with the notes document; only what differs is replaced |
 | `search_bar.go` Find, Replace, Replace All, highlights | `w.textEditor` | `writeEditor()`: Find and Replace work in the source. The highlights are cleared in both editors on a swap |
 | `ex_window.go` `:` commands, the yank register | `w.textEditor`, `w.vim` | the main editor and its vim (`mainVim`); `replaceTextIn` for any editor |
-| `editor.go` vim, menu shortcuts, brackets, Alt tips | made for the script's editor only | `attachVim` for every editor. A document's vim does not fold or move through the outline. The keys' reset (Preferences) reaches the documents' vims, and the fonts and line numbers their editors |
+| `editor.go` vim, menu shortcuts, brackets, Alt tips | made for the script's editor only | `attachVim` for every editor. A document's vim folds its own headings (`foldsOf`) and does not move through the outline. The keys' reset (Preferences) reaches the documents' vims, and the fonts and line numbers their editors |
 | `menus.go` Undo, Redo, Cut/Copy/Paste/Select All fallbacks | `w.textEditor` | `writeEditor()`: the source's own history in the main editor |
-| `editor.go` Enter, Tab; `keyflow.go`; `suggest.go`; `complete.go` | the script's editor | still only its own hooks. A document's Enter continues lists, and its Tab is the editor's. No Tab hint while the script is away (`showSuggestionHint`) |
-| `editor_folds.go` Fold commands | the script is in sight | the status says why not while it is away |
+| `editor.go` Enter, Tab; `keyflow.go`; `suggest.go`; `complete.go` | the script's editor | still only its own hooks. A document's Enter continues lists; its Tab at a heading's start cycles that heading's fold, else it is the editor's. No Tab hint while the script is away (`showSuggestionHint`) |
+| `editor_folds.go` Fold commands | the script's editor and outline | each editor has its folds (`folds`): the script's (`w.scriptFolds`, its outline), a document's (its Markdown headings). View's Fold commands, vim's z keys, Tab at a heading and Shift+Tab act on the main editor's; with a view there the status says there is nothing to fold |
 | cursor commands: Omit/Restore Scene, Mark Scene Done, Tag Selection, Untag, Scene Color, Link to Source Passage, Next Source Passage, Mark Source Passage as Cut, Source Headings as Sections | the script's cursor is the writer's | `scriptAway`: the status says to swap back first (the Cards view keeps its own Color by the card) |
 | outline `goTo`, Production `goToLine`, Changes, the Script tab | move the script's cursor and focus it | `goToScript`: focused if the script is in the main editor, else the Script tab lights the scene |
 | `dock.go` focus targets, F6, Down/Enter into a tab, Esc out of one, the pane's menu, Hide, View toggles, Side Panes | each pane's own box and focus | `boxOf`, `focusOf`, `titleOf`, `shownNow`: the Script tab in the swapped pane's place. Hiding it, or the pane's View command, puts the swap back |
@@ -144,17 +150,37 @@ Kept as they are, and why:
   passage and no longer find exactly it. A notice above the status bar says how many there are and offers
   **Update Links** or **Not Now**. Update writes each such link in the new form for the passage's new words
   (`fragmentFor`), all in one undo step of the script's. A link that cannot be told apart from another place
-  stays as it was, and so do the adaptation block's cut entries. Nothing is changed without the writer's yes.
+  stays as it was. The adaptation block's entries naming a changed passage (cut:, skipped links:) are offered and
+  written with the links, by the same rules (`fixedCut`), in the same undo step. Nothing is changed without the
+  writer's yes.
 - The header's editing row for a document in the main editor is Markdown's without Start a Screenplay
   (`docRow`): the window has a screenplay already.
 
 Not done, and why:
 
 - The Script tab is a list, not an editor of the script: writing goes back through the swap.
-- The editors of the source and notes have no folds. A Markdown file's folds are the script editor's
-  (`editor_folds.go`, which reads the script's outline). Giving a document its own folds is separate work.
 - Passages are found by their opening words. A passage whose opening is not on its first line (a table) is
   not found, and the cursor in it counts as being in the passage before.
+
+## What a key costs (BenchmarkSwappedSourceKey, the PERF-SOURCE novel)
+
+Typing in the source kept in the script cost 175–213 ms a key (200 keys, 3 runs): each key wrapped and coloured
+the whole script with the novel in it for an editor not on screen (≈42 ms), counted the novel's words four times
+(≈40 ms) and classified its lines four times for the status bar's element (≈17 ms), and wrote the whole block back
+the long way (≈9 ms). Now:
+
+- the script's editor out of sight is laid out only when asked or back in sight (`ScriptEditor.SetOffstage`);
+- the status bar counts a text once (`w.markdownStats`) and takes the line's kind from the editor's own layout
+  (`MarkdownKinds`); the script's handlers leave the status to the document that wrote (`docWriting`);
+- the key goes into the script as its span (`spanInto`), the script's cursor kept;
+- the Script tab reads the scenes again after a pause (`scriptTabTimer`), a swapped-out pane when it is back;
+- a joined undo step grows in place (`Buffer.JoinSince`), so a long run of keys stays linear.
+
+After (same 200 keys, 3 runs): 63–75 ms, the script's own key 54–56 ms (before 53–57). What is left is the
+document's own layout (≈29 ms, as the script's), its word count (≈10 ms), the script's text made as a string for
+its change handlers (≈10 ms, as the script's own key) and the fold marks' outline (≈5 ms). No growth over a long
+run (55 ms a key over 2000). Beside the script 47–51 ms (before 61–68); the notes with the novel in them 61–71 ms;
+what waits for the pause (the Script tab) ≈3 ms.
 
 ## Tests (swap_test.go)
 
@@ -181,3 +207,15 @@ Not done, and why:
   Done.
 - `TestSwapScreenshots` (SHOT_DIR): desktop and phone, before, the source with the Script tab, the link offer,
   the notes, the Cards pane, the full Cards view, the outline in the main area.
+- `TestSwapSpanWrite` (swap_typing_test.go): the source inside the script and the notes, 400 random edits each
+  (inserts at the start, the end and anywhere, with `*/`, `* /`, `/*`, `-->`, new lines and wide letters;
+  deletions; typing; Undo; Redo; the notes emptied and typed again): after each the script is what writing the
+  whole stretch makes, the home as seen is the home, the script's cursor has not moved.
+- `TestSwapTypingTogether`: two windows, real timers; a key at a time typed in the swapped source, the co-writer's
+  edit landing between the keys (before the block, in it before and after the cursor, at the script's start);
+  both scripts alike at the end, every key and edit there, the cursor after the keys.
+- `TestSwapFolds`: Fold Here, Unfold All, Tab at a heading, vim's zR in the source swapped in; the script's folds
+  untouched; a view in the main area has nothing to fold.
+- `TestLinkFixesCuts`: a passage's opening edited, its cut: entry written for the new words with the link, the
+  other entry left.
+- `TestTakeChange` (internal/editor/buffer), `TestOffstage` (internal/editor).

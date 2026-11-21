@@ -41,6 +41,7 @@ func (e *ScriptEditor) AccessibilitySelection() (int, int) { return e.buf.Select
 // AccessibilityTextLines are where the shown lines start: a wrapped
 // line is two lines to the reader too, as it is on the screen.
 func (e *ScriptEditor) AccessibilityTextLines() []int {
+	e.fresh()
 	starts := make([]int, 0, len(e.layout.Rows))
 	for _, r := range e.layout.Rows {
 		if len(starts) == 0 || r.Start > starts[len(starts)-1] {

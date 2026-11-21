@@ -324,3 +324,28 @@ func TestWideAndCombining(t *testing.T) {
 		t.Errorf("click at the cursor: offset %d", off)
 	}
 }
+
+// Out of sight, an edit is laid out only when asked for (a row, the
+// cursor's place) or back in sight.
+func TestOffstage(t *testing.T) {
+	e := New("one")
+	e.SetOffstage(true)
+	rev := e.laid.key.rev
+	e.Replace(3, 3, " two")
+	if e.laid.key.rev != rev || !e.stale {
+		t.Fatal("laid out out of sight")
+	}
+	row := e.GridRow(0)
+	var got []rune
+	for _, c := range row.Cells {
+		got = append(got, c.Rune)
+	}
+	if !strings.Contains(string(got), "one two") {
+		t.Errorf("the row asked for: %q", string(got))
+	}
+	e.Replace(0, 0, ">")
+	e.SetOffstage(false)
+	if e.stale || e.laid.key.rev != e.Buffer().Rev() {
+		t.Error("not laid out back in sight")
+	}
+}

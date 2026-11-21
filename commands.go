@@ -639,7 +639,7 @@ func newRegistry() *registry {
 			byEditor: true, run: (*MainWindow).preview, checked: func(w *MainWindow) bool { return w.editorMarkdown() && w.previewVisible }},
 		&command{id: "view.foldHere", label: "Fold or Unfold Here", keys: []fyne.Shortcut{shortcut(fyne.KeyPeriod, fyne.KeyModifierShift)}, icon: res(foldIcon),
 			run: func(w *MainWindow) { w.fold(false, true) }},
-		&command{id: "view.foldSections", label: "Fold All (Sections Only)", icon: res(foldSectionsIcon), run: func(w *MainWindow) { w.foldOverview(w.outlineItems(w.textEditor.Text())) }},
+		&command{id: "view.foldSections", label: "Fold All (Sections Only)", icon: res(foldSectionsIcon), run: (*MainWindow).foldSections},
 		&command{id: "view.headingsOnly", label: "Headings Only", icon: func() fyne.Resource { return headingIcon }, run: (*MainWindow).foldHeadings},
 		&command{id: "view.unfoldAll", label: "Unfold All", icon: res(unfoldIcon), run: func(w *MainWindow) { w.foldAll(true) }},
 		&command{id: "view.statistics", label: "Statistics…", icon: res(statisticsIcon), when: screenplayOnly, run: (*MainWindow).showStatistics},

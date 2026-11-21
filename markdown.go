@@ -152,6 +152,16 @@ func markdownOutline(text string) []outlineItem {
 	return items
 }
 
+// markdownStats is markdownStats(text), counted once for a text: the
+// status bar asks on each cursor move and edit, several times a key.
+func (w *MainWindow) markdownStats(text string) string {
+	c := &w.mdCounted
+	if !c.ok || !sameString(c.text, text) {
+		c.text, c.out, c.ok = text, markdownStats(text), true
+	}
+	return c.out
+}
+
 // markdownStats is the status bar's text for a Markdown document: its
 // words (the front matter, code and comments left out) and its pages, at
 // a manuscript's 250 words a page.

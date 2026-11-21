@@ -556,6 +556,41 @@ func BenchmarkSwappedSourceKey(b *testing.B) {
 			}
 		})
 	}
+	// the notes swapped in, the novel in them (a long notes block)
+	b.Run("notes", func(b *testing.B) {
+		w, _, _ := benchWindow(b, true)
+		md, _ := benchFixture()
+		w.writeNotes(md)
+		debounceAtOnce, backgroundAtOnce = false, false
+		b.Cleanup(func() { debounceAtOnce, backgroundAtOnce = true, true })
+		w.showPane("notes", false)
+		w.swapWithMain("notes")
+		d := w.mainDoc
+		w.fyneWindow.Canvas().Focus(d.ed)
+		d.ed.SetCursorOffset(5000)
+		for b.Loop() {
+			d.ed.TypedRune('x')
+		}
+	})
+	// what waits for the pause after typing in the source kept in the
+	// script: the Script tab's scenes read again, its lit scenes
+	b.Run("inside-pause", func(b *testing.B) {
+		w, _, _ := benchWindow(b, true)
+		debounceAtOnce, backgroundAtOnce = false, false
+		b.Cleanup(func() { debounceAtOnce, backgroundAtOnce = true, true })
+		w.swapWithMain("source")
+		d := w.mainDoc
+		w.fyneWindow.Canvas().Focus(d.ed)
+		d.ed.SetCursorOffset(5000)
+		for b.Loop() {
+			b.StopTimer()
+			d.ed.TypedRune('x')
+			cancel(&w.followTimer)
+			cancel(&w.scriptTabTimer)
+			b.StartTimer()
+			w.scriptTab.refresh()
+		}
+	})
 	// against: a keystroke in the script itself, the source kept in it
 	b.Run("script-with-source-inside", func(b *testing.B) {
 		w, _, _ := benchWindow(b, true)

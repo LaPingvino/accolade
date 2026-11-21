@@ -16,7 +16,7 @@ func TestEditorFolds(t *testing.T) {
 	w.applyEditorSettings()
 	e := w.textEditor
 	e.SetText("INT. BARN - DAY\n\nRain on the roof.\n\nMore rain.\n\nEXT. FIELD - DAY\n\nWind.\n")
-	all := w.editorFoldRanges
+	all := w.scriptFolds.ranges
 	e.SetCursorOffset(len("INT. BARN - DAY\n\nR"))
 	e.TypedKey(escape())
 	e.TypedRune('z')

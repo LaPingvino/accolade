@@ -139,6 +139,8 @@ type ScriptEditor struct {
 	marks               map[int]*widget.CustomTextGridStyle // the lines' marks (Marks), as drawn
 	inks                map[int][]Ink                       // the lines' inked words (Inks)
 	laid                laidOut                             // the last layout, for its key
+	// offstage: out of sight (SetOffstage); stale: changed since laid out
+	offstage, stale bool
 }
 
 // Ink is words of a line drawn in Color and underlined: the line's
@@ -253,6 +255,7 @@ func (e *ScriptEditor) Replace(start, end int, text string) {
 // GridRow is what the editor shows in a visual row (for tests and
 // inspection).
 func (e *ScriptEditor) GridRow(row int) widget.TextGridRow {
+	e.fresh()
 	if row < 0 || row >= len(e.layout.Rows) {
 		return widget.TextGridRow{}
 	}
@@ -309,6 +312,36 @@ func (e *ScriptEditor) RedoTag() any { return e.buf.RedoTag() }
 // Columns is the number of columns the text is wrapped to.
 func (e *ScriptEditor) Columns() int { return e.columns }
 
+// SetOffstage takes the editor out of sight (its document swapped out of
+// the main area: Accolade's Swap with Main) or back. Out of sight, an
+// edit does not wrap and colour the whole text again: that waits until
+// the layout is asked for (a cursor's place, a row, a key's motion) or the
+// editor is back in sight, laid out once then. Its text, undo history and
+// callbacks go on as always.
+func (e *ScriptEditor) SetOffstage(off bool) {
+	if e.offstage == off {
+		return
+	}
+	e.offstage = off
+	if !off && e.stale {
+		e.relayout()
+		if e.onCursorMoved != nil {
+			e.onCursorMoved(e.CursorPosition(), e.cellHeight())
+		}
+	}
+}
+
+// fresh lays the editor out if it changed out of sight: what reads the
+// layout reads the text as it is.
+func (e *ScriptEditor) fresh() {
+	if e.stale {
+		off := e.offstage
+		e.offstage = false
+		e.relayout()
+		e.offstage = off
+	}
+}
+
 // CreateRenderer draws the grid, where its rows are.
 func (e *ScriptEditor) CreateRenderer() fyne.WidgetRenderer {
 	return &editorRenderer{e: e}
@@ -338,6 +371,7 @@ func (e *ScriptEditor) setView(top, height float32) {
 
 // viewRows are the rows in view (all of them without a view).
 func (e *ScriptEditor) viewRows() (first, end int) {
+	e.fresh()
 	n := len(e.layout.Rows)
 	if !e.viewed {
 		return 0, n
@@ -359,6 +393,7 @@ func (e *ScriptEditor) Resize(size fyne.Size) {
 
 // MinSize is a few columns wide and as tall as the wrapped text.
 func (e *ScriptEditor) MinSize() fyne.Size {
+	e.fresh()
 	return fyne.NewSize(e.cellWidth()*10, e.cellHeight()*float32(len(e.layout.Rows)))
 }
 
@@ -376,6 +411,11 @@ func (e *ScriptEditor) cellHeight() float32 { return max(e.cellSize().Height, 1)
 
 // relayout re-wraps the text and redraws the grid.
 func (e *ScriptEditor) relayout() {
+	if e.offstage {
+		e.stale = true // laid out when asked for, or back in sight
+		return
+	}
+	e.stale = false
 	g := e.gutter()
 	line := -1 // the kinds depend on the cursor's line only while typing a screenplay
 	if e.Format != nil && !e.Markdown {
@@ -473,6 +513,17 @@ func (e *ScriptEditor) TypingKinds() (kinds []syntax.Kind, ok bool) {
 		return nil, false
 	}
 	if line, _ := e.buf.Position(e.buf.Cursor()); line != k.line {
+		return nil, false
+	}
+	return e.laid.kinds, true
+}
+
+// MarkdownKinds are the lines' kinds as the editor laid out its
+// Markdown just now (syntax.ClassifyMarkdown): ok is false for a
+// screenplay, without Syntax, or before it laid out this text.
+func (e *ScriptEditor) MarkdownKinds() (kinds []syntax.Kind, ok bool) {
+	k := e.laid.key
+	if !e.laid.ok || !k.markdown || !k.syntax || k.rev != e.buf.Rev() {
 		return nil, false
 	}
 	return e.laid.kinds, true
@@ -832,7 +883,7 @@ func withBackground(s widget.TextGridStyle, bg color.Color) widget.TextGridStyle
 // changed re-lays out after an edit or cursor move.
 func (e *ScriptEditor) changed(edited bool) {
 	e.relayout()
-	if e.onCursorMoved != nil {
+	if e.onCursorMoved != nil && !e.offstage {
 		e.onCursorMoved(e.CursorPosition(), e.cellHeight())
 	}
 	if e.OnCursorChanged != nil {
@@ -887,6 +938,7 @@ func (e *ScriptEditor) TappedSecondary(ev *fyne.PointEvent) {
 
 // foldMarkAt is the heading whose fold mark is at p, if p is on one.
 func (e *ScriptEditor) foldMarkAt(p fyne.Position) (int, bool) {
+	e.fresh()
 	if e.OnFoldTapped == nil || e.foldWidth() == 0 || len(e.layout.Rows) == 0 {
 		return 0, false
 	}
@@ -937,6 +989,7 @@ func (e *ScriptEditor) focus() {
 // offsetAt is the text offset nearest to a position in the editor (clicks
 // land between characters).
 func (e *ScriptEditor) offsetAt(p fyne.Position) int {
+	e.fresh()
 	if len(e.layout.Rows) == 0 {
 		return 0
 	}
@@ -978,6 +1031,7 @@ func (e *ScriptEditor) wordAt(off int) (start, end int) {
 
 // CursorPosition is where the cursor cell is drawn, relative to the editor.
 func (e *ScriptEditor) CursorPosition() fyne.Position {
+	e.fresh()
 	row, col := e.layout.RowCol(e.buf.Cursor())
 	return fyne.NewPos(float32(e.gutter()+e.visualCol(row, col))*e.cellWidth(), float32(row)*e.cellHeight())
 }
@@ -1102,6 +1156,7 @@ func (e *ScriptEditor) Key(name fyne.KeyName, extend bool) {
 	e.shift = extend
 	defer func() { e.shift = shift }()
 	k := &fyne.KeyEvent{Name: name}
+	e.fresh()
 	cur := e.buf.Cursor()
 	row, col := e.layout.RowCol(cur)
 	move := func(off int) {

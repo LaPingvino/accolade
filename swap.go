@@ -71,6 +71,7 @@ func (w *MainWindow) swapWithMain(id string) {
 	d.on[id] = true // the Script tab is in its place
 	d.setFront(id)
 	w.swapped, w.mainDoc = id, doc
+	w.textEditor.SetOffstage(true) // out of sight: laid out again when back (internal/editor)
 	w.cardsVisible = id == "cards"
 	w.relayout()
 	w.editorKindChanged()
@@ -103,6 +104,7 @@ func (w *MainWindow) swapBack() {
 		}
 	}
 	w.swapped, w.mainDoc = "", nil
+	w.textEditor.SetOffstage(false)
 	w.cardsVisible = false
 	if !w.markdown {
 		w.previewVisible = false // a screenplay's preview is a PDF
@@ -112,6 +114,9 @@ func (w *MainWindow) swapBack() {
 	}
 	w.relayout()
 	w.editorKindChanged()
+	if p := w.dock.pane(id); p != nil && p.edited != nil && w.dock.shown(id) && doc != nil {
+		p.edited(w, w.textEditor.Text()) // the script's changes while it was away
+	}
 	if p := w.dock.pane(id); p != nil && p.shown != nil && w.dock.inSight(id) {
 		p.shown(w)
 	}

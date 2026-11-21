@@ -197,7 +197,7 @@ func (w *MainWindow) pickColorHere(at fyne.CanvasObject) {
 	}
 	e := w.textEditor
 	items := w.outlineItems(e.Text())
-	i := w.cursorItem(items)
+	i := w.scriptFolds.cursorItem(items)
 	if i < 0 {
 		w.setStatus("No scene or section here to color")
 		return

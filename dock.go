@@ -318,12 +318,18 @@ func (d *dock) setFront(id string) {
 // (the Script tab too, while a pane is swapped: swap.go).
 func (d *dock) edited(text string) {
 	for _, p := range d.panes {
-		if p.edited != nil && d.shown(p.id) {
+		// a pane whose document or full view is in the main area follows when back (swapBack);
+		// a view swapped in (the outline) is its own box there, and follows as ever
+		if p.edited != nil && d.shown(p.id) && (p.id != d.w.swapped || d.w.swappedIsView()) {
 			p.edited(d.w, text)
 		}
 	}
-	if d.w.swapped != "" && d.w.scriptTab != nil {
-		d.w.scriptTab.refresh()
+	if w := d.w; w.swapped != "" && w.scriptTab != nil { // its scenes, once typing pauses
+		w.debounce(&w.scriptTabTimer, followPause, func() {
+			if w.swapped != "" && w.scriptTab != nil {
+				w.scriptTab.refresh()
+			}
+		})
 	}
 }
 

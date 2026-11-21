@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
@@ -16,18 +17,112 @@ import (
 // Fold All, Headings Only, Unfold All; vim keys za zc zo zR zM. The cursor
 // getting into a fold opens it.
 
+// folds are an editor's folds: the script's, or a document's in the
+// main editor (the source, the notes: their Markdown headings), each its
+// own (docs/SWAP.md).
+type folds struct {
+	w  *MainWindow
+	ed *editor.ScriptEditor
+	// items are the headings of a text that fold (the outline's)
+	items func(text string) []outlineItem
+	on    map[string]bool // folded, by foldKey
+	state int             // where Shift+Tab is: foldShown, foldOverview or foldContents
+	// laid is the outline as read for the text at rev, and its headings
+	// that can fold: the editor asks at every layout (each key, each
+	// cursor move), the text read once a change
+	laid struct {
+		rev      uint64
+		markdown bool     // the file's kind then: the script's outline is Markdown's or a screenplay's
+		starts   []string // the scene headings' starts then (the script's language)
+		ok       bool
+		items    []outlineItem
+		headings map[int]bool
+	}
+}
+
+// newFolds are the folds of an editor whose headings items reads.
+func newFolds(w *MainWindow, e *editor.ScriptEditor, items func(string) []outlineItem) *folds {
+	f := &folds{w: w, ed: e, items: items}
+	e.Folds = f.ranges
+	e.OnUnfold = f.unfoldAt
+	e.Headings = f.headingLines
+	e.OnFoldTapped = f.foldLine
+	e.OnShiftTab = f.cycleAll
+	return f
+}
+
+// outline is the editor's text's headings, read once for each text.
+func (f *folds) outline() []outlineItem {
+	l, rev, starts := &f.laid, f.ed.Buffer().Rev(), f.w.sceneStarts()
+	if !l.ok || l.rev != rev || l.markdown != f.w.markdown || !slices.Equal(l.starts, starts) {
+		l.items, l.headings = f.items(f.ed.Text()), nil
+		l.rev, l.markdown, l.starts, l.ok = rev, f.w.markdown, starts, true
+	}
+	return f.laid.items
+}
+
+// The fold commands (View, vim's z keys, Tab and Shift+Tab) act on the
+// main editor's folds; with a view in the main area there are none.
+
+// mainFolds are the main editor's folds; nil (and the status says why)
+// with a view there.
+func (w *MainWindow) mainFolds() *folds {
+	if d := w.main(); d != nil && d.folds != nil {
+		return d.folds
+	}
+	if w.scriptInMain() {
+		return w.scriptFolds
+	}
+	w.setStatus("Folding works in an editor: Swap with Main puts the script back in the main area first")
+	return nil
+}
+
+// foldsOf are the folds of the editor e (the script's or a document's).
+func (w *MainWindow) foldsOf(e *editor.ScriptEditor) *folds {
+	for _, d := range w.openDocs() {
+		if d.ed == e {
+			return d.folds
+		}
+	}
+	return w.scriptFolds
+}
+
+func (w *MainWindow) fold(open, toggle bool) {
+	if f := w.mainFolds(); f != nil {
+		f.fold(open, toggle)
+	}
+}
+
+func (w *MainWindow) foldAll(open bool) {
+	if f := w.mainFolds(); f != nil {
+		f.foldAll(open)
+	}
+}
+
+func (w *MainWindow) foldSections() {
+	if f := w.mainFolds(); f != nil {
+		f.foldOverview(f.outline())
+	}
+}
+
+func (w *MainWindow) foldHeadings() {
+	if f := w.mainFolds(); f != nil {
+		f.foldHeadings()
+	}
+}
+
 // editorFoldRanges are the folded items' hidden lines.
-func (w *MainWindow) editorFoldRanges() [][2]int {
-	if len(w.editorFolds) == 0 {
+func (f *folds) ranges() [][2]int {
+	if len(f.on) == 0 {
 		return nil
 	}
-	text := w.textEditor.Text()
+	text := f.ed.Text()
 	lines := strings.Count(text, "\n") + 1
-	items := w.outlineItems(text)
+	items := f.outline()
 	all := strings.Split(text, "\n")
 	var out [][2]int
 	for i, it := range items {
-		if !w.editorFolds[foldKey(it)] {
+		if !f.on[foldKey(it)] {
 			continue
 		}
 		_, to := outlineExtent(items, i, lines)
@@ -42,8 +137,8 @@ func (w *MainWindow) editorFoldRanges() [][2]int {
 }
 
 // cursorItem is the outline item the cursor is in (-1: before any).
-func (w *MainWindow) cursorItem(items []outlineItem) int {
-	line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
+func (f *folds) cursorItem(items []outlineItem) int {
+	line, _ := f.ed.Buffer().Position(f.ed.CursorOffset())
 	at := -1
 	for i, it := range items {
 		if it.Line <= line {
@@ -55,94 +150,91 @@ func (w *MainWindow) cursorItem(items []outlineItem) int {
 
 // fold folds (or with open false, opens; toggle: either) the section or
 // scene the cursor is in.
-func (w *MainWindow) fold(open, toggle bool) {
-	if w.scriptAway("Folding") { // the script is in the side panes (swap.go)
-		return
-	}
-	items := w.outlineItems(w.textEditor.Text())
-	i := w.cursorItem(items)
+func (f *folds) fold(open, toggle bool) {
+	items := f.outline()
+	i := f.cursorItem(items)
 	if i < 0 {
-		w.setStatus("Nothing to fold here: no section or scene above")
+		f.w.setStatus("Nothing to fold here: no section or scene above")
 		return
 	}
 	key := foldKey(items[i])
 	if toggle {
-		open = w.editorFolds[key]
+		open = f.on[key]
 	}
 	if open {
-		delete(w.editorFolds, key)
+		delete(f.on, key)
 	} else {
-		if w.editorFolds == nil {
-			w.editorFolds = map[string]bool{}
+		if f.on == nil {
+			f.on = map[string]bool{}
 		}
-		w.editorFolds[key] = true
+		f.on[key] = true
 		line := items[i].Line // the cursor to the heading, out of the fold
-		w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
+		f.ed.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
 	}
-	w.textEditor.Refresh()
+	f.ed.Refresh()
 }
 
 // foldAll folds every section and scene, or opens them all.
-func (w *MainWindow) foldAll(open bool) {
-	if w.scriptAway("Folding") { // the script is in the side panes (swap.go)
-		return
-	}
-	w.editorFolds = nil
-	w.foldState = foldShown
+func (f *folds) foldAll(open bool) {
+	f.on = nil
+	f.state = foldShown
 	if !open {
-		w.editorFolds = map[string]bool{}
-		for _, it := range w.outlineItems(w.textEditor.Text()) {
-			w.editorFolds[foldKey(it)] = true
+		f.on = map[string]bool{}
+		for _, it := range f.outline() {
+			f.on[foldKey(it)] = true
 		}
-		items := w.outlineItems(w.textEditor.Text())
-		if i := w.cursorItem(items); i >= 0 {
+		items := f.outline()
+		if i := f.cursorItem(items); i >= 0 {
 			line := items[i].Line
-			w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
+			f.ed.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
 		}
 	}
-	w.textEditor.Refresh()
+	f.ed.Refresh()
 }
 
 // unfoldAt opens the fold of the heading on line (the cursor went in).
-func (w *MainWindow) unfoldAt(line int) {
-	for _, it := range w.outlineItems(w.textEditor.Text()) {
+func (f *folds) unfoldAt(line int) {
+	for _, it := range f.outline() {
 		if it.Line == line {
-			delete(w.editorFolds, foldKey(it))
+			delete(f.on, foldKey(it))
 		}
 	}
 }
 
 // headingLines are the lines that can fold: the outline's headings with
 // something under them.
-func (w *MainWindow) headingLines() map[int]bool {
-	text := w.textEditor.Text()
-	items := w.outlineItems(text)
-	lines := strings.Count(text, "\n") + 1
+func (f *folds) headingLines() map[int]bool {
+	items := f.outline()
+	if f.laid.headings != nil {
+		return f.laid.headings
+	}
+	lines := f.ed.Buffer().LineCount()
 	out := map[int]bool{}
 	for i, it := range items {
 		if _, to := outlineExtent(items, i, lines); to > it.Line+1 {
 			out[it.Line] = true
 		}
 	}
+	f.laid.headings = out
 	return out
 }
 
 // foldLine folds or opens the heading on line (its fold mark tapped).
-func (w *MainWindow) foldLine(line int) {
-	for _, it := range w.outlineItems(w.textEditor.Text()) {
+func (f *folds) foldLine(line int) {
+	for _, it := range f.outline() {
 		if it.Line != line {
 			continue
 		}
 		key := foldKey(it)
-		if w.editorFolds[key] {
-			delete(w.editorFolds, key)
+		if f.on[key] {
+			delete(f.on, key)
 		} else {
-			if w.editorFolds == nil {
-				w.editorFolds = map[string]bool{}
+			if f.on == nil {
+				f.on = map[string]bool{}
 			}
-			w.editorFolds[key] = true
+			f.on[key] = true
 		}
-		w.textEditor.Refresh()
+		f.ed.Refresh()
 		return
 	}
 }
@@ -150,23 +242,23 @@ func (w *MainWindow) foldLine(line int) {
 // cycleHere is Tab at the start of a heading, as in org-mode: a section
 // goes folded, then its headings shown (what they hold folded), then all
 // shown; a scene folded or shown. It reports whether the cursor was there.
-func (w *MainWindow) cycleHere() bool {
-	e := w.textEditor
+func (f *folds) cycleHere() bool {
+	e := f.ed
 	if s, t := e.Buffer().Selection(); s != t {
 		return false
 	}
 	line, col := e.Buffer().Position(e.CursorOffset())
-	return col == 0 && w.cycleAt(line)
+	return col == 0 && f.cycleAt(line)
 }
 
 // cycleAt cycles the fold of the heading on line, as Tab at its start; it
 // reports whether line is a heading with something to fold.
-func (w *MainWindow) cycleAt(line int) bool {
-	e := w.textEditor
+func (f *folds) cycleAt(line int) bool {
+	e := f.ed
 	text := e.Text()
-	items := w.outlineItems(text)
+	items := f.outline()
 	i := slices.IndexFunc(items, func(it outlineItem) bool { return it.Line == line })
-	if i < 0 || !w.headingLines()[line] {
+	if i < 0 || !f.headingLines()[line] {
 		return false
 	}
 	_, end := outlineExtent(items, i, strings.Count(text, "\n")+1)
@@ -177,27 +269,27 @@ func (w *MainWindow) cycleAt(line int) bool {
 		}
 		inside = append(inside, it)
 	}
-	if w.editorFolds == nil {
-		w.editorFolds = map[string]bool{}
+	if f.on == nil {
+		f.on = map[string]bool{}
 	}
 	key := foldKey(items[i])
-	anyFolded := slices.ContainsFunc(inside, func(it outlineItem) bool { return w.editorFolds[foldKey(it)] })
+	anyFolded := slices.ContainsFunc(inside, func(it outlineItem) bool { return f.on[foldKey(it)] })
 	switch {
-	case w.editorFolds[key] && len(inside) > 0: // folded: its headings
-		delete(w.editorFolds, key)
+	case f.on[key] && len(inside) > 0: // folded: its headings
+		delete(f.on, key)
 		for _, it := range inside {
-			w.editorFolds[foldKey(it)] = true
+			f.on[foldKey(it)] = true
 		}
-		w.setStatus("Headings shown")
-	case w.editorFolds[key] || anyFolded: // its headings: all of it
-		delete(w.editorFolds, key)
+		f.w.setStatus("Headings shown")
+	case f.on[key] || anyFolded: // its headings: all of it
+		delete(f.on, key)
 		for _, it := range inside {
-			delete(w.editorFolds, foldKey(it))
+			delete(f.on, foldKey(it))
 		}
-		w.setStatus("All shown")
+		f.w.setStatus("All shown")
 	default: // all of it: folded
-		w.editorFolds[key] = true
-		w.setStatus("Folded")
+		f.on[key] = true
+		f.w.setStatus("Folded")
 	}
 	e.Refresh()
 	return true
@@ -205,18 +297,18 @@ func (w *MainWindow) cycleAt(line int) bool {
 
 // cycleAll is Shift+Tab, as in org-mode: the sections only (the scenes
 // when there are none), then all headings, then everything.
-func (w *MainWindow) cycleAll() bool {
-	items := w.outlineItems(w.textEditor.Text())
+func (f *folds) cycleAll() bool {
+	items := f.outline()
 	switch {
-	case len(w.editorFolds) == 0:
-		w.foldOverview(items)
-		w.setStatus("Overview: the sections")
-	case w.foldState == foldOverview:
-		w.foldHeadings()
-		w.setStatus("Contents: all headings")
+	case len(f.on) == 0:
+		f.foldOverview(items)
+		f.w.setStatus("Overview: the sections")
+	case f.state == foldOverview:
+		f.foldHeadings()
+		f.w.setStatus("Contents: all headings")
 	default:
-		w.foldAll(true)
-		w.setStatus("Everything shown")
+		f.foldAll(true)
+		f.w.setStatus("Everything shown")
 	}
 	return true
 }
@@ -230,11 +322,8 @@ const (
 
 // foldOverview folds the sections at the top level, or every scene in a
 // script without sections.
-func (w *MainWindow) foldOverview(items []outlineItem) {
-	if w.scriptAway("Folding") { // the script is in the side panes (swap.go)
-		return
-	}
-	w.editorFolds = map[string]bool{}
+func (f *folds) foldOverview(items []outlineItem) {
+	f.on = map[string]bool{}
 	top := 0
 	for _, it := range items {
 		if !it.Scene && (top == 0 || it.Level < top) {
@@ -243,37 +332,34 @@ func (w *MainWindow) foldOverview(items []outlineItem) {
 	}
 	for _, it := range items {
 		if top == 0 && it.Scene || !it.Scene && it.Level == top {
-			w.editorFolds[foldKey(it)] = true
+			f.on[foldKey(it)] = true
 		}
 	}
-	w.foldState = foldOverview
-	w.cursorToHeading(items)
-	w.textEditor.Refresh()
+	f.state = foldOverview
+	f.cursorToHeading(items)
+	f.ed.Refresh()
 }
 
 // foldHeadings shows every heading with what they hold folded: the
 // scenes folded, the sections open.
-func (w *MainWindow) foldHeadings() {
-	if w.scriptAway("Folding") { // the script is in the side panes (swap.go)
-		return
-	}
-	items := w.outlineItems(w.textEditor.Text())
-	w.editorFolds = map[string]bool{}
+func (f *folds) foldHeadings() {
+	items := f.outline()
+	f.on = map[string]bool{}
 	for _, it := range items {
 		if it.Scene {
-			w.editorFolds[foldKey(it)] = true
+			f.on[foldKey(it)] = true
 		}
 	}
-	w.foldState = foldContents
-	w.cursorToHeading(items)
-	w.textEditor.Refresh()
+	f.state = foldContents
+	f.cursorToHeading(items)
+	f.ed.Refresh()
 }
 
 // cursorToHeading puts the cursor on the heading of what it is in, out of
 // a fold.
-func (w *MainWindow) cursorToHeading(items []outlineItem) {
-	if i := w.cursorItem(items); i >= 0 {
+func (f *folds) cursorToHeading(items []outlineItem) {
+	if i := f.cursorItem(items); i >= 0 {
 		line := items[i].Line
-		w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
+		f.ed.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
 	}
 }

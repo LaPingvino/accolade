@@ -642,4 +642,19 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Done or Save. Goldens: dockMoves gains Swap Pane with Main, Cards among the panes, Adaptation's Swap; the ribbon's
   Adaptation golden one line. Shots /tmp/claude-1000/shots/swap-{desktop,phone}-*.png. Not done: the Script tab is
   a list, not an editor; documents have no folds; a passage is found by its opening words.
-- 2026-11-21: after Swap with Main — typing in a source kept INSIDE the script while it is swapped into the main editor costs ≈160–210 ms a key on the PERF-SOURCE novel (BenchmarkSwappedSourceKey; beside the script ≈65 ms, the script itself ≈51 ms): every key runs the whole script-change path. Make it as cheap as typing in the script (only the changed span into the script's text, the derived views on the usual debounce) without a delayed save that would need a three-way merge in shared sessions. Also from that branch: the source and notes editors have no folding; cut entries in the adaptation block are not touched by the link-update offer. Small to medium; before the Characters tab.
+- 2026-11-21: after Swap with Main — typing in a source kept INSIDE the script while it is swapped into the main editor costs ≈160–210 ms a key on the PERF-SOURCE novel (BenchmarkSwappedSourceKey; beside the script ≈65 ms, the script itself ≈51 ms): every key runs the whole script-change path. Make it as cheap as typing in the script (only the changed span into the script's text, the derived views on the usual debounce) without a delayed save that would need a three-way merge in shared sessions. Also from that branch: the source and notes editors have no folding; cut entries in the adaptation block are not touched by the link-update offer. Small to medium; before the Characters tab. DONE (branch swapspeed, see the tick log).
+- 2026-11-21: the swapped source's key (branch swapspeed, not merged; docs/SWAP.md, What a key costs). Profiled
+  first (-cpuprofile on BenchmarkSwappedSourceKey/inside): ≈42 ms the hidden script editor wrapping the whole
+  script, ≈40 ms markdownStats four times, ≈17 ms ClassifyMarkdown four times for the element, ≈9 ms the block
+  written the long way. Fix: ScriptEditor.SetOffstage (laid out when asked or back in sight), the stats counted once
+  a text and the element from the editor's MarkdownKinds, the script's handlers leaving the status to the writing
+  document, spanInto (Buffer.TakeChange's span straight into the script at the document's known place, the script's
+  cursor kept; the long way when the script changed since, or "*/", "* /", a block mark, the last new lines), the
+  Script tab on a pause, a swapped-out pane updated when back, JoinSince growing in place. Numbers (200 keys, 3
+  runs, same binary settings): inside 175–213 → 63–75 ms (55 over 2000 keys: flat); the script's own key 53–57 →
+  54–56; beside 61–68 → 47–51 (100 keys); notes with the novel 61–71; the pause's work ≈3 ms. Shared sessions: still written at once, no delayed save;
+  TestSwapTypingTogether (real timers, a peer's edit between keys before/in/after the block) and TestSwapSpanWrite
+  (400 random edits each for source and notes against the whole-stretch write). Leftovers: the source and notes
+  editors fold their Markdown headings (folds type per editor: View's Fold commands, vim z, Tab, Shift+Tab, the
+  gutter; a view in the main area refuses); the link-update offer writes the adaptation block's cut: and skipped
+  links: entries for the passage's new words too (fixedCut, same undo step, counted in the notice).

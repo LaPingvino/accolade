@@ -218,20 +218,31 @@ func (n *notesPanel) save(notes string) { n.w.writeNotes(notes) }
 // writeNotes writes notes into the script's notes block (the Notes pane,
 // the notes in the main editor: document.go).
 func (w *MainWindow) writeNotes(notes string) {
-	e := w.textEditor
-	text := e.Text()
-	from := w.notesMarks().start(text)
-	block := w.notesMarks().text(notes)
-	if from == len([]rune(text)) && block != "" {
+	w.writeNotesAt(notes)
+}
+
+// edit is the edit that writes notes into text's notes block: from
+// where (runes) to the end, what.
+func (m notesMarks) edit(text, notes string) (from int, block string) {
+	from = m.start(text)
+	block = m.text(notes)
+	if n := utf8.RuneCountInString(text); from == n && block != "" {
 		// no block yet: after the script, without its trailing new lines
-		from = len([]rune(strings.TrimRight(text, "\n")))
-	}
-	if block == "" && from < len([]rune(text)) {
+		from = utf8.RuneCountInString(strings.TrimRight(text, "\n"))
+	} else if block == "" && from < n {
 		block = "\n" // the script ends with a new line as before
 	}
+	return from, block
+}
+
+// writeNotesAt is writeNotes, saying where the block went: from, what.
+func (w *MainWindow) writeNotesAt(notes string) (from int, block string) {
+	e := w.textEditor
+	from, block = w.notesMarks().edit(e.Text(), notes)
 	e.Edit(func(b *buffer.Buffer) {
 		cursor := b.Cursor()
 		replaceLeast(b, from, b.Len(), block) // only what changed (document.go)
 		b.SetCursor(min(cursor, from), false)
 	})
+	return from, block
 }

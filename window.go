@@ -86,8 +86,12 @@ type MainWindow struct {
 	changes      []change
 	changesPanel *changesPanel
 	cards        *cardsView
-	editorFolds  map[string]bool // folded in the editor, by foldKey (editor_folds.go)
-	foldState    int             // where Shift+Tab is: foldShown, foldOverview or foldContents
+	scriptFolds  *folds // the script editor's (editor_folds.go)
+	// mdCounted is the Markdown text the status bar counted last (markdown.go)
+	mdCounted struct {
+		text, out string
+		ok        bool
+	}
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
@@ -183,14 +187,15 @@ type MainWindow struct {
 	suggestedName string
 
 	// Auto-save (autosave.go)
-	autoSaveTimer *uiTimer
-	timers        uiTimers   // the window's (background.go)
-	followTimer   *uiTimer   // the source pane's follow, after typing
-	suggest       *suggester // suggestions from the source while writing (suggest.go)
-	complete      *completer // Tab's completions of names and headings (complete.go)
-	seenRev       uint64     // the text's revision the cursor was last seen in
-	importGen     int        // the import under way (a later one wins)
-	bundleSrc     struct {   // the bundle's source, decoded (sourceText)
+	autoSaveTimer  *uiTimer
+	timers         uiTimers   // the window's (background.go)
+	followTimer    *uiTimer   // the source pane's follow, after typing
+	scriptTabTimer *uiTimer   // the Script tab's scenes read again, after typing (swap.go)
+	suggest        *suggester // suggestions from the source while writing (suggest.go)
+	complete       *completer // Tab's completions of names and headings (complete.go)
+	seenRev        uint64     // the text's revision the cursor was last seen in
+	importGen      int        // the import under way (a later one wins)
+	bundleSrc      struct {   // the bundle's source, decoded (sourceText)
 		raw  []byte
 		text string
 		ok   bool
@@ -1217,8 +1222,11 @@ func (w *MainWindow) onTextChanged(text string) {
 	}
 	w.shareEdit(text)
 	w.updateTitle()
-	w.updateStatusBar()
-	w.updateCurrentElement()
+	own := w.docWriting() // a document in the main editor wrote this: it says its own status (mainChanged)
+	if !own {
+		w.updateStatusBar()
+		w.updateCurrentElement()
+	}
 	w.scheduleSceneNumbers()
 	w.scheduleRevisionMarks()
 	w.scheduleBreakdown()
@@ -1286,12 +1294,12 @@ func (w *MainWindow) updateStatusBar() {
 	}
 	var text string
 	if d := w.main(); d != nil && d.kind != docScript { // the document in the main editor (swap.go)
-		text = markdownStats(d.Text()) + " · " + d.kind.String() + ", " + d.where()
+		text = w.markdownStats(d.Text()) + " · " + d.kind.String() + ", " + d.where()
 		if w.shared != nil && d.sharedAs() == "" {
 			text += " · yours only, not shared"
 		}
 	} else if w.markdown {
-		text = markdownStats(w.textEditor.Text())
+		text = w.markdownStats(w.textEditor.Text())
 	} else {
 		text = computeStats(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()).String()
 	}
@@ -1305,6 +1313,10 @@ func (w *MainWindow) updateStatusBar() {
 }
 
 func (w *MainWindow) onCursorChanged() {
+	if w.docWriting() { // a document kept in the script wrote there, the cursor kept (document.go)
+		w.followSource()
+		return
+	}
 	w.flowCursorMoved()
 	w.updateCurrentElement()
 	w.breakdownFollowCursor()
@@ -1333,7 +1345,10 @@ func (w *MainWindow) updateCurrentElement() {
 
 	line, _ := e.Buffer().Position(e.CursorOffset())
 	if w.editorMarkdown() {
-		kinds := syntax.ClassifyMarkdown(strings.Split(text, "\n"))
+		kinds, ok := e.MarkdownKinds() // as the editor laid them out
+		if !ok {
+			kinds = syntax.ClassifyMarkdown(strings.Split(text, "\n"))
+		}
 		w.currentElement = markdownNames[kinds[min(line, len(kinds)-1)]]
 		return
 	}

@@ -27,7 +27,7 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		w.complete = tab
 	}
 	e.OnTab = func() bool {
-		if w != nil && w.cycleHere() {
+		if w != nil && w.scriptFolds.cycleHere() {
 			return true
 		}
 		if w != nil && !w.markdown && w.suggester().tab() { // from the source (suggest.go)
@@ -40,14 +40,10 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	}
 	vi := attachVim(w, e, true)
 	if w != nil {
-		e.Folds = w.editorFoldRanges
-		e.OnUnfold = w.unfoldAt
-		e.Headings = w.headingLines
+		w.scriptFolds = newFolds(w, e, w.outlineItems)
 		e.Marks = w.revisionMarksShown
 		e.Inks = w.breakdownInksShown
 		e.OnSecondaryTapped = w.showTagMenu
-		e.OnFoldTapped = w.foldLine
-		e.OnShiftTab = w.cycleAll
 		w.vim = vi
 	}
 	return e
@@ -56,7 +52,8 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 // attachVim gives an editor the window's keys: vim or helix as the
 // preferences say (vim.go), the menu's shortcuts in full screen, and
 // brackets closed as they are typed. script: the screenplay editor, whose
-// vim folds and moves through the outline (a document's has neither).
+// vim moves through the outline (a document's does not); each folds its
+// own headings.
 func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 	vi := newVim(e)
 	vi.on = func() bool { return w != nil && w.editorKeys() != "standard" }
@@ -78,20 +75,24 @@ func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 	}
 	vi.org = func(cmd string) bool { return script && w != nil && w.org(cmd) }
 	vi.fold = func(cmd rune) {
-		if w == nil || !script {
+		if w == nil {
+			return
+		}
+		f := w.foldsOf(e)
+		if f == nil {
 			return
 		}
 		switch cmd {
 		case 'a':
-			w.fold(false, true)
+			f.fold(false, true)
 		case 'c':
-			w.fold(false, false)
+			f.fold(false, false)
 		case 'o':
-			w.fold(true, false)
+			f.fold(true, false)
 		case 'R':
-			w.foldAll(true)
+			f.foldAll(true)
 		case 'M':
-			w.foldAll(false)
+			f.foldAll(false)
 		}
 	}
 	vi.prompt = func(label string, done func(string)) {

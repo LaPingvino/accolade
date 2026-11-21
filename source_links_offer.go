@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -18,9 +19,10 @@ import (
 // find it, or only nearly. When the writer leaves a passage changed so
 // (the source in the main editor, or the Source pane's Done, or Save),
 // a notice above the status bar offers to write those links again for
-// the passage's new words. Never silently: until Update Links is given
-// the links stay as they were. The update is one undo step of the
-// script's. The adaptation block's cut entries are left as they are.
+// the passage's new words, and the adaptation block's entries quoting it
+// (cut:, skipped links:) with them. Never silently: until Update Links is
+// given they stay as they were. The update is one undo step of the
+// script's.
 
 // linkOfferNotice is the notice: what it says, and the passages before
 // and after the change it is about.
@@ -44,14 +46,16 @@ func (w *MainWindow) newLinkOffer() *fyne.Container {
 }
 
 // linkFixes are the edits that write the script's links again for the
-// passages' new words (the last first), and how many links they write.
-// A link is written again when it found passages [i, j] in old exactly or
-// nearly, those passages are still there in nw (alignPassages), and it
-// does not find exactly them there now; one that cannot be told apart
-// from another place in nw is left as it is.
-func linkFixes(script string, old, nw []passage) (edits []linkEdit, n int) {
+// passages' new words (the last first), and how many links they write;
+// entries, how many of the adaptation block's entries (cut:, skipped
+// links:) they write. A link is written again when it found passages
+// [i, j] in old exactly, those passages are still there in nw
+// (alignPassages), and it does not find exactly them there now; one that
+// cannot be told apart from another place in nw is left as it is. An
+// entry the same (fixedCut).
+func linkFixes(script string, old, nw []passage) (edits []linkEdit, n, entries int) {
 	if len(old) == 0 || len(nw) == 0 {
-		return nil, 0
+		return nil, 0, 0
 	}
 	before, after := newLinkMatcher(old), newLinkMatcher(nw)
 	to := alignPassages(old, nw)
@@ -80,8 +84,88 @@ func linkFixes(script string, old, nw []passage) (edits []linkEdit, n int) {
 			edits = append(edits, linkEdit{note[0].Start, note[0].End, fragmentNote(note[0].Ref.File, dirs)})
 		}
 	}
+	// the adaptation block's entries quoting the passages: one edit of
+	// the block (a boneyard, where parseLinks finds no links)
+	if inside, ok := adaptationBlock(script); ok {
+		nu := inside
+		cuts, changed := parseCuts(inside), false
+		for i, c := range cuts {
+			if c2, ok := fixedCut(c, before, after, to); ok {
+				cuts[i], changed = c2, true
+				entries++
+			}
+		}
+		if changed {
+			nu = withCuts(nu, cuts)
+		}
+		l, changed := parseLearned(nu), false
+		for i, s := range l.Skipped {
+			if c2, ok := fixedCut(s.Link, before, after, to); ok {
+				l.Skipped[i].Link, changed = c2, true
+				entries++
+			}
+		}
+		if changed {
+			nu = withLearned(nu, l)
+		}
+		if nu != inside {
+			start, end, block := withAdaptationBlock(script, nu)
+			edits = append(edits, linkEdit{start, end, block})
+		}
+	}
 	slices.SortStableFunc(edits, func(x, y linkEdit) int { return y.Start - x.Start })
-	return edits, n
+	return edits, n, entries
+}
+
+// fixedCut is an entry of the adaptation block written for its
+// passages' new words, if it is to change: as fixedLink, it named its
+// passages exactly before (an old-form entry's "(2)" one of passages
+// alike), they changed and are still there, it does not name them now,
+// and the new form tells them from any other place.
+func fixedCut(c cutMark, before, after *linkMatcher, to []int) (cutMark, bool) {
+	r := c.ref()
+	if r.Bad != "" {
+		return c, false
+	}
+	mt := before.matchRef(r)
+	if mt.Kind != linkFound && !(c.Nth > 0 && mt.Kind == linkAmbiguous) {
+		return c, false
+	}
+	was := cutAt(c, mt)
+	if was.first < 0 {
+		return c, false
+	}
+	i, j := to[was.first], to[was.last]
+	if i < 0 || j < i {
+		return c, false
+	}
+	if before.ps[was.first].Plain == after.ps[i].Plain && before.ps[was.last].Plain == after.ps[j].Plain {
+		return c, false // its passages' words are as they were
+	}
+	if now := cutAt(c, after.matchRef(r)); now.first == i && now.last == j {
+		return c, false // it names them still
+	}
+	d, unique := fragmentFor(after, i, j)
+	if !unique {
+		return c, false
+	}
+	return cutOf(linkRef{Dir: d}), true
+}
+
+// fixesSaid is how many links and entries an offer is about, in words.
+func fixesSaid(links, entries int) string {
+	var parts []string
+	if links > 0 {
+		parts = append(parts, plural(links, "link"))
+	}
+	if entries > 0 {
+		e := "1 entry"
+		if entries > 1 {
+			e = fmt.Sprint(entries, " entries")
+		}
+		parts = append(parts, e+" of the adaptation block")
+	}
+	return strings.Join(parts, " and ")
 }
 
 // fixedLink is the directive a link is written as for the passages'
@@ -159,8 +243,8 @@ func (w *MainWindow) offerLinkUpdate(d *document) {
 	d.linkBase = text
 	script := w.textEditor.Text()
 	type found struct {
-		old, nw []passage
-		count   int
+		old, nw        []passage
+		links, entries int
 	}
 	old := n.old
 	// a novel's passages take a while: read in the background, the
@@ -171,15 +255,15 @@ func (w *MainWindow) offerLinkUpdate(d *document) {
 			o = passagesOf(base)
 		}
 		nw := passagesOf(text)
-		_, count := linkFixes(script, o, nw)
-		return found{o, nw, count}
+		_, links, entries := linkFixes(script, o, nw)
+		return found{o, nw, links, entries}
 	}, func(f found) {
-		if f.count == 0 || w.textEditor.Text() != script {
+		if f.links+f.entries == 0 || w.textEditor.Text() != script {
 			return // nothing to ask, or the script changed meanwhile: asked again on the next look
 		}
 		n.old, n.nw = f.old, f.nw
 		n.text.SetText(fmt.Sprintf("A passage of the source opens with other words now: %s in the script %s its old words. "+
-			"Update them to the new ones?", plural(f.count, "link"), map[bool]string{true: "quotes", false: "quote"}[f.count == 1]))
+			"Update them to the new ones?", fixesSaid(f.links, f.entries), map[bool]string{true: "quotes", false: "quote"}[f.links+f.entries == 1]))
 		n.box.Show()
 		w.fyneWindow.Content().Refresh()
 	})
@@ -188,7 +272,7 @@ func (w *MainWindow) offerLinkUpdate(d *document) {
 // updateOfferedLinks is the notice's Update Links: one undo step.
 func (w *MainWindow) updateOfferedLinks() {
 	n := w.linkOffer
-	edits, count := linkFixes(w.textEditor.Text(), n.old, n.nw)
+	edits, links, entries := linkFixes(w.textEditor.Text(), n.old, n.nw)
 	w.hideLinkOffer()
 	if len(edits) == 0 {
 		w.setStatus("The links find their passages already")
@@ -209,7 +293,7 @@ func (w *MainWindow) updateOfferedLinks() {
 			b.SetCursor(cursor, false)
 		})
 	})
-	w.setStatus(fmt.Sprintf("Updated %s to the passages' new words (Undo takes them back)", plural(count, "link")))
+	w.setStatus(fmt.Sprintf("Updated %s to the passages' new words (Undo takes them back)", fixesSaid(links, entries)))
 	if w.source != nil {
 		w.source.follow()
 	}

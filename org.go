@@ -17,7 +17,7 @@ func (w *MainWindow) org(cmd string) bool {
 	text := e.Text()
 	items := w.outlineItems(text)
 	line, _ := e.Buffer().Position(e.CursorOffset())
-	i := w.cursorItem(items)
+	i := w.scriptFolds.cursorItem(items)
 	goTo := func(j int) bool {
 		if j < 0 || j >= len(items) {
 			w.setStatus("No heading there")
@@ -30,11 +30,11 @@ func (w *MainWindow) org(cmd string) bool {
 	switch cmd {
 	case "tab":
 		if i >= 0 && items[i].Line == line {
-			w.cycleAt(line)
+			w.scriptFolds.cycleAt(line)
 		}
 		return true
 	case "stab":
-		return w.cycleAll()
+		return w.scriptFolds.cycleAll()
 	case "gj":
 		return goTo(slices.IndexFunc(items, func(it outlineItem) bool { return it.Line > line }))
 	case "gk":

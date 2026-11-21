@@ -271,6 +271,12 @@ func TestSwapView(t *testing.T) {
 	if !sp.lit[1] || sp.lit[0] {
 		t.Errorf("the Script tab lights %v", sp.lit)
 	}
+	// the outline in the main area follows the script's changes (Undo, a peer)
+	w.textEditor.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("\nINT. HALL - DAY\n\nDust.\n") })
+	if items := w.outlinePane().all; len(items) != 3 {
+		t.Errorf("the outline swapped in did not follow the script: %d items", len(items))
+	}
+	w.textEditor.Undo()
 	w.omitScene()
 	if w.textEditor.Text() != before || !strings.Contains(w.statusLabel.Text, "Swap with Main") {
 		t.Errorf("omit with the script away: %q", w.statusLabel.Text)
@@ -477,7 +483,7 @@ func TestLinkFixes(t *testing.T) {
 	old := passagesOf(sourceStory)
 	story := strings.Replace(sourceStory, "She opened the door to the garden", "She pushed open the door of the garden", 1)
 	nw := passagesOf(story)
-	edits, n := linkFixes(sourceScript, old, nw)
+	edits, n, _ := linkFixes(sourceScript, old, nw)
 	if n != 1 || len(edits) != 1 {
 		t.Fatalf("%d links, %d edits: %v", n, len(edits), edits)
 	}
@@ -492,7 +498,7 @@ func TestLinkFixes(t *testing.T) {
 	if lines := m.linked(at); len(lines) != 1 {
 		t.Errorf("the new link finds %v", lines)
 	}
-	if _, n := linkFixes(sourceScript, old, old); n != 0 {
+	if _, n, _ := linkFixes(sourceScript, old, old); n != 0 {
 		t.Errorf("nothing changed, yet %d links to update", n)
 	}
 	// a passage split in two: a link to it goes to its last part too
@@ -616,7 +622,7 @@ func TestLinkFixesLeaveNearLinks(t *testing.T) {
 		t.Fatalf("the test's link is %v, not near", m.matches[0].Kind)
 	}
 	nw := passagesOf(strings.Replace(sourceStory, "The next morning the garden", "Next day the garden", 1))
-	edits, _ := linkFixes(script, old, nw)
+	edits, _, _ := linkFixes(script, old, nw)
 	for _, e := range edits {
 		if strings.Contains(string([]rune(script)[e.Start:e.End]), "She opened") {
 			t.Errorf("the near link was rewritten: %q", e.Text)

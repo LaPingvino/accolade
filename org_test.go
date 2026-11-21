@@ -33,7 +33,7 @@ func TestOrgCycling(t *testing.T) {
 	e := w.textEditor
 	e.SetText(orgScript)
 	folded := func(text string) bool {
-		return w.editorFolds[foldKey(outlineOf(e.Text(), w.sceneStarts())[w.itemAt(lineOf(t, w, text))])]
+		return w.scriptFolds.on[foldKey(outlineOf(e.Text(), w.sceneStarts())[w.itemAt(lineOf(t, w, text))])]
 	}
 
 	e.SetCursorOffset(0) // # ONE
@@ -43,35 +43,35 @@ func TestOrgCycling(t *testing.T) {
 	}
 	e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyTab})
 	if folded("# ONE") || !folded("INT. BARN - DAY") || !folded("EXT. FIELD - DAY") {
-		t.Fatalf("second Tab: not its headings: %v", w.editorFolds)
+		t.Fatalf("second Tab: not its headings: %v", w.scriptFolds.on)
 	}
 	e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyTab})
-	if len(w.editorFolds) != 0 {
-		t.Fatalf("third Tab: not all shown: %v", w.editorFolds)
+	if len(w.scriptFolds.on) != 0 {
+		t.Fatalf("third Tab: not all shown: %v", w.scriptFolds.on)
 	}
 	if e.Text() != orgScript {
 		t.Fatalf("Tab changed the text: %q", e.Text())
 	}
 
-	w.cycleAll()
+	w.scriptFolds.cycleAll()
 	if !folded("# ONE") || !folded("# TWO") || folded("INT. HALL - NIGHT") {
-		t.Fatalf("overview: %v", w.editorFolds)
+		t.Fatalf("overview: %v", w.scriptFolds.on)
 	}
-	w.cycleAll()
+	w.scriptFolds.cycleAll()
 	if folded("# ONE") || !folded("INT. BARN - DAY") || !folded("INT. HALL - NIGHT") {
-		t.Fatalf("contents: %v", w.editorFolds)
+		t.Fatalf("contents: %v", w.scriptFolds.on)
 	}
-	w.cycleAll()
-	if len(w.editorFolds) != 0 {
-		t.Fatalf("show all: %v", w.editorFolds)
+	w.scriptFolds.cycleAll()
+	if len(w.scriptFolds.on) != 0 {
+		t.Fatalf("show all: %v", w.scriptFolds.on)
 	}
 
 	// the gutter's fold marks
 	w.textEditor.Refresh()
-	if !w.headingLines()[lineOf(t, w, "INT. HALL - NIGHT")] {
+	if !w.scriptFolds.headingLines()[lineOf(t, w, "INT. HALL - NIGHT")] {
 		t.Fatal("the hall's heading has no mark")
 	}
-	w.foldLine(lineOf(t, w, "INT. HALL - NIGHT"))
+	w.scriptFolds.foldLine(lineOf(t, w, "INT. HALL - NIGHT"))
 	if !folded("INT. HALL - NIGHT") {
 		t.Error("tapping the mark did not fold the hall")
 	}

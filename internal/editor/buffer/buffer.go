@@ -45,6 +45,11 @@ type Buffer struct {
 	str    string
 	strRev uint64
 	strOK  bool
+
+	// what changed since TakeChange: [chStart, chEnd) of the text now
+	// was [chStart, chOld) then; chAll: replaced whole (SetText)
+	chStart, chEnd, chOld int
+	chSome, chAll         bool
 }
 
 // New creates a buffer holding text, with the cursor at the start.
@@ -79,6 +84,7 @@ func (b *Buffer) Slice(start, end int) string {
 func (b *Buffer) SetText(text string) {
 	b.text = []rune(text)
 	b.rev++
+	b.chAll = true
 	b.cursor, b.anchor = 0, 0
 	b.undo, b.redo = nil, nil
 }
@@ -234,8 +240,9 @@ func (b *Buffer) JoinSince(n int) bool {
 	}
 	first, last := b.undo[n], b.undo[len(b.undo)-1]
 	j := step{beforeCursor: first.beforeCursor, beforeAnchor: first.beforeAnchor,
-		afterCursor: last.afterCursor, afterAnchor: last.afterAnchor, tag: last.tag}
-	for _, s := range b.undo[n:] {
+		afterCursor: last.afterCursor, afterAnchor: last.afterAnchor, tag: last.tag,
+		changes: first.changes} // grown in place: a step joined at every key stays linear
+	for _, s := range b.undo[n+1:] {
 		j.changes = append(j.changes, s.changes...)
 	}
 	b.undo = append(b.undo[:n], j)
@@ -361,12 +368,41 @@ func (b *Buffer) breakTyping() {
 }
 
 func (b *Buffer) splice(start, end int, inserted []rune) {
+	b.noteChange(start, end, len(inserted))
 	b.text = append(b.text[:start], append(append([]rune(nil), inserted...), b.text[end:]...)...)
 	b.rev++
 	for i := range b.others { // the other selections move with the text
 		b.others[i].Anchor = shifted(b.others[i].Anchor, start, end, len(inserted))
 		b.others[i].Cursor = shifted(b.others[i].Cursor, start, end, len(inserted))
 	}
+}
+
+// noteChange adds [start, end) replaced by n runes to what changed
+// since TakeChange.
+func (b *Buffer) noteChange(start, end, n int) {
+	if !b.chSome {
+		b.chStart, b.chEnd, b.chOld, b.chSome = start, start+n, end, true
+		return
+	}
+	e := b.chEnd // the changed stretch's end, in the text after this change
+	switch {
+	case e >= end:
+		e += n - (end - start)
+	case e > start:
+		e = start + n
+	}
+	b.chOld += max(0, end-b.chEnd) // what this change takes beyond it was there before too
+	b.chStart, b.chEnd = min(b.chStart, start), max(e, start+n)
+}
+
+// TakeChange is what changed in the text since the last TakeChange, and
+// starts over: the runes [start, end) of the text now were [start, oldEnd)
+// then. ok is false when nothing changed or the text was replaced whole
+// (SetText): all of it is new.
+func (b *Buffer) TakeChange() (start, end, oldEnd int, ok bool) {
+	start, end, oldEnd, ok = b.chStart, b.chEnd, b.chOld, b.chSome && !b.chAll
+	b.chSome, b.chAll = false, false
+	return start, end, oldEnd, ok
 }
 
 func (b *Buffer) clamp(off int) int { return max(0, min(off, len(b.text))) }
