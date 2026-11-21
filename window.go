@@ -1413,7 +1413,10 @@ func (w *MainWindow) relayout() {
 		// the way back, in sight (not only Ctrl+Shift+F)
 		leave := widget.NewButtonWithIcon("Leave full screen", theme.ViewRestoreIcon(), w.toggleFullscreen)
 		leave.Importance = widget.LowImportance
-		content = container.NewStack(content, container.NewVBox(container.NewHBox(layout.NewSpacer(), leave)))
+		// a row of its own above the content, not floating over it: floating
+		// it sat on the top-right buttons of the views (Cards' and the
+		// Stripboard's "Back to the Script")
+		content = container.NewBorder(container.NewHBox(layout.NewSpacer(), leave), nil, nil, nil, content)
 	}
 	w.setContent(content)
 }

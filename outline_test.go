@@ -122,6 +122,38 @@ func TestFullscreenWithoutDistractions(t *testing.T) {
 	}
 }
 
+// In full screen with Cards or the Stripboard, "Leave full screen" and the
+// view's "Back to the Script" are both in sight and do not overlap (the
+// leave button used to float over the view's top-right corner).
+func TestFullscreenLeaveDoesNotCoverBack(t *testing.T) {
+	w := newTestWindow(t, "INT. BARN - DAY\n\nRain.\n")
+	w.fyneWindow.Resize(fyne.NewSize(1000, 700))
+	w.toggleFullscreen()
+	t.Cleanup(func() {
+		if w.isFullscreen {
+			w.toggleFullscreen()
+		}
+	})
+	for _, view := range []struct {
+		name   string
+		toggle func()
+	}{{"cards", w.toggleCards}, {"stripboard", w.toggleStripboard}} {
+		view.toggle()
+		c := w.fyneWindow.Content()
+		leave, back := findButton(c, "Leave full screen"), findButton(c, "Back to the Script")
+		if leave == nil || back == nil {
+			t.Fatalf("%s: leave %v, back %v", view.name, leave != nil, back != nil)
+		}
+		d := fyne.CurrentApp().Driver()
+		lp, bp := d.AbsolutePositionForObject(leave), d.AbsolutePositionForObject(back)
+		ls, bs := leave.Size(), back.Size()
+		if lp.X < bp.X+bs.Width && bp.X < lp.X+ls.Width && lp.Y < bp.Y+bs.Height && bp.Y < lp.Y+ls.Height {
+			t.Errorf("%s: Leave full screen at %v %v covers Back to the Script at %v %v", view.name, lp, ls, bp, bs)
+		}
+		view.toggle()
+	}
+}
+
 // findButton is the button with text in o.
 func findButton(o fyne.CanvasObject, text string) *widget.Button {
 	switch x := o.(type) {
