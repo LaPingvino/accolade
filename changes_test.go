@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -14,10 +15,10 @@ import (
 // by the name b gave, at its line; close edits make one change; a's own
 // edits are not in it.
 func TestChangesHistory(t *testing.T) {
-	was := collab.Trackers
-	collab.Trackers = nil
-	t.Cleanup(func() { collab.Trackers = was })
+	noTrackers(t)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
 	w0, app := newDialogTestWindow(t)
+	holdUI(t)
 	prev := w0.settings.GetString("your-name")
 	t.Cleanup(func() { w0.settings.SetString("your-name", prev) })
 	a, b := app.newWindow(), app.newWindow()
@@ -25,12 +26,12 @@ func TestChangesHistory(t *testing.T) {
 	key, _ := collab.NewKey()
 	w0.settings.SetString("your-name", "Anna")
 	a.startSharing(key, false)
+	_ = os.Remove(keptSharedPath(key)) // b from nothing, as on another computer
 	w0.settings.SetString("your-name", "Bram") // the windows share the settings
 	b.startSharing(key, true)
 	t.Cleanup(func() { a.stopSharing(); b.stopSharing() })
-	sa, sb := a.shared.session, b.shared.session
-	sa.AddPeer("b", func(m []byte) error { return sb.Receive("a", m) })
-	sb.AddPeer("a", func(m []byte) error { return sa.Receive("b", m) })
+	connect(t, a, b)
+	textIs(t, b, "b", "INT. BARN - DAY\n\nRain falls.\n")
 	if len(a.changes)+len(b.changes) != 0 {
 		t.Fatalf("joining made changes: %v %v", a.changes, b.changes)
 	}
@@ -38,6 +39,7 @@ func TestChangesHistory(t *testing.T) {
 	b.fyneWindow.Canvas().Focus(b.textEditor)
 	b.textEditor.SetCursorOffset(len("INT. BARN - DAY\n\nRain"))
 	test.Type(b.textEditor, " hard")
+	textIs(t, a, "a", "INT. BARN - DAY\n\nRain hard falls.\n")
 	if len(a.changes) != 1 {
 		t.Fatalf("a's history: %+v", a.changes)
 	}

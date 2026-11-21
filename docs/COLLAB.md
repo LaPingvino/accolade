@@ -80,9 +80,12 @@ was not checked: the tests use a fake tracker and pion's virtual network, never 
 - **(3)** A peer's change is applied outside the undo history (`Buffer.Remote`). The local undo and redo steps are
   moved past it, so Undo undoes only your own steps, at the right place. A local step that a peer's change
   overlaps cannot be undone faithfully, so it is dropped from the history, together with the steps before it.
-- **(4)** While shared, the browser keeps the shared script as its CRDT state (`shared/<room>.json`, one file
-  per room), not in draft.json. Your own kept script stays as it was, and comes back without the link (Stop
-  sharing takes `#k=` out of the address, so the next reload restores it). Joining a
+- **(4)** While shared, the browser keeps the shared script as its CRDT state (`shared/<room>.json`). A script
+  you joined is kept only there, not in draft.json: your own kept script stays as it was, and comes back without
+  the link (Stop sharing takes `#k=` out of the address, so the next reload restores it). A script you shared is
+  yours, so draft.json follows it too, and Stop sharing writes it at once; a mark beside the state
+  (`<room>.own`) says so across a reload. The browser's local storage is a few megabytes for everything, so it
+  keeps one room's state (starting another removes the others) and none above 1 MiB. Joining a
   room this browser (or this desktop) was in before starts from the kept state: the text shows at once, even
   with nobody online, and merges with the peers without doubling anything. Each run uses a new replica name, so
   two tabs never share one.
@@ -171,6 +174,21 @@ messages of their own, batched like the text's runs.
   Docs) bumps `Protocol`. A field that old peers may simply ignore does not.
 - The kept state files carry their own `"v"`. A file of another version is not read, and the session joins from
   the peers as before.
+
+## What is tested, and what is not
+
+- Tested in-process: two windows over an async loopback (each side's messages delivered in order on a goroutine of
+  its own, the UI turn held by the test): joining, typing both ways, the language, pausing, typing during a
+  catch-up, Undo, a whole-text action against concurrent typing, another document leaving the session, a rejoin
+  from the kept state, Markdown together, the link, the host's draft. The collab package has the gap, the
+  executor, the kept state, the minimal edits and mangled links; the buffer has Remote's rebase (random too).
+- `TestTypingDuringCatchUp` and `TestCatchUpGap` were checked to fail on the old code. The others test the new
+  behaviour only.
+- **Not verified in a browser**: `setPageKey`, `pageBase`, the `hashchange` join and the draft guard are only
+  compiled for js/wasm (no headless-browser run of the web version was made).
+- **Not tested**: the released reservation of fix (7) (no vnet test of a peer failing before its channel
+  opens), the status text of a version mismatch, and the desktop `#k=` argument.
+- `TestLongScript` (internal/collab) fails under `-race` on this machine, on main too (it times 70 000 inserts).
 
 ## What is left, in order
 

@@ -50,6 +50,21 @@ func keptSharedPath(k collab.Key) string {
 	return filepath.Join(keptSharedDir(), hex.EncodeToString(r[:8])+".json")
 }
 
+// ownMarkPath marks a room whose script is this writer's own (they
+// shared it): the browser keeps it as their script too (keepsOwnDraft),
+// also after a reload, which comes back through joining.
+func ownMarkPath(k collab.Key) string { return strings.TrimSuffix(keptSharedPath(k), ".json") + ".own" }
+
+// keepsOwnDraft: the browser keeps the window's script as the writer's
+// own (draft.json) when it is not shared, or shared by them. A script
+// joined is kept only as the session's state, so joining never
+// overwrites the script kept before.
+func keepsOwnDraft(s *shared) bool { return s == nil || s.own }
+
+// maxKeptState is the most the browser keeps of a shared script's state:
+// its local storage is a few megabytes for everything (web/memfs.js).
+const maxKeptState = 1 << 20
+
 // sharedStatePause is how long editing pauses before the shared script's
 // state is kept.
 const sharedStatePause = time.Second
@@ -67,6 +82,7 @@ type shared struct {
 	otherApp   string
 	otherOlder bool
 	stateTimer *uiTimer // keeping the state (keepSharedState)
+	own        bool     // shared by this writer: their script too (keepsOwnDraft)
 	// synced: the script's language and format are the peers' (joining,
 	// once they sent them), so changes here go to them
 	synced bool
@@ -98,7 +114,24 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 		}
 		session = collab.NewSession(key, doc)
 	}
-	s := &shared{session: session, key: key}
+	s := &shared{session: session, key: key, own: !joining}
+	if joining {
+		_, err := os.Stat(ownMarkPath(key))
+		s.own = err == nil
+	}
+	if inBrowser { // room for one shared script's state: this one
+		if es, err := os.ReadDir(keptSharedDir()); err == nil {
+			keep := strings.TrimSuffix(filepath.Base(keptSharedPath(key)), ".json")
+			for _, e := range es {
+				if strings.TrimSuffix(strings.TrimSuffix(e.Name(), ".json"), ".own") != keep {
+					_ = os.Remove(filepath.Join(keptSharedDir(), e.Name()))
+				}
+			}
+		}
+	}
+	if s.own && os.MkdirAll(keptSharedDir(), 0o755) == nil {
+		_ = os.WriteFile(ownMarkPath(key), nil, 0o644)
+	}
 	s.session.App = appVersion()
 	s.session.Run = uiDo // the document changes on the UI goroutine only
 	s.session.OnRemote = func(by string) {
@@ -203,6 +236,10 @@ func (w *MainWindow) leaveSharing() {
 	if s := w.shared; s != nil {
 		w.stopSharing()
 		_ = os.Remove(keptSharedPath(s.key))
+		_ = os.Remove(ownMarkPath(s.key))
+		if s.own {
+			w.keepDraft() // the browser keeps it as the writer's script again, at once
+		}
 	}
 }
 
@@ -240,7 +277,7 @@ func (w *MainWindow) keepSharedState() {
 			return
 		}
 		b, err := s.session.State()
-		if err != nil {
+		if err != nil || inBrowser && len(b) > maxKeptState {
 			return
 		}
 		if os.MkdirAll(keptSharedDir(), 0o755) == nil {
@@ -367,6 +404,9 @@ func (w *MainWindow) join(linkOrKey string) {
 	if w.shared != nil && w.shared.key == key {
 		w.setStatus("You are editing this script together already")
 		return
+	}
+	if w.shared != nil { // the address shows this one's until the other is joined
+		setPageKey(w.shared.key.String())
 	}
 	w.withTarget(func(target *MainWindow) {
 		target.startSharing(key, true)

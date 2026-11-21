@@ -616,7 +616,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   protocol 4); stuck peer reservations and a peer count that counted them; the link only github.io and lost on
   reload (now the page's own address, #k= kept in the address while shared, hashchange joins, ParseKey ignores a
   chat's punctuation and line breaks, a desktop argument with #k= joins); the status bar names the other side's
-  version and which one is older. Tests: two windows over an async loopback (holdUI), each checked to fail on the old
-  code where it could. Guards for auto A-numbers and learned notes kept, with the single-writer rule written as their
+  version and which one is older. Tests: two windows over an async loopback (holdUI); the catch-up and gap tests
+  checked to fail on the old code. Not run in a real browser (the address/hashchange code is only compiled). Guards for auto A-numbers and learned notes kept, with the single-writer rule written as their
   way out. Shots /tmp/claude-1000/shots/collab-{together,leave}-{desktop,phone}.png. Next: COLLAB.md's What is left,
   from 1 (single-writer automatic writes).

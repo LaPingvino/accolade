@@ -1121,10 +1121,11 @@ type kept struct {
 }
 
 // keepDraft keeps the window's script in the browser, if it is the
-// writer's own: a shared one is kept as the session's state instead
-// (keepSharedState), so joining never overwrites the script kept before.
+// writer's own (keepsOwnDraft): a joined one is kept as the session's
+// state only (keepSharedState), so joining never overwrites the script
+// kept before.
 func (w *MainWindow) keepDraft() {
-	if w.shared == nil {
+	if keepsOwnDraft(w.shared) {
 		keepDraft(w.draft())
 	}
 }
@@ -1171,7 +1172,7 @@ const draftPause = time.Second
 
 func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
-	if inBrowser && w.shared == nil { // kept when typing pauses: the whole script is written each time
+	if inBrowser && keepsOwnDraft(w.shared) { // kept when typing pauses: the whole script is written each time
 		w.debounce(&w.draftTimer, draftPause, func() {
 			w.keepDraft()
 		})

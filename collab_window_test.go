@@ -111,9 +111,12 @@ func sharedPair(t *testing.T, text string) (a, b *MainWindow, key collab.Key) {
 	a.textEditor.SetText(text)
 	key, _ = collab.NewKey()
 	a.startSharing(key, false)
-	// one data folder for both: b starts from nothing, as on another computer
+	// one data folder for both: b starts from nothing, as on another
+	// computer, and is not the script's writer
 	_ = os.Remove(keptSharedPath(key))
+	_ = os.Remove(ownMarkPath(key))
 	b.startSharing(key, true)
+	_ = os.WriteFile(ownMarkPath(key), nil, 0o644) // a's again
 	t.Cleanup(func() { a.stopSharing(); b.stopSharing() })
 	return a, b, key
 }
@@ -379,5 +382,24 @@ func snapWindow(t *testing.T, w *MainWindow, path string) {
 func closeOverlays(w *MainWindow) {
 	for o := w.fyneWindow.Canvas().Overlays().Top(); o != nil; o = w.fyneWindow.Canvas().Overlays().Top() {
 		w.fyneWindow.Canvas().Overlays().Remove(o)
+	}
+}
+
+// The browser keeps a script shared by its writer as their own script too,
+// also after a reload (which comes back by joining); one joined is kept
+// only as the session's state. Leaving takes the marks away.
+func TestOwnDraftHostOnly(t *testing.T) {
+	a, b, key := sharedPair(t, "INT. BARN\n")
+	if !keepsOwnDraft(a.shared) || keepsOwnDraft(b.shared) || !keepsOwnDraft(nil) {
+		t.Fatalf("host %v, joiner %v", keepsOwnDraft(a.shared), keepsOwnDraft(b.shared))
+	}
+	a.stopSharing() // a reload of the host's page
+	a.startSharing(key, true)
+	if !keepsOwnDraft(a.shared) {
+		t.Error("the host's reload made it a joiner's")
+	}
+	a.leaveSharing()
+	if _, err := os.Stat(ownMarkPath(key)); err == nil {
+		t.Error("leaving kept the mark")
 	}
 }
