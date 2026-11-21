@@ -52,10 +52,16 @@ type tailBlock struct {
 // window asks for it several times per event, of the same text.
 var tails struct {
 	sync.Mutex
-	text             string
-	src, adapt, prod tailBlock
-	notes            int // notesStart, in bytes
-	ok               bool
+	text string
+	tailSet
+	ok bool
+}
+
+// tailSet are the boneyard blocks at a script's end, and where its notes
+// block starts (in bytes; the text's length without one).
+type tailSet struct {
+	src, adapt, prod, chars tailBlock
+	notes                   int
 }
 
 // tailBlocks are the script's source and adaptation blocks, the last
@@ -74,28 +80,36 @@ func tailsOf(text string) (src, adapt tailBlock, notes int) {
 
 // allTails is tailsOf with the production block (production.go).
 func allTails(text string) (src, adapt, prod tailBlock, notes int) {
+	t := tailSetOf(text)
+	return t.src, t.adapt, t.prod, t.notes
+}
+
+// tailSetOf are the script's tail blocks, the characters' too
+// (characters_block.go); remembered for the last text asked about.
+func tailSetOf(text string) tailSet {
 	tails.Lock()
 	defer tails.Unlock()
 	if tails.ok && sameString(tails.text, text) {
-		return tails.src, tails.adapt, tails.prod, tails.notes
+		return tails.tailSet
 	}
-	src, adapt, prod, notes = findTails(text)
-	tails.text, tails.src, tails.adapt, tails.prod, tails.notes, tails.ok = text, src, adapt, prod, notes, true
-	return src, adapt, prod, notes
+	tails.text, tails.tailSet, tails.ok = text, findTails(text), true
+	return tails.tailSet
 }
 
 // findTails scans for the tail blocks, in bytes, then gives their places
-// in runes too.
-func findTails(text string) (src, adapt, prod tailBlock, notes int) {
-	notes = fountainNotes.startByte(text)
-	end := notes
+// in runes too. They are found from the notes back, in any order: one
+// not known here would hide those before it.
+func findTails(text string) (t tailSet) {
+	src, adapt, prod, chars := &t.src, &t.adapt, &t.prod, &t.chars
+	t.notes = fountainNotes.startByte(text)
+	end := t.notes
 	for {
 		before := text[:end]
 		found := false
 		for _, b := range []struct {
 			marks *notesMarks
 			to    *tailBlock
-		}{{&sourceMarks, &src}, {&adaptationMarks, &adapt}, {&productionMarks, &prod}} {
+		}{{&sourceMarks, src}, {&adaptationMarks, adapt}, {&productionMarks, prod}, {&charactersMarks, chars}} {
 			if b.to.ok {
 				continue
 			}
@@ -128,17 +142,17 @@ func findTails(text string) (src, adapt, prod tailBlock, notes int) {
 		return n
 	}
 	found := []*tailBlock{}
-	for _, t := range []*tailBlock{&src, &adapt, &prod} {
-		if t.ok {
-			found = append(found, t)
+	for _, b := range []*tailBlock{src, adapt, prod, chars} {
+		if b.ok {
+			found = append(found, b)
 		}
 	}
 	slices.SortFunc(found, func(a, b *tailBlock) int { return a.bstart - b.bstart })
-	for _, t := range found {
-		t.start = runes(t.bstart)
-		t.end = runes(t.bend)
+	for _, b := range found {
+		b.start = runes(b.bstart)
+		b.end = runes(b.bend)
 	}
-	return src, adapt, prod, notes
+	return t
 }
 
 // sameString reports whether a and b are the same text, at once if they
@@ -161,8 +175,9 @@ func bodyEnd(text string) int {
 
 // bodyEndByte is bodyEnd in bytes.
 func bodyEndByte(text string) int {
-	src, adapt, prod, end := allTails(text)
-	for _, t := range []tailBlock{src, adapt, prod} {
+	ts := tailSetOf(text)
+	end := ts.notes
+	for _, t := range []tailBlock{ts.src, ts.adapt, ts.prod, ts.chars} {
 		if t.ok {
 			end = min(end, t.bstart)
 		}
@@ -410,14 +425,21 @@ func withCuts(inside string, cuts []cutMark) string {
 // block goes after the script, before the source and notes blocks.
 func withAdaptationBlock(text, inside string) (start, end int, block string) {
 	_, a := tailBlocks(text)
-	if a.ok {
-		start, end = a.start, a.end
+	return withTailBlock(text, a, adaptationMarks, inside)
+}
+
+// withTailBlock is the edit that makes the tail block t (as found in
+// text) hold inside: where (runes) and what. A new block goes after the
+// script, before the other blocks at its end.
+func withTailBlock(text string, t tailBlock, marks notesMarks, inside string) (start, end int, block string) {
+	if t.ok {
+		start, end = t.start, t.end
 	} else {
 		end = bodyEnd(text)
-		start = len([]rune(strings.TrimRight(string([]rune(text)[:end]), "\n")))
+		start = utf8.RuneCountInString(strings.TrimRight(string([]rune(text)[:end]), "\n"))
 	}
-	block = strings.TrimRight(adaptationMarks.text(inside), "\n")
-	if end == len([]rune(text)) { // nothing after it: the script ends with a new line
+	block = strings.TrimRight(marks.text(inside), "\n")
+	if end == utf8.RuneCountInString(text) { // nothing after it: the script ends with a new line
 		block += "\n"
 	}
 	return start, end, block

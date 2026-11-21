@@ -4,7 +4,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/lexington/fountain"
@@ -111,17 +110,7 @@ func withSceneLock(inside string, l *sceneLock) string {
 // block goes after the script, before the other blocks at its end.
 func withProductionBlock(text, inside string) (start, end int, block string) {
 	_, _, p, _ := allTails(text)
-	if p.ok {
-		start, end = p.start, p.end
-	} else {
-		end = bodyEnd(text)
-		start = utf8.RuneCountInString(strings.TrimRight(string([]rune(text)[:end]), "\n"))
-	}
-	block = strings.TrimRight(productionMarks.text(inside), "\n")
-	if end == utf8.RuneCountInString(text) { // nothing after it: the script ends with a new line
-		block += "\n"
-	}
-	return start, end, block
+	return withTailBlock(text, p, productionMarks, inside)
 }
 
 // sceneHead is a scene heading of the script: its line, the line as
