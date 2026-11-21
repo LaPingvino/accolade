@@ -153,7 +153,7 @@ func TestColorPicker(t *testing.T) {
 	}
 
 	// the outline's right click; None takes the field's blue out
-	w.toggleOutline()
+	w.togglePane("outline")
 	row := w.outline.list.CreateItem().(*dragRow)
 	w.outline.list.UpdateItem(2, row)
 	row.Tapped(&fyne.PointEvent{}) // a tap still goes there

@@ -151,10 +151,9 @@ func newChangesPanel(w *MainWindow) *changesPanel {
 		}
 		p.list.UnselectAll()
 	}
-	title := widget.NewLabelWithStyle("Changes", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	width := canvas.NewRectangle(color.Transparent) // as wide as the outline and notes
 	width.SetMinSize(fyne.NewSize(240, 0))
-	p.box = container.NewStack(width, container.NewBorder(title, nil, nil, nil, container.NewStack(p.list, p.none)))
+	p.box = container.NewStack(width, container.NewStack(p.list, p.none) /* its tab in the dock names it */)
 	p.refresh()
 	return p
 }
@@ -171,17 +170,7 @@ func (p *changesPanel) refresh() {
 }
 
 func (w *MainWindow) refreshChanges() {
-	if w.changesVisible && w.changesPanel != nil {
+	if w.changesPanel != nil && w.paneShown("changes") {
 		w.changesPanel.refresh()
 	}
-}
-
-// toggleChanges shows or hides the history beside the editor.
-func (w *MainWindow) toggleChanges() {
-	w.changesVisible = !w.changesVisible
-	if w.changesVisible && w.changesPanel == nil {
-		w.changesPanel = newChangesPanel(w)
-	}
-	w.refreshChanges()
-	w.relayout()
 }

@@ -166,7 +166,7 @@ func TestMarkAsCut(t *testing.T) {
 	if err := w.keepSourceInside(true); err != nil {
 		t.Fatal(err)
 	}
-	w.notes.save("my notes")
+	w.notesPane().save("my notes")
 	s := w.sourcePane()
 	s.follow()
 	item := passageNamed(t, s.passages, "a list item")

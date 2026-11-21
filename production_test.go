@@ -236,7 +236,7 @@ func TestProductionScreenshots(t *testing.T) {
 	if !strings.Contains(w.textEditor.Text(), "#1A#") || !strings.Contains(w.textEditor.Text(), ".OMITTED #2#") {
 		t.Fatalf("not as shown:\n%s", w.textEditor.Text())
 	}
-	w.toggleOutline()
+	w.togglePane("outline")
 	comboShot(t, w, "production")
 }
 

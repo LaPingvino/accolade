@@ -215,9 +215,6 @@ func (w *MainWindow) roleChanged(said bool) {
 		if w.stripsVisible {
 			w.toggleStripboard()
 		}
-		if w.notes != nil && w.notes.tabs.Selected() == w.notes.productionTab {
-			w.notes.tabs.Select(w.notes.notesTab)
-		}
 	}
 	if w.headerBar != nil {
 		w.headerBar.showRole(w.cmdEnv())

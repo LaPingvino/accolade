@@ -53,7 +53,7 @@ func stateOf(app *Application) string {
 		}
 		s += fmt.Sprintf("- file %q, %d runes, changed %v, keys %s (vim mode %v), format %s, language %q, %s, outline %v, notes %v, fullscreen %v\n",
 			name, len([]rune(w.textEditor.Text())), w.hasChanges, w.editorKeys(), mode,
-			w.scriptFormatKey(), w.language, peers, w.outlineVisible, w.notesVisible, w.fyneWindow.FullScreen())
+			w.scriptFormatKey(), w.language, peers, w.paneShown("outline"), w.paneShown("notes"), w.fyneWindow.FullScreen())
 	}
 	return s
 }

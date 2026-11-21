@@ -212,8 +212,7 @@ func (p *productionPane) place() {
 
 // shown reports whether the pane is in sight.
 func (p *productionPane) shown() bool {
-	n := p.w.notes
-	return n != nil && p.w.notesVisible && !p.w.markdown && n.tabs.Selected() == n.productionTab
+	return p.w.paneInSight("production")
 }
 
 // pick shows a stage (the script's own again: back to following it).
@@ -238,8 +237,8 @@ func (p *productionPane) view() int {
 // productionFollow has the pane follow the script, if it is shown: the
 // revision marks were made again (after typing paused, or an issue).
 func (w *MainWindow) productionFollow() {
-	if w.notes != nil && w.notes.production.shown() {
-		w.notes.production.refresh()
+	if w.production != nil && w.production.shown() {
+		w.production.refresh()
 	}
 	w.ribbonFollow() // an issue, a tag, a day: the ribbon's stage
 }
@@ -628,28 +627,6 @@ func (w *MainWindow) compareWithLastIssue() {
 		}
 		showCompare(w, ds, last, nowID)
 	})
-}
-
-// toggleProduction is View > Production: the Notes pane with the
-// production stages in it, or (if that is shown) neither.
-func (w *MainWindow) toggleProduction() {
-	if w.markdown {
-		return
-	}
-	if w.notes == nil {
-		w.notes = newNotesPanel(w)
-	}
-	p := w.notes.production
-	if p.shown() {
-		w.toggleNotes()
-		return
-	}
-	w.notes.tabs.Select(w.notes.productionTab)
-	if !w.notesVisible {
-		w.toggleNotes()
-	}
-	w.fyneWindow.Canvas().Focus(p.focusTarget())
-	p.refresh()
 }
 
 // focusTarget is what takes the keyboard in the pane: the stage shown.

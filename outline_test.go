@@ -51,9 +51,9 @@ func TestOutlineOf(t *testing.T) {
 func TestOutlinePanelGoesToTheScene(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.textEditor.SetText(outlineScript)
-	w.toggleOutline()
-	if !w.outlineVisible || len(w.outline.items) != 5 {
-		t.Fatalf("outline: %v, %d items", w.outlineVisible, len(w.outline.items))
+	w.togglePane("outline")
+	if !w.paneShown("outline") || len(w.outline.items) != 5 {
+		t.Fatalf("outline: %v, %d items", w.paneShown("outline"), len(w.outline.items))
 	}
 	w.outline.list.Select(1) // INT. KITCHEN
 	if line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset()); line != 6 {
@@ -69,23 +69,23 @@ func TestOutlinePanelGoesToTheScene(t *testing.T) {
 func TestOutlineAndNotesTogether(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.textEditor.SetText(outlineScript)
-	w.toggleOutline()
-	w.toggleNotes()
-	if !w.outlineVisible || !w.notesVisible {
-		t.Fatalf("outline %v, notes %v", w.outlineVisible, w.notesVisible)
+	w.togglePane("outline")
+	w.togglePane("notes")
+	if !w.paneShown("outline") || !w.paneShown("notes") {
+		t.Fatalf("outline %v, notes %v", w.paneShown("outline"), w.paneShown("notes"))
 	}
-	for name, box := range map[string]fyne.CanvasObject{"outline": w.outline.box, "notes": w.notes.box()} {
+	for name, box := range map[string]fyne.CanvasObject{"outline": w.outline.box, "notes": w.notesPane().entry} {
 		if !box.Visible() || box.Size().Height < 50 {
 			t.Errorf("%s: shown %v, %v", name, box.Visible(), box.Size())
 		}
 	}
-	if w.outline.box.Position().Y >= w.notes.box().Position().Y {
+	if fyne.CurrentApp().Driver().AbsolutePositionForObject(w.outline.box).Y >= fyne.CurrentApp().Driver().AbsolutePositionForObject(w.notesPane().entry).Y {
 		t.Error("the notes are not below the outline")
 	}
 	capture(t, w.fyneWindow.Canvas(), "outline-notes.png")
-	w.toggleOutline()
-	if w.outlineVisible || !w.notesVisible {
-		t.Errorf("closing the outline: outline %v, notes %v", w.outlineVisible, w.notesVisible)
+	w.togglePane("outline")
+	if w.paneShown("outline") || !w.paneShown("notes") {
+		t.Errorf("closing the outline: outline %v, notes %v", w.paneShown("outline"), w.paneShown("notes"))
 	}
 }
 
@@ -95,18 +95,18 @@ func TestOutlineAndNotesTogether(t *testing.T) {
 func TestFullscreenWithoutDistractions(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.textEditor.SetText(outlineScript)
-	w.toggleOutline()
+	w.togglePane("outline")
 	w.toggleFullscreen()
 	if w.headerArea.Visible() || w.statusBar.Visible() || w.fyneWindow.MainMenu() != nil {
 		t.Errorf("full screen shows toolbar %v, status %v, menu %v",
 			w.headerArea.Visible(), w.statusBar.Visible(), w.fyneWindow.MainMenu() != nil)
 	}
-	if !w.outlineVisible {
+	if !w.paneShown("outline") {
 		t.Error("the outline closed")
 	}
 	w.fyneWindow.Canvas().Focus(w.textEditor)
 	w.textEditor.TypedShortcut(shortcut(fyne.KeyK, fyne.KeyModifierShift)) // Notes
-	if !w.notesVisible {
+	if !w.paneShown("notes") {
 		t.Error("the Notes shortcut did nothing in full screen")
 	}
 	leave := findButton(w.fyneWindow.Content(), "Leave full screen")
@@ -202,7 +202,7 @@ func TestOutlineColors(t *testing.T) {
 
 	w, _ := newDialogTestWindow(t)
 	w.textEditor.SetText(script)
-	w.toggleOutline()
+	w.togglePane("outline")
 	o := w.outline
 	for id, want := range []color.Color{color.NRGBA{0, 129, 239, 255}, color.NRGBA{239, 0, 73, 255}, color.Transparent, color.NRGBA{0, 255, 0, 255}} {
 		row := o.list.CreateItem()

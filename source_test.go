@@ -205,7 +205,7 @@ func sourceWindow(t *testing.T, script, story string) (*MainWindow, string) {
 	if err := w.LoadFile(p); err != nil {
 		t.Fatal(err)
 	}
-	w.toggleSource()
+	w.togglePane("source")
 	if !w.sourcePane().shown() {
 		t.Fatal("the source is not shown")
 	}

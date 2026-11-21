@@ -62,12 +62,11 @@ type MainWindow struct {
 	// the card view in the editor's place (cards.go)
 	cardsVisible bool
 	// the others' changes to a shared script (changes.go)
-	changes        []change
-	changesVisible bool
-	changesPanel   *changesPanel
-	cards          *cardsView
-	editorFolds    map[string]bool // folded in the editor, by foldKey (editor_folds.go)
-	foldState      int             // where Shift+Tab is: foldShown, foldOverview or foldContents
+	changes      []change
+	changesPanel *changesPanel
+	cards        *cardsView
+	editorFolds  map[string]bool // folded in the editor, by foldKey (editor_folds.go)
+	foldState    int             // where Shift+Tab is: foldShown, foldOverview or foldContents
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
@@ -101,17 +100,20 @@ type MainWindow struct {
 	saveFailures int            // background saves that failed (bundle_queue.go)
 	srcPending   *pendingSource // a source being written into the bundle (source_file.go)
 	// imported is closed when the PDF import under way is in
-	imported       chan struct{}
-	outline        *outlinePanel
-	outlineVisible bool
-	notes          *notesPanel
-	notesVisible   bool
-	narrow         bool             // a phone's width: the panes under the script (relayout)
-	paneSplit      *container.Split // the script over the panes, while narrow
-	sideSplit      *container.Split // the panes beside the script, while wide
-	paneTaller     *tooltip.Button  // makes them taller, or half again
-	unsavedSource  string           // the source chosen for a script not saved yet (source.go)
-	unsavedExtras  string           // the kept extras of a script not saved yet (extras.go)
+	imported chan struct{}
+	// the side dock and its panes (dock.go), each made at its first need
+	dock          *dock
+	outline       *outlinePanel
+	notes         *notesPanel
+	source        *sourcePane
+	production    *productionPane
+	help          *helpPane
+	narrow        bool             // a phone's width: the panes under the script (relayout)
+	paneSplit     *container.Split // the script over the panes, while narrow
+	sideSplit     *container.Split // the panes beside the script, while wide
+	paneTaller    *tooltip.Button  // makes them taller, or half again
+	unsavedSource string           // the source chosen for a script not saved yet (source.go)
+	unsavedExtras string           // the kept extras of a script not saved yet (extras.go)
 	// flattenTo is where a bundle's extras go when it is saved as a plain
 	// file, as asked (flatten.go); then back to the kept copy
 	flattenTo    flattenChoice
@@ -219,6 +221,7 @@ func NewMainWindow(app *Application) *MainWindow {
 	}
 
 	window.settings = GetSettings() // shared with the preferences dialog
+	window.dock = newDock(window)
 	window.setupUI()
 	window.setupShortcuts()
 	window.setupCallbacks()
@@ -319,6 +322,10 @@ func (w *MainWindow) setupShortcuts() {
 // Shift+F6 for the panes; commands.go); it reports whether it took the key.
 func (w *MainWindow) keyPreview(key fyne.KeyName, mod fyne.KeyModifier) bool {
 	keyArrived()
+	if t, ok := w.fyneWindow.Canvas().Focused().(*dockTab); ok && key == fyne.KeyF10 && mod == fyne.KeyModifierShift {
+		t.showMenu(fyne.Position{}) // a dock tab's menu (dock.go)
+		return true
+	}
 	w.altKey(key) // Alt alone shows the ribbon's key tips
 	return w.previewKey(key, mod)
 }
@@ -327,9 +334,7 @@ func (w *MainWindow) setupCallbacks() {
 	// Window close callback
 	var askClose func()
 	askClose = func() {
-		if w.sideSplit != nil { // the side panes' width, for next time
-			w.settings.SetFloat("side-pane-offset", w.sideSplit.Offset)
-		}
+		w.dock.keepSizes()  // the dock's width and split, for next time
 		if w.bundleBusy() { // a save under way finishes first, then asks as ever
 			w.setStatus("Saving...")
 			w.afterBundleWrites(askClose)
@@ -1154,7 +1159,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.scheduleSceneNumbers()
 	w.scheduleRevisionMarks()
 	w.scheduleBreakdown()
-	if w.outlineVisible && w.outline != nil {
+	if w.paneShown("outline") {
 		w.outline.update(text)
 	}
 	if w.cardsVisible && w.cards != nil {
@@ -1163,10 +1168,10 @@ func (w *MainWindow) onTextChanged(text string) {
 	if w.stripsVisible && w.stripboard != nil {
 		w.stripboard.update()
 	}
-	if w.notesVisible && w.notes != nil {
+	if w.paneShown("notes") {
 		w.notes.update(text)
-		w.followSource()
 	}
+	w.followSource()
 	if w.previewVisible && w.previewPane != nil {
 		w.previewPane.update(text)
 	}
@@ -1232,9 +1237,7 @@ func (w *MainWindow) onCursorChanged() {
 	w.breakdownFollowCursor()
 	w.scheduleSceneNumbers() // the heading just left
 	w.updateStatusBar()      // the scene under the cursor
-	if w.notes != nil {
-		w.followSource() // the scene's passages
-	}
+	w.followSource()         // the scene's passages
 	// what Tab would complete or take from the source, or nothing once
 	// it no longer applies
 	w.showSuggestionHint()
@@ -1361,35 +1364,6 @@ func (w *MainWindow) setContent(content fyne.CanvasObject) {
 	w.fyneWindow.SetContent(container.New(&windowLayout{w: w}, content, w.tooltips))
 }
 
-// toggleOutline shows or hides the outline beside the editor.
-func (w *MainWindow) toggleOutline() {
-	if w.outline == nil {
-		w.outline = newOutlinePanel(w)
-	}
-	w.outlineVisible = !w.outlineVisible
-	if w.outlineVisible {
-		w.outline.update(w.textEditor.Text())
-	}
-	w.relayout()
-}
-
-// toggleNotes shows or hides the script's notes beside the editor.
-func (w *MainWindow) toggleNotes() {
-	if w.notes == nil {
-		w.notes = newNotesPanel(w)
-	}
-	w.notesVisible = !w.notesVisible
-	if w.notesVisible {
-		w.notes.update(w.textEditor.Text())
-		w.relayout()
-		w.fyneWindow.Canvas().Focus(w.notes.focusTarget())
-		w.notes.source.follow()
-		w.notes.production.refresh()
-		return
-	}
-	w.relayout()
-}
-
 // relayout puts the window together: the toolbar and the status bar,
 // the outline and notes on the left if shown, the editor.
 func (w *MainWindow) relayout() {
@@ -1403,64 +1377,33 @@ func (w *MainWindow) relayout() {
 		split.Offset = 0.55
 		center = split
 	}
-	var panels []fyne.CanvasObject // one above the other
-	if w.outlineVisible && w.outline != nil {
-		panels = append(panels, w.outline.box)
-	}
-	if w.notesVisible && w.notes != nil {
-		panels = append(panels, w.notes.box())
-	}
-	if w.changesVisible && w.changesPanel != nil {
-		panels = append(panels, w.changesPanel.box)
-	}
-	var side fyne.CanvasObject
-	for i := len(panels) - 1; i >= 0; i-- {
-		if side == nil {
-			side = panels[i]
-		} else {
-			side = container.NewVSplit(panels[i], side)
-		}
-	}
+	side := w.dock.object() // dock.go
 	var left fyne.CanvasObject
 	if side != nil && w.narrow {
 		// a phone: the panes under the script, both in sight, the split
-		// where it was (a pane beside the script left it no room); a
-		// finger cannot drag the split in the browser (a drag scrolls),
-		// so a button over the panes' top right makes them taller
+		// where it was (a pane beside the script left it no room); the
+		// sheet's row has a button making it taller (dock.go)
 		offset := paneHalf
 		if w.paneSplit != nil {
 			offset = w.paneSplit.Offset
 		}
-		w.paneTaller = tooltip.NewButton(theme.MoveUpIcon(), "", nil, w.tooltips)
-		w.paneTaller.Importance = widget.LowImportance
-		w.paneTaller.OnTapped = func() {
-			if w.paneSplit.Offset > paneTall+0.05 {
-				w.paneSplit.SetOffset(paneTall)
-			} else {
-				w.paneSplit.SetOffset(paneHalf)
-			}
-			w.showPaneSize()
-		}
-		over := container.NewVBox(container.NewHBox(layout.NewSpacer(), w.paneTaller))
-		w.paneSplit = container.NewVSplit(center, narrowFit(container.NewStack(side, over)))
+		w.paneSplit = container.NewVSplit(center, narrowFit(side))
 		w.paneSplit.Offset = offset
 		w.showPaneSize()
 		center = w.paneSplit
 	} else if side != nil {
 		// beside the script, in a split the writer can drag (Joop: the
 		// side panes could not change size); the width stays across
-		// relayouts and sessions
-		offset := w.settings.GetFloat("side-pane-offset")
-		if w.sideSplit != nil {
-			offset = w.sideSplit.Offset
-			w.settings.SetFloat("side-pane-offset", offset)
-		}
+		// relayouts and sessions (dock.keepSizes)
+		offset := w.settings.GetFloat(dockWidthPref)
 		if offset <= 0.05 || offset >= 0.9 {
 			offset = sidePaneDefault
 		}
 		w.sideSplit = container.NewHSplit(side, center)
 		w.sideSplit.Offset = offset
 		center = w.sideSplit
+	} else {
+		w.sideSplit = nil
 	}
 	// the objects in the order they are seen, which is the order Tab and
 	// screen readers go through them (NewBorder puts the centre first:
@@ -1480,11 +1423,11 @@ func (w *MainWindow) relayout() {
 	w.setContent(content)
 }
 
-// The script's share of a narrow window over the panes: half, or a
-// little with the panes made taller.
-// sidePaneDefault is the side panes' share of a wide window at first.
+// sidePaneDefault is the side dock's share of a wide window at first.
 const sidePaneDefault = 0.28
 
+// The script's share of a narrow window over the panes: half, or a
+// little with the panes made taller.
 const (
 	paneHalf = 0.5
 	paneTall = 0.15
@@ -1738,16 +1681,11 @@ func defaultScript(now time.Time) string {
 }
 
 // panes are the parts of the window that take the keyboard, in order:
-// the editor, and the outline, notes and search bar when shown.
+// the editor, each dock slot's pane in front, and the search bar when shown.
 func (w *MainWindow) panes() []fyne.Focusable {
 	panes := []fyne.Focusable{w.textEditor}
-	// the side panel shows the outline or else the notes (relayout)
-	switch {
-	case w.outlineVisible && w.outline != nil:
-		panes = append(panes, w.outline.list)
-	case w.notesVisible && w.notes != nil:
-		panes = append(panes, w.notes.focusTarget())
-	}
+	// each slot's pane in front, the top's first (dock.go)
+	panes = append(panes, w.dock.focusTargets()...)
 	if w.searchBar != nil && w.searchBar.IsVisible() {
 		panes = append(panes, w.searchBar.searchEntry)
 	}

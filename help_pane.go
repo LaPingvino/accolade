@@ -311,49 +311,23 @@ func (h *helpPane) printPage() {
 func (h *helpPane) focusTarget() fyne.Focusable { return h.search }
 
 // shown reports whether the Help tab is in sight.
-func (h *helpPane) shown() bool {
-	n := h.w.notes
-	return n != nil && h.w.notesVisible && n.tabs.Selected() == n.helpTab
-}
+func (h *helpPane) shown() bool { return h.w.paneInSight("help") }
 
 // showHelp opens page slug in the Help tab, at the heading with anchor.
 func (w *MainWindow) showHelp(slug, anchor string) {
-	if w.notes == nil {
-		w.notes = newNotesPanel(w)
+	h := w.helpPane()
+	if !h.open(slug, anchor) {
+		h.open("index", "")
 	}
-	n := w.notes
-	if !w.notesVisible {
-		w.toggleNotes()
-	} else {
-		w.relayout() // the tabs for the mode
-	}
-	n.tabs.Select(n.helpTab)
-	if !n.help.open(slug, anchor) {
-		n.help.open("index", "")
-	}
-	w.fyneWindow.Canvas().Focus(n.help.focusTarget())
-}
-
-// toggleHelp shows the Help tab (its contents, or the page shown last),
-// or hides the pane if it is in sight.
-func (w *MainWindow) toggleHelp() {
-	if w.notes != nil && w.notes.help.shown() {
-		w.toggleNotes()
-		return
-	}
-	slug := "index"
-	if w.notes != nil && w.notes.help.page.Slug != "" {
-		slug = w.notes.help.page.Slug
-	}
-	w.showHelp(slug, "")
+	w.showPane("help", true)
 }
 
 // helpOnline opens the help page shown (the contents if none) online,
 // for this version of Accolade.
 func (w *MainWindow) helpOnline() {
 	slug := "index"
-	if w.notes != nil && w.notes.help.page.Slug != "" && w.notes.help.shown() {
-		slug = w.notes.help.page.Slug
+	if w.help != nil && w.help.page.Slug != "" && w.help.shown() {
+		slug = w.help.page.Slug
 	}
 	openWebPage(help.URL(slug, appVersion(), ""))
 	w.setStatus("The help opens in your browser: " + help.Site + slug + ".html")
@@ -420,7 +394,6 @@ func helpCommands() []*command {
 			}
 			return fyne.NewMenu("Cheat Sheets", items...)
 		}},
-		&command{id: "view.help", label: "Help", tip: "Help: the pages, cheat sheets and a search", icon: theme.HelpIcon, run: (*MainWindow).toggleHelp},
 		&command{id: "help.online", label: "Online Help", run: (*MainWindow).helpOnline},
 		&command{id: "help.feedback", label: "Send Feedback…", run: (*MainWindow).sendFeedback},
 	)

@@ -628,8 +628,7 @@ func samePassages(a, b []passage) bool {
 
 // shown reports whether the source is in sight.
 func (s *sourcePane) shown() bool {
-	n := s.w.notes
-	return n != nil && s.w.notesVisible && !s.w.markdown && n.tabs.Selected() == n.sourceTab
+	return s.w.paneInSight("source")
 }
 
 // follow lights the passages the cursor's scene links to, scrolls to
@@ -746,10 +745,10 @@ const followPause = 200 * time.Millisecond
 // moves, once after a pause when the text changes (the cursor and the
 // text both say they changed on a keystroke).
 func (w *MainWindow) followSource() {
-	if w.notes == nil {
+	if w.source == nil || !w.paneShown("source") {
 		return
 	}
-	s := w.notes.source
+	s := w.source
 	rev := w.textEditor.Buffer().Rev()
 	edited := rev != w.seenRev
 	w.seenRev = rev
@@ -970,26 +969,10 @@ func (ww *widthWatch) Resize(size fyne.Size) {
 
 // sourcePane is the Notes pane's source tab, made when first wanted.
 func (w *MainWindow) sourcePane() *sourcePane {
-	if w.notes == nil {
-		w.notes = newNotesPanel(w)
+	if w.source == nil {
+		w.source = newSourcePane(w)
 	}
-	return w.notes.source
-}
-
-// toggleSource is View > Source: the Notes pane with the source in it,
-// or (if that is shown) neither.
-func (w *MainWindow) toggleSource() {
-	s := w.sourcePane()
-	if s.shown() {
-		w.toggleNotes()
-		return
-	}
-	w.notes.tabs.Select(w.notes.sourceTab)
-	if !w.notesVisible {
-		w.toggleNotes()
-	}
-	w.fyneWindow.Canvas().Focus(s.focusTarget())
-	s.follow()
+	return w.source
 }
 
 // chooseSource is Adaptation > Choose Source…: a story to be the script's
@@ -1051,7 +1034,7 @@ func (w *MainWindow) showSource() {
 	s := w.sourcePane()
 	s.ref = sourceRef{Origin: -1} // read again
 	if !s.shown() {
-		w.toggleSource()
+		w.showPane("source", true)
 	}
 	s.follow()
 }
@@ -1111,8 +1094,8 @@ func (w *MainWindow) toggleSourceInside() {
 	} else {
 		w.setStatus("The source is kept by Accolade now, out of the script")
 	}
-	if w.notes != nil {
-		w.notes.source.follow()
+	if w.source != nil {
+		w.source.follow()
 	}
 }
 
@@ -1124,7 +1107,7 @@ func (w *MainWindow) linkToSource() {
 	}
 	s := w.sourcePane()
 	if !s.shown() {
-		w.toggleSource()
+		w.showPane("source", true)
 		w.setStatus("Pick the passage in the source, then Link to Source Passage again")
 		return
 	}
@@ -1206,7 +1189,7 @@ func (w *MainWindow) showLearned() {
 	}
 	s := w.sourcePane()
 	if !s.shown() {
-		w.toggleSource()
+		w.showPane("source", true)
 	}
 	if w.sourceRef().Origin == sourceNone {
 		w.setStatus("No source: Adaptation > Choose Source…")

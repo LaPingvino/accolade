@@ -344,7 +344,7 @@ func benchWindowWith(b *testing.B, md, script string, inside bool) (*MainWindow,
 	if err := w.LoadFile(p); err != nil {
 		b.Fatal(err)
 	}
-	w.toggleSource()
+	w.togglePane("source")
 	if inside {
 		if err := w.keepSourceInside(true); err != nil {
 			b.Fatal(err)
@@ -440,7 +440,7 @@ func BenchmarkPaneCursorMove(b *testing.B) {
 			b.Run(name, func(b *testing.B) {
 				w, _, off := benchWindow(b, inside)
 				if hidden {
-					w.toggleNotes()
+					w.togglePane("notes")
 				}
 				e := w.textEditor
 				i := 0
@@ -468,7 +468,7 @@ func BenchmarkPaneOpen(b *testing.B) {
 			os.WriteFile(filepath.Join(dir, "story.md"), []byte(md), 0o644)
 			w.LoadFile(p)
 			b.StartTimer()
-			w.toggleSource()
+			w.togglePane("source")
 		}
 	})
 	b.Run("ui", func(b *testing.B) {

@@ -153,9 +153,8 @@ func TestChangedScenes(t *testing.T) {
 // prodPane is the window's Production pane, shown.
 func prodPane(t *testing.T, w *MainWindow) *productionPane {
 	t.Helper()
-	w.toggleProduction()
-	t.Cleanup(func() { w.settings.SetBoolean("notes-visible", false) })
-	p := w.notes.production
+	w.togglePane("production")
+	p := w.productionPane()
 	if !p.shown() {
 		t.Fatal("the pane is not shown")
 	}
@@ -414,7 +413,7 @@ func TestProductionNarrow(t *testing.T) {
 	if got := w.fyneWindow.Canvas().Capture().Bounds().Dx(); got != 380 {
 		t.Errorf("the window is %d wide", got)
 	}
-	if mw := w.notes.tabbed.MinSize().Width; mw > sourceWidth {
+	if mw := w.paneSplit.Trailing.MinSize().Width; mw > sourceWidth {
 		t.Errorf("the panes are at least %v wide", mw)
 	}
 	if p.box.MinSize().Width > sourceWidth {

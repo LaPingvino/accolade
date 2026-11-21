@@ -334,10 +334,7 @@ func (s *sourcePane) cutsWithout(m *sourceModel, p int) []cutMark {
 func (s *sourcePane) nextPassage() {
 	w := s.w
 	if !s.shown() {
-		w.notes.tabs.Select(w.notes.sourceTab)
-		if !w.notesVisible {
-			w.toggleNotes()
-		}
+		w.showPane("source", false)
 	}
 	s.load()
 	if s.ref.Origin == sourceNone {
@@ -472,7 +469,7 @@ func (w *MainWindow) toggleCutHere() {
 	}
 	s := w.sourcePane()
 	if !s.shown() {
-		w.toggleSource()
+		w.showPane("source", true)
 		w.setStatus("Pick the passage in the source, then Mark Source Passage as Cut again")
 		return
 	}

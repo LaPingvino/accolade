@@ -513,7 +513,7 @@ func TestSaveAsHelpLink(t *testing.T) {
 	w, _ := relocWindow(t)
 	w.showSaveAs()
 	w.showHelp("formats", "save-as-and-rename")
-	if w.notes == nil || w.notes.help == nil || w.notes.help.anchors["save-as-and-rename"] == nil {
+	if w.help == nil || w.help.anchors["save-as-and-rename"] == nil {
 		t.Error("no section save-as-and-rename in File Formats")
 	}
 }

@@ -460,7 +460,7 @@ func (w *MainWindow) suggestSourceLinks() {
 	}
 	s := w.sourcePane()
 	if !s.shown() {
-		w.toggleSource()
+		w.showPane("source", true)
 	}
 	s.offerSuggestions(false)
 }

@@ -82,9 +82,9 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 ## View menu
 
 - **Preview PDF** — Ctrl+Shift+P (“Live Preview” in Markdown)
-- **Outline** — Ctrl+Shift+O
 - **Cards** — Ctrl+Shift+D (screenplay)
 - **Fold or Unfold Here** — Ctrl+Shift+.
+- **Outline** — Ctrl+Shift+O
 - **Notes** — Ctrl+Shift+K
 - **Changes** — Ctrl+Shift+H
 - **Fullscreen** — Ctrl+Shift+F, Alt+Enter

@@ -171,10 +171,10 @@ func (w *MainWindow) learnFromWriting() {
 		return
 	}
 	w.knowScript()
-	if w.notes == nil {
+	if w.source == nil {
 		return
 	}
-	s := w.notes.source
+	s := w.source
 	if s.ref.Origin == sourceNone || s.loading != nil || len(s.passages) == 0 {
 		return
 	}

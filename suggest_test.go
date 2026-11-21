@@ -303,7 +303,7 @@ func TestSuggestNoSource(t *testing.T) {
 	if err := w2.LoadFile(p); err != nil {
 		t.Fatal(err)
 	}
-	if w2.notes != nil && w2.notes.source.shown() {
+	if w2.paneInSight("source") {
 		t.Fatal("the pane is shown")
 	}
 	toEnd(w2)

@@ -1,13 +1,10 @@
 package main
 
 import (
-	"image/color"
 	"strings"
 	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
@@ -146,26 +143,11 @@ func (w *MainWindow) notesMarks() notesMarks {
 	return fountainNotes
 }
 
-// notesPanel is the notepad beside the editor; for a screenplay, with a
-// second tab, its source (source_pane.go), and a third, its production
-// stages (production_pane.go); last, for either, the help (help_pane.go).
+// notesPanel is the script's notepad, a pane of the side dock (dock.go).
 type notesPanel struct {
 	w        *MainWindow
 	entry    *widget.Entry
 	updating bool // the entry is being set from the script
-
-	tabs      *container.AppTabs
-	notesTab  *container.TabItem
-	sourceTab *container.TabItem
-	tabbed    fyne.CanvasObject // notes, source, production and help
-	source    *sourcePane
-
-	productionTab *container.TabItem
-	production    *productionPane
-
-	helpTab *container.TabItem
-	help    *helpPane         // help_pane.go
-	mdBox   fyne.CanvasObject // a Markdown document's: notes and help
 }
 
 func newNotesPanel(w *MainWindow) *notesPanel {
@@ -179,83 +161,44 @@ func newNotesPanel(w *MainWindow) *notesPanel {
 			n.save(notes)
 		}
 	}
-	n.source = newSourcePane(w)
-	n.notesTab = container.NewTabItem("Notes", n.entry)
-	n.sourceTab = container.NewTabItem("Source", n.source.box)
-	n.production = newProductionPane(w)
-	n.productionTab = container.NewTabItem("Production", n.production.box)
-	n.help = newHelpPane(w)
-	n.helpTab = container.NewTabItem("Help", n.help.box)
-	n.tabs = container.NewAppTabs(n.notesTab, n.sourceTab, n.productionTab, n.helpTab)
-	n.tabs.OnSelected = func(t *container.TabItem) {
-		switch t {
-		case n.sourceTab:
-			n.source.follow()
-		case n.productionTab:
-			n.production.refresh()
-		case n.helpTab:
-			if n.help.page.Slug == "" {
-				n.help.open("index", "")
-			}
-		}
-	}
-	wide := canvas.NewRectangle(color.Transparent)
-	wide.SetMinSize(fyne.NewSize(sourceWidth, 0))
-	n.tabbed = container.NewStack(wide, n.tabs)
-	narrow := canvas.NewRectangle(color.Transparent) // a nil colour crashes the painter
-	narrow.SetMinSize(fyne.NewSize(280, 0))
-	n.mdBox = container.NewStack(narrow, n.tabs)
 	return n
 }
 
-// box is the pane as the document has it: a Markdown document's notes,
-// a screenplay's notes and source.
-func (n *notesPanel) box() fyne.CanvasObject {
-	if n.w.markdown {
-		n.setTabs(n.notesTab, n.helpTab)
-		return n.mdBox
+// The dock's panes, each made at its first need.
+
+func (w *MainWindow) notesPane() *notesPanel {
+	if w.notes == nil {
+		w.notes = newNotesPanel(w)
 	}
-	if n.w.writerView() { // production put away (role.go)
-		n.setTabs(n.notesTab, n.sourceTab, n.helpTab)
-		return n.tabbed
-	}
-	n.setTabs(n.notesTab, n.sourceTab, n.productionTab, n.helpTab)
-	return n.tabbed
+	return w.notes
 }
 
-// setTabs makes the tabs items (a Markdown document has no source or
-// production), keeping the one selected if it stays.
-func (n *notesPanel) setTabs(items ...*container.TabItem) {
-	same := len(items) == len(n.tabs.Items)
-	for i := 0; same && i < len(items); i++ {
-		same = items[i] == n.tabs.Items[i]
+func (w *MainWindow) outlinePane() *outlinePanel {
+	if w.outline == nil {
+		w.outline = newOutlinePanel(w)
 	}
-	if same {
-		return
-	}
-	sel := n.tabs.Selected()
-	n.tabs.SetItems(items)
-	for _, it := range items {
-		if it == sel {
-			n.tabs.Select(it)
-		}
-	}
-	n.help.fillPicker() // the cheat sheets in the mode's order
+	return w.outline
 }
 
-// focusTarget is what takes the keyboard in the pane: the notes, or the
-// source if its tab is open.
-func (n *notesPanel) focusTarget() fyne.Focusable {
-	if n.tabs.Selected() == n.helpTab {
-		return n.help.focusTarget()
+func (w *MainWindow) productionPane() *productionPane {
+	if w.production == nil {
+		w.production = newProductionPane(w)
 	}
-	if !n.w.markdown && n.tabs.Selected() == n.sourceTab {
-		return n.source.focusTarget()
+	return w.production
+}
+
+func (w *MainWindow) helpPane() *helpPane {
+	if w.help == nil {
+		w.help = newHelpPane(w)
 	}
-	if !n.w.markdown && n.tabs.Selected() == n.productionTab {
-		return n.production.focusTarget()
+	return w.help
+}
+
+func (w *MainWindow) changesPane() *changesPanel {
+	if w.changesPanel == nil {
+		w.changesPanel = newChangesPanel(w)
 	}
-	return n.entry
+	return w.changesPanel
 }
 
 // update shows the script's notes, unless they are being typed.

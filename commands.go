@@ -586,7 +586,6 @@ func newRegistry() *registry {
 		// live preview beside the editor, shown or hidden
 		&command{id: "view.preview", label: "Preview PDF", mdLabel: "Live Preview", keys: []fyne.Shortcut{shortcut(fyne.KeyP, fyne.KeyModifierShift)}, icon: theme.VisibilityIcon,
 			run: (*MainWindow).preview, checked: func(w *MainWindow) bool { return w.markdown && w.previewVisible }},
-		&command{id: "view.outline", label: "Outline", keys: []fyne.Shortcut{shortcut(fyne.KeyO, fyne.KeyModifierShift)}, icon: theme.ListIcon, run: (*MainWindow).toggleOutline},
 		&command{id: "view.cards", label: "Cards", keys: []fyne.Shortcut{shortcut(fyne.KeyD, fyne.KeyModifierShift)}, icon: theme.GridIcon, when: screenplayOnly,
 			run: (*MainWindow).toggleCards},
 		&command{id: "view.foldHere", label: "Fold or Unfold Here", keys: []fyne.Shortcut{shortcut(fyne.KeyPeriod, fyne.KeyModifierShift)}, icon: res(foldIcon),
@@ -594,12 +593,6 @@ func newRegistry() *registry {
 		&command{id: "view.foldSections", label: "Fold All (Sections Only)", icon: res(foldSectionsIcon), run: func(w *MainWindow) { w.foldOverview(w.outlineItems(w.textEditor.Text())) }},
 		&command{id: "view.headingsOnly", label: "Headings Only", icon: func() fyne.Resource { return headingIcon }, run: (*MainWindow).foldHeadings},
 		&command{id: "view.unfoldAll", label: "Unfold All", icon: res(unfoldIcon), run: func(w *MainWindow) { w.foldAll(true) }},
-		&command{id: "view.notes", label: "Notes", keys: []fyne.Shortcut{shortcut(fyne.KeyK, fyne.KeyModifierShift)}, icon: theme.FileTextIcon, run: (*MainWindow).toggleNotes},
-		&command{id: "view.source", label: "Source", tip: "Source: the story the script adapts", icon: func() fyne.Resource { return sourceIcon },
-			when: screenplayOnly, run: (*MainWindow).toggleSource},
-		&command{id: "view.production", label: "Production", tip: "Production: lock, revise, and the stages to the shoot", icon: func() fyne.Resource { return productionIcon },
-			when: screenplayOnly, role: productionRole, run: (*MainWindow).toggleProduction},
-		&command{id: "view.changes", label: "Changes", keys: []fyne.Shortcut{shortcut(fyne.KeyH, fyne.KeyModifierShift)}, icon: res(changesIcon), run: (*MainWindow).toggleChanges},
 		&command{id: "view.statistics", label: "Statistics…", icon: res(statisticsIcon), when: screenplayOnly, run: (*MainWindow).showStatistics},
 		// Alt+Enter too, as in many programs
 		&command{id: "view.fullscreen", label: "Fullscreen", tip: "Full screen, without distractions", icon: theme.ViewFullScreenIcon,
@@ -627,6 +620,7 @@ func newRegistry() *registry {
 	add(&command{id: "app.palette", label: "Command Palette…", tip: "Command palette: find any command", icon: func() fyne.Resource { return paletteIcon },
 		keys: []fyne.Shortcut{shortcut(fyne.KeyK, 0), plainKey(fyne.KeyF1, 0)}, run: (*MainWindow).showPalette})
 	add(&command{id: "help.about", label: "About Accolade", icon: theme.InfoIcon, run: func(w *MainWindow) { w.app.showAbout() }})
+	add(dockCommands()...)    // the side dock's panes and its own (dock.go)
 	add(helpCommands()...)    // help_pane.go
 	add(settingCommands()...) // ribbon_settings.go
 
@@ -681,12 +675,13 @@ func newRegistry() *registry {
 			at("file.share"), at("file.join"),
 			sep(), at("file.saveDraft"), at("file.drafts"), at("collab.compare"),
 		}},
-		{title: "View", homes: []home{
-			at("view.preview"), at("view.outline"), at("view.cards"), at("view.foldHere"), at("view.foldSections"),
-			at("view.headingsOnly"), at("view.unfoldAll"), at("view.notes"), at("view.source"), at("view.production"),
-			at("view.help"), at("view.changes"), at("view.statistics"), at("view.fullscreen"),
+		{title: "View", homes: append(append([]home{
+			at("view.preview"), at("view.cards"), at("view.foldHere"), at("view.foldSections"),
+			at("view.headingsOnly"), at("view.unfoldAll"), sep()},
+			dockHomes()...), // the side dock's panes together, and its own (dock.go)
+			sep(), at("view.statistics"), at("view.fullscreen"),
 			sep(), at("view.documentType"), at("view.role"),
-		}},
+		)},
 		{title: "Help", homes: helpMenu()},
 	}
 	r.topRow = []home{
@@ -984,7 +979,8 @@ func ribbonLayout() []ribbonTab {
 			{title: "Drafts", homes: []home{big("file.saveDraft"), at("file.drafts"), at("collab.compare")}},
 		}},
 		{title: "View", groups: []ribbonGroup{
-			{title: "Panes", homes: []home{big("view.outline"), big("view.notes"), at("view.cards"), at("view.source"), at("view.production"), at("view.help"), at("view.changes")}},
+			// the side dock's panes (dock.go)
+			{title: "Panes", homes: dockRibbonHomes(at("view.cards"))},
 			// what the window shows; its look (the preferences changed while working: ribbon_settings.go)
 			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")}},
 			{title: "Folding", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll")}},

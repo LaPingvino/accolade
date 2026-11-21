@@ -40,11 +40,10 @@ func TestRoleWriterPutsProductionAway(t *testing.T) {
 			t.Error("View > Production (the pane) in Writer")
 		}
 	}
-	w.toggleNotes()
-	for _, it := range w.notes.tabs.Items {
-		if it == w.notes.productionTab {
-			t.Error("the side panel's Production tab in Writer")
-		}
+	w.togglePane("notes")
+	w.showPane("production", false)
+	if tabs := dockTitles(w, dockBottom); tabs != "Notes" {
+		t.Errorf("the side panel's tabs in Writer: %q", tabs)
 	}
 	for _, it := range w.headerBar.top.items {
 		if it.obj == w.headerBar.button("view.production") && !it.off {
@@ -76,12 +75,9 @@ func TestRoleWriterPutsProductionAway(t *testing.T) {
 	if !strings.Contains(strings.Join(menuTitles(w.fyneWindow.MainMenu()), " "), "Production") {
 		t.Error("Production: no Production menu")
 	}
-	found := false
-	for _, it := range w.notes.tabs.Items {
-		found = found || it == w.notes.productionTab
-	}
-	if !found {
-		t.Error("Production: no Production tab in the side panel")
+	w.showPane("production", false)
+	if tabs := dockTitles(w, dockBottom); tabs != "Notes Production" {
+		t.Errorf("Production: the side panel's tabs %q", tabs)
 	}
 }
 
@@ -89,12 +85,12 @@ func TestRoleWriterPutsProductionAway(t *testing.T) {
 // left without its toggle.
 func TestRoleWriterClosesProductionPane(t *testing.T) {
 	w := newTestWindow(t, lockedScript)
-	w.toggleProduction()
-	if !w.notes.production.shown() {
+	w.togglePane("production")
+	if !w.productionPane().shown() {
 		t.Fatal("the pane did not open")
 	}
 	workAsFor(t, w, roleWriter)
-	if w.notes.production.shown() || w.notes.tabs.Selected() == w.notes.productionTab {
+	if w.productionPane().shown() || w.paneShown("production") {
 		t.Error("the Production pane stays open in Writer")
 	}
 }
@@ -419,8 +415,8 @@ func TestRoleScreenshots(t *testing.T) {
 			w.fyneWindow.Resize(size.size)
 			w.settings.SetString(lookPref, "menus")
 			w.applyEditorSettings()
-			if !w.notesVisible {
-				w.toggleNotes()
+			if !w.paneShown("notes") {
+				w.togglePane("notes")
 			}
 			clear()
 			// the menu bar's menus, in a menu (the test window draws none)

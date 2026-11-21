@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))) // the moves write Linux keys too
+		want := dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -725,6 +725,39 @@ func modeLabelMoves(name, golden string) string {
 		golden = strings.ReplaceAll(golden, r[0], r[1])
 	}
 	return golden
+}
+
+// dockMoves: the side dock (dock.go) gathers its panes in the View menu,
+// after the folding, between separators, in the dock's order (Outline
+// moves down from beside Preview to join them), and adds its own: Side
+// Panes (all in and out), Move Pane to Top and Move Pane to Bottom.
+// Nothing else: the keys, header, context menu and full screen are as
+// they were.
+func dockMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-") {
+		return golden
+	}
+	ms := parseGoldenMenus(golden)
+	var panes []string
+	for _, l := range []string{"Outline", "Notes", "Source", "Production", "Help", "Changes"} {
+		if it := takeItem(ms, "View", l); it != "" {
+			panes = append(panes, it)
+		}
+	}
+	panes = append(panes, "  Side Panes", "  Move Pane to Top", "  Move Pane to Bottom")
+	for i := range ms {
+		if ms[i].title != "View" {
+			continue
+		}
+		for j, it := range ms[i].items {
+			if ms[i].labelOf(it) == "Unfold All" {
+				in := append(append([]string{"  ---"}, panes...), "  ---")
+				ms[i].items = slices.Insert(ms[i].items, j+1, in...)
+				break
+			}
+		}
+	}
+	return joinMenus(ms)
 }
 
 // writerMoves is a Production golden as a writer sees it (role.go): the

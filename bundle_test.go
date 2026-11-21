@@ -534,7 +534,7 @@ func TestBundleSource(t *testing.T) {
 	}
 	// the pane edits it there
 	s := w.sourcePane()
-	w.toggleSource()
+	w.togglePane("source")
 	s.follow()
 	s.toggleEdit()
 	s.editor.SetText("# Novel\n\nIt was day.\n")

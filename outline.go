@@ -182,7 +182,6 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 	}
 	width := canvas.NewRectangle(color.Transparent) // a nil colour crashes the painter
 	width.SetMinSize(fyne.NewSize(240, 0))
-	heading := widget.NewLabelWithStyle("Outline", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	fyne.SetAccessibleLabel(o.list, "Outline")
 	o.filter = widget.NewEntry()
 	o.filter.SetPlaceHolder("Filter scenes and sections")
@@ -196,7 +195,8 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 	o.cards = widget.NewButtonWithIcon("", theme.GridIcon(), w.toggleCards)
 	o.cards.Importance = widget.LowImportance
 	fyne.SetAccessibleLabel(o.cards, "Cards: the outline as index cards")
-	o.box = container.NewStack(width, container.NewBorder(container.NewVBox(container.NewBorder(nil, nil, nil, o.cards, heading), o.filter), nil, nil, nil, o.list))
+	// its tab in the dock names it (dock.go)
+	o.box = container.NewStack(width, container.NewBorder(container.NewBorder(nil, nil, nil, o.cards, o.filter), nil, nil, nil, o.list))
 	return o
 }
 

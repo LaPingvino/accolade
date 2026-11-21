@@ -31,21 +31,21 @@ func TestNotesBlock(t *testing.T) {
 func TestNotesPanel(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.textEditor.SetText("INT. A - DAY\n\nHi.\n")
-	w.toggleNotes()
-	test.Type(w.notes.entry, "Call Bram.")
+	w.togglePane("notes")
+	test.Type(w.notesPane().entry, "Call Bram.")
 	if got := w.textEditor.Text(); got != "INT. A - DAY\n\nHi.\n\n/* Notes\nCall Bram.\n*/\n" {
 		t.Fatalf("script with notes: %q", got)
 	}
 	// typing on in the script keeps the notes at the end
 	w.textEditor.SetText(strings.Replace(w.textEditor.Text(), "Hi.", "Hello.", 1))
-	if w.notes.entry.Text != "Call Bram." {
-		t.Errorf("notes after an edit: %q", w.notes.entry.Text)
+	if w.notesPane().entry.Text != "Call Bram." {
+		t.Errorf("notes after an edit: %q", w.notesPane().entry.Text)
 	}
-	w.notes.entry.SetText("")
+	w.notesPane().entry.SetText("")
 	if got := w.textEditor.Text(); got != "INT. A - DAY\n\nHello.\n" {
 		t.Errorf("notes removed: %q", got)
 	}
-	if w.outlineVisible {
+	if w.paneShown("outline") {
 		t.Error("outline and notes at once")
 	}
 	// the exports do not print them
@@ -76,22 +76,18 @@ func TestNotesOnlyAtTheEnd(t *testing.T) {
 // F6 / Shift+F6 go round the panes that are shown.
 func TestCyclePanes(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
-	t.Cleanup(func() {
-		w.settings.SetBoolean("notes-visible", false)
-		w.settings.SetBoolean("outline-visible", false)
-	})
 	c := w.fyneWindow.Canvas()
 	c.Focus(w.textEditor)
 	w.cyclePane(1)
 	if c.Focused() != w.textEditor {
 		t.Errorf("one pane: focus on %T", c.Focused())
 	}
-	w.toggleNotes()
+	w.togglePane("notes")
 	w.showFind()
 	t.Cleanup(w.hideFindReplace)
 	c.Focus(w.textEditor)
 	w.cyclePane(1)
-	if c.Focused() != w.notes.entry {
+	if c.Focused() != w.notesPane().entry {
 		t.Errorf("F6 from the editor: %T", c.Focused())
 	}
 	w.cyclePane(1)
@@ -112,8 +108,7 @@ func TestCyclePanes(t *testing.T) {
 // side panel, then the editor (which keeps Tab).
 func TestTabOrderFollowsTheScreen(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
-	t.Cleanup(func() { w.settings.SetBoolean("notes-visible", false) })
-	w.toggleNotes()
+	w.togglePane("notes")
 	c := w.fyneWindow.Canvas()
 	c.Unfocus()
 	var order []string
@@ -122,7 +117,7 @@ func TestTabOrderFollowsTheScreen(t *testing.T) {
 		switch f := c.Focused(); f {
 		case w.textEditor:
 			order = append(order, "editor")
-		case w.notes.entry:
+		case w.notesPane().entry:
 			order = append(order, "notes")
 		default:
 			order = append(order, "toolbar")

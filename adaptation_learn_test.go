@@ -470,7 +470,7 @@ func TestLearnPaneHidden(t *testing.T) {
 	if err := w.LoadFile(p); err != nil {
 		t.Fatal(err)
 	}
-	if w.notes != nil && w.notes.source.shown() {
+	if w.paneInSight("source") {
 		t.Fatal("the pane is shown")
 	}
 	toEnd(w)

@@ -256,8 +256,8 @@ func (w *MainWindow) productionStage() int {
 	if w.markdown || w.textEditor == nil {
 		return stageLock
 	}
-	if w.notes != nil && w.notes.production.shown() {
-		return w.notes.production.view()
+	if w.production != nil && w.production.shown() {
+		return w.production.view()
 	}
 	stage, _, _ := w.scriptStage()
 	return stage

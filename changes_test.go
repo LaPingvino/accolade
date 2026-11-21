@@ -49,8 +49,8 @@ func TestChangesHistory(t *testing.T) {
 		t.Errorf("b's own edit is in b's history: %+v", b.changes)
 	}
 
-	a.toggleChanges()
-	if !a.changesVisible || a.changesPanel.list.Length() != 1 {
+	a.togglePane("changes")
+	if !a.paneShown("changes") || a.changesPanel.list.Length() != 1 {
 		t.Errorf("the panel lists %d", a.changesPanel.list.Length())
 	}
 	a.changesPanel.list.Select(0)

@@ -96,10 +96,6 @@ func TestFocusIsVisible(t *testing.T) {
 		t.Skip("pixel capture of focus: checked by the runs without -race")
 	}
 	w, app := newDialogTestWindow(t)
-	t.Cleanup(func() {
-		w.settings.SetBoolean("outline-visible", false)
-		w.settings.SetBoolean("notes-visible", false)
-	})
 	w.textEditor.SetText("Title: X\n\nINT. BARN - DAY\n\nRain.\n")
 	w.fyneWindow.Resize(fyne.NewSize(1000, 700))
 	check := func(what string, c fyne.Canvas) {
@@ -107,7 +103,7 @@ func TestFocusIsVisible(t *testing.T) {
 			t.Errorf("%s: the focus is not seen on\n  %s", what, strings.Join(u, "\n  "))
 		}
 	}
-	w.toggleOutline()
+	w.togglePane("outline")
 	w.showFindReplace()
 	check("window with outline and search", w.fyneWindow.Canvas())
 	w.hideFindReplace()

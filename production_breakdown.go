@@ -52,7 +52,7 @@ func (b *breakdownStage) make(p *productionPane) {
 
 // productionShowsBreakdown tells whether the pane shows Break down.
 func (w *MainWindow) productionShowsBreakdown() bool {
-	return w.notes != nil && w.notes.production.shown() && w.notes.production.view() == stageBreakdown
+	return w.production != nil && w.production.shown() && w.production.view() == stageBreakdown
 }
 
 // showBreakdownStage is Production > Break Down…: the pane at its third
@@ -61,10 +61,10 @@ func (w *MainWindow) showBreakdownStage() {
 	if w.markdown {
 		return
 	}
-	if w.notes == nil || !w.notes.production.shown() {
-		w.toggleProduction()
+	if w.production == nil || !w.production.shown() {
+		w.showPane("production", true)
 	}
-	w.notes.production.pick(stageBreakdown)
+	w.productionPane().pick(stageBreakdown)
 }
 
 // breakdownFollowCursor shows the scene the cursor went to, when the
@@ -74,8 +74,8 @@ func (w *MainWindow) breakdownFollowCursor() {
 	if !w.productionShowsBreakdown() || w.breakdown.bt == nil || !sameString(w.breakdown.text, w.textEditor.Text()) {
 		return
 	}
-	if w.breakdown.bt.sceneAt(w.textEditor.CursorOffset()) != w.notes.production.bd.scene {
-		w.notes.production.refresh()
+	if w.breakdown.bt.sceneAt(w.textEditor.CursorOffset()) != w.production.bd.scene {
+		w.production.refresh()
 	}
 }
 
@@ -400,7 +400,7 @@ func (w *MainWindow) markSceneDoneHere() {
 		return
 	}
 	if w.productionShowsBreakdown() {
-		w.markSceneDone(w.notes.production.bd.scene)
+		w.markSceneDone(w.production.bd.scene)
 		return
 	}
 	_, bt, _ := w.breakdownNowFound()

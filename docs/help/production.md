@@ -6,7 +6,7 @@ The Production menu is there for screenplays (not for Markdown documents), when 
 
 ## The Production pane
 
-View > Production opens a tab beside Notes and Source. It walks through the stages, one button each:
+View > Production opens a tab in the side panes (see [Help Contents](index.md), Side panes). It walks through the stages, one button each:
 
 1. **Lock** — check the script, then lock the scene numbers and the pages, and issue the White draft.
 2. **Revise** — the open revision: its colour, how many pages changed, which scenes.

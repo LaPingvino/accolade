@@ -40,10 +40,10 @@ func (w *MainWindow) showScheduleStage() {
 	if w.markdown {
 		return
 	}
-	if w.notes == nil || !w.notes.production.shown() {
-		w.toggleProduction()
+	if w.production == nil || !w.production.shown() {
+		w.showPane("production", true)
 	}
-	w.notes.production.pick(stageSchedule)
+	w.productionPane().pick(stageSchedule)
 }
 
 // showSchedule is the stage.

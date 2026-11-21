@@ -111,18 +111,17 @@ func helpWindow(t *testing.T, slug string) *MainWindow {
 // Production; links go to their page and heading; Back comes back.
 func TestHelpTab(t *testing.T) {
 	w := helpWindow(t, "index")
-	n := w.notes
-	if !w.notesVisible || n.tabs.Selected() != n.helpTab || n.help.page.Slug != "index" {
-		t.Fatalf("Help not shown: visible %v, page %q", w.notesVisible, n.help.page.Slug)
+	if !w.paneInSight("help") || w.help.page.Slug != "index" {
+		t.Fatalf("Help not shown: in sight %v, page %q", w.paneInSight("help"), w.help.page.Slug)
 	}
-	var tabs []string
-	for _, it := range n.tabs.Items {
-		tabs = append(tabs, it.Text)
+	for _, id := range []string{"notes", "source", "production"} {
+		w.showPane(id, false)
 	}
-	if strings.Join(tabs, " ") != "Notes Source Production Help" {
-		t.Errorf("tabs %q", tabs)
+	w.showHelp("index", "")
+	if tabs := dockTitles(w, dockBottom); tabs != "Notes Source Production Help" || !w.paneInSight("help") {
+		t.Errorf("tabs %q, help in sight %v", tabs, w.paneInSight("help"))
 	}
-	if c := w.fyneWindow.Canvas().Focused(); c != n.help.search {
+	if c := w.fyneWindow.Canvas().Focused(); c != w.help.search {
 		t.Errorf("focus on %T", c)
 	}
 	if u := unnamed(w.fyneWindow.Canvas()); len(u) > 0 {
@@ -130,34 +129,34 @@ func TestHelpTab(t *testing.T) {
 	}
 	for _, p := range help.Pages() {
 		menuRun(t, w, "Help", map[string]string{"index": "Help Contents", "production": "Production Help"}[p.Slug], p.Title)
-		if n.help.page.Slug != p.Slug || len(n.help.content.Objects) == 0 {
-			t.Errorf("Help > %s showed %q", p.Title, n.help.page.Slug)
+		if w.help.page.Slug != p.Slug || len(w.help.content.Objects) == 0 {
+			t.Errorf("Help > %s showed %q", p.Title, w.help.page.Slug)
 		}
 	}
 	// a link to another page's heading
 	w.showHelp("index", "")
-	n.help.follow("final-draft.md")
-	if n.help.page.Slug != "final-draft" {
-		t.Fatalf("link went to %q", n.help.page.Slug)
+	w.help.follow("final-draft.md")
+	if w.help.page.Slug != "final-draft" {
+		t.Fatalf("link went to %q", w.help.page.Slug)
 	}
-	n.help.goBack()
-	if n.help.page.Slug != "index" {
-		t.Errorf("Back went to %q", n.help.page.Slug)
+	w.help.goBack()
+	if w.help.page.Slug != "index" {
+		t.Errorf("Back went to %q", w.help.page.Slug)
 	}
 	// a heading on the page: scrolled to it
 	w.showHelp("shortcuts", "")
-	secs := help.Sections(n.help.page.Markdown)
+	secs := help.Sections(w.help.page.Markdown)
 	anchor := secs[3].Anchor
-	n.help.follow("#" + anchor)
-	if n.help.scroll.Offset.Y <= 0 || n.help.scroll.Offset.Y != n.help.anchors[anchor].Position().Y {
-		t.Errorf("not scrolled to #%s: %v", anchor, n.help.scroll.Offset)
+	w.help.follow("#" + anchor)
+	if w.help.scroll.Offset.Y <= 0 || w.help.scroll.Offset.Y != w.help.anchors[anchor].Position().Y {
+		t.Errorf("not scrolled to #%s: %v", anchor, w.help.scroll.Offset)
 	}
 	// web addresses go to the browser
 	var opened []string
 	oldOpen := openWebPage
 	openWebPage = func(u string) { opened = append(opened, u) }
 	t.Cleanup(func() { openWebPage = oldOpen })
-	n.help.follow("https://example.org/x")
+	w.help.follow("https://example.org/x")
 	if len(opened) != 1 || opened[0] != "https://example.org/x" {
 		t.Errorf("opened %q", opened)
 	}
@@ -185,7 +184,7 @@ func menuRun(t *testing.T, w *MainWindow, menu string, labels ...string) {
 // The links in the app's pages each go to a page or heading the app has.
 func TestHelpLinksInApp(t *testing.T) {
 	w := helpWindow(t, "index")
-	h := w.notes.help
+	h := w.helpPane()
 	for _, p := range w.helpPages() {
 		h.open(p.Slug, "")
 		var walk func([]widget.RichTextSegment)
@@ -217,7 +216,7 @@ func TestHelpLinksInApp(t *testing.T) {
 // Search lists the places with the words; a hit opens its page there.
 func TestHelpSearch(t *testing.T) {
 	w := helpWindow(t, "index")
-	h := w.notes.help
+	h := w.helpPane()
 	test.Type(h.search, "parenthetical")
 	if len(h.content.Objects) < 2 {
 		t.Fatalf("no hits: %d", len(h.content.Objects))
@@ -233,7 +232,7 @@ func TestHelpSearch(t *testing.T) {
 // order; the shortcuts are the mode's.
 func TestHelpPickerFollowsMode(t *testing.T) {
 	w := helpWindow(t, "cheat-shortcuts")
-	h := w.notes.help
+	h := w.helpPane()
 	firstCheat := func() string {
 		for _, o := range h.picker.Options {
 			if strings.HasPrefix(o, "Cheat sheet: ") {
@@ -253,11 +252,9 @@ func TestHelpPickerFollowsMode(t *testing.T) {
 	if got := firstCheat(); got != "Cheat sheet: Markdown Syntax" {
 		t.Errorf("Markdown's first: %q", got)
 	}
-	var tabs []string
-	for _, it := range w.notes.tabs.Items {
-		tabs = append(tabs, it.Text)
-	}
-	if strings.Join(tabs, " ") != "Notes Help" {
+	w.showPane("notes", false)
+	w.showPane("source", false) // a screenplay's: not in a Markdown document's dock
+	if tabs := dockTitles(w, dockBottom); tabs != "Notes Help" {
 		t.Errorf("Markdown's tabs %q", tabs)
 	}
 	if strings.Contains(h.page.Markdown, "Tab** on an empty line: a cue") || strings.Contains(h.page.Markdown, "Scene Heading") {
@@ -282,7 +279,7 @@ func TestHelpOnlineAndFeedback(t *testing.T) {
 	if len(opened) != 1 || opened[0] != help.URL("production", appVersion(), "") {
 		t.Errorf("Online Help opened %q", opened)
 	}
-	test.Tap(w.notes.help.online)
+	test.Tap(w.helpPane().online)
 	if len(opened) != 2 || opened[1] != opened[0] {
 		t.Errorf("the globe opened %q", opened)
 	}
@@ -300,7 +297,7 @@ func TestHelpPrint(t *testing.T) {
 	printFile = func(p string) { printed = p }
 	t.Cleanup(func() { printFile = old })
 	w := helpWindow(t, "cheat-dood")
-	test.Tap(w.notes.help.print)
+	test.Tap(w.helpPane().print)
 	b, err := os.ReadFile(printed)
 	if err != nil {
 		t.Fatal(err)
@@ -315,7 +312,7 @@ func TestHelpPhone(t *testing.T) {
 	w := helpWindow(t, "fountain")
 	w.fyneWindow.Resize(fyne.NewSize(380, 800))
 	w.fyneWindow.Content().Refresh()
-	if mw := w.notes.help.box.MinSize().Width; mw > 380 {
+	if mw := w.helpPane().box.MinSize().Width; mw > 380 {
 		t.Errorf("the Help tab is %v wide", mw)
 	}
 	if dir := os.Getenv("SHOT_DIR"); dir != "" {

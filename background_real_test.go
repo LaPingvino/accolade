@@ -65,7 +65,7 @@ func TestLongSourceReadInBackground(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "story.md"), []byte(long), 0o644)
 	w.LoadFile(p)
 	realPaths(t)
-	w.toggleSource()
+	w.togglePane("source")
 	s := w.sourcePane()
 	waitFor(t, "the passages", func() bool { return s.loading == nil && len(s.passages) > 2000 })
 	waitFor(t, "every row measured", func() bool {

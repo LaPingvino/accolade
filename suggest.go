@@ -261,7 +261,7 @@ func (sg *suggester) source() *sourcePane {
 	rev := w.textEditor.Buffer().Rev()
 	// the pane is made for a script with a source only
 	load := func() {
-		if w.notes != nil || w.sourceRef().Origin != sourceNone {
+		if w.source != nil || w.sourceRef().Origin != sourceNone {
 			w.sourcePane().loadSource(true)
 		}
 	}
@@ -272,17 +272,17 @@ func (sg *suggester) source() *sourcePane {
 		w.knowScript()
 	case rev != sg.seenRev: // the pane reads it again as it follows; hidden, after a pause
 		sg.seenRev = rev
-		if w.notes == nil || !w.notes.source.shown() {
+		if w.source == nil || !w.source.shown() {
 			w.debounce(&sg.loadTimer, time.Second, func() {
 				load()
 				w.learnFromWriting() // the pane hidden, it does not follow
 			})
 		}
 	}
-	if w.notes == nil {
+	if w.source == nil {
 		return nil
 	}
-	s := w.notes.source
+	s := w.source
 	if s.ref.Origin == sourceNone || s.loading != nil || len(s.passages) == 0 {
 		return nil
 	}

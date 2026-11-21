@@ -358,8 +358,8 @@ func TestRibbonKeyTips(t *testing.T) {
 		t.Fatal("Outline has no tip")
 	}
 	c.Focused().(fyne.Focusable).TypedRune([]rune(outline.tip)[0])
-	if !w.outlineVisible || r.tipsOn {
-		t.Errorf("Outline's tip: outline %v, tips %v", w.outlineVisible, r.tipsOn)
+	if !w.paneShown("outline") || r.tipsOn {
+		t.Errorf("Outline's tip: outline %v, tips %v", w.paneShown("outline"), r.tipsOn)
 	}
 	if w.textEditor.Text() != text {
 		t.Error("a key tip was typed into the script")
@@ -500,7 +500,7 @@ func TestRibbonKeyboard(t *testing.T) {
 	outline := buttonOf(r, "view.outline")
 	c.Focus(outline)
 	outline.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-	if !w.outlineVisible {
+	if !w.paneShown("outline") {
 		t.Error("Enter did not press Outline")
 	}
 	if outline.AccessibilityRole() != fyne.AccessibleRoleButton || !strings.HasPrefix(outline.AccessibilityLabel(), "Outline"+keys("Shift+O")) {
@@ -651,23 +651,22 @@ func TestRibbonShotMatrix(t *testing.T) {
 						snap(name)
 						continue
 					}
-					p := w.notes.production
+					p := w.productionPane()
 					if !p.shown() {
-						w.toggleProduction()
+						w.togglePane("production")
 					}
 					for i, s := range stages {
 						p.pick(stageLock + i)
 						r.refresh()
 						snap(name + "-" + s)
 					}
-					w.toggleProduction()
+					w.togglePane("production")
 				}
 			}
 		}
 	}
 	w.workAs(roleProduction)
 	w.setDocumentType(false)
-	w.settings.SetBoolean("notes-visible", false)
 	// the widest Write tabs, and the key tips over the short labels
 	w.fyneWindow.Resize(fyne.NewSize(1000, 600))
 	for _, f := range []string{"series", "radio"} {
@@ -768,15 +767,15 @@ func TestRibbonFitsDesktop(t *testing.T) {
 					w.settings.SetString("script-format", "default")
 					r.refresh()
 				case tab.title == "Production":
-					if !w.notes.production.shown() {
-						w.toggleProduction()
+					if !w.productionPane().shown() {
+						w.togglePane("production")
 					}
 					for s := stageLock; s <= stageSchedule; s++ {
-						w.notes.production.pick(s)
+						w.productionPane().pick(s)
 						r.refresh()
 						check(fmt.Sprintf("%s stage %d", what, s))
 					}
-					w.toggleProduction()
+					w.togglePane("production")
 				default:
 					check(what)
 				}

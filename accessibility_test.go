@@ -47,17 +47,13 @@ func unnamed(c fyne.Canvas) []string {
 // window with all its panes, every Preferences page and the dialogs.
 func TestEverythingHasAName(t *testing.T) {
 	w, app := newDialogTestWindow(t)
-	t.Cleanup(func() {
-		w.settings.SetBoolean("outline-visible", false)
-		w.settings.SetBoolean("notes-visible", false)
-	})
 	w.textEditor.SetText("Title: X\n\nINT. BARN - DAY\n\nRain.\n\nANNA\nHi.\n")
 	check := func(what string, c fyne.Canvas) {
 		if u := unnamed(c); len(u) > 0 {
 			t.Errorf("%s: no name for\n  %s", what, strings.Join(u, "\n  "))
 		}
 	}
-	w.toggleOutline()
+	w.togglePane("outline")
 	w.showFindReplace()
 	check("window with outline and search", w.fyneWindow.Canvas())
 	w.hideFindReplace()
@@ -65,7 +61,7 @@ func TestEverythingHasAName(t *testing.T) {
 	w.pickColorHere(nil)
 	check("color picker", w.fyneWindow.Canvas())
 	w.fyneWindow.Canvas().Overlays().Top().Hide()
-	w.toggleNotes()
+	w.togglePane("notes")
 	check("window with notes", w.fyneWindow.Canvas())
 
 	pd := NewPreferencesDialog(app, w.fyneWindow)

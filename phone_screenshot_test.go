@@ -24,7 +24,7 @@ func TestPhoneScreenshots(t *testing.T) {
 		t.Fatal(err)
 	}
 	w, _ := sourceWindow(t, sourceScript, wideStory())
-	w.toggleSource() // closed again: the script alone first
+	w.togglePane("source") // closed again: the script alone first
 	w.fyneWindow.Resize(fyne.NewSize(380, 800))
 	snap := func(name string) {
 		t.Helper()
@@ -39,7 +39,7 @@ func TestPhoneScreenshots(t *testing.T) {
 		}
 	}
 	snap("1-script")
-	w.toggleSource()
+	w.togglePane("source")
 	s := w.sourcePane()
 	s.follow()
 	snap("2-source")
@@ -52,10 +52,10 @@ func TestPhoneScreenshots(t *testing.T) {
 		y += s.heights[i] + theme.Padding()
 	}
 	snap("3-source-table")
-	w.notes.tabs.Select(w.notes.notesTab)
+	w.togglePane("notes")
 	snap("4-notes")
-	w.notes.tabs.Select(w.notes.sourceTab)
-	w.toggleSource()
+	w.togglePane("notes")
+	w.togglePane("source")
 	snap("5-script-again")
 	// the dialogs, no wider than the phone
 	c := w.fyneWindow.Canvas()

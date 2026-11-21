@@ -113,8 +113,8 @@ func comboShot(t *testing.T, w *MainWindow, name string) {
 		size fyne.Size
 	}{{"wide", fyne.NewSize(1100, 650)}, {"phone", fyne.NewSize(380, 800)}} {
 		w.fyneWindow.Resize(size.size)
-		if w.notes != nil {
-			w.notes.source.follow()
+		if w.source != nil {
+			w.source.follow()
 		}
 		w.fyneWindow.Content().Refresh()
 		f, err := os.Create(filepath.Join(dir, "combo-"+name+"-"+size.name+".png"))
@@ -181,7 +181,7 @@ func TestComboNoSource(t *testing.T) {
 		w, _ := newDialogTestWindow(t)
 		t.Setenv("XDG_DATA_HOME", t.TempDir())
 		w.createNewFile(true)
-		w.toggleSource()
+		w.togglePane("source")
 		s := w.sourcePane()
 		if s.body.Objects[0] != s.empty || s.tools.Visible() || s.edit.Visible() {
 			t.Fatalf("no source: body %T, tools %v, edit %v", s.body.Objects[0], s.tools.Visible(), s.edit.Visible())
@@ -218,7 +218,7 @@ func TestComboNoSource(t *testing.T) {
 	})
 	t.Run("script", func(t *testing.T) {
 		w, _ := scriptWindow(t, comboNoLinks)
-		w.toggleSource()
+		w.togglePane("source")
 		s := w.sourcePane()
 		if s.body.Objects[0] != s.empty || s.tools.Visible() {
 			t.Fatalf("no source: body %T, tools %v", s.body.Objects[0], s.tools.Visible())

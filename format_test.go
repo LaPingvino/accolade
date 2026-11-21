@@ -122,8 +122,8 @@ func TestFormatMenuNeedsTheEditor(t *testing.T) {
 			}
 		}
 	}
-	w.toggleNotes()
-	w.fyneWindow.Canvas().Focus(w.notes.entry)
+	w.togglePane("notes")
+	w.fyneWindow.Canvas().Focus(w.notesPane().entry)
 	bold()
 	if w.textEditor.Text() != "INT. A - DAY\n" {
 		t.Errorf("Ctrl+B in the notes changed the script: %q", w.textEditor.Text())

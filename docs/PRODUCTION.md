@@ -457,7 +457,7 @@ Effort is rough: S is a day or two of ticks, M a week, L more.
 The adaptation workflow's strength is one pane that says where you are and what is next: "50% adapted · 1 cut · 3 to
 go", and Next. Production gets the same.
 
-The **Production pane** (View > Production, a tab beside Notes and Source) shows the stage and one count per stage:
+The **Production pane** (View > Production, a tab in the side dock) shows the stage and one count per stage:
 
 1. **Lock.** A check before the lock lists the scenes without a heading time, duplicate numbers and an unsaved
    title page. Then Number and Lock Scenes, and Lock Pages. Issuing White is the lock. From then on the pane says

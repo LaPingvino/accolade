@@ -146,7 +146,7 @@ func TestMarkdownOutline(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.setMarkdown(true)
 	w.textEditor.SetText(story)
-	w.toggleOutline()
+	w.togglePane("outline")
 	if len(w.outline.all) != 2 || w.outline.all[1].Line != 15 {
 		t.Errorf("outline panel: %+v", w.outline.all)
 	}
@@ -210,8 +210,8 @@ func TestMarkdownNotes(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.setMarkdown(true)
 	w.textEditor.SetText("# One\n\nText.\n")
-	w.toggleNotes()
-	test.Type(w.notes.entry, "Call Bram.")
+	w.togglePane("notes")
+	test.Type(w.notesPane().entry, "Call Bram.")
 	if got := w.textEditor.Text(); got != "# One\n\nText.\n\n<!-- Notes\nCall Bram.\n-->\n" {
 		t.Fatalf("with notes: %q", got)
 	}

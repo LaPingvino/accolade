@@ -37,10 +37,9 @@ func TestMoveOutline(t *testing.T) {
 // Dragging an outline row up one row moves its scene before that one.
 func TestOutlineDrag(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
-	t.Cleanup(func() { w.settings.SetBoolean("outline-visible", false) })
 	w.textEditor.SetText("INT. BARN - DAY\n\nRain.\n\nEXT. FIELD - DAY\n\nWind.\n")
-	if !w.outlineVisible {
-		w.toggleOutline()
+	if !w.paneShown("outline") {
+		w.togglePane("outline")
 	}
 	o := w.outline
 	o.update(w.textEditor.Text())

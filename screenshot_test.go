@@ -72,7 +72,7 @@ func TestMarkdownScreenshots(t *testing.T) {
 		t.Fatal(err)
 	}
 	w.textEditor.SetCursorOffset(len([]rune(story)) / 3)
-	w.toggleOutline()
+	w.togglePane("outline")
 	w.preview()
 	for _, scheme := range []string{"light", "dark"} {
 		w.app.setColorScheme(scheme)

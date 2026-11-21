@@ -265,7 +265,7 @@ func TestWhatAccoladeLearned(t *testing.T) {
 	w = suggestWindow(t, script)
 	s := w.sourcePane()
 	if s.shown() {
-		w.toggleSource()
+		w.togglePane("source")
 	}
 	menuItemByLabel(t, w, "What Accolade Learned…").Action()
 	if !s.shown() || !s.learned.open || !s.learned.box.Visible() || !s.learned.scroll.Visible() {

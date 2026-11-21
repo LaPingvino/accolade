@@ -39,14 +39,14 @@ A saved .md on the desktop stays the source itself, so you can go on writing the
 
 ## The source pane
 
-View > Source, or Adaptation > Source Pane, shows the source as a tab beside Notes. Each passage is a row.
+View > Source, or Adaptation > Source Pane, shows the source as a tab in the side panes (at the bottom at first, beside Notes if it is shown; right-click the tab to move it to the top). Each passage is a row.
 
 - **The cursor's scene lights its passages,** and the pane scrolls to them.
 - **Tapping a passage picks it** and goes to the scene that links to it. Tap again for the next scene, if more than one does.
 - **Edit** opens the source as text in the pane; **Done** saves it where it is kept. If another program changes the source file, the pane reads it again.
 - **What the source shows,** at the bottom, is how Accolade reads the picked passage: who says what, the scene heading it suggests, what a camera cannot see, the names in it.
 
-On a narrow screen (a phone), the panes go under the script, and a toolbar button shows or hides the source.
+On a narrow screen (a phone), the side panes go under the script as one row of tabs, and a toolbar button shows or hides the source.
 
 ## Links
 
