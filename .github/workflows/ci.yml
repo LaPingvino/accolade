@@ -68,7 +68,7 @@ jobs:
         if: runner.os == 'Linux'
         env:
           CGO_ENABLED: "1"
-        run: go test -p 1 -timeout 40m -race -skip 'Focus(Is)?Visible$' ./... # one package at a time: the race run was OOM-killed (exit 137) on 94ea78a
+        run: go test -timeout 40m -race -skip 'Focus(Is)?Visible$' ./... # the root package alone peaks at ~1.5 GB under -race, the others at most 225 MB (measured locally; past 9 GB before the Fyne shaper fix)
 
   screenreader-windows:
     # Accolade read through Windows UI Automation, the API of NVDA, JAWS,
