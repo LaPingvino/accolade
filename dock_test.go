@@ -277,11 +277,14 @@ func TestDockLongPress(t *testing.T) {
 	tab := w.dock.tabs["notes"]
 	c := w.fyneWindow.Canvas()
 	ev := &desktop.MouseEvent{Button: desktop.MouseButtonPrimary}
-	tab.MouseDown(ev)
-	deadline := time.Now().Add(3 * time.Second)
-	for c.Overlays().Top() == nil && time.Now().Before(deadline) {
-		time.Sleep(20 * time.Millisecond)
+	var fire func()
+	longPressAfter = func(d time.Duration, f func()) *time.Timer {
+		fire = f
+		return time.NewTimer(time.Hour) // stopped by MouseUp, never fires
 	}
+	t.Cleanup(func() { longPressAfter = time.AfterFunc })
+	tab.MouseDown(ev)
+	fire() // the half second is up, on this goroutine
 	if c.Overlays().Top() == nil {
 		t.Fatal("no menu after a long press")
 	}

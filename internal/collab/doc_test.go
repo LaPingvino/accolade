@@ -118,7 +118,7 @@ func TestLongScript(t *testing.T) {
 	for i := 0; i < 2000; i++ {
 		d.Insert(len([]rune(d.Text())), line)
 	}
-	if took := time.Since(start); took > 10*time.Second {
+	if took := time.Since(start); took > slowdown*10*time.Second {
 		t.Errorf("%d runes in %v", len(d.Text()), took)
 	}
 	other := New("b")
@@ -126,7 +126,7 @@ func TestLongScript(t *testing.T) {
 	for _, op := range d.Ops() {
 		other.Apply(op)
 	}
-	if other.Text() != d.Text() || time.Since(start) > 2*time.Second {
+	if other.Text() != d.Text() || time.Since(start) > slowdown*2*time.Second {
 		t.Errorf("replaying %d ops took %v", len(d.Ops()), time.Since(start))
 	}
 }
