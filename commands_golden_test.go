@@ -746,6 +746,14 @@ func dockMoves(name, golden string) string {
 	}
 	panes = append(panes, "  Side Panes", "  Move Pane to Top", "  Move Pane to Bottom", "  Swap Pane with Main") // docs/SWAP.md
 	for i := range ms {
+		if ms[i].title == "Adaptation" { // its common case of the swap (docs/SWAP.md)
+			for j, it := range ms[i].items {
+				if ms[i].labelOf(it) == "Source Pane" {
+					ms[i].items = slices.Insert(ms[i].items, j+1, "  Swap Source and Script")
+					break
+				}
+			}
+		}
 		if ms[i].title != "View" {
 			continue
 		}

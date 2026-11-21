@@ -383,3 +383,32 @@ func TestSwapPhone(t *testing.T) {
 		t.Error("not back")
 	}
 }
+
+// Adaptation > Swap Source and Script: the Source pane brought in when it
+// is not there, swapped, and back; View > Swap Pane with Main the same
+// for the pane picked last.
+func TestSwapSourceAndScriptCommand(t *testing.T) {
+	w, _ := sourceWindow(t, sourceScript, sourceStory)
+	w.togglePane("source") // out of the dock
+	c := cmd("source.swap")
+	if !c.canRun(w.cmdEnv()) {
+		t.Fatal("not there with a source")
+	}
+	c.run(w)
+	if w.swapped != "source" || !c.checked(w) || w.fyneWindow.Canvas().Focused() != w.mainDoc.ed {
+		t.Fatalf("swapped %q", w.swapped)
+	}
+	c.run(w)
+	if w.swapped != "" || !w.paneInSight("source") {
+		t.Error("not back, the pane in its place")
+	}
+	w.showPane("notes", false)
+	cmd("view.paneSwap").run(w)
+	if w.swapped != "notes" {
+		t.Errorf("Swap Pane with Main swapped %q", w.swapped)
+	}
+	cmd("view.paneSwap").run(w)
+	if w.swapped != "" {
+		t.Error("Swap Pane with Main did not put it back")
+	}
+}

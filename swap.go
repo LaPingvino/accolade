@@ -76,6 +76,16 @@ func (w *MainWindow) swapWithMain(id string) {
 	w.setStatus(w.swapStatus())
 }
 
+// swapSourceAndScript is Adaptation > Swap Source and Script: the Source
+// pane brought in if it is not there, and swapped with the main area (or
+// back).
+func (w *MainWindow) swapSourceAndScript() {
+	if w.swapped != "source" && !w.paneShown("source") {
+		w.showPane("source", false)
+	}
+	w.swapWithMain("source")
+}
+
 // swapBack puts the script back in the main area and the pane in its
 // place: a document written to its home and let go.
 func (w *MainWindow) swapBack() {

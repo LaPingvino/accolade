@@ -571,6 +571,10 @@ func newRegistry() *registry {
 		&command{id: "source.suggest", label: "Suggest Links to the Source", icon: func() fyne.Resource { return suggestIcon }, when: screenplayOnly, enabled: withSource, run: (*MainWindow).suggestSourceLinks},
 		&command{id: "source.update", label: "Update Source Links", icon: theme.ViewRefreshIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).updateSourceLinks},
 		&command{id: "source.sections", label: "Source Headings as Sections", icon: res(tocIcon), when: screenplayOnly, enabled: withSource, run: (*MainWindow).sectionsFromSourceHere},
+		// the common case of View > Swap Pane with Main (swap.go)
+		&command{id: "source.swap", label: "Swap Source and Script", ribbonLabel: "Swap", tip: "The source in the main editor, the script in its place in the side panes; again, back",
+			icon: res(swapIcon), when: screenplayOnly, enabled: withSource, run: (*MainWindow).swapSourceAndScript,
+			checked: func(w *MainWindow) bool { return w.swapped == "source" }},
 		&command{id: "source.learned", label: "What Accolade Learned…", icon: res(learnedIcon), when: screenplayOnly, enabled: withSource, run: (*MainWindow).showLearned},
 	)
 
@@ -706,7 +710,7 @@ func newRegistry() *registry {
 			sep(), at("md.codeBlock"), at("md.rule"), at("md.table"),
 		)...)},
 		{title: "Adaptation", when: screenplayOnly, homes: []home{
-			at("source.choose"), at("source.saveAs"), at("source.keepInside"), as("view.source", "Source Pane"),
+			at("source.choose"), at("source.saveAs"), at("source.keepInside"), as("view.source", "Source Pane"), at("source.swap"),
 			sep(), at("source.link"), at("source.next"), at("source.cut"), at("source.suggest"), at("source.update"), at("source.sections"),
 			sep(), at("source.learned"),
 		}},
@@ -1013,7 +1017,7 @@ func ribbonLayout() []ribbonTab {
 		// a source's, or a story's next step
 		{title: "Adaptation", when: func(e cmdEnv) bool { return e.source || e.markdown }, groups: []ribbonGroup{
 			{title: "Source", homes: []home{{id: "view.source", label: "Source Pane", short: "Source", large: true},
-				atShort("source.choose", "Choose"), at("source.saveAs"), at("source.keepInside")}},
+				atShort("source.choose", "Choose"), at("source.saveAs"), at("source.keepInside"), at("source.swap")}},
 			// Next is the adapting's step, Link its verb; Suggest and Update
 			// are linking's variants
 			{title: "Links", homes: []home{big("source.next"), big("source.link"), at("source.suggest"), at("source.update"), at("source.cut"), at("source.sections")}},
