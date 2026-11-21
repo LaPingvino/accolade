@@ -78,6 +78,9 @@ func (w *MainWindow) setMarkdown(on bool) {
 	}
 	w.markdown = on
 	w.textEditor.Markdown = on
+	if on {
+		w.hideLooseNotice() // a document, no screenplay
+	}
 	w.applyScriptFormat() // the screenplay's columns, or none
 	if w.headerBar != nil {
 		w.headerBar.setMarkdown(on)

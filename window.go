@@ -612,6 +612,8 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.format = fileFormat{}
 	w.setMarkdown(false)
 	w.textEditor.SetText(text)
+	w.looseUnsaved = ""
+	w.hideLooseNotice() // written by Lexington: read as written
 	w.filledWith = w.textEditor.Text()
 	w.currentFile, w.plainBundle = "", ""
 	w.setBundle(nil)
@@ -1163,6 +1165,7 @@ func (w *MainWindow) restore(d kept) {
 	w.setLanguage(d.Language)
 	w.setMarkdown(d.Markdown)
 	w.textEditor.SetText(d.Text)
+	w.checkLooseReading() // (asked again after a reload: a script not saved keeps no answer)
 	w.suggestedName = d.Name
 	w.unsavedSource = ""
 	if _, err := os.Stat(d.Source); d.Source != "" && err == nil {

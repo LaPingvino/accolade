@@ -173,3 +173,58 @@ func TestLooseReadingScreenshots(t *testing.T) {
 		f.Close()
 	}
 }
+
+// A rename carries the answer (File > Rename, through afterNewName).
+func TestLooseReadingRename(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	dir := t.TempDir()
+	p := filepath.Join(dir, "story.fountain")
+	os.WriteFile(p, []byte(looseScript), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	test.Tap(w.loose.new)
+	if err := w.renameTo("film.fountain"); err != nil {
+		t.Fatal(err)
+	}
+	if got := w.looseAnswer(filepath.Join(dir, "film.fountain")); got != "new" {
+		t.Errorf("after the rename: %q", got)
+	}
+}
+
+// A speech's line of two spaces survives opening and saving, in a plain
+// file and in a bundle.
+func TestTwoSpacesSurviveSaving(t *testing.T) {
+	const script = "INT. HOUSE - DAY\n\nBOB\nHello.\n  \nGoodbye.\n"
+	w, _ := newDialogTestWindow(t)
+	p := filepath.Join(t.TempDir(), "two.fountain")
+	os.WriteFile(p, []byte(script), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	if w.textEditor.Text() != script || w.loose.box.Visible() == false {
+		t.Fatalf("opened %q, notice %v", w.textEditor.Text(), w.loose.box.Visible())
+	}
+	w.hasChanges = true
+	if err := w.SaveFile(); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(p); string(b) != script {
+		t.Errorf("saved %q", b)
+	}
+	dir := filepath.Join(t.TempDir(), "Two.textbundle")
+	os.MkdirAll(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "info.json"), []byte(highlandInfo), 0o644)
+	os.WriteFile(filepath.Join(dir, "text.fountain"), []byte(script), 0o644)
+	if err := w.LoadFile(dir); err != nil {
+		t.Fatal(err)
+	}
+	w.textEditor.SetText(w.textEditor.Text() + "\nBob leaves.\n")
+	if err := w.SaveFile(); err != nil {
+		t.Fatal(err)
+	}
+	w.flushBundleWrites()
+	if b, _ := os.ReadFile(filepath.Join(dir, "text.fountain")); !strings.HasPrefix(string(b), script) {
+		t.Errorf("bundle saved %q", b)
+	}
+}
