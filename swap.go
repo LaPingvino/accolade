@@ -50,6 +50,9 @@ func (w *MainWindow) swapWithMain(id string) {
 			s.edit.SetIcon(theme.DocumentCreateIcon())
 			s.showBody() // its editor out of the pane: one place at a time
 		}
+		if s := w.source; s != nil {
+			s.measuring++ // its rows out of sight: measured again when it is back
+		}
 	case "notes":
 		doc = w.notesDocument()
 	case "cards":

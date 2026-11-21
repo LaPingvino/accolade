@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
@@ -374,6 +375,12 @@ func TestSwapPhone(t *testing.T) {
 	if !strings.Contains(tabTitles(w), "Script") || w.paneSplit == nil {
 		t.Errorf("tabs %q", tabTitles(w))
 	}
+	// the main editor keeps its cursor in view at a phone's height
+	d := w.mainDoc
+	d.ed.SetCursorOffset(len([]rune(d.Text())))
+	if sc, ok := d.view.Content.(*container.Scroll); !ok || sc.Offset.Y <= 0 {
+		t.Errorf("the source's editor did not scroll to its cursor (%v)", ok)
+	}
 	m := w.dock.menu("source")
 	if m.Items[1].Label != "Swap with Main (put back)" {
 		t.Errorf("menu %q", m.Items[1].Label)
@@ -598,4 +605,146 @@ func TestSwapScreenshots(t *testing.T) {
 		snap("6-outline-main")
 		w.swapBack()
 	}
+}
+
+// A link already near (the source changed since it was linked) is not
+// offered for an edit elsewhere: it keeps its words and its flag.
+func TestLinkFixesLeaveNearLinks(t *testing.T) {
+	old := passagesOf(sourceStory)
+	script := strings.Replace(sourceScript, "She opened the door to the garden and stepped…", "She opened a door to the garden and stepped…", 1)
+	if m := newSourceModel(old, script, nil); m.matches[0].Kind != linkNear {
+		t.Fatalf("the test's link is %v, not near", m.matches[0].Kind)
+	}
+	nw := passagesOf(strings.Replace(sourceStory, "The next morning the garden", "Next day the garden", 1))
+	edits, _ := linkFixes(script, old, nw)
+	for _, e := range edits {
+		if strings.Contains(string([]rune(script)[e.Start:e.End]), "She opened") {
+			t.Errorf("the near link was rewritten: %q", e.Text)
+		}
+	}
+}
+
+// Keep Source in the Script, both ways, with the source open: swapped in,
+// and in the pane's Edit; the document stays open, kept where the source
+// is now, what was being written kept.
+func TestKeepSourceInsideWhileOpen(t *testing.T) {
+	w, _ := sourceWindow(t, sourceScript, sourceStory)
+	w.swapWithMain("source")
+	d := w.mainDoc
+	d.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("Written first.\n") })
+	w.toggleSourceInside()
+	if w.swapped != "source" || w.mainDoc != d || w.srcDoc != d || !d.inScript() {
+		t.Fatalf("in: swapped %q, doc kept %v", w.swapped, w.srcDoc == d)
+	}
+	if _, _, md, _ := sourceBlock(w.textEditor.Text()); !strings.Contains(md, "Written first.") {
+		t.Error("the block has not what was written")
+	}
+	w.toggleSourceInside()
+	if w.swapped != "source" || w.srcDoc != d || d.inScript() || d.ref.Origin != sourceKept {
+		t.Fatalf("out: swapped %q, ref %+v", w.swapped, d.ref)
+	}
+	if strings.Contains(w.textEditor.Text(), "/* Source") {
+		t.Error("the block stayed")
+	}
+	data, _ := os.ReadFile(d.ref.Path)
+	if !strings.Contains(string(data), "Written first.") {
+		t.Errorf("the kept copy %q", data)
+	}
+	w.swapBack()
+
+	s := w.sourcePane()
+	s.toggleEdit()
+	pd := w.srcDoc
+	w.toggleSourceInside()
+	if !s.editing || w.srcDoc != pd || !pd.inScript() {
+		t.Error("the pane's Edit ended, or another document")
+	}
+	s.toggleEdit()
+}
+
+// Rename and a join while the source is swapped in: written first, the
+// script back in the main editor.
+func TestSwapRenameAndJoin(t *testing.T) {
+	w, p := relocWindow(t)
+	w.showPane("source", false)
+	w.swapWithMain("source")
+	if w.swapped != "source" {
+		t.Fatal("not swapped")
+	}
+	w.mainDoc.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(0, false); b.Insert("Before the rename.\n\n") })
+	dir := filepath.Dir(p)
+	if err := w.relocate(relocation{rename: true, from: p, to: filepath.Join(dir, "film.fountain"), keepBesideName: true}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if w.swapped != "" || w.srcDoc != nil {
+		t.Error("still swapped after the rename")
+	}
+	md, _ := w.sourceText(w.sourceRef())
+	if !strings.HasPrefix(md, "Before the rename.") {
+		t.Errorf("the source after the rename %q", md)
+	}
+
+	a, b, key := sharedPair(t, "INT. BARN - DAY\n\n/* Notes\nmine\n*/\n")
+	_ = a
+	b.stopSharing()
+	b.showPane("notes", false)
+	b.swapWithMain("notes")
+	b.startSharing(key, true)
+	if b.swapped != "" || b.notesDoc != nil {
+		t.Error("a join left the notes swapped in")
+	}
+}
+
+// ex's :s and vim's keys act on the source in the main editor, not the
+// script; Live Preview shows the source and is hidden on the way back.
+func TestSwapExVimPreview(t *testing.T) {
+	w, _ := sourceWindow(t, sourceScript, sourceStory)
+	script := w.textEditor.Text()
+	w.swapWithMain("source")
+	d := w.mainDoc
+	w.runEx("%s/garden/orchard/g")
+	if strings.Contains(d.Text(), "garden") || w.textEditor.Text() != script {
+		t.Errorf(":s went elsewhere: %q", d.Text())
+	}
+	w.settings.SetString("editor-keys", "vim")
+	t.Cleanup(func() { w.settings.SetString("editor-keys", "standard") })
+	w.applyEditorSettings()
+	if !d.vim.active() {
+		t.Fatal("the source's vim is not on")
+	}
+	d.ed.SetCursorOffset(0)
+	d.vim.mode = vimNormal
+	d.ed.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+	for _, r := range "dd" {
+		d.ed.TypedRune(r)
+	}
+	if strings.HasPrefix(d.Text(), "---\n") || w.textEditor.Text() != script {
+		t.Errorf("dd: %q", strings.SplitN(d.Text(), "\n", 2)[0])
+	}
+	w.settings.SetString("editor-keys", "standard")
+	w.applyEditorSettings()
+	w.preview()
+	if !w.previewVisible || !strings.Contains(richText(w.previewPane.text), "orchard") {
+		t.Error("Live Preview does not show the source")
+	}
+	w.swapBack()
+	if w.previewVisible {
+		t.Error("a screenplay's preview is a PDF: hidden again")
+	}
+}
+
+func richText(r interface{ String() string }) string { return r.String() }
+
+// The notes in a shared session go both ways while swapped in.
+func TestSwapNotesTogether(t *testing.T) {
+	a, b, _ := sharedPair(t, "INT. BARN - DAY\n\n/* Notes\nshared\n*/\n")
+	connect(t, a, b)
+	textIs(t, b, "b", "INT. BARN - DAY\n\n/* Notes\nshared\n*/\n")
+	a.showPane("notes", false)
+	a.swapWithMain("notes")
+	d := a.mainDoc
+	d.ed.Edit(func(e *buffer.Buffer) { e.SetCursor(e.Len(), false); e.Insert(" by a") })
+	waitFor(t, "b has a's notes", func() bool { return notesOf(b.textEditor.Text()) == "shared by a" })
+	b.writeNotes("b first; shared by a")
+	waitFor(t, "a's notes follow b", func() bool { return d.Text() == "b first; shared by a" })
 }

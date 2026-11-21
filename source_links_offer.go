@@ -86,14 +86,22 @@ func linkFixes(script string, old, nw []passage) (edits []linkEdit, n int) {
 
 // fixedLink is the directive a link is written as for the passages'
 // new words, if it is to change.
+//
+// Only a link that found its passages exactly before is written again,
+// and only when they themselves changed: a link already near (flagged as
+// the source having changed since it was linked) keeps its words and its
+// flag, as Update Source Links leaves it.
 func fixedLink(r linkRef, before, after *linkMatcher, to []int) (textDirective, bool) {
 	was := before.matchRef(r)
-	if !was.found() {
+	if was.Kind != linkFound {
 		return textDirective{}, false
 	}
 	i, j := to[was.Passages[0]], to[was.last()]
 	if i < 0 || j < i {
 		return textDirective{}, false
+	}
+	if before.ps[was.Passages[0]].Plain == after.ps[i].Plain && before.ps[was.last()].Plain == after.ps[j].Plain {
+		return textDirective{}, false // its passages' words are as they were
 	}
 	if now := after.matchRef(r); now.Kind == linkFound && now.Passages[0] == i && now.last() == j {
 		return textDirective{}, false // it finds them still
@@ -228,6 +236,11 @@ func (w *MainWindow) linksOfferOnLeave() {
 		return
 	}
 	b := d.ed.Buffer()
+	line, _ := b.Position(b.Cursor())
+	if line == d.atLine { // typing in its line (a paragraph is one): the same passage
+		return
+	}
+	d.atLine = line
 	p := passageAt(d.Text(), s.passages, b, &w.scriptPane().seen)
 	if p != d.atPassage {
 		if d.atPassage >= 0 && b.Rev() != d.seenRev {

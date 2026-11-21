@@ -554,7 +554,9 @@ func (s *sourcePane) use(r *sourceRead, ps []passage) {
 		s.offeredWords = nil
 	}
 	s.showBody()
-	s.measure(s.width)
+	if s.w.swapped != "source" { // its rows are not in sight while the source is in the main editor (swap.go)
+		s.measure(s.width)
+	}
 	s.showReading(false)
 }
 
@@ -1060,12 +1062,24 @@ func (w *MainWindow) saveSourceAs() {
 // moved into the script's end as a boneyard block, or out of it again.
 func (w *MainWindow) toggleSourceInside() {
 	in := w.sourceRef().Origin != sourceInside
-	if err := w.keepSourceInside(in); err != nil {
+	d := w.srcDoc
+	if d != nil { // open: what is being written moves with it, its home moving (not going)
+		if err := d.store(); err != nil {
+			dialog.ShowError(err, w.fyneWindow)
+			return
+		}
+		d.moving = true
+	}
+	err := w.keepSourceInside(in)
+	if d != nil {
+		d.moving = false
+		if w.srcDoc == d {
+			d.rehome() // kept where the source is now
+		}
+	}
+	if err != nil {
 		dialog.ShowError(err, w.fyneWindow)
 		return
-	}
-	if d := w.srcDoc; d != nil { // open: kept where the source is now
-		d.rehome()
 	}
 	if in {
 		w.setStatus("The source is kept in the script now, at its end")

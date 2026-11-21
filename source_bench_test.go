@@ -534,6 +534,41 @@ func BenchmarkSourceEditor(b *testing.B) {
 	})
 }
 
+// A keystroke in the source swapped into the main editor (swap.go):
+// kept beside the script (only its own editor), and kept in the script,
+// where each key is written into the script's block (document.go).
+func BenchmarkSwappedSourceKey(b *testing.B) {
+	for _, inside := range []bool{false, true} {
+		name := "beside"
+		if inside {
+			name = "inside"
+		}
+		b.Run(name, func(b *testing.B) {
+			w, _, _ := benchWindow(b, inside)
+			debounceAtOnce, backgroundAtOnce = false, false // as when typing: the follow waits for a pause
+			b.Cleanup(func() { debounceAtOnce, backgroundAtOnce = true, true })
+			w.swapWithMain("source")
+			d := w.mainDoc
+			w.fyneWindow.Canvas().Focus(d.ed)
+			d.ed.SetCursorOffset(5000)
+			for b.Loop() {
+				d.ed.TypedRune('x')
+			}
+		})
+	}
+	// against: a keystroke in the script itself, the source kept in it
+	b.Run("script-with-source-inside", func(b *testing.B) {
+		w, _, _ := benchWindow(b, true)
+		debounceAtOnce, backgroundAtOnce = false, false
+		b.Cleanup(func() { debounceAtOnce, backgroundAtOnce = true, true })
+		w.fyneWindow.Canvas().Focus(w.textEditor)
+		w.textEditor.SetCursorOffset(500)
+		for b.Loop() {
+			w.textEditor.TypedRune('x')
+		}
+	})
+}
+
 // The links suggested for the bench screenplay without its links (a
 // script written before it had a source): the story read, then the
 // scenes matched to it, as the pane does it in the background.

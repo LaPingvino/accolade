@@ -87,14 +87,16 @@ type document struct {
 	// "*/" as "* /", and its block's new line: it reads back otherwise)
 	stored, homeSeen string
 	// fromHome: its text is being set from its home, not by the writer;
-	// writing: it is being written into the script (whose change is its own)
-	fromHome, writing bool
+	// writing: it is being written into the script (whose change is its own);
+	// moving: its home is moving (Keep Source in the Script), not going
+	fromHome, writing, moving bool
 	// linkBase is a source's text as its links were last looked at
 	// (source_links_offer.go): what an edit of a passage's opening is
 	// measured from; atPassage the passage its cursor was in (-1 none),
 	// seenRev its text's revision then
 	linkBase  string
 	atPassage int
+	atLine    int // the line its cursor was on as the passage was looked at
 	seenRev   uint64
 }
 
@@ -290,7 +292,7 @@ func (d *document) reload() {
 	d.ed.SetText(text)
 	d.fromHome = false
 	d.stored, d.homeSeen = text, text
-	d.linkBase, d.atPassage, d.seenRev = text, -1, d.ed.Buffer().Rev()
+	d.linkBase, d.atPassage, d.atLine, d.seenRev = text, -1, -1, d.ed.Buffer().Rev()
 }
 
 // rehome is a source moved to another home (Keep Source in the Script):
@@ -411,7 +413,7 @@ func (d *document) cursorMoved() {
 // script changed (Undo there, a co-writer): the stretch's changes as
 // edits outside its undo history, the cursor kept with its text.
 func (d *document) followHome() {
-	if !d.inScript() || d.writing {
+	if !d.inScript() || d.writing || d.moving {
 		return
 	}
 	home, err := d.home()
@@ -518,6 +520,9 @@ func (w *MainWindow) unsavedDocs() bool {
 // Script, a draft restored) is let go as it is, not written back.
 func (w *MainWindow) docsFollowScript() {
 	for _, d := range w.openDocs() {
+		if d.writing || d.moving { // its own change, or its home moving
+			continue
+		}
 		if d.kind == docSource && d.inScript() && w.sourceRef().Origin != sourceInside {
 			d.stored = d.Text()
 			if d == w.mainDoc {
