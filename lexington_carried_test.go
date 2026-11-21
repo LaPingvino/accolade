@@ -119,7 +119,7 @@ func TestCarriedConfRoundTrip(t *testing.T) {
 		t.Error("the script's format became the machine's")
 	}
 	// exports read the script's settings: its format, its language
-	o := w.savedExportJob().options("pdf", "out.pdf")
+	o := w.layoutJob().options("pdf", "out.pdf")
 	if o.Conf == nil || o.Conf.Elements["my-radio"]["action"].Style != "b" || o.Conf.Scenes["xq"] == nil || o.Elements != "my-radio" {
 		t.Errorf("export options: %+v", o)
 	}

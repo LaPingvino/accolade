@@ -148,7 +148,7 @@ func reportsWindow(t *testing.T, size fyne.Size) (*MainWindow, *reportsDialog) {
 	t.Helper()
 	w, _ := scriptWindow(t, reportScript)
 	w.fyneWindow.Resize(size)
-	r, err := scriptReport(reportScript, w.savedExportJob())
+	r, err := scriptReport(reportScript, w.layoutJob())
 	if err != nil {
 		t.Fatal(err)
 	}

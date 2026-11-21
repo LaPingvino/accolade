@@ -94,7 +94,7 @@ func TestRibbonSettings(t *testing.T) {
 	}
 	cont := buttonOf(r, "set.continueds")
 	cont.press()
-	if !s.GetBoolean(continuedsPref) || !cont.checked || !pd.continuedsCheck.Checked {
+	if !s.GetBoolean(continuedsPref) || !cont.checked || !strings.Contains(pd.pageSummary.Text, "CONTINUEDs") {
 		t.Error("CONTINUEDs")
 	}
 
@@ -317,7 +317,7 @@ func TestRibbonMoreSettings(t *testing.T) {
 		t.Fatal("no Scene Numbers in Production, or checked while off")
 	}
 	nums.press()
-	if !s.GetBoolean("fountain-scene-numbers") || !nums.checked || !pd.numberScenesCheck.Checked {
+	if !s.GetBoolean("fountain-scene-numbers") || !nums.checked || !strings.Contains(pd.pageSummary.Text, "scenes numbered") {
 		t.Error("Scene Numbers did not number the scenes everywhere")
 	}
 

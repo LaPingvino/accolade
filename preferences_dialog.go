@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/lexington/lex"
@@ -49,23 +50,20 @@ type PreferencesDialog struct {
 	keysSelect             *widget.Select
 
 	// Script and export
-	languageSelect        *widget.Select
-	scriptFormatSelect    *widget.Select
-	scriptFormatDesc      *widget.Label
-	removeFormatButton    *widget.Button
-	exportFormatSelect    *widget.Select
-	exportDirEntry        *widget.Entry
-	yourNameEntry         *widget.Entry
-	paperSelect           *widget.Select
-	includeTitlePageCheck *widget.Check
-	numberScenesCheck     *widget.Check
-	sceneLettersSelect    *widget.Select
-	revisionMarksSelect   *widget.Select // the current revision's marks, or all issues'
-	revisionHeaderEntry   *widget.Entry  // a changed page's header
-	continuedsCheck       *widget.Check  // the scenes' CONTINUEDs in the PDF
-	revisionDateSelect    *widget.Select // its date's layout
-	nextInsertsCheck      *widget.Check
-	suggestCheck          *widget.Check
+	languageSelect      *widget.Select
+	scriptFormatSelect  *widget.Select
+	scriptFormatDesc    *widget.Label
+	removeFormatButton  *widget.Button
+	exportFormatSelect  *widget.Select
+	exportDirEntry      *widget.Entry
+	yourNameEntry       *widget.Entry
+	pageSummary         *widget.Label // the page setup (Page Setup… sets it: pagesetup.go)
+	sceneLettersSelect  *widget.Select
+	revisionMarksSelect *widget.Select // the current revision's marks, or all issues'
+	revisionHeaderEntry *widget.Entry  // a changed page's header
+	revisionDateSelect  *widget.Select // its date's layout
+	nextInsertsCheck    *widget.Check
+	suggestCheck        *widget.Check
 }
 
 func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDialog {
@@ -132,12 +130,10 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.yourNameEntry.SetPlaceHolder(os.Getenv("USER"))
 	pd.exportDirEntry = widget.NewEntry()
 	pd.exportDirEntry.SetPlaceHolder("Choose export directory...")
-	pd.paperSelect = widget.NewSelect(documentPages, nil)
-	pd.includeTitlePageCheck = widget.NewCheck("Include the title page", nil)
-	pd.numberScenesCheck = widget.NewCheck("Number the scenes (those without a number)", nil)
+	pd.pageSummary = widget.NewLabel("")
+	pd.pageSummary.Wrapping = fyne.TextWrapWord
 	pd.sceneLettersSelect = widget.NewSelect(sceneLetterings, nil)
 	pd.revisionMarksSelect = widget.NewSelect(revisionMarkChoices, nil)
-	pd.continuedsCheck = widget.NewCheck("CONTINUED where a scene breaks over pages (PDF)", nil)
 	pd.revisionHeaderEntry = widget.NewEntry()
 	pd.revisionHeaderEntry.SetPlaceHolder(lex.DefaultRevisionHeader)
 	fyne.SetAccessibleLabel(pd.revisionHeaderEntry, "Revised page header")
@@ -253,10 +249,9 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 		widget.NewCard("Export", "The Export dialog starts with these", container.NewVBox(
 			labelled("Format:", pd.exportFormatSelect),
 			labelledWith("Directory:", pd.exportDirEntry, browse),
-			labelled("Paper (PDF, DOCX, ODT):", pd.paperSelect),
-			pd.includeTitlePageCheck,
-			pd.numberScenesCheck,
 		)),
+		widget.NewCard("Page Setup", "How Export, Print and Preview PDF lay the page out", container.NewBorder(nil, nil, nil,
+			container.NewVBox(widget.NewButtonWithIcon("Page Setup…", theme.DocumentIcon(), pd.openPageSetup)), pd.pageSummary)),
 		widget.NewCard("Adapting", "A script made from a story beside it (View > Source)", container.NewVBox(
 			pd.nextInsertsCheck,
 			pd.suggestCheck,
@@ -269,8 +264,6 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 			labelled("Revised page header:", pd.revisionHeaderEntry),
 			labelled("Its date:", pd.revisionDateSelect),
 			hint("{set} is the revision's colour, {date} its date: \"{set} Revision – {date}\" prints \"Blue Revision – 20/11/26\". \"-\" prints none."),
-			pd.continuedsCheck,
-			hint("(CONTINUED) at the foot of a page a scene goes on from, CONTINUED: at the top of the next. Locked pages (Production > Lock Pages) keep the choice they were locked with."),
 		)),
 	)
 }
@@ -316,9 +309,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.exportFormatSelect.SetSelected(exportFormatLabel(s.GetString("export-format")))
 	pd.exportDirEntry.SetText(s.GetString("export-directory"))
 	pd.yourNameEntry.SetText(s.GetString("your-name"))
-	pd.paperSelect.SetSelected(documentPageLabel(s.GetString("page-size")))
-	pd.includeTitlePageCheck.SetChecked(s.GetBoolean("include-title-page"))
-	pd.numberScenesCheck.SetChecked(s.GetBoolean("fountain-scene-numbers"))
+	pd.showPageSetup()
 	pd.nextInsertsCheck.SetChecked(s.GetBoolean("next-passage-inserts"))
 	pd.suggestCheck.SetChecked(s.GetBoolean(suggestPref))
 	pd.sceneLettersSelect.SetSelected(sceneLettering(lex.ParseNumberStyle(s.GetString(sceneNumberStylePref))))
@@ -327,7 +318,6 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 		pd.revisionMarksSelect.SetSelected(revisionMarkChoices[1])
 	}
 	pd.revisionHeaderEntry.SetText(s.GetString(revisionHeaderPref))
-	pd.continuedsCheck.SetChecked(s.GetBoolean(continuedsPref))
 	pd.revisionDateSelect.SetSelected(revisionDates[0].label)
 	for _, d := range revisionDates {
 		if d.layout == s.GetString(revisionDatePref) {
@@ -375,13 +365,6 @@ func (pd *PreferencesDialog) saveSettings() {
 	s.SetString("export-format", exportFormatLabel(pd.exportFormatSelect.Selected))
 	s.SetString("export-directory", pd.exportDirEntry.Text)
 	s.SetString("your-name", strings.TrimSpace(pd.yourNameEntry.Text))
-	page := ""
-	if pd.paperSelect.Selected != documentPages[0] {
-		page = strings.ToLower(pd.paperSelect.Selected)
-	}
-	s.SetString("page-size", page)
-	s.SetBoolean("include-title-page", pd.includeTitlePageCheck.Checked)
-	s.SetBoolean("fountain-scene-numbers", pd.numberScenesCheck.Checked)
 	s.SetBoolean("next-passage-inserts", pd.nextInsertsCheck.Checked)
 	s.SetBoolean(suggestPref, pd.suggestCheck.Checked)
 	s.SetString(sceneNumberStylePref, letteringStyle(pd.sceneLettersSelect.Selected).String())
@@ -391,7 +374,6 @@ func (pd *PreferencesDialog) saveSettings() {
 	}
 	s.SetString(revisionMarksPref, marks)
 	s.SetString(revisionHeaderPref, strings.TrimSpace(pd.revisionHeaderEntry.Text))
-	s.SetBoolean(continuedsPref, pd.continuedsCheck.Checked)
 	for _, d := range revisionDates {
 		if d.label == pd.revisionDateSelect.Selected {
 			s.SetString(revisionDatePref, d.layout)
@@ -541,6 +523,37 @@ func (pd *PreferencesDialog) editLexington() {
 		pd.languageSelect.SetSelected(lang)
 		pd.app.scriptFormatsChanged()
 	})
+}
+
+// pageWindow is the window whose page setup Preferences shows: the
+// first (nil without one).
+func (pd *PreferencesDialog) pageWindow() *MainWindow {
+	if pd.app == nil || len(pd.app.windows) == 0 {
+		return nil
+	}
+	return pd.app.windows[0]
+}
+
+// showPageSetup shows the page setup's line.
+func (pd *PreferencesDialog) showPageSetup() {
+	w := pd.pageWindow()
+	if w == nil {
+		pd.pageSummary.SetText("")
+		return
+	}
+	if w.markdown {
+		pd.pageSummary.SetText(w.markdownPageSummary())
+		return
+	}
+	pd.pageSummary.SetText(w.pageSummary(w.pageSetup(), exportFormatByLabel(pd.settings.GetString("export-format")).id))
+}
+
+// openPageSetup opens Page Setup, in the script's window.
+func (pd *PreferencesDialog) openPageSetup() {
+	if w := pd.pageWindow(); w != nil {
+		w.showPageSetup("", pd.showPageSetup)
+		w.fyneWindow.RequestFocus()
+	}
 }
 
 func (pd *PreferencesDialog) resetToDefaults() {

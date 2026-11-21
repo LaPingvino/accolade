@@ -181,7 +181,7 @@ func (w *MainWindow) withIssuedPages(j exportJob, text string) exportJob {
 // lockJob is the export the pages are locked by: the export's settings,
 // a lock's own layout when there is one.
 func (w *MainWindow) lockJob(text string) exportJob {
-	j := w.savedExportJob()
+	j := w.layoutJob()
 	j.mergeOmitted = omittedRunsPrinted(text)
 	if l := pageLockOf(text); l != nil {
 		j = l.applyTo(j)

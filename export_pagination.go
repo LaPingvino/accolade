@@ -13,7 +13,7 @@ import (
 // The "export-pagination" setting is Lexington's value: "" (the format's),
 // "all", "none" or parts joined with "+" ("keep+more").
 
-// paginationChoices are the dialog's choices; the last one picks parts.
+// paginationChoices are Page Setup's choices; the last one picks parts.
 var paginationChoices = []struct{ label, value string }{
 	{"Script format's", ""},
 	{"All (as screenplay software)", "all"},
@@ -22,73 +22,65 @@ var paginationChoices = []struct{ label, value string }{
 }
 
 // paginationWidgets makes the page breaks' choice and its parts.
-func (ed *ExportDialog) paginationWidgets() fyne.CanvasObject {
+func (p *pageSetupDlg) paginationWidgets() fyne.CanvasObject {
 	var labels []string
 	for _, c := range paginationChoices {
 		labels = append(labels, c.label)
 	}
-	ed.paginationSelect = widget.NewSelect(labels, func(string) { ed.enablePagination() })
-	ed.paginationKeep = widget.NewCheck("Headings, names and parentheticals with what follows", nil)
-	ed.paginationWidows = widget.NewCheck("Two lines of a paragraph on each side of a break", nil)
-	ed.paginationMore = widget.NewCheck("Speeches broken with (MORE) and (CONT'D)", nil)
-	ed.setPagination("")
-	return container.NewVBox(labelled("Page breaks:", ed.paginationSelect),
-		container.NewPadded(container.NewVBox(ed.paginationKeep, ed.paginationWidows, ed.paginationMore)))
+	p.paginationSelect = widget.NewSelect(labels, func(string) { p.enable() })
+	p.paginationKeep = widget.NewCheck("Headings and names with what follows", nil)
+	p.paginationWidows = widget.NewCheck("Two lines each side of a break", nil)
+	p.paginationMore = widget.NewCheck("Speeches split with (MORE), (CONT'D)", nil)
+	p.setPagination("")
+	return container.NewVBox(labelled("Page breaks:", p.paginationSelect),
+		container.NewPadded(container.NewVBox(p.paginationKeep, p.paginationWidows, p.paginationMore)))
 }
 
 // setPagination shows a setting's value.
-func (ed *ExportDialog) setPagination(value string) {
+func (p *pageSetupDlg) setPagination(value string) {
 	choice := paginationChoices[0].label
-	p, err := rules.ParsePagination(value)
+	pg, err := rules.ParsePagination(value)
 	switch {
 	case value == "" || err != nil:
-	case p == rules.AllPagination:
+	case pg == rules.AllPagination:
 		choice = paginationChoices[1].label
-	case p == rules.Pagination{}:
+	case pg == rules.Pagination{}:
 		choice = paginationChoices[2].label
 	default:
 		choice = paginationChoices[3].label
 	}
 	if value == "" || err != nil {
-		p = rules.AllPagination // the parts, should some be chosen
+		pg = rules.AllPagination // the parts, should some be chosen
 	}
-	ed.paginationKeep.SetChecked(p.Keep)
-	ed.paginationWidows.SetChecked(p.Widows)
-	ed.paginationMore.SetChecked(p.More)
-	ed.paginationSelect.SetSelected(choice)
+	p.paginationKeep.SetChecked(pg.Keep)
+	p.paginationWidows.SetChecked(pg.Widows)
+	p.paginationMore.SetChecked(pg.More)
+	p.paginationSelect.SetSelected(choice)
 }
 
 // chosenPagination is the value chosen, for Lexington and the setting.
-func (ed *ExportDialog) chosenPagination() string {
+func (p *pageSetupDlg) chosenPagination() string {
 	for _, c := range paginationChoices {
-		if c.label == ed.paginationSelect.Selected && c.value != "some" {
+		if c.label == p.paginationSelect.Selected && c.value != "some" {
 			return c.value
 		}
 	}
-	if ed.paginationSelect.Selected != paginationChoices[3].label {
+	if p.paginationSelect.Selected != paginationChoices[3].label {
 		return ""
 	}
-	return rules.Pagination{Keep: ed.paginationKeep.Checked, Widows: ed.paginationWidows.Checked, More: ed.paginationMore.Checked}.String()
+	return rules.Pagination{Keep: p.paginationKeep.Checked, Widows: p.paginationWidows.Checked, More: p.paginationMore.Checked}.String()
 }
 
-// enablePagination lets the parts be chosen with Some, the choice with a
-// format Lexington makes.
-func (ed *ExportDialog) enablePagination() {
-	if ed.paginationMore == nil {
-		return
+// paginationLabel is the choice a setting's value shows.
+func paginationLabel(value string) string {
+	pg, err := rules.ParsePagination(value)
+	switch {
+	case value == "" || err != nil:
+		return paginationChoices[0].label
+	case pg == rules.AllPagination:
+		return paginationChoices[1].label
+	case pg == rules.Pagination{}:
+		return paginationChoices[2].label
 	}
-	on := !ed.includeTitlePageCheck.Disabled() // (as the other script options)
-	some := on && ed.paginationSelect.Selected == paginationChoices[3].label
-	for _, o := range []fyne.Disableable{ed.paginationKeep, ed.paginationWidows, ed.paginationMore} {
-		if some {
-			o.Enable()
-		} else {
-			o.Disable()
-		}
-	}
-	if on {
-		ed.paginationSelect.Enable()
-	} else {
-		ed.paginationSelect.Disable()
-	}
+	return paginationChoices[3].label + " " + value
 }

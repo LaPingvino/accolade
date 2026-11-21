@@ -19,3 +19,4 @@ tabs: File Write Edit [Production] Collaboration View
   S Scene Lettering icon=foreground_lettering.svg name=A New Scene's Number
   S CONTINUEDs icon=foreground_continued.svg name=CONTINUED Where a Scene Breaks
   S Scene Numbers icon=foreground_scene-numbers.svg name=Number the Scenes in Exports
+  S Page Setup icon=foreground_document.svg name=Page Setup…

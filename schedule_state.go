@@ -143,7 +143,7 @@ func (w *MainWindow) measureSchedule() {
 	s.run++
 	run := s.run
 	s.pendingFor = text
-	job := w.savedExportJob()
+	job := w.layoutJob()
 	f, bt, ps := w.breakdownNowFound()
 	file := *f
 	chain, _ := w.revisionChainNow()
@@ -262,7 +262,7 @@ func (w *MainWindow) exportICS() {
 	if w.markdown {
 		return
 	}
-	content, job := w.textEditor.Text(), w.savedExportJob()
+	content, job := w.textEditor.Text(), w.layoutJob()
 	w.setStatus("Making the calendar...")
 	inBackground(func() *lexreport.Report {
 		r, err := scriptReport(content, job)

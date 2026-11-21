@@ -111,7 +111,7 @@ func TestLockPagesUndo(t *testing.T) {
 	if pageLockOf(w.textEditor.Text()) == nil {
 		t.Fatal("redo: no lock")
 	}
-	want := pdfLabels(t, w, w.savedExportJob())
+	want := pdfLabels(t, w, w.layoutJob())
 	if len(want) != len(l.lock.Pages)-1 {
 		t.Fatalf("printed %v, locked %d", want, len(l.lock.Pages))
 	}
@@ -132,7 +132,7 @@ func TestLockPagesUndo(t *testing.T) {
 	more := "\n\nGROWN Something new happens and goes on for a while in the room, with the windows and the doors " +
 		"and the garden. GROWN again, the rain and the wind and the cold. GROWN at last.\n\nGROWN twice. And more."
 	replaceText(t, w, text[at:at+4], more+text[at:at+4])
-	got := pdfLabels(t, w, w.savedExportJob())
+	got := pdfLabels(t, w, w.layoutJob())
 	if !slices.Contains(got, "2A") || len(got) != len(want)+1 {
 		t.Fatalf("grown: %v (locked %v)", got, want)
 	}
@@ -167,7 +167,7 @@ func issueWait(t *testing.T, w *MainWindow, name string, day int, lockFrom strin
 // pages the revision prints against; only: revised pages only.
 func pdfJob(w *MainWindow, only bool) exportJob {
 	text := w.textEditor.Text()
-	return w.withIssuedPages(w.withRevisions(w.savedExportJob(), text, only, false), text)
+	return w.withIssuedPages(w.withRevisions(w.layoutJob(), text, only, false), text)
 }
 
 // revisedOnly are the page numbers revised pages only prints (page 1
@@ -213,7 +213,7 @@ func lockLabelsOf(t *testing.T, w *MainWindow) []string {
 func pageStartToken(t *testing.T, w *MainWindow, page int) string {
 	t.Helper()
 	l := pageLockOf(w.textEditor.Text())
-	rows := lex.Printable(w.savedExportJob().script(w.textEditor.Text()), nil)
+	rows := lex.Printable(w.layoutJob().script(w.textEditor.Text()), nil)
 	at := lex.LocatePages(rows, l.lock)[page]
 	if at == lex.Missing {
 		t.Fatalf("page %d not found", page)
@@ -240,7 +240,7 @@ func TestIssueLocksPages(t *testing.T) {
 	holdUI(t)
 	w, _ := scriptWindow(t, pagesScript())
 	issueNow(t, w, "White", time.Date(2026, 11, 1, 0, 0, 0, 0, time.Local))
-	white := pdfLabels(t, w, w.savedExportJob())
+	white := pdfLabels(t, w, w.layoutJob())
 	// grow scene 3's second paragraph a great deal
 	replaceText(t, w, "R3P2 ", "R3P2 "+strings.Repeat("Blue words go on and on here. ", 40))
 	chain, err := w.revisionChainNow()
@@ -283,7 +283,7 @@ func TestIssueLocksPages(t *testing.T) {
 	}
 	// FDX: the locked pages
 	fdxFile := filepath.Join(t.TempDir(), "script.fdx")
-	if err := exportAs(w.textEditor.Text(), fdxFile, "fdx", w.savedExportJob()); err != nil {
+	if err := exportAs(w.textEditor.Text(), fdxFile, "fdx", w.layoutJob()); err != nil {
 		t.Fatal(err)
 	}
 	data, _ := os.ReadFile(fdxFile)

@@ -26,15 +26,9 @@ func (w *MainWindow) reportErr(action func() error) func() {
 // buildMainMenu is the menu bar, from the command registry (commands.go).
 func (w *MainWindow) buildMainMenu() *fyne.MainMenu { return w.menuBar(w.cmdEnv()) }
 
-// print prints the document: a screenplay as Lexington lays it out, a
-// Markdown document as a web page.
-func (w *MainWindow) print() {
-	if w.markdown {
-		w.printMarkdown()
-		return
-	}
-	w.printScript()
-}
+// print prints the document, after a line saying its page setup: a
+// screenplay as Lexington lays it out, a Markdown document as a web page.
+func (w *MainWindow) print() { w.showPrint() }
 
 // escEntry is the entry used in the search bar: Escape closes the bar
 // and gives focus back to the editor.

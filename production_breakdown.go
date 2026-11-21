@@ -324,7 +324,7 @@ func (p *productionPane) makeReport(text string) {
 	b.reportRun++
 	run := b.reportRun
 	b.pendingFor = text
-	job := p.w.savedExportJob()
+	job := p.w.layoutJob()
 	type made struct {
 		r   lexreport.Report
 		err error

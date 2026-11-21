@@ -234,7 +234,7 @@ func TestRevisionExports(t *testing.T) {
 	issueNow(t, w, "White", time.Date(2026, 11, 1, 0, 0, 0, 0, time.Local))
 	replaceText(t, w, "Dry at last.", "Dry at last, and warm.")
 	dir := t.TempDir()
-	job := w.withRevisions(w.savedExportJob(), w.textEditor.Text(), false, false)
+	job := w.withRevisions(w.layoutJob(), w.textEditor.Text(), false, false)
 	full := filepath.Join(dir, "full.pdf")
 	if err := exportAs(w.textEditor.Text(), full, "pdf", job); err != nil {
 		t.Fatal(err)
@@ -262,7 +262,7 @@ func TestRevisionExports(t *testing.T) {
 		t.Fatalf("%d changed pages of %d", changed, len(pages))
 	}
 	only := filepath.Join(dir, "only.pdf")
-	job = w.withRevisions(w.savedExportJob(), w.textEditor.Text(), true, false)
+	job = w.withRevisions(w.layoutJob(), w.textEditor.Text(), true, false)
 	if err := exportAs(w.textEditor.Text(), only, "pdf", job); err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +273,7 @@ func TestRevisionExports(t *testing.T) {
 	// FDX out: the sets and the RevisionID (every issue's, whatever the
 	// margin shows)
 	fdxFile := filepath.Join(dir, "rev.fdx")
-	job = w.withAllRevisions(w.savedExportJob(), w.textEditor.Text())
+	job = w.withAllRevisions(w.layoutJob(), w.textEditor.Text())
 	if err := exportAs(w.textEditor.Text(), fdxFile, "fdx", job); err != nil {
 		t.Fatal(err)
 	}
@@ -325,7 +325,7 @@ func TestRevisionScreenshots(t *testing.T) {
 	test.Type(w.textEditor, "")
 	comboShot(t, w, "revisions")
 	r, marks := w.exportRevisions(w.textEditor.Text(), true)
-	job := w.savedExportJob()
+	job := w.layoutJob()
 	job.revisions, job.marks = r, marks
 	if err := exportAs(w.textEditor.Text(), filepath.Join(os.Getenv("SHOT_DIR"), "revisions.pdf"), "pdf", job); err != nil {
 		t.Fatal(err)

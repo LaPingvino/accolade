@@ -236,8 +236,11 @@ func markdownBody(text string) string {
 // previewPanel shows a Markdown document as formatted prose beside the
 // editor (View > Live Preview), following the text as it is written.
 type previewPanel struct {
-	text *widget.RichText
-	box  fyne.CanvasObject
+	text  *widget.RichText
+	box   fyne.CanvasObject
+	width fyne.CanvasObject
+	w     *MainWindow    // the window whose page setup it shows (withPageSetup); nil: none
+	line  *pageSetupLine // its line, at the top
 }
 
 func newPreviewPanel() *previewPanel {
@@ -246,15 +249,28 @@ func newPreviewPanel() *previewPanel {
 	fyne.SetAccessibleLabel(p.text, "Live Preview")
 	width := canvas.NewRectangle(color.Transparent) // a nil colour crashes the painter
 	width.SetMinSize(fyne.NewSize(320, 0))
-	heading := widget.NewLabelWithStyle("Live Preview", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
-	p.box = container.NewStack(width, container.NewBorder(heading, nil, nil, nil, container.NewVScroll(p.text)))
+	p.width = width
+	p.box = p.layout()
 	return p
+}
+
+// layout is the pane: its heading, the page setup's line, the text.
+func (p *previewPanel) layout() fyne.CanvasObject {
+	var top fyne.CanvasObject = widget.NewLabelWithStyle("Live Preview", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	if p.line != nil {
+		top = container.NewVBox(top, p.line.box)
+	}
+	return container.NewStack(p.width, container.NewBorder(top, nil, nil, nil, container.NewVScroll(p.text)))
 }
 
 // update shows text; a table as lines, not in a scroller of its own that
 // would catch a drag meant for the preview's (source_rows.go).
 func (p *previewPanel) update(text string) {
 	p.text.Segments, _ = markdownSegments(markdownBody(text), -1)
+	if p.w != nil { // with its title page
+		p.text.Segments = append(titleSegments(p.w.markdownPageSetup().titlePageOf(text, p.w.scriptName())), p.text.Segments...)
+		p.line.refresh()
+	}
 	p.text.Refresh()
 }
 
@@ -267,6 +283,7 @@ func (w *MainWindow) preview() {
 	}
 	if w.previewPane == nil {
 		w.previewPane = newPreviewPanel()
+		w.previewPane.withPageSetup(w)
 	}
 	w.previewVisible = !w.previewVisible
 	if w.previewVisible {
@@ -278,6 +295,12 @@ func (w *MainWindow) preview() {
 
 // markdownHTML is a Markdown document as a web page, for printing.
 func markdownHTML(text, title string) ([]byte, error) {
+	return markdownHTMLWith(text, title, mdPageSetup{}, nil)
+}
+
+// markdownHTMLWith is the web page with the page setup p, titlePage its
+// title page's lines.
+func markdownHTMLWith(text, title string, p mdPageSetup, titlePage []string) ([]byte, error) {
 	var body bytes.Buffer
 	if err := prose.Markdown.Convert([]byte(markdownBody(text)), &body); err != nil {
 		return nil, err
@@ -285,8 +308,9 @@ func markdownHTML(text, title string) ([]byte, error) {
 	var out bytes.Buffer
 	fmt.Fprintf(&out, `<!doctype html><html><head><meta charset="utf-8"><title>%s</title>`+
 		`<style>body{font:12pt/1.5 Georgia,serif;max-width:40em;margin:2em auto;padding:0 1em}`+
-		`pre,code{font-family:monospace}blockquote{margin-left:1.5em;font-style:italic}</style></head><body>`,
-		strings.NewReplacer("&", "&amp;", "<", "&lt;").Replace(title))
+		`pre,code{font-family:monospace}blockquote{margin-left:1.5em;font-style:italic}%s</style></head><body>`,
+		strings.NewReplacer("&", "&amp;", "<", "&lt;").Replace(title), p.pageCSS())
+	out.WriteString(titlePageHTML(titlePage))
 	out.Write(body.Bytes())
 	out.WriteString("</body></html>\n")
 	return out.Bytes(), nil
@@ -299,7 +323,8 @@ func (w *MainWindow) printMarkdown() {
 	if err == nil {
 		var page []byte
 		name := strings.TrimSuffix(w.scriptName(), filepath.Ext(w.scriptName()))
-		if page, err = markdownHTML(w.textEditor.Text(), name); err == nil {
+		text, p := w.textEditor.Text(), w.markdownPageSetup()
+		if page, err = markdownHTMLWith(text, name, p, p.titlePageOf(text, w.scriptName())); err == nil {
 			out := filepath.Join(dir, "document.html")
 			if err = os.WriteFile(out, page, 0o644); err == nil {
 				w.setStatus("Print: choose a printer, or Save as PDF")

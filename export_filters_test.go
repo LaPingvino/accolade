@@ -63,14 +63,15 @@ func TestScriptTagsAndSpeakers(t *testing.T) {
 	}
 }
 
-// The dialog's choices are Lexington's options: colors, tags, sides in
+// The dialog's choices are Lexington's options: colors (Page Setup's), tags, sides in
 // the mode chosen (none chosen: no export), the cue's length.
 func TestExportDialogFilters(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.textEditor.SetText(filterScript)
+	t.Cleanup(func() { w.settings.SetBoolean("export-colors", false) })
 	ed := NewExportDialog(w)
 	ed.Show()
-	if ed.colorsCheck.Checked {
+	if w.pageSetup().colors {
 		t.Error("colors on by default")
 	}
 	if o := ed.job().options("pdf", "x.pdf"); o.Colors || o.Tags != nil || o.Character != "" || o.Sides != "" {
@@ -86,7 +87,7 @@ func TestExportDialogFilters(t *testing.T) {
 	}
 	check("export with filters")
 
-	ed.colorsCheck.SetChecked(true)
+	w.settings.SetBoolean("export-colors", true) // Page Setup's
 	for _, c := range ed.tagChecks {
 		if c.Text == "London" || c.Text == "red" {
 			c.SetChecked(true)

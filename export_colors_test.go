@@ -15,7 +15,7 @@ import (
 	"github.com/LaPingvino/lexington/lex"
 )
 
-// The Export dialog's color style: chosen only with Colors on, passed to
+// Page Setup's color style: chosen only with Colors on, passed to
 // Lexington, saved for the preview and printing.
 func TestExportColorStyle(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
@@ -24,12 +24,12 @@ func TestExportColorStyle(t *testing.T) {
 		w.settings.SetString("export-color-style", "line")
 	})
 	w.textEditor.SetText("# ACT ONE [[blue]]\n\nINT. BARN - DAY\n\nRain.\n")
-	ed := NewExportDialog(w)
-	ed.Show()
+	ed := w.newPageSetup("pdf", nil)
+	ed.d.Show()
 	if !ed.colorStyleSelect.Disabled() || ed.colorStyleSelect.Selected != "Line in the margin" {
 		t.Errorf("without colors: disabled %v, %q", ed.colorStyleSelect.Disabled(), ed.colorStyleSelect.Selected)
 	}
-	if o := ed.job().options("pdf", "x.pdf"); o.ColorStyle != "" {
+	if o := w.outputJob(ed.chosen(), "pdf", w.textEditor.Text(), nil).options("pdf", "x.pdf"); o.ColorStyle != "" {
 		t.Errorf("a style without colors: %q", o.ColorStyle)
 	}
 	ed.colorsCheck.SetChecked(true)
@@ -41,7 +41,7 @@ func TestExportColorStyle(t *testing.T) {
 	}
 	for _, s := range colorStyles {
 		ed.colorStyleSelect.SetSelected(s.label)
-		if o := ed.job().options("pdf", "x.pdf"); !o.Colors || o.ColorStyle != string(s.style) {
+		if o := w.outputJob(ed.chosen(), "pdf", w.textEditor.Text(), nil).options("pdf", "x.pdf"); !o.Colors || o.ColorStyle != string(s.style) {
 			t.Errorf("%s: colors %v, style %q", s.label, o.Colors, o.ColorStyle)
 		}
 		if _, err := lex.ParseColorStyle(string(s.style)); err != nil {
@@ -50,12 +50,11 @@ func TestExportColorStyle(t *testing.T) {
 	}
 	ed.colorStyleSelect.SetSelected("Background")
 	capture(t, w.fyneWindow.Canvas(), "export-color-style.png")
-	ed.saveSettings()
-	if o := w.savedExportJob().options("pdf", "x.pdf"); !o.Colors || o.ColorStyle != "background" {
+	ed.ok()
+	if o := w.layoutJob().options("pdf", "x.pdf"); !o.Colors || o.ColorStyle != "background" {
 		t.Errorf("preview and print: colors %v, style %q", o.Colors, o.ColorStyle)
 	}
-	ed.cancel()
-	if NewExportDialog(w).colorStyleSelect.Selected != "Background" {
+	if w.newPageSetup("pdf", nil).colorStyleSelect.Selected != "Background" {
 		t.Error("the style is not kept")
 	}
 }
@@ -147,8 +146,8 @@ func TestExportDialogScopeAndTint(t *testing.T) {
 		w.settings.SetBoolean("export-color-tint", false)
 		w.settings.SetBoolean("export-color-patterns", false)
 	})
-	ed := NewExportDialog(w)
-	ed.Show()
+	ed := w.newPageSetup("pdf", nil)
+	ed.d.Show()
 	if !ed.colorBlockCheck.Disabled() || !ed.colorTintCheck.Disabled() || !ed.colorPatternsCheck.Disabled() {
 		t.Error("block or tint without colors")
 	}
@@ -175,12 +174,11 @@ func TestExportDialogScopeAndTint(t *testing.T) {
 	ed.colorTintCheck.SetChecked(true) // (kept for the line, not passed)
 	ed.scroll.ScrollToBottom()
 	capture(t, w.fyneWindow.Canvas(), "export-color-scope.png")
-	ed.saveSettings()
-	if o := w.savedExportJob().options("pdf", "x.pdf"); o.ColorStyle != "background" || o.ColorScope != "block" || o.ColorTint {
+	ed.ok()
+	if o := w.layoutJob().options("pdf", "x.pdf"); o.ColorStyle != "background" || o.ColorScope != "block" || o.ColorTint {
 		t.Errorf("preview and print: %+v", o)
 	}
-	ed.cancel()
-	ed = NewExportDialog(w)
+	ed = w.newPageSetup("pdf", nil)
 	if !ed.colorBlockCheck.Checked || !ed.colorTintCheck.Checked || ed.colorBlockCheck.Disabled() || !ed.colorTintCheck.Disabled() {
 		t.Error("block and tint not kept")
 	}
@@ -196,23 +194,22 @@ func TestExportDialogPatterns(t *testing.T) {
 		w.settings.SetBoolean("export-color-patterns", false)
 	})
 	w.textEditor.SetText("# Act One [[blue]]\n\nINT. BARN - DAY\n\nRain.\n")
-	ed := NewExportDialog(w)
-	ed.Show()
+	ed := w.newPageSetup("pdf", nil)
+	ed.d.Show()
 	ed.colorsCheck.SetChecked(true)
 	ed.colorStyleSelect.SetSelected("Line in the margin")
 	ed.colorTintCheck.SetChecked(true)
 	ed.colorPatternsCheck.SetChecked(true)
 	ed.scroll.ScrollToBottom()
 	capture(t, w.fyneWindow.Canvas(), "export-color-patterns.png")
-	ed.saveSettings()
-	if o := w.savedExportJob().options("pdf", "x.pdf"); o.ColorStyle != "line" || !o.ColorTint || !o.ColorPatterns {
+	ed.ok()
+	if o := w.layoutJob().options("pdf", "x.pdf"); o.ColorStyle != "line" || !o.ColorTint || !o.ColorPatterns {
 		t.Errorf("preview and print: %+v", o)
 	}
-	ed.cancel()
-	if err := exportAs(w.textEditor.Text(), filepath.Join(t.TempDir(), "s.pdf"), "pdf", w.savedExportJob()); err != nil {
+	if err := exportAs(w.textEditor.Text(), filepath.Join(t.TempDir(), "s.pdf"), "pdf", w.layoutJob()); err != nil {
 		t.Error(err)
 	}
-	if !NewExportDialog(w).colorPatternsCheck.Checked {
+	if !w.newPageSetup("pdf", nil).colorPatternsCheck.Checked {
 		t.Error("patterns not kept")
 	}
 }

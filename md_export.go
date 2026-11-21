@@ -85,6 +85,12 @@ func markdownTitle(text, name string) string {
 // the front matter and the notes are left out (as in the preview), except
 // in the Markdown as written.
 func exportMarkdown(text, title, out, id string) error {
+	return exportMarkdownWith(text, title, out, id, mdPageSetup{}, nil)
+}
+
+// exportMarkdownWith is exportMarkdown with the page setup p (the web
+// page, Word, ODT and the PDF use it), titlePage its title page's lines.
+func exportMarkdownWith(text, title, out, id string, p mdPageSetup, titlePage []string) error {
 	f := markdownExportByLabel(id)
 	if f.id != id {
 		return fmt.Errorf("unknown export format %q", id)
@@ -96,7 +102,7 @@ func exportMarkdown(text, title, out, id string) error {
 	case "txt":
 		return writeFileAtomic(out, []byte(prose.FromMarkdown(body).Plain()))
 	case "html":
-		page, err := markdownHTML(text, title)
+		page, err := markdownHTMLWith(text, title, p, titlePage)
 		if err != nil {
 			return err
 		}
@@ -104,6 +110,7 @@ func exportMarkdown(text, title, out, id string) error {
 	case "docx", "odt":
 		d := prose.FromMarkdown(body)
 		d.Title = cmp.Or(d.Title, title)
+		d.Paper, d.TitlePage = p.paper, titlePage
 		var b bytes.Buffer
 		var err error
 		if id == "docx" {
@@ -120,7 +127,7 @@ func exportMarkdown(text, title, out, id string) error {
 		if browser == "" {
 			return fmt.Errorf("a PDF is made by a Chromium browser (Chrome, Chromium, Edge, Brave), and none is installed: use Print and Save as PDF")
 		}
-		return withPage(text, title, func(page string) error {
+		return withPage(text, title, p, titlePage, func(page string) error {
 			return writeViaTemp(out, func(tmp string) error { return browserPDF(browser, page, tmp) })
 		})
 	}
@@ -140,21 +147,21 @@ func exportMarkdown(text, title, out, id string) error {
 }
 
 // withPage writes the document as a web page to a temporary file for do.
-func withPage(text, title string, do func(page string) error) error {
+func withPage(text, title string, p mdPageSetup, titlePage []string, do func(page string) error) error {
 	dir, err := os.MkdirTemp("", "accolade-page-")
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(dir)
-	page, err := markdownHTML(text, title)
+	page, err := markdownHTMLWith(text, title, p, titlePage)
 	if err != nil {
 		return err
 	}
-	p := filepath.Join(dir, "document.html")
-	if err := os.WriteFile(p, page, 0o644); err != nil {
+	path := filepath.Join(dir, "document.html")
+	if err := os.WriteFile(path, page, 0o644); err != nil {
 		return err
 	}
-	return do(p)
+	return do(path)
 }
 
 // markdownExportDialog is File > Export for a Markdown document.
@@ -169,6 +176,7 @@ type markdownExportDialog struct {
 	status   *widget.Label
 	export   *widget.Button
 	settings *Settings
+	pageLine *pageSetupLine // the document's page setup
 }
 
 func newMarkdownExportDialog(w *MainWindow) *markdownExportDialog {
@@ -196,11 +204,13 @@ func newMarkdownExportDialog(w *MainWindow) *markdownExportDialog {
 	ed.export = widget.NewButtonWithIcon("Export", theme.DocumentSaveIcon(), ed.run)
 	ed.export.Importance = widget.HighImportance
 	cancel := widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), func() { ed.dialog.Hide() })
+	ed.pageLine = w.newPageSetupLine(func() string { return "" }, nil)
 	form := container.NewVBox(
 		labelled("Format:", ed.format),
 		ed.dirRow,
 		labelled("Filename:", ed.name),
 		ed.note,
+		ed.pageLine.box,
 		ed.status,
 	)
 	if inBrowser { // the file is downloaded
@@ -216,7 +226,7 @@ func newMarkdownExportDialog(w *MainWindow) *markdownExportDialog {
 		nil, nil, container.NewPadded(form))
 	ed.dialog = dialog.NewCustomWithoutButtons("Export Document", content, w.fyneWindow)
 	ed.dialog.SetOnEscape(func() { ed.dialog.Hide() })
-	ed.dialog.Resize(fyne.NewSize(560, 380))
+	ed.dialog.Resize(fitDialog(w.fyneWindow, 560, 440))
 	ed.format.SetSelected(markdownExportByLabel(ed.settings.GetString("markdown-export-format")).label)
 	return ed
 }
@@ -305,10 +315,12 @@ func (ed *markdownExportDialog) run() {
 	_ = ed.settings.Save()
 	start := func() {
 		text, title := ed.w.textEditor.Text(), markdownTitle(ed.w.textEditor.Text(), ed.w.scriptName())
+		page := ed.w.markdownPageSetup()
+		titlePage := page.titlePageOf(text, ed.w.scriptName())
 		ed.export.Disable()
 		ed.status.SetText("Exporting...")
 		go func() {
-			err := exportMarkdown(text, title, out, f.id)
+			err := exportMarkdownWith(text, title, out, f.id, page, titlePage)
 			fyne.Do(func() {
 				ed.export.Enable()
 				if err != nil {

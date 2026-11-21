@@ -8,14 +8,14 @@ import (
 	"github.com/LaPingvino/lexington/pdfin"
 )
 
-// The dialog's page breaks: the format's by default, all, none or some
+// Page Setup's page breaks: the format's by default, all, none or some
 // parts, as Lexington's -pagination; saved for the preview and printing.
 func TestExportPagination(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	t.Cleanup(func() { w.settings.SetString("export-pagination", "") })
-	ed := NewExportDialog(w)
-	ed.Show()
-	if ed.paginationSelect.Selected != "Script format's" || ed.job().options("pdf", "x.pdf").Pagination != "" {
+	ed := w.newPageSetup("pdf", nil)
+	ed.d.Show()
+	if ed.paginationSelect.Selected != "Script format's" || w.outputJob(ed.chosen(), "pdf", w.textEditor.Text(), nil).options("pdf", "x.pdf").Pagination != "" {
 		t.Errorf("default %q", ed.paginationSelect.Selected)
 	}
 	parts := func() bool { return !ed.paginationKeep.Disabled() && !ed.paginationWidows.Disabled() && !ed.paginationMore.Disabled() }
@@ -25,7 +25,7 @@ func TestExportPagination(t *testing.T) {
 		{"Script format's", ""},
 	} {
 		ed.paginationSelect.SetSelected(c.choice)
-		if got := ed.job().options("pdf", "x.pdf").Pagination; got != c.want || parts() {
+		if got := w.outputJob(ed.chosen(), "pdf", w.textEditor.Text(), nil).options("pdf", "x.pdf").Pagination; got != c.want || parts() {
 			t.Errorf("%s: %q, parts enabled %v", c.choice, got, parts())
 		}
 	}
@@ -34,7 +34,7 @@ func TestExportPagination(t *testing.T) {
 		t.Error("Some: the parts are not enabled")
 	}
 	ed.paginationWidows.SetChecked(false)
-	if got := ed.job().options("pdf", "x.pdf").Pagination; got != "keep+more" {
+	if got := w.outputJob(ed.chosen(), "pdf", w.textEditor.Text(), nil).options("pdf", "x.pdf").Pagination; got != "keep+more" {
 		t.Errorf("keep and more: %q", got)
 	}
 	if u := unnamed(w.fyneWindow.Canvas()); len(u) > 0 {
@@ -43,12 +43,11 @@ func TestExportPagination(t *testing.T) {
 	ed.scroll.ScrollToBottom()
 	ed.scroll.ScrollToOffset(ed.scroll.Offset.SubtractXY(0, 150))
 	capture(t, w.fyneWindow.Canvas(), "export-pagination.png")
-	ed.saveSettings()
-	if got := w.savedExportJob().options("pdf", "x.pdf").Pagination; got != "keep+more" {
+	ed.ok()
+	if got := w.layoutJob().options("pdf", "x.pdf").Pagination; got != "keep+more" {
 		t.Errorf("preview and print: %q", got)
 	}
-	ed.cancel()
-	ed = NewExportDialog(w)
+	ed = w.newPageSetup("pdf", nil)
 	if ed.paginationSelect.Selected != "Some:" || !ed.paginationKeep.Checked || ed.paginationWidows.Checked || !ed.paginationMore.Checked {
 		t.Errorf("kept as %q %v %v %v", ed.paginationSelect.Selected, ed.paginationKeep.Checked, ed.paginationWidows.Checked, ed.paginationMore.Checked)
 	}

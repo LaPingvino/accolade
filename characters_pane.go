@@ -190,7 +190,7 @@ func (p *charactersPane) readCast(text string) {
 		return
 	}
 	p.castBusy = true
-	job := w.savedExportJob()
+	job := w.layoutJob()
 	inBackground(func() map[string]int {
 		r, err := scriptReport(text, job)
 		if err != nil {

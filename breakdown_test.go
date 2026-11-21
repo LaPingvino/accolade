@@ -412,7 +412,7 @@ func TestBreakdownReports(t *testing.T) {
 			t.Errorf("no %q in\n%s", want, els)
 		}
 	}
-	rep, _ := scriptReport(w.textEditor.Text(), w.savedExportJob())
+	rep, _ := scriptReport(w.textEditor.Text(), w.layoutJob())
 	f, bt, ps := w.breakdownNowFound()
 	b.Reset()
 	if err := lexreport.WriteSheetsPDF(&b, "The Shed", rep.Sheets(reportBreakdownFor(f, ps, bt, &rep)), ""); err != nil || !bytes.HasPrefix(b.Bytes(), []byte("%PDF")) {
@@ -434,7 +434,7 @@ func TestBreakdownScenesAlign(t *testing.T) {
 	tagNow(t, w, "lamp", 0, "Props")
 	tagNow(t, w, "star", 0, "Props")
 	tagNow(t, w, "truck", 0, "Vehicles")
-	rep, err := scriptReport(w.textEditor.Text(), w.savedExportJob())
+	rep, err := scriptReport(w.textEditor.Text(), w.layoutJob())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -468,7 +468,7 @@ func TestBreakdownFDX(t *testing.T) {
 	tagNow(t, w, "dog", 0, "Animals")
 	tagNow(t, w, "dog", 0, "Puppets") // a category of one's own, the same words
 	text := w.textEditor.Text()
-	j := w.withBreakdown(w.savedExportJob(), text)
+	j := w.withBreakdown(w.layoutJob(), text)
 	out := filepath.Join(t.TempDir(), "shed.fdx")
 	if err := cli.Write(t.Context(), j.script(text), j.options("fdx", out)); err != nil {
 		t.Fatal(err)
@@ -526,7 +526,7 @@ func TestBreakdownFDXMultiLine(t *testing.T) {
 	tagNow(t, w, "dog", 0, "Animals")
 	tagNow(t, w, "umbrella", 0, "Props")
 	text := w.textEditor.Text()
-	j := w.withBreakdown(w.savedExportJob(), text)
+	j := w.withBreakdown(w.layoutJob(), text)
 	out := filepath.Join(t.TempDir(), "multi.fdx")
 	if err := cli.Write(t.Context(), j.script(text), j.options("fdx", out)); err != nil {
 		t.Fatal(err)

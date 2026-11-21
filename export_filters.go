@@ -148,10 +148,13 @@ func (ed *ExportDialog) createFilterWidgets() {
 		labels = append(labels, m.label)
 	}
 	ed.sidesRadio = widget.NewRadioGroup(labels, func(string) { ed.showSides() })
-	ed.sidesRadio.Horizontal = true
+	// side by side, but on a phone one under the other (the dialog scrolls down only)
+	c := ed.window.fyneWindow.Canvas().Size()
+	wide := c.Width == 0 || c.Width >= 600
+	ed.sidesRadio.Horizontal = wide
 	fyne.SetAccessibleLabel(ed.sidesRadio, "Sides: what of their scenes")
 	ed.cueRadio = widget.NewRadioGroup(cueLengths, nil)
-	ed.cueRadio.Horizontal = true
+	ed.cueRadio.Horizontal = wide
 	ed.cueRadio.Required = true
 	ed.cueRadio.SetSelected(cueLengths[0])
 	fyne.SetAccessibleLabel(ed.cueRadio, "Cue length")
@@ -180,8 +183,10 @@ func (ed *ExportDialog) filterContent() fyne.CanvasObject {
 	ed.cueBox = container.NewHBox(widget.NewLabel("Cue:"), ed.cueRadio, container.NewGridWrap(fyne.NewSize(60, ed.cueWordsEntry.MinSize().Height), ed.cueWordsEntry))
 	ed.sidesBox = container.NewVBox(labelled("Sides:", ed.sidesRadio), ed.cueBox)
 	ed.showSides()
+	tagged := widget.NewLabel("Only scenes and sections tagged (none: all of them):")
+	tagged.Wrapping = fyne.TextWrapWord
 	return container.NewVBox(
-		widget.NewLabel("Only scenes and sections tagged (none: all of them):"),
+		tagged,
 		tagPart,
 		labelled("Sides for character:", ed.characterSelect),
 		ed.sidesBox,

@@ -563,7 +563,7 @@ func revisedPageCount(text, set string, job exportJob) (r changedPages) {
 // the margin shows) are put in by countPages, in the background.
 // Revised Pages PDF… prints the same with the export's setting.
 func (w *MainWindow) revisedPagesJob(text string) exportJob {
-	j := w.savedExportJob()
+	j := w.layoutJob()
 	j.revisions = &lex.Revisions{}
 	if w.settings != nil {
 		j.revisions.Header = w.settings.GetString(revisionHeaderPref)
@@ -577,16 +577,15 @@ func (w *MainWindow) revisedPagesJob(text string) exportJob {
 func (w *MainWindow) goToLine(line int) { w.goToScript(line) }
 
 // showRevisedPagesExport is the Export dialog set up for the current
-// revision's pages: PDF, revision marks, revised pages only.
+// revision's pages: PDF, revision marks, revised pages only (this export
+// only: the page setup stays as it is).
 func (w *MainWindow) showRevisedPagesExport(set string) *ExportDialog {
 	if w.markdown || w.textEditor == nil {
 		return nil
 	}
 	ed := NewExportDialog(w)
+	ed.revisedPages = true // this export's, not the page setup's
 	ed.formatSelect.SetSelected(exportFormatLabel("pdf"))
-	ed.revisionsCheck.SetChecked(true)
-	ed.revisedOnlyCheck.Enable()
-	ed.revisedOnlyCheck.SetChecked(true)
 	if set != "" {
 		name := strings.TrimSuffix(ed.filenameEntry.Text, ".pdf")
 		ed.filenameEntry.SetText(name + "-" + strings.ToLower(strings.ReplaceAll(set, " ", "-")) + "-pages.pdf")

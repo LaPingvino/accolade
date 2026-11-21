@@ -334,8 +334,8 @@ func (pd *PreferencesDialog) followSetting(key string) {
 		}
 	case sceneNumberStylePref:
 		pd.sceneLettersSelect.SetSelected(sceneLettering(lex.ParseNumberStyle(s.GetString(key))))
-	case continuedsPref:
-		pd.continuedsCheck.SetChecked(s.GetBoolean(key))
+	case continuedsPref, "fountain-scene-numbers", pageSetupPref:
+		pd.showPageSetup()
 	case "editor-keys":
 		pd.keysSelect.SetSelected((&MainWindow{settings: s}).editorKeys())
 	case "font-family":
@@ -344,7 +344,5 @@ func (pd *PreferencesDialog) followSetting(key string) {
 		pd.languageSelect.SetSelected(s.GetString(key))
 	case "toolbar-visible":
 		pd.toolbarVisibleCheck.SetChecked(s.GetBoolean(key))
-	case "fountain-scene-numbers":
-		pd.numberScenesCheck.SetChecked(s.GetBoolean(key))
 	}
 }

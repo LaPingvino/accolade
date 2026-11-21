@@ -445,6 +445,7 @@ func newRegistry() *registry {
 		// a copy without Accolade's data, for other apps (clean_fountain.go)
 		&command{id: "file.exportClean", label: "Export Clean Fountain…", tip: "A .fountain without Accolade's data, for other apps",
 			icon: theme.DocumentIcon, when: screenplayOnly, run: (*MainWindow).showCleanFountain},
+		pageSetupCommand(), // how it prints (pagesetup.go)
 		&command{id: "file.print", label: "Print…", icon: theme.DocumentPrintIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyP, 0)}, run: (*MainWindow).print},
 		&command{id: "app.preferences", label: "Preferences…", tip: "Preferences", keys: []fyne.Shortcut{shortcut(fyne.KeyComma, 0)}, icon: theme.SettingsIcon,
 			run: func(w *MainWindow) { w.app.showPreferences() }},
@@ -690,7 +691,7 @@ func newRegistry() *registry {
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
 			at("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
-			sep(), at("file.export"), at("file.exportClean"), at("file.print"),
+			sep(), at("file.export"), at("file.exportClean"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 		}},
 		{title: "Edit", homes: []home{
@@ -945,8 +946,8 @@ var ribbonLabels = map[string]string{
 	"file.open": "Open", "file.save": "Save",
 	"file.newEmpty": "Empty", "file.newMarkdown": "Markdown", "file.newWindow": "Window", "file.newEmptyWindow": "Empty Window",
 	"file.recent": "Recent", "file.import": "Import", "file.importPandoc": "With pandoc",
-	"file.exportClean": "Clean Fountain",
-	"source.choose":    "Choose Source", "file.startScreenplay": "Start Screenplay",
+	"file.exportClean": "Clean Fountain", "file.pageSetup": "Page Setup",
+	"source.choose": "Choose Source", "file.startScreenplay": "Start Screenplay",
 	// Write
 	"format.rtl": "Right to Left", "md.rule": "Rule", "md.bullets": "Bullets", "md.numbers": "Numbered", "md.tasks": "Tasks",
 	"md.code": "Code", "md.strike": "Strike",
@@ -979,13 +980,17 @@ var ribbonLabels = map[string]string{
 // the script format's own buttons and its list.
 func ribbonLayout() []ribbonTab {
 	noSource := func(e cmdEnv) bool { return !e.markdown && !e.source }
+	noMarkdown := func(e cmdEnv) bool { return !e.markdown }
+	markdownEnv := func(e cmdEnv) bool { return e.markdown }
 	return []ribbonTab{
 		{title: "File", groups: []ribbonGroup{
 			{title: "New", homes: []home{big("file.new"), at("file.newEmpty"), at("file.newMarkdown"), at("file.newWindow"), at("file.newEmptyWindow"),
 				at("set.newLanguage")}}, // "New in: English": the language they are in
 			{title: "Open", homes: []home{big("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc")}},
 			{title: "Save", homes: []home{big("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename")}},
-			{title: "Output", homes: []home{big("file.export"), big("file.print"), at("file.exportClean")}},
+			{title: "Output", when: noMarkdown, homes: []home{big("file.export"), big("file.print"), at("file.exportClean"), at("file.pageSetup")}},
+			// a document's, without Clean Fountain: Print small over Page Setup, so the tab fits
+			{title: "Output", when: markdownEnv, homes: []home{big("file.export"), at("file.print"), at("file.pageSetup")}},
 			// a source to adapt: the Adaptation tab once there is one
 			{title: "Adapt", when: noSource, homes: []home{big("source.choose")}},
 			{title: "Adapt", homes: []home{big("file.startScreenplay")}},
@@ -1039,7 +1044,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Stages", homes: []home{bigAs("view.production", "Production Pane"), at("production.breakdown"), at("production.schedule")}},
 			{title: "Scenes", homes: []home{at("production.omit"), at("production.restore"), at("production.unlockPages")}},
 			{title: "Reports", homes: []home{big("production.reports")}},
-			{title: "Options", homes: []home{at("set.revisionMarks"), at("set.lettering"), at("set.continueds"), at("set.sceneNumbers")}},
+			{title: "Options", homes: []home{at("set.revisionMarks"), at("set.lettering"), at("set.continueds"), at("set.sceneNumbers"), at("file.pageSetup")}},
 		}},
 		{title: "Collaboration", groups: []ribbonGroup{
 			{title: "Together", homes: []home{big("file.share"), at("file.join"), at("view.changes")}},

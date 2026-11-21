@@ -3,10 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/LaPingvino/lexington/cli"
-	"github.com/LaPingvino/lexington/lex"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -23,34 +21,15 @@ type ExportDialog struct {
 
 	// Format selection
 	formatSelect *widget.Select
-	// templateEntry is a template for FDX and LaTeX (Lexington's -template)
-	templateEntry *widget.Entry
 
 	// Output settings
 	outputDirEntry *widget.Entry
 	filenameEntry  *widget.Entry
 
-	// Fountain settings
-	includeTitlePageCheck *widget.Check
-	sceneNumbersCheck     *widget.Check
-	scriptFormatSelect    *widget.Select
-	documentPageSelect    *widget.Select
-	colorsCheck           *widget.Check
-	colorStyleSelect      *widget.Select // how the colors show, with Colors on
-	// colorOptions holds how colors show, under Colors: the style, and
-	// room for what goes with a style (a marker's scope, a line's tint)
-	colorOptions                    *fyne.Container
-	colorBlockCheck, colorTintCheck *widget.Check // with marker, background or text; with the line
-	colorPatternsCheck              *widget.Check // with the line
-
-	// revisions (PDF, FDX; revisions.go), shown once the script has an
-	// issue: the marks, the revised pages only, their colour's paper
-	revisionsCheck, revisedOnlyCheck, pageColoursCheck *widget.Check
-
-	// page breaks (export_pagination.go)
-	paginationSelect                                 *widget.Select
-	paginationKeep, paginationWidows, paginationMore *widget.Check
-	paginationBox                                    fyne.CanvasObject
+	// the page setup (pagesetup.go): its line, and this export's own
+	// revised pages (Production's Revised Pages PDF…), not saved
+	pageLine     *pageSetupLine
+	revisedPages bool
 
 	// Filters (export_filters.go)
 	tagChecks        []*widget.Check // one per tag, its Text the tag
@@ -69,7 +48,7 @@ type ExportDialog struct {
 	cancelButton  *widget.Button
 	previewButton *widget.Button
 
-	// Format settings container
+	// Format settings container: what the format makes, and whether it can
 	formatSettingsContainer *fyne.Container
 	scroll                  *container.Scroll // the settings
 
@@ -113,51 +92,10 @@ func (ed *ExportDialog) createWidgets() {
 	ed.filenameEntry = widget.NewEntry()
 	ed.filenameEntry.SetText(ed.getDefaultFilename())
 
-	// PDF, HTML, DOCX and ODT: the script format (Lexington's presets)
-	ed.scriptFormatSelect = newScriptFormatSelect(ed.window.lex, nil, nil)
-	fyne.SetAccessibleLabel(ed.scriptFormatSelect, "Script format")
-	// DOCX and ODT: the paper, or the one the script format suggests
-	ed.documentPageSelect = widget.NewSelect(documentPages, nil)
-	ed.documentPageSelect.SetSelected(documentPages[0])
+	// the page setup, as this export's format uses it
+	ed.pageLine = ed.window.newPageSetupLine(ed.format, nil)
+	ed.pageLine.setup = ed.pageSetup
 
-	// FDX and LaTeX take a template (Lexington's -template)
-	ed.templateEntry = widget.NewEntry()
-	ed.templateEntry.SetPlaceHolder("Lexington's own")
-	fyne.SetAccessibleLabel(ed.templateEntry, "Template")
-
-	// Fountain settings
-	ed.includeTitlePageCheck = widget.NewCheck("Include title page", nil)
-	ed.includeTitlePageCheck.SetChecked(true)
-
-	ed.sceneNumbersCheck = widget.NewCheck("Number the scenes (those without a number)", nil)
-	ed.colorsCheck = widget.NewCheck("Colors: headings and sections in their notes' colors", func(bool) { ed.enableColorStyle() })
-	var styles []string
-	for _, s := range colorStyles {
-		styles = append(styles, s.label)
-	}
-	ed.colorStyleSelect = widget.NewSelect(styles, func(string) { ed.enableColorStyle() })
-	ed.colorStyleSelect.SetSelected(styles[0])
-	ed.colorBlockCheck = widget.NewCheck("Whole block, not only the heading", nil)
-	ed.colorTintCheck = widget.NewCheck("Tint the block", nil)
-	ed.colorPatternsCheck = widget.NewCheck("Patterns on the line (for colour blindness)", nil)
-	ed.colorOptions = container.NewVBox(labelled("Style:", ed.colorStyleSelect),
-		container.NewHBox(ed.colorBlockCheck, ed.colorTintCheck), ed.colorPatternsCheck)
-
-	ed.revisionsCheck = widget.NewCheck("Revision marks: * at changed lines, the changed pages' header", func(on bool) {
-		if ed.revisedOnlyCheck != nil {
-			if on {
-				ed.revisedOnlyCheck.Enable()
-				ed.pageColoursCheck.Enable()
-			} else {
-				ed.revisedOnlyCheck.Disable()
-				ed.pageColoursCheck.Disable()
-			}
-		}
-	})
-	ed.revisedOnlyCheck = widget.NewCheck("Revised pages only (the pages with a change)", nil)
-	ed.pageColoursCheck = widget.NewCheck("Changed pages on their colour's paper", nil)
-
-	ed.paginationBox = ed.paginationWidgets()
 	ed.createFilterWidgets()
 
 	// Progress
@@ -198,18 +136,7 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 	ed.formatSelect.SetSelected("")
 	ed.formatSelect.SetSelected(format)
 
-	formatSection := widget.NewCard("Format Settings", "", ed.formatSettingsContainer)
-
-	// Fountain options
-	fountainSection := widget.NewCard("Script", "",
-		container.NewVBox(
-			ed.includeTitlePageCheck,
-			ed.sceneNumbersCheck,
-			ed.colorsCheck,
-			ed.colorOptions,
-			ed.paginationBox,
-		),
-	)
+	pageSection := widget.NewCard("Page Setup", "", container.NewVBox(ed.formatSettingsContainer, ed.pageLine.box))
 	filterSection := widget.NewCard("Part of the Script", "", ed.filterContent())
 
 	// Progress section
@@ -226,12 +153,9 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 		ed.exportButton,
 	)
 	// the buttons stay below the settings, which scroll
-	settings := container.NewVBox(outputSection, formatSection, fountainSection, filterSection, progressSection)
+	settings := container.NewVBox(outputSection, pageSection, filterSection, progressSection)
 	size := fitDialog(ed.window.fyneWindow, 580+dialogMargin, 560+dialogMargin).SubtractWidthHeight(dialogMargin, dialogMargin)
 	scrollContent := container.NewVScroll(settings)
-	if size.Width < 580 { // a phone: sideways too, rather than past the screen's edge
-		scrollContent = container.NewScroll(settings)
-	}
 	scrollContent.SetMinSize(size)
 	ed.scroll = scrollContent
 	return container.NewBorder(nil, container.NewVBox(widget.NewSeparator(), buttonContainer), nil, nil, scrollContent)
@@ -245,37 +169,12 @@ func (ed *ExportDialog) updateFormatSettings() {
 
 	ed.formatSettingsContainer.Objects = nil
 
-	labelled := func(label string, o fyne.CanvasObject) {
-		ed.formatSettingsContainer.Add(labelled(label, o))
-	}
 	note := func(text string) {
 		l := widget.NewLabel(text)
 		l.Wrapping = fyne.TextWrapWord
 		ed.formatSettingsContainer.Add(l)
 	}
 	f := exportFormatByLabel(ed.formatSelect.Selected)
-	switch f.id {
-	case "pdf", "html", "docx", "odt", "latex", "htmlpdf", "latexpdf":
-		labelled("Script format:", ed.scriptFormatSelect)
-	}
-	switch f.id {
-	case "pdf", "docx", "odt":
-		labelled("Paper:", ed.documentPageSelect)
-	}
-	switch f.id {
-	case "fdx", "latex", "latexpdf":
-		labelled("Template:", ed.templateEntry)
-	}
-	if ed.window.scriptIssued() {
-		switch f.id {
-		case "pdf":
-			ed.formatSettingsContainer.Add(ed.revisionsCheck)
-			ed.formatSettingsContainer.Add(ed.revisedOnlyCheck)
-			ed.formatSettingsContainer.Add(ed.pageColoursCheck)
-		case "fdx":
-			ed.formatSettingsContainer.Add(ed.revisionsCheck)
-		}
-	}
 	switch f.id {
 	case "docx", "odt":
 		note("Every element is a paragraph style, to restyle in Word or LibreOffice.")
@@ -296,7 +195,7 @@ func (ed *ExportDialog) updateFormatSettings() {
 			note(f.format.Name + " is made with " + f.format.Needs + ", which is not installed.")
 		}
 	}
-	for _, o := range append([]fyne.Disableable{ed.includeTitlePageCheck, ed.sceneNumbersCheck, ed.colorsCheck, ed.previewButton}, ed.filterWidgets()...) {
+	for _, o := range append([]fyne.Disableable{ed.previewButton}, ed.filterWidgets()...) {
 		if o == nil {
 			continue
 		}
@@ -306,8 +205,9 @@ func (ed *ExportDialog) updateFormatSettings() {
 			o.Disable()
 		}
 	}
-	ed.enablePagination()
-	ed.enableColorStyle()
+	if ed.pageLine != nil {
+		ed.pageLine.refresh()
+	}
 	if ed.exportButton != nil {
 		if available {
 			ed.exportButton.Enable()
@@ -331,40 +231,12 @@ func (ed *ExportDialog) loadSettings() {
 	if dir := ed.settings.GetString("export-directory"); dir != "" {
 		ed.outputDirEntry.SetText(dir)
 	}
-
-	ed.window.lex().selectFormat(ed.scriptFormatSelect, ed.window.scriptFormatKey())
-	ed.documentPageSelect.SetSelected(documentPageLabel(ed.settings.GetString("page-size")))
-
-	ed.includeTitlePageCheck.SetChecked(ed.settings.GetBoolean("include-title-page"))
-	ed.sceneNumbersCheck.SetChecked(ed.settings.GetBoolean("fountain-scene-numbers"))
-	ed.colorsCheck.SetChecked(ed.settings.GetBoolean("export-colors"))
-	ed.colorStyleSelect.SetSelected(colorStyleLabel(ed.settings.GetString("export-color-style")))
-	ed.colorBlockCheck.SetChecked(ed.settings.GetBoolean("export-color-block"))
-	ed.colorTintCheck.SetChecked(ed.settings.GetBoolean("export-color-tint"))
-	ed.colorPatternsCheck.SetChecked(ed.settings.GetBoolean("export-color-patterns"))
-	ed.setPagination(ed.settings.GetString("export-pagination"))
-	ed.enableColorStyle()
-	ed.revisionsCheck.SetChecked(ed.settings.GetBoolean("export-revisions"))
-	ed.pageColoursCheck.SetChecked(ed.settings.GetBoolean("export-page-colours"))
 }
 
 func (ed *ExportDialog) saveSettings() {
 	// Save export settings to preferences
 	ed.settings.SetString("export-format", ed.formatSelect.Selected)
 	ed.settings.SetString("export-directory", ed.outputDirEntry.Text)
-	ed.settings.SetString("page-size", ed.chosenPage())
-	ed.window.setScriptFormat(ed.window.lex().selectedFormat(ed.scriptFormatSelect))
-	ed.settings.SetBoolean("include-title-page", ed.includeTitlePageCheck.Checked)
-	ed.settings.SetBoolean("fountain-scene-numbers", ed.sceneNumbersCheck.Checked)
-	ed.settings.SetBoolean("export-colors", ed.colorsCheck.Checked)
-	ed.settings.SetString("export-color-style", string(ed.chosenColorStyle()))
-	ed.settings.SetBoolean("export-color-block", ed.colorBlockCheck.Checked)
-	ed.settings.SetBoolean("export-color-tint", ed.colorTintCheck.Checked)
-	ed.settings.SetBoolean("export-color-patterns", ed.colorPatternsCheck.Checked)
-	ed.settings.SetString("export-pagination", ed.chosenPagination())
-	ed.settings.SetBoolean("export-revisions", ed.revisionsCheck.Checked)
-	ed.settings.SetBoolean("export-page-colours", ed.pageColoursCheck.Checked)
-
 	ed.settings.Save()
 }
 
@@ -535,49 +407,28 @@ func (ed *ExportDialog) runExport() {
 	}()
 }
 
-// job is the export as the dialog sets it up.
-func (ed *ExportDialog) job() exportJob {
-	j := ed.plainJob()
-	f := exportFormatByLabel(ed.formatSelect.Selected).id
-	text := ed.window.textEditor.Text()
-	switch {
-	case f == "pdf" && ed.revisionsCheck.Checked:
-		j = ed.window.withRevisions(j, text, ed.revisedOnlyCheck.Checked, ed.pageColoursCheck.Checked)
-	case f == "fdx" && ed.revisionsCheck.Checked:
-		j = ed.window.withAllRevisions(j, text)
+// format is the export format's id.
+func (ed *ExportDialog) format() string { return exportFormatByLabel(ed.formatSelect.Selected).id }
+
+// pageSetup is the page setup this export prints with: the settings'
+// (Page Setup), with its own revised pages.
+func (ed *ExportDialog) pageSetup() pageSetup {
+	p := ed.window.pageSetup()
+	if ed.revisedPages {
+		p.revisions, p.revisedOnly = true, true
 	}
-	if f == "fdx" { // the scenes' lengths, and the breakdown's tags
-		j = ed.window.withBreakdown(j, text)
-	}
-	if f == "pdf" { // in the pages its revision prints against
-		j = ed.window.withIssuedPages(j, text)
-	}
-	return j
+	return p
 }
 
-// plainJob is the export as the dialog sets it up, without revisions.
-func (ed *ExportDialog) plainJob() exportJob {
-	return exportJob{
-		format:        ed.window.lex().selectedFormat(ed.scriptFormatSelect),
-		conf:          ed.window.lex(),
-		page:          ed.documentPage(),
-		template:      strings.TrimSpace(ed.templateEntry.Text),
-		omitTitlePage: !ed.includeTitlePageCheck.Checked,
-		numberScenes:  ed.sceneNumbersCheck.Checked,
-		scenes:        ed.window.sceneHeaders(),
-		language:      ed.window.language,
-		colors:        ed.colorsCheck.Checked,
-		colorStyle:    ed.chosenColorStyle(),
-		colorBlock:    ed.colorBlockCheck.Checked,
-		colorTint:     ed.colorTintCheck.Checked,
-		colorPatterns: ed.colorPatternsCheck.Checked,
-		pagination:    ed.chosenPagination(),
-		tags:          ed.chosenTags(),
-		character:     ed.chosenCharacter(),
-		sides:         ed.chosenSides(),
-		cueWords:      ed.chosenCueWords(),
-		continueds:    ed.settings.GetBoolean(continuedsPref),
-	}
+// job is the export as the dialog sets it up: the page setup's, of the
+// part of the script chosen.
+func (ed *ExportDialog) job() exportJob {
+	return ed.window.outputJob(ed.pageSetup(), ed.format(), ed.window.textEditor.Text(), func(j *exportJob) {
+		j.tags = ed.chosenTags()
+		j.character = ed.chosenCharacter()
+		j.sides = ed.chosenSides()
+		j.cueWords = ed.chosenCueWords()
+	})
 }
 
 func (ed *ExportDialog) performExport(content, outputPath, format string) error {
@@ -597,38 +448,6 @@ func (ed *ExportDialog) performExportJob(content, outputPath, format string, job
 		return fmt.Errorf("unsupported export format: %s", format)
 	}
 	return exportAs(content, outputPath, format, job)
-}
-
-// documentPages are the paper choices for PDF, DOCX and ODT; the first
-// is the script format's suggestion (A5 for a musical), else Letter.
-var documentPages = []string{"Script format's", "Letter", "A4", "A5"}
-
-// documentPageLabel is the choice for a "page-size" setting.
-func documentPageLabel(name string) string {
-	for _, l := range documentPages[1:] {
-		if strings.EqualFold(l, name) {
-			return l
-		}
-	}
-	return documentPages[0]
-}
-
-// chosenPage is the "page-size" setting for the choice ("" for the
-// script format's).
-func (ed *ExportDialog) chosenPage() string {
-	if ed.documentPageSelect.Selected == documentPages[0] {
-		return ""
-	}
-	return strings.ToLower(ed.documentPageSelect.Selected)
-}
-
-// documentPage is the chosen paper's name for Lexington.
-func (ed *ExportDialog) documentPage() string {
-	if ed.documentPageSelect.Selected == documentPages[0] {
-		conf := ed.window.lex()
-		return conf.format(conf.selectedFormat(ed.scriptFormatSelect)).Page
-	}
-	return strings.ToLower(ed.documentPageSelect.Selected)
 }
 
 func (ed *ExportDialog) exportToTXT(content, outputPath string) error {
@@ -689,59 +508,4 @@ func (ed *ExportDialog) cancel() {
 
 func (ed *ExportDialog) Show() {
 	ed.dialog.Show()
-}
-
-// colorStyles are how colors can show (Lexington's color styles).
-var colorStyles = []struct {
-	label string
-	style lex.ColorStyle
-}{
-	{"Line in the margin", lex.ColorLine},
-	{"Marker", lex.ColorMarker},
-	{"Background", lex.ColorBackground},
-	{"Text color", lex.ColorText},
-}
-
-// colorStyleLabel is the choice for an "export-color-style" setting (a
-// line in the margin for one it does not know).
-func colorStyleLabel(name string) string {
-	for _, s := range colorStyles {
-		if string(s.style) == name {
-			return s.label
-		}
-	}
-	return colorStyles[0].label
-}
-
-// chosenColorStyle is the color style chosen.
-func (ed *ExportDialog) chosenColorStyle() lex.ColorStyle {
-	for _, s := range colorStyles {
-		if s.label == ed.colorStyleSelect.Selected {
-			return s.style
-		}
-	}
-	return lex.ColorLine
-}
-
-// enableColorStyle lets the style be chosen while Colors is on (and can
-// be); what goes with one style only is enabled with that style.
-func (ed *ExportDialog) enableColorStyle() {
-	if ed.colorStyleSelect == nil {
-		return
-	}
-	on := ed.colorsCheck.Checked && !ed.colorsCheck.Disabled()
-	style := ed.chosenColorStyle()
-	enable := func(o fyne.Disableable, yes bool) {
-		if yes {
-			o.Enable()
-		} else {
-			o.Disable()
-		}
-	}
-	enable(ed.colorStyleSelect, on)
-	if ed.colorBlockCheck != nil {
-		enable(ed.colorBlockCheck, on && (style == lex.ColorMarker || style == lex.ColorBackground || style == lex.ColorText))
-		enable(ed.colorTintCheck, on && style == lex.ColorLine)
-		enable(ed.colorPatternsCheck, on && style == lex.ColorLine)
-	}
 }

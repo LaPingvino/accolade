@@ -91,7 +91,7 @@ func TestDirectionFallback(t *testing.T) {
 		t.Errorf("back: %q", line())
 	}
 	// the HTML export
-	job := w.savedExportJob()
+	job := w.layoutJob()
 	job.format = "default"
 	out := filepath.Join(dir, "s.html")
 	if err := exportAs(e.Text(), out, "html", job); err != nil {

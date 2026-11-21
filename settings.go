@@ -63,7 +63,11 @@ func (s *Settings) loadDefaults() {
 		"export-color-tint":     false,  // a line's block tinted
 		"export-color-patterns": false,  // a line's bar patterned, for color blindness
 		"export-pagination":     "",     // page breaks: Lexington's (export_pagination.go)
-		"page-size":             "",     // the script format's (export dialog)
+		"page-size":             "",     // the script format's (Page Setup: pagesetup.go)
+		"export-template":       "",     // FDX's and LaTeX's: Lexington's
+		"export-revised-only":   false,  // PDF: the revised pages only
+		"markdown-page-size":    "",     // a Markdown document's paper: A4 in Word and ODT, the printer's otherwise
+		"markdown-title-page":   false,
 
 		"your-name":           "", // what others sharing a script see (changes.go); "" the login's
 		"auto-close-brackets": true,

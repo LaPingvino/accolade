@@ -278,7 +278,7 @@ func TestPrintOmittedRunsAsOne(t *testing.T) {
 	}
 	// the print, the PDF and the FDX
 	dir := t.TempDir()
-	job := w.savedExportJob()
+	job := w.layoutJob()
 	if err := exportAs(text, dir+"/s.html", "html", job); err != nil {
 		t.Fatal(err)
 	}

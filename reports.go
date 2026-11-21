@@ -95,7 +95,7 @@ func (w *MainWindow) showReports() {
 	if w.markdown {
 		return
 	}
-	content, job := w.textEditor.Text(), w.savedExportJob()
+	content, job := w.textEditor.Text(), w.layoutJob()
 	f, bt, ps := w.breakdownNowFound()
 	lost := 0
 	for _, p := range ps {
@@ -305,7 +305,7 @@ func (rd *reportsDialog) show() {
 	} else {
 		rd.reverse.SetIcon(theme.MoveDownIcon())
 	}
-	sum := reportSummary(rd.rep, kind, rd.w.savedExportJob().page)
+	sum := reportSummary(rd.rep, kind, rd.w.layoutJob().page)
 	if kind == lexreport.KindSheets || kind == lexreport.KindElements {
 		sum = breakdownSummary(rd.bd, rd.lost) + " " + sum
 	}
@@ -582,7 +582,7 @@ func (rd *reportsDialog) savePDF() {
 func (rd *reportsDialog) saveSheetsPDF() {
 	var b bytes.Buffer
 	name := strings.TrimSuffix(rd.w.scriptName(), filepath.Ext(rd.w.scriptName()))
-	if err := lexreport.WriteSheetsPDF(&b, name, rd.rep.Sheets(rd.bd), rd.w.savedExportJob().page); err != nil {
+	if err := lexreport.WriteSheetsPDF(&b, name, rd.rep.Sheets(rd.bd), rd.w.layoutJob().page); err != nil {
 		dialog.ShowError(err, rd.w.fyneWindow)
 		return
 	}
@@ -613,7 +613,7 @@ func breakdownSummary(bd lexreport.Breakdown, lost int) string {
 // (Lexington writes it: no browser needed).
 func (rd *reportsDialog) saveSchedulePDF(kind string) {
 	var b bytes.Buffer
-	title, paper := rd.w.scheduleTitle(), rd.w.savedExportJob().page
+	title, paper := rd.w.scheduleTitle(), rd.w.layoutJob().page
 	var err error
 	if kind == lexreport.KindOneLiner {
 		err = lexreport.WriteOneLinerPDF(&b, title, rd.rep, rd.bd, rd.sched, lexreport.StripOptions{Lang: rd.w.language}, paper)

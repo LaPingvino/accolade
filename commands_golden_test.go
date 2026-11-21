@@ -654,6 +654,8 @@ func regroupMoves(name, golden string) string {
 	if !md {
 		golden = strings.Replace(golden, "  Export… [Primary+E]\n", "  Export… [Primary+E]\n  Export Clean Fountain…\n", 1)
 	}
+	// File: Page Setup… before Print…, for both (pagesetup.go)
+	golden = strings.Replace(golden, "  Print… [Primary+P]\n", "  Page Setup…\n  Print… [Primary+P]\n", 1)
 	// File: Rename… and Undo Rename after Save As (relocate.go)
 	golden = strings.Replace(golden, "  Save As… [Primary+Shift+S]\n", "  Save As… [Primary+Shift+S]\n  Rename…\n  Undo Rename\n", 1)
 	ms := parseGoldenMenus(golden)

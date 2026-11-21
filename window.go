@@ -159,6 +159,7 @@ type MainWindow struct {
 	// markdown: the document is Markdown, not a screenplay (markdown.go)
 	markdown       bool
 	previewPane    *previewPanel // a Markdown document's preview
+	previewSetup   *previewSetup // Preview PDF's page setup (pagesetup.go)
 	previewVisible bool
 
 	// File management
@@ -1382,14 +1383,17 @@ var elementNames = map[syntax.Kind]string{
 	syntax.Lyrics: "Lyrics",
 }
 
-// previewPDF prints the script as the PDF export does, with the export
-// settings, to a temporary file, and opens it in the PDF viewer.
+// previewPDF prints the script as the PDF export does, with the page
+// setup, to a temporary file, and opens it in the PDF viewer; a dialog
+// says the page setup, and makes it again after a change.
 func (w *MainWindow) previewPDF() {
-	w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
+	w.pdfOrPrint(w.textEditor.Text(), func() {
+		w.makePreviewPDF()
+		w.showPreviewSetup() // the page setup it is made with
+	})
 }
 
 func (w *MainWindow) makePreviewPDF() {
-	job := w.savedExportJob()
 	dir, err := os.MkdirTemp("", "accolade-preview-")
 	if err != nil {
 		dialog.ShowError(err, w.fyneWindow)
@@ -1403,10 +1407,7 @@ func (w *MainWindow) makePreviewPDF() {
 	}
 	out := filepath.Join(dir, strings.TrimSuffix(name, filepath.Ext(name))+".pdf")
 	content := w.textEditor.Text()
-	if w.settings.GetBoolean("export-revisions") {
-		job = w.withRevisions(job, content, false, w.settings.GetBoolean("export-page-colours"))
-	}
-	job = w.withIssuedPages(job, content)
+	job := w.outputJob(w.pageSetup(), "pdf", content, nil)
 	w.setStatus("Preparing the PDF...")
 	go func() {
 		err := exportAs(content, out, "pdf", job)
@@ -1436,8 +1437,8 @@ func (w *MainWindow) printScript() {
 		return
 	}
 	out := filepath.Join(dir, "script.html")
-	job := w.savedExportJob()
 	content := w.textEditor.Text()
+	job := w.outputJob(w.pageSetup(), "html", content, nil)
 	w.setStatus("Preparing to print...")
 	go func() {
 		err := exportAs(content, out, "html", job)
@@ -1809,27 +1810,6 @@ func (w *MainWindow) cyclePane(step int) {
 	}
 	n := len(panes)
 	w.fyneWindow.Canvas().Focus(panes[((at+step)%n+n)%n])
-}
-
-// savedExportJob is an export as the Export dialog last saved its
-// settings, for the preview and printing.
-func (w *MainWindow) savedExportJob() exportJob {
-	return exportJob{
-		format:        w.scriptFormatKey(),
-		conf:          w.lex(),
-		page:          w.settings.GetString("page-size"),
-		omitTitlePage: !w.settings.GetBoolean("include-title-page"),
-		numberScenes:  w.settings.GetBoolean("fountain-scene-numbers"),
-		colors:        w.settings.GetBoolean("export-colors"),
-		colorStyle:    lex.ColorStyle(w.settings.GetString("export-color-style")),
-		colorBlock:    w.settings.GetBoolean("export-color-block"),
-		colorTint:     w.settings.GetBoolean("export-color-tint"),
-		colorPatterns: w.settings.GetBoolean("export-color-patterns"),
-		pagination:    w.settings.GetString("export-pagination"),
-		scenes:        w.sceneHeaders(),
-		language:      w.language,
-		continueds:    w.settings.GetBoolean(continuedsPref),
-	}
 }
 
 // isPlainBundle tells whether p is the bundle-named file of plain text

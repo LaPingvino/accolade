@@ -18,6 +18,7 @@ tabs: [File] Write Edit Adaptation Collaboration View
   S Undo Rename icon=foreground_content-undo.svg (disabled) name=Undo Rename
 ## Output
   L Export icon=foreground_download.svg name=Export… (Ctrl+E)
-  L Print icon=foreground_document-print.svg name=Print… (Ctrl+P)
+  S Print icon=foreground_document-print.svg name=Print… (Ctrl+P)
+  S Page Setup icon=foreground_document.svg name=Page Setup…
 ## Adapt
   L Start Screenplay icon=foreground_document-create.svg name=Start a Screenplay from This Source

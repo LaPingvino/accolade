@@ -338,7 +338,7 @@ func TestProductionButtons(t *testing.T) {
 	}
 	clearOverlays(w)
 	test.Tap(p.revisedPDF)
-	if !dialogShows(w, "Revised pages only") {
+	if !dialogShows(w, "revised pages only") { // its page setup line
 		t.Error("Revised Pages PDF… shows no export")
 	}
 	clearOverlays(w)
@@ -350,7 +350,8 @@ func TestProductionButtons(t *testing.T) {
 }
 
 // Revised Pages PDF… sets the export up: PDF, the marks, revised pages
-// only, a name of its own.
+// only (this export's, the page setup left as it is, its line saying so),
+// a name of its own.
 func TestRevisedPagesExport(t *testing.T) {
 	holdUI(t)
 	w, _ := scriptWindow(t, revScript)
@@ -360,8 +361,12 @@ func TestRevisedPagesExport(t *testing.T) {
 	if got == nil {
 		t.Fatal("no export dialog")
 	}
-	if exportFormatByLabel(got.formatSelect.Selected).id != "pdf" || !got.revisionsCheck.Checked || !got.revisedOnlyCheck.Checked {
-		t.Errorf("format %q, marks %v, only %v", got.formatSelect.Selected, got.revisionsCheck.Checked, got.revisedOnlyCheck.Checked)
+	j := got.job()
+	if exportFormatByLabel(got.formatSelect.Selected).id != "pdf" || j.revisions == nil || !j.revisions.PagesOnly {
+		t.Errorf("format %q, marks %+v", got.formatSelect.Selected, j.revisions)
+	}
+	if w.pageSetup().revisedOnly || !strings.Contains(got.pageLine.summary.Text, "revised pages only") {
+		t.Errorf("this export's revised pages: the page setup's %v, the line %q", w.pageSetup().revisedOnly, got.pageLine.summary.Text)
 	}
 	if !strings.HasSuffix(got.filenameEntry.Text, "-blue-pages.pdf") {
 		t.Errorf("name %q", got.filenameEntry.Text)
