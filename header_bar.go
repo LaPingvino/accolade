@@ -31,6 +31,7 @@ type HeaderBar struct {
 	elementButtons             map[string]*widget.Button // by element
 	formatBox                  *fyne.Container           // the format's own buttons
 	screenplayRow, markdownRow fyne.CanvasObject         // the editing row for each
+	docRow                     fyne.CanvasObject         // Markdown's, for the source or notes in the main editor (swap.go)
 	top                        *overflowRow              // the top row
 	showing                    bool                      // the selects show, not choose
 }
@@ -123,6 +124,18 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	editing := newOverflowRow(tips, hb.rowItems(commands().screenplayRow, env, false), nil, 0)
 	hb.screenplayRow = container.NewBorder(nil, nil, nil, hb.format, editing.Container)
 	hb.markdownRow = newOverflowRow(tips, hb.rowItems(commands().markdownRow, cmdEnv{markdown: true, browser: inBrowser}, false), nil, 0).Container
+	// a screenplay's own source or notes: Markdown's row without Start a
+	// Screenplay (the window has one)
+	var docHomes []home
+	for _, h := range commands().markdownRow {
+		if h.id != "file.startScreenplay" {
+			docHomes = append(docHomes, h)
+		}
+	}
+	for len(docHomes) > 0 && docHomes[len(docHomes)-1].sep {
+		docHomes = docHomes[:len(docHomes)-1]
+	}
+	hb.docRow = newOverflowRow(tips, hb.rowItems(docHomes, cmdEnv{markdown: true, browser: inBrowser}, false), nil, 0).Container
 	hb.container = container.NewVBox(top.Container, hb.screenplayRow)
 	return hb
 }
@@ -223,15 +236,18 @@ func (hb *HeaderBar) setMarkdown(on bool) {
 		}
 		b.Tip = c.tipIn(env)
 	}
-	hb.showEditingRow(on)
+	hb.showEditingRow(on, false)
 }
 
 // showEditingRow shows the editing row for what the main editor holds:
 // Markdown's (a Markdown file, the source or notes swapped in: swap.go)
 // or the screenplay's.
-func (hb *HeaderBar) showEditingRow(markdown bool) {
+func (hb *HeaderBar) showEditingRow(markdown, doc bool) {
 	row := hb.screenplayRow
-	if markdown {
+	switch {
+	case doc:
+		row = hb.docRow
+	case markdown:
 		row = hb.markdownRow
 	}
 	if hb.container.Objects[1] != row {
@@ -297,6 +313,9 @@ func (hb *HeaderBar) showFormats() {
 	hb.formatBox.RemoveAll()
 	for _, fb := range conf.formatButtons(key) {
 		b := widget.NewButton(fb.Label, func() {
+			if w.scriptAway(fb.Label) { // the script is in the side panes (swap.go)
+				return
+			}
 			w.textEditor.Edit(func(b *buffer.Buffer) { insertButton(b, fb) })
 			w.fyneWindow.Canvas().Focus(w.textEditor)
 		})

@@ -439,6 +439,9 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 				b := newRibbonButton(r, nil, false)
 				b.label, b.icon = fb.Label, insertBlockIcon
 				b.onTap = func() {
+					if r.w.scriptAway(fb.Label) { // the script is in the side panes (swap.go)
+						return
+					}
 					r.w.textEditor.Edit(func(b *buffer.Buffer) { insertButton(b, fb) })
 					r.w.fyneWindow.Canvas().Focus(r.w.textEditor)
 				}

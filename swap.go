@@ -178,7 +178,7 @@ func (w *MainWindow) swappedIsView() bool {
 // bar.
 func (w *MainWindow) editorKindChanged() {
 	if w.headerBar != nil {
-		w.headerBar.showEditingRow(w.editorMarkdown())
+		w.headerBar.showEditingRow(w.editorMarkdown(), w.mainDoc != nil && !w.markdown)
 	}
 	w.refreshMenu()
 	w.ribbonRefresh()

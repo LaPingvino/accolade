@@ -116,6 +116,46 @@ Kept as they are, and why:
 - Outline and Cards follow the script's text and cursor as before. The Script tab follows the main cursor in
   Swap mode.
 
+## What was built on it
+
+- **Swap with Main** (swap.go) on every dock tab's menu (right-click, long press, Shift+F10), beside Move to
+  Top/Bottom, and as View > Swap Pane with Main (`view.paneSwap`, the pane picked last or with the keyboard).
+  The source and the notes become Markdown documents in the main editor. The cards become their full view. Any
+  other pane (Outline, Production, Help, Changes) puts its box in the main area. The script is then the
+  **Script** tab in the pane's place: one row a scene or section. With the source in the main editor it follows
+  that cursor the other way round. The scenes linking to the passage under the cursor are lit, the passage's
+  status is said above them ("1 scene from it", "not adapted yet", "cut on purpose"), and a tap puts the source's
+  cursor on the scene's passage and the script's cursor on the scene. With anything else it lights the script
+  cursor's scene. The swap is put back by swapping again (the tab's menu says "put back"), by the pane's View
+  command, by hiding the Script tab, or by Side Panes. One pane at a time: swapping another puts the first
+  back first. Passages have no places in prose's model, so `passageLines` finds each passage's line by its
+  first words, after the one before it, within `passageReach` lines.
+- **Adaptation > Swap Source and Script** (`source.swap`, also on the Adaptation ribbon tab): the Source pane is
+  brought in if it is not there, then swapped, or put back.
+- **The Cards pane** (cards_pane.go), View > Cards (Shift+D), on every screenplay. It is one compact column: each
+  scene's and section's heading with its colour, and its synopsis to write. A drag moves the scene (the
+  outline's drag row, now `dragList`). A tap goes to the scene. The card of the cursor's scene is lit, or with the
+  source in the main editor, those of the passage's scenes. Swapped with the main area it is the full Cards
+  view, which the outline's Cards button and the view's Back to the Script reach (`toggleCards`).
+- **Updating the links** (source_links_offer.go). Say the source's text changed where a passage opens, and the
+  writer then leaves that passage in the main editor, presses the Source pane's Done, or saves. Then
+  `linkFixes` compares the passages before and after: the same ones before and after the change, and those
+  between them in order (`alignPassages`). It finds the script's `[[from:]]` links that found a changed
+  passage and no longer find exactly it. A notice above the status bar says how many there are and offers
+  **Update Links** or **Not Now**. Update writes each such link in the new form for the passage's new words
+  (`fragmentFor`), all in one undo step of the script's. A link that cannot be told apart from another place
+  stays as it was, and so do the adaptation block's cut entries. Nothing is changed without the writer's yes.
+- The header's editing row for a document in the main editor is Markdown's without Start a Screenplay
+  (`docRow`): the window has a screenplay already.
+
+Not done, and why:
+
+- The Script tab is a list, not an editor of the script: writing goes back through the swap.
+- The editors of the source and notes have no folds. A Markdown file's folds are the script editor's
+  (`editor_folds.go`, which reads the script's outline). Giving a document its own folds is separate work.
+- Passages are found by their opening words. A passage whose opening is not on its first line (a table) is
+  not found, and the cursor in it counts as being in the passage before.
+
 ## Tests (swap_test.go)
 
 - `TestSwapSourceIntoMain`: Markdown's commands and not the elements; a heading through `do`; the source's own
@@ -133,3 +173,11 @@ Kept as they are, and why:
 - `TestSwapTogether`: two windows over the loopback; the source kept in the shared script, typed in the main
   editor on one side and edited in the script on the other, goes both ways.
 - `TestSwapPhone`: the sheet's Script tab and its menu.
+- `TestSwapSourceAndScriptCommand`: Adaptation's command and View > Swap Pane with Main.
+- `TestCardsPane`: the cards, the cursor's card lit, a synopsis written, a drag, the passage's cards lit, the
+  full view swapped in and a card opened from it.
+- `TestLinkFixes`, `TestLinkOffer`: the edits for an opening changed (none when nothing changed, a split
+  passage); the notice when the cursor leaves the passage, Update Links as one undo step, Not Now, the pane's
+  Done.
+- `TestSwapScreenshots` (SHOT_DIR): desktop and phone, before, the source with the Script tab, the link offer,
+  the notes, the Cards pane, the full Cards view, the outline in the main area.

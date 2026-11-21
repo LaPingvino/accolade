@@ -52,6 +52,9 @@ func cueName(cue string) string {
 // pickCharacter shows the characters under the button; one picked is
 // put in as a cue.
 func (w *MainWindow) pickCharacter(at fyne.CanvasObject) {
+	if w.scriptAway("Character Name") { // the script is in the side panes (swap.go)
+		return
+	}
 	names := scriptCharacters(w.textEditor.Text(), w.sceneStarts())
 	if len(names) == 0 {
 		w.setStatus("No characters speak yet")

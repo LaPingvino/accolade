@@ -48,6 +48,9 @@ func withPlace(line, word string, scenes []string) string {
 // start the cursor's line, a scene heading, with; and the script's
 // language itself, to change (script_language.go).
 func (w *MainWindow) pickPlace(at fyne.CanvasObject) {
+	if w.scriptAway("Inside or Outside") { // the script is in the side panes (swap.go)
+		return
+	}
 	scenes := w.sceneHeaders()
 	var items []*fyne.MenuItem
 	if in, out, both, ok := placeWords(scenes); ok {

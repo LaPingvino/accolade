@@ -542,3 +542,60 @@ func TestLinkOffer(t *testing.T) {
 		t.Error("Done did not offer to update the link")
 	}
 }
+
+// TestSwapScreenshots renders the swapped states, on the desktop and at
+// a phone's size (SHOT_DIR as in screenshot_test.go): the source in the
+// main editor with the Script tab, the link offer, the notes, the Cards
+// pane, the full Cards view, the outline in the main area.
+func TestSwapScreenshots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, size := range []struct {
+		name string
+		w, h float32
+	}{{"desktop", 1100, 680}, {"phone", 380, 800}} {
+		w, _ := sourceWindow(t, sourceScript, sourceStory)
+		w.fyneWindow.Resize(fyne.NewSize(size.w, size.h))
+		w.onWindowWidth(size.w)
+		snap := func(name string) {
+			t.Helper()
+			w.fyneWindow.Content().Refresh()
+			snapWindow(t, w, filepath.Join(dir, "swap-"+size.name+"-"+name+".png"))
+		}
+		w.textEditor.SetCursorOffset(runeAt(t, w.textEditor.Text(), "EXT. GARDEN - DAY"))
+		snap("0-before")
+		w.swapWithMain("source")
+		d := w.mainDoc
+		d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
+		snap("1-source")
+		at := runeAt(t, d.Text(), "She opened")
+		d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+10, "pushed") })
+		d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
+		snap("2-link-offer")
+		w.hideLinkOffer()
+		w.swapBack()
+		w.showPane("notes", false)
+		w.swapWithMain("notes")
+		w.mainDoc.SetText("Anna's door: does it open inward?\n\n- the frost scene moves to the morning\n")
+		snap("3-notes")
+		w.swapBack()
+		w.hidePane("notes")
+		w.hidePane("source")
+		w.showPane("cards", false)
+		w.cardsPane().setSynopsis(0, "Anna hears someone at the door")
+		w.textEditor.SetCursorOffset(runeAt(t, w.textEditor.Text(), "EXT. GARDEN - NIGHT"))
+		snap("4-cards-pane")
+		w.toggleCards()
+		snap("5-cards-full")
+		w.toggleCards()
+		w.showPane("outline", false)
+		w.swapWithMain("outline")
+		snap("6-outline-main")
+		w.swapBack()
+	}
+}
