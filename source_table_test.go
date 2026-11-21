@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"image/png"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
@@ -207,4 +211,85 @@ func walk(o fyne.CanvasObject, f func(fyne.CanvasObject)) {
 
 func absPos(o fyne.CanvasObject) fyne.Position {
 	return fyne.CurrentApp().Driver().AbsolutePositionForObject(o)
+}
+
+// A row's Show All sat over its text in a short dock slot: the list sized
+// the row before filling it, and showing the button did not lay the row
+// out again, so it stayed at the row's top, over the table's note. It
+// goes below the text, at every slot height.
+func TestSourceShowAllBelowText(t *testing.T) {
+	w, _ := sourceWindow(t, sourceScript, wideStory())
+	keepDockSettings(t, w)
+	run := func(id string) { cmd(id).run(w) }
+	run("view.source") // sourceWindow showed it: hidden again
+	w.fyneWindow.Resize(fyne.NewSize(1200, 720))
+	run("view.outline")
+	run("view.notes")
+	run("view.source") // below the outline, in a short slot
+	s := w.sourcePane()
+	table := -1
+	for i, p := range s.passages {
+		if strings.HasPrefix(p.Markdown, "|") {
+			table = i
+		}
+	}
+	check := func(when string) {
+		t.Helper()
+		w.fyneWindow.Content().Refresh()
+		seen := false
+		walk(s.list, func(o fyne.CanvasObject) {
+			c, ok := o.(*fyne.Container)
+			if !ok || len(c.Objects) != 2 || !c.Visible() {
+				return
+			}
+			if _, ok := c.Objects[0].(*canvas.Rectangle); !ok {
+				return
+			}
+			r, ok := asRow(c)
+			if !ok || !r.more.Visible() {
+				return
+			}
+			seen = true
+			bottom := absPos(r.text).Y + r.text.MinSize().Height
+			if top := absPos(r.more).Y; top < bottom-0.5 || r.more.Size().Height <= 0 {
+				t.Errorf("%s: %q at %v (%v high), the text ends at %v: %.40q", when, r.more.Text, top, r.more.Size().Height, bottom, r.text.String())
+			}
+		})
+		if !seen {
+			t.Errorf("%s: no row with Show All in view", when)
+		}
+	}
+	check("slot as opened")
+	for _, off := range []float64{0.5, 0.65, 0.8} {
+		w.dock.split.SetOffset(off)
+		s.list.ScrollTo(table)
+		check(fmt.Sprintf("split at %v", off))
+	}
+	if dir := os.Getenv("SHOT_DIR"); dir != "" { // the table row's end in a short slot
+		w.dock.split.SetOffset(0.45)
+		y := float32(0)
+		for i := range table {
+			y += s.heights[i] + theme.Padding()
+		}
+		s.list.ScrollToOffset(y + s.heights[table] - s.list.Size().Height)
+		check("shot")
+		f, err := os.Create(filepath.Join(dir, "source-show-all.png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if err := png.Encode(f, w.fyneWindow.Canvas().Capture()); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+// asRow is c's parts if it is a passage's row.
+func asRow(c *fyne.Container) (r passageRow, ok bool) {
+	defer func() {
+		if recover() != nil {
+			ok = false
+		}
+	}()
+	return rowParts(c), true
 }

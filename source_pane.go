@@ -171,7 +171,9 @@ func newSourcePane(w *MainWindow) *sourcePane {
 // newPassageRow is a passage's row: its background (lit), a bar on its
 // left (picked), its status mark (adaptation_pane.go), its text, and
 // under a long one Show All (source_rows.go). Nothing in it scrolls, so
-// a drag over it scrolls the list.
+// a drag over it scrolls the list. The text and Show All are stacked, so
+// the button is never over the text, whatever height the list gives the
+// row.
 func newPassageRow() *fyne.Container {
 	bg := canvas.NewRectangle(color.Transparent)
 	bg.CornerRadius = 4
@@ -182,29 +184,32 @@ func newPassageRow() *fyne.Container {
 	more := newMoreButton()
 	more.Hide()
 	left := container.NewHBox(bar, newStatusMark()) // clear of the list's scroll bar on the right
-	return container.NewStack(bg, container.NewBorder(nil, more, left, nil, text))
+	return container.NewStack(bg, container.NewBorder(nil, nil, left, nil, container.NewVBox(text, more)))
 }
 
 // passageRow is a row's parts.
 type passageRow struct {
 	bg, bar *canvas.Rectangle
 	mark    *statusMark
+	body    *fyne.Container // text over more
 	text    *widget.RichText
 	more    *widget.Button
 }
 
 func rowParts(row *fyne.Container) passageRow {
 	inner := row.Objects[1].(*fyne.Container)
-	left := inner.Objects[2].(*fyne.Container)
+	body, left := inner.Objects[0].(*fyne.Container), inner.Objects[1].(*fyne.Container)
 	return passageRow{
 		bg: row.Objects[0].(*canvas.Rectangle), bar: left.Objects[0].(*canvas.Rectangle),
-		mark: left.Objects[1].(*statusMark), text: inner.Objects[0].(*widget.RichText),
-		more: inner.Objects[1].(*widget.Button),
+		mark: left.Objects[1].(*statusMark), body: body,
+		text: body.Objects[0].(*widget.RichText), more: body.Objects[1].(*widget.Button),
 	}
 }
 
 // fill puts md in a row, shown in full or short; it reports whether it
-// was cut.
+// was cut. The row is laid out again: the list may have sized it before
+// (with Show All hidden, or another passage's text in it), and showing
+// or hiding the button does not move it.
 func fill(r passageRow, md string, full bool) bool {
 	segs, cut := rowSegments(md, !full)
 	r.text.Segments = segs
@@ -223,6 +228,7 @@ func fill(r passageRow, md string, full bool) bool {
 	default:
 		r.more.Hide()
 	}
+	r.body.Layout.Layout(r.body.Objects, r.body.Size())
 	return cut
 }
 
