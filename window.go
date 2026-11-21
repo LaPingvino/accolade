@@ -78,6 +78,7 @@ type MainWindow struct {
 	// script is its Script tab meanwhile (swap.go)
 	swapped   string
 	scriptTab *scriptPane
+	cardsDock *cardsPane // the Cards pane (cards_pane.go)
 	// linkOffer is the question about links quoting a passage whose
 	// opening changed (source_links_offer.go)
 	linkOffer *linkOfferNotice
@@ -1309,6 +1310,9 @@ func (w *MainWindow) onCursorChanged() {
 	w.scheduleSceneNumbers() // the heading just left
 	w.updateStatusBar()      // the scene under the cursor
 	w.followSource()         // the scene's passages
+	if w.cardsDock != nil && w.paneInSight("cards") {
+		w.cardsDock.follow() // the scene's card
+	}
 	// what Tab would complete or take from the source, or nothing once
 	// it no longer applies
 	w.showSuggestionHint()

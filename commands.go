@@ -637,8 +637,6 @@ func newRegistry() *registry {
 		// live preview beside the editor, shown or hidden
 		&command{id: "view.preview", label: "Preview PDF", mdLabel: "Live Preview", keys: []fyne.Shortcut{shortcut(fyne.KeyP, fyne.KeyModifierShift)}, icon: theme.VisibilityIcon,
 			byEditor: true, run: (*MainWindow).preview, checked: func(w *MainWindow) bool { return w.editorMarkdown() && w.previewVisible }},
-		&command{id: "view.cards", label: "Cards", keys: []fyne.Shortcut{shortcut(fyne.KeyD, fyne.KeyModifierShift)}, icon: theme.GridIcon, when: screenplayOnly,
-			run: (*MainWindow).toggleCards},
 		&command{id: "view.foldHere", label: "Fold or Unfold Here", keys: []fyne.Shortcut{shortcut(fyne.KeyPeriod, fyne.KeyModifierShift)}, icon: res(foldIcon),
 			run: func(w *MainWindow) { w.fold(false, true) }},
 		&command{id: "view.foldSections", label: "Fold All (Sections Only)", icon: res(foldSectionsIcon), run: func(w *MainWindow) { w.foldOverview(w.outlineItems(w.textEditor.Text())) }},
@@ -727,7 +725,7 @@ func newRegistry() *registry {
 			sep(), at("file.saveDraft"), at("file.drafts"), at("collab.compare"),
 		}},
 		{title: "View", homes: append(append([]home{
-			at("view.preview"), at("view.cards"), at("view.foldHere"), at("view.foldSections"),
+			at("view.preview"), at("view.foldHere"), at("view.foldSections"),
 			at("view.headingsOnly"), at("view.unfoldAll"), sep()},
 			dockHomes()...), // the side dock's panes together, and its own (dock.go)
 			sep(), at("view.statistics"), at("view.fullscreen"), at("set.toolbar"),
@@ -1045,7 +1043,7 @@ func ribbonLayout() []ribbonTab {
 		}},
 		{title: "View", groups: []ribbonGroup{
 			// the side dock's panes (dock.go)
-			{title: "Panes", homes: dockRibbonHomes(at("view.cards"))},
+			{title: "Panes", homes: dockRibbonHomes()},
 			// what the window shows; its look (the preferences changed while working: ribbon_settings.go)
 			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")}},
 			{title: "Folding", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll")}},

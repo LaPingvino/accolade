@@ -264,17 +264,27 @@ func (o *outlinePanel) showFold(b *widget.Button, id int) {
 // (goToScript).
 func (o *outlinePanel) goTo(line int) { o.w.goToScript(line) }
 
-// dragRow is an outline row that can be dragged to move its scene or
-// section: dropped, it goes before the row it is dropped on.
+// dragList is a list of the script's items whose rows can be dragged
+// to move them (the outline, the Cards pane).
+type dragList interface {
+	rowItems() []outlineItem  // the items shown
+	rowHeight(id int) float32 // a shown row's height
+	tapRow(id int)            // a tap on a row
+	moveRow(from, to int)     // a row dropped before row to (len: the end)
+	listWindow() *MainWindow
+}
+
+// dragRow is a row that can be dragged to move its scene or section:
+// dropped, it goes before the row it is dropped on.
 type dragRow struct {
 	widget.BaseWidget
-	o       *outlinePanel
+	o       dragList
 	content *fyne.Container
 	id      int
 	dy      float32
 }
 
-func newDragRow(o *outlinePanel, content *fyne.Container) *dragRow {
+func newDragRow(o dragList, content *fyne.Container) *dragRow {
 	r := &dragRow{o: o, content: content}
 	r.ExtendBaseWidget(r)
 	return r
@@ -284,57 +294,54 @@ func (r *dragRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimple
 
 // Tapped selects the row, as the list's own item does: a row that takes
 // a secondary tap is what Fyne gives the tap to.
-func (r *dragRow) Tapped(*fyne.PointEvent) { r.o.list.Select(r.id) }
+func (r *dragRow) Tapped(*fyne.PointEvent) { r.o.tapRow(r.id) }
 
 // TappedSecondary picks the row's scene or section's color.
 func (r *dragRow) TappedSecondary(e *fyne.PointEvent) {
-	if r.id >= 0 && r.id < len(r.o.items) {
-		r.o.w.pickColor(r.o.items[r.id], e.AbsolutePosition, nil)
+	if items := r.o.rowItems(); r.id >= 0 && r.id < len(items) {
+		r.o.listWindow().pickColor(items[r.id], e.AbsolutePosition, nil)
 	}
 }
 
 func (r *dragRow) Dragged(e *fyne.DragEvent) {
 	r.dy += e.Dragged.DY
-	if to := r.o.dropIndex(r.id, r.dy); to >= 0 && to < len(r.o.items) {
-		r.o.w.setStatus("Move before " + r.o.items[to].Text)
+	items := r.o.rowItems()
+	if to := dropIndex(r.o, r.id, r.dy); to >= 0 && to < len(items) {
+		r.o.listWindow().setStatus("Move before " + items[to].Text)
 	} else if to >= 0 {
-		r.o.w.setStatus("Move to the end")
+		r.o.listWindow().setStatus("Move to the end")
 	}
 }
 
 func (r *dragRow) DragEnd() {
-	to := r.o.dropIndex(r.id, r.dy)
+	to := dropIndex(r.o, r.id, r.dy)
 	r.dy = 0
 	if to < 0 {
 		return
 	}
-	r.o.move(r.id, to)
+	r.o.moveRow(r.id, to)
 }
 
 // dropIndex is where a row dragged dy from row id goes: before the row
 // shown there (len(items): the end), -1 if it stays.
-func (o *outlinePanel) dropIndex(id int, dy float32) int {
-	height := func(i int) float32 {
-		if o.items[i].Synopsis == "" {
-			return o.oneLine
-		}
-		return o.twoLines
-	}
-	if id < 0 || id >= len(o.items) {
+func dropIndex(o dragList, id int, dy float32) int {
+	items := o.rowItems()
+	height := o.rowHeight
+	if id < 0 || id >= len(items) {
 		return -1
 	}
 	at := id
 	if dy > 0 {
 		y := dy - height(id)/2
-		for at+1 < len(o.items) && y >= height(at+1)/2 {
+		for at+1 < len(items) && y >= height(at+1)/2 {
 			y -= height(at + 1)
 			at++
 		}
 		if at == id {
 			return -1
 		}
-		if at+1 >= len(o.items) && y > 0 {
-			return len(o.items)
+		if at+1 >= len(items) && y > 0 {
+			return len(items)
 		}
 		return at + 1
 	}
@@ -348,6 +355,21 @@ func (o *outlinePanel) dropIndex(id int, dy float32) int {
 	}
 	return at
 }
+
+// The outline as a dragList.
+func (o *outlinePanel) rowItems() []outlineItem { return o.items }
+func (o *outlinePanel) rowHeight(id int) float32 {
+	if o.items[id].Synopsis == "" {
+		return o.oneLine
+	}
+	return o.twoLines
+}
+func (o *outlinePanel) tapRow(id int)           { o.list.Select(id) }
+func (o *outlinePanel) moveRow(from, to int)    { o.move(from, to) }
+func (o *outlinePanel) listWindow() *MainWindow { return o.w }
+
+// dropIndex is dropIndex in the outline (its tests').
+func (o *outlinePanel) dropIndex(id int, dy float32) int { return dropIndex(o, id, dy) }
 
 // move moves the shown item from before the shown item to (len: the end)
 // in the script.

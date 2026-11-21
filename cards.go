@@ -276,13 +276,10 @@ func (c *cardsView) card(i int) *card {
 func (c *cardsView) open(i int) {
 	w := c.w
 	line := c.items[i].Line
-	w.toggleCards()
-	if w.outline != nil {
-		w.outline.goTo(line)
-	} else {
-		w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(line))
-		w.fyneWindow.Canvas().Focus(w.textEditor)
+	if w.cardsVisible {
+		w.toggleCards() // the script back in the main editor
 	}
+	w.goToScript(line)
 }
 
 // sectionHeader heads a section's cards; tapped, it opens the section,
@@ -383,20 +380,18 @@ func newHeadingHint(w *MainWindow) string {
 	return "INT. PLACE - DAY"
 }
 
-// toggleCards shows the card view in the editor's place, or the editor.
+// toggleCards shows the card view in the editor's place, or the editor:
+// the Cards pane swapped with the main area (swap.go), brought into the
+// dock first if it is not there.
 func (w *MainWindow) toggleCards() {
 	if w.markdown && !w.cardsVisible {
 		w.setStatus("Cards are a screenplay's scenes")
 		return
 	}
-	w.cardsVisible = !w.cardsVisible
-	if w.cardsVisible {
-		if w.cards == nil {
-			w.cards = newCardsView(w)
-		}
-		w.cards.update(w.textEditor.Text())
+	if w.swapped != "cards" && !w.paneShown("cards") {
+		w.showPane("cards", false)
 	}
-	w.relayout()
+	w.swapWithMain("cards")
 	if !w.cardsVisible {
 		w.fyneWindow.Canvas().Focus(w.textEditor)
 	}

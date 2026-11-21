@@ -220,6 +220,9 @@ func (w *MainWindow) mainCursorMoved() {
 	w.updateStatusBar()
 	if w.followTimer == nil { // the text as followed: at once
 		w.scriptPane().follow()
+		if w.cardsDock != nil && w.paneInSight("cards") {
+			w.cardsDock.follow() // the passage's scenes' cards
+		}
 	}
 	w.linksOfferOnLeave()
 }
@@ -338,22 +341,43 @@ func (sp *scriptPane) follow() {
 	if w.swapped == "" {
 		return
 	}
-	lit := map[int]bool{}
-	info := ""
+	lit, info, ok := w.litScenes(sp.items, &sp.seen)
+	if !ok {
+		sp.setInfo(info)
+		return
+	}
+	sp.setInfo(info)
+	if !sameSet(lit, sp.lit) {
+		sp.lit = lit
+		sp.list.Refresh()
+		for i := range sp.items {
+			if lit[i] {
+				sp.list.ScrollTo(i)
+				break
+			}
+		}
+	}
+}
+
+// litScenes are the items to light for the main cursor: with the source
+// in the main editor, the scenes linking to the passage there (and what
+// is said of it); else the script cursor's scene. ok is false while the
+// source is being read.
+func (w *MainWindow) litScenes(items []outlineItem, seen *linesSeen) (lit map[int]bool, info string, ok bool) {
+	lit = map[int]bool{}
 	if d := w.mainDoc; d != nil && d.kind == docSource {
 		s := w.sourcePane()
 		s.loadSource(true)
 		if s.loading != nil {
-			sp.setInfo("Reading the source…")
-			return
+			return nil, "Reading the source…", false
 		}
 		m := s.current()
-		p := passageAt(d.Text(), m.passages, d.ed.Buffer(), &sp.seen)
+		p := passageAt(d.Text(), m.passages, d.ed.Buffer(), seen)
 		if p < 0 {
 			info = "Before the source's first passage"
 		} else {
 			lines := m.linked(p)
-			for i, it := range sp.items {
+			for i, it := range items {
 				for _, l := range lines {
 					if it.Line == l {
 						lit[i] = true
@@ -375,27 +399,17 @@ func (sp *scriptPane) follow() {
 	} else {
 		line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
 		at := -1
-		for i, it := range sp.items {
+		for i, it := range items {
 			if it.Line <= line {
 				at = i
 			}
 		}
 		if at >= 0 {
 			lit[at] = true
-			info = "The cursor's scene: " + sp.items[at].Text
+			info = "The cursor's scene: " + items[at].Text
 		}
 	}
-	sp.setInfo(info)
-	if !sameSet(lit, sp.lit) {
-		sp.lit = lit
-		sp.list.Refresh()
-		for i := range sp.items {
-			if lit[i] {
-				sp.list.ScrollTo(i)
-				break
-			}
-		}
-	}
+	return lit, info, true
 }
 
 func (sp *scriptPane) setInfo(text string) {

@@ -412,3 +412,54 @@ func TestSwapSourceAndScriptCommand(t *testing.T) {
 		t.Error("Swap Pane with Main did not put it back")
 	}
 }
+
+// The Cards pane: one card a scene or section, its synopsis written into
+// the script, a drag moving the scene, the cursor's scene lit; with the
+// source in the main editor, the passage's scenes lit. Swapped with the
+// main area it is the full Cards view.
+func TestCardsPane(t *testing.T) {
+	w, _ := sourceWindow(t, sourceScript, sourceStory)
+	w.togglePane("cards")
+	c := w.cardsPane()
+	if !c.shown() || len(c.items) != 3 || c.items[0].Text != "INT. HOUSE - NIGHT" {
+		t.Fatalf("cards %v", c.items)
+	}
+	// the cursor's scene
+	w.textEditor.SetCursorOffset(runeAt(t, w.textEditor.Text(), "ANNA"))
+	if !c.lit[1] || c.lit[0] || c.lit[2] {
+		t.Errorf("lit %v for the second scene", c.lit)
+	}
+	// a synopsis typed on a card
+	c.setSynopsis(0, "Anna hears something")
+	if !strings.Contains(w.textEditor.Text(), "INT. HOUSE - NIGHT\n= Anna hears something") || c.items[0].Synopsis != "Anna hears something" {
+		t.Errorf("synopsis: %q", w.textEditor.Text())
+	}
+	// a card dragged below the last moves its scene to the end
+	c.moveRow(0, dropIndex(c, 0, 3*c.row))
+	if c.items[2].Text != "INT. HOUSE - NIGHT" {
+		t.Errorf("after the drag: %v", c.items)
+	}
+	// the source's passage lights its scenes' cards
+	w.swapWithMain("source")
+	d := w.mainDoc
+	d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
+	var lit []string
+	for i := range c.items {
+		if c.lit[i] {
+			lit = append(lit, c.items[i].Text)
+		}
+	}
+	if strings.Join(lit, ",") != "EXT. GARDEN - DAY" {
+		t.Errorf("lit for the passage: %v", lit)
+	}
+	w.swapBack()
+	// swapped: the full view
+	w.toggleCards()
+	if w.swapped != "cards" || !w.cardsVisible || w.swappedCenter() != w.cards.box || !strings.Contains(tabTitles(w), "Script") {
+		t.Fatalf("the full Cards view: swapped %q", w.swapped)
+	}
+	w.cards.open(0)
+	if w.swapped != "" || w.cardsVisible {
+		t.Error("a card opened: the script not back")
+	}
+}

@@ -85,6 +85,14 @@ func dockPanes() []*dockPane {
 			focus:  func(w *MainWindow) fyne.Focusable { return w.notesPane().entry },
 			shown:  func(w *MainWindow) { w.notesPane().update(w.textEditor.Text()) },
 			edited: func(w *MainWindow, text string) { w.notesPane().update(text) }},
+		// the cards beside the script (cards_pane.go); swapped with the
+		// main area, their full view (cards.go)
+		{id: "cards", slot: dockTop, width: 260,
+			cmd:    &command{label: "Cards", keys: []fyne.Shortcut{shortcut(fyne.KeyD, fyne.KeyModifierShift)}, icon: theme.GridIcon, when: screenplayOnly},
+			box:    func(w *MainWindow) fyne.CanvasObject { return w.cardsPane().box },
+			focus:  func(w *MainWindow) fyne.Focusable { return w.cardsPane().list },
+			shown:  func(w *MainWindow) { w.cardsPane().update(w.textEditor.Text()) },
+			edited: func(w *MainWindow, text string) { w.cardsPane().update(text) }},
 		{id: "source", slot: dockBottom, width: sourceWidth, focusOnShow: true,
 			cmd:   &command{label: "Source", tip: "Source: the story the script adapts", icon: func() fyne.Resource { return sourceIcon }, when: screenplayOnly},
 			box:   func(w *MainWindow) fyne.CanvasObject { return w.sourcePane().box },
@@ -147,17 +155,14 @@ func dockHomes() []home {
 }
 
 // dockRibbonHomes are the ribbon's Panes group: the first two panes
-// large, then more (Cards), the other panes and Side Panes small (moving
-// a pane: its tab's menu, the View menu, the palette).
-func dockRibbonHomes(more ...home) []home {
+// large, the other panes and Side Panes small (moving a pane: its tab's
+// menu, the View menu, the palette).
+func dockRibbonHomes() []home {
 	var homes []home
 	for i, p := range dockPanes() {
 		if i < 2 {
 			homes = append(homes, big("view."+p.id))
 			continue
-		}
-		if i == 2 {
-			homes = append(homes, more...)
 		}
 		homes = append(homes, at("view."+p.id))
 	}
