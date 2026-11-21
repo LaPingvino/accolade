@@ -160,6 +160,7 @@ func (w *MainWindow) workAs(role string) {
 	if w.settings != nil {
 		w.settings.SetString(rolePref, role)
 		_ = w.settings.Save()
+		w.followInPreferences(rolePref)
 	}
 	if w.app != nil && len(w.app.windows) > 0 {
 		for _, o := range w.app.windows {

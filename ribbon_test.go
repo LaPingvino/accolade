@@ -668,6 +668,21 @@ func TestRibbonShotMatrix(t *testing.T) {
 	w.workAs(roleProduction)
 	w.setDocumentType(false)
 	w.settings.SetBoolean("notes-visible", false)
+	// the widest Write tabs, and the key tips over the short labels
+	w.fyneWindow.Resize(fyne.NewSize(1000, 600))
+	for _, f := range []string{"series", "radio"} {
+		w.settings.SetString("script-format", f)
+		r.selectTab("Write")
+		snap("desktop-production-screenplay-write-" + f)
+	}
+	w.settings.SetString("script-format", "default")
+	for _, tab := range []string{"Write", "View"} {
+		r.selectTab(tab)
+		w.keyPreview(fyne.KeyF10, 0)
+		w.fyneWindow.Canvas().Focused().TypedRune([]rune(strings.ToLower(tab))[0])
+		snap("desktop-production-screenplay-keytips-" + strings.ToLower(tab))
+		r.leaveKeyTips(true)
+	}
 }
 
 // Short labels: the group says the rest, no "…" on the ribbon, the full
@@ -723,12 +738,13 @@ func TestRibbonFitsDesktop(t *testing.T) {
 	r := ribbonOnFor(t, w)
 	w.fyneWindow.Resize(fyne.NewSize(1000, 700))
 	w.fyneWindow.Canvas().Capture()
-	const room = 1000 - 2*4 // the window's padding
 	check := func(what string) {
 		t.Helper()
+		w.fyneWindow.Canvas().Capture() // laid out
+		room := r.groups.Size().Width   // what the groups have at 1000 px
 		got := r.groupBox.MinSize().Width
 		if testing.Verbose() {
-			t.Logf("%-40s %4.0f", what, got)
+			t.Logf("%-40s %4.0f of %4.0f", what, got, room)
 		}
 		if got > room {
 			t.Errorf("%s: %v wide, more than %v", what, got, room)

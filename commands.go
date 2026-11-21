@@ -894,7 +894,8 @@ type ribbonGroup struct {
 // name; the menus and the palette keep it. (A label's "…" never shows on
 // the ribbon: ribbonLabelIn.)
 var ribbonLabels = map[string]string{
-	// File
+	// File (the browser's Open and Save say more in their menu items)
+	"file.open": "Open", "file.save": "Save",
 	"file.newEmpty": "Empty", "file.newMarkdown": "Markdown", "file.newWindow": "Window", "file.newEmptyWindow": "Empty Window",
 	"file.recent": "Recent", "file.import": "Import", "file.importPandoc": "With pandoc",
 	"source.choose": "Choose Source", "file.startScreenplay": "Start Screenplay",

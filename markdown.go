@@ -221,7 +221,7 @@ func markdownBody(text string) string {
 }
 
 // previewPanel shows a Markdown document as formatted prose beside the
-// editor (View > Preview), following the text as it is written.
+// editor (View > Live Preview), following the text as it is written.
 type previewPanel struct {
 	text *widget.RichText
 	box  fyne.CanvasObject
@@ -230,10 +230,10 @@ type previewPanel struct {
 func newPreviewPanel() *previewPanel {
 	p := &previewPanel{text: widget.NewRichText()}
 	p.text.Wrapping = fyne.TextWrapWord
-	fyne.SetAccessibleLabel(p.text, "Preview")
+	fyne.SetAccessibleLabel(p.text, "Live Preview")
 	width := canvas.NewRectangle(color.Transparent) // a nil colour crashes the painter
 	width.SetMinSize(fyne.NewSize(320, 0))
-	heading := widget.NewLabelWithStyle("Preview", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	heading := widget.NewLabelWithStyle("Live Preview", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	p.box = container.NewStack(width, container.NewBorder(heading, nil, nil, nil, container.NewVScroll(p.text)))
 	return p
 }
@@ -260,6 +260,7 @@ func (w *MainWindow) preview() {
 		w.previewPane.update(w.textEditor.Text())
 	}
 	w.relayout()
+	w.refreshMenu() // Live Preview checked, or not, in the menu and on the ribbon
 }
 
 // markdownHTML is a Markdown document as a web page, for printing.

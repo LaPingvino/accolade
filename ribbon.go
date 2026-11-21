@@ -309,6 +309,9 @@ func boolKey(b bool) string {
 // build makes the chosen tab's groups.
 func (r *ribbonBar) build() {
 	w := r.w
+	for _, b := range r.buttons { // going: a tip of theirs goes with them
+		b.hover.Out(w.tooltips, b.hoverTip())
+	}
 	r.buttons, r.byID, r.elements = nil, map[string][]*ribbonButton{}, map[string]*ribbonButton{}
 	r.groupBox.Objects = nil
 	t, _ := tabOf(r.selected)
@@ -1074,6 +1077,7 @@ func (b *ribbonButton) press() {
 	if b.disabled {
 		return
 	}
+	b.hover.Out(b.r.w.tooltips, b.hoverTip()) // by a key too: the tip goes with the press
 	if b.onTap != nil {
 		b.onTap()
 		return

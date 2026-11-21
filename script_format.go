@@ -72,6 +72,7 @@ func (w *MainWindow) setScriptFormat(key string) {
 	if machineLex().hasFormat(key) {
 		w.ownFormat = ""
 		w.settings.SetString("script-format", key)
+		w.followInPreferences("script-format")
 		return
 	}
 	w.ownFormat = key

@@ -33,10 +33,8 @@ func (w *MainWindow) changeSetting(key string, set func(s *Settings)) {
 	_ = w.settings.Save()
 	if w.app != nil {
 		w.app.applySettingsToWindows()
-		if w.app.prefs != nil {
-			w.app.prefs.followSetting(key)
-		}
 	}
+	w.followInPreferences(key)
 	if w.app == nil || !slices.Contains(w.app.windows, w) { // a window of its own (a test's)
 		w.applyEditorSettings()
 		w.applyFontSettings()
@@ -141,6 +139,14 @@ func settingCommands() []*command {
 	return cs
 }
 
+// followInPreferences shows setting key's new value in an open
+// Preferences window.
+func (w *MainWindow) followInPreferences(key string) {
+	if w.app != nil && w.app.prefs != nil {
+		w.app.prefs.followSetting(key)
+	}
+}
+
 // windows is every window of w's application (w alone without one).
 func (w *MainWindow) windows() []*MainWindow {
 	if w.app == nil {
@@ -154,6 +160,10 @@ func (w *MainWindow) windows() []*MainWindow {
 func (pd *PreferencesDialog) followSetting(key string) {
 	s := pd.settings
 	switch key {
+	case rolePref:
+		pd.roleSelect.SetSelected(roleLabel(s.GetString(rolePref)))
+	case "script-format":
+		machineLex().selectFormat(pd.scriptFormatSelect, s.GetString("script-format"))
 	case "theme":
 		pd.themeSelect.SetSelected(s.GetString("theme"))
 	case lookPref:
