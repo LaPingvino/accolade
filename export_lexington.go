@@ -184,8 +184,8 @@ func withoutTitlePage(s lex.Screenplay) lex.Screenplay {
 func exportAs(content, outputPath, to string, job exportJob) error {
 	job = withLockedPages(content, to, job)
 	if to == "pdf" {
-		// a script the PDF writer cannot print as written (Hebrew, CJK,
-		// right to left): a browser on the computer prints Lexington's
+		// a script the PDF writer cannot print as written (CJK; Arabic,
+		// whose letters it does not join): a browser on the computer prints Lexington's
 		// HTML (browser_pdf.go)
 		if b := localBrowser(); b != "" && pdfWarning(content, job.scenes) != "" {
 			dir, err := os.MkdirTemp("", "accolade-pdf-")
