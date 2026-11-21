@@ -4,6 +4,8 @@ Fountain is plain text with a few rules. A line's place and its capitals say wha
 
 Every example below is a piece of a .fountain file, exactly as typed.
 
+Accolade reads these rules as the Fountain spec has them. Lexington, which prints the script, read four of them more loosely before (version 1.19): a scene heading or a character cue right under a line of action, any line ending in TO: as a transition, a line of spaces as the end of a speech. A script written against that reading says so when it opens, once: *Keep It As It Was* adds the blank lines and force marks that make it read as before (one Undo takes them back), *Read It the New Way* leaves it as it is.
+
 ## Title page
 
 The title page is a set of `Key: value` lines at the very top of the file, before anything else. A blank line ends it. A value can go on the lines under its key, indented.
@@ -75,7 +77,7 @@ An exclamation mark at the start forces action, for a line that would otherwise 
 
 ## Characters and dialogue
 
-A line in capitals with a blank line before it and text right under it is a character cue. The lines under it are the dialogue, up to the next blank line.
+A line in capitals with a blank line before it and text right under it is a character cue. The lines under it are the dialogue, up to the next blank line. A line of two spaces keeps the speech going: a blank line inside it.
 
 ```
 ANNA

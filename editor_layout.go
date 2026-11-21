@@ -63,7 +63,8 @@ func editorFormat(set rules.Set) (func(syntax.Kind) wrap.Format, int) {
 func withoutIndents(text string, starts []string) string {
 	lines := strings.Split(text, "\n")
 	for i, k := range syntax.ClassifyWith(lines, starts) {
-		if _, ok := elementRules[k]; ok {
+		// (a speech's line of two spaces is its blank line: kept)
+		if _, ok := elementRules[k]; ok && strings.TrimSpace(lines[i]) != "" {
 			lines[i] = strings.TrimLeft(lines[i], " \t")
 		}
 	}

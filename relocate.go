@@ -43,7 +43,7 @@ type fileJournal struct {
 }
 
 // journalKeys are the settings a rename changes.
-var journalKeys = []string{"source-files", "production-files", "document-types", "recent-files", scriptRolesPref}
+var journalKeys = []string{"source-files", "production-files", "document-types", "recent-files", scriptRolesPref, looseReadingPref}
 
 // windowState is the window's part in a rename.
 type windowState struct {
@@ -572,6 +572,7 @@ func (w *MainWindow) afterNewName(oldName, oldPath, newName string) {
 		w.languageSaid = true
 	}
 	w.typeAfterRename(oldPath, oldName, newPath, newName)
+	w.looseAfterRename(oldPath, newPath)
 	w.updateTitle()
 }
 

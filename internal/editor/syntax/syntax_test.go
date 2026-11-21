@@ -96,3 +96,31 @@ func TestUncasedCues(t *testing.T) {
 		t.Errorf("cues: %v", kinds)
 	}
 }
+
+// The four points where Fountain's spec is stricter than a quick reading
+// (and Lexington before 1.19): as Lexington reads them now.
+func TestSpecBlankLines(t *testing.T) {
+	for _, c := range []struct {
+		lines []string
+		kinds []Kind
+	}{
+		{[]string{"Bob waits.", "INT. HOUSE - DAY"}, []Kind{Action, Action}},
+		{[]string{"Bob waits.", "BOB", "Hello."}, []Kind{Action, Action, Action}},
+		{[]string{"Bob waits.", "", "cut to:", ""}, []Kind{Action, Empty, Action, Empty}},
+		{[]string{"Bob waits.", "", "CUT TO:", "INT. HOUSE"}, []Kind{Action, Empty, Action, Action}}, // (Lexington: a name)
+		{[]string{"Bob waits.", "", "CUT TO:", "", "INT. HOUSE"}, []Kind{Action, Empty, Transition, Empty, SceneHeading}},
+		{[]string{"BOB", "Hello.", "  ", "Goodbye."}, []Kind{Character, Dialogue, Dialogue, Dialogue}},
+		{[]string{"BOB", "Hello.", "  ", "INT. HOUSE"}, []Kind{Character, Dialogue, Dialogue, Dialogue}},
+		{[]string{"Bob waits.", "  ", "BOB", "Hello."}, []Kind{Action, Empty, Character, Dialogue}},
+		{[]string{"BOB", "INT. HOUSE", "", ".INSIDE"}, []Kind{Character, Dialogue, Empty, SceneHeading}},
+		{[]string{"BOB", ".INT. HOUSE"}, []Kind{Character, SceneHeading}},
+	} {
+		got := Classify(c.lines)
+		for i := range c.lines {
+			if got[i] != c.kinds[i] {
+				t.Errorf("%q: line %d is %d, want %d", c.lines, i, got[i], c.kinds[i])
+				break
+			}
+		}
+	}
+}

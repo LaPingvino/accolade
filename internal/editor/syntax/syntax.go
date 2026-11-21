@@ -77,8 +77,14 @@ body:
 	for ; i < len(lines); i++ {
 		t := trimmed(i)
 		upper := strings.ToUpper(t)
-		afterBlank := trimmed(i-1) == ""
+		// (a speech's line of two spaces is no blank line)
+		afterBlank := trimmed(i-1) == "" && (i == 0 || kinds[i-1] != Dialogue)
 		switch {
+		case t == "" && inDialogue && kinds[i-1] != Character && twoSpaces(lines[i]):
+			// two spaces in a speech: its blank line, the speech goes on
+			// (Fountain; not right after the name, which then has none)
+			kinds[i] = Dialogue
+			continue
 		case t == "":
 			kinds[i] = Empty
 			inDialogue = false
@@ -96,15 +102,17 @@ body:
 			kinds[i] = Synopsis
 		case strings.HasPrefix(t, ">") && strings.HasSuffix(t, "<"):
 			kinds[i] = Centered
-		case strings.HasPrefix(t, ">"), afterBlank && t == upper && strings.HasSuffix(t, " TO:"):
+		case strings.HasPrefix(t, ">"), afterBlank && trimmed(i+1) == "" && t == upper && strings.HasSuffix(t, "TO:") && t != strings.ToLower(t):
+			// a transition: forced, or in capitals with blank lines around it
 			kinds[i] = Transition
-		case afterBlank && (strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..") || hasAnyPrefix(upper, sceneStarts)):
+		case strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..") && len(t) > 1, afterBlank && hasAnyPrefix(upper, sceneStarts):
+			// a heading: forced anywhere, by its word after a blank line
 			kinds[i] = SceneHeading
 		case inDialogue && strings.HasPrefix(t, "(") && strings.HasSuffix(t, ")"):
 			kinds[i] = Parenthetical
 		case inDialogue:
 			kinds[i] = Dialogue
-		case afterBlank && trimmed(i+1) != "" && (strings.HasPrefix(t, "@") || isCharacterCue(t)):
+		case trimmed(i+1) != "" && (strings.HasPrefix(t, "@") || afterBlank && isCharacterCue(t)):
 			kinds[i] = Character
 			inDialogue = true
 			continue
@@ -132,6 +140,11 @@ func ClassifyTyping(lines []string, sceneStarts []string, cursorLine int) []Kind
 		return kinds
 	}
 	return ClassifyWith(lines, sceneStarts)
+}
+
+// twoSpaces tells whether a line is two spaces or more and nothing else.
+func twoSpaces(line string) bool {
+	return len(line) >= 2 && strings.Trim(line, " ") == ""
 }
 
 func hasAnyPrefix(s string, prefixes []string) bool {

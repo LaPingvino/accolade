@@ -46,6 +46,11 @@ type MainWindow struct {
 	toolbarContainer *fyne.Container
 	// Status bar
 	statusBar *fyne.Container
+	// bottom is the status bar with the notice above it that a script
+	// relied on Lexington's old reading (loose_reading.go)
+	bottom       *fyne.Container
+	loose        *looseNotice
+	looseUnsaved string // the answer for a script not saved yet
 	// headerArea is the header bar (the toolbar) with its separator
 	headerArea *fyne.Container
 	// the sidebar beside the editor: the outline (View > Outline) or the
@@ -286,6 +291,7 @@ func (w *MainWindow) setupUI() {
 		widget.NewSeparator(),
 		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel),
 	)
+	w.bottom = container.NewVBox(w.newLooseNotice(), w.statusBar)
 
 	w.relayout()
 
@@ -530,6 +536,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	} else if msg := w.lockedForWriter(); msg != "" {
 		w.setStatus(msg) // quietly, last: production put away (role.go)
 	}
+	w.checkLooseReading() // read otherwise than Lexington before 1.19 did? (loose_reading.go)
 
 	return nil
 }
@@ -1022,6 +1029,8 @@ func (w *MainWindow) createNewFile(empty bool) {
 	}
 	w.textEditor.SetText(text)
 	w.currentFile, w.plainBundle = "", ""
+	w.looseUnsaved = ""
+	w.hideLooseNotice()
 	w.setBundle(nil)
 	w.setCarried(nil, "")
 	w.hasChanges = false
@@ -1146,6 +1155,7 @@ func (w *MainWindow) restore(d kept) {
 	if d.File != "" && w.LoadFile(d.File) == nil {
 		if d.Text != w.textEditor.Text() {
 			w.textEditor.SetText(d.Text)
+			w.checkLooseReading()
 		}
 		w.setStatus("Your script, as this browser kept it")
 		return
@@ -1432,8 +1442,8 @@ func (w *MainWindow) relayout() {
 	if left != nil {
 		objects = append(objects, left)
 	}
-	objects = append(objects, center, w.statusBar)
-	var content fyne.CanvasObject = container.New(layout.NewBorderLayout(w.toolbarContainer, w.statusBar, left, nil), objects...)
+	objects = append(objects, center, w.bottom)
+	var content fyne.CanvasObject = container.New(layout.NewBorderLayout(w.toolbarContainer, w.bottom, left, nil), objects...)
 	if w.isFullscreen {
 		// the way back, in sight (not only Ctrl+Shift+F)
 		leave := widget.NewButtonWithIcon("Leave full screen", theme.ViewRestoreIcon(), w.toggleFullscreen)
