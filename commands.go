@@ -257,7 +257,10 @@ type home struct {
 	// compact: on the ribbon an icon alone, beside the other compact ones
 	// in one row (B I U: their tooltips and names say the rest)
 	compact bool
-	role    cmdRole // made items' role (a command's is its own)
+	// keys: on the ribbon its key shows after its label (a heading's
+	// Ctrl+1: given by its key all the time)
+	keys bool
+	role cmdRole // made items' role (a command's is its own)
 }
 
 func at(id string) home                              { return home{id: id} }
@@ -270,6 +273,7 @@ func madeFor(r cmdRole, f func(*MainWindow) []*fyne.MenuItem) home {
 	return home{items: f, role: r}
 }
 func bigAs(id, label string) home { return home{id: id, label: label, large: true} }
+func keyed(id string) home        { return home{id: id, keys: true} }
 
 // menuDef is a menu of the menu bar.
 type menuDef struct {
@@ -937,9 +941,13 @@ func ribbonLayout() []ribbonTab {
 		}},
 		{title: "Write", groups: []ribbonGroup{
 			{title: "Element", homes: []home{{id: "elements"}}},
-			{title: "Scene", homes: []home{big("write.place"), big("write.character"), big("format.color")}},
-			{title: "Heading", homes: []home{big("md.headings")}},
-			{title: "Emphasis", homes: []home{tool("format.bold"), tool("format.italic"), tool("format.underline"), tool("md.strike"), tool("md.code"), at("format.rtl")}},
+			{title: "Scene", homes: []home{at("write.place"), at("write.character"), at("format.color")}},
+			// a Markdown document's elements: its headings, given by their keys
+			// as a screenplay's elements are (Ctrl+1…6, Ctrl+0)
+			{title: "Heading", homes: []home{keyed("md.heading1"), keyed("md.heading2"), keyed("md.heading3"),
+				keyed("md.heading4"), keyed("md.heading5"), keyed("md.heading6"), keyed("md.heading0")}},
+			{title: "Emphasis", homes: []home{tool("format.bold"), tool("format.italic"), tool("format.underline"), tool("md.strike"), tool("md.code"),
+				sep(), tool("format.rtl")}}, // a row of its own, under them
 			{title: "Insert", homes: []home{big("md.link"), at("md.image"), at("md.footnote"), at("md.table"), at("md.rule"), at("md.codeBlock")}},
 			{title: "Lists", homes: []home{at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote")}},
 			// the script's format, its title page, the format's own blocks

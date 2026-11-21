@@ -397,14 +397,20 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 		smalls = append(smalls, o)
 	}
 	for _, h := range g.homes {
+		if h.sep { // a row of compact buttons ends
+			flushRow()
+			continue
+		}
 		switch h.id {
 		case "elements":
 			if env.markdown {
 				continue
 			}
 			for _, el := range toolbarElements {
-				b := newRibbonButton(r, cmd(elementCommandID(el)), false)
+				c := cmd(elementCommandID(el))
+				b := newRibbonButton(r, c, false)
 				b.label, b.mark = el, elementMarks[el]
+				b.keys = c.keysShort() // typed all the time: the key shows
 				r.elements[el] = b
 				r.add(b)
 				addSmall(b)
@@ -444,6 +450,9 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 		}
 		b := newRibbonButton(r, c, h.large)
 		b.compact = h.compact
+		if h.keys {
+			b.keys = c.keysShort()
+		}
 		if h.label != "" { // this place's own (Source Pane)
 			b.label, b.homeLabel = h.label, h.label
 			b.name = h.label + c.keysTip()
@@ -1009,6 +1018,10 @@ type ribbonButton struct {
 	label string
 	icon  fyne.Resource
 	mark  string
+	// keys, if set, shows dim after the label (an element's Ctrl+1:
+	// elements are given by their keys all the time; other buttons leave
+	// their keys to the tooltip, as Word's ribbon does)
+	keys string
 	// homeLabel is its place's own label, if any (Source Pane)
 	homeLabel string
 	iconOnly  bool // no label on a phone (the palette's: the tabs have the row)
@@ -1208,6 +1221,12 @@ func largeLines(label string) []string {
 	return []string{label[:best], label[best+1:]}
 }
 
+// keysShort is c's first key as the platform writes it ("Ctrl+1", "⌘1"),
+// "" if none.
+func (c *command) keysShort() string {
+	return strings.TrimSuffix(strings.TrimPrefix(c.keysTip(), " ("), ")")
+}
+
 // The sizes of the buttons.
 const (
 	ribbonSmallHeight = 28
@@ -1224,9 +1243,10 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 	mark := canvas.NewText("", theme.Color(theme.ColorNameForeground))
 	mark.TextStyle.Monospace = true
 	mark.TextStyle.Bold = true
+	keyT := canvas.NewText("", theme.Color(theme.ColorNamePlaceHolder))
 	var lines []*canvas.Text
 	badge := newKeyTipBadge()
-	objects := []fyne.CanvasObject{bg, img, mark}
+	objects := []fyne.CanvasObject{bg, img, mark, keyT}
 	for i := 0; i < 2; i++ {
 		t := canvas.NewText("", theme.Color(theme.ColorNameForeground))
 		lines = append(lines, t)
@@ -1262,6 +1282,16 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 		return ribbonIconSmall
 	}
 	pad := theme.InnerPadding() / 2
+	// keyShown: the keys after a small button's label (not on a phone:
+	// no keyboard to type them on)
+	keyShown := func() string {
+		if b.large || b.compact || b.r.phone {
+			return ""
+		}
+		return b.keys
+	}
+	keySize := func() float32 { return theme.CaptionTextSize() }
+	keyGap := theme.Padding()
 	r.min = func() fyne.Size {
 		ts := textSize()
 		var tw, th float32
@@ -1285,7 +1315,11 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 			}
 			return fyne.NewSize(max(w, 52), max(h, 3*ribbonSmallHeight))
 		}
-		return fyne.NewSize(is+tw+3*pad+2, ribbonSmallHeight)
+		w := is + tw + 3*pad + 2
+		if k := keyShown(); k != "" {
+			w += keyGap + fyne.MeasureText(k, keySize(), fyne.TextStyle{}).Width
+		}
+		return fyne.NewSize(w, ribbonSmallHeight)
 	}
 	r.layout = func(size fyne.Size) {
 		bg.Resize(size)
@@ -1321,6 +1355,12 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 				s := fyne.MeasureText(ls[0], ts, fyne.TextStyle{})
 				lines[0].Move(fyne.NewPos(pad*2+is, (size.Height-s.Height)/2))
 			}
+			if k := keyShown(); k != "" { // right-aligned, on the label's line
+				ks := fyne.MeasureText(k, keySize(), fyne.TextStyle{})
+				ls := fyne.MeasureText("Mg", ts, fyne.TextStyle{})
+				// the baselines close: the key's text sits low in the label's
+				keyT.Move(fyne.NewPos(size.Width-pad-2-ks.Width, (size.Height-ls.Height)/2+(ls.Height-ks.Height)*0.6))
+			}
 		}
 		ms := mark.MinSize()
 		mark.Move(fyne.NewPos(img.Position().X+(is-ms.Width)/2, img.Position().Y+(is-ms.Height)/2))
@@ -1349,6 +1389,13 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 		img.Hidden = ic == nil || b.mark != ""
 		mark.Text = b.mark
 		mark.Color = fg
+		keyT.Text = keyShown()
+		keyT.TextSize = keySize()
+		keyT.Color = theme.Color(theme.ColorNamePlaceHolder)
+		if b.disabled {
+			keyT.Color = theme.Color(theme.ColorNameDisabled)
+		}
+		keyT.Refresh()
 		mark.TextSize = iconSize() * 0.8
 		ls := texts()
 		for i, t := range lines {

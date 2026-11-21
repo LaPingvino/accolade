@@ -71,6 +71,9 @@ func dumpRibbon(r *ribbonBar) string {
 				} else {
 					line += " icon=" + resourceName(x.icon)
 				}
+				if x.keys != "" {
+					line += " keys (" + x.keys + ")" // as keysRe has them
+				}
 				if x.disabled {
 					line += " (disabled)"
 				}
