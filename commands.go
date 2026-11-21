@@ -421,6 +421,8 @@ func newRegistry() *registry {
 		&command{id: "file.newMarkdown", label: "New Markdown Document", icon: theme.FileTextIcon, run: (*MainWindow).NewMarkdownFile},
 		&command{id: "file.open", label: openLabel, tip: "Open", keys: []fyne.Shortcut{shortcut(fyne.KeyO, 0)}, icon: theme.FolderOpenIcon, run: (*MainWindow).OpenFile},
 		&command{id: "file.recent", label: "Open Recent", icon: theme.HistoryIcon, submenu: func(w *MainWindow) *fyne.Menu { return w.recentMenu().ChildMenu }},
+		// a script to try everything on (sample.go)
+		&command{id: "file.openSample", label: "Open Sample", icon: theme.DocumentIcon, run: (*MainWindow).openSample},
 		&command{id: "file.import", label: "Import as Markdown…", icon: theme.UploadIcon, run: (*MainWindow).ImportDocument},
 		&command{id: "file.importPandoc", label: "Import with pandoc…", icon: theme.UploadIcon, when: withPandoc, run: (*MainWindow).ImportWithPandoc}, // more formats
 		// a Markdown document is a source to start from
@@ -689,7 +691,7 @@ func newRegistry() *registry {
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
-			at("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
+			at("file.open"), at("file.recent"), at("file.openSample"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
 			sep(), at("file.export"), at("file.exportClean"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
@@ -945,7 +947,7 @@ var ribbonLabels = map[string]string{
 	// File (the browser's Open and Save say more in their menu items)
 	"file.open": "Open", "file.save": "Save",
 	"file.newEmpty": "Empty", "file.newMarkdown": "Markdown", "file.newWindow": "Window", "file.newEmptyWindow": "Empty Window",
-	"file.recent": "Recent", "file.import": "Import", "file.importPandoc": "With pandoc",
+	"file.recent": "Recent", "file.openSample": "Sample", "file.import": "Import", "file.importPandoc": "With pandoc",
 	"file.exportClean": "Clean Fountain", "file.pageSetup": "Page Setup",
 	"source.choose": "Choose Source", "file.startScreenplay": "Start Screenplay",
 	// Write
@@ -985,7 +987,7 @@ func ribbonLayout() []ribbonTab {
 	return []ribbonTab{
 		{title: "File", groups: []ribbonGroup{
 			{title: "New", homes: []home{big("file.new"), at("file.newEmpty"), at("file.newMarkdown"), at("file.newWindow"), at("file.newEmptyWindow"),
-				at("set.newLanguage")}}, // "New in: English": the language they are in
+				at("set.newLanguage"), at("file.openSample")}}, // "New in: English": the language they are in; the sample to try things on
 			{title: "Open", homes: []home{big("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc")}},
 			{title: "Save", homes: []home{big("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename")}},
 			{title: "Output", when: noMarkdown, homes: []home{big("file.export"), big("file.print"), at("file.exportClean"), at("file.pageSetup")}},

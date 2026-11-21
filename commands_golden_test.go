@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := toolbarMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))) // the moves write Linux keys too
+		want := sampleMoves(base, toolbarMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -797,6 +797,14 @@ func toolbarMoves(name, golden string) string {
 		}
 	}
 	return joinMenus(ms)
+}
+
+// sampleMoves: File > Open Sample after Open Recent (sample.go).
+func sampleMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-") {
+		return golden
+	}
+	return strings.Replace(golden, "  Open Recent\n    No recent scripts (disabled) (no action)\n", "  Open Recent\n    No recent scripts (disabled) (no action)\n  Open Sample\n", 1)
 }
 
 // writerMoves is a Production golden as a writer sees it (role.go): the
