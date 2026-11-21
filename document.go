@@ -89,10 +89,13 @@ type document struct {
 	// fromHome: its text is being set from its home, not by the writer;
 	// writing: it is being written into the script (whose change is its own)
 	fromHome, writing bool
-	// linkBase are a source's passages as its links were last looked at
+	// linkBase is a source's text as its links were last looked at
 	// (source_links_offer.go): what an edit of a passage's opening is
-	// measured from
-	linkBase []passage
+	// measured from; atPassage the passage its cursor was in (-1 none),
+	// seenRev its text's revision then
+	linkBase  string
+	atPassage int
+	seenRev   uint64
 }
 
 // newDoc opens the window's document of a kind (not the script,
@@ -287,7 +290,7 @@ func (d *document) reload() {
 	d.ed.SetText(text)
 	d.fromHome = false
 	d.stored, d.homeSeen = text, text
-	d.linkBase = nil
+	d.linkBase, d.atPassage, d.seenRev = text, -1, d.ed.Buffer().Rev()
 }
 
 // rehome is a source moved to another home (Keep Source in the Script):

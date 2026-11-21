@@ -307,7 +307,7 @@ func (w *MainWindow) setupUI() {
 		widget.NewSeparator(),
 		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel),
 	)
-	w.bottom = container.NewVBox(w.newLooseNotice(), w.statusBar)
+	w.bottom = container.NewVBox(w.newLooseNotice(), w.newLinkOffer(), w.statusBar)
 
 	w.relayout()
 
@@ -740,6 +740,7 @@ func (w *MainWindow) readPDFInBackground(filePath, what string,
 }
 
 func (w *MainWindow) SaveFile() error {
+	w.offerLinkUpdate(w.srcDoc)           // a passage's opening changed: its links (source_links_offer.go)
 	if err := w.storeDocs(); err != nil { // the source in the main editor, with the script (document.go)
 		return err
 	}

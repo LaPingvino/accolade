@@ -463,3 +463,82 @@ func TestCardsPane(t *testing.T) {
 		t.Error("a card opened: the script not back")
 	}
 }
+
+// A passage's opening words edited: the links that found it by the old
+// words are written again for the new ones, the others left as they are.
+func TestLinkFixes(t *testing.T) {
+	old := passagesOf(sourceStory)
+	story := strings.Replace(sourceStory, "She opened the door to the garden", "She pushed open the door of the garden", 1)
+	nw := passagesOf(story)
+	edits, n := linkFixes(sourceScript, old, nw)
+	if n != 1 || len(edits) != 1 {
+		t.Fatalf("%d links, %d edits: %v", n, len(edits), edits)
+	}
+	script := []rune(sourceScript)
+	e := edits[0]
+	got := string(script[:e.Start]) + e.Text + string(script[e.End:])
+	if strings.Contains(got, "She opened the door") || !strings.Contains(got, "pushed") {
+		t.Fatalf("the link %q", e.Text)
+	}
+	m := newSourceModel(nw, got, nil)
+	at := passageNamed(t, nw, "She pushed")
+	if lines := m.linked(at); len(lines) != 1 {
+		t.Errorf("the new link finds %v", lines)
+	}
+	if _, n := linkFixes(sourceScript, old, old); n != 0 {
+		t.Errorf("nothing changed, yet %d links to update", n)
+	}
+	// a passage split in two: a link to it goes to its last part too
+	if to := alignPassages(old, passagesOf(strings.Replace(sourceStory, "and stepped out", "and stopped.\n\nShe stepped out", 1))); to[2] != 3 {
+		t.Errorf("the split passage maps to %d", to[2])
+	}
+}
+
+// In the main editor: the cursor leaving a passage whose opening was
+// edited, the notice asks; Update Links is one undo step of the script's;
+// Not Now leaves the links. The Source pane's Done asks as well.
+func TestLinkOffer(t *testing.T) {
+	w, _ := sourceWindow(t, sourceScript, sourceStory)
+	w.swapWithMain("source")
+	d := w.mainDoc
+	at := runeAt(t, d.Text(), "She opened")
+	d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+10, "pushed") }) // "She pushed the door…"
+	if w.linkOffer.box.Visible() {
+		t.Fatal("asked while still in the passage")
+	}
+	d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
+	if !w.linkOffer.box.Visible() || !strings.Contains(w.linkOffer.text.Text, "1 link") {
+		t.Fatalf("no offer: %q", w.linkOffer.text.Text)
+	}
+	script := w.textEditor.Text()
+	w.updateOfferedLinks()
+	if w.linkOffer.box.Visible() || strings.Contains(w.textEditor.Text(), "She opened the door") {
+		t.Fatalf("not updated: %q", w.textEditor.Text())
+	}
+	w.textEditor.Undo()
+	if w.textEditor.Text() != script {
+		t.Error("the update is not one undo step")
+	}
+	// Not Now: as they are
+	at = runeAt(t, d.Text(), "The next morning")
+	d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+11, "following") })
+	d.ed.SetCursorOffset(0)
+	if !w.linkOffer.box.Visible() {
+		t.Fatal("no offer for the second passage")
+	}
+	w.hideLinkOffer()
+	if w.textEditor.Text() != script {
+		t.Error("Not Now changed the script")
+	}
+	w.swapBack()
+
+	// the pane's Edit and Done
+	w2, _ := sourceWindow(t, sourceScript, sourceStory)
+	s := w2.sourcePane()
+	s.toggleEdit()
+	s.w.srcDoc.SetText(strings.Replace(sourceStory, "The next morning the garden", "Next day the garden", 1))
+	s.toggleEdit()
+	if !w2.linkOffer.box.Visible() {
+		t.Error("Done did not offer to update the link")
+	}
+}

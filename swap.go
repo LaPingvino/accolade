@@ -49,7 +49,6 @@ func (w *MainWindow) swapWithMain(id string) {
 			s.edit.SetText("Edit")
 			s.edit.SetIcon(theme.DocumentCreateIcon())
 		}
-		doc.linkBase = passagesOf(doc.Text())
 	case "notes":
 		doc = w.notesDocument()
 	case "cards":
