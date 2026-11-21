@@ -367,12 +367,18 @@ func (rd *reportsDialog) tableView() fyne.CanvasObject {
 		func(id widget.TableCellID, o fyne.CanvasObject) {
 			l := o.(*widget.Label)
 			c := t.Rows[id.Row][shown[id.Col]]
-			l.SetText(c.String())
+			// alignment and truncation first: setting the fields draws nothing,
+			// SetText does — the other way round a reused cell kept the last
+			// cell's look until something else redrew it (a click)
 			l.Alignment = fyne.TextAlignLeading
 			if t.Columns[shown[id.Col]].Numeric {
 				l.Alignment = fyne.TextAlignTrailing
 			}
 			l.Truncation = fyne.TextTruncateEllipsis
+			if l.Text == c.String() {
+				l.Refresh() // same text: SetText would not redraw the new alignment
+			}
+			l.SetText(c.String())
 		})
 	tab.ShowHeaderRow = true
 	tab.CreateHeader = func() fyne.CanvasObject {
