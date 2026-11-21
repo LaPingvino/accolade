@@ -444,3 +444,25 @@ func (w *MainWindow) sharingStatus() string {
 	}
 	return fmt.Sprintf("Shared · %d others", w.shared.peers)
 }
+
+// wroteLine reports whether the script's line i is this writer's to
+// follow with an automatic write: a locked script's new scene numbered,
+// a lesson learned from a heading or a cue (the single-writer rule,
+// docs/COLLAB.md). Every peer sees what triggers such a write, and each
+// would make it, so only the writer of the line does: the replica that
+// wrote its first rune, which is the same on every peer. Not shared, the
+// writer is always this window. A line whose writer left (or wrote it in
+// an earlier run, under another replica) is nobody's: Lock Scene Numbers
+// still numbers it.
+func (w *MainWindow) wroteLine(i int) bool {
+	if w.shared == nil {
+		return true
+	}
+	b := w.textEditor.Buffer()
+	at := b.LineStart(i)
+	own := false
+	w.shared.session.Do(func(d *collab.Doc) {
+		own = d.Len() == b.Len() && d.Writer(at) == d.Replica()
+	})
+	return own
+}

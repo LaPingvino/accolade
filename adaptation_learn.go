@@ -33,8 +33,11 @@ import (
 //     it), or renamed to another cue than the one learned: a strike; two,
 //     and the name is no one (not characters). A line deleted whole or
 //     reworded says nothing about the name.
-//   - Nothing while the script is shared live: a peer's edits come into
-//     this window's undo steps.
+//   - Shared live, a peer learns only from what it wrote: a heading or a
+//     cue line whose first rune is its own (wroteLine, the single-writer
+//     rule of docs/COLLAB.md). Every peer sees a co-writer's new heading;
+//     only its writer learns from it, so the lesson is written once. A
+//     cue Tab put in is watched only where Tab was pressed.
 //   - A heading written for a scene linked to a passage (written over
 //     Next's placeholder, or a link put under a heading written in this
 //     session), other than any the source's place makes: the place maps
@@ -161,10 +164,7 @@ func (w *MainWindow) knowScript() {
 // and writes what it learns to the adaptation block. The source pane's
 // follow calls it (after typing pauses; the pane shown or not).
 func (w *MainWindow) learnFromWriting() {
-	// shared: every peer would learn the same lesson and write it, twice;
-	// until only the writer of the line learned from writes it (the
-	// single-writer rule, docs/COLLAB.md), nothing is learned
-	if w.markdown || w.textEditor == nil || w.shared != nil {
+	if w.markdown || w.textEditor == nil {
 		return
 	}
 	sg := w.suggester()
@@ -208,13 +208,13 @@ func (w *MainWindow) learnFromWriting() {
 		return sg.scene(s, at, headingAt(sg.lines, at, starts))
 	}
 	c := sceneAt(line)
-	if c != nil && l.checkScene(sg, o, c, &next, line, starts) {
+	if c != nil && l.checkScene(sg, o, c, &next, line, starts, w.wroteLine) {
 		changed = true
 	}
 	// the scene the cursor just left (a tap elsewhere): what was being
 	// written there is done
 	if p := sceneAt(prev); hadPrev && prev != line && p != nil && (c == nil || p.head != c.head) {
-		if l.checkScene(sg, o, p, &next, line, starts) {
+		if l.checkScene(sg, o, p, &next, line, starts, w.wroteLine) {
 			changed = true
 		}
 	}
@@ -319,8 +319,9 @@ func findTaken(lines []string, t takenCue) (cue string, cueLine, at int) {
 
 // checkScene looks at the cursor's scene: its heading, if new or changed
 // (or its links), and its cue blocks that are new, the one the cursor is
-// in left for later.
-func (l *learner) checkScene(sg *suggester, o *sourceOffers, c *sceneCtx, next *learned, cursor int, starts []string) bool {
+// in left for later. Only lines own says this writer wrote teach: a
+// co-writer's are known without a lesson (their writer learns from them).
+func (l *learner) checkScene(sg *suggester, o *sourceOffers, c *sceneCtx, next *learned, cursor int, starts []string, own func(line int) bool) bool {
 	lines := sg.lines
 	changed := false
 	// a heading new since the script was opened, once its scene is linked
@@ -330,7 +331,7 @@ func (l *learner) checkScene(sg *suggester, o *sourceOffers, c *sceneCtx, next *
 		heading := strings.TrimSpace(lines[c.head])
 		if k := headingKey(heading); !l.known[k] {
 			l.known[k] = true
-			if learnPlace(sg, o, c.passages[0], heading, next, l.forgotten, starts) {
+			if own(c.head) && learnPlace(sg, o, c.passages[0], heading, next, l.forgotten, starts) {
 				changed = true
 			}
 		}
@@ -344,7 +345,7 @@ func (l *learner) checkScene(sg *suggester, o *sourceOffers, c *sceneCtx, next *
 			continue
 		}
 		l.known[k] = true
-		if c.linked && learnCue(sg, o, c, b, next, l.forgotten) {
+		if c.linked && own(b.cueLine) && learnCue(sg, o, c, b, next, l.forgotten) {
 			changed = true
 		}
 	}

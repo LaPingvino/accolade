@@ -226,3 +226,28 @@ func (d *Doc) Missing(version map[string]uint64, counts map[string]int) []Op {
 	}
 	return out
 }
+
+// Len is the text's length in runes.
+func (d *Doc) Len() int {
+	n := 0
+	for x := d.head.next; x != nil; x = x.next {
+		if !x.deleted {
+			n++
+		}
+	}
+	return n
+}
+
+// Writer is the replica that wrote the rune at rune offset pos ("" past
+// the end): who made a line, for the rule that only its writer makes the
+// automatic writes that follow from it (docs/COLLAB.md).
+func (d *Doc) Writer(pos int) string {
+	if n := d.visible(pos).next; n != nil {
+		for ; n != nil; n = n.next {
+			if !n.deleted {
+				return n.id.Replica
+			}
+		}
+	}
+	return ""
+}

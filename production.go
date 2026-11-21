@@ -251,15 +251,14 @@ func (w *MainWindow) scheduleSceneNumbers() {
 
 // numberNewScenes gives a locked script's scenes without a number theirs,
 // all but the heading the cursor is on (being written), as part of the
-// writer's last undo step. Not while Redo is possible, text is selected,
-// or the script is shared (each peer would number it), and not before
-// the writer has edited (a script opened as it is, written elsewhere, is
-// numbered at the next edit or by Lock).
+// writer's last undo step. Not while Redo is possible or text is
+// selected, and not before the writer has edited (a script opened as it
+// is, written elsewhere, is numbered at the next edit or by Lock).
+// Shared, a peer numbers only the headings it wrote (wroteLine): every
+// peer sees a new scene, and the one writing it is the one who numbers
+// it, never in a co-writer's half-typed heading.
 func (w *MainWindow) numberNewScenes() {
-	// shared: each peer would number the new scene, and one peer's
-	// numbering would land in another's half-typed heading; until only
-	// the heading's writer numbers it (docs/COLLAB.md), Lock numbers them
-	if w.markdown || w.textEditor == nil || w.shared != nil {
+	if w.markdown || w.textEditor == nil {
 		return
 	}
 	e := w.textEditor
@@ -274,17 +273,21 @@ func (w *MainWindow) numberNewScenes() {
 	}
 	heads := sceneHeads(text, w.sceneStarts())
 	line, _ := b.Position(b.Cursor())
-	missing := false
-	for _, h := range heads {
-		if (h.num == "" || h.stray) && h.line != line {
-			missing = true
+	var mine []int // the headings to number: this writer's (wroteLine)
+	for i, h := range heads {
+		if (h.num == "" || h.stray) && h.line != line && w.wroteLine(h.line) {
+			mine = append(mine, i)
 		}
 	}
-	if !missing {
+	if len(mine) == 0 {
 		return
 	}
 	nums := sceneNumbersFor(heads, lex.NumberOptions{Locked: true, Style: lock.style})
-	edits := numberEdits(b, heads, nums, line)
+	var edits []lineEdit
+	for _, i := range mine {
+		h := heads[i]
+		edits = append(edits, lineEdit{b.LineStart(h.line), b.LineEnd(h.line), lex.WithSceneNumber(h.text, nums[i])})
+	}
 	e.Edit(func(b *buffer.Buffer) { applyBackwards(edits, b.Amend) })
 }
 

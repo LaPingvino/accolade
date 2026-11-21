@@ -166,9 +166,18 @@ messages of their own, batched like the text's runs.
 - **Automatic writes** (auto A-numbers in a locked script, learned notes) run on every peer that sees the trigger,
   so two peers would write the same thing twice, however small the edit. **Decision: a single-writer rule, not
   a permanent guard.** Only the peer who wrote the text an automatic write follows from may make it. The Doc knows
-  who wrote every rune: the new heading's runes say whose scene it is to number, and the learned-from line says
-  whose lesson it is to write. Until that is built, the guards stay, and their reason is now written beside each
-  one.
+  who wrote every rune (`Doc.Writer`): the new heading's runes say whose scene it is to number, and the
+  learned-from line says whose lesson it is to write. **Built** (`wroteLine`, collab_window.go): a line is the
+  writer's whose replica wrote its first rune, the same answer on every peer. `numberNewScenes` numbers only the
+  headings this peer wrote; `learnFromWriting` learns only from a heading or a cue line this peer wrote (a
+  co-writer's is marked known, without a lesson; a cue Tab put in is watched only where Tab was pressed). The two
+  guards are gone. A line whose writer has left, or wrote it in an earlier run (each run is a new replica), is
+  nobody's: it is not numbered until Lock Scene Numbers, nor learned from. Two peers adding a scene at one place at
+  the same moment, before either hears of the other's, can both give theirs the same A-number (each numbers its
+  own as the only new one); Renumber or a peer's next look ends it. TestSceneNumbersTogether and TestLearnTogether
+  fail when every peer may write (checked). The other "not shared" checks were looked at: the breakdown, the
+  schedule, the revision marks and the scene-number follow write sidecars or the margin, never the text (sharing
+  them is step 4); `shareEditsFirst` (Characters' Rename/Merge) and the Swap code's "yours only" are not guards.
 - **Undo**: only your own steps (fix 3).
 
 ### Protocol versioning
@@ -198,8 +207,8 @@ messages of their own, batched like the text's runs.
 
 ## What is left, in order
 
-1. The single-writer rule for automatic writes (auto A-numbers, learned notes). Then the two guards go:
-   production.go `numberNewScenes`, adaptation_learn.go `learnFromWriting`.
+1. ~~The single-writer rule for automatic writes (auto A-numbers, learned notes). Then the two guards go:
+   production.go `numberNewScenes`, adaptation_learn.go `learnFromWriting`.~~ Done (question 4 above).
 2. Run-length Doc nodes and kept ops, benchmarked on a novel-sized text.
 3. Named Docs in a session (protocol 5). The source shared through them, and the source pane's editing live.
 4. The breakdown and the schedule as shared CRDT maps (their own message kind, batched).
