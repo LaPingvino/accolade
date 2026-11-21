@@ -4,8 +4,10 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 )
 
 // dockTitles are the titles of the tabs shown in slot, in order.
@@ -170,8 +172,12 @@ func TestDockFollowsRoleAndKind(t *testing.T) {
 	}
 	w.togglePane("production") // its command is away; nothing happens
 	workAsFor(t, w, roleProduction)
-	if dockTitles(w, dockBottom) != "Notes Production" {
-		t.Errorf("Production again: %q", dockTitles(w, dockBottom))
+	if dockTitles(w, dockBottom) != "Notes" {
+		t.Errorf("Production again: %q (the pane was put away)", dockTitles(w, dockBottom))
+	}
+	w.togglePane("production") // asked for again (the palette switches the role, then runs it): in, not out
+	if !w.paneInSight("production") {
+		t.Error("Production's command after Writer did not bring the pane in")
 	}
 	w.setMarkdown(true)
 	if dockTitles(w, dockBottom) != "Notes" {
@@ -259,5 +265,51 @@ func TestDockFocusVisible(t *testing.T) {
 	w.fyneWindow.Resize(fyne.NewSize(380, 800))
 	if u := invisibleFocus(w.fyneWindow.Canvas()); len(u) > 0 {
 		t.Errorf("phone: the focus is not seen on\n  %s", strings.Join(u, "\n  "))
+	}
+}
+
+// A press held half a second on a tab opens its menu (a finger in the
+// browser); the tap after it, the menu dismissed, picks the tab again.
+func TestDockLongPress(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.togglePane("notes")
+	w.togglePane("changes")
+	tab := w.dock.tabs["notes"]
+	c := w.fyneWindow.Canvas()
+	ev := &desktop.MouseEvent{Button: desktop.MouseButtonPrimary}
+	tab.MouseDown(ev)
+	deadline := time.Now().Add(3 * time.Second)
+	for c.Overlays().Top() == nil && time.Now().Before(deadline) {
+		time.Sleep(20 * time.Millisecond)
+	}
+	if c.Overlays().Top() == nil {
+		t.Fatal("no menu after a long press")
+	}
+	for c.Overlays().Top() != nil { // the release went to the menu: no Tapped
+		c.Overlays().Remove(c.Overlays().Top())
+	}
+	tab.MouseDown(ev)
+	tab.MouseUp(ev)
+	tab.Tapped(&fyne.PointEvent{})
+	if !w.paneInSight("notes") {
+		t.Error("the tap after a long press was swallowed")
+	}
+	if c.Overlays().Top() != nil {
+		t.Error("a short press opened the menu")
+	}
+}
+
+// Hiding the pane in front brings the next one up to date.
+func TestDockHideRefreshesFront(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.textEditor.SetText(outlineScript)
+	w.togglePane("outline")
+	w.togglePane("notes")
+	keepDockSettings(t, w)
+	w.dock.move("notes", dockTop)
+	w.outline.all = nil // stale
+	w.togglePane("notes")
+	if !w.paneInSight("outline") || len(w.outline.all) == 0 {
+		t.Errorf("the outline, in front again, not brought up to date (%d items)", len(w.outline.all))
 	}
 }

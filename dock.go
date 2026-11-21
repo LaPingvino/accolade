@@ -65,21 +65,26 @@ type dockPane struct {
 	focus       func(w *MainWindow) fyne.Focusable
 	// shown brings it up to date as it comes into sight (nil: nothing)
 	shown func(w *MainWindow)
+	// edited brings it up to date with the script's text, while it is in
+	// the dock (nil: nothing, or it follows by itself)
+	edited func(w *MainWindow, text string)
 }
 
 // dockPanes are the panes in their first order.
 func dockPanes() []*dockPane {
 	return []*dockPane{
 		{id: "outline", slot: dockTop, width: 240,
-			cmd:   &command{label: "Outline", keys: []fyne.Shortcut{shortcut(fyne.KeyO, fyne.KeyModifierShift)}, icon: theme.ListIcon},
-			box:   func(w *MainWindow) fyne.CanvasObject { return w.outlinePane().box },
-			focus: func(w *MainWindow) fyne.Focusable { return w.outlinePane().list },
-			shown: func(w *MainWindow) { w.outlinePane().update(w.textEditor.Text()) }},
+			cmd:    &command{label: "Outline", keys: []fyne.Shortcut{shortcut(fyne.KeyO, fyne.KeyModifierShift)}, icon: theme.ListIcon},
+			box:    func(w *MainWindow) fyne.CanvasObject { return w.outlinePane().box },
+			focus:  func(w *MainWindow) fyne.Focusable { return w.outlinePane().list },
+			shown:  func(w *MainWindow) { w.outlinePane().update(w.textEditor.Text()) },
+			edited: func(w *MainWindow, text string) { w.outlinePane().update(text) }},
 		{id: "notes", slot: dockBottom, width: 280, focusOnShow: true,
-			cmd:   &command{label: "Notes", keys: []fyne.Shortcut{shortcut(fyne.KeyK, fyne.KeyModifierShift)}, icon: theme.FileTextIcon},
-			box:   func(w *MainWindow) fyne.CanvasObject { return w.notesPane().entry },
-			focus: func(w *MainWindow) fyne.Focusable { return w.notesPane().entry },
-			shown: func(w *MainWindow) { w.notesPane().update(w.textEditor.Text()) }},
+			cmd:    &command{label: "Notes", keys: []fyne.Shortcut{shortcut(fyne.KeyK, fyne.KeyModifierShift)}, icon: theme.FileTextIcon},
+			box:    func(w *MainWindow) fyne.CanvasObject { return w.notesPane().entry },
+			focus:  func(w *MainWindow) fyne.Focusable { return w.notesPane().entry },
+			shown:  func(w *MainWindow) { w.notesPane().update(w.textEditor.Text()) },
+			edited: func(w *MainWindow, text string) { w.notesPane().update(text) }},
 		{id: "source", slot: dockBottom, width: sourceWidth, focusOnShow: true,
 			cmd:   &command{label: "Source", tip: "Source: the story the script adapts", icon: func() fyne.Resource { return sourceIcon }, when: screenplayOnly},
 			box:   func(w *MainWindow) fyne.CanvasObject { return w.sourcePane().box },
@@ -302,6 +307,34 @@ func (d *dock) setFront(id string) {
 	d.last = id
 }
 
+// edited brings the panes in the dock up to date with the script's text.
+func (d *dock) edited(text string) {
+	for _, p := range d.panes {
+		if p.edited != nil && d.shown(p.id) {
+			p.edited(d.w, text)
+		}
+	}
+}
+
+// refreshFront brings slot's tab in front up to date: one that came to
+// the front by itself, another tab having gone.
+func (d *dock) refreshFront(slot int) {
+	if p := d.pane(d.inFront(slot)); p != nil && p.shown != nil {
+		p.shown(d.w)
+	}
+}
+
+// putAway takes the panes the role has not out of the dock (Production's
+// as a Writer), so that one asked for again comes in, not out.
+func (d *dock) putAway() {
+	env := cmdEnv{markdown: d.w.markdown, writer: d.w.writerView()}
+	for _, p := range d.panes {
+		if !p.cmd.role.in(env) {
+			d.on[p.id] = false
+		}
+	}
+}
+
 // paneShown reports whether the pane with id is in the dock.
 func (w *MainWindow) paneShown(id string) bool { return w.dock != nil && w.dock.shown(id) }
 
@@ -356,8 +389,10 @@ func (w *MainWindow) hidePane(id string) {
 	if !d.on[id] {
 		return
 	}
+	slot := d.slotNow(id)
 	d.on[id] = false
 	w.relayout()
+	d.refreshFront(slot)
 	w.refreshMenu()
 }
 
@@ -438,6 +473,7 @@ func (d *dock) move(id string, slot int) {
 		return
 	}
 	keyboard := d.focusedPane() != ""
+	from := d.slotOf[id]
 	d.slotOf[id] = slot
 	var order []*dockPane // last in its new slot
 	for _, q := range d.panes {
@@ -451,6 +487,9 @@ func (d *dock) move(id string, slot int) {
 	d.w.relayout()
 	if p.shown != nil && d.shown(id) {
 		p.shown(d.w)
+	}
+	if !d.w.narrow {
+		d.refreshFront(from) // the tab now in front where it was
 	}
 	if t := d.tabs[id]; keyboard && t != nil {
 		d.w.fyneWindow.Canvas().Focus(t)
@@ -679,6 +718,7 @@ func (t *dockTab) showMenu(pos fyne.Position) {
 // MouseDown and MouseUp: a press held half a second is a long one, the
 // menu (the browser on a phone sends a finger as the mouse).
 func (t *dockTab) MouseDown(e *desktop.MouseEvent) {
+	t.pressed = false // a long press's release may have gone to its menu
 	if e.Button != desktop.MouseButtonPrimary {
 		return
 	}

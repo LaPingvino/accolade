@@ -745,7 +745,7 @@ const followPause = 200 * time.Millisecond
 // moves, once after a pause when the text changes (the cursor and the
 // text both say they changed on a keystroke).
 func (w *MainWindow) followSource() {
-	if w.source == nil || !w.paneShown("source") {
+	if w.source == nil { // made once shown: it learns from the writing hidden too (follow)
 		return
 	}
 	s := w.source

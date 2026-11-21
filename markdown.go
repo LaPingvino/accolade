@@ -89,12 +89,7 @@ func (w *MainWindow) setMarkdown(on bool) {
 	}
 	w.refreshMenu()
 	text := w.textEditor.Text()
-	if w.paneShown("outline") {
-		w.outline.update(text)
-	}
-	if w.paneShown("notes") {
-		w.notes.update(text)
-	}
+	w.dock.edited(text)
 	if w.help != nil {
 		w.help.fillPicker() // the cheat sheets in the mode's order
 	}

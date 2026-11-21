@@ -1159,17 +1159,12 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.scheduleSceneNumbers()
 	w.scheduleRevisionMarks()
 	w.scheduleBreakdown()
-	if w.paneShown("outline") {
-		w.outline.update(text)
-	}
+	w.dock.edited(text) // the panes in the dock (dock.go)
 	if w.cardsVisible && w.cards != nil {
 		w.cards.update(text)
 	}
 	if w.stripsVisible && w.stripboard != nil {
 		w.stripboard.update()
-	}
-	if w.paneShown("notes") {
-		w.notes.update(text)
 	}
 	w.followSource()
 	if w.previewVisible && w.previewPane != nil {

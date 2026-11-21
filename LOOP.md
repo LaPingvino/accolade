@@ -592,10 +592,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   before) and is checked while in; View > Side Panes all out and back. A tab moves by its menu (right-click, long
   press, Shift+F10: Move to Top/Bottom, Hide) or View > Move Pane to Top/Bottom (the pane with the keyboard, else the
   one picked last). Kept: "dock-panes" (id:slot in tab order), "dock-width" (side-pane-offset migrates),
-  "dock-split"; which panes are shown is not kept (as before). Role/kind filter the tabs and keep the arrangement.
+  "dock-split"; which panes are shown is not kept (as before). Markdown hides a screenplay's tabs and keeps them
+  for later; Writer takes Production out (asked for again it comes in). A tab coming to the front is refreshed.
   Phone: the sheet, one row of tabs, the taller button in it. Keys: F6 each slot's pane in front; Tab reaches the tab
   in front of each row, arrows along, Down/Enter in, Esc out. A new pane is one row in dockPanes() (its command, View
-  menu and ribbon Panes group follow); the header row stays hand-listed. notesPanel is only the notes now (w.source,
+  menu, ribbon Panes group and per-edit update follow); the header row stays hand-listed. notesPanel is only the notes now (w.source,
   w.production, w.help their own). Goldens: dockMoves (View's panes together after the folding, three new items),
   ribbon goldens regenerated. Shots: /tmp/claude-1000/shots/dock-{before,after}-*.png. Rough: the source pane's Show
   All overlaps its text when the slot is short (as before in a short split); no drag of a tab between slots.

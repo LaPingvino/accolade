@@ -12,7 +12,8 @@ import (
 // TestDockScreenshots renders the side dock's arrangements, driven only
 // through the registry's commands (SHOT_DIR as in screenshot_test.go):
 // the outline alone, two slots, a tab moved to the other slot, the dock
-// hidden, and the same on a phone.
+// hidden, the same on a phone, and every pane in at once (the tab rows
+// wrapping).
 func TestDockScreenshots(t *testing.T) {
 	dir := os.Getenv("SHOT_DIR")
 	if dir == "" {
@@ -65,4 +66,10 @@ func TestDockScreenshots(t *testing.T) {
 	run("view.notes")
 	run("view.source")
 	snap("5-phone")
+	for _, id := range []string{"view.production", "view.help", "view.changes"} {
+		run(id)
+	}
+	snap("7-phone-all")
+	w.fyneWindow.Resize(fyne.NewSize(1200, 720))
+	snap("6-all-tabs")
 }
