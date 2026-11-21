@@ -260,7 +260,11 @@ type home struct {
 	// keys: on the ribbon its key shows after its label (a heading's
 	// Ctrl+1: given by its key all the time)
 	keys bool
-	role cmdRole // made items' role (a command's is its own)
+	// short: its ribbon label here, if shorter than its ribbon label
+	// elsewhere (the big Source's "Choose" beside it, "Choose Source" on
+	// the File tab); its name and tooltip stay the full label
+	short string
+	role  cmdRole // made items' role (a command's is its own)
 }
 
 func at(id string) home                              { return home{id: id} }
@@ -274,6 +278,7 @@ func madeFor(r cmdRole, f func(*MainWindow) []*fyne.MenuItem) home {
 }
 func bigAs(id, label string) home { return home{id: id, label: label, large: true} }
 func keyed(id string) home        { return home{id: id, keys: true} }
+func atShort(id, short string) home { return home{id: id, short: short} }
 
 // menuDef is a menu of the menu bar.
 type menuDef struct {
@@ -906,7 +911,7 @@ var ribbonLabels = map[string]string{
 	"format.language": "Language",
 	// Adaptation
 	"source.saveAs": "Save As", "source.keepInside": "Keep in Script", "source.next": "Next", "source.link": "Link",
-	"source.cut": "Mark as Cut", "source.suggest": "Suggest Links", "source.update": "Update Links",
+	"source.cut": "Mark as Cut", "source.suggest": "Suggest", "source.update": "Update",
 	"source.sections": "Headings as Sections", "source.learned": "Learned Notes",
 	// Production
 	"production.lockNumbers": "Lock Numbers", "production.unlockNumbers": "Unlock", "production.issue": "Issue",
@@ -956,14 +961,19 @@ func ribbonLayout() []ribbonTab {
 		{title: "Edit", groups: []ribbonGroup{
 			{title: "Undo", homes: []home{at("edit.undo"), at("edit.redo")}},
 			{title: "Clipboard", homes: []home{at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll")}},
-			{title: "Find", homes: []home{at("edit.find"), at("edit.replace"), at("edit.findNext"), at("edit.findPrevious")}},
+			// verb + variants (as File's New, Open, Save): the big verb, the
+			// small ones named by what differs
+			{title: "Find", homes: []home{big("edit.find"), at("edit.findNext"), at("edit.findPrevious"), at("edit.replace")}},
 			{title: "Lines", homes: []home{at("format.lineUp"), at("format.lineDown")}},
 			{title: "Script", mdTitle: "Document", homes: []home{at("file.titlePage"), at("format.language"), at("app.preferences")}},
 		}},
 		// a source's, or a story's next step
 		{title: "Adaptation", when: func(e cmdEnv) bool { return e.source || e.markdown }, groups: []ribbonGroup{
-			{title: "Source", homes: []home{bigAs("view.source", "Source Pane"), at("source.choose"), at("source.saveAs"), at("source.keepInside")}},
-			{title: "Links", homes: []home{big("source.next"), big("source.link"), at("source.cut"), at("source.suggest"), at("source.update"), at("source.sections")}},
+			{title: "Source", homes: []home{{id: "view.source", label: "Source Pane", short: "Source", large: true},
+				atShort("source.choose", "Choose"), at("source.saveAs"), at("source.keepInside")}},
+			// Next is the adapting's step, Link its verb; Suggest and Update
+			// are linking's variants
+			{title: "Links", homes: []home{big("source.next"), big("source.link"), at("source.suggest"), at("source.update"), at("source.cut"), at("source.sections")}},
 			{title: "Learned", homes: []home{big("source.learned")}},
 			{title: "Options", homes: []home{at("set.suggest"), at("set.nextInserts")}},
 			{title: "Start", homes: []home{big("file.startScreenplay")}},
@@ -972,7 +982,7 @@ func ribbonLayout() []ribbonTab {
 		{title: "Production", when: screenplayOnly, role: productionRole, groups: []ribbonGroup{
 			{title: "Lock", stage: 1 + stageLock, homes: []home{big("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
 				big("production.lockPages"), big("production.issue")}},
-			{title: "Revise", stage: 1 + stageRevise, homes: []home{big("production.issue"), big("production.revisedPages"), at("production.compare"), at("production.withdraw")}},
+			{title: "Revise", stage: 1 + stageRevise, homes: []home{big("production.issue"), at("production.withdraw"), at("production.compare"), at("production.revisedPages")}},
 			{title: "Break Down", stage: 1 + stageBreakdown, homes: []home{big("production.nextScene"), big("production.tag"),
 				at("production.sceneDone"), at("production.untag"), at("production.showTags"), at("production.sheets")}},
 			{title: "Schedule", stage: 1 + stageSchedule, homes: []home{big("production.stripboard"), at("production.addDay"), at("production.oneLiner"),

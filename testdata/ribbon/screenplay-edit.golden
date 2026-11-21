@@ -8,10 +8,10 @@ tabs: File Write [Edit] Production Collaboration View
   S Paste icon=foreground_content-paste.svg name=Paste (Ctrl+V)
   S Select All icon=foreground_select-all.svg name=Select All (Ctrl+A)
 ## Find
-  S Find icon=foreground_search.svg name=Find… (Ctrl+F)
-  S Replace icon=foreground_search-replace.svg name=Replace… (Ctrl+H)
+  L Find icon=foreground_search.svg name=Find… (Ctrl+F)
   S Next icon=foreground_arrow-forward.svg name=Find Next (Ctrl+G)
   S Previous icon=foreground_arrow-back.svg name=Find Previous (Ctrl+Shift+G)
+  S Replace icon=foreground_search-replace.svg name=Replace… (Ctrl+H)
 ## Lines
   S Move Up icon=foreground_arrow-up.svg name=Move Line Up
   S Move Down icon=foreground_arrow-down.svg name=Move Line Down

@@ -457,6 +457,9 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 			b.label, b.homeLabel = h.label, h.label
 			b.name = h.label + c.keysTip()
 		}
+		if h.short != "" {
+			b.label = h.short
+		}
 		r.add(b)
 		switch {
 		case h.large || r.phone:

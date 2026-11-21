@@ -1,15 +1,15 @@
 tabs: File Write Edit [Adaptation] Production Collaboration View
 ## Source
-  L Source Pane icon=foreground_source.svg (checked) name=Source Pane
-  S Choose Source icon=foreground_folder-open.svg name=Choose Source…
+  L Source icon=foreground_source.svg (checked) name=Source Pane
+  S Choose icon=foreground_folder-open.svg name=Choose Source…
   S Save As icon=foreground_document-save.svg name=Save Source As…
   S Keep in Script icon=foreground_keep-inside.svg name=Keep Source in the Script
 ## Links
   L Next icon=foreground_arrow-forward.svg name=Next Source Passage (Ctrl+Alt+J)
   L Link icon=foreground_link.svg name=Link to Source Passage
+  S Suggest icon=foreground_suggest.svg name=Suggest Links to the Source
+  S Update icon=foreground_view-refresh.svg name=Update Source Links
   S Mark as Cut icon=foreground_content-cut.svg name=Mark Source Passage as Cut
-  S Suggest Links icon=foreground_suggest.svg name=Suggest Links to the Source
-  S Update Links icon=foreground_view-refresh.svg name=Update Source Links
   S Headings as Sections icon=foreground_toc.svg name=Source Headings as Sections
 ## Learned
   L Learned Notes icon=foreground_learned.svg name=What Accolade Learned…
