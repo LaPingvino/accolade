@@ -18,7 +18,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/accolade/internal/pace"
 	"github.com/LaPingvino/accolade/internal/storyread"
@@ -96,8 +95,7 @@ type sourcePane struct {
 	next    *widget.Button
 	cut     *widget.Button
 	prompt  *statusPrompt
-	editor  *sourceEditor
-	editing bool
+	editing bool              // the source open as text in the pane (the window's source document)
 	empty   fyne.CanvasObject // no source
 	blank   fyne.CanvasObject // a source with no passages yet
 	tools   *fyne.Container   // the count, Next and Cut: hidden without a source
@@ -151,7 +149,6 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.cut.Disable()
 	fyne.SetAccessibleLabel(s.cut, "Mark the picked passage as cut on purpose")
 	s.prompt = newStatusPrompt(s)
-	s.editor = newSourceEditor()
 	none := widget.NewLabel(noSourceText())
 	none.Wrapping = fyne.TextWrapWord
 	s.empty = container.NewVBox(none, widget.NewButtonWithIcon("Choose Source…", theme.FolderOpenIcon(), w.chooseSource))
@@ -498,7 +495,7 @@ func (s *sourcePane) loadSource(background bool) {
 	}
 	var src string
 	var err error
-	if ref.Origin == sourceInside || ref.Origin == sourceBundle { // in memory
+	if open := s.w.srcDoc; ref.Origin == sourceInside || ref.Origin == sourceBundle || open != nil && open.ref == ref { // in memory (an open document's text)
 		src, _ = s.w.sourceText(ref)
 		if ref == s.ref && sameString(src, s.src) {
 			s.loading = nil
@@ -582,8 +579,8 @@ func (s *sourcePane) showBody() {
 		s.edit.Hide()
 		s.tools.Hide() // nothing to count or go to
 		o = s.empty
-	case s.editing:
-		o = s.editor
+	case s.editing && s.w.srcDoc != nil:
+		o = s.w.srcDoc.view
 	case !slices.ContainsFunc(s.passages, passage.linkable) && s.err == nil:
 		s.edit.Show()
 		o = s.blank
@@ -864,42 +861,45 @@ func (s *sourcePane) pick(id int) {
 }
 
 // toggleEdit opens the source as text in the pane, or saves it and
-// shows it as passages again.
+// shows it as passages again. The text is the window's source document
+// (document.go), the one Swap with Main puts in the main editor.
 func (s *sourcePane) toggleEdit() {
 	if s.ref.Origin == sourceNone {
 		return
 	}
 	if !s.editing {
+		d := s.w.sourceDoc()
+		if d == nil {
+			return
+		}
 		s.editing = true
-		s.editor.SetText(s.src)
 		s.edit.SetText("Done")
 		s.edit.SetIcon(theme.ConfirmIcon())
 		fyne.SetAccessibleLabel(s.edit, "Done: save the source")
 		s.showBody()
 		s.showReading(false)
-		s.w.fyneWindow.Canvas().Focus(s.editor.ed)
+		s.w.fyneWindow.Canvas().Focus(d.ed)
 		return
 	}
-	if s.editor.Text != s.src {
-		if s.ref.Origin == sourceInside { // into the script's block
-			e := s.w.textEditor
-			start, end, block := withSourceBlock(e.Text(), s.editor.Text)
-			e.Replace(start, end, block)
-		} else if s.ref.Origin == sourceBundle {
-			if err := s.w.saveBundleSource(s.editor.Text); err != nil {
-				dialog.ShowError(err, s.w.fyneWindow)
-				return
-			}
-		} else if err := writeFileAtomic(s.ref.Path, []byte(s.editor.Text)); err != nil {
-			dialog.ShowError(fmt.Errorf("could not save the source: %v", err), s.w.fyneWindow)
-			return
-		}
-		s.modTime = time.Time{} // read again
+	d := s.w.srcDoc
+	s.w.offerLinkUpdate(d) // its passages' openings changed: the links quoting them
+	if err := s.w.closeDoc(d); err != nil {
+		dialog.ShowError(err, s.w.fyneWindow)
+		return
 	}
+	if s.editing { // no document (another script since): the pane's state alone
+		s.endEdit()
+	}
+}
+
+// endEdit shows the source as passages again (its document saved and
+// let go: closeDoc).
+func (s *sourcePane) endEdit() {
 	s.editing = false
 	s.edit.SetText("Edit")
 	s.edit.SetIcon(theme.DocumentCreateIcon())
 	fyne.SetAccessibleLabel(s.edit, "Edit the source as text")
+	s.modTime = time.Time{} // read again
 	s.load()
 	s.showBody()
 	s.follow()
@@ -907,41 +907,10 @@ func (s *sourcePane) toggleEdit() {
 
 // focusTarget is what takes the keyboard in the pane.
 func (s *sourcePane) focusTarget() fyne.Focusable {
-	if s.editing {
-		return s.editor.ed
+	if s.editing && s.w.srcDoc != nil {
+		return s.w.srcDoc.ed
 	}
 	return s.list
-}
-
-// sourceEditor is the source as text, being edited: in Accolade's own
-// editor, as Markdown (Fyne's Entry took seconds to open a novel, and
-// most of a second per key); Text is the text as it is now.
-type sourceEditor struct {
-	widget.BaseWidget
-	ed   *editor.ScriptEditor
-	view fyne.CanvasObject
-	Text string
-}
-
-func newSourceEditor() *sourceEditor {
-	se := &sourceEditor{ed: editor.New("")}
-	se.ed.Markdown, se.ed.Syntax = true, true
-	se.ed.AccessibleName = "Source text"
-	se.ed.OnChanged = func(text string) { se.Text = text }
-	se.view = editor.NewScroll(se.ed)
-	se.ExtendBaseWidget(se)
-	return se
-}
-
-// SetText puts text in the editor, with the cursor at its start and no
-// undo history.
-func (se *sourceEditor) SetText(text string) {
-	se.ed.SetText(text)
-	se.Text = se.ed.Text()
-}
-
-func (se *sourceEditor) CreateRenderer() fyne.WidgetRenderer {
-	return widget.NewSimpleRenderer(se.view)
 }
 
 // widthWatch lays out its content to its size, and says when its width
@@ -1095,6 +1064,9 @@ func (w *MainWindow) toggleSourceInside() {
 		dialog.ShowError(err, w.fyneWindow)
 		return
 	}
+	if d := w.srcDoc; d != nil { // open: kept where the source is now
+		d.rehome()
+	}
 	if in {
 		w.setStatus("The source is kept in the script now, at its end")
 	} else {
@@ -1108,6 +1080,9 @@ func (w *MainWindow) toggleSourceInside() {
 // linkToSource is Adaptation > Link to Source Passage: a link to the passage
 // picked in the source pane, at the cursor.
 func (w *MainWindow) linkToSource() {
+	if w.scriptAway("Link to Source Passage") { // the script is in the side panes (swap.go)
+		return
+	}
 	if w.markdown {
 		return
 	}
@@ -1152,6 +1127,9 @@ func (w *MainWindow) linkToSource() {
 // sectionsFromSourceHere is Adaptation > Source Headings as Sections: the
 // source's headings, those not in the script yet, as its sections.
 func (w *MainWindow) sectionsFromSourceHere() {
+	if w.scriptAway("Source Headings as Sections") { // the script is in the side panes (swap.go)
+		return
+	}
 	if w.markdown {
 		return
 	}

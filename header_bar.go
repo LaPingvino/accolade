@@ -213,10 +213,6 @@ func (hb *HeaderBar) button(id string) *tooltip.Button { return hb.buttons[id] }
 // setMarkdown shows the bar for a Markdown document or a screenplay: the
 // editing row, the preview's tip; the export is a screenplay's.
 func (hb *HeaderBar) setMarkdown(on bool) {
-	row := hb.screenplayRow
-	if on {
-		row = hb.markdownRow
-	}
 	env := cmdEnv{markdown: on, browser: inBrowser}
 	for id, b := range hb.buttons { // a screenplay's disabled, the tips its own
 		c := cmd(id)
@@ -227,8 +223,21 @@ func (hb *HeaderBar) setMarkdown(on bool) {
 		}
 		b.Tip = c.tipIn(env)
 	}
-	hb.container.Objects[1] = row
-	hb.container.Refresh()
+	hb.showEditingRow(on)
+}
+
+// showEditingRow shows the editing row for what the main editor holds:
+// Markdown's (a Markdown file, the source or notes swapped in: swap.go)
+// or the screenplay's.
+func (hb *HeaderBar) showEditingRow(markdown bool) {
+	row := hb.screenplayRow
+	if markdown {
+		row = hb.markdownRow
+	}
+	if hb.container.Objects[1] != row {
+		hb.container.Objects[1] = row
+		hb.container.Refresh()
+	}
 }
 
 // showRole puts the top row's buttons of commands the role puts away

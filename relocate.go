@@ -313,6 +313,9 @@ func (w *MainWindow) relocate(r relocation, done func(error)) error {
 	if done == nil {
 		done = func(error) {}
 	}
+	// the source and notes open as documents written, the script back in
+	// the main editor: their homes move with it (document.go)
+	w.leaveDocs()
 	if w.bundleBusy() { // a save under way finishes first
 		gen, file := w.bundleGen, w.currentFile
 		w.afterBundleWrites(func() {

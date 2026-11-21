@@ -76,6 +76,7 @@ func (w *MainWindow) setMarkdown(on bool) {
 	if w.markdown == on {
 		return
 	}
+	w.leaveDocs() // another kind of document: the script back in the main editor (document.go)
 	w.markdown = on
 	w.textEditor.Markdown = on
 	if on {
@@ -250,7 +251,7 @@ func (p *previewPanel) update(text string) {
 // preview shows the document as it will look: a screenplay as a PDF, a
 // Markdown document in the preview beside the editor (or hides it).
 func (w *MainWindow) preview() {
-	if !w.markdown {
+	if !w.editorMarkdown() { // the main editor's: the source swapped in is Markdown
 		w.previewPDF()
 		return
 	}
@@ -259,7 +260,7 @@ func (w *MainWindow) preview() {
 	}
 	w.previewVisible = !w.previewVisible
 	if w.previewVisible {
-		w.previewPane.update(w.textEditor.Text())
+		w.previewPane.update(w.writeEditor().Text())
 	}
 	w.relayout()
 	w.refreshMenu() // Live Preview checked, or not, in the menu and on the ribbon

@@ -1007,7 +1007,7 @@ func (sg *suggester) hint() string {
 // showSuggestionHint puts the hint for the cursor in the status bar, or
 // takes an old one away.
 func (w *MainWindow) showSuggestionHint() {
-	if w.markdown || w.textEditor == nil {
+	if w.markdown || w.textEditor == nil || !w.scriptInMain() { // Tab is the script's (swap.go)
 		return
 	}
 	if h := w.suggester().hint(); h != "" {

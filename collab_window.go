@@ -99,6 +99,9 @@ func newReplica() string {
 // joining, the script comes from them (the window's text is replaced), or
 // from the state kept when this window or page was in it before.
 func (w *MainWindow) startSharing(key collab.Key, joining bool) {
+	if joining { // the script is replaced: its documents first (document.go)
+		w.leaveDocs()
+	}
 	w.stopSharing()
 	var session *collab.Session
 	if joining {
@@ -247,6 +250,7 @@ func (w *MainWindow) leaveSharing() {
 // New, an import, a restore): a shared script stays with the peers, not
 // replaced for them by this one.
 func (w *MainWindow) newDocument() {
+	w.leaveDocs() // the script back in the main editor, its documents written (document.go)
 	if w.shared != nil {
 		w.leaveSharing()
 		w.setStatus("Left the shared script: it goes on with the others")

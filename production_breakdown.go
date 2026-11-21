@@ -396,6 +396,9 @@ func (w *MainWindow) markSceneDone(sc int) {
 // markSceneDoneHere is Mark Scene Done: the scene the Break down stage
 // shows, else the cursor's.
 func (w *MainWindow) markSceneDoneHere() {
+	if w.scriptAway("Mark Scene Done") { // the script is in the side panes (swap.go)
+		return
+	}
 	if w.markdown || w.textEditor == nil {
 		return
 	}

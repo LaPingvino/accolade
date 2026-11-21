@@ -44,6 +44,12 @@ type cmdEnv struct {
 	writer bool
 	// fontSize: the editor's text size (Larger and Smaller Text)
 	fontSize int
+	// away: the script is not in the main editor, a pane is swapped in
+	// (swap.go); swappedDoc: what is there is a Markdown document of its
+	// own (the source, the notes). markdown stays the file's kind: the
+	// menus that act on the document (Adaptation, Production, Export)
+	// are the script's while it is away
+	away, swappedDoc bool
 }
 
 // cmdEnv is the window's.
@@ -57,6 +63,8 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 		e.issued = w.scriptIssued()
 	}
 	e.writer = w.writerView()
+	e.away = w.swapped != ""
+	e.swappedDoc = e.away && w.mainDoc != nil
 	e.renamed = w.canUndoRename()
 	e.brought = !w.carried.empty()
 	if w.settings != nil {
@@ -68,8 +76,14 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 // The rules for when a command applies at all.
 func screenplayOnly(e cmdEnv) bool { return !e.markdown }
 func markdownOnly(e cmdEnv) bool   { return e.markdown }
-func desktopOnly(e cmdEnv) bool    { return !e.browser }
-func withPandoc(e cmdEnv) bool     { return e.pandoc && !e.browser }
+
+// The rules for the commands that write in the main editor: a
+// screenplay's elements in the script, Markdown's in a Markdown document
+// (the file, or the source or notes swapped in).
+func scriptEditing(e cmdEnv) bool   { return !e.markdown && !e.away }
+func markdownEditing(e cmdEnv) bool { return e.markdown || e.swappedDoc }
+func desktopOnly(e cmdEnv) bool     { return !e.browser }
+func withPandoc(e cmdEnv) bool      { return e.pandoc && !e.browser }
 
 // The rules for when a command can be given now.
 func withSource(e cmdEnv) bool      { return e.source }
@@ -85,6 +99,9 @@ type command struct {
 	label string // in menus (and the palette)
 	// mdLabel is the label in a Markdown document, if another
 	mdLabel string
+	// byEditor: mdLabel and mdTip follow what the main editor holds (the
+	// source swapped in is Markdown), not the file's kind
+	byEditor bool
 	// ribbonLabel is its ribbon button's short label, if another: its
 	// group says the rest ("Next" in Adaptation > Links); the full label
 	// stays its tooltip and screen-reader name, menus and the palette
@@ -149,10 +166,18 @@ func (c *command) canRun(e cmdEnv) bool {
 
 // labelIn is c's label in env.
 func (c *command) labelIn(e cmdEnv) string {
-	if e.markdown && c.mdLabel != "" {
+	if c.mdIn(e) && c.mdLabel != "" {
 		return c.mdLabel
 	}
 	return c.label
+}
+
+// mdIn reports whether c is labelled as for Markdown in env.
+func (c *command) mdIn(e cmdEnv) bool {
+	if c.byEditor {
+		return markdownEditing(e)
+	}
+	return e.markdown
 }
 
 // ribbonLabelIn is c's label on a ribbon button in env: its short one,
@@ -175,7 +200,7 @@ func (c *command) tipIn(e cmdEnv) string {
 		return c.tipFor(e)
 	}
 	tip := c.tip
-	if e.markdown && c.mdTip != "" {
+	if c.mdIn(e) && c.mdTip != "" {
 		tip = c.mdTip
 	}
 	if tip == "" {
@@ -225,7 +250,12 @@ func (w *MainWindow) do(c *command) func() {
 		return func() { c.run(w) }
 	}
 	return func() {
-		if f := w.fyneWindow.Canvas().Focused(); f != nil && f != fyne.Focusable(w.textEditor) {
+		e := w.mainEditor()
+		if e == nil {
+			w.setStatus("Nothing to write in here: Swap with Main puts the script back in the main area")
+			return
+		}
+		if f := w.fyneWindow.Canvas().Focused(); f != nil && f != fyne.Focusable(e) {
 			return // the focus in the notes or search
 		}
 		c.run(w)
@@ -241,8 +271,12 @@ func (w *MainWindow) tapped(c *command, anchor fyne.CanvasObject) func() {
 		return func() { c.tap(w) }
 	case c.editing:
 		return func() {
+			if w.mainEditor() == nil {
+				w.setStatus("Nothing to write in here: Swap with Main puts the script back in the main area")
+				return
+			}
 			c.run(w)
-			w.fyneWindow.Canvas().Focus(w.textEditor)
+			w.focusMain()
 		}
 	}
 	return func() { c.run(w) }
@@ -445,19 +479,19 @@ func newRegistry() *registry {
 	// language, emphasis; Edit's moving lines
 	for i, el := range toolbarElements {
 		add(&command{id: elementCommandID(el), label: el, text: elementMarks[el], keys: []fyne.Shortcut{shortcut(fyne.KeyName(rune('1'+i)), 0)},
-			editing: true, when: screenplayOnly,
+			editing: true, when: scriptEditing,
 			run: func(w *MainWindow) { setLineElement(w.textEditor, el, w.sceneStarts()) }})
 	}
 	emphasis := func(marker string) func(w *MainWindow) {
-		return func(w *MainWindow) { toggleEmphasis(w.textEditor, marker) }
+		return func(w *MainWindow) { toggleEmphasis(w.writeEditor(), marker) }
 	}
 	moveLine := func(dir int) func(w *MainWindow) {
 		return func(w *MainWindow) { // a strip with the focus moves instead (stripboard.go)
-			w.orStrip(dir, w.do(&command{editing: true, run: func(w *MainWindow) { moveLines(w.textEditor, dir) }}))()
+			w.orStrip(dir, w.do(&command{editing: true, run: func(w *MainWindow) { moveLines(w.writeEditor(), dir) }}))()
 		}
 	}
 	add(
-		&command{id: "format.rtl", label: "Right to Left Line", icon: func() fyne.Resource { return rtlIcon }, editing: true, run: func(w *MainWindow) { toggleDirection(w.textEditor) }},
+		&command{id: "format.rtl", label: "Right to Left Line", icon: func() fyne.Resource { return rtlIcon }, editing: true, run: func(w *MainWindow) { toggleDirection(w.writeEditor()) }},
 		&command{id: "format.language", label: "Script Language…", icon: func() fyne.Resource { return languageIcon }, when: screenplayOnly, run: (*MainWindow).pickLanguage},
 		&command{id: "format.color", label: "Scene or Section Color…", text: "Color", tip: "Color of the scene or section", icon: theme.ColorPaletteIcon,
 			keys: []fyne.Shortcut{shortcut(fyne.KeyL, fyne.KeyModifierShift)}, when: screenplayOnly, pick: (*MainWindow).pickColorHere},
@@ -465,13 +499,13 @@ func newRegistry() *registry {
 		&command{id: "format.italic", label: "Italic", keys: []fyne.Shortcut{shortcut(fyne.KeyI, 0)}, icon: func() fyne.Resource { return italicIcon }, editing: true, run: emphasis("*")},
 		// Markdown's _ is italic, not underline
 		&command{id: "format.underline", label: "Underline", keys: []fyne.Shortcut{shortcut(fyne.KeyU, 0)}, icon: func() fyne.Resource { return underlineIcon }, editing: true,
-			when: screenplayOnly, run: emphasis("_")},
+			when: scriptEditing, run: emphasis("_")},
 		&command{id: "format.lineUp", label: "Move Line Up", keys: []fyne.Shortcut{altKey(fyne.KeyUp)}, icon: theme.MoveUpIcon, run: moveLine(-1)},
 		&command{id: "format.lineDown", label: "Move Line Down", keys: []fyne.Shortcut{altKey(fyne.KeyDown)}, icon: theme.MoveDownIcon, run: moveLine(1)},
 		// the editing row's pickers and its switch
-		&command{id: "write.place", label: "Inside or Outside…", text: "INT./EXT.", tip: "INT./EXT.", icon: theme.HomeIcon, when: screenplayOnly, pick: (*MainWindow).pickPlace},
-		&command{id: "write.character", label: "Character Name…", text: "Character", tip: "Character", icon: theme.AccountIcon, when: screenplayOnly, pick: (*MainWindow).pickCharacter},
-		&command{id: "write.elementKind", label: "Elements as a list or as buttons", icon: theme.ViewRestoreIcon, when: screenplayOnly,
+		&command{id: "write.place", label: "Inside or Outside…", text: "INT./EXT.", tip: "INT./EXT.", icon: theme.HomeIcon, when: scriptEditing, pick: (*MainWindow).pickPlace},
+		&command{id: "write.character", label: "Character Name…", text: "Character", tip: "Character", icon: theme.AccountIcon, when: scriptEditing, pick: (*MainWindow).pickCharacter},
+		&command{id: "write.elementKind", label: "Elements as a list or as buttons", icon: theme.ViewRestoreIcon, when: scriptEditing,
 			run: func(w *MainWindow) {
 				w.settings.SetBoolean("element-buttons", !w.settings.GetBoolean("element-buttons"))
 				_ = w.settings.Save()
@@ -485,7 +519,7 @@ func newRegistry() *registry {
 	// lines or the selection, Ctrl+1 to Ctrl+6 the headings (a
 	// screenplay's elements have those keys), Ctrl+0 normal text
 	md := func(id, label string, ic fyne.Resource, run func(b *buffer.Buffer)) *command {
-		return &command{id: id, label: label, icon: func() fyne.Resource { return ic }, editing: true, when: markdownOnly,
+		return &command{id: id, label: label, icon: func() fyne.Resource { return ic }, editing: true, when: markdownEditing,
 			run: func(w *MainWindow) { w.mdEdit(run) }}
 	}
 	for level := 0; level <= 6; level++ {
@@ -511,7 +545,7 @@ func newRegistry() *registry {
 	add(
 		// a picker of the headings, for the Markdown row and the ribbon
 		&command{id: "md.headings", label: "Heading…", text: "Heading", tip: "Heading level, or normal text", icon: func() fyne.Resource { return headingIcon },
-			when: markdownOnly, pick: func(w *MainWindow, anchor fyne.CanvasObject) { w.pickHeading(anchor) }},
+			when: markdownEditing, pick: func(w *MainWindow, anchor fyne.CanvasObject) { w.pickHeading(anchor) }},
 		strike, code,
 		md("md.codeBlock", "Code Block", codeBlockIcon, toggleCodeBlock),
 		link, image,
@@ -598,7 +632,7 @@ func newRegistry() *registry {
 		// a screenplay's: the PDF as exported; a Markdown document's: the
 		// live preview beside the editor, shown or hidden
 		&command{id: "view.preview", label: "Preview PDF", mdLabel: "Live Preview", keys: []fyne.Shortcut{shortcut(fyne.KeyP, fyne.KeyModifierShift)}, icon: theme.VisibilityIcon,
-			run: (*MainWindow).preview, checked: func(w *MainWindow) bool { return w.markdown && w.previewVisible }},
+			byEditor: true, run: (*MainWindow).preview, checked: func(w *MainWindow) bool { return w.editorMarkdown() && w.previewVisible }},
 		&command{id: "view.cards", label: "Cards", keys: []fyne.Shortcut{shortcut(fyne.KeyD, fyne.KeyModifierShift)}, icon: theme.GridIcon, when: screenplayOnly,
 			run: (*MainWindow).toggleCards},
 		&command{id: "view.foldHere", label: "Fold or Unfold Here", keys: []fyne.Shortcut{shortcut(fyne.KeyPeriod, fyne.KeyModifierShift)}, icon: res(foldIcon),

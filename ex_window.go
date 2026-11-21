@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
@@ -98,10 +99,10 @@ func (w *MainWindow) hideEx() {
 		w.exBar.Hide()
 	}
 	setVisible(w.statusBar, !w.isFullscreen && w.settings.GetBoolean("statusbar-visible"))
-	w.fyneWindow.Canvas().Focus(w.textEditor)
+	w.focusMain()
 }
 
-// runEx runs an ex command on the script.
+// runEx runs an ex command on what the main editor holds.
 func (w *MainWindow) runEx(cmd string) {
 	if strings.TrimSpace(cmd) == "" {
 		return
@@ -110,9 +111,10 @@ func (w *MainWindow) runEx(cmd string) {
 	if h := st.history; len(h) == 0 || h[len(h)-1] != cmd {
 		st.history = append(h, cmd)
 	}
-	text := w.textEditor.Text()
+	e := w.writeEditor()
+	text := e.Text()
 	lines := strings.Split(text, "\n")
-	cur, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
+	cur, _ := e.Buffer().Position(e.CursorOffset())
 	res, err := st.run(cmd, lines, cur, w.exVisual)
 	if err != nil {
 		if errors.Is(err, errNotCommand) {
@@ -127,11 +129,11 @@ func (w *MainWindow) runEx(cmd string) {
 		return
 	}
 	if nw := strings.Join(res.lines, "\n"); nw != text {
-		w.replaceText(text, nw) // one undo step, only what changed
+		replaceTextIn(e, text, nw) // one undo step, only what changed
 	}
-	w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(min(res.line, b.LineCount()-1)), false) })
-	if res.yank != "" && w.vim != nil {
-		w.vim.reg, w.vim.regLine = res.yank, true
+	e.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(min(res.line, b.LineCount()-1)), false) })
+	if v := w.mainVim(); res.yank != "" && v != nil {
+		v.reg, v.regLine = res.yank, true
 	}
 	if res.msg != "" {
 		w.setStatus(res.msg)
@@ -162,9 +164,12 @@ func (w *MainWindow) runEx(cmd string) {
 	}
 }
 
-// replaceText changes the editor's text from old to nw as one edit: the
+// replaceText changes the script's text from old to nw as one edit: the
 // part between what they start and end with in common.
-func (w *MainWindow) replaceText(old, nw string) {
+func (w *MainWindow) replaceText(old, nw string) { replaceTextIn(w.textEditor, old, nw) }
+
+// replaceTextIn is replaceText in editor e.
+func replaceTextIn(e *editor.ScriptEditor, old, nw string) {
 	o, n := []rune(old), []rune(nw)
 	start := 0
 	for start < len(o) && start < len(n) && o[start] == n[start] {
@@ -174,7 +179,7 @@ func (w *MainWindow) replaceText(old, nw string) {
 	for end < len(o)-start && end < len(n)-start && o[len(o)-1-end] == n[len(n)-1-end] {
 		end++
 	}
-	w.textEditor.Edit(func(b *buffer.Buffer) {
+	e.Edit(func(b *buffer.Buffer) {
 		b.Group(func() { b.Replace(start, len(o)-end, string(n[start:len(n)-end])) })
 	})
 }

@@ -537,7 +537,7 @@ func TestBundleSource(t *testing.T) {
 	w.togglePane("source")
 	s.follow()
 	s.toggleEdit()
-	s.editor.SetText("# Novel\n\nIt was day.\n")
+	s.w.srcDoc.SetText("# Novel\n\nIt was day.\n")
 	s.toggleEdit()
 	data, _ = os.ReadFile(p)
 	if got, _ := zipFile(t, data, "Script.textbundle/assets/source.md"); got != "# Novel\n\nIt was day.\n" {

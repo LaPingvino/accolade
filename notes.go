@@ -213,11 +213,15 @@ func (n *notesPanel) update(text string) {
 }
 
 // save writes the notes into the script's notes block.
-func (n *notesPanel) save(notes string) {
-	e := n.w.textEditor
+func (n *notesPanel) save(notes string) { n.w.writeNotes(notes) }
+
+// writeNotes writes notes into the script's notes block (the Notes pane,
+// the notes in the main editor: document.go).
+func (w *MainWindow) writeNotes(notes string) {
+	e := w.textEditor
 	text := e.Text()
-	from := n.w.notesMarks().start(text)
-	block := n.w.notesMarks().text(notes)
+	from := w.notesMarks().start(text)
+	block := w.notesMarks().text(notes)
 	if from == len([]rune(text)) && block != "" {
 		// no block yet: after the script, without its trailing new lines
 		from = len([]rune(strings.TrimRight(text, "\n")))
@@ -227,7 +231,7 @@ func (n *notesPanel) save(notes string) {
 	}
 	e.Edit(func(b *buffer.Buffer) {
 		cursor := b.Cursor()
-		b.Replace(from, b.Len(), block)
+		replaceLeast(b, from, b.Len(), block) // only what changed (document.go)
 		b.SetCursor(min(cursor, from), false)
 	})
 }

@@ -179,15 +179,15 @@ func (sb *SearchBar) highlight(matches []searchMatch) {
 	for i, m := range matches {
 		ranges[i] = [2]int{m.start, m.end}
 	}
-	sb.window.textEditor.SetHighlights(ranges)
+	sb.window.writeEditor().SetHighlights(ranges)
 }
 
 func (sb *SearchBar) Hide() {
 	sb.container.Hide()
 	sb.isVisible = false
 	sb.relayout()
-	sb.window.textEditor.SetHighlights(nil)
-	sb.window.fyneWindow.Canvas().Focus(sb.window.textEditor)
+	sb.window.writeEditor().SetHighlights(nil)
+	sb.window.focusMain()
 }
 
 func (sb *SearchBar) SetReplaceMode(enabled bool) {
@@ -212,7 +212,7 @@ func (sb *SearchBar) IsVisible() bool {
 }
 
 func (sb *SearchBar) updateSearch() {
-	sb.window.textEditor.SetHighlights(nil)
+	sb.window.writeEditor().SetHighlights(nil)
 	if sb.searchText == "" {
 		sb.totalMatches = 0
 		sb.currentMatch = 0
@@ -242,7 +242,7 @@ func (sb *SearchBar) findNext() {
 		return
 	}
 
-	cursor := sb.window.textEditor.CursorOffset()
+	cursor := sb.window.writeEditor().CursorOffset()
 	next := 0
 	for i, m := range matches {
 		if m.start >= cursor {
@@ -276,14 +276,14 @@ func (sb *SearchBar) findPrevious() {
 func (sb *SearchBar) gotoMatch(matches []searchMatch, i int) {
 	sb.currentMatch = i + 1
 	sb.totalMatches = len(matches)
-	sb.window.textEditor.Select(matches[i].start, matches[i].end)
+	sb.window.writeEditor().Select(matches[i].start, matches[i].end)
 	sb.updateStatus(sb.currentMatch, sb.totalMatches)
 }
 
 // selectionStart is the rune offset where the current selection begins,
 // or the cursor offset when nothing is selected.
 func (sb *SearchBar) selectionStart() int {
-	start, _ := sb.window.textEditor.Buffer().Selection()
+	start, _ := sb.window.writeEditor().Buffer().Selection()
 	return start
 }
 
@@ -298,7 +298,7 @@ func (sb *SearchBar) replaceOne() {
 	if err != nil {
 		return
 	}
-	editor := sb.window.textEditor
+	editor := sb.window.writeEditor()
 	selected := editor.SelectedText()
 	start := sb.selectionStart()
 	for _, m := range matches {
@@ -317,7 +317,7 @@ func (sb *SearchBar) replaceAll() {
 		return
 	}
 
-	text := sb.window.textEditor.Text()
+	text := sb.window.writeEditor().Text()
 	newText, count, err := sb.replaceAllIn(text)
 	if err != nil || count == 0 {
 		sb.updateSearch()
@@ -325,7 +325,7 @@ func (sb *SearchBar) replaceAll() {
 	}
 
 	// one undo step for all replacements; the cursor stays where it was
-	ed := sb.window.textEditor
+	ed := sb.window.writeEditor()
 	cursor := ed.CursorOffset()
 	ed.Replace(0, utf8.RuneCountInString(text), newText)
 	ed.SetCursorOffset(min(cursor, utf8.RuneCountInString(newText)))
@@ -410,7 +410,7 @@ func (sb *SearchBar) findAllMatches() ([]searchMatch, error) {
 		return nil, err
 	}
 
-	text := sb.window.textEditor.Text()
+	text := sb.window.writeEditor().Text()
 	var matches []searchMatch
 	runePos, bytePos := 0, 0
 	for _, loc := range re.FindAllStringIndex(text, -1) {

@@ -105,8 +105,8 @@ func TestDockMoveRemembered(t *testing.T) {
 	// from the tab's menu, with the keyboard on it
 	tab := w.dock.tabs["outline"]
 	m := w.dock.menu("outline")
-	if m.Items[0].Label != "Move to Bottom" || m.Items[1].Label != "Hide Outline" {
-		t.Fatalf("the tab's menu: %q, %q", m.Items[0].Label, m.Items[1].Label)
+	if m.Items[0].Label != "Move to Bottom" || m.Items[1].Label != "Swap with Main" || m.Items[2].Label != "Hide Outline" {
+		t.Fatalf("the tab's menu: %q, %q, %q", m.Items[0].Label, m.Items[1].Label, m.Items[2].Label)
 	}
 	w.fyneWindow.Canvas().Focus(tab)
 	m.Items[0].Action()

@@ -43,7 +43,7 @@ func (w *MainWindow) helpPage(slug string) (help.Page, bool) {
 	if !ok {
 		return p, false
 	}
-	env := cmdEnv{markdown: w.markdown, browser: inBrowser}
+	env := cmdEnv{markdown: w.editorMarkdown(), browser: inBrowser} // the keys of what the main editor holds
 	switch slug {
 	case "shortcuts":
 		p.Markdown = shortcutsPage(env, false)
@@ -56,7 +56,7 @@ func (w *MainWindow) helpPage(slug string) (help.Page, bool) {
 // helpPages are the pages and the cheat sheets in the window's order.
 func (w *MainWindow) helpPages() []help.Page {
 	var out []help.Page
-	for _, p := range append(help.Pages(), help.CheatsFor(w.markdown)...) {
+	for _, p := range append(help.Pages(), help.CheatsFor(w.editorMarkdown())...) {
 		q, _ := w.helpPage(p.Slug)
 		out = append(out, q)
 	}
@@ -388,8 +388,8 @@ func helpCommands() []*command {
 	out = append(out,
 		&command{id: "help.cheats", label: "Cheat Sheets", submenu: func(w *MainWindow) *fyne.Menu {
 			var items []*fyne.MenuItem
-			env := cmdEnv{markdown: w.markdown, browser: inBrowser}
-			for _, p := range help.CheatsFor(w.markdown) {
+			env := cmdEnv{markdown: w.editorMarkdown(), browser: inBrowser}
+			for _, p := range help.CheatsFor(w.editorMarkdown()) {
 				items = append(items, w.menuItem(cmd("help."+p.Slug), "", env))
 			}
 			return fyne.NewMenu("Cheat Sheets", items...)

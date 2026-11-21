@@ -173,6 +173,9 @@ func (w *MainWindow) pickColor(it outlineItem, pos fyne.Position, then func()) {
 // written, or the scene or section the editor's cursor is in, under at
 // (nil: at the cursor or the card).
 func (w *MainWindow) pickColorHere(at fyne.CanvasObject) {
+	if !w.cardsVisible && w.scriptAway("Scene or Section Color") { // the script is in the side panes (swap.go)
+		return
+	}
 	if w.markdown {
 		w.pickColor(outlineItem{}, fyne.Position{}, nil)
 		return

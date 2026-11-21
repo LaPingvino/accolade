@@ -287,7 +287,7 @@ func (r *ribbonBar) refresh() {
 	}
 	r.stage = stage
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
-		boolKey(phone), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage()}, "\x00")
+		boolKey(env.away), boolKey(env.swappedDoc), boolKey(phone), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage()}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
 		r.phone = phone
@@ -406,7 +406,7 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 		}
 		switch h.id {
 		case "elements":
-			if env.markdown {
+			if !scriptEditing(env) { // the main editor holds Markdown, or no editor (swap.go)
 				continue
 			}
 			for _, el := range toolbarElements {
@@ -431,7 +431,7 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 			addSmall(r.format)
 			continue
 		case "formatButtons":
-			if env.markdown {
+			if !scriptEditing(env) { // they write in the script, in the main editor
 				continue
 			}
 			for _, fb := range r.w.lex().formatButtons(r.w.scriptFormatKey()) {
@@ -816,7 +816,7 @@ func (r *ribbonBar) leaveKeyTips(restore bool) {
 		if r.tipsFrom != nil {
 			c.Focus(r.tipsFrom)
 		} else {
-			c.Focus(r.w.textEditor)
+			r.w.focusMain()
 		}
 	}
 	r.tipsFrom = nil
@@ -943,7 +943,7 @@ func (t *ribbonTabButton) TypedKey(k *fyne.KeyEvent) {
 		t.r.down()
 	case fyne.KeyEscape:
 		if !t.r.keyTipEscape() {
-			t.r.w.fyneWindow.Canvas().Focus(t.r.w.textEditor)
+			t.r.w.focusMain()
 		}
 	}
 }
@@ -1182,7 +1182,7 @@ func (b *ribbonButton) TypedKey(k *fyne.KeyEvent) {
 		b.press()
 	case fyne.KeyEscape:
 		if !b.r.keyTipEscape() {
-			b.r.w.fyneWindow.Canvas().Focus(b.r.w.textEditor)
+			b.r.w.focusMain()
 		}
 	}
 }

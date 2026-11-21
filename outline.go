@@ -13,8 +13,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/lexington/lex"
-
-	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
 // The outline (View > Outline) lists the script's sections and scenes,
@@ -262,11 +260,9 @@ func (o *outlinePanel) showFold(b *widget.Button, id int) {
 }
 
 // goTo puts the cursor at the start of a line and the focus in the editor.
-func (o *outlinePanel) goTo(line int) {
-	e := o.w.textEditor
-	e.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
-	o.w.fyneWindow.Canvas().Focus(e)
-}
+// While the script is not in the main editor, the Script tab lights it
+// (goToScript).
+func (o *outlinePanel) goTo(line int) { o.w.goToScript(line) }
 
 // dragRow is an outline row that can be dragged to move its scene or
 // section: dropped, it goes before the row it is dropped on.

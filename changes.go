@@ -12,8 +12,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-
-	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
 // A shared script's history (View > Changes): what the others changed,
@@ -144,10 +142,7 @@ func newChangesPanel(w *MainWindow) *changesPanel {
 	)
 	p.list.OnSelected = func(id widget.ListItemID) {
 		if id < len(w.changes) {
-			line := w.changes[len(w.changes)-1-id].Line
-			e := w.textEditor
-			e.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(min(line, b.LineCount()-1)), false) })
-			w.fyneWindow.Canvas().Focus(e)
+			w.goToScript(w.changes[len(w.changes)-1-id].Line) // swap.go
 		}
 		p.list.UnselectAll()
 	}

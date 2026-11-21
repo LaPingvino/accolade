@@ -321,7 +321,7 @@ func insertFootnote(b *buffer.Buffer) {
 
 // The commands' actions on the window's editor.
 func (w *MainWindow) mdEdit(f func(b *buffer.Buffer)) {
-	w.textEditor.Edit(f)
+	w.writeEditor().Edit(f) // the main editor's: the source or notes when swapped in
 }
 
 // askLink asks for a link's (an image's) address, then writes it.
@@ -341,7 +341,7 @@ func (w *MainWindow) askLink(image bool) {
 		if focus != nil {
 			w.fyneWindow.Canvas().Focus(focus)
 		} else {
-			w.fyneWindow.Canvas().Focus(w.textEditor)
+			w.focusMain()
 		}
 	}, w.fyneWindow)
 	d.Resize(fyne.NewSize(420, 160))
@@ -364,7 +364,7 @@ func (w *MainWindow) askTable() {
 		if ok && err1 == nil && err2 == nil && r >= 0 && c >= 1 && r <= 100 && c <= 20 {
 			w.mdEdit(func(b *buffer.Buffer) { insertTable(b, r, c) })
 		}
-		w.fyneWindow.Canvas().Focus(w.textEditor)
+		w.focusMain()
 	}, w.fyneWindow)
 	d.Show()
 	w.fyneWindow.Canvas().Focus(rows)

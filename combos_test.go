@@ -614,7 +614,7 @@ func TestComboEmptySource(t *testing.T) {
 	}
 	comboShot(t, w, "empty-source")
 	s.toggleEdit()
-	s.editor.SetText("# Chapter 1\n\nThe first line written.\n")
+	s.w.srcDoc.SetText("# Chapter 1\n\nThe first line written.\n")
 	s.toggleEdit()
 	if s.body.Objects[0] == s.blank || len(s.passages) != 2 {
 		t.Errorf("written: body %T, %d passages", s.body.Objects[0], len(s.passages))

@@ -341,8 +341,17 @@ func (w *MainWindow) dropKeptCopy(p string) {
 	}
 }
 
-// sourceText is the source's Markdown as it is now.
+// sourceText is the source's Markdown as it is now: an open source
+// document's (document.go), being edited, else as its home has it.
 func (w *MainWindow) sourceText(r sourceRef) (string, error) {
+	if d := w.srcDoc; d != nil && d.ref == r {
+		return d.Text(), nil
+	}
+	return w.homeSourceText(r)
+}
+
+// homeSourceText is the source's Markdown as its home has it.
+func (w *MainWindow) homeSourceText(r sourceRef) (string, error) {
 	switch r.Origin {
 	case sourceInside:
 		_, _, md, _ := sourceBlock(w.textEditor.Text())

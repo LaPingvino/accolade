@@ -341,6 +341,9 @@ func (w *MainWindow) sceneAtCursor() (start, end int, ok bool) {
 // omitScene makes the cursor's scene OMITTED, keeping its number, the
 // scene in a boneyard under it: one undo step.
 func (w *MainWindow) omitScene() {
+	if w.scriptAway("Omit Scene") { // the script is in the side panes (swap.go)
+		return
+	}
 	if w.markdown || w.textEditor == nil {
 		return
 	}
@@ -373,6 +376,9 @@ func (w *MainWindow) omitScene() {
 // restoreScene brings the cursor's omitted scene back as it was: one
 // undo step.
 func (w *MainWindow) restoreScene() {
+	if w.scriptAway("Restore Scene") { // the script is in the side panes (swap.go)
+		return
+	}
 	if w.markdown || w.textEditor == nil {
 		return
 	}

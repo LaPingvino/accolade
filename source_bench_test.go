@@ -513,8 +513,8 @@ func BenchmarkSourceEditor(b *testing.B) {
 	md, _ := benchFixture()
 	b.Run("open", func(b *testing.B) {
 		w, _ := newBenchWindow(b)
-		se := newSourceEditor()
-		w.fyneWindow.SetContent(se)
+		se := newDoc(w, docSource) // the script has none: nothing is written
+		w.fyneWindow.SetContent(se.view)
 		w.fyneWindow.Resize(fyne.NewSize(320, 600))
 		for b.Loop() {
 			se.SetText(md)
@@ -522,8 +522,8 @@ func BenchmarkSourceEditor(b *testing.B) {
 	})
 	b.Run("key", func(b *testing.B) {
 		w, _ := newBenchWindow(b)
-		se := newSourceEditor()
-		w.fyneWindow.SetContent(se)
+		se := newDoc(w, docSource) // the script has none: nothing is written
+		w.fyneWindow.SetContent(se.view)
 		w.fyneWindow.Resize(fyne.NewSize(320, 600))
 		se.SetText(md)
 		w.fyneWindow.Canvas().Focus(se.ed)

@@ -67,8 +67,20 @@ type MainWindow struct {
 	exLabel  *widget.Label
 	exPrompt func(string) // the line is a prompt's (helix s), not a command
 	exVisual [2]int
-	// the card view in the editor's place (cards.go)
+	// the card view in the editor's place (cards.go): the Cards pane
+	// swapped with the main area (swap.go)
 	cardsVisible bool
+	// the window's documents (document.go): the script as one, the one
+	// in the main editor while a pane is swapped in (nil for a view),
+	// the source and the notes once opened
+	script, mainDoc, srcDoc, notesDoc *document
+	// swapped is the dock pane swapped with the main area ("" none); the
+	// script is its Script tab meanwhile (swap.go)
+	swapped   string
+	scriptTab *scriptPane
+	// linkOffer is the question about links quoting a passage whose
+	// opening changed (source_links_offer.go)
+	linkOffer *linkOfferNotice
 	// the others' changes to a shared script (changes.go)
 	changes      []change
 	changesPanel *changesPanel
@@ -318,9 +330,7 @@ func (w *MainWindow) setupShortcuts() {
 		c.SetOnKeyPreview(w.keyPreview)
 	}
 	// Alt let go alone: the ribbon's key tips (ribbon.go), seen where the
-	// keyboard is: the script, the ribbon, or nothing focused
-	w.textEditor.OnKeyUp = func(k *fyne.KeyEvent) { w.altUp(k.Name) }
-	w.textEditor.OnFocusLost = w.altCancel
+	// keyboard is: an editor (attachVim), the ribbon, or nothing focused
 	if c, ok := w.fyneWindow.Canvas().(desktop.Canvas); ok {
 		c.SetOnKeyUp(func(k *fyne.KeyEvent) { w.altUp(k.Name) })
 	}
@@ -349,7 +359,7 @@ func (w *MainWindow) setupCallbacks() {
 			w.afterBundleWrites(askClose)
 			return
 		}
-		if w.hasChanges {
+		if w.hasChanges || w.unsavedDocs() {
 			dialog.ShowConfirm(
 				"Unsaved Changes",
 				"You have unsaved changes. Are you sure you want to close?",
@@ -398,6 +408,9 @@ func (w *MainWindow) applyEditorSettings() {
 		first := w.keysApplied == ""
 		w.keysApplied = keys
 		w.vim.reset(keys != "standard")
+		for _, d := range w.openDocs() { // the documents' editors too (document.go)
+			d.vim.reset(keys != "standard")
+		}
 		if !first {
 			w.setStatus(editorKeysStatus(keys))
 		}
@@ -448,6 +461,7 @@ func setVisible(o fyne.CanvasObject, visible bool) {
 func (w *MainWindow) applyFontSettings() {
 	w.editorView.Theme = newEditorTheme(w.settings.GetString("font-family"), w.settings.GetInt("font-size"))
 	w.editorView.Refresh()
+	w.applyDocFonts(newEditorTheme(w.settings.GetString("font-family"), w.settings.GetInt("font-size")))
 }
 
 // File operations
@@ -725,6 +739,9 @@ func (w *MainWindow) readPDFInBackground(filePath, what string,
 }
 
 func (w *MainWindow) SaveFile() error {
+	if err := w.storeDocs(); err != nil { // the source in the main editor, with the script (document.go)
+		return err
+	}
 	if w.currentFile == "" {
 		return w.SaveFileAs()
 	}
@@ -1211,11 +1228,14 @@ func (w *MainWindow) onTextChanged(text string) {
 		w.stripboard.update()
 	}
 	w.followSource()
-	if w.previewVisible && w.previewPane != nil {
-		w.previewPane.update(text)
-	}
-	if w.searchBar != nil && w.searchBar.IsVisible() {
-		w.searchBar.updateSearch() // the matches move with the text
+	w.docsFollowScript() // the notes or source kept in it, open as documents (document.go)
+	if w.scriptInMain() {
+		if w.previewVisible && w.previewPane != nil {
+			w.previewPane.update(text)
+		}
+		if w.searchBar != nil && w.searchBar.IsVisible() {
+			w.searchBar.updateSearch() // the matches move with the text
+		}
 	}
 
 	w.ribbonFollow() // a lock or a source block changes what it can give
@@ -1237,6 +1257,13 @@ func (w *MainWindow) updateTitle() {
 	} else if w.hasChanges {
 		title = "• Untitled - Accolade"
 	}
+	if d := w.mainDoc; d != nil && w.swapped != "" { // the document in the main editor first (swap.go)
+		mark := ""
+		if d.dirty() {
+			mark = "• "
+		}
+		title = mark + d.title() + " — " + title
+	}
 
 	w.fyneWindow.SetTitle(title)
 	if w.headerBar != nil {
@@ -1256,7 +1283,12 @@ func (w *MainWindow) updateStatusBar() {
 		return // called while the window is being built
 	}
 	var text string
-	if w.markdown {
+	if d := w.main(); d != nil && d.kind != docScript { // the document in the main editor (swap.go)
+		text = markdownStats(d.Text()) + " · " + d.kind.String() + ", " + d.where()
+		if w.shared != nil && d.sharedAs() == "" {
+			text += " · yours only, not shared"
+		}
+	} else if w.markdown {
 		text = markdownStats(w.textEditor.Text())
 	} else {
 		text = computeStats(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()).String()
@@ -1283,14 +1315,19 @@ func (w *MainWindow) onCursorChanged() {
 }
 
 func (w *MainWindow) updateCurrentElement() {
-	text := w.textEditor.Text()
+	e := w.mainEditor()
+	if e == nil { // a view in the main area (swap.go)
+		w.currentElement = ""
+		return
+	}
+	text := e.Text()
 	if text == "" {
 		w.currentElement = "empty"
 		return
 	}
 
-	line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
-	if w.markdown {
+	line, _ := e.Buffer().Position(e.CursorOffset())
+	if w.editorMarkdown() {
 		kinds := syntax.ClassifyMarkdown(strings.Split(text, "\n"))
 		w.currentElement = markdownNames[kinds[min(line, len(kinds)-1)]]
 		return
@@ -1409,6 +1446,8 @@ func (w *MainWindow) relayout() {
 	var center fyne.CanvasObject = w.editorView
 	if w.stripsVisible && w.stripboard != nil {
 		center = w.stripboard.box
+	} else if w.swapped != "" { // a pane's document or view (swap.go)
+		center = w.swappedCenter()
 	} else if w.cardsVisible && w.cards != nil {
 		center = w.cards.box
 	} else if w.previewVisible && w.previewPane != nil {
@@ -1599,7 +1638,7 @@ func (w *MainWindow) toggleFullscreen() {
 	}
 	w.refreshMenu()
 	w.relayout()
-	w.fyneWindow.Canvas().Focus(w.textEditor)
+	w.focusMain()
 }
 
 // refreshMenu builds the menu again (the recent files changed): in the

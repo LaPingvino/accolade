@@ -38,7 +38,26 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		}
 		return w.flowTab() // the Final Draft flow (keyflow.go)
 	}
-	// vim mode (Preferences > Editor), before anything else sees a key
+	vi := attachVim(w, e, true)
+	if w != nil {
+		e.Folds = w.editorFoldRanges
+		e.OnUnfold = w.unfoldAt
+		e.Headings = w.headingLines
+		e.Marks = w.revisionMarksShown
+		e.Inks = w.breakdownInksShown
+		e.OnSecondaryTapped = w.showTagMenu
+		e.OnFoldTapped = w.foldLine
+		e.OnShiftTab = w.cycleAll
+		w.vim = vi
+	}
+	return e
+}
+
+// attachVim gives an editor the window's keys: vim or helix as the
+// preferences say (vim.go), the menu's shortcuts in full screen, and
+// brackets closed as they are typed. script: the screenplay editor, whose
+// vim folds and moves through the outline (a document's has neither).
+func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 	vi := newVim(e)
 	vi.on = func() bool { return w != nil && w.editorKeys() != "standard" }
 	vi.helix = func() bool { return w != nil && w.editorKeys() == "helix" }
@@ -57,19 +76,9 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 			w.showEx(visual)
 		}
 	}
-	if w != nil {
-		e.Folds = w.editorFoldRanges
-		e.OnUnfold = w.unfoldAt
-		e.Headings = w.headingLines
-		e.Marks = w.revisionMarksShown
-		e.Inks = w.breakdownInksShown
-		e.OnSecondaryTapped = w.showTagMenu
-		e.OnFoldTapped = w.foldLine
-		e.OnShiftTab = w.cycleAll
-	}
-	vi.org = func(cmd string) bool { return w != nil && w.org(cmd) }
+	vi.org = func(cmd string) bool { return script && w != nil && w.org(cmd) }
 	vi.fold = func(cmd rune) {
-		if w == nil {
+		if w == nil || !script {
 			return
 		}
 		switch cmd {
@@ -90,12 +99,9 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 			w.showPrompt(label, done)
 		}
 	}
-	if w != nil {
-		w.vim = vi
-	}
 	e.OnKey = func(k *fyne.KeyEvent) bool {
 		// Esc puts a suggestion away; vim's insert mode ends too
-		if k.Name == fyne.KeyEscape && w != nil && w.suggest != nil && w.suggest.dismiss() && !vi.active() {
+		if script && k.Name == fyne.KeyEscape && w != nil && w.suggest != nil && w.suggest.dismiss() && !vi.active() {
 			return true
 		}
 		return vi.key(k)
@@ -110,7 +116,7 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		if vi.rune(r) {
 			return true
 		}
-		if unicode.IsLower(r) && w.cueHere() { // a cue Tab started: in capitals
+		if script && unicode.IsLower(r) && w.cueHere() { // a cue Tab started: in capitals
 			e.Edit(func(b *buffer.Buffer) { b.Insert(string(unicode.ToUpper(r))) })
 			return true
 		}
@@ -119,7 +125,11 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		}
 		return closeBracket(e, r)
 	}
-	return e
+	if w != nil { // Alt let go alone: the ribbon's key tips (ribbon.go)
+		e.OnKeyUp = func(k *fyne.KeyEvent) { w.altUp(k.Name) }
+		e.OnFocusLost = w.altCancel
+	}
+	return vi
 }
 
 // brackets are the pairs closed as they are typed: a parenthetical, a

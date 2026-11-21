@@ -290,7 +290,7 @@ func (p *palette) close() {
 	if p.from != nil {
 		c.Focus(p.from)
 	} else {
-		c.Focus(p.w.textEditor)
+		p.w.focusMain()
 	}
 }
 
@@ -303,7 +303,7 @@ func (p *palette) run() {
 	e := p.shown[p.chosen]
 	p.pop.Hide()
 	w := p.w
-	w.fyneWindow.Canvas().Focus(w.textEditor)
+	w.focusMain() // the main editor: an editing command acts on what is written there
 	said := ""
 	if e.away { // asked for by name: this script works as Production now
 		w.setOwnRole(roleProduction)

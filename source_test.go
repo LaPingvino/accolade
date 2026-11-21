@@ -351,7 +351,7 @@ func TestSourceInside(t *testing.T) {
 	}
 	// edited: in the block; a */ in it is kept apart
 	s.toggleEdit()
-	s.editor.SetText("New */ text.\n")
+	s.w.srcDoc.SetText("New */ text.\n")
 	s.toggleEdit()
 	if _, _, md, _ := sourceBlock(w.textEditor.Text()); md != "New */ text.\n" || !strings.Contains(w.textEditor.Text(), "New * / text.") {
 		t.Errorf("edited: %q", w.textEditor.Text())
@@ -590,16 +590,17 @@ func TestSourceEdit(t *testing.T) {
 		t.Errorf("no name for %q", u)
 	}
 	s.toggleEdit()
-	if !s.editing || s.body.Objects[0] != s.editor || s.editor.Text != sourceStory {
+	if !s.editing || s.body.Objects[0] != s.w.srcDoc.view || s.w.srcDoc.Text() != sourceStory {
 		t.Fatal("not editing")
 	}
 	if u := unnamed(w.fyneWindow.Canvas()); len(u) > 0 {
 		t.Errorf("editing: no name for %q", u)
 	}
-	s.editor.SetText("# Only\n\nShe opened the door to the garden and stepped out.\n")
+	const only = "# Only\n\nShe opened the door to the garden and stepped out.\n"
+	s.w.srcDoc.SetText(only)
 	s.toggleEdit()
 	data, _ := os.ReadFile(s.ref.Path)
-	if s.editing || string(data) != s.editor.Text || len(s.passages) != 2 {
+	if s.editing || string(data) != only || len(s.passages) != 2 || w.srcDoc != nil {
 		t.Errorf("after Done: editing %v, %d passages, file %q", s.editing, len(s.passages), data)
 	}
 }

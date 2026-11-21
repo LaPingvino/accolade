@@ -744,7 +744,7 @@ func dockMoves(name, golden string) string {
 			panes = append(panes, it)
 		}
 	}
-	panes = append(panes, "  Side Panes", "  Move Pane to Top", "  Move Pane to Bottom")
+	panes = append(panes, "  Side Panes", "  Move Pane to Top", "  Move Pane to Bottom", "  Swap Pane with Main") // docs/SWAP.md
 	for i := range ms {
 		if ms[i].title != "View" {
 			continue

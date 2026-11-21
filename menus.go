@@ -68,7 +68,7 @@ func (w *MainWindow) editTarget() undoer {
 	if u, ok := w.fyneWindow.Canvas().Focused().(undoer); ok {
 		return u
 	}
-	return w.textEditor
+	return w.writeEditor() // the main editor's: the source's own history when it is there
 }
 
 func (w *MainWindow) undo() { w.followSceneNumbers(); w.editTarget().Undo(); w.followSceneNumbers() }
@@ -81,5 +81,5 @@ func (w *MainWindow) editShortcut(s fyne.Shortcut) {
 		f.TypedShortcut(s)
 		return
 	}
-	w.textEditor.TypedShortcut(s)
+	w.writeEditor().TypedShortcut(s)
 }

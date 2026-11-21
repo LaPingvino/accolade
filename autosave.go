@@ -33,7 +33,15 @@ func (w *MainWindow) scheduleAutoSave() {
 
 func (w *MainWindow) autoSaveNow() {
 	w.autoSaveTimer = nil
-	if !w.hasChanges || w.currentFile == "" || !w.settings.GetBoolean("auto-save") {
+	if !w.hasChanges && !w.unsavedDocs() || w.currentFile == "" || !w.settings.GetBoolean("auto-save") {
+		return
+	}
+	if err := w.storeDocs(); err != nil { // the source in the main editor (document.go)
+		w.setStatus("Auto-save failed: " + err.Error())
+		return
+	}
+	if !w.hasChanges {
+		w.setStatus("Auto-saved " + time.Now().Format("15:04"))
 		return
 	}
 	if err := w.saveToFile(w.currentFile); err != nil {

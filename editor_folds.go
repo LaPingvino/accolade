@@ -56,6 +56,9 @@ func (w *MainWindow) cursorItem(items []outlineItem) int {
 // fold folds (or with open false, opens; toggle: either) the section or
 // scene the cursor is in.
 func (w *MainWindow) fold(open, toggle bool) {
+	if w.scriptAway("Folding") { // the script is in the side panes (swap.go)
+		return
+	}
 	items := w.outlineItems(w.textEditor.Text())
 	i := w.cursorItem(items)
 	if i < 0 {
@@ -81,6 +84,9 @@ func (w *MainWindow) fold(open, toggle bool) {
 
 // foldAll folds every section and scene, or opens them all.
 func (w *MainWindow) foldAll(open bool) {
+	if w.scriptAway("Folding") { // the script is in the side panes (swap.go)
+		return
+	}
 	w.editorFolds = nil
 	w.foldState = foldShown
 	if !open {
@@ -225,6 +231,9 @@ const (
 // foldOverview folds the sections at the top level, or every scene in a
 // script without sections.
 func (w *MainWindow) foldOverview(items []outlineItem) {
+	if w.scriptAway("Folding") { // the script is in the side panes (swap.go)
+		return
+	}
 	w.editorFolds = map[string]bool{}
 	top := 0
 	for _, it := range items {
@@ -245,6 +254,9 @@ func (w *MainWindow) foldOverview(items []outlineItem) {
 // foldHeadings shows every heading with what they hold folded: the
 // scenes folded, the sections open.
 func (w *MainWindow) foldHeadings() {
+	if w.scriptAway("Folding") { // the script is in the side panes (swap.go)
+		return
+	}
 	items := w.outlineItems(w.textEditor.Text())
 	w.editorFolds = map[string]bool{}
 	for _, it := range items {

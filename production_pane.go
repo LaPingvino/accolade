@@ -14,7 +14,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/lexington/cli"
 	"github.com/LaPingvino/lexington/lex"
 )
@@ -575,14 +574,7 @@ func (w *MainWindow) revisedPagesJob(text string) exportJob {
 
 // goToLine puts the cursor at the start of a line (the last if the text
 // has fewer now) and the focus in the editor.
-func (w *MainWindow) goToLine(line int) {
-	e := w.textEditor
-	e.Navigate(func(b *buffer.Buffer) {
-		n, _ := b.Position(b.Len())
-		b.SetCursor(b.LineStart(max(0, min(line, n))), false)
-	})
-	w.fyneWindow.Canvas().Focus(e)
-}
+func (w *MainWindow) goToLine(line int) { w.goToScript(line) }
 
 // showRevisedPagesExport is the Export dialog set up for the current
 // revision's pages: PDF, revision marks, revised pages only.

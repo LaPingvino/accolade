@@ -455,6 +455,9 @@ func (w *MainWindow) nextInserts() bool {
 
 // nextSourcePassage is Adaptation > Next Source Passage.
 func (w *MainWindow) nextSourcePassage() {
+	if w.scriptAway("Next Source Passage") { // the script is in the side panes (swap.go)
+		return
+	}
 	if w.markdown {
 		return
 	}
@@ -464,6 +467,9 @@ func (w *MainWindow) nextSourcePassage() {
 // toggleCutHere is Adaptation > Mark Source Passage as Cut: the passage
 // picked in the source pane cut on purpose, or not any more.
 func (w *MainWindow) toggleCutHere() {
+	if w.scriptAway("Mark Source Passage as Cut") { // the script is in the side panes (swap.go)
+		return
+	}
 	if w.markdown {
 		return
 	}

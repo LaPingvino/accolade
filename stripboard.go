@@ -110,6 +110,9 @@ func (w *MainWindow) toggleStripboard() {
 		w.setStatus("The stripboard is a screenplay's scenes")
 		return
 	}
+	if !w.stripsVisible && w.swapped != "" { // one thing in the main area: the script back first (swap.go)
+		w.swapBack()
+	}
 	w.stripsVisible = !w.stripsVisible
 	if w.stripsVisible {
 		w.cardsVisible = false

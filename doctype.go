@@ -138,6 +138,7 @@ func (w *MainWindow) setDocumentType(markdown bool) {
 	if w.markdown == markdown {
 		return
 	}
+	w.leaveDocs() // the notes' marks change: written first (document.go)
 	from, to := fountainNotes, markdownNotes
 	if !markdown {
 		from, to = markdownNotes, fountainNotes

@@ -44,8 +44,8 @@ func stateOf(app *Application) string {
 			name = filepath.Base(w.currentFile)
 		}
 		mode := "-"
-		if w.vim != nil {
-			mode = w.vim.mode.String()
+		if v := w.mainVim(); v != nil {
+			mode = v.mode.String()
 		}
 		peers := "not shared"
 		if w.shared != nil {
