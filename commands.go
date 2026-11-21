@@ -90,6 +90,9 @@ type command struct {
 	// stays its tooltip and screen-reader name, menus and the palette
 	// keep the full one
 	ribbonLabel string
+	// ribbonLabelFor, if set, is its ribbon label as the window has it
+	// now ("New in: English": a setting's value)
+	ribbonLabelFor func(w *MainWindow) string
 	// tip is the header bar's tooltip, without the shortcut (label if
 	// ""); mdTip a Markdown document's; tipFor, if set, is the whole tip
 	tip, mdTip string
@@ -258,8 +261,9 @@ type home struct {
 	// in one row (B I U: their tooltips and names say the rest)
 	compact bool
 	// keys: on the ribbon its key shows after its label (a heading's
-	// Ctrl+1: given by its key all the time)
-	keys bool
+	// Ctrl+1: given by its key all the time); not on a phone, which has
+	// phoneOnly's instead (no keyboard: one picker, not a row of seven)
+	keys, phoneOnly bool
 	// short: its ribbon label here, if shorter than its ribbon label
 	// elsewhere (the big Source's "Choose" beside it, "Choose Source" on
 	// the File tab); its name and tooltip stay the full label
@@ -688,7 +692,7 @@ func newRegistry() *registry {
 			at("view.preview"), at("view.cards"), at("view.foldHere"), at("view.foldSections"),
 			at("view.headingsOnly"), at("view.unfoldAll"), sep()},
 			dockHomes()...), // the side dock's panes together, and its own (dock.go)
-			sep(), at("view.statistics"), at("view.fullscreen"),
+			sep(), at("view.statistics"), at("view.fullscreen"), at("set.toolbar"),
 			sep(), at("view.documentType"), at("view.role"),
 		)},
 		{title: "Help", homes: helpMenu()},
@@ -926,6 +930,7 @@ var ribbonLabels = map[string]string{
 	// the settings (ribbon_settings.go)
 	"set.suggest": "Suggest While Writing", "set.nextInserts": "Next Starts a Scene",
 	"set.revisionMarks": "Revision Marks", "set.lettering": "Scene Lettering", "set.continueds": "CONTINUEDs",
+	"set.sceneNumbers": "Scene Numbers", "set.draftsSide": "Side by Side",
 }
 
 // ribbonLayout is the ribbon: the tabs follow the menus (File, Write for
@@ -936,7 +941,8 @@ func ribbonLayout() []ribbonTab {
 	noSource := func(e cmdEnv) bool { return !e.markdown && !e.source }
 	return []ribbonTab{
 		{title: "File", groups: []ribbonGroup{
-			{title: "New", homes: []home{big("file.new"), at("file.newEmpty"), at("file.newMarkdown"), at("file.newWindow"), at("file.newEmptyWindow")}},
+			{title: "New", homes: []home{big("file.new"), at("file.newEmpty"), at("file.newMarkdown"), at("file.newWindow"), at("file.newEmptyWindow"),
+				at("set.newLanguage")}}, // "New in: English": the language they are in
 			{title: "Open", homes: []home{big("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc")}},
 			{title: "Save", homes: []home{big("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename")}},
 			{title: "Output", homes: []home{big("file.export"), big("file.print")}},
@@ -950,7 +956,8 @@ func ribbonLayout() []ribbonTab {
 			// a Markdown document's elements: its headings, given by their keys
 			// as a screenplay's elements are (Ctrl+1…6, Ctrl+0)
 			{title: "Heading", homes: []home{keyed("md.heading1"), keyed("md.heading2"), keyed("md.heading3"),
-				keyed("md.heading4"), keyed("md.heading5"), keyed("md.heading6"), keyed("md.heading0")}},
+				keyed("md.heading4"), keyed("md.heading5"), keyed("md.heading6"), keyed("md.heading0"),
+				{id: "md.headings", large: true, phoneOnly: true}}},
 			{title: "Emphasis", homes: []home{tool("format.bold"), tool("format.italic"), tool("format.underline"), tool("md.strike"), tool("md.code"),
 				sep(), tool("format.rtl")}}, // a row of its own, under them
 			{title: "Insert", homes: []home{big("md.link"), at("md.image"), at("md.footnote"), at("md.table"), at("md.rule"), at("md.codeBlock")}},
@@ -965,7 +972,9 @@ func ribbonLayout() []ribbonTab {
 			// small ones named by what differs
 			{title: "Find", homes: []home{big("edit.find"), at("edit.findNext"), at("edit.findPrevious"), at("edit.replace")}},
 			{title: "Lines", homes: []home{at("format.lineUp"), at("format.lineDown")}},
-			{title: "Script", mdTitle: "Document", homes: []home{at("file.titlePage"), at("format.language"), at("app.preferences")}},
+			{title: "Script", mdTitle: "Document", homes: []home{at("file.titlePage"), at("format.language")}},
+			// the editor's keys (standard, vim, helix), beside the rest of the preferences
+			{title: "Settings", homes: []home{at("set.editorKeys"), at("app.preferences")}},
 		}},
 		// a source's, or a story's next step
 		{title: "Adaptation", when: func(e cmdEnv) bool { return e.source || e.markdown }, groups: []ribbonGroup{
@@ -990,11 +999,11 @@ func ribbonLayout() []ribbonTab {
 			{title: "Stages", homes: []home{bigAs("view.production", "Production Pane"), at("production.breakdown"), at("production.schedule")}},
 			{title: "Scenes", homes: []home{at("production.omit"), at("production.restore"), at("production.unlockPages")}},
 			{title: "Reports", homes: []home{big("production.reports")}},
-			{title: "Options", homes: []home{at("set.revisionMarks"), at("set.lettering"), at("set.continueds")}},
+			{title: "Options", homes: []home{at("set.revisionMarks"), at("set.lettering"), at("set.continueds"), at("set.sceneNumbers")}},
 		}},
 		{title: "Collaboration", groups: []ribbonGroup{
 			{title: "Together", homes: []home{big("file.share"), at("file.join")}},
-			{title: "Drafts", homes: []home{big("file.saveDraft"), at("file.drafts"), at("collab.compare")}},
+			{title: "Drafts", homes: []home{big("file.saveDraft"), at("file.drafts"), at("collab.compare"), at("set.draftsSide")}},
 		}},
 		{title: "View", groups: []ribbonGroup{
 			// the side dock's panes (dock.go)
@@ -1003,7 +1012,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")}},
 			{title: "Folding", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll")}},
 			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),
-				tool("set.textSmaller"), tool("set.textLarger")}},
+				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")}},
 		}},
 	}
 }

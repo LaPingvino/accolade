@@ -18,4 +18,6 @@ tabs: File Write [Edit] Production Collaboration View
 ## Script
   S Title Page icon=foreground_document.svg name=Title Page… (Ctrl+Shift+T)
   S Language icon=foreground_language.svg name=Script Language…
+## Settings
+  S Editor Keys icon=foreground_editor-keys.svg name=Editor Keys
   S Preferences icon=foreground_settings.svg name=Preferences… (Ctrl+,)

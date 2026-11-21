@@ -91,6 +91,21 @@ func (v *vim) setMode(m vimMode) {
 	}
 }
 
+// reset starts the keys' state again (other editor keys chosen): no
+// count, operator or pending key, no selection; normal mode if on, else
+// typing.
+func (v *vim) reset(on bool) {
+	v.count, v.op, v.opCount, v.g, v.z, v.replace = 0, 0, 0, false, false, false
+	v.anchor, v.vcur = 0, 0
+	v.mode = vimInsert
+	if v.e != nil {
+		v.e.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.Cursor(), false) })
+	}
+	if on {
+		v.setMode(vimNormal)
+	}
+}
+
 // key handles keys that are not characters: Escape, and in normal mode
 // Enter and Backspace move. It reports whether it handled the key.
 func (v *vim) key(k *fyne.KeyEvent) bool {

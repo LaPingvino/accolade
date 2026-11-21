@@ -15,5 +15,6 @@ tabs: File Write [Edit] Adaptation Collaboration View
 ## Lines
   S Move Up icon=foreground_arrow-up.svg name=Move Line Up
   S Move Down icon=foreground_arrow-down.svg name=Move Line Down
-## Document
+## Settings
+  S Editor Keys icon=foreground_editor-keys.svg name=Editor Keys
   S Preferences icon=foreground_settings.svg name=Preferences… (Ctrl+,)

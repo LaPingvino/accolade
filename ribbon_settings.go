@@ -1,8 +1,10 @@
 package main
 
 import (
+	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 
@@ -136,7 +138,137 @@ func settingCommands() []*command {
 	for _, c := range cs[8:] { // production's
 		c.when, c.role = screenplayOnly, productionRole
 	}
-	return cs
+	numbers := toggleSetting("set.sceneNumbers", "Number the Scenes in Exports", "fountain-scene-numbers", sceneNumbersIcon, nil)
+	numbers.when, numbers.role = screenplayOnly, productionRole
+	toolbar := toggleSetting("set.toolbar", "Toolbar", "toolbar-visible", toolbarIcon, func(w *MainWindow) {
+		if !w.settings.GetBoolean("toolbar-visible") {
+			w.setStatus("Toolbar hidden: View > Toolbar shows it again")
+		}
+	})
+	return append(cs, editorKeysCommand(), fontCommand(), newLanguageCommand(), toolbar, numbers, draftsSideBySideCommand())
+}
+
+// editorKeysChoices are the editor's keys, as Preferences names them, and
+// their labels.
+var editorKeysChoices = [][2]string{{"standard", "Standard"}, {"vim", "Vim"}, {"helix", "Helix"}}
+
+// editorKeysCommand chooses the editor's keys: standard, vim or helix
+// (switching while working is safe: applyEditorSettings starts their
+// state again and says which).
+func editorKeysCommand() *command {
+	return &command{id: "set.editorKeys", label: "Editor Keys", icon: res(keysIcon),
+		submenu: func(w *MainWindow) *fyne.Menu {
+			var items []*fyne.MenuItem
+			for _, c := range editorKeysChoices {
+				value := c[0]
+				it := fyne.NewMenuItem(c[1], func() {
+					w.changeSetting("editor-keys", func(s *Settings) {
+						s.SetString("editor-keys", value)
+						s.SetBoolean("vim-mode", false) // the older setting
+					})
+				})
+				it.Checked = w.editorKeys() == value
+				items = append(items, it)
+			}
+			return fyne.NewMenu("Editor Keys", items...)
+		}}
+}
+
+// editorKeysStatus is the status line saying which keys the editor has.
+func editorKeysStatus(keys string) string {
+	for _, c := range editorKeysChoices {
+		if c[0] == keys && keys != "standard" {
+			return "Editor keys: " + c[1] + ", in normal mode (i types, Escape comes back)"
+		}
+	}
+	return "Editor keys: Standard"
+}
+
+// fontChoices are the editor's fonts: the screenplay font, the system's.
+var fontChoices = [][2]string{{"monospace", "Courier Badi (Screenplay)"}, {"system", "System"}}
+
+// fontCommand chooses the editor's font, beside the text size; a font
+// file chosen in Preferences shows as itself, and Font File… is there.
+func fontCommand() *command {
+	return &command{id: "set.font", label: "Font", icon: res(fontIcon),
+		submenu: func(w *MainWindow) *fyne.Menu {
+			now := strings.TrimSpace(w.settings.GetString("font-family"))
+			choices := fontChoices
+			if isFontFile(now) {
+				choices = append(slices.Clone(choices), [2]string{now, filepath.Base(now)})
+			}
+			var items []*fyne.MenuItem
+			for _, c := range choices {
+				value := c[0]
+				it := fyne.NewMenuItem(c[1], func() {
+					w.changeSetting("font-family", func(s *Settings) { s.SetString("font-family", value) })
+				})
+				// anything else is the screenplay font (newEditorTheme)
+				it.Checked = strings.EqualFold(now, value) || value == "monospace" && !strings.EqualFold(now, "system") && !isFontFile(now)
+				items = append(items, it)
+			}
+			items = append(items, fyne.NewMenuItemSeparator(), fyne.NewMenuItem("Font File…", func() { cmd("app.preferences").run(w) }))
+			return fyne.NewMenu("Font", items...)
+		}}
+}
+
+// isFontFile reports whether the font setting f is a font file's path.
+func isFontFile(f string) bool {
+	f = strings.ToLower(f)
+	return strings.HasSuffix(f, ".ttf") || strings.HasSuffix(f, ".otf")
+}
+
+// newScriptLanguage is the language new scripts are in (Preferences >
+// Script: Language).
+func (w *MainWindow) newScriptLanguage() string {
+	if w.settings == nil {
+		return ""
+	}
+	return w.settings.GetString("script-language")
+}
+
+// newLanguageCommand chooses the language of new scripts, on the File
+// tab's New group as "New in: English".
+func newLanguageCommand() *command {
+	return &command{id: "set.newLanguage", label: "Language for New Scripts", icon: res(languageIcon),
+		ribbonLabelFor: func(w *MainWindow) string {
+			name := []rune(languageName(w.newScriptLanguage()))
+			if len(name) > 14 { // a language of one's own with a long name: the File tab still fits
+				name = append(name[:13], '…')
+			}
+			return "New in: " + string(name)
+		},
+		submenu: func(w *MainWindow) *fyne.Menu {
+			var items []*fyne.MenuItem
+			for _, l := range scriptLanguages() {
+				it := fyne.NewMenuItem(languageLabel(l), func() {
+					w.changeSetting("script-language", func(s *Settings) { s.SetString("script-language", l) })
+				})
+				it.Checked = w.newScriptLanguage() == l
+				items = append(items, it)
+			}
+			return fyne.NewMenu("Language for New Scripts", items...)
+		}}
+}
+
+// draftsSidePref is Compare's side by side, remembered.
+const draftsSidePref = "drafts-side-by-side"
+
+// draftsSideBySide reports whether Compare shows the drafts side by side
+// (the default) or one under the other.
+func (w *MainWindow) draftsSideBySide() bool {
+	return w.settings != nil && (!w.settings.HasKey(draftsSidePref) || w.settings.GetBoolean(draftsSidePref))
+}
+
+// draftsSideBySideCommand is Compare's Side by side, on Collaboration >
+// Drafts as in the Compare window.
+func draftsSideBySideCommand() *command {
+	return &command{id: "set.draftsSide", label: "Compare Drafts Side by Side", icon: res(sideBySideIcon),
+		checked: (*MainWindow).draftsSideBySide,
+		run: func(w *MainWindow) {
+			on := !w.draftsSideBySide()
+			w.changeSetting(draftsSidePref, func(s *Settings) { s.SetBoolean(draftsSidePref, on) })
+		}}
 }
 
 // followInPreferences shows setting key's new value in an open
@@ -190,5 +322,15 @@ func (pd *PreferencesDialog) followSetting(key string) {
 		pd.sceneLettersSelect.SetSelected(sceneLettering(lex.ParseNumberStyle(s.GetString(key))))
 	case continuedsPref:
 		pd.continuedsCheck.SetChecked(s.GetBoolean(key))
+	case "editor-keys":
+		pd.keysSelect.SetSelected((&MainWindow{settings: s}).editorKeys())
+	case "font-family":
+		pd.fontFamilyEntry.SetText(s.GetString(key))
+	case "script-language":
+		pd.languageSelect.SetSelected(s.GetString(key))
+	case "toolbar-visible":
+		pd.toolbarVisibleCheck.SetChecked(s.GetBoolean(key))
+	case "fountain-scene-numbers":
+		pd.numberScenesCheck.SetChecked(s.GetBoolean(key))
 	}
 }

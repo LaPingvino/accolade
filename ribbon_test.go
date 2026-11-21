@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/tooltip"
@@ -753,6 +754,18 @@ func TestRibbonFitsDesktop(t *testing.T) {
 		}
 	}
 	defer w.settings.SetString("script-format", "default")
+	// File > New's "New in: …" in the widest language's name
+	widest, ww := "en", float32(0)
+	for _, l := range scriptLanguages() {
+		if lw := fyne.MeasureText(languageName(l), theme.TextSize(), fyne.TextStyle{}).Width; lw > ww {
+			widest, ww = l, lw
+		}
+	}
+	w.settings.SetString("script-language", widest)
+	defer w.settings.SetString("script-language", "en")
+	if testing.Verbose() {
+		t.Logf("New in: %s", languageName(widest))
+	}
 	for _, role := range []string{roleProduction, roleWriter} {
 		w.workAs(role)
 		for _, md := range []bool{false, true} {

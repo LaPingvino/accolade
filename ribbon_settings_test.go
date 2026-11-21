@@ -187,3 +187,163 @@ func TestLivePreviewChecked(t *testing.T) {
 		t.Error("Live Preview still checked once hidden")
 	}
 }
+
+// menuItemChecked reports whether the item labelled label of command id's
+// submenu is checked.
+func menuItemChecked(t *testing.T, w *MainWindow, id, label string) bool {
+	t.Helper()
+	for _, it := range cmd(id).submenu(w).Items {
+		if it.Label == label {
+			return it.Checked
+		}
+	}
+	t.Fatalf("%s has no %q", id, label)
+	return false
+}
+
+// The borderline settings on the ribbon too (editor keys, font, new
+// scripts' language, toolbar, printed scene numbers, drafts side by
+// side): each writes what Preferences writes, an open Preferences window
+// follows, and Preferences' changes show on the ribbon.
+func TestRibbonMoreSettings(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, revScript)
+	r := ribbonOnFor(t, w)
+	s := w.settings
+	w.app.windows = append(w.app.windows, w)
+	t.Cleanup(func() { w.app.windows = nil })
+	t.Cleanup(func() {
+		s.SetString("editor-keys", "standard")
+		s.SetBoolean("vim-mode", false)
+		s.SetString("font-family", "monospace")
+		s.SetString("script-language", "en")
+		s.SetBoolean("toolbar-visible", true)
+		s.SetBoolean("fountain-scene-numbers", false)
+		s.SetBoolean(draftsSidePref, true)
+		w.applyEditorSettings()
+	})
+	pd := NewPreferencesDialog(w.app, w.fyneWindow)
+	w.app.prefs = pd
+	t.Cleanup(func() { w.app.prefs = nil; pd.cancel() })
+
+	// editor keys, on Edit: switched mid-operator, the state starts again
+	r.selectTab("Edit")
+	if buttonOf(r, "set.editorKeys") == nil {
+		t.Fatal("no Editor Keys on the Edit tab")
+	}
+	s.SetBoolean("vim-mode", true) // the older setting: Editor Keys clears it
+	w.applyEditorSettings()
+	if w.editorKeys() != "vim" || !menuItemChecked(t, w, "set.editorKeys", "Vim") {
+		t.Fatal("the older vim-mode setting is not Vim")
+	}
+	w.vim.op, w.vim.count, w.vim.g = 'd', 3, true
+	pressMenuItem(t, w, "set.editorKeys", "Helix")
+	if s.GetString("editor-keys") != "helix" || s.GetBoolean("vim-mode") || pd.keysSelect.Selected != "helix" {
+		t.Errorf("Helix: setting %q (vim-mode %v), Preferences %q", s.GetString("editor-keys"), s.GetBoolean("vim-mode"), pd.keysSelect.Selected)
+	}
+	if v := w.vim; v.op != 0 || v.count != 0 || v.g || v.mode != vimNormal {
+		t.Errorf("switched mid-operator, the state stayed: op %q count %d g %v mode %v", v.op, v.count, v.g, v.mode)
+	}
+	if got := w.statusLabel.Text; !strings.Contains(got, "Helix") {
+		t.Errorf("the status line does not say Helix: %q", got)
+	}
+	w.vim.mode = vimVisual
+	pressMenuItem(t, w, "set.editorKeys", "Standard")
+	if w.vim.mode != vimInsert || !strings.Contains(w.statusLabel.Text, "Standard") || pd.keysSelect.Selected != "standard" {
+		t.Errorf("Standard: mode %v, status %q, Preferences %q", w.vim.mode, w.statusLabel.Text, pd.keysSelect.Selected)
+	}
+	pd.loadCurrentSettings()
+	pd.keysSelect.SetSelected("vim")
+	pd.saveSettings()
+	w.app.applySettingsToWindows()
+	if !menuItemChecked(t, w, "set.editorKeys", "Vim") || w.vim.mode != vimNormal {
+		t.Error("Preferences' Vim does not show in Editor Keys, or vim is not in normal mode")
+	}
+
+	// the font, beside the text size on View
+	r.selectTab("View")
+	if b := buttonOf(r, "set.font"); b == nil || !b.compact {
+		t.Fatal("no Font beside the text size")
+	}
+	if !menuItemChecked(t, w, "set.font", fontChoices[0][1]) {
+		t.Error("the screenplay font is not checked")
+	}
+	pressMenuItem(t, w, "set.font", "System")
+	if s.GetString("font-family") != "system" || pd.fontFamilyEntry.Text != "system" {
+		t.Errorf("Font > System: %q, Preferences %q", s.GetString("font-family"), pd.fontFamilyEntry.Text)
+	}
+	s.SetString("font-family", "/fonts/Mine.ttf") // Preferences' own: a file
+	if !menuItemChecked(t, w, "set.font", "Mine.ttf") || menuItemChecked(t, w, "set.font", fontChoices[0][1]) {
+		t.Error("a font file is not shown as itself, checked")
+	}
+
+	// new scripts' language, in File > New
+	r.selectTab("File")
+	if b := buttonOf(r, "set.newLanguage"); b == nil || b.label != "New in: English" {
+		t.Fatalf("New in: %+v", b)
+	}
+	pressMenuItem(t, w, "set.newLanguage", languageLabel("nl"))
+	if s.GetString("script-language") != "nl" || pd.languageSelect.Selected != "nl" {
+		t.Errorf("New in Dutch: %q, Preferences %q", s.GetString("script-language"), pd.languageSelect.Selected)
+	}
+	if b := buttonOf(r, "set.newLanguage"); b == nil || b.label != "New in: "+languageName("nl") {
+		t.Errorf("the button does not say Dutch: %+v", b)
+	}
+	pd.loadCurrentSettings()
+	pd.languageSelect.SetSelected("en")
+	pd.saveSettings()
+	w.app.applySettingsToWindows()
+	if b := buttonOf(r, "set.newLanguage"); b == nil || b.label != "New in: English" {
+		t.Error("Preferences' English does not show on the ribbon")
+	}
+
+	// printed scene numbers, in Production > Options
+	r.selectTab("Production")
+	nums := buttonOf(r, "set.sceneNumbers")
+	if nums == nil || nums.checked {
+		t.Fatal("no Scene Numbers in Production, or checked while off")
+	}
+	nums.press()
+	if !s.GetBoolean("fountain-scene-numbers") || !nums.checked || !pd.numberScenesCheck.Checked {
+		t.Error("Scene Numbers did not number the scenes everywhere")
+	}
+
+	// drafts side by side, in Collaboration > Drafts: on by default
+	r.selectTab("Collaboration")
+	side := buttonOf(r, "set.draftsSide")
+	if side == nil || !side.checked {
+		t.Fatal("Side by Side not there, or not on by default")
+	}
+	side.press()
+	if w.draftsSideBySide() || side.checked {
+		t.Error("Side by Side did not turn off")
+	}
+	side.press()
+	if !w.draftsSideBySide() {
+		t.Error("Side by Side did not turn on again")
+	}
+
+	// the toolbar: in View's menu (and ☰'s, the same menus), not on the ribbon
+	found := false
+	for _, m := range w.menusMenu().Items {
+		if m.Label == "View" {
+			for _, it := range m.ChildMenu.Items {
+				found = found || it.Label == "Toolbar" && it.Checked
+			}
+		}
+	}
+	if !found {
+		t.Error("☰ > View has no Toolbar, checked")
+	}
+	w.do(cmd("set.toolbar"))()
+	if s.GetBoolean("toolbar-visible") || pd.toolbarVisibleCheck.Checked || w.headerArea.Visible() {
+		t.Error("Toolbar did not hide the toolbar")
+	}
+	if w.menuGone { // the ribbon gone with it: the menu bar is back
+		t.Error("the menu bar did not come back with the ribbon hidden")
+	}
+	w.do(cmd("set.toolbar"))()
+	if !w.ribbonShown() || !pd.toolbarVisibleCheck.Checked {
+		t.Error("Toolbar did not bring the ribbon back")
+	}
+}

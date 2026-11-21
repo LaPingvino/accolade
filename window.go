@@ -57,6 +57,9 @@ type MainWindow struct {
 	// notes (View > Notes)
 	// vim is the editor's vim mode (vim.go), on with the setting
 	vim *vim
+	// keysApplied: the editor keys the vim state was last reset for
+	// (applyEditorSettings), "" before the first
+	keysApplied string
 	// the ex command line (ex_window.go)
 	exState  exState
 	exBar    *fyne.Container
@@ -388,12 +391,15 @@ func (w *MainWindow) applyEditorSettings() {
 	w.textEditor.SetLineNumbers(w.settings.GetBoolean("show-line-numbers"))
 	setVisible(w.headerArea, w.settings.GetBoolean("toolbar-visible"))
 	w.applyLook() // the header's rows or the ribbon
-	// vim mode switched on starts in normal mode, switched off types again
-	if w.vim != nil {
-		if on := w.editorKeys() != "standard"; on && w.vim.mode == vimInsert {
-			w.vim.setMode(vimNormal)
-		} else if !on && w.vim.mode != vimInsert {
-			w.vim.mode = vimInsert
+	// other editor keys (Preferences, the ribbon, the palette): the
+	// keys' state starts again, in normal mode for vim and helix, and the
+	// status line says which keys now
+	if keys := w.editorKeys(); w.vim != nil && keys != w.keysApplied {
+		first := w.keysApplied == ""
+		w.keysApplied = keys
+		w.vim.reset(keys != "standard")
+		if !first {
+			w.setStatus(editorKeysStatus(keys))
 		}
 	}
 	setVisible(w.statusBar, w.settings.GetBoolean("statusbar-visible"))

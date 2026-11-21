@@ -5,6 +5,7 @@ tabs: [File] Write Edit Adaptation Collaboration View
   S Markdown icon=foreground_file-text.svg name=New Markdown Document
   S Window icon=foreground_computer.svg name=New Window (Ctrl+Shift+N)
   S Empty Window icon=foreground_desktop.svg name=New Empty Window (Ctrl+Shift+Alt+N)
+  S New in: English icon=foreground_language.svg name=Language for New Scripts
 ## Open
   L Open icon=foreground_folder-open.svg name=Open… (Ctrl+O)
   S Recent icon=foreground_history.svg name=Open Recent

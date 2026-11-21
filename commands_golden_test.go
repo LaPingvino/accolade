@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))) // the moves write Linux keys too
+		want := toolbarMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -753,6 +753,28 @@ func dockMoves(name, golden string) string {
 			if ms[i].labelOf(it) == "Unfold All" {
 				in := append(append([]string{"  ---"}, panes...), "  ---")
 				ms[i].items = slices.Insert(ms[i].items, j+1, in...)
+				break
+			}
+		}
+	}
+	return joinMenus(ms)
+}
+
+// toolbarMoves: View > Toolbar (ribbon_settings.go) shows and hides the
+// toolbar, after Fullscreen; in the ☰ menu too, which is the menu bar.
+// Nothing else.
+func toolbarMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-") {
+		return golden
+	}
+	ms := parseGoldenMenus(golden)
+	for i := range ms {
+		if ms[i].title != "View" {
+			continue
+		}
+		for j, it := range ms[i].items {
+			if ms[i].labelOf(it) == "Fullscreen" {
+				ms[i].items = slices.Insert(ms[i].items, j+1, "  Toolbar (checked)") // shown
 				break
 			}
 		}

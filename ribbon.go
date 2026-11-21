@@ -287,7 +287,7 @@ func (r *ribbonBar) refresh() {
 	}
 	r.stage = stage
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
-		boolKey(phone), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language}, "\x00")
+		boolKey(phone), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage()}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
 		r.phone = phone
@@ -399,6 +399,9 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 	for _, h := range g.homes {
 		if h.sep { // a row of compact buttons ends
 			flushRow()
+			continue
+		}
+		if h.keys && r.phone || h.phoneOnly && !r.phone {
 			continue
 		}
 		switch h.id {
@@ -1046,6 +1049,9 @@ func newRibbonButton(r *ribbonBar, c *command, large bool) *ribbonButton {
 	b := &ribbonButton{r: r, c: c, large: large}
 	if c != nil {
 		b.label = c.ribbonLabelIn(r.env)
+		if c.ribbonLabelFor != nil {
+			b.label = c.ribbonLabelFor(r.w)
+		}
 		if c.id == "write.place" { // in the script's language: BIN./BUI. in Dutch
 			if _, _, both, ok := placeWords(r.w.sceneHeaders()); ok {
 				b.label = both

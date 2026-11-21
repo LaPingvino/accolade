@@ -251,11 +251,12 @@ func showCompare(w *MainWindow, drafts []savedDraft, fromID, toID string) *compa
 	cv.what = widget.NewSelect([]string{"Script", "Source"}, func(string) { cv.show() })
 	cv.what.SetSelected("Script")
 	cv.sideBySide = widget.NewCheck("Side by side", func(on bool) {
-		cv.w.settings.SetBoolean("drafts-side-by-side", on)
+		cv.w.settings.SetBoolean(draftsSidePref, on)
 		_ = cv.w.settings.Save()
+		cv.w.ribbonRefresh() // Collaboration > Drafts > Side by Side
 		cv.show()
 	})
-	cv.sideBySide.SetChecked(!w.settings.HasKey("drafts-side-by-side") || w.settings.GetBoolean("drafts-side-by-side"))
+	cv.sideBySide.SetChecked(w.draftsSideBySide())
 	cv.summary = widget.NewLabel("")
 	cv.summary.Wrapping = fyne.TextWrapWord
 	cv.summary.Importance = widget.LowImportance

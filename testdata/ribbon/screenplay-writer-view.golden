@@ -25,3 +25,4 @@ tabs: File Write Edit Collaboration [View]
   S Theme icon=foreground_theme.svg name=Theme
   T Smaller Text icon=foreground_text-smaller.svg name=Smaller Text
   T Larger Text icon=foreground_text-larger.svg name=Larger Text
+  T Font icon=foreground_font.svg name=Font
