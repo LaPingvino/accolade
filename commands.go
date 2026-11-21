@@ -280,8 +280,8 @@ func tool(id string) home                            { return home{id: id, compa
 func madeFor(r cmdRole, f func(*MainWindow) []*fyne.MenuItem) home {
 	return home{items: f, role: r}
 }
-func bigAs(id, label string) home { return home{id: id, label: label, large: true} }
-func keyed(id string) home        { return home{id: id, keys: true} }
+func bigAs(id, label string) home   { return home{id: id, label: label, large: true} }
+func keyed(id string) home          { return home{id: id, keys: true} }
 func atShort(id, short string) home { return home{id: id, short: short} }
 
 // menuDef is a menu of the menu bar.
