@@ -759,6 +759,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Preview remade on change), TestPageSetupPerFormat, TestPageSetupFollowsRibbon, TestMarkdownPageSetup; the old
   export colour/pagination tests now drive Page Setup. Goldens: commands via regroupMoves (Page Setup… before
   Print…), ribbon regenerated (7 lines, read). Shots (SHOT_DIR=… -run 'TestPageSetupScreenshots|TestMarkdownPageSetup'):
-  pagesetup-, export-, export-sides-, print-, preview-{desktop,phone}.png, pagesetup-markdown.png. Docs: help
-  formats/production, PRODUCTION.md. Left: Preferences' Page Setup opens in the first window; Preview's dialog
-  appears after each Preview PDF (Close, Escape).
+  /tmp/claude-1000/shots/ps/{pagesetup,pagesetup-bottom,export,export-sides,print,preview,preferences-pagesetup,
+  md-export,md-preview}-{desktop,phone}.png, pagesetup-markdown.png. Docs: help formats/production, PRODUCTION.md.
+  TestPageSetupRevisions (issued: marks, revised only, colours in Export's and Preview's PDF, marks in FDX, none in
+  the layout or Print). Calls made: the filters stay in Export (per export, not the page's look); CONTINUEDs shows in
+  the Production role only (as the ribbon's); Ctrl+P opens the Print dialog first (Space prints), Preview PDF shows
+  its dialog each time; Preferences' Reset no longer resets the page setup (Page Setup has Defaults). Left: pandoc
+  formats ignore a Markdown page setup; Preferences' Page Setup opens in the first window; Page Setup on an issued
+  script not shot at phone width.
