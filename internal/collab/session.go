@@ -73,6 +73,7 @@ type Session struct {
 	docs    map[string]*Doc // by name; Script is always there
 	peers   map[string]func([]byte) error
 	other   map[string]bool // peers of another Protocol, not listened to
+	dropped map[string]bool // Docs let go (Drop): their ops are not taken again
 	proto   int             // Protocol (another in the tests of mixed peers)
 	// OnRemote is called (outside the lock, in Run) after ops from peers
 	// changed Doc doc's text: by is the replica whose edit it is ("": not
@@ -98,7 +99,7 @@ type Session struct {
 // NewSession shares doc, the script, with the peers that have key.
 func NewSession(key Key, doc *Doc) *Session {
 	return &Session{key: key, replica: doc.replica, docs: map[string]*Doc{Script: doc}, peers: map[string]func([]byte) error{},
-		other: map[string]bool{}, meta: map[string]Value{}, proto: Protocol}
+		other: map[string]bool{}, dropped: map[string]bool{}, meta: map[string]Value{}, proto: Protocol}
 }
 
 // Do is f with the script's Doc, the session locked.
@@ -117,6 +118,25 @@ func (s *Session) Has(name string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.docs[name] != nil
+}
+
+// Names are the session's Docs' names.
+func (s *Session) Names() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return slices.Sorted(maps.Keys(s.docs))
+}
+
+// Drop lets the Doc named name go (not the script's): a source no longer
+// shared. Its ops coming from a peer that has it still are not taken.
+func (s *Session) Drop(name string) {
+	if name == Script || name == "" {
+		return
+	}
+	s.mu.Lock()
+	delete(s.docs, name)
+	s.dropped[name] = true
+	s.mu.Unlock()
 }
 
 // doc is the Doc named name, made if there is none (locked).
@@ -259,7 +279,9 @@ func (s *Session) receive(from string, m message) {
 			}
 		}
 		for name := range m.Docs { // the peer's Docs, known here too (its ops come with its reply)
-			s.doc(name)
+			if !s.dropped[name] {
+				s.doc(name)
+			}
 		}
 	}
 	var changed map[string]Value
@@ -277,7 +299,7 @@ func (s *Session) receive(from string, m message) {
 		name = Script
 	}
 	var fresh []Op
-	if len(m.Runs) > 0 {
+	if len(m.Runs) > 0 && !s.dropped[name] {
 		d := s.doc(name)
 		for _, r := range m.Runs {
 			fresh = append(fresh, d.Apply(r)...)

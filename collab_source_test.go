@@ -49,6 +49,10 @@ func TestSourceTogether(t *testing.T) {
 	connect(t, a, b)
 	textIs(t, b, "b", a.textEditor.Text())
 	waitFor(t, "b has the source", func() bool { return docText(b) == want })
+	waitFor(t, "b's room copy written", func() bool {
+		kept, _ := os.ReadFile(keptSharedSource(key))
+		return string(kept) == want
+	})
 	if r := b.sourceRef(); r.Origin != sourceKept || r.Path != keptSharedSource(key) {
 		t.Errorf("b keeps it as %+v", r)
 	}
@@ -71,10 +75,32 @@ func TestSourceTogether(t *testing.T) {
 	if !strings.HasPrefix(docText(a), "B: ") {
 		t.Errorf("a's Undo took b's typing: %q", docText(a)[:20])
 	}
-	// the pane's passages are the shared text
-	if p := b.source; p != nil && !strings.HasPrefix(p.src, "B: ") {
-		t.Errorf("b's pane reads %q", p.src[:20])
+	// the room's copy is the Doc as it was when editing paused
+	waitFor(t, "b's room copy kept", func() bool {
+		kept, _ := os.ReadFile(keptSharedSource(key))
+		return string(kept) == docText(b)
+	})
+	// the Source pane: its passages are the shared text, its Edit live
+	if !strings.HasPrefix(a.source.src, "B: ") {
+		t.Errorf("a's pane reads %q", a.source.src[:20])
 	}
+	b.togglePane("source")
+	if b.source == nil || !b.sourcePane().shown() {
+		t.Fatal("b's source pane is not shown")
+	}
+	waitFor(t, "b's pane reads the shared source", func() bool { return b.source.src == docText(b) })
+	b.source.toggleEdit()
+	if !b.source.editing || b.srcDoc == nil {
+		t.Fatal("b's pane is not editing")
+	}
+	b.srcDoc.ed.Edit(func(e *buffer.Buffer) { e.SetCursor(e.Len(), false); e.Insert("\nFrom b's pane.\n") })
+	waitFor(t, "a has b's pane's edit", func() bool { return strings.Contains(docText(a), "From b's pane.") })
+	b.source.toggleEdit() // Done: the document stored and let go
+	if b.source.editing {
+		t.Fatal("still editing")
+	}
+	a.srcDoc.ed.Edit(func(e *buffer.Buffer) { e.SetCursor(e.Len(), false); e.Insert("After b's Done.\n") })
+	waitFor(t, "b's pane has a's edit after Done", func() bool { return strings.Contains(b.source.src, "After b's Done.") })
 	if err := a.SaveFile(); err != nil {
 		t.Fatal(err)
 	}
@@ -125,5 +151,29 @@ func TestSourceOldPeer(t *testing.T) {
 	uiSleep(20e6)
 	if strings.Contains(b.textEditor.Text(), "OLD") || strings.Contains(a.textEditor.Text(), "OLD") {
 		t.Error("an old peer's edit was taken")
+	}
+}
+
+// A peer that left takes the session up again from its kept state (the
+// source with it, before anyone is there) and meets the others: the
+// source is not doubled, and a's edit since comes in.
+func TestSourceRejoin(t *testing.T) {
+	a, b, key, _ := sourcePair(t)
+	cut := connect(t, a, b)
+	waitFor(t, "b has the source", func() bool { return docText(b) != "" && docText(b) == docText(a) })
+	want := docText(a)
+	cut()
+	b.stopSharing() // its state kept
+	b.startSharing(key, true)
+	if b.shared == nil {
+		t.Fatal("b did not take the session up again")
+	}
+	waitFor(t, "b's source from its kept state", func() bool { return docText(b) == want })
+	// (one data folder for both here: a's edit after b took the state up)
+	a.srcDoc.ed.Edit(func(e *buffer.Buffer) { e.SetCursor(0, false); e.Insert("Meanwhile. ") })
+	connect(t, a, b)
+	waitFor(t, "b and a alike", func() bool { return docText(b) == docText(a) && strings.HasPrefix(docText(b), "Meanwhile. ") })
+	if strings.Count(docText(b), want[len(want)/2:]) != 1 {
+		t.Errorf("the source doubled: %d runes, %d before", len(docText(b)), len(want))
 	}
 }

@@ -288,6 +288,7 @@ func (w *MainWindow) keepSharedState() {
 		if w.shared != s {
 			return
 		}
+		w.keepSharedSource() // the room's copy of the source, as the Doc is (collab_source.go)
 		b, err := s.session.State()
 		if err == nil && inBrowser && len(b) > maxKeptState { // a novel for a source: the script's alone
 			b, err = s.session.StateOf(collab.Script)

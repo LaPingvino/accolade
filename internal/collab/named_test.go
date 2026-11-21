@@ -2,6 +2,7 @@ package collab
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -156,5 +157,17 @@ func TestMixedProtocols(t *testing.T) {
 	link(s, o, "a", "o")
 	if ours != 4 || olds != 5 || textIn(o, Script) != "" {
 		t.Errorf("mismatch seen as %d and %d; o has %q", ours, olds, textIn(o, Script))
+	}
+}
+
+// A Doc let go is not taken again from a peer that still has it.
+func TestDrop(t *testing.T) {
+	key, _ := NewKey()
+	a, b := NewSession(key, New("a")), NewSession(key, New("b"))
+	a.DoIn("source:old", func(d *Doc) { d.SetText("Old.\n") })
+	b.Drop("source:old")
+	link(a, b, "a", "b")
+	if b.Has("source:old") || slices.Contains(b.Names(), "source:old") {
+		t.Errorf("b took the dropped Doc: %v", b.Names())
 	}
 }

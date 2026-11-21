@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/LaPingvino/accolade/internal/collab"
@@ -79,6 +80,7 @@ func (w *MainWindow) shareSourceAnew() {
 	s.session.DoIn(name, func(d *collab.Doc) { ops = d.SetText(text) })
 	s.session.LocalIn(name, ops)
 	s.session.SetMeta(sourceMeta, name)
+	w.dropOtherSources(name)
 	w.bindSource()
 	w.keepSharedState()
 }
@@ -92,6 +94,7 @@ func (w *MainWindow) adoptSource(name string) {
 		w.updateStatusBar()
 		return
 	}
+	w.dropOtherSources(name)
 	ref := w.sourceRef()
 	if ref.Origin == sourceInside {
 		return // the script holds one: that one is the script's
@@ -172,4 +175,30 @@ func (d *document) followShared() {
 		}
 	})
 	d.fromHome = false
+}
+
+// dropOtherSources lets go of the source Docs the setting no longer names
+// (another source picked, or two picked at once): not kept, nor sent to a
+// peer joining.
+func (w *MainWindow) dropOtherSources(name string) {
+	for _, n := range w.shared.session.Names() {
+		if n != name && strings.HasPrefix(n, "source:") {
+			w.shared.session.Drop(n)
+		}
+	}
+}
+
+// keepSharedSource writes the source to the room's copy when editing
+// pauses (keepSharedState), for a peer whose source is that copy: a
+// reload, or the browser's state kept without the source, finds it as
+// the Doc was. The sharer's own home is written on its Save, as ever.
+func (w *MainWindow) keepSharedSource() {
+	d := w.srcDoc
+	if d == nil || w.shared == nil || d.ref.Path != keptSharedSource(w.shared.key) || d.sharedAs() == "" {
+		return
+	}
+	if !d.dirty() {
+		return
+	}
+	_ = d.store()
 }

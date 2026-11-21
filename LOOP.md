@@ -775,5 +775,6 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   1.26 s → 44 ms, a kept state 0.76 s → 39 ms, a key 21 → 3 ms. (3) Named Docs, protocol 5: the source kept outside
   the script shared in a Doc of its own (collab_source.go), the source document its editor, live both ways; a
   joiner without one keeps it for the room; protocol 4 peers read the hello and say to update (TestNamedDocs,
-  TestJoinMidEdit, TestStateDocs, TestMixedProtocols, TestSourceTogether, TestSourceJoinMidEdit, TestSourceOldPeer).
+  TestJoinMidEdit, TestStateDocs, TestMixedProtocols, TestDrop, TestSourceTogether (also the Source pane's Edit/Done),
+  TestSourceJoinMidEdit, TestSourceRejoin, TestSourceOldPeer). Not run in a browser.
   Gates: TestBrowserPDF* fail inside the sandbox only (chromium's crashpad, read-only ~/.config). Left: steps 4–6.

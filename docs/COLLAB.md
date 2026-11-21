@@ -159,12 +159,15 @@ it is, or a peer who picks another source while shared (Choose Source, Keep Sour
 Source in the Script turned on clears the setting, the block then travelling in the script. A peer joining, or
 taking up a kept state, takes the Doc as it is and never sets it from its own copy, so nothing doubles. A peer
 with no source of its own keeps the shared one for the room (`sources/shared-<room>/source.md`, one copy however
-often it rejoins); a peer with one (the sharer: in its bundle, a kept copy, beside the script) keeps it there. The
+often it rejoins), written as the Doc is whenever editing pauses (with the kept state); a peer with one (the sharer:
+in its bundle, a kept copy, beside the script) keeps it there. A source Doc the setting no longer names (another
+source picked, or two at once) is let go on every peer that hears of it (`Session.Drop`): not kept, not sent to a
+joiner, and its ops are not taken again from a peer that has it still. The
 window's source document (document.go, SWAP.md) is the Doc's editor: `sharedAs` names the Doc, `changed` sends
 each key (`Doc.SetText`, 3 ms a key on the novel), `followShared` brings the peers' edits in outside its undo
 history, and the Source pane reads its passages from it. The pane's Edit/Done and the source swapped into the main
-editor are live for the peers; each peer's home is written on its Save or Done, as for its own edits, so until
-then the source is marked unsaved (•). The script's Characters and Notes are blocks in the script's text
+editor are live for the peers; the sharer's own home is written on its Save or Done, as for its own edits, so until
+then its source is marked unsaved (•). The script's Characters and Notes are blocks in the script's text
 (characters_block.go, notes.go): they travel in the script's Doc already, nothing to add.
 
 Old peers: protocol 4 unmarshals the hello into its own message before it looks at `p`, so the fields it knows
@@ -176,13 +179,18 @@ is taken by the other. Tests: `TestNamedDocs` (a chain of three, a joiner gets e
 session of protocol 4 and one of 5 tell each other apart); in windows `TestSourceTogether` (the sharer's source
 beside the script reaches the joiner as the room's kept copy; edits both ways; Undo only one's own; the pane's
 passages; the sharer's Save writes the file beside the script with the joiner's edit), `TestSourceJoinMidEdit` (a
-third window joins through the second while the first types in the source key by key) and `TestSourceOldPeer`
-(a v4 hello: the status bar says older, its edit not taken). A source Doc with no op yet is one whose ops have not come: the document neither follows it nor
+third window joins through the second while the first types in the source key by key), `TestSourceRejoin` (a peer
+takes the session up from its kept state, the source with it, and meets the other: not doubled), `TestDrop`, and
+`TestSourceOldPeer` (a v4 hello: the status bar says older, its edit not taken). `TestSourceTogether` also goes
+through the joiner's Source pane: its passages, Edit typed in and seen by the sharer, Done, then the sharer's edit
+in the pane's passages; and the room's copy as the Doc is. A source Doc with no op yet is one whose ops have not come: the document neither follows it nor
 sends to it, so a browser that kept its state without the source (over 1 MiB) and reloads with nobody online keeps
 the room's copy, and an edit made then stays its own and is replaced when the peers' Doc comes; an empty source is
 therefore not shared (the status line says "yours only"). Not done: a peer's own different source when it
 joins is replaced by the shared one for that session (its file is written only if it saves); two peers picking a
-source at the same moment leave the losing Doc unused in the session; the breakdown and the schedule are step 4.
+source at the same moment: the setting's last writer wins and the other is dropped, its edits with it. The cost
+of a peer's key in a window was not measured: the numbers above are the Doc's, and each peer's message re-reads
+the source pane's passages (in the background past 64 KiB). The breakdown and the schedule are step 4.
 
 Benchmarks (internal/collab/bench_test.go, ~100k words, 572k runes; "edited" is that after 3000 scattered edits by
 two replicas, key by key; 3 runs each, this VPS):
@@ -268,7 +276,8 @@ messages of their own, batched like the text's runs.
 - `TestTypingDuringCatchUp` and `TestCatchUpGap` were checked to fail on the old code. The others test the new
   behaviour only.
 - **Not verified in a browser**: `setPageKey`, `pageBase`, the `hashchange` join and the draft guard are only
-  compiled for js/wasm (no headless-browser run of the web version was made).
+  compiled for js/wasm (no headless-browser run of the web version was made); nor the shared source there (the
+  room's copy in the browser's storage, the state kept without the source past 1 MiB).
 - **Not tested**: the released reservation of fix (7) (no vnet test of a peer failing before its channel
   opens), the status text of a version mismatch, and the desktop `#k=` argument.
 - `TestLongScript` (internal/collab) was seen to fail under `-race` on this machine (it times 70 000 inserts); it
