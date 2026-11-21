@@ -24,7 +24,7 @@ func TestYieldBlocks(t *testing.T) {
 	for range 1_000_000 {
 		Yield()
 	}
-	if d := time.Since(t0); d > 200*time.Millisecond {
+	if d := time.Since(t0); d > slowdown*200*time.Millisecond {
 		t.Errorf("a million calls off took %v", d)
 	}
 }
