@@ -3,6 +3,7 @@ package collab
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/accolade/internal/scriptdiff"
 )
@@ -20,7 +21,23 @@ type Edit struct {
 // once (renumbering, a block rewritten) so becomes many small edits, and
 // a peer's typing in between merges with it.
 func Edits(old, new string) []Edit {
-	o, n := []rune(old), []rune(new)
+	// the common ends by bytes, on whole runes: a key in a novel costs
+	// the scan, not the novel in runes twice
+	pre := 0
+	for pre < len(old) && pre < len(new) && old[pre] == new[pre] {
+		pre++
+	}
+	for pre > 0 && (pre < len(old) && !utf8.RuneStart(old[pre]) || pre < len(new) && !utf8.RuneStart(new[pre])) {
+		pre-- // back to the start of the rune they differ in
+	}
+	suf := 0
+	for suf < len(old)-pre && suf < len(new)-pre && old[len(old)-1-suf] == new[len(new)-1-suf] {
+		suf++
+	}
+	for suf > 0 && (!utf8.RuneStart(old[len(old)-suf]) || !utf8.RuneStart(new[len(new)-suf])) {
+		suf--
+	}
+	o, n := []rune(old[pre:len(old)-suf]), []rune(new[pre:len(new)-suf])
 	start := 0
 	for start < len(o) && start < len(n) && o[start] == n[start] {
 		start++
@@ -30,6 +47,7 @@ func Edits(old, new string) []Edit {
 		end++
 	}
 	mo, mn := o[start:len(o)-end], n[start:len(n)-end]
+	start += utf8.RuneCountInString(old[:pre])
 	if len(mo) == 0 && len(mn) == 0 {
 		return nil
 	}
@@ -150,6 +168,9 @@ func (d *Doc) SetText(text string) []Op {
 		e := es[i]
 		ops = append(ops, d.Delete(e.Pos, e.Del)...)
 		ops = append(ops, d.Insert(e.Pos, e.Text)...)
+	}
+	if d.size == utf8.RuneCountInString(text) {
+		d.text, d.textOK = text, true
 	}
 	return ops
 }

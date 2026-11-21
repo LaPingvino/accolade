@@ -144,12 +144,13 @@ func BenchmarkNovelJoin(b *testing.B) {
 func BenchmarkNovelKey(b *testing.B) {
 	for _, kind := range []string{"pasted", "edited"} {
 		d := novelDoc(b, kind)
-		rs := []rune(d.Text())
-		mid := len(rs) / 2
+		text := d.Text()
+		mid := len([]rune(text)) / 2
+		at := len(string([]rune(text)[:mid]))
 		b.Run(kind+"/SetText", func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
-				rs = append(rs[:mid:mid], append([]rune{'x'}, rs[mid:]...)...)
-				d.SetText(string(rs))
+				text = text[:at] + "x" + text[at:] // the editor's new text, as its Text gives it
+				d.SetText(text)
 			}
 		})
 		b.Run(kind+"/Insert", func(b *testing.B) {

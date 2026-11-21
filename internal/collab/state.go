@@ -16,14 +16,14 @@ const stateVersion = 1
 
 type state struct {
 	V    int              `json:"v"`
-	Runs []run            `json:"runs"`
+	Runs []Op             `json:"runs"`
 	Meta map[string]Value `json:"meta,omitempty"`
 }
 
 // State is the session's document and settings, to keep.
 func (s *Session) State() ([]byte, error) {
 	s.mu.Lock()
-	st := state{V: stateVersion, Runs: runsOf(s.doc.ops), Meta: maps.Clone(s.meta)}
+	st := state{V: stateVersion, Runs: runsOf(s.doc.Ops()), Meta: maps.Clone(s.meta)}
 	s.mu.Unlock()
 	return json.Marshal(st)
 }
@@ -40,10 +40,8 @@ func Restore(key Key, replica string, kept []byte) (*Session, error) {
 		return nil, errors.New("a kept shared script of another version")
 	}
 	d := New(replica)
-	for _, r := range st.Runs {
-		for _, op := range r.ops() {
-			d.Apply(op)
-		}
+	for _, op := range st.Runs {
+		d.Apply(op)
 	}
 	s := NewSession(key, d)
 	maps.Copy(s.meta, st.Meta)

@@ -133,6 +133,34 @@ roughly 150 bytes per rune, about 75 MB. That is too much for the browser. So th
 a run of consecutive IDs is one node, split when someone types inside it, and kept ops are runs. Benchmark it on
 the PERF-SOURCE fixture before building the source sharing.
 
+**Built (step 2).** `Op` is now a run (the wire's and the kept state's format already were, so neither the protocol
+nor the state's version changed): an insert of consecutive IDs, each rune after the one before, or a delete of
+consecutive IDs. A node is such a run, all deleted or none; it is split where someone types inside it or deletes
+part of it, and it grows in place when its writer types on at its end. Each replica's nodes are found by counter
+in a sorted index (no map entry per rune); the kept ops are runs that grow in place too. `Apply` takes a run that
+is here in part (always its first runes: each waits for the one before) and keeps the part that is not, and
+returns what was new, to pass on. A delete waits for those of its runes not here yet. `Missing` cuts a run at the
+peer's version. The Doc keeps the text it last made or set (`SetText` knows it), so a key is compared with it
+without the novel made again, and `Edits` finds the common ends by bytes before it turns the middle into runes.
+The old Doc of a node per rune is kept in oracle_test.go: `TestRunsAgreeWithRunes` gives both the same ops, cut
+at random, shuffled, repeated and out of order, and their text, version, counts and missing runes agree at every
+step (300 seeds; 5000 were run once). It found a delete waiting for its first rune while a later one was there.
+
+Benchmarks (internal/collab/bench_test.go, ~100k words, 572k runes; "edited" is that after 3000 scattered edits by
+two replicas, key by key; 3 runs each, this VPS):
+
+| | before | after |
+|---|---|---|
+| heap per rune, pasted / edited | 178 / 191 B (≈100 MB) | 6.5 / 7.9 B (≈4 MB, the kept text included) |
+| a peer joining, catch-up through a session, pasted / edited | 1.26 s / 1.21 s | 44 ms / 66 ms |
+| a session taken up from the kept state, pasted / edited | 0.76 s / 0.80 s | 39 ms / 39 ms |
+| a key in the middle, `SetText` with the editor's text | 21 ms / 33 ms | 3.0 ms / 3.0 ms |
+| a key in the middle, `Insert` alone | 2.5 ms / 4.5 ms | 18 µs / 130 µs |
+
+The "before" `SetText` loop also turned the novel into runes and back each key (≈2 ms of it); the "after" one makes
+the editor's new text as a string, which is most of the 3 ms that is left. Building the edited novel itself (3000
+edits) took 49 s before and 0.2 s after.
+
 ### (3) What lives outside the text
 
 Decided per item, with its merge rule:
@@ -203,13 +231,14 @@ messages of their own, batched like the text's runs.
   compiled for js/wasm (no headless-browser run of the web version was made).
 - **Not tested**: the released reservation of fix (7) (no vnet test of a peer failing before its channel
   opens), the status text of a version mismatch, and the desktop `#k=` argument.
-- `TestLongScript` (internal/collab) fails under `-race` on this machine, on main too (it times 70 000 inserts).
+- `TestLongScript` (internal/collab) was seen to fail under `-race` on this machine (it times 70 000 inserts); it
+  passed in the race gates of 21 Nov evening, before runs and after.
 
 ## What is left, in order
 
 1. ~~The single-writer rule for automatic writes (auto A-numbers, learned notes). Then the two guards go:
    production.go `numberNewScenes`, adaptation_learn.go `learnFromWriting`.~~ Done (question 4 above).
-2. Run-length Doc nodes and kept ops, benchmarked on a novel-sized text.
+2. ~~Run-length Doc nodes and kept ops, benchmarked on a novel-sized text.~~ Done (question 2 above).
 3. Named Docs in a session (protocol 5). The source shared through them, and the source pane's editing live.
 4. The breakdown and the schedule as shared CRDT maps (their own message kind, batched).
 5. A help page on editing together: what is shared and what stays yours, Undo, and leaving.

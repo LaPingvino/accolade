@@ -12,11 +12,11 @@ import (
 // ops.
 type message struct {
 	Hello   bool              `json:"hello,omitempty"`
-	Proto   int               `json:"p,omitempty"` // with a hello: Protocol
-	Version map[string]uint64 `json:"v,omitempty"` // an empty one is omitted: Hello says it is one
-	Counts  map[string]int    `json:"n,omitempty"` // with a hello: the inserts it has of each replica (Doc.Missing)
+	Proto   int               `json:"p,omitempty"`   // with a hello: Protocol
+	Version map[string]uint64 `json:"v,omitempty"`   // an empty one is omitted: Hello says it is one
+	Counts  map[string]int    `json:"n,omitempty"`   // with a hello: the inserts it has of each replica (Doc.Missing)
 	App     string            `json:"app,omitempty"` // with a hello: the sender's Accolade version
-	Runs    []run             `json:"r,omitempty"`
+	Runs    []Op              `json:"r,omitempty"`
 	Meta    map[string]Value  `json:"m,omitempty"` // with a hello, or when one changed
 	// By is the replica whose edit the runs are, passed on as it is when
 	// relayed ("": a catch-up of several peers' edits)
@@ -197,11 +197,7 @@ func (s *Session) receive(from string, m message) {
 	}
 	var fresh []Op
 	for _, r := range m.Runs {
-		for _, op := range r.ops() {
-			if s.doc.Apply(op) {
-				fresh = append(fresh, op)
-			}
-		}
+		fresh = append(fresh, s.doc.Apply(r)...)
 	}
 	var newer map[string]Value // with a hello: the settings it lacks
 	for k, v := range s.meta {
