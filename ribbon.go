@@ -51,6 +51,10 @@ import (
 // lookPref is the setting of the header's look: "menus" or "ribbon".
 const lookPref = "look"
 
+// defaultLook is a new user's look: the ribbon (Joop, 2026-11-21). The
+// tests start in Menus (TestMain), as they were written for it.
+var defaultLook = "ribbon"
+
 // ribbonOn reports whether the window shows the ribbon.
 func (w *MainWindow) ribbonOn() bool {
 	return w.settings != nil && w.settings.GetString(lookPref) == "ribbon"

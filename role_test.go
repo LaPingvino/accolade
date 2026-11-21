@@ -15,6 +15,7 @@ import (
 // written before the role (role.go); the role's own tests choose theirs.
 func TestMain(m *testing.M) {
 	defaultRole = roleProduction
+	defaultLook = "menus"
 	os.Exit(m.Run())
 }
 
