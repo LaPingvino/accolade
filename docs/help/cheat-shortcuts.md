@@ -73,10 +73,10 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 ## View
 
 - **Ctrl+Shift+P** Preview PDF
-- **Ctrl+Shift+D** Cards
 - **Ctrl+Shift+.** Fold or Unfold Here
 - **Ctrl+Shift+O** Outline
 - **Ctrl+Shift+K** Notes
+- **Ctrl+Shift+D** Cards
 - **Ctrl+Shift+H** Changes
 - **Ctrl+Shift+F, Alt+Enter** Fullscreen
 

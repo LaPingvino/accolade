@@ -143,21 +143,38 @@ func (w *MainWindow) offerLinkUpdate(d *document) {
 	if sameString(text, d.linkBase) {
 		return
 	}
-	old, nw := passagesOf(d.linkBase), passagesOf(text)
-	if n := w.linkOffer; n.box.Visible() && n.old != nil {
-		old = n.old // an offer not answered yet: from where it began
+	base := d.linkBase
+	n := w.linkOffer
+	if n.box.Visible() && n.old != nil {
+		base = "" // an offer not answered yet: from where it began (n.old)
 	}
 	d.linkBase = text
-	_, count := linkFixes(w.textEditor.Text(), old, nw)
-	if count == 0 {
-		return
+	script := w.textEditor.Text()
+	type found struct {
+		old, nw []passage
+		count   int
 	}
-	n := w.linkOffer
-	n.old, n.nw = old, nw
-	n.text.SetText(fmt.Sprintf("A passage of the source opens with other words now: %s in the script %s its old words. "+
-		"Update them to the new ones?", plural(count, "link"), map[bool]string{true: "quotes", false: "quote"}[count == 1]))
-	n.box.Show()
-	w.fyneWindow.Content().Refresh()
+	old := n.old
+	// a novel's passages take a while: read in the background, the
+	// writing going on meanwhile
+	inBackground(func() found {
+		o := old
+		if base != "" || o == nil {
+			o = passagesOf(base)
+		}
+		nw := passagesOf(text)
+		_, count := linkFixes(script, o, nw)
+		return found{o, nw, count}
+	}, func(f found) {
+		if f.count == 0 || w.textEditor.Text() != script {
+			return // nothing to ask, or the script changed meanwhile: asked again on the next look
+		}
+		n.old, n.nw = f.old, f.nw
+		n.text.SetText(fmt.Sprintf("A passage of the source opens with other words now: %s in the script %s its old words. "+
+			"Update them to the new ones?", plural(f.count, "link"), map[bool]string{true: "quotes", false: "quote"}[f.count == 1]))
+		n.box.Show()
+		w.fyneWindow.Content().Refresh()
+	})
 }
 
 // updateOfferedLinks is the notice's Update Links: one undo step.

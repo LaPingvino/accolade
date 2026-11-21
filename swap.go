@@ -48,6 +48,7 @@ func (w *MainWindow) swapWithMain(id string) {
 			s.editing = false
 			s.edit.SetText("Edit")
 			s.edit.SetIcon(theme.DocumentCreateIcon())
+			s.showBody() // its editor out of the pane: one place at a time
 		}
 	case "notes":
 		doc = w.notesDocument()

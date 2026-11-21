@@ -5,6 +5,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 	"strings"
@@ -167,6 +168,11 @@ func findButton(o fyne.CanvasObject, text string) *widget.Button {
 				return b
 			}
 		}
+	case *container.Split: // the side panes beside the view (the Cards pane holds the Script tab: swap.go)
+		if b := findButton(x.Leading, text); b != nil {
+			return b
+		}
+		return findButton(x.Trailing, text)
 	}
 	return nil
 }
