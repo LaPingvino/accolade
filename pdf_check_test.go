@@ -18,7 +18,7 @@ func TestPDFWarning(t *testing.T) {
 	if w := warn("INT. HOUSE - DAY\n\nTiếng Việt, Esperanto ĉ.\n"); w != "" {
 		t.Errorf("Latin script warned: %s", w)
 	}
-	if w := warn("פנים. סדנה. יום.\n\nבחור צעיר.\n"); !strings.Contains(w, "boxes") || !strings.Contains(w, "right-to-left") {
+	if w := warn("פנים. סדנה. יום.\n\nבחור צעיר.\n"); strings.Contains(w, "boxes") || !strings.Contains(w, "right-to-left") { // in Courier Badi since 1.100
 		t.Errorf("Hebrew: %q", w)
 	}
 }
