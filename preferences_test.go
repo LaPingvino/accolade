@@ -2,6 +2,7 @@ package main
 
 import (
 	"fyne.io/fyne/v2"
+	"image/png"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -129,4 +130,24 @@ func TestKeyboardPagesAndEscape(t *testing.T) {
 	if w.fyneWindow.Canvas().Overlays().Top() != nil {
 		t.Error("Escape left the Export dialog open")
 	}
+}
+
+// TestPreferencesFontShot renders Preferences' Editor page with a font
+// file chosen (SHOT_DIR as in TestScreenshots).
+func TestPreferencesFontShot(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	w, app := newDialogTestWindow(t)
+	pd := NewPreferencesDialog(app, w.fyneWindow)
+	pd.showFont("/fonts/Mine.ttf")
+	pd.tabs.SelectIndex(1)
+	pd.win.Resize(fyne.NewSize(640, 540))
+	f, err := os.Create(filepath.Join(dir, "preferences-font.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	png.Encode(f, pd.win.Canvas().Capture())
 }

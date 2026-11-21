@@ -118,6 +118,13 @@ func importProsePDF(ctx context.Context, path, ocrLang string, progress func(don
 // chooseFile lets the user pick a file with one of exts: the browser's
 // file picker, or Fyne's file dialog.
 func (w *MainWindow) chooseFile(exts []string, then func(path string)) {
+	chooseFileIn(w.fyneWindow, exts, then)
+}
+
+// chooseFileIn is chooseFile over any window (Preferences' too): the
+// browser's own file picker there, Fyne's open dialog on the desktop. A
+// test stands in for the person choosing.
+var chooseFileIn = func(win fyne.Window, exts []string, then func(path string)) {
 	if inBrowser {
 		pickFile(exts, then)
 		return
@@ -128,7 +135,7 @@ func (w *MainWindow) chooseFile(exts []string, then func(path string)) {
 		}
 		r.Close()
 		then(r.URI().Path())
-	}, w.fyneWindow)
+	}, win)
 	d.SetFilter(storage.NewExtensionFileFilter(exts))
 	d.Show()
 }

@@ -187,16 +187,13 @@ func editorKeysStatus(keys string) string {
 // fontChoices are the editor's fonts: the screenplay font, the system's.
 var fontChoices = [][2]string{{"monospace", "Courier Badi (Screenplay)"}, {"system", "System"}}
 
-// fontCommand chooses the editor's font, beside the text size; a font
-// file chosen in Preferences shows as itself, and Font File… is there.
+// fontCommand chooses the editor's font, beside the text size; a chosen
+// font file shows as itself, and Font File… picks one.
 func fontCommand() *command {
 	return &command{id: "set.font", label: "Font", icon: res(fontIcon),
 		submenu: func(w *MainWindow) *fyne.Menu {
 			now := strings.TrimSpace(w.settings.GetString("font-family"))
-			choices := fontChoices
-			if isFontFile(now) {
-				choices = append(slices.Clone(choices), [2]string{now, filepath.Base(now)})
-			}
+			choices := fontOptions(now)
 			var items []*fyne.MenuItem
 			for _, c := range choices {
 				value := c[0]
@@ -207,9 +204,26 @@ func fontCommand() *command {
 				it.Checked = strings.EqualFold(now, value) || value == "monospace" && !strings.EqualFold(now, "system") && !isFontFile(now)
 				items = append(items, it)
 			}
-			items = append(items, fyne.NewMenuItemSeparator(), fyne.NewMenuItem("Font File…", func() { cmd("app.preferences").run(w) }))
+			items = append(items, fyne.NewMenuItemSeparator(), fyne.NewMenuItem("Font File…", func() {
+				chooseFileIn(w.fyneWindow, fontExtensions, func(p string) {
+					w.changeSetting("font-family", func(s *Settings) { s.SetString("font-family", p) })
+				})
+			}))
 			return fyne.NewMenu("Font", items...)
 		}}
+}
+
+// fontExtensions are the font files the editor reads.
+var fontExtensions = []string{".ttf", ".otf"}
+
+// fontOptions are the editor's fonts as Preferences and the ribbon offer
+// them: the built-in choices, and now's file when it is one.
+func fontOptions(now string) [][2]string {
+	choices := fontChoices
+	if isFontFile(now) {
+		choices = append(slices.Clone(choices), [2]string{now, filepath.Base(now)})
+	}
+	return choices
 }
 
 // isFontFile reports whether the font setting f is a font file's path.
@@ -325,7 +339,7 @@ func (pd *PreferencesDialog) followSetting(key string) {
 	case "editor-keys":
 		pd.keysSelect.SetSelected((&MainWindow{settings: s}).editorKeys())
 	case "font-family":
-		pd.fontFamilyEntry.SetText(s.GetString(key))
+		pd.showFont(s.GetString(key))
 	case "script-language":
 		pd.languageSelect.SetSelected(s.GetString(key))
 	case "toolbar-visible":

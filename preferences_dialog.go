@@ -40,7 +40,8 @@ type PreferencesDialog struct {
 	autoSaveInterval      *widget.Entry
 
 	// Editor
-	fontFamilyEntry        *widget.Entry
+	fontSelect             *widget.Select // the fonts the ribbon offers (fontOptions)
+	fontValue              string         // the font setting fontSelect shows
 	fontSizeEntry          *widget.Entry
 	lineNumbersCheck       *widget.Check
 	autoIndentCheck        *widget.Check
@@ -107,8 +108,13 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.autoSaveInterval = widget.NewEntry()
 	pd.autoSaveInterval.SetPlaceHolder("30")
 
-	pd.fontFamilyEntry = widget.NewEntry()
-	pd.fontFamilyEntry.SetPlaceHolder("monospace, system, or a font file")
+	pd.fontSelect = widget.NewSelect(nil, func(label string) {
+		for _, c := range fontOptions(pd.fontValue) {
+			if c[1] == label {
+				pd.fontValue = c[0]
+			}
+		}
+	})
 	pd.fontSizeEntry = widget.NewEntry()
 	pd.fontSizeEntry.SetPlaceHolder("12")
 	pd.lineNumbersCheck = widget.NewCheck("Show line numbers", nil)
@@ -212,7 +218,9 @@ func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
 func (pd *PreferencesDialog) createEditorTab() fyne.CanvasObject {
 	return container.NewVBox(
 		widget.NewCard("Font", "", container.NewVBox(
-			labelled("Font:", pd.fontFamilyEntry),
+			labelledWith("Font:", pd.fontSelect, widget.NewButton("Choose File…", func() {
+				chooseFileIn(pd.host, fontExtensions, pd.showFont)
+			})),
 			labelled("Size:", pd.fontSizeEntry),
 		)),
 		widget.NewCard("Writing", "", container.NewVBox(
@@ -296,7 +304,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.autoSaveCheck.SetChecked(s.GetBoolean("auto-save"))
 	pd.autoSaveInterval.SetText(strconv.Itoa(s.GetInt("auto-save-interval")))
 
-	pd.fontFamilyEntry.SetText(s.GetString("font-family"))
+	pd.showFont(s.GetString("font-family"))
 	pd.fontSizeEntry.SetText(strconv.Itoa(s.GetInt("font-size")))
 	pd.lineNumbersCheck.SetChecked(s.GetBoolean("show-line-numbers"))
 	pd.autoIndentCheck.SetChecked(s.GetBoolean("auto-indent"))
@@ -348,7 +356,7 @@ func (pd *PreferencesDialog) saveSettings() {
 		s.SetInt("auto-save-interval", interval)
 	}
 
-	s.SetString("font-family", pd.fontFamilyEntry.Text)
+	s.SetString("font-family", pd.fontValue)
 	if size, err := strconv.Atoi(pd.fontSizeEntry.Text); err == nil && size > 0 {
 		s.SetInt("font-size", size)
 	}
@@ -473,6 +481,29 @@ func (pd *PreferencesDialog) formatsChanged(key string) {
 	machineLex().selectFormat(pd.scriptFormatSelect, key)
 	pd.showFormatButtons()
 	pd.app.scriptFormatsChanged()
+}
+
+// showFont shows the font setting f in the font list: a built-in choice
+// (anything unknown is the screenplay font, as newEditorTheme reads it) or
+// a font file by its name.
+func (pd *PreferencesDialog) showFont(f string) {
+	f = strings.TrimSpace(f)
+	if !isFontFile(f) && !strings.EqualFold(f, "system") {
+		f = fontChoices[0][0]
+	} else if strings.EqualFold(f, "system") {
+		f = "system"
+	}
+	pd.fontValue = f
+	var labels []string
+	selected := ""
+	for _, c := range fontOptions(f) {
+		labels = append(labels, c[1])
+		if c[0] == f {
+			selected = c[1]
+		}
+	}
+	pd.fontSelect.SetOptions(labels)
+	pd.fontSelect.SetSelected(selected)
 }
 
 // addSettingsButton is Add to My Settings for an open script that brought

@@ -3,6 +3,7 @@ package main
 import (
 	"fyne.io/fyne/v2"
 	"github.com/LaPingvino/lexington/lex"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -269,10 +270,22 @@ func TestRibbonMoreSettings(t *testing.T) {
 		t.Error("the screenplay font is not checked")
 	}
 	pressMenuItem(t, w, "set.font", "System")
-	if s.GetString("font-family") != "system" || pd.fontFamilyEntry.Text != "system" {
-		t.Errorf("Font > System: %q, Preferences %q", s.GetString("font-family"), pd.fontFamilyEntry.Text)
+	if s.GetString("font-family") != "system" || pd.fontValue != "system" || pd.fontSelect.Selected != "System" {
+		t.Errorf("Font > System: %q, Preferences %q (%q)", s.GetString("font-family"), pd.fontValue, pd.fontSelect.Selected)
 	}
-	s.SetString("font-family", "/fonts/Mine.ttf") // Preferences' own: a file
+	// Font File… picks a file (it used to open Preferences, which had no picker)
+	var asked []string
+	old := chooseFileIn
+	chooseFileIn = func(_ fyne.Window, exts []string, then func(string)) { asked = exts; then("/fonts/Picked.otf") }
+	t.Cleanup(func() { chooseFileIn = old })
+	pressMenuItem(t, w, "set.font", "Font File…")
+	if s.GetString("font-family") != "/fonts/Picked.otf" || !slices.Equal(asked, fontExtensions) {
+		t.Errorf("Font File…: %q, asked for %v", s.GetString("font-family"), asked)
+	}
+	if pd.fontValue != "/fonts/Picked.otf" || pd.fontSelect.Selected != "Picked.otf" {
+		t.Errorf("Preferences after Font File…: %q (%q)", pd.fontValue, pd.fontSelect.Selected)
+	}
+	s.SetString("font-family", "/fonts/Mine.ttf") // a file chosen earlier
 	if !menuItemChecked(t, w, "set.font", "Mine.ttf") || menuItemChecked(t, w, "set.font", fontChoices[0][1]) {
 		t.Error("a font file is not shown as itself, checked")
 	}
