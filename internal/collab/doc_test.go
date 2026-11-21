@@ -97,12 +97,12 @@ func TestConvergence(t *testing.T) {
 func TestMissing(t *testing.T) {
 	a, b := New("a"), New("b")
 	a.Insert(0, "Rain falls.")
-	for _, op := range a.Missing(b.Version()) {
+	for _, op := range a.Missing(b.Version(), b.Counts()) {
 		b.Apply(op)
 	}
 	a.Delete(0, 4)
 	a.Insert(0, "Snow")
-	for _, op := range a.Missing(b.Version()) {
+	for _, op := range a.Missing(b.Version(), b.Counts()) {
 		b.Apply(op)
 	}
 	if b.Text() != "Snow falls." {

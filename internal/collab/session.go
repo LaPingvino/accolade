@@ -14,6 +14,8 @@ type message struct {
 	Hello   bool              `json:"hello,omitempty"`
 	Proto   int               `json:"p,omitempty"` // with a hello: Protocol
 	Version map[string]uint64 `json:"v,omitempty"` // an empty one is omitted: Hello says it is one
+	Counts  map[string]int    `json:"n,omitempty"` // with a hello: the inserts it has of each replica (Doc.Missing)
+	App     string            `json:"app,omitempty"` // with a hello: the sender's Accolade version
 	Runs    []run             `json:"r,omitempty"`
 	Meta    map[string]Value  `json:"m,omitempty"` // with a hello, or when one changed
 	// By is the replica whose edit the runs are, passed on as it is when
@@ -22,8 +24,10 @@ type message struct {
 }
 
 // Protocol is the version of what peers send: peers of another one are
-// told apart (OnMismatch), not half understood.
-const Protocol = 3
+// told apart (OnMismatch), not half understood. Any change to what goes
+// over the wire bumps it (a field old peers may ignore does not); see
+// docs/COLLAB.md. 4: hellos carry counts (Doc.Missing).
+const Protocol = 4
 
 // Value is one of the script's settings shared with it (its language,
 // its format): the last one set wins, by clock, then by replica.
@@ -49,16 +53,25 @@ type Session struct {
 	doc   *Doc
 	peers map[string]func([]byte) error
 	other map[string]bool // peers of another Protocol, not listened to
-	// OnRemote is called (outside the lock) after ops from peers changed
+	// OnRemote is called (outside the lock, in Run) after ops from peers changed
 	// the text: by is the replica whose edit it is ("": not known, a
 	// catch-up of several peers' edits).
 	OnRemote func(by string)
 	meta     map[string]Value
-	// OnMeta is called (outside the lock) after a peer changed a setting.
+	// OnMeta is called (outside the lock, in Run) after a peer changed a setting.
 	OnMeta func(key, value string)
 	// OnMismatch is called when a peer speaks another Protocol (0: one
-	// from before there were versions).
-	OnMismatch func(theirs int)
+	// from before there were versions), with its Accolade version if it
+	// said ("" before protocol 4).
+	OnMismatch func(theirs int, app string)
+	// App is this Accolade's version, told to peers in the hello.
+	App string
+	// Run runs what a peer's message does to the document and the
+	// callbacks after it, in order (nil: at once, on the receiving
+	// goroutine). A window passes fyne.Do: the document then changes only
+	// on the UI goroutine, in the same step as the editor, so a key typed
+	// meanwhile is never compared with a document that is ahead of it.
+	Run func(func())
 }
 
 // NewSession shares doc with the peers that have key.
@@ -113,7 +126,7 @@ func (s *Session) send(to func([]byte) error, m message) error {
 func (s *Session) AddPeer(id string, send func([]byte) error) error {
 	s.mu.Lock()
 	s.peers[id] = send
-	hello := message{Hello: true, Proto: Protocol, Version: s.doc.Version(), Meta: maps.Clone(s.meta)}
+	hello := message{Hello: true, Proto: Protocol, Version: s.doc.Version(), Counts: s.doc.Counts(), App: s.App, Meta: maps.Clone(s.meta)}
 	s.mu.Unlock()
 	return s.send(send, hello)
 }
@@ -126,7 +139,8 @@ func (s *Session) RemovePeer(id string) {
 }
 
 // Receive handles a message from peer from: a hello gets the ops it
-// lacks; new ops are applied and passed on to the other peers.
+// lacks; new ops are applied and passed on to the other peers. What it
+// does to the document runs in Run.
 func (s *Session) Receive(from string, sealed []byte) error {
 	b, err := s.key.Open(sealed)
 	if err != nil {
@@ -148,14 +162,28 @@ func (s *Session) Receive(from string, sealed []byte) error {
 	}
 	if other {
 		if s.OnMismatch != nil {
-			s.OnMismatch(m.Proto)
+			s.run(func() { s.OnMismatch(m.Proto, m.App) })
 		}
 		return fmt.Errorf("a peer speaks protocol %d, not %d", m.Proto, Protocol)
 	}
+	s.run(func() { s.receive(from, m) })
+	return nil
+}
+
+func (s *Session) run(f func()) {
+	if s.Run != nil {
+		s.Run(f)
+		return
+	}
+	f()
+}
+
+// receive does what message m from peer from says (in Run).
+func (s *Session) receive(from string, m message) {
 	s.mu.Lock()
 	var reply []Op
 	if m.Hello {
-		reply = s.doc.Missing(m.Version)
+		reply = s.doc.Missing(m.Version, m.Counts)
 	}
 	var changed map[string]Value
 	for k, v := range m.Meta {
@@ -202,9 +230,7 @@ func (s *Session) Receive(from string, sealed []byte) error {
 		}
 	}
 	if len(reply) > 0 && to != nil {
-		if err := s.sendOps(to, reply, ""); err != nil {
-			return err
-		}
+		_ = s.sendOps(to, reply, "")
 	}
 	if len(fresh) > 0 {
 		for _, p := range others {
@@ -214,7 +240,6 @@ func (s *Session) Receive(from string, sealed []byte) error {
 			s.OnRemote(m.By)
 		}
 	}
-	return nil
 }
 
 func (s *Session) othersThan(id string) []func([]byte) error {
@@ -266,21 +291,4 @@ func (s *Session) Local(ops []Op) {
 	for _, p := range peers {
 		_ = s.sendOps(p, ops, by)
 	}
-}
-
-// SetText makes the document's text text, as the edit between the two
-// (the common start and end kept), and returns the ops: an editor's
-// change becomes ops this way.
-func (d *Doc) SetText(text string) []Op {
-	old, nw := []rune(d.Text()), []rune(text)
-	start := 0
-	for start < len(old) && start < len(nw) && old[start] == nw[start] {
-		start++
-	}
-	end := 0
-	for end < len(old)-start && end < len(nw)-start && old[len(old)-1-end] == nw[len(nw)-1-end] {
-		end++
-	}
-	ops := d.Delete(start, len(old)-start-end)
-	return append(ops, d.Insert(start, string(nw[start:len(nw)-end]))...)
 }

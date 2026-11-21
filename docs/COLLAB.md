@@ -1,0 +1,183 @@
+# Editing together: review and design (2026-11-21)
+
+Joop asked after "the edit together link fix", and LOOP's item "review collaboration" (2026-11-20) asks four
+questions of it. This file says what works today, what was broken, each question answered with a decision and
+its reason, and what is left. Overnight 21 Nov Joop said not to wait for him before code ("we can revert if
+necessary"), so the decisions below were made, and the first part built, without him.
+
+## How it works
+
+- **internal/collab** is the whole of it, the same code on the desktop and in the browser.
+  - `Doc`: an RGA text CRDT of runes. Each rune has an ID (a Lamport counter and the replica that made it) and goes
+    after the rune it was typed after. Deleted runes stay as tombstones.
+  - `Session`: shares one Doc with peers, plus a few last-writer-wins settings ("meta": language, format,
+    markdown, each peer's name). A hello carries the sender's version; the other side sends the ops it lacks.
+    New ops are passed on to the other peers, so a chain of peers works.
+  - `Key`: 32 random bytes. The room (a tracker info hash) and the AES-GCM key are derived from it. Every message
+    and every WebRTC offer/answer is sealed with it, so a tracker sees an opaque hash and opaque data.
+  - `Network`: peers find each other through public WebTorrent trackers and talk over WebRTC data channels
+    (pion on the desktop, the browser's own in the web version).
+- **collab_window.go** ties a window to a Session. Collaboration > Edit Together… makes a key and shows the link
+  `https://lapingvino.github.io/accolade/#k=<key>`. The fragment never goes to a server. Join a Shared Script…
+  takes the link or the bare key. The web version opened with `#k=` joins by itself.
+- The editor's change goes to the Doc as ops (`shareEdit`). A peer's ops change the editor where they apply, and the
+  cursor moves with the text (`applyRemote`). Each change goes into the window's Changes history under the
+  peer's name.
+- A hidden browser page lets go of its peers after two minutes and finds them again when it shows. The hello's
+  catch-up brings both sides up to date.
+
+Both trackers answered a WebSocket upgrade (101) when probed by hand on 2026-11-21. Whether they still relay offers
+was not checked: the tests use a fake tracker and pion's virtual network, never the internet.
+
+## What was broken (found 2026-11-21), worst first
+
+1. **Opening, New or Import in a shared window replaced everyone's script.** File > Open/New/New Markdown,
+   Import, Start a Screenplay from This Source and the browser's draft restore all call the editor's `SetText`.
+   That goes through `shareEdit` as one big edit: every peer's text was deleted and replaced by the new file. The
+   document type and the language went with it too (meta). In the browser, Open into a joined window only asked
+   "Replace the script?". It did not say that this replaces it for everyone.
+2. **Typing during a peer's catch-up could delete the peer's edit.** `Receive` changed the Doc on the network
+   goroutine, and the editor caught up later in `fyne.Do`. A keystroke in that gap diffed the old editor text
+   against the newer Doc, and so deleted what had just come in, for everyone. It was worst while joining, which
+   takes many messages.
+3. **Undo undid the co-writer's typing.** A peer's change was an ordinary undo step in this window. Ctrl+Z took the
+   last one away, whoever made it, and that deletion then went to everyone. Older local steps kept their old
+   positions, so after a peer's edit above them they undid the wrong text.
+4. **Joining in the browser overwrote your own kept script.** The web version keeps one script per browser
+   (draft.json). Opening a share link skipped restoring it, emptied the editor to join, and a second later kept
+   the shared script in its place, so your own unsaved script was gone. A reload of a joined page with nobody else
+   online (or the watchdog's automatic restart) came back empty. The script lived only in the peers' memory.
+5. **A whole-text action was one edit from the first change to the last.** `SetText` kept only the common start
+   and end. Renumber, Lock, Update Source Links, reloading a bundle or a learned-notes write that touched lines
+   far apart deleted and re-inserted everything between them. A co-writer's concurrent typing in that stretch
+   then landed beside text it was no longer part of, and their deletes there were undone.
+6. **Catch-up could leave a gap for good.** The version a hello sends is each replica's highest insert counter
+   seen. Ops can be applied out of a replica's order (an op waits for the rune it goes after). A link that broke
+   mid-catch-up could therefore leave a peer with a replica's op 52 but not its op 40. Every later hello then
+   said "I have up to 52", so op 40 never came. The texts diverged silently.
+7. **A peer whose connection failed before it opened was never tried again.** `answer` reserves a peer, and
+   nothing released the reservation when ICE failed. The status bar also counted reserved peers as connected
+   ("1 other" with nobody there).
+8. **The link only worked from GitHub Pages, and only once.**
+   - A web version served elsewhere (a local test deploy, a fork's Pages) still made github.io links.
+   - The host's own page never had `#k=` in its address, so a reload left the session.
+   - A link pasted into a tab that already had Accolade open changed only the fragment, and nothing listened for
+     that.
+   - A key with a chat app's trailing `.` or `)`, or wrapped onto two lines, was refused.
+   - On the desktop, a link given as an argument (`accolade 'https://…#k=…'`) was opened as a file name.
+9. **"Another version" did not say whose.** A peer of another protocol was told apart (good), but the status bar
+   could not say which side should update.
+
+## Fixed in the first part (branch collab)
+
+- **(1)** A shared window that gets another document leaves the session first: Open, New, New Markdown, Import,
+  Start from Source and restore. The peers keep the script, and this window says it left. A shared window is never
+  "replaceable": on the desktop, Open goes to a new window. In the browser, the question says the shared script
+  stays with the others.
+- **(2)** The Doc changes only on the UI goroutine. `Session.Run` is the executor (the window passes `fyne.Do`),
+  and everything a received message does to the Doc runs in it, in order. In that same step the editor is brought
+  up to date, so no keystroke can fall between a peer's edit reaching the Doc and reaching the editor.
+- **(3)** A peer's change is applied outside the undo history (`Buffer.Remote`). The local undo and redo steps are
+  moved past it, so Undo undoes only your own steps, at the right place. A local step that a peer's change
+  overlaps cannot be undone faithfully, so it is dropped from the history, together with the steps before it.
+- **(4)** While shared, the browser keeps the shared script as its CRDT state (`shared/<room>.json`, one file
+  per room), not in draft.json. Your own kept script stays as it was, and comes back without the link (Stop
+  sharing takes `#k=` out of the address, so the next reload restores it). Joining a
+  room this browser (or this desktop) was in before starts from the kept state: the text shows at once, even
+  with nobody online, and merges with the peers without doubling anything. Each run uses a new replica name, so
+  two tabs never share one.
+- **(5)** `Doc.SetText` makes the minimal edit. It trims the common ends, then diffs the middle by lines and the
+  changed lines by runes (Myers, bounded). Every whole-text action is therefore minimal without changing any of
+  them. A peer's change goes into the editor the same way, hunk by hunk, so cursors in between stay put.
+- **(6)** A hello also carries how many inserts of each replica the peer has. Where that differs from ours, all of
+  that replica's inserts are sent; the receiver drops the ones it already has. This is protocol 4.
+- **(7)** A reservation is released when its connection fails or closes before its channel opens. The status bar
+  counts open channels only.
+- **(8)** The link is the page's own address in the browser (origin and path, plus `#k=`), and github.io on the
+  desktop. While shared, the page's address carries `#k=`, so a reload rejoins (from the kept state). Leaving
+  takes it off. A `hashchange` to another key joins it (after the usual question). `ParseKey` finds the 43 key
+  characters after `k=`, ignoring what surrounds them and any white space inside. A desktop argument with
+  `#k=` joins.
+- **(9)** The hello carries the app's version. The status bar then names the other side's version and says which
+  one is older.
+
+## The four questions
+
+### (1) Markdown documents on their own
+
+**Decision: they work with what is there, and a test proves it.** The document type is a shared setting
+("markdown"), so a joiner's window switches mode. The preview, the outline and the cheat sheet are local views of
+the shared text. The Markdown commands (headings, lists, links, tables) are ordinary edits, and with (5) each one is
+a minimal edit. Each peer saves the document under its own name. The per-file "document-types" record is written on
+that peer's save, as for any file.
+
+### (2) A script and its source, together
+
+**Decision: one session holds several named Docs, "script" and "source", over one connection. Each has its own
+RGA and version.** Each message names its Doc, and a hello carries a version per Doc.
+
+Reasons:
+- The source lives in a different place for every peer (a kept copy, a file beside the script, inside a bundle, or
+  in the script). Only its text can be shared, not where it is. Each peer keeps the shared source where its own
+  window keeps one, and a joiner with none gets a kept copy.
+- Forcing the source into the script (`/* Source */`) would change the writer's file. It would also make every
+  passage edit part of the script's history and undo.
+- With named Docs the source pane's Edit/Done becomes live editing of the source Doc. Links stay anchored by
+  words, as now.
+
+Needed first: a novel-sized source (≈500K runes) in today's Doc costs a node, a map entry and an op per rune,
+roughly 150 bytes per rune, about 75 MB. That is too much for the browser. So the Doc first gets run-length nodes:
+a run of consecutive IDs is one node, split when someone types inside it, and kept ops are runs. Benchmark it on
+the PERF-SOURCE fixture before building the source sharing.
+
+### (3) What lives outside the text
+
+Decided per item, with its merge rule:
+
+| What | Decision | Merge rule |
+|---|---|---|
+| Language, script format, document type, names | shared setting (meta) | last writer wins (clock, then replica) |
+| Breakdown tags (breakdown.json) | shared CRDT map, a Doc kind of its own | per tag ID: last writer wins; a removal is a tombstone, so two people tagging different things keep both |
+| Schedule (schedule.json: days, strip order) | shared CRDT map | per strip: (day, fractional position), last writer wins, so a strip is never lost or doubled by concurrent moves; day definitions per day ID, last writer wins |
+| Locked pages, issues' data in the production block | in the text already, or a snapshot sent on change | a single production act (Lock, Issue) by one person, last writer wins as a whole value |
+| Drafts store (assets/drafts/) | local | each peer's own history; Save Draft and Compare work on what that peer has. Too big to send live, and a draft is a moment of one person's copy |
+| The kept source copy, the source choice | local, the content shared by (2) | — |
+| Per-file settings (document type, source file) | local, written on each peer's own save | — |
+| Learned notes, adaptation and notes blocks | in the text | as the text |
+
+Sidecar maps do not go in meta. Meta is sent whole in a hello, which a browser drops above ~16 KiB. They get
+messages of their own, batched like the text's runs.
+
+### (4) Actions on the whole text, and the "not in a shared session" guards
+
+- **User actions** (Renumber, Lock, Unlock, Update Source Links, Source Headings as Sections, the keyboard flow, a
+  suggestion taken, a bundle re-read): no change is needed in each of them. Fix (5) makes every change minimal
+  where it reaches the Doc, so one rule covers them all. Each stays one undo step for the peer who did it, and (3)
+  keeps the other peers' Undo out of it.
+- **Automatic writes** (auto A-numbers in a locked script, learned notes) run on every peer that sees the trigger,
+  so two peers would write the same thing twice, however small the edit. **Decision: a single-writer rule, not
+  a permanent guard.** Only the peer who wrote the text an automatic write follows from may make it. The Doc knows
+  who wrote every rune: the new heading's runes say whose scene it is to number, and the learned-from line says
+  whose lesson it is to write. Until that is built, the guards stay, and their reason is now written beside each
+  one.
+- **Undo**: only your own steps (fix 3).
+
+### Protocol versioning
+
+- Every hello carries `p` (the protocol) and `app` (Accolade's version). A peer of another protocol is listened to
+  for nothing more, and the status bar says which side runs the older Accolade.
+- Peers before protocol 4 show "another version" as before. They read the v4 hello, see p=4, and stop.
+- **Rule**: any change to what goes over the wire (a field whose meaning changes, a new message kind, the named
+  Docs) bumps `Protocol`. A field that old peers may simply ignore does not.
+- The kept state files carry their own `"v"`. A file of another version is not read, and the session joins from
+  the peers as before.
+
+## What is left, in order
+
+1. The single-writer rule for automatic writes (auto A-numbers, learned notes). Then the two guards go:
+   production.go `numberNewScenes`, adaptation_learn.go `learnFromWriting`.
+2. Run-length Doc nodes and kept ops, benchmarked on a novel-sized text.
+3. Named Docs in a session (protocol 5). The source shared through them, and the source pane's editing live.
+4. The breakdown and the schedule as shared CRDT maps (their own message kind, batched).
+5. A help page on editing together: what is shared and what stays yours, Undo, and leaving.
+6. Presence: each peer's cursor shown in the others' editors, with their name.

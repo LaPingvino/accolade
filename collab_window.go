@@ -5,8 +5,11 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -20,11 +23,36 @@ import (
 // Editing together: a script shared with a key (collab), its peers
 // found through WebTorrent trackers and connected over WebRTC. The
 // editor's changes become the document's ops; the peers' ops change
-// the editor's text where they apply, keeping the cursor.
+// the editor's text where they apply, keeping the cursor, and outside
+// this window's undo history. docs/COLLAB.md has the design.
 
-// shareLink is the web version's link for a key; the desktop app takes
-// it too.
-func shareLink(k collab.Key) string { return "https://lapingvino.github.io/accolade/#k=" + k.String() }
+// webVersion is the published web version, the link's page from the desktop.
+const webVersion = "https://lapingvino.github.io/accolade/"
+
+// shareLink is the link for a key: the web version's page (in the
+// browser this page itself, wherever it is served); the desktop app
+// takes it too.
+func shareLink(k collab.Key) string {
+	base := webVersion
+	if p := pageBase(); p != "" {
+		base = p
+	}
+	return base + "#k=" + k.String()
+}
+
+// keptSharedDir is where a shared script's state is kept, one file per
+// room: beside the kept sources (the data folder; the browser's kept
+// settings folder).
+func keptSharedDir() string { return filepath.Join(filepath.Dir(keptSourcesDir()), "shared") }
+
+func keptSharedPath(k collab.Key) string {
+	r := k.Room()
+	return filepath.Join(keptSharedDir(), hex.EncodeToString(r[:8])+".json")
+}
+
+// sharedStatePause is how long editing pauses before the shared script's
+// state is kept.
+const sharedStatePause = time.Second
 
 // shared is a window's script shared with peers.
 type shared struct {
@@ -34,6 +62,11 @@ type shared struct {
 	stop    context.CancelFunc
 	peers   int
 	other   bool // a peer runs another version of Accolade
+	// otherApp, otherOlder: that peer's Accolade version ("" if it did
+	// not say), and whether its protocol is older than ours
+	otherApp   string
+	otherOlder bool
+	stateTimer *uiTimer // keeping the state (keepSharedState)
 	// synced: the script's language and format are the peers' (joining,
 	// once they sent them), so changes here go to them
 	synced bool
@@ -47,35 +80,67 @@ func newReplica() string {
 }
 
 // startSharing shares the window's script with the peers that have key;
-// joining, the script comes from them (the window's text is replaced).
+// joining, the script comes from them (the window's text is replaced), or
+// from the state kept when this window or page was in it before.
 func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 	w.stopSharing()
-	doc := collab.New(newReplica())
-	if !joining {
-		doc.SetText(w.textEditor.Text())
+	var session *collab.Session
+	if joining {
+		if b, err := os.ReadFile(keptSharedPath(key)); err == nil {
+			session, _ = collab.Restore(key, newReplica(), b) // unreadable: from the peers
+		}
 	}
-	s := &shared{session: collab.NewSession(key, doc), key: key}
-	s.session.OnRemote = func(by string) { fyne.Do(func() { s.synced = true; w.applyRemote(by) }) }
+	restored := session != nil
+	if session == nil {
+		doc := collab.New(newReplica())
+		if !joining {
+			doc.SetText(w.textEditor.Text())
+		}
+		session = collab.NewSession(key, doc)
+	}
+	s := &shared{session: session, key: key}
+	s.session.App = appVersion()
+	s.session.Run = uiDo // the document changes on the UI goroutine only
+	s.session.OnRemote = func(by string) {
+		if w.shared == s {
+			s.synced = true
+			w.applyRemote(by)
+		}
+	}
+	var replica string
+	s.session.Do(func(d *collab.Doc) { replica = d.Replica() })
 	// who this is, for the others' history of changes (changes.go)
-	s.session.SetMeta(nameKey(doc.Replica()), w.yourName())
+	s.session.SetMeta(nameKey(replica), w.yourName())
 	s.session.OnMeta = func(key, value string) {
-		fyne.Do(func() {
+		if w.shared == s {
 			s.synced = true
 			w.applyShared(key, value)
-		})
+			w.keepSharedState()
+		}
 	}
-	s.session.OnMismatch = func(int) {
-		fyne.Do(func() {
-			s.other = true
+	s.session.OnMismatch = func(theirs int, app string) {
+		if w.shared == s {
+			s.other, s.otherApp, s.otherOlder = true, app, theirs < collab.Protocol
 			w.updateStatusBar()
-		})
+		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	s.stop = cancel
 	w.shared = s
 	if joining {
-		w.textEditor.SetText("")
+		var text string
+		s.session.Do(func(d *collab.Doc) { text = d.Text() })
+		w.textEditor.SetText(text)
 		w.filledWith = ""
+		w.hasChanges = text != ""
+	}
+	if restored { // the peers' settings, as they were
+		s.synced = true
+		for _, k := range []string{"markdown", "language", "format"} {
+			if v := s.session.Meta(k); v != "" {
+				w.applyShared(k, v)
+			}
+		}
 	}
 	if !joining {
 		s.synced = true
@@ -83,6 +148,8 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 		w.shareMeta("format", w.scriptFormatKey())
 		w.shareMeta("markdown", strconv.FormatBool(w.markdown))
 	}
+	setPageKey(key.String()) // a reload of the page comes back to it
+	w.keepSharedState()
 	w.connect(ctx, s)
 	w.updateStatusBar()
 }
@@ -117,12 +184,35 @@ func (w *MainWindow) resumeSharing() {
 	}
 }
 
-// stopSharing leaves the peers (the script stays as it is).
+// stopSharing leaves the peers (the script stays as it is); the state
+// kept for a reload is kept too, for a window that is closed.
 func (w *MainWindow) stopSharing() {
-	if w.shared != nil {
-		w.shared.stop()
+	if s := w.shared; s != nil {
+		s.stop()
+		s.stateTimer.Stop()
 		w.shared = nil
+		setPageKey("")
 		w.updateStatusBar()
+	}
+}
+
+// leaveSharing leaves the peers for good (Stop sharing, or another
+// document in the window): the kept state goes too, and the script
+// stays with the others.
+func (w *MainWindow) leaveSharing() {
+	if s := w.shared; s != nil {
+		w.stopSharing()
+		_ = os.Remove(keptSharedPath(s.key))
+	}
+}
+
+// newDocument is called before the window takes another document (Open,
+// New, an import, a restore): a shared script stays with the peers, not
+// replaced for them by this one.
+func (w *MainWindow) newDocument() {
+	if w.shared != nil {
+		w.leaveSharing()
+		w.setStatus("Left the shared script: it goes on with the others")
 	}
 }
 
@@ -134,51 +224,61 @@ func (w *MainWindow) shareEdit(text string) {
 	var ops []collab.Op
 	w.shared.session.Do(func(d *collab.Doc) { ops = d.SetText(text) })
 	w.shared.session.Local(ops)
+	w.keepSharedState()
 }
 
-// applyRemote puts the peers' changes in the editor: only the part that
-// changed is replaced, and the cursor and selection move with the text.
-// The change goes in the history, as replica by's.
+// keepSharedState keeps the shared script's state when editing pauses:
+// a reload (or Join with the same link) starts from it, with nobody else
+// there too, and nothing is doubled when the peers come.
+func (w *MainWindow) keepSharedState() {
+	s := w.shared
+	if s == nil {
+		return
+	}
+	w.debounce(&s.stateTimer, sharedStatePause, func() {
+		if w.shared != s {
+			return
+		}
+		b, err := s.session.State()
+		if err != nil {
+			return
+		}
+		if os.MkdirAll(keptSharedDir(), 0o755) == nil {
+			_ = os.WriteFile(keptSharedPath(s.key), b, 0o644)
+		}
+	})
+}
+
+// applyRemote puts the peers' changes in the editor: edit by edit
+// (collab.Edits), outside the undo history, so the cursor and selection
+// stay with their text and Undo undoes only this window's own edits.
+// Each edit goes in the history of changes, as replica by's.
 func (w *MainWindow) applyRemote(by string) {
 	if w.shared == nil {
 		return
 	}
 	var text string
 	w.shared.session.Do(func(d *collab.Doc) { text = d.Text() })
-	old, nw := []rune(w.textEditor.Text()), []rune(text)
-	start := 0
-	for start < len(old) && start < len(nw) && old[start] == nw[start] {
-		start++
-	}
-	end := 0
-	for end < len(old)-start && end < len(nw)-start && old[len(old)-1-end] == nw[len(nw)-1-end] {
-		end++
-	}
-	if start == len(old) && start == len(nw) {
+	old := w.textEditor.Text()
+	edits := collab.Edits(old, text)
+	if len(edits) == 0 {
 		return
 	}
-	oldEnd, newEnd := len(old)-end, len(nw)-end
-	defer w.recordChange(by, string(old[start:oldEnd]), string(nw[start:newEnd]), strings.Count(string(nw[:start]), "\n"))
-	move := func(p int) int {
-		switch {
-		case p <= start:
-			return p
-		case p >= oldEnd:
-			return p + newEnd - oldEnd
-		}
-		return newEnd
-	}
 	w.textEditor.Edit(func(b *buffer.Buffer) {
-		from, to := b.Selection()
-		cursorAtStart := b.Cursor() == from && from != to
-		b.Replace(start, oldEnd, string(nw[start:newEnd]))
-		from, to = move(from), move(to)
-		if cursorAtStart {
-			b.Select(to, from)
-		} else {
-			b.Select(from, to)
+		for i := len(edits) - 1; i >= 0; i-- { // from the end: the positions before stay
+			e := edits[i]
+			b.Remote(e.Pos, e.Pos+e.Del, e.Text)
 		}
 	})
+	rs := []rune(old)
+	line, at := 0, 0 // the line in the new text
+	for _, e := range edits {
+		line += strings.Count(string(rs[at:e.Pos]), "\n")
+		at = e.Pos + e.Del
+		removed := string(rs[e.Pos:at])
+		w.recordChange(by, removed, e.Text, line)
+		line += strings.Count(e.Text, "\n")
+	}
 }
 
 // shareMeta sends a setting of the script (its language, its format) to
@@ -221,7 +321,7 @@ func (w *MainWindow) shareDialog() {
 	})
 	msg := widget.NewLabel("Whoever has this link can read and edit the script with you, in the web version or in Accolade (Collaboration > Join a Shared Script…).\nThe peers connect directly; trackers only help them find each other and see nothing of the script.")
 	msg.Wrapping = fyne.TextWrapWord
-	stop := widget.NewButton("Stop sharing", func() { w.stopSharing() })
+	stop := widget.NewButton("Stop sharing", func() { w.leaveSharing() })
 	if w.shared == nil {
 		stop.Disable()
 	}
@@ -257,11 +357,15 @@ func (w *MainWindow) joinDialog() {
 }
 
 // join joins a shared script: in this window if it holds nothing of its
-// own (see openPath), else in a new one.
+// own (see openPath), else in a new one (in the browser, after asking).
 func (w *MainWindow) join(linkOrKey string) {
 	key, err := collab.ParseKey(strings.TrimSpace(linkOrKey))
 	if err != nil {
 		dialog.ShowError(err, w.fyneWindow)
+		return
+	}
+	if w.shared != nil && w.shared.key == key {
+		w.setStatus("You are editing this script together already")
 		return
 	}
 	w.withTarget(func(target *MainWindow) {
@@ -278,8 +382,15 @@ func (w *MainWindow) sharingStatus() string {
 	if w.shared.paused {
 		return "Shared · paused while away"
 	}
-	if w.shared.other {
-		return "Shared · another peer runs another Accolade version: update both"
+	if s := w.shared; s.other {
+		who := "another peer's Accolade"
+		if s.otherApp != "" {
+			who = "another peer's Accolade (" + s.otherApp + ")"
+		}
+		if s.otherOlder {
+			return "Shared · " + who + " is older than yours: it needs updating"
+		}
+		return "Shared · " + who + " is newer than yours: update yours"
 	}
 	switch w.shared.peers {
 	case 0:

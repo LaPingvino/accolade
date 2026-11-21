@@ -467,6 +467,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read file: %v", err)
 	}
+	w.newDocument() // read: a shared script stays with the peers
 	w.plainBundle = plain
 	w.setBundle(bundle)
 	w.forgetUnsavedExtras()
@@ -598,6 +599,7 @@ func (w *MainWindow) importFile(filePath string) error {
 
 // showImported puts an imported script in the window, unsaved.
 func (w *MainWindow) showImported(filePath, text, from string) {
+	w.newDocument()
 	w.cancelAutoSave()
 	w.forgetUnsavedSource()
 	w.format = fileFormat{}
@@ -863,13 +865,14 @@ func (w *MainWindow) openPath(path string) {
 // with), else a new window; in the browser, which has one window, this
 // one after asking.
 func (w *MainWindow) withTarget(then func(*MainWindow)) {
-	replaceable := w.currentFile == "" && (!w.hasChanges || w.textEditor.Text() == w.filledWith)
+	// a shared script is never replaceable: it is the peers' too
+	replaceable := w.currentFile == "" && (!w.hasChanges || w.textEditor.Text() == w.filledWith) && w.shared == nil
+	title, msg := w.replaceQuestion()
 	switch {
 	case replaceable || w.app == nil:
 		then(w)
 	case inBrowser:
-		dialog.ShowConfirm("Replace the Script?",
-			"The script here has changes not saved. Replace it? (Save first to keep it.)",
+		dialog.ShowConfirm(title, msg,
 			func(ok bool) {
 				if ok {
 					then(w)
@@ -878,6 +881,16 @@ func (w *MainWindow) withTarget(then func(*MainWindow)) {
 	default:
 		then(w.app.newWindow())
 	}
+}
+
+// replaceQuestion is what the browser asks before something else takes
+// the window's script's place.
+func (w *MainWindow) replaceQuestion() (title, msg string) {
+	if w.shared != nil {
+		return "Leave the Shared Script?", "You edit this script together with others. Open the other one here instead? " +
+			"The shared script stays with them, as it is; its link brings you back to it."
+	}
+	return "Replace the Script?", "The script here has changes not saved. Replace it? (Save first to keep it.)"
 }
 
 // onDropped opens the files dropped on the window, as Highland does.
@@ -999,6 +1012,7 @@ func newScriptTemplate() string {
 }
 
 func (w *MainWindow) createNewFile(empty bool) {
+	w.newDocument()
 	w.forgetUnsavedSource()
 	w.setMarkdown(false)
 	w.format = fileFormat{} // a new script is UTF-8
@@ -1106,6 +1120,15 @@ type kept struct {
 	Extras   string `json:"extras,omitempty"` // its drafts (their kept copy: extras.go)
 }
 
+// keepDraft keeps the window's script in the browser, if it is the
+// writer's own: a shared one is kept as the session's state instead
+// (keepSharedState), so joining never overwrites the script kept before.
+func (w *MainWindow) keepDraft() {
+	if w.shared == nil {
+		keepDraft(w.draft())
+	}
+}
+
 // draft is the window's script as the web version keeps it.
 func (w *MainWindow) draft() kept {
 	d := kept{Text: w.textEditor.Text(), Language: w.language, File: w.currentFile, Name: w.suggestedName, Markdown: w.markdown}
@@ -1118,6 +1141,7 @@ func (w *MainWindow) draft() kept {
 // restore puts a kept script back: its file again, if it still has it,
 // with the changes not saved.
 func (w *MainWindow) restore(d kept) {
+	w.newDocument()
 	if d.File != "" && w.LoadFile(d.File) == nil {
 		if d.Text != w.textEditor.Text() {
 			w.textEditor.SetText(d.Text)
@@ -1147,9 +1171,9 @@ const draftPause = time.Second
 
 func (w *MainWindow) onTextChanged(text string) {
 	w.hasChanges = true
-	if inBrowser { // kept when typing pauses: the whole script is written each time
+	if inBrowser && w.shared == nil { // kept when typing pauses: the whole script is written each time
 		w.debounce(&w.draftTimer, draftPause, func() {
-			keepDraft(w.draft())
+			w.keepDraft()
 		})
 	}
 	w.shareEdit(text)

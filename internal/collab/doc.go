@@ -48,11 +48,12 @@ type Doc struct {
 	dels    map[ID]bool  // deletes applied
 	pending []Op         // ops waiting for the rune they refer to
 	version map[string]uint64
+	counts  map[string]int // inserts applied, by replica (Missing)
 }
 
 // New is an empty replica named replica (unique among the peers).
 func New(replica string) *Doc {
-	return &Doc{replica: replica, nodes: map[ID]*node{}, dels: map[ID]bool{}, version: map[string]uint64{}}
+	return &Doc{replica: replica, nodes: map[ID]*node{}, dels: map[ID]bool{}, version: map[string]uint64{}, counts: map[string]int{}}
 }
 
 // Replica is the replica's name.
@@ -159,6 +160,7 @@ func (d *Doc) apply(op Op) {
 	if op.ID.Counter > d.version[op.ID.Replica] {
 		d.version[op.ID.Replica] = op.ID.Counter
 	}
+	d.counts[op.ID.Replica]++
 	prev := &d.head
 	if op.After != (ID{}) {
 		prev = d.nodes[op.After]
@@ -186,12 +188,39 @@ func (d *Doc) Version() map[string]uint64 {
 	return v
 }
 
-// Missing are the ops a peer at version lacks: inserts beyond it, and
-// every delete (cheap, and applying one twice does nothing).
-func (d *Doc) Missing(version map[string]uint64) []Op {
+// Counts are how many inserts of each replica were applied: with
+// Version, what a peer sends (Missing).
+func (d *Doc) Counts() map[string]int {
+	c := make(map[string]int, len(d.counts))
+	for k, n := range d.counts {
+		c[k] = n
+	}
+	return c
+}
+
+// Missing are the ops a peer at version (with counts, nil if not known)
+// lacks: inserts beyond its version, and every delete (cheap, and applying
+// one twice does nothing). Ops are applied out of a replica's order when
+// they wait for the rune they go after, so a peer can have a replica's op
+// 52 and not its op 40. Where it has fewer of a replica's inserts up to
+// its version than we do, it gets all of that replica's inserts (applying
+// one again does nothing).
+func (d *Doc) Missing(version map[string]uint64, counts map[string]int) []Op {
+	gap := map[string]bool{}
+	if counts != nil {
+		upTo := map[string]int{} // our inserts of each replica within its version
+		for _, op := range d.ops {
+			if !op.Delete && op.ID.Counter <= version[op.ID.Replica] {
+				upTo[op.ID.Replica]++
+			}
+		}
+		for r, n := range upTo {
+			gap[r] = n > counts[r]
+		}
+	}
 	var out []Op
 	for _, op := range d.ops {
-		if op.Delete || op.ID.Counter > version[op.ID.Replica] {
+		if op.Delete || op.ID.Counter > version[op.ID.Replica] || gap[op.ID.Replica] {
 			out = append(out, op)
 		}
 	}

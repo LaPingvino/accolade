@@ -71,6 +71,8 @@ type Network struct {
 	mu      sync.Mutex
 	offers  map[string]*webrtc.PeerConnection // our offers waiting for an answer
 	peers   map[string]bool                   // peer IDs connected (or connecting)
+	open    map[string]bool                   // peer IDs whose channel is open
+	conn    map[string]*webrtc.PeerConnection // each peer's latest connection
 	conns   []*webrtc.PeerConnection
 	onPeers func(n int)
 }
@@ -95,7 +97,7 @@ func Join(ctx context.Context, s *Session, key Key, trackers []string, onPeers f
 		r[i] = rune(c)
 	}
 	n := &Network{session: s, key: key, peerID: binary20(), room: string(r), newPC: newPeerConnection,
-		offers: map[string]*webrtc.PeerConnection{}, peers: map[string]bool{}, onPeers: onPeers}
+		offers: map[string]*webrtc.PeerConnection{}, peers: map[string]bool{}, open: map[string]bool{}, conn: map[string]*webrtc.PeerConnection{}, onPeers: onPeers}
 	for _, t := range trackers {
 		go n.tracker(ctx, t)
 	}
@@ -110,11 +112,11 @@ func Join(ctx context.Context, s *Session, key Key, trackers []string, onPeers f
 	return n
 }
 
-// Peers is how many peers are connected.
+// Peers is how many peers are connected (their channel open).
 func (n *Network) Peers() int {
 	n.mu.Lock()
 	defer n.mu.Unlock()
-	return len(n.peers)
+	return len(n.open)
 }
 
 // tracker keeps announcing to one tracker, reconnecting after failures.
@@ -207,7 +209,8 @@ func (n *Network) attach(id string, dc *webrtc.DataChannel) {
 		once.Do(func() {
 			defer close(opened)
 			n.mu.Lock()
-			count := len(n.peers)
+			n.open[id] = true
+			count := len(n.open)
 			n.mu.Unlock()
 			if n.onPeers != nil {
 				go n.onPeers(count)
@@ -237,7 +240,8 @@ func (n *Network) attach(id string, dc *webrtc.DataChannel) {
 		n.session.RemovePeer(id)
 		n.mu.Lock()
 		delete(n.peers, id)
-		count := len(n.peers)
+		delete(n.open, id)
+		count := len(n.open)
 		n.mu.Unlock()
 		if n.onPeers != nil {
 			go n.onPeers(count)
@@ -373,6 +377,7 @@ func (n *Network) answer(m trackerMsg, send func(trackerMsg) error) {
 		return
 	}
 	peer := m.PeerID
+	n.giveUp(pc, peer)
 	pc.OnDataChannel(func(dc *webrtc.DataChannel) { n.attach(peer, dc) })
 	if pc.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeOffer, SDP: sdp}) != nil {
 		n.release(peer)
@@ -405,6 +410,7 @@ func (n *Network) accept(m trackerMsg) {
 		_ = pc.Close()
 		return
 	}
+	n.giveUp(pc, m.PeerID)
 	if dc, ok := channels.LoadAndDelete(m.OfferID); ok {
 		n.attach(m.PeerID, dc.(*webrtc.DataChannel))
 	}
@@ -412,6 +418,37 @@ func (n *Network) accept(m trackerMsg) {
 		n.release(m.PeerID)
 		_ = pc.Close()
 	}
+}
+
+// giveUp lets go of a peer whose connection fails, or does not open its
+// channel in time, so that it is tried again: until then it counts as
+// connecting, and its offers are not answered.
+func (n *Network) giveUp(pc *webrtc.PeerConnection, peer string) {
+	n.mu.Lock()
+	n.conn[peer] = pc
+	n.mu.Unlock()
+	drop := func() {
+		n.mu.Lock()
+		mine := n.conn[peer] == pc && !n.open[peer] // not a later connection's
+		if mine {
+			delete(n.peers, peer)
+			delete(n.conn, peer)
+		}
+		n.mu.Unlock()
+		if mine {
+			_ = pc.Close()
+		}
+	}
+	pc.OnConnectionStateChange(func(st webrtc.PeerConnectionState) {
+		switch st {
+		case webrtc.PeerConnectionStateFailed:
+			drop()
+			_ = pc.Close() // an open one's channel closes: OnClose
+		case webrtc.PeerConnectionStateClosed:
+			drop()
+		}
+	})
+	time.AfterFunc(2*offerLife, drop)
 }
 
 func (n *Network) release(peer string) {

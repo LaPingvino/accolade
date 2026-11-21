@@ -103,6 +103,7 @@ func (w *MainWindow) setMarkdown(on bool) {
 // open has unsaved changes.
 func (w *MainWindow) NewMarkdownFile() {
 	create := func() {
+		w.newDocument()
 		w.cancelAutoSave()
 		w.forgetUnsavedSource()
 		w.setMarkdown(true)

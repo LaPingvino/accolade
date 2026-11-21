@@ -315,7 +315,7 @@ func (w *MainWindow) useSourceText(path, md string) (err error) {
 	w.rememberSource(w.currentFile, kept)
 	w.dropKeptCopy(old)
 	if inBrowser && w.currentFile == "" {
-		keepDraft(w.draft()) // a reload keeps the source with the script
+		w.keepDraft() // a reload keeps the source with the script
 	}
 	return nil
 }

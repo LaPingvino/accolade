@@ -323,7 +323,7 @@ func (w *MainWindow) ensureExtrasHome() (extrasHome, error) {
 	}
 	w.rememberExtras(w.currentFile, string(dir))
 	if inBrowser && w.currentFile == "" {
-		keepDraft(w.draft()) // a reload keeps the extras with the script
+		w.keepDraft() // a reload keeps the extras with the script
 	}
 	return extrasHome{kind: extrasKept, dir: dir}, nil
 }

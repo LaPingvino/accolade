@@ -172,6 +172,38 @@ func offerDownload(p string) {
 // pageLink is the page's address (with a shared script's #k=...).
 func pageLink() string { return js.Global().Get("location").Get("href").String() }
 
+// pageBase is the page's address without its fragment: a shared script's
+// link is this page, wherever it is served.
+func pageBase() string {
+	l := js.Global().Get("location")
+	return l.Get("origin").String() + l.Get("pathname").String() + l.Get("search").String()
+}
+
+// setPageKey puts a shared script's key in the page's address (#k=...),
+// so that a reload comes back to it; "" takes it away. The history gets
+// no step for it.
+func setPageKey(key string) {
+	frag := ""
+	if key != "" {
+		frag = "#k=" + key
+	}
+	if js.Global().Get("location").Get("hash").String() == frag {
+		return
+	}
+	js.Global().Get("history").Call("replaceState", js.Null(), "", pageBase()+frag)
+}
+
+// onPageKey calls join with the page's address when its fragment changes
+// to a shared script's link (one pasted into a page already open).
+func onPageKey(join func(link string)) {
+	js.Global().Call("addEventListener", "hashchange", js.FuncOf(func(js.Value, []js.Value) any {
+		if link := pageLink(); strings.Contains(link, "#k=") {
+			go fyne.Do(func() { join(link) })
+		}
+		return nil
+	}))
+}
+
 // browserFullscreen puts the page in the browser's full screen, or takes
 // it out; left is called when the browser leaves it on its own (Escape).
 func browserFullscreen(on bool, left func()) {

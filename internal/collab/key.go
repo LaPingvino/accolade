@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"strings"
+	"unicode"
 )
 
 // Key is a shared script's secret: whoever has it can read and edit the
@@ -26,17 +27,35 @@ func NewKey() (Key, error) {
 // String is the key as text, URL-safe.
 func (k Key) String() string { return base64.RawURLEncoding.EncodeToString(k[:]) }
 
-// ParseKey reads a key from its text, or from a link with #k=.
+// keyLen is a key's length as text.
+var keyLen = base64.RawURLEncoding.EncodedLen(len(Key{}))
+
+// ParseKey reads a key from its text, or from a link with #k=. What a chat
+// or mail does to a link is ignored: text around it (a full stop, a
+// bracket, quotes), white space or a line break inside it.
 func ParseKey(s string) (Key, error) {
 	var k Key
-	if i := strings.Index(s, "#k="); i >= 0 {
-		s = s[i+3:]
+	if i := strings.LastIndex(s, "k="); i >= 0 {
+		s = s[i+2:]
 	}
-	b, err := base64.RawURLEncoding.DecodeString(strings.TrimSpace(s))
-	if err != nil || len(b) != len(k) {
+	var b strings.Builder
+	for _, r := range s {
+		if b.Len() == keyLen {
+			break
+		}
+		switch {
+		case r >= 'A' && r <= 'Z', r >= 'a' && r <= 'z', r >= '0' && r <= '9', r == '-', r == '_':
+			b.WriteRune(r)
+		case unicode.IsSpace(r): // wrapped onto two lines
+		case b.Len() > 0: // what follows it
+			return k, errors.New("not a shared script's key")
+		}
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(b.String())
+	if err != nil || len(raw) != len(k) {
 		return k, errors.New("not a shared script's key")
 	}
-	copy(k[:], b)
+	copy(k[:], raw)
 	return k, nil
 }
 

@@ -210,6 +210,7 @@ func (w *MainWindow) importProsePDFAsync(path string) {
 // showImportedMarkdown puts an imported document in the window as a new
 // Markdown document, unsaved, named after the file it came from.
 func (w *MainWindow) showImportedMarkdown(path, md, from string, dropped int) {
+	w.newDocument()
 	w.cancelAutoSave()
 	w.forgetUnsavedSource()
 	w.format = fileFormat{}

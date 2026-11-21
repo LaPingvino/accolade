@@ -429,3 +429,101 @@ func (b *Buffer) Offset(line, col int) int {
 	start, end := b.LineStart(line), b.LineEnd(line)
 	return start + max(0, min(col, end-start))
 }
+
+// Remote replaces [start, end) with text for someone else (a peer editing
+// the same script): not an undo step. The cursor and the selections keep
+// their place in the text around it, and the undo and redo steps are
+// moved past it, so Undo undoes only this buffer's own edits, where they
+// now are. A step the change overlaps cannot be undone faithfully any
+// more: it goes from the history, with every step before it (or, for
+// Redo, after it).
+func (b *Buffer) Remote(start, end int, text string) {
+	start, end = b.clamp(start), b.clamp(end)
+	if start > end {
+		start, end = end, start
+	}
+	inserted := []rune(text)
+	if start == end && len(inserted) == 0 {
+		return
+	}
+	n := len(inserted)
+	move := func(off int) int { return remoteMove(off, start, end, n) }
+	b.cursor, b.anchor = move(b.cursor), move(b.anchor)
+	others := b.others
+	b.others = nil
+	b.splice(start, end, inserted)
+	for i := range others {
+		others[i].Anchor, others[i].Cursor = move(others[i].Anchor), move(others[i].Cursor)
+	}
+	b.others = others
+	if b.group != nil { // not between edits: nothing to keep in step with
+		b.undo, b.redo = nil, nil
+		return
+	}
+	b.undo = rebaseUndo(b.undo, start, end, n)
+	b.redo = rebaseRedo(b.redo, start, end, n)
+}
+
+// rebaseUndo moves the undo steps past a change of [start, end) to n runes
+// made after them (in the text as it is now), newest first. It returns the
+// steps that are left: those from the newest one the change overlaps back
+// are dropped.
+func rebaseUndo(undo []step, start, end, n int) []step {
+	for i := len(undo) - 1; i >= 0; i-- {
+		s := &undo[i]
+		// the change in the text as the step left it: the step's after
+		s.afterCursor, s.afterAnchor = remoteMove(s.afterCursor, start, end, n), remoteMove(s.afterAnchor, start, end, n)
+		for j := len(s.changes) - 1; j >= 0; j-- {
+			c := &s.changes[j]
+			cEnd := c.pos + len(c.inserted)
+			switch {
+			case end <= c.pos:
+				c.pos += n - (end - start) // the change is before it
+			case start >= cEnd:
+				d := len(c.removed) - len(c.inserted) // after it: where it was before c
+				start, end = start+d, end+d
+			default:
+				return append([]step(nil), undo[i+1:]...)
+			}
+		}
+		s.beforeCursor, s.beforeAnchor = remoteMove(s.beforeCursor, start, end, n), remoteMove(s.beforeAnchor, start, end, n)
+		s.typing = false
+	}
+	return undo
+}
+
+// rebaseRedo does the same for the redo steps, whose changes would apply
+// to the text as it is now: the next to redo first.
+func rebaseRedo(redo []step, start, end, n int) []step {
+	for i := len(redo) - 1; i >= 0; i-- {
+		s := &redo[i]
+		s.beforeCursor, s.beforeAnchor = remoteMove(s.beforeCursor, start, end, n), remoteMove(s.beforeAnchor, start, end, n)
+		for j := range s.changes {
+			c := &s.changes[j]
+			cEnd := c.pos + len(c.removed)
+			switch {
+			case end <= c.pos:
+				c.pos += n - (end - start)
+			case start >= cEnd:
+				d := len(c.inserted) - len(c.removed)
+				start, end = start+d, end+d
+			default:
+				return append([]step(nil), redo[i+1:]...) // it and the ones redone after it go
+			}
+		}
+		s.afterCursor, s.afterAnchor = remoteMove(s.afterCursor, start, end, n), remoteMove(s.afterAnchor, start, end, n)
+	}
+	return redo
+}
+
+// remoteMove is where offset off goes when [start, end) becomes n runes
+// (an insertion at off leaves off before it).
+func remoteMove(off, start, end, n int) int {
+	switch {
+	case off <= start:
+		return off
+	case off >= end:
+		return off + n - (end - start)
+	}
+	return start + n
+}

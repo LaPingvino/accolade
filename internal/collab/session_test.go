@@ -93,7 +93,7 @@ func TestSessionsMismatch(t *testing.T) {
 	key, _ := NewKey()
 	s := NewSession(key, New("a"))
 	var theirs = -1
-	s.OnMismatch = func(p int) { theirs = p }
+	s.OnMismatch = func(p int, _ string) { theirs = p }
 	old, _ := key.Seal([]byte(`{"hello":true}`))
 	if s.Receive("b", old) == nil || theirs != 0 {
 		t.Fatalf("a hello without a protocol: mismatch %d", theirs)

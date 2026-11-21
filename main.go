@@ -116,6 +116,13 @@ func (app *Application) createSystemTrayMenu() *fyne.Menu {
 func (app *Application) Run(args []string) {
 	log.Println("Starting Accolade application")
 
+	if inBrowser { // a shared script's link pasted into the page
+		onPageKey(func(link string) {
+			if len(app.windows) > 0 {
+				app.windows[0].join(link)
+			}
+		})
+	}
 	// Handle file arguments
 	if len(args) > 1 {
 		app.openFiles(args[1:])
@@ -143,6 +150,16 @@ func (app *Application) openFiles(filePaths []string) {
 	// Open files
 	for i, filePath := range filePaths {
 		var window *MainWindow
+		if strings.Contains(filePath, "#k=") { // a shared script's link
+			if i < len(emptyWindows) {
+				window = emptyWindows[i]
+			} else {
+				window = app.newWindow()
+			}
+			window.join(filePath)
+			window.Show()
+			continue
+		}
 
 		if i < len(emptyWindows) {
 			window = emptyWindows[i]

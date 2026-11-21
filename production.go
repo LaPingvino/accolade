@@ -267,6 +267,9 @@ func (w *MainWindow) scheduleSceneNumbers() {
 // the writer has edited (a script opened as it is, written elsewhere, is
 // numbered at the next edit or by Lock).
 func (w *MainWindow) numberNewScenes() {
+	// shared: each peer would number the new scene, and one peer's
+	// numbering would land in another's half-typed heading; until only
+	// the heading's writer numbers it (docs/COLLAB.md), Lock numbers them
 	if w.markdown || w.textEditor == nil || w.shared != nil {
 		return
 	}

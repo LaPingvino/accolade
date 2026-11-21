@@ -161,8 +161,11 @@ func (w *MainWindow) knowScript() {
 // and writes what it learns to the adaptation block. The source pane's
 // follow calls it (after typing pauses; the pane shown or not).
 func (w *MainWindow) learnFromWriting() {
+	// shared: every peer would learn the same lesson and write it, twice;
+	// until only the writer of the line learned from writes it (the
+	// single-writer rule, docs/COLLAB.md), nothing is learned
 	if w.markdown || w.textEditor == nil || w.shared != nil {
-		return // shared: a peer's edits come into this window's undo steps, half typed
+		return
 	}
 	sg := w.suggester()
 	l := &sg.learn
