@@ -461,7 +461,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   omitted_runs.go keeps only the print setting; no rewrite on Renumber/Unlock/Save/Save As, no status note, no page-lock
   move, Restore Scene no longer splits; the old-form tests went. PRODUCTION.md §15. Next: push Lexington v1.15.0, drop
   the replace, merge.
-- 2026-11-20 (Joop): the character list into the side panel — a Characters tab beside Notes/Source/Production/Help (replacing the pop-up picker as the main view; Insert Character keeps a quick picker): every cue with cast number (report.Cast), scenes, speeches/words, first appearance; aliases from the learned notes shown under their cue; tap → next occurrence, a scene list per character; actions: Rename everywhere (one undo step; tags, cast, strips follow), Merge into…, Add alias, Not a character; filter box; in Markdown mode the storyread names of the document. With five tabs, the tab row needs to stay usable on phones (scroll or an overflow menu) — fix that in the same step. After the ribbon/menus item.
+- 2026-11-20 (Joop), DONE (branch characters, see the tick log): the character list into the side panel — a Characters tab beside Notes/Source/Production/Help (replacing the pop-up picker as the main view; Insert Character keeps a quick picker): every cue with cast number (report.Cast), scenes, speeches/words, first appearance; aliases from the learned notes shown under their cue; tap → next occurrence, a scene list per character; actions: Rename everywhere (one undo step; tags, cast, strips follow), Merge into…, Add alias, Not a character; filter box; in Markdown mode the storyread names of the document. With five tabs, the tab row needs to stay usable on phones (scroll or an overflow menu) — fix that in the same step. After the ribbon/menus item.
   With character notes (Joop): per character a note space — free text plus a few optional fields (age, description/look, arc, casting/actor) — kept in the script as a /* Characters */ block at the end like the other blocks (ANNA: …; indented lines below a name), so it travels with the file and other Fountain apps ignore it; shown and edited in the Characters tab; usable later by the breakdown (cast details) and day packs (cast list with actors). Folds like the other blocks.
 - 2026-11-20 (Joop): Export > Clean Fountain — a .fountain with Accolade's metadata stripped, for handing to other apps/people: always drops Accolade's end blocks (Notes, Source, Adaptation, Production, Characters) and source links [[from: …]]; options (checkboxes, remembered): all [[notes]], all /* boneyard */ (incl. omitted scenes' kept text), scene numbers #n#, OMITTED headings, title page, section # and synopsis = lines (writer's outline). Presets: "Clean (Accolade's data only)", "Reading copy (no notes, no outline)", "Writer's version (no scene numbers, no OMITTED)" — the last one is the clean writer's draft from the locked-stages note. The original file is never touched; same in the browser (download). A Lexington flag -strip for the command line (Lexington first, tagged).
 - 2026-11-20 (Joop): **[done: branch saveas, see the tick log]** Save As shows no file types, so it is unclear what is supported and what each file keeps. Fyne's save dialog has a filter but no type chooser — so Save As… first shows Accolade's own small step: a "Save as type" list with, per type, what it keeps — Fountain (.fountain: the script, Accolade's blocks inside; drafts/breakdown/schedule go to the kept copy or Name.production/), Accolade (.accolade: everything in one file — script, source, drafts, production files), Highland (.highland: Highland-compatible, Accolade's extras may be dropped by Highland — the warning), TextPack (.textpack), TextBundle (folder, desktop only), Markdown (.md, Markdown documents), plus Clean Fountain (export, links to that item) — the current type preselected and the recommended one marked; then the system file dialog with that type's filter and extension; the browser's download gets the same chooser. A help link to File Formats. FIRST after the ribbon/menus item.
@@ -658,3 +658,41 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   editors fold their Markdown headings (folds type per editor: View's Fold commands, vim z, Tab, Shift+Tab, the
   gutter; a view in the main area refuses); the link-update offer writes the adaptation block's cut: and skipped
   links: entries for the passage's new words too (fixedCut, same undo step, counted in the notice).
+- 2026-11-21: the Characters tab (branch characters, not merged; characters_block.go, characters_model.go,
+  characters_pane.go, characters_rename.go). A dock pane like the others (View > Characters, the ribbon's Panes, the
+  tab menu's Move/Swap; both roles; Markdown too). Rows: everyone who speaks (Lexington's parse: cues with @, ^ and
+  extensions; the learned notes' names merged into their cue, as the reports do) and everyone in the list, the most
+  present first; scenes, speeches, words, first scene, "also Annie"; as Production the cast number (report.Cast,
+  in the background on a pause). Filter (names, aliases, notes). Tap: the next cue, selected ("ANNA: cue 2 of 3");
+  › opens one: Previous/Next Cue, its scenes (tap: the scene), Rename Everywhere…, Merge Into…, Add Alias… and
+  Not a Character / A Character After All (the learned notes' characters: and not characters:), Add to the List,
+  and the note with Age, Look, Arc (Actor as Production) written into the script as typed, one undo step a field.
+  Markdown: storyread's names, mentions and lines, a tap to the next mention, Rename Everywhere. Insert Character
+  keeps its quick picker and offers the list's names that do not speak yet (@ before one in small letters).
+  The data model, ready for the language rules: /* Characters */ is a tail block like the others (findTails knows it,
+  so it hides none of them and bodyEnd ends before it; withTailBlock is the one writer for Adaptation, Production and
+  Characters). An entry is a name at the margin ("ANNA: note", or "ben" alone), indented fields and note lines;
+  names keep their case and script and match cues by charKey (Lexington's CueName), so a no-caps list is a list.
+  Parse and write are byte for byte: an entry not changed is kept as written, a changed one alone written anew.
+  Hooks for the next item: listedNames (the `list` cue rule) and addedName (the editor adding a name: an edit,
+  usable under Amend), isListed. Nothing writes to the list unasked (COLLAB's single-writer rule is not built).
+  Rename Everywhere: the name as a word anywhere in the body, each place in its own case (ANNA → HANNA, Anna →
+  Hanna, INT. ANNA'S FLAT too), the list's entry and the learned cue, one undo step of the least edits (each
+  name's runes, last first); Merge Into…: the cues only, the entries together (notes after, fields kept where
+  the other has none). Decision: "everywhere" includes action, dialogue and headings, Merge only cues. The breakdown
+  follows (renumber_follow's way): the cast member renamed (Merge: its tags to the other's), each tag re-anchored
+  where its words went, Done scenes and strips their new heading, a strip's sum taken over; Undo and Redo take
+  them back and forth (followRenamed, from followSceneNumbers). Collaboration: TestRenameTogether (60 scenes, a peer
+  typing beside a cue and in the list while cut off) converges with both. Phone: the sheet's tabs are one row (the
+  ribbon's overflowRow): those that fit, the one in front always, the rest in a More menu; the arrows reach all.
+  Ribbon: Changes moved from View > Panes to Collaboration > Together (View was 1084 px with Characters; now fits).
+  Goldens: dockMoves gains Characters after Notes; the ribbon's View and Collaboration regenerated (read: Characters
+  in, Changes moved). Help: index (the pane, side panes, the phone row), Fountain Reference and the blocks cheat
+  sheet (the block's form); COLLAB.md one line. Tests: TestCharListRoundTrip, TestCharactersAmongTailBlocks,
+  TestAddedName, TestScreenplayChars, TestCharactersPane, TestRenameEverywhere, TestRenameTogether,
+  TestRenameTags, TestCharactersMarkdown, TestDockSheetOneRow, TestCharactersFocusVisible; shots
+  (SHOT_DIR=… -run TestCharactersScreenshots) /tmp/claude-1000/shots/characters-{desktop,phone}-*.png. Not done:
+  the block does not fold (no tail block folds yet: the 2026-11-20 fold item covers it); the list's notes are a
+  screenplay's (Markdown has no block); a rename does not touch the Notes or Source blocks; in the screenshots a
+  multi-line entry's text drew past the pane's scroll at its bottom edge (seen in the test renderer, not checked
+  in the GL one).

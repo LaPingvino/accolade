@@ -4,10 +4,11 @@ All of this is plain Fountain (notes and boneyard): other apps open the file and
 
 ## End blocks
 
-Notes is always last; Accolade reads the other three in any order.
+Notes is always last; Accolade reads the others in any order.
 
 - **Production** — `/* Production` … `*/`: lock, revision, pages
 - **Adaptation** — `/* Adaptation` … `*/`: cuts and learned notes
+- **Characters** — `/* Characters` … `*/`: the character list and its notes
 - **Source** — `/* Source` … `*/`: the story, when kept in the script
 - **Notes** — `/* Notes` … `*/`: the notepad (Ctrl+Shift+K)
 
@@ -17,6 +18,8 @@ Notes is always last; Accolade reads the other three in any order.
 - **Revision** — `revision: Blue, 2026-11-20`
 - **Page lock** — `pages: locked, letter, …` and a line per page
 - **OMITTED runs** — `omitted runs: print as one`
+- **Character** — `ANNA: the lead` then `  age: 34`, `  look:`, `  arc:`, `  actor:` indented
+- **Listed only** — `ben` alone on a line: in the list, nothing written yet
 - **Alias** — `characters: ANNA = Anna, Annie`
 - **Not a name** — `not characters: Monday, Lord`
 - **Place** — `places: the house = INT. KOVAČ HOUSE`

@@ -156,7 +156,9 @@ messages of their own, batched like the text's runs.
 - **User actions** (Renumber, Lock, Unlock, Update Source Links, Source Headings as Sections, the keyboard flow, a
   suggestion taken, a bundle re-read): no change is needed in each of them. Fix (5) makes every change minimal
   where it reaches the Doc, so one rule covers them all. Each stays one undo step for the peer who did it, and (3)
-  keeps the other peers' Undo out of it.
+  keeps the other peers' Undo out of it. The Characters pane's Rename Everywhere and Merge Into… make the least
+  edits themselves (each name's runes, the list's entry, the learned cue), so they do not lean on the Doc's
+  bounded diff; TestRenameTogether renames sixty scenes' cues while a peer types beside one and in the list.
 - **Automatic writes** (auto A-numbers in a locked script, learned notes) run on every peer that sees the trigger,
   so two peers would write the same thing twice, however small the edit. **Decision: a single-writer rule, not
   a permanent guard.** Only the peer who wrote the text an automatic write follows from may make it. The Doc knows
