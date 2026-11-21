@@ -292,8 +292,8 @@ func (w *MainWindow) pageSummary(p pageSetup, format string) string {
 	if w.textEditor != nil && pageLockOf(w.textEditor.Text()) != nil && (format == "pdf" || format == "fdx") {
 		parts = append(parts, "pages locked")
 	}
-	s := strings.Join(parts, " · ")
-	return strings.ToUpper(s[:1]) + s[1:] + "."
+	s := []rune(strings.Join(parts, " · "))
+	return strings.ToUpper(string(s[:1])) + string(s[1:]) + "."
 }
 
 // paperName is a paper's name as people write it.
@@ -321,19 +321,27 @@ type pageSetupLine struct {
 	format  func() string
 	changed func()
 	setup   func() pageSetup // the page setup shown, if not the window's (Export's revised pages)
+	// markdown tells whether the line is a Markdown document's (the
+	// window's mode; the Live Preview's: the main editor's document)
+	markdown func() bool
 }
 
 func (w *MainWindow) newPageSetupLine(format func() string, changed func()) *pageSetupLine {
-	l := &pageSetupLine{w: w, format: format, changed: changed}
+	l := &pageSetupLine{w: w, format: format, changed: changed, markdown: func() bool { return w.markdown }}
 	l.summary = widget.NewLabel("")
 	l.summary.Wrapping = fyne.TextWrapWord
 	l.button = widget.NewButtonWithIcon("Page Setup…", theme.DocumentIcon(), func() {
-		w.showPageSetup(l.format(), func() {
+		done := func() {
 			l.refresh()
 			if l.changed != nil {
 				l.changed()
 			}
-		})
+		}
+		if l.markdown() {
+			w.showMarkdownPageSetup(done)
+		} else {
+			w.showPageSetup(l.format(), done)
+		}
 	})
 	l.box = container.NewBorder(nil, nil, nil, container.NewVBox(l.button), l.summary)
 	if c := w.fyneWindow.Canvas().Size(); c.Width > 0 && c.Width < 600 { // a phone: the button under the line
@@ -344,7 +352,7 @@ func (w *MainWindow) newPageSetupLine(format func() string, changed func()) *pag
 }
 
 func (l *pageSetupLine) refresh() {
-	if l.w.markdown {
+	if l.markdown() {
 		l.summary.SetText(l.w.markdownPageSummary())
 		return
 	}

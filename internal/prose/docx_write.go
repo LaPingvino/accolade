@@ -51,8 +51,12 @@ func docxPage(paper string) string {
 	if paper == "" {
 		return `<w:pgSz w:w="11906" w:h="16838"/>`
 	}
-	wd, ht := paperSize(paper)
-	return fmt.Sprintf(`<w:pgSz w:w="%d" w:h="%d"/>`, int(wd*1440+0.5), int(ht*1440+0.5))
+	twips := map[string][2]int{"letter": {12240, 15840}, "a4": {11906, 16838}, "a5": {8391, 11906}}
+	t, ok := twips[strings.ToLower(paper)]
+	if !ok {
+		t = twips["a4"]
+	}
+	return fmt.Sprintf(`<w:pgSz w:w="%d" w:h="%d"/>`, t[0], t[1])
 }
 
 const xmlDecl = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` + "\n"

@@ -733,6 +733,10 @@ func TestSwapExVimPreview(t *testing.T) {
 	if !w.previewVisible || !strings.Contains(richText(w.previewPane.text), "orchard") {
 		t.Error("Live Preview does not show the source")
 	}
+	// its page setup line is the document's, not the script's PDF
+	if l := w.previewPane.line; l == nil || l.summary.Text != w.markdownPageSummary() {
+		t.Errorf("Live Preview's page setup line: %v", l)
+	}
 	w.swapBack()
 	if w.previewVisible {
 		t.Error("a screenplay's preview is a PDF: hidden again")

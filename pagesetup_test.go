@@ -251,7 +251,7 @@ func TestMarkdownPageSetup(t *testing.T) {
 				t.Error("docx: not A4 by default")
 			}
 			d := part(setUp, "word/document.xml")
-			if !strings.Contains(d, `w:w="8395" w:h="11909"`) || !strings.Contains(d, ">The Keeper<") || !strings.Contains(d, ">Anna<") || !strings.Contains(d, `w:type="page"`) {
+			if !strings.Contains(d, `w:w="8391" w:h="11906"`) || !strings.Contains(d, ">The Keeper<") || !strings.Contains(d, ">Anna<") || !strings.Contains(d, `w:type="page"`) {
 				t.Errorf("docx: A5 and a title page: %s", d[:min(len(d), 600)])
 			}
 		case "odt":
@@ -307,6 +307,9 @@ func TestPageSetupScreenshots(t *testing.T) {
 		p := w.newPageSetup("pdf", nil)
 		p.d.Show()
 		capture(t, w.fyneWindow.Canvas(), "pagesetup-"+size.name+".png")
+		p.scroll.ScrollToBottom()
+		p.scroll.Refresh()
+		capture(t, w.fyneWindow.Canvas(), "pagesetup-bottom-"+size.name+".png")
 		p.d.Hide()
 		ed := NewExportDialog(w)
 		ed.dialog.Resize(fitDialog(w.fyneWindow, 600, 700))
@@ -314,8 +317,10 @@ func TestPageSetupScreenshots(t *testing.T) {
 		capture(t, w.fyneWindow.Canvas(), "export-"+size.name+".png")
 		ed.characterSelect.SetSelected("ANNA")
 		ed.sidesRadio.SetSelected("Cue lines")
-		ed.scroll.ScrollToBottom()
+		w.fyneWindow.Resize(fyne.NewSize(size.size.Width, 1300)) // tall, to see the sides' rows whole
+		ed.dialog.Resize(fitDialog(w.fyneWindow, 600, 1200))
 		capture(t, w.fyneWindow.Canvas(), "export-sides-"+size.name+".png")
+		w.fyneWindow.Resize(size.size)
 		ed.dialog.Hide()
 		d := w.showPrint()
 		capture(t, w.fyneWindow.Canvas(), "print-"+size.name+".png")
@@ -327,5 +332,87 @@ func TestPageSetupScreenshots(t *testing.T) {
 		capture(t, w.fyneWindow.Canvas(), "preview-"+size.name+".png")
 		w.previewSetup.d.Hide()
 		w.settings.SetBoolean("export-colors", false)
+		// Preferences' card, and a Markdown document's Export and Live Preview
+		pd := NewPreferencesDialog(w.app, w.fyneWindow)
+		w.app.windows = []*MainWindow{w}
+		pd.showPageSetup()
+		if pd.dlg != nil {
+			pd.tabs.SelectIndex(2)
+			pd.dlg.Show()
+			capture(t, w.fyneWindow.Canvas(), "preferences-pagesetup-"+size.name+".png")
+			pd.dlg.Hide()
+		} else if pd.win != nil {
+			pd.tabs.SelectIndex(2)
+			pd.win.Resize(size.size)
+			capture(t, pd.win.Canvas(), "preferences-pagesetup-"+size.name+".png")
+			pd.win.Close()
+		}
+		w.app.windows = nil
+		w.markdown = true
+		w.settings.SetBoolean(mdTitlePagePref, true)
+		w.textEditor.SetText("---\ntitle: The Keeper\nauthor: Anna\n---\n\n# One\n\nThe light.\n")
+		md := newMarkdownExportDialog(w)
+		md.Show()
+		capture(t, w.fyneWindow.Canvas(), "md-export-"+size.name+".png")
+		md.dialog.Hide()
+		w.preview()
+		capture(t, w.fyneWindow.Canvas(), "md-preview-"+size.name+".png")
+		w.preview()
+		w.markdown = false
+		w.settings.SetBoolean(mdTitlePagePref, false)
+	}
+}
+
+// Once issued, the revisions are Page Setup's too: the marks, revised pages
+// only and their colour's paper reach Export's and Preview's PDF alike,
+// the marks an FDX; the page counts and Print never take them.
+func TestPageSetupRevisions(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, revScript)
+	issueNow(t, w, "White", time.Now())
+	replaceText(t, w, "Mud everywhere.", "Mud.")
+	defaults := w.pageSetup()
+	t.Cleanup(func() { defaults.writeTo(w.settings) })
+	p := w.newPageSetup("pdf", nil)
+	for _, c := range []fyne.CanvasObject{p.revisionsCheck, p.revisedOnlyCheck, p.pageColoursCheck} {
+		found := false
+		for _, o := range p.box.Objects {
+			found = found || o == c
+		}
+		if !found {
+			t.Fatal("an issued script's PDF: the revisions not in Page Setup")
+		}
+	}
+	p.revisionsCheck.SetChecked(true)
+	p.revisedOnlyCheck.SetChecked(true)
+	p.pageColoursCheck.SetChecked(true)
+	p.ok()
+	text := w.textEditor.Text()
+	ed := NewExportDialog(w)
+	ed.formatSelect.SetSelected(exportFormatLabel("pdf"))
+	export, preview := ed.job(), w.outputJob(w.pageSetup(), "pdf", text, nil)
+	for _, j := range []exportJob{export, preview} {
+		if j.revisions == nil || !j.revisions.PagesOnly || !j.revisions.PageColors {
+			t.Errorf("PDF: revisions %+v", j.revisions)
+		}
+	}
+	ed.formatSelect.SetSelected(exportFormatLabel("fdx"))
+	if j := ed.job(); j.revisions == nil || j.revisions.PagesOnly {
+		t.Errorf("FDX: revisions %+v", j.revisions)
+	}
+	if w.layoutJob().revisions != nil || w.outputJob(w.pageSetup(), "html", text, nil).revisions != nil {
+		t.Error("the page counts or Print took the revisions")
+	}
+	if s := w.pageSummary(w.pageSetup(), "pdf"); !strings.Contains(s, "revised pages only") {
+		t.Errorf("line %q", s)
+	}
+	p = w.newPageSetup("pdf", nil)
+	p.revisionsCheck.SetChecked(false)
+	if !p.revisedOnlyCheck.Disabled() {
+		t.Error("revised pages only without the marks")
+	}
+	p.ok()
+	if j := w.outputJob(w.pageSetup(), "pdf", text, nil); j.revisions != nil {
+		t.Error("marks off: revisions in the PDF")
 	}
 }
