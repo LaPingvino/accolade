@@ -704,3 +704,4 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   screenplay's (Markdown has no block); a rename does not touch the Notes or Source blocks; in the screenshots a
   multi-line entry's text drew past the pane's scroll at its bottom edge (seen in the test renderer, not checked
   in the GL one).
+- 2026-11-21: Characters tab leftovers (branch characters): check in the real app whether a multi-line Characters entry draws past the pane's scroll edge (seen in test shots) and fix; Rename Everywhere also offers the Notes and Source blocks (shown as separate counts, off by default); character notes for Markdown documents (a block of their own, as for screenplays); Undo of a Merge with the breakdown changed since — say so instead of leaving it silently. Small; with the next item touching the pane.
