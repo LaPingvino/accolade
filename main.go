@@ -32,6 +32,9 @@ type Application struct {
 	fyneApp fyne.App
 	windows []*MainWindow
 	ctx     context.Context
+	// prefs is the Preferences window while it is open: a setting changed
+	// on the ribbon shows in it (ribbon_settings.go)
+	prefs *PreferencesDialog
 }
 
 func NewApplication() *Application {
@@ -218,6 +221,7 @@ func (app *Application) showPreferences() {
 	}
 
 	dialog := NewPreferencesDialog(app, parent)
+	app.prefs = dialog
 	dialog.Show()
 }
 

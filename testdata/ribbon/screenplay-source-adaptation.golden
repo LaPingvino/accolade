@@ -13,3 +13,6 @@ tabs: File Write Edit [Adaptation] Production Collaboration View
   S Headings as Sections icon=foreground_toc.svg name=Source Headings as Sections
 ## Learned
   L Learned Notes icon=foreground_learned.svg name=What Accolade Learned…
+## Options
+  S Suggest While Writing icon=foreground_suggest-while.svg (checked) name=Suggest from the Source While Writing
+  S Next Starts a Scene icon=foreground_next-starts.svg (checked) name=Next Source Passage Starts a Scene

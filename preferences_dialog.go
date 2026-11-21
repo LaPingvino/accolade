@@ -84,6 +84,11 @@ func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDial
 		return pd
 	}
 	pd.win = app.fyneApp.NewWindow("Preferences")
+	pd.win.SetOnClosed(func() {
+		if app.prefs == pd {
+			app.prefs = nil
+		}
+	})
 	pd.win.SetContent(content)
 	pd.keys()
 	pd.win.Resize(fyne.NewSize(640, 540))
@@ -547,6 +552,9 @@ func (pd *PreferencesDialog) ok() {
 func (pd *PreferencesDialog) cancel() { pd.close() }
 
 func (pd *PreferencesDialog) close() {
+	if pd.app != nil && pd.app.prefs == pd {
+		pd.app.prefs = nil
+	}
 	if pd.dlg != nil {
 		pd.dlg.Hide()
 		return

@@ -14,3 +14,7 @@ tabs: File Write Edit [Production] Collaboration View
   S Unlock Pages icon=foreground_unlock-pages.svg (disabled) name=Unlock Pages…
 ## Reports
   L Reports icon=foreground_reports.svg name=Reports…
+## Options
+  S Revision Marks icon=foreground_marks.svg name=Revision Marks Since
+  S Scene Lettering icon=foreground_lettering.svg name=A New Scene's Number
+  S CONTINUEDs icon=foreground_continued.svg name=CONTINUED Where a Scene Breaks

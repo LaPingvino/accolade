@@ -1,22 +1,27 @@
 tabs: File Write Edit Production Collaboration [View]
 ## Panes
   L Outline icon=foreground_list.svg name=Outline (Ctrl+Shift+O)
-  L Cards icon=foreground_grid.svg name=Cards (Ctrl+Shift+D)
   L Notes icon=foreground_file-text.svg name=Notes (Ctrl+Shift+K)
+  S Cards icon=foreground_grid.svg name=Cards (Ctrl+Shift+D)
   S Source icon=foreground_source.svg name=Source
   S Production icon=foreground_production.svg name=Production
   S Help icon=foreground_help.svg name=Help
   S Changes icon=foreground_changes.svg name=Changes (Ctrl+Shift+H)
-## Preview
+## Show
   L Preview icon=foreground_visibility.svg name=Preview PDF (Ctrl+Shift+P)
   S Statistics icon=foreground_statistics.svg name=Statistics…
+  S Line Numbers icon=foreground_line-numbers.svg name=Line Numbers
+  S Status Bar icon=foreground_status-bar.svg (checked) name=Status Bar
 ## Folding
   S Fold Here icon=foreground_fold.svg name=Fold or Unfold Here (Ctrl+Shift+.)
   S Fold Sections icon=foreground_fold-sections.svg name=Fold All (Sections Only)
   S Headings Only icon=foreground_heading.svg name=Headings Only
   S Unfold All icon=foreground_unfold.svg name=Unfold All
 ## Window
-  L Fullscreen icon=foreground_view-fullscreen.svg name=Fullscreen (Ctrl+Shift+F)
+  S Fullscreen icon=foreground_view-fullscreen.svg name=Fullscreen (Ctrl+Shift+F)
   S Document Type icon=foreground_file.svg name=Document Type
   S Working As icon=foreground_account.svg name=Working As
-  S Commands icon=foreground_palette.svg name=Command Palette… (Ctrl+K)
+  S Ribbon icon=foreground_ribbon.svg (checked) name=Ribbon
+  S Theme icon=foreground_theme.svg name=Theme
+  T Smaller Text icon=foreground_text-smaller.svg name=Smaller Text
+  T Larger Text icon=foreground_text-larger.svg name=Larger Text

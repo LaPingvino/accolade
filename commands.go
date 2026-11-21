@@ -42,6 +42,8 @@ type cmdEnv struct {
 	// writer: production is put away (role.go); the zero value shows
 	// everything, so an env made for a document's kind alone hides nothing
 	writer bool
+	// fontSize: the editor's text size (Larger and Smaller Text)
+	fontSize int
 }
 
 // cmdEnv is the window's.
@@ -57,6 +59,9 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	e.writer = w.writerView()
 	e.renamed = w.canUndoRename()
 	e.brought = !w.carried.empty()
+	if w.settings != nil {
+		e.fontSize = w.settings.GetInt("font-size")
+	}
 	return e
 }
 
@@ -248,11 +253,11 @@ type home struct {
 	label string
 	sep   bool
 	items func(w *MainWindow) []*fyne.MenuItem
-	large bool    // on the ribbon: a large button (a common action)
+	large bool // on the ribbon: a large button (a common action)
 	// compact: on the ribbon an icon alone, beside the other compact ones
 	// in one row (B I U: their tooltips and names say the rest)
 	compact bool
-	role  cmdRole // made items' role (a command's is its own)
+	role    cmdRole // made items' role (a command's is its own)
 }
 
 func at(id string) home                              { return home{id: id} }
@@ -622,7 +627,8 @@ func newRegistry() *registry {
 	add(&command{id: "app.palette", label: "Command Palette…", tip: "Command palette: find any command", icon: func() fyne.Resource { return paletteIcon },
 		keys: []fyne.Shortcut{shortcut(fyne.KeyK, 0), plainKey(fyne.KeyF1, 0)}, run: (*MainWindow).showPalette})
 	add(&command{id: "help.about", label: "About Accolade", icon: theme.InfoIcon, run: func(w *MainWindow) { w.app.showAbout() }})
-	add(helpCommands()...) // help_pane.go
+	add(helpCommands()...)    // help_pane.go
+	add(settingCommands()...) // ribbon_settings.go
 
 	elements := make([]home, len(toolbarElements))
 	for i, el := range toolbarElements {
@@ -877,9 +883,9 @@ type ribbonTab struct {
 type ribbonGroup struct {
 	title   string
 	mdTitle string // a Markdown document's title, if another
-	when  func(cmdEnv) bool
-	stage int
-	homes []home
+	when    func(cmdEnv) bool
+	stage   int
+	homes   []home
 }
 
 // ribbonLabels are the ribbon's short labels, where the group around a
@@ -912,6 +918,9 @@ var ribbonLabels = map[string]string{
 	// View
 	"view.preview": "Preview", "view.foldHere": "Fold Here", "view.foldSections": "Fold Sections",
 	"app.palette": "Commands",
+	// the settings (ribbon_settings.go)
+	"set.suggest": "Suggest While Writing", "set.nextInserts": "Next Starts a Scene",
+	"set.revisionMarks": "Revision Marks", "set.lettering": "Scene Lettering", "set.continueds": "CONTINUEDs",
 }
 
 // ribbonLayout is the ribbon: the tabs follow the menus (File, Write for
@@ -952,6 +961,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Source", homes: []home{bigAs("view.source", "Source Pane"), at("source.choose"), at("source.saveAs"), at("source.keepInside")}},
 			{title: "Links", homes: []home{big("source.next"), big("source.link"), at("source.cut"), at("source.suggest"), at("source.update"), at("source.sections")}},
 			{title: "Learned", homes: []home{big("source.learned")}},
+			{title: "Options", homes: []home{at("set.suggest"), at("set.nextInserts")}},
 			{title: "Start", homes: []home{big("file.startScreenplay")}},
 		}},
 		// the stage's actions first, as the Production pane has them
@@ -966,16 +976,19 @@ func ribbonLayout() []ribbonTab {
 			{title: "Stages", homes: []home{bigAs("view.production", "Production Pane"), at("production.breakdown"), at("production.schedule")}},
 			{title: "Scenes", homes: []home{at("production.omit"), at("production.restore"), at("production.unlockPages")}},
 			{title: "Reports", homes: []home{big("production.reports")}},
+			{title: "Options", homes: []home{at("set.revisionMarks"), at("set.lettering"), at("set.continueds")}},
 		}},
 		{title: "Collaboration", groups: []ribbonGroup{
 			{title: "Together", homes: []home{big("file.share"), at("file.join")}},
 			{title: "Drafts", homes: []home{big("file.saveDraft"), at("file.drafts"), at("collab.compare")}},
 		}},
 		{title: "View", groups: []ribbonGroup{
-			{title: "Panes", homes: []home{big("view.outline"), big("view.cards"), big("view.notes"), at("view.source"), at("view.production"), at("view.help"), at("view.changes")}},
-			{title: "Preview", homes: []home{big("view.preview"), at("view.statistics")}},
+			{title: "Panes", homes: []home{big("view.outline"), big("view.notes"), at("view.cards"), at("view.source"), at("view.production"), at("view.help"), at("view.changes")}},
+			// what the window shows; its look (the preferences changed while working: ribbon_settings.go)
+			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")}},
 			{title: "Folding", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll")}},
-			{title: "Window", homes: []home{big("view.fullscreen"), at("view.documentType"), at("view.role"), at("app.palette")}},
+			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),
+				tool("set.textSmaller"), tool("set.textLarger")}},
 		}},
 	}
 }
