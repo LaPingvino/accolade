@@ -40,9 +40,9 @@ var (
 // sampleNotes is the script's Notes.
 const sampleNotes = `This is Accolade's sample script (File > Open Sample), made by its own commands to try every feature on: see examples/README.md in Accolade's source.
 
-The story: "A Chameleon" by Anton Chekhov (1884), in Constance Garnett's English translation (The Cook's Wedding and Other Stories, The Tales of Chekhov vol. 12). Text from Project Gutenberg eBook #13417, whose catalogue record says: "Public domain in the USA." Outside the USA, check your country's law before using it.
+The story: "A Chameleon" by Anton Chekhov, in Constance Garnett's English translation (The Cook's Wedding and Other Stories, The Tales of Chekhov vol. 12). Text from Project Gutenberg eBook #13417, whose catalogue record says: "Public domain in the USA." Outside the USA, check your country's law before using it.
 
-Partly adapted on purpose: the last two passages are still to adapt (Adaptation > Next Source Passage), and one is marked as cut.`
+Partly adapted on purpose: the last two passages are still to adapt (Adaptation > Next Source Passage), and two are marked as cut.`
 
 // sampleMarker is where a link goes in the adaptation as typed.
 var sampleMarker = regexp.MustCompile(` ?\{\{(\d+)(?:-(\d+))?\}\}`)
@@ -51,11 +51,11 @@ var sampleMarker = regexp.MustCompile(` ?\{\{(\d+)(?:-(\d+))?\}\}`)
 func makeSample(t *testing.T) []byte {
 	t.Helper()
 	holdUI(t)
-	script, err := os.ReadFile(filepath.Join("examples", "a-chameleon.fountain"))
+	script, err := readLF(filepath.Join("examples", "a-chameleon.fountain"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	story, err := os.ReadFile(filepath.Join("examples", "a-chameleon.md"))
+	story, err := readLF(filepath.Join("examples", "a-chameleon.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,10 +108,12 @@ func makeSample(t *testing.T) []byte {
 		at, insert, _ := insertLink(e.Text(), from, fragmentNote("", []textDirective{d}), w.sceneStarts())
 		e.Replace(at, at, insert)
 	}
-	// Mark Source Passage as Cut: "Do you know that for a fact?"
+	// Mark Source Passage as Cut: "Do you know that for a fact?" and its answer
 	s.load()
-	s.list.Select(16)
-	s.toggleCut()
+	for _, i := range []int{16, 17} {
+		s.list.Select(i)
+		s.toggleCut()
+	}
 
 	// the Characters pane: notes and fields, an alias, a name listed who
 	// does not speak (yet)
@@ -277,6 +279,13 @@ func sampleIssue(t *testing.T, w *MainWindow, name string, day time.Time) {
 	waitFor(t, name+" issued", func() bool { return done })
 }
 
+// readLF reads a file with its line ends as LF (a Windows checkout may
+// give CRLF).
+func readLF(p string) ([]byte, error) {
+	b, err := os.ReadFile(p)
+	return []byte(strings.ReplaceAll(string(b), "\r\n", "\n")), err
+}
+
 // runeIndex is where words first are in text, in runes.
 func runeIndex(t *testing.T, text, words string) int {
 	t.Helper()
@@ -372,9 +381,9 @@ var sampleFeatures = []struct {
 			return l.Ref.Dir.Prefix != "" && l.Ref.Dir.Start == `"Yes."`
 		}), "no prefix- link to the second \"Yes.\"")
 	}},
-	{"a passage cut", func(w *MainWindow) error {
+	{"passages cut", func(w *MainWindow) error {
 		s := sampleSource(w)
-		return want(s.statusOf(16) == statusCut, "passage 16 is %v", s.statusOf(16))
+		return want(s.statusOf(16) == statusCut && s.statusOf(17) == statusCut, "passages 16, 17 are %v %v", s.statusOf(16), s.statusOf(17))
 	}},
 	{"passages still to adapt", func(w *MainWindow) error {
 		s := sampleSource(w)
@@ -499,6 +508,11 @@ func checkSample(t *testing.T, data []byte) {
 		if err := f.check(w); err != nil {
 			t.Errorf("%s: %v", f.name, err)
 		}
+	}
+	// looked at, not changed: Open Sample opens the same copy again
+	w.flushBundleWrites()
+	if b, err := os.ReadFile(w.currentFile); err != nil || string(b) != string(data) {
+		t.Errorf("opening the sample changed its file (%v): Open Sample would make a new copy each time", err)
 	}
 }
 

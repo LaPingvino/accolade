@@ -29,10 +29,12 @@ the day it was made.
 
 ## The story, and why it is free to use
 
-"A Chameleon" by Anton Chekhov (1884), in Constance Garnett's English translation, from *The Cook's Wedding and
-Other Stories* (The Tales of Chekhov, vol. 12). The text is Project Gutenberg's eBook #13417, as served by
-Project Gutenberg's own server, gutenberg.pglaf.org (`cache/epub/13417/pg13417.txt`). Its catalogue record
-(`cache/epub/13417/pg13417.rdf`) says:
+"A Chameleon" by Anton Chekhov, in Constance Garnett's English translation, from *The Cook's Wedding and
+Other Stories* (The Tales of Chekhov, vol. 12). The text is Project Gutenberg's eBook #13417, fetched from
+gutenberg.pglaf.org (`cache/epub/13417/pg13417.txt`; its header names itself "The Project Gutenberg eBook of The
+Cook's Wedding and Other Stories" and points to www.gutenberg.org/ebooks/13417). The eBook's page on
+www.gutenberg.org could not be fetched (it answered 503, retry after 6 hours; the Wayback Machine 429). The
+catalogue record beside the text (`cache/epub/13417/pg13417.rdf`) says:
 
 > `<dcterms:rights>Public domain in the USA.</dcterms:rights>`
 
@@ -50,8 +52,8 @@ USA, check your own country's law before using it. The script's Notes say the sa
 | A link in Text Fragment form | `[[from: #:~:text=…]]` |
 | A range link | `textStart,textEnd` within one passage |
 | A link over two passages | Prohor's arrival, passages 22–23 |
-| A twin told apart by a prefix | `"Yes."` twice in the story: `text=visit?-,"Yes."` |
-| A passage cut | "Do you know that for a fact?" |
+| A twin told apart by a prefix | `"Yes."` also opens `"Yes, your honour."`: `text=visit?-,"Yes."` |
+| Passages cut | "Do you know that for a fact?" and "Yes, your honour." |
 | Passages still to adapt | the last two, for Next Source Passage |
 | Learned: an alias | `/* Adaptation */`: YELDYRIN = the policeman |
 | Learned: not characters | Petersburg, Moscow |

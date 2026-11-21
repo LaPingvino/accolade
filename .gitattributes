@@ -1,2 +1,5 @@
 *.golden text eol=lf
 docs/help/*.md text eol=lf
+examples/*.md text eol=lf
+examples/*.fountain text eol=lf
+examples/*.accolade binary

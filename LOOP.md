@@ -786,10 +786,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Chekhov's "A Chameleon" in Constance Garnett's translation: Project Gutenberg eBook #13417, fetched from PG's own
   gutenberg.pglaf.org (www.gutenberg.org answered 503 Retry-After 6 h, the Wayback Machine 429); its RDF says
   "Public domain in the USA." The Tell-Tale Heart was tried first, but no passage of it needs a prefix, and the
-  sample needs a twin: "Yes." is twice in A Chameleon. TestMakeSample (UPDATE_SAMPLE=1) builds the sample from
+  sample needs a twin: "Yes." in A Chameleon needs one, as "Yes, your honour." opens alike. TestMakeSample (UPDATE_SAMPLE=1) builds the sample from
   examples/a-chameleon.md (front matter) and a-chameleon.fountain ({{n}} where a link goes) through the commands:
   Save As .accolade, the source in the bundle, Link to Source Passage, a two-passage range as the command writes one,
-  Mark as Cut, the Characters pane (notes, fields, aliases, General Zhigalov listed, not speaking), learned not
+  Mark as Cut (two), the Characters pane (notes, fields, aliases, General Zhigalov listed, not speaking), learned not
   characters and a place, Notes, a writer's draft, Lock, Omit (3), a scene typed after the lock (1A), Lock Pages, tags
   in five categories, two shoot days, White, Blue (an A-page, a lost tag), Save. TestSample opens the embedded one
   as Open Sample does, in a window with new settings and data, and checks 28 features (sampleFeatures, one each);
