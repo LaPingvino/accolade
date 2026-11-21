@@ -116,7 +116,11 @@ File > Export… (Ctrl+E) writes:
 - **LaTeX** and **Lexington's own (lex)**.
 - With other programs installed: PDF through HTML (wkhtmltopdf), PDF through LaTeX, EPUB, RTF, Markdown, reStructuredText and other text formats (pandoc), Kindle and other e-book formats (Calibre). A format that needs a missing program says so.
 
-The dialog's options: the script format and paper, the title page, scene numbers, colours from the scenes' colour notes, revision marks, only the scenes with a tag or colour, and one character's sides. FDX and LaTeX take a template.
+The dialog has the format, the folder and the file name, and what part of the script: only the scenes with a tag or colour, or one character's sides. How the pages look is File > Page Setup…'s, which the dialog shows in a line with a Page Setup… button.
+
+### Page Setup
+
+File > Page Setup… (also on the ribbon by Print, and in Production > Options) sets how the script prints, for Export, Print and Preview PDF alike: the script format and paper, the title page, scene numbers, CONTINUEDs (Production), colours from the scenes' colour notes and how they show, page breaks, revision marks (once issued), revised pages only and their colour's paper, and FDX's and LaTeX's template. It shows only what the format at its top uses: open from Export, that export's format; from Print, Print; from Preview PDF, the PDF. Export, Print and Preview PDF each show the page setup in a line, with a Page Setup… button; Preview PDF makes the PDF again after a change. Locked pages keep the layout they were locked in. The ribbon's Scene Numbers and CONTINUEDs are the same settings.
 
 ### Clean Fountain
 
@@ -124,7 +128,7 @@ File > Export Clean Fountain… writes a `.fountain` copy for other apps and oth
 
 The rest of the file stays exactly as written. A line that held only what was taken out goes with it, and a line that would read as something else without it gets its force mark, so the copy reads as the script does. A script in another language is written as standard Fountain, as other apps read it. The script itself is never changed; in the browser the copy downloads. On the command line it is Lexington's `-strip` (see [Lexington on the Command Line](lexington.md)).
 
-File > Print… (Ctrl+P) prints through a web page, with the system's or the browser's print dialog. It has no revision marks and no locked pages; use a PDF for those.
+File > Print… (Ctrl+P) prints through a web page, with the system's or the browser's print dialog, after a line saying the page setup it prints with. It has no revision marks and no locked pages; use a PDF for those.
 
 ## Exporting a Markdown document
 
@@ -135,6 +139,8 @@ In a Markdown document, File > Export… offers:
 - **PDF**, made with Chromium if it is installed, else through the print dialog's Save as PDF;
 - **Markdown (as written)** and **Plain text**;
 - with pandoc on the desktop: EPUB, RTF, LaTeX, Org mode, and DOCX and ODT made by pandoc.
+
+A document's Page Setup (File > Page Setup…) has its paper (by default A4 in Word and ODT, the printer's for the web page and PDF) and a title page: the front matter's `title:`, else the first heading, and its `author:`, centred on a page of its own. Export, Print and Live Preview use it.
 
 ## Production files
 

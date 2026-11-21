@@ -83,11 +83,13 @@ Production > Issue Draft… issues the script as it is now, with a date, as the 
 - **Changes are never marked in the text.** Accolade compares each issue with the one before. A changed line gets the colour of the issue it changed in; the changes since the last issue are the open revision, in the next colour.
 - The editor shows a changed line as a coloured bar in the margin. Preferences > Script > Production "Revision marks since" shows the last issue's changes only, or every issue's, each in its colour.
 
-When you export a PDF (File > Export…), three options use the revisions:
+Once issued, File > Page Setup… has three options for a PDF (Export, Preview PDF) that use the revisions:
 
 - **Revision marks:** a `*` at the right of every changed line, and the revision's name and date at the top of each changed page.
 - **Revised pages only:** just the pages with a change.
 - **Changed pages on their colour's paper.**
+
+Production's Revised Pages PDF… exports the revised pages only, for that export, whatever Page Setup says.
 
 The header text is set in Preferences > Script > Production ("Revised page header", with `{set}` and `{date}`). FDX export can carry the revision marks too. File > Print…, which prints through a web page, has no marks.
 

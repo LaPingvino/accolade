@@ -734,4 +734,31 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   TestCleanFountainScreenshots): clean-{desktop,phone}.png, clean-writer-*.png. Rough: TestSaveAsScreenshots
   panics in the software painter at phone size (also before this branch). Next: Joop tags Lexington, swap the
   replace for the tag, merge.
-- 2026-11-21 (Joop: "split out the export settings from Export, Print and Preview, as the latter two use these settings, but you can only set them while also exporting"): NEXT. One **Page Setup** of its own (File › Page Setup…, a registry command; on the ribbon by Print/Preview in File › Output, and reachable from Production's Options for its items) holding what the printed page looks like — paper, title page, scene numbers, CONTINUEDs, colours (style, block, tint, patterns), pagination/locked pages, revision marks, revised pages only, page colours, template — the same settings keys as today (no migration needed; check each key's readers). Export keeps only what is the export's own (format, folder, file name) plus a one-line summary of the page setup and a Page Setup… button; Print and Preview each get the same summary line + button (Preview re-renders on change); the ribbon's existing setting commands (Scene Numbers in Production › Options, etc.) stay in sync with the dialog. Per format, show only the settings that apply (as Export does now: colours and revisions for PDF, etc. — read export_dialog.go's enable logic and move it). Markdown documents: their own page setup (paper, title page, what the Markdown export uses). Browser and phone too. Tests: each setting read by Export, Print and Preview from the one place; screenshots of Page Setup, Export, Print/Preview summary (desktop + phone) looked at. After Clean Fountain.
+- 2026-11-21 (Joop: "split out the export settings from Export, Print and Preview, as the latter two use these settings, but you can only set them while also exporting"): DONE (branch pagesetup, see the tick log). One **Page Setup** of its own (File › Page Setup…, a registry command; on the ribbon by Print/Preview in File › Output, and reachable from Production's Options for its items) holding what the printed page looks like — paper, title page, scene numbers, CONTINUEDs, colours (style, block, tint, patterns), pagination/locked pages, revision marks, revised pages only, page colours, template — the same settings keys as today (no migration needed; check each key's readers). Export keeps only what is the export's own (format, folder, file name) plus a one-line summary of the page setup and a Page Setup… button; Print and Preview each get the same summary line + button (Preview re-renders on change); the ribbon's existing setting commands (Scene Numbers in Production › Options, etc.) stay in sync with the dialog. Per format, show only the settings that apply (as Export does now: colours and revisions for PDF, etc. — read export_dialog.go's enable logic and move it). Markdown documents: their own page setup (paper, title page, what the Markdown export uses). Browser and phone too. Tests: each setting read by Export, Print and Preview from the one place; screenshots of Page Setup, Export, Print/Preview summary (desktop + phone) looked at. After Clean Fountain.
+- 2026-11-21: Page Setup split out of Export (branch pagesetup, not merged; pagesetup.go, md_pagesetup.go). One
+  reader: pageSetupOf(settings) → layoutJob (was savedExportJob: the page counts, locks, reports, schedule, characters,
+  breakdown) and outputJob(setup, format, text, part) (Export, Print = "html", Preview PDF = "pdf": the paper resolved
+  as Export did, template, revisions per format, issued pages, FDX breakdown); the two exportJob literals are one.
+  Same keys, plus export-revised-only and export-template (never saved before), markdown-page-size and
+  markdown-title-page. Applicability is one table (pageSetupApplies: Export's old switches): Page Setup shows only
+  what the format at its top uses ("Settings for:" Print or an export format, set by the caller), the summary line
+  says the same. File › Page Setup… (file.pageSetup; menu before Print…; ribbon File › Output small under Clean
+  Fountain, Production › Options; a Markdown document's Output is big Export, small Print over Page Setup so the
+  tab fits: File 939/953 md of 992, Production stages unchanged ≤ 982). Export keeps format, folder, file name and
+  the part of the script (filters: per export), a "Page Setup" card with the line and button; Revised Pages PDF… is
+  an override for that export only (shown in its line). Print… now a small dialog (line, Page Setup…, Print);
+  Preview PDF opens the PDF then a dialog with the line, Again, and a Page Setup change makes the PDF again.
+  Preferences: paper, title page, scene numbers, CONTINUEDs moved out, a Page Setup card (line + button) in their
+  place, following the ribbon. Ribbon Scene Numbers/CONTINUEDs write the same keys through changeSetting. CONTINUEDs
+  shows for PDF, Production role. Markdown: Page Setup (paper: default = A4 in Word/ODT and the printer's for the
+  page, as before; title page from front matter title:/author: or the first heading) in internal/prose (Doc.Paper,
+  Doc.TitlePage; defaults byte-identical), the web page (@page, title section), Export, Print, Live Preview (line at
+  its top, title page shown, redrawn on change). Phone: the line's button goes under it; Export scrolls down only
+  (sides radios stacked). Tests: TestPageSetupOnePlace (each setting from the dialog: Export's, Print/Preview's and
+  the layout's jobs agree), TestPageSetupPrintAndPreview (title page in the printed HTML and the preview's pages;
+  Preview remade on change), TestPageSetupPerFormat, TestPageSetupFollowsRibbon, TestMarkdownPageSetup; the old
+  export colour/pagination tests now drive Page Setup. Goldens: commands via regroupMoves (Page Setup… before
+  Print…), ribbon regenerated (7 lines, read). Shots (SHOT_DIR=… -run 'TestPageSetupScreenshots|TestMarkdownPageSetup'):
+  pagesetup-, export-, export-sides-, print-, preview-{desktop,phone}.png, pagesetup-markdown.png. Docs: help
+  formats/production, PRODUCTION.md. Left: Preferences' Page Setup opens in the first window; Preview's dialog
+  appears after each Preview PDF (Close, Escape).

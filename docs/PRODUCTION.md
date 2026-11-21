@@ -21,8 +21,8 @@ Nothing here is built. Sources for claims about other products are linked inline
 - DOCX and ODT put it at the right margin (office/docx.go:243, office/odt.go:246). FDX writes it as
   `Paragraph Number` (fdx/write.go:188), and the layout package has it as `Line.SceneNumber`.
 - The PDF reader finds numbers in the margins (pdfin/classify.go:260-278).
-- Accolade numbers the unnumbered scenes at export: the Export dialog's "Number the scenes (those without a
-  number)" (export_dialog.go:128). It counts on from the last explicit number, so after 7 comes 8. Since step 1
+- Accolade numbers the unnumbered scenes at export: Page Setup's "Number the scenes not numbered"
+  (pagesetup.go; the Export dialog's until 2026-11-21). It counts on from the last explicit number, so after 7 comes 8. Since step 1
   (§7) this is Lexington's `lex.NumberScenes`, and Production > Lock Scene Numbers, A-scenes and OMITTED exist.
 
 **Cards, outline and title page**
@@ -34,7 +34,7 @@ Nothing here is built. Sources for claims about other products are linked inline
 **Pagination**
 
 - Lexington paginates as screenplay software does: keep-with-next, widows and orphans, and `(MORE)` / `NAME
-  (CONT'D)` in the PDF. This is Lexington 1.6.0 (CHANGELOG) and the Export dialog's page-break choice
+  (CONT'D)` in the PDF. This is Lexington 1.6.0 (CHANGELOG) and Page Setup's page-break choice
   (export_pagination.go).
 - Since step 5 (§11): the scene `CONTINUED:` / `(CONTINUED)`, locked pages and A-pages. Still missing: running
   headers other than the page number and the revision slug.
@@ -963,7 +963,7 @@ github.com/LaPingvino/lexington => ../lexington` until it is).
   script it locks them again with their A-pages.
 - **Unlock Pages…** asks, then takes the lines out.
 - Each is one undo step.
-- **Export, Preview PDF, FDX** use the lock's layout whatever the Export dialog says, when exporting a whole
+- **Export, Preview PDF, FDX** use the lock's layout whatever Page Setup says, when exporting a whole
   script. Filters (tags, sides) leave the lock out. Print (HTML) keeps no locked pages.
 - **Issue:** revision N prints against N−1's pages, and N+1 is written against N's.
   - The block always holds the last issue's pages. Every Issue of a locked script locks them again from the text
@@ -1057,7 +1057,7 @@ for a script issued White unlocked. (`issueDraft` has a `lockNow`.)
 "Title page" for a change before the first scene). Right after an issue, its own: "Blue issued 20 Nov 2026 · 6 pages
 changed · scenes …", or "White issued 1 Nov 2026 · no changes since". The list: the changed scenes, each with a bar in
 its set's colour, number and heading, a tap to its heading. Buttons: Issue Blue… (the next set's name; greyed with
-no change since the last issue), Revised Pages PDF… (the Export dialog set to PDF, revision marks, revised pages only,
+no change since the last issue), Revised Pages PDF… (the Export dialog set to PDF, revision marks, revised pages only for that export,
 named `story-blue-pages.pdf`; greyed with nothing changed), Compare with White (Drafts' Compare, the last issue
 against the script now).
 
