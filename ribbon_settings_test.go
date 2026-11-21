@@ -346,4 +346,15 @@ func TestRibbonMoreSettings(t *testing.T) {
 	if !w.ribbonShown() || !pd.toolbarVisibleCheck.Checked {
 		t.Error("Toolbar did not bring the ribbon back")
 	}
+	// the Menus look: View > Toolbar hides the header bar's rows and shows them again
+	s.SetString(lookPref, "menus")
+	w.applyEditorSettings()
+	w.do(cmd("set.toolbar"))()
+	if w.headerArea.Visible() || s.GetBoolean("toolbar-visible") {
+		t.Error("Toolbar did not hide the header bar in the Menus look")
+	}
+	w.do(cmd("set.toolbar"))()
+	if !w.headerArea.Visible() || w.headerArea.Objects[0] != w.headerBar.container {
+		t.Error("Toolbar did not bring the header bar back in the Menus look")
+	}
 }
