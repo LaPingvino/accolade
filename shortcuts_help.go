@@ -225,7 +225,7 @@ func paletteRibbonKeys() []string {
 	palette := strings.Join(commandKeys(cmd("app.palette")), "** or **")
 	return []string{
 		"- **" + palette + "** — the command palette: type part of a command's name (the letters in order: “nsp” finds Next Source Passage), **Up**/**Down** choose, **Enter** runs it, **Esc** closes",
-		"- **F10**, or **Alt** pressed and let go alone (not on a Mac) — the ribbon's key tips (Preferences > General > Look: Ribbon): a letter on each tab, the palette and ☰ (the menus); type one to open that tab, then the letter on a button to press it",
+		"- **F10**, or **Alt** pressed and let go alone (not on a Mac) — the ribbon's key tips (Preferences > General > Look: Ribbon): a letter on each tab, the palette, ☰ (the menus), the lock (the ribbon's order: Smart or Fixed) and the Quick row's buttons; type one to open that tab, then the letter on a button to press it",
 		"- **Esc** in the key tips — back to the tabs' letters, again to leave them",
 		"- **Tab**, **Shift+Tab** — through the ribbon's tabs and buttons; **Left**/**Right** along a row, **Down** from a tab to its buttons, **Up** back; **Enter** or **Space** presses",
 	}
@@ -243,7 +243,7 @@ func shortcutsSheet(env cmdEnv, both bool) string {
 		b.WriteString("- **Enter** in a list → the next item\n")
 	}
 	b.WriteString("- **Tab** on “Tab: …” — take it; **Esc** — put it away\n")
-	b.WriteString("- **" + strings.Join(commandKeys(cmd("app.palette")), "**, **") + "** — the command palette; **F10** or **Alt** — the ribbon's key tips\n")
+	b.WriteString("- **" + strings.Join(commandKeys(cmd("app.palette")), "**, **") + "** — the command palette; **F10** or **Alt** — the ribbon's key tips (the lock's letter switches Smart and Fixed)\n")
 	titles, lists := menuShortcuts(env, both)
 	for i, list := range lists {
 		fmt.Fprintf(&b, "\n## %s\n\n", strings.TrimSuffix(titles[i], " menu"))
