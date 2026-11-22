@@ -320,7 +320,7 @@ func TestQuickToggle(t *testing.T) {
 		t.Errorf("the phone's setting %q", got)
 	}
 	last := w.ribbonSmart() // w, on the desktop, toggled last
-	w.ribbonOrder = ""       // as a new desktop window has it
+	w.ribbonOrder = ""      // as a new desktop window has it
 	if w.ribbonSmart() != last || w.settings.GetString(ribbonOrderPref(false)) == "" {
 		t.Error("a new desktop window does not take the desktop's last choice")
 	}
