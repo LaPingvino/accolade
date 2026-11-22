@@ -85,7 +85,7 @@ func TestPageViewLinks(t *testing.T) {
 	w, v, _ := mdPagesOf(t, mdLinksDoc, fyne.NewSize(1200, 800))
 	a := v.area
 	harbour := linkIndex(v, "https://example.org/harbour", 0)
-	if harbour < 0 || len(v.links) != 5 {
+	if harbour < 0 || len(v.links) != 4 { // javascript: is no link (safeAddress)
 		t.Fatalf("links %+v", v.links)
 	}
 	at := linkPoint(v, harbour)
@@ -104,9 +104,8 @@ func TestPageViewLinks(t *testing.T) {
 	if !slices.Equal(opened, []string{"https://example.org/harbour"}) {
 		t.Errorf("opened %v", opened)
 	}
-	a.Tapped(&fyne.PointEvent{Position: linkPoint(v, linkIndex(v, "javascript:alert(1)", 0))})
-	if len(opened) != 1 || !strings.Contains(w.statusText(), "Not opened") {
-		t.Errorf("a script's link: opened %v, status %q", opened, w.statusText())
+	if linkIndex(v, "javascript:alert(1)", 0) >= 0 || len(opened) != 1 {
+		t.Errorf("a script's link became a link (opened %v)", opened)
 	}
 	// the chapter's anchor: page 2 in sight, the heading at the top
 	chapter := linkIndex(v, "", 0)
@@ -147,14 +146,14 @@ func TestPageViewLinks(t *testing.T) {
 			t.Errorf("link %d not ringed", v.focusLink)
 		}
 	}
-	if !slices.Equal(went, []int{0, 1, 2, 3, 4}) {
+	if !slices.Equal(went, []int{0, 1, 2, 3}) {
 		t.Errorf("Tab went %v", went)
 	}
 	a.KeyDown(&fyne.KeyEvent{Name: desktop.KeyShiftLeft})
 	if !a.AcceptsTab() {
 		t.Error("Shift+Tab has nowhere to go")
 	}
-	for range 4 {
+	for range 3 {
 		a.TypedKey(&fyne.KeyEvent{Name: fyne.KeyTab})
 	}
 	a.KeyUp(&fyne.KeyEvent{Name: desktop.KeyShiftLeft})
