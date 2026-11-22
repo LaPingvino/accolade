@@ -344,6 +344,7 @@ func (ed *ExportDialog) previewExport() {
 				ed.dialog.Show()
 			}))
 			v.setNote(note)
+			pagesShown(v)
 		})
 	}()
 }

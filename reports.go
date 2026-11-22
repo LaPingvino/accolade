@@ -620,10 +620,11 @@ func (rd *reportsDialog) showReportPDF(kind string) {
 		return
 	}
 	rd.dialog.Hide()
-	w.showPages(d, rd.kind.Selected, out, name, backButton("Back to Reports", func() {
+	v := w.showPages(d, rd.kind.Selected, out, name, backButton("Back to Reports", func() {
 		w.hidePages()
 		rd.dialog.Show()
 	}))
+	pagesShown(v)
 }
 
 // breakdownSummary is the line about the tags above the breakdown's

@@ -37,9 +37,13 @@ const pointUnits = 96.0 / 72
 // pageGap is the space round and between the pages, in units.
 const pageGap = 12
 
-// pagesShown is told each time a page view shows a drawing (tests wait
-// on it).
+// pagesShown is told each time a page view has shown a drawing, the last
+// thing its caller does (tests wait on it).
 var pagesShown = func(*pageView) {}
+
+// paintAsync paints the pages in the background (the tests paint them at
+// once: their driver runs fyne.Do on the calling goroutine).
+var paintAsync = true
 
 // pageView shows a drawing's pages with its bar.
 type pageView struct {
@@ -192,7 +196,6 @@ func (v *pageView) show(d pdf.Drawing, title, pdfPath, name string) {
 		v.scroll.ScrollToTop()
 	}
 	v.showInSight()
-	pagesShown(v)
 }
 
 // setNote shows a line over the pages ("" none).
@@ -350,6 +353,14 @@ func (v *pageView) paint(i, px int) {
 	v.rendering[i] = px
 	v.mu.Unlock()
 	gen, r, p := v.gen, v.r, v.d.Pages[i]
+	if !paintAsync {
+		v.mu.Lock()
+		delete(v.rendering, i)
+		v.mu.Unlock()
+		v.pages[i].img.Image, v.pages[i].px = r.Page(i, float64(px)/p.Width), px
+		v.pages[i].img.Refresh()
+		return
+	}
 	go func() {
 		img := r.Page(i, float64(px)/p.Width)
 		fyne.Do(func() {

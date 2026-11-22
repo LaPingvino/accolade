@@ -1420,6 +1420,7 @@ func (w *MainWindow) makePreviewPDF() {
 				w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
 			}
 			v.setNote(note)
+			pagesShown(v)
 		})
 	}()
 }

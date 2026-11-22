@@ -81,21 +81,24 @@ func newMDPages(w *MainWindow) *mdPages {
 // mdPagesDelay is how long after the last change the pages are made.
 var mdPagesDelay = 400 * time.Millisecond
 
+// mdPagesAfter runs f after d (the tests run it at once).
+var mdPagesAfter = time.AfterFunc
+
 // update makes the pages of text, soon.
 func (m *mdPages) update(text string) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
 	m.gen++
 	gen := m.gen
 	if m.timer != nil {
 		m.timer.Stop()
 	}
+	m.mu.Unlock()
 	w := m.w
 	name := strings.TrimSuffix(w.pdfName(), ".pdf")
 	title := markdownTitle(text, w.scriptName())
 	page := w.markdownPageSetup()
 	titlePage := page.titlePageOf(text, w.scriptName())
-	m.timer = time.AfterFunc(mdPagesDelay, func() {
+	t := mdPagesAfter(mdPagesDelay, func() {
 		data, d, err := markdownPDF(text, title, page, titlePage)
 		missing := markdownPDFMissing(text)
 		m.mu.Lock()
@@ -115,14 +118,22 @@ func (m *mdPages) update(text string) {
 			if gen != m.gen {
 				return
 			}
-			m.view.show(d, name+".pdf", out, name+".pdf")
 			note := ""
 			if missing != "" {
 				note = "This PDF cannot print the document as written yet (" + missing + "): Export makes it through a browser."
 			}
 			m.view.setNote(note)
+			m.view.show(d, name+".pdf", out, name+".pdf")
+			pagesShown(m.view)
 		})
 	})
+	m.mu.Lock()
+	if gen == m.gen {
+		m.timer = t
+	} else {
+		t.Stop()
+	}
+	m.mu.Unlock()
 }
 
 func (m *mdPages) stop() {
