@@ -17,7 +17,7 @@ func pdfWarning(content string, scenes []string) string {
 }
 
 // pdfOrPrint makes a PDF with makePDF, unless the script has text the
-// PDF cannot print as written (CJK: boxes; Arabic: letters unjoined): then it offers to print instead, through the browser,
+// PDF cannot print as written (CJK: boxes; joining letters it does not shape, as Syriac: unjoined; Arabic it shapes): then it offers to print instead, through the browser,
 // whose fonts and layout have them, or to make the PDF anyway. With a
 // Chromium browser on the computer there is no need to ask: exportAs has
 // it make the PDF.

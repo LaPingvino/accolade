@@ -1,6 +1,9 @@
 package main
 
 import (
+	"time"
+
+	"fyne.io/fyne/v2"
 	"os"
 	"path/filepath"
 	"strings"
@@ -161,5 +164,60 @@ func TestHekayaFile(t *testing.T) {
 	}
 	if items := outlineOf(w.textEditor.Text(), w.sceneStarts()); len(items) < 2 {
 		t.Errorf("outline %+v", items)
+	}
+}
+
+// Screenshots (SHOT_DIR=… go test -run TestLangRulesScreenshots): an
+// Arabic (Hekaya) and a Chinese script in the editor and the page view,
+// on a desktop and a phone: langrules-{ar,zh}-{editor,page}-{desktop,phone}.png.
+func TestLangRulesScreenshots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("SHOT_DIR not set")
+	}
+	ar, err := os.ReadFile("../lexington-langrules/testdata/hekaya/آخر-أيام-الصيف.hekaya")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		lang, name, text string
+	}{{rules.Hekaya, "ar", string(ar)}, {"zh", "zh", chineseScript}} {
+		for _, size := range []struct {
+			name string
+			size fyne.Size
+		}{{"desktop", fyne.NewSize(1200, 800)}, {"phone", fyne.NewSize(380, 800)}} {
+			w, _ := newDialogTestWindow(t)
+			w.setLanguage(c.lang)
+			w.textEditor.SetText(c.text)
+			w.fyneWindow.Resize(size.size)
+			time.Sleep(100 * time.Millisecond)
+			fyne.DoAndWait(func() {})
+			capture(t, w.fyneWindow.Canvas(), "langrules-"+c.name+"-editor-"+size.name+".png")
+			if c.name == "zh" {
+				shown := make(chan *pageView, 4)
+				onPagesShown(t, func(pv *pageView) { shown <- pv })
+				w.previewPDF()
+				select {
+				case <-shown:
+				case <-time.After(20 * time.Second):
+					var status string
+					fyne.DoAndWait(func() { status = w.statusText() })
+					t.Logf("zh: no pages; status %q", status)
+				}
+				time.Sleep(300 * time.Millisecond)
+				fyne.DoAndWait(func() {})
+				capture(t, w.fyneWindow.Canvas(), "langrules-zh-page-"+size.name+".png")
+				continue
+			}
+			v := previewAndWait(t, w)
+			painted(t, v, 0)
+			if len(v.d.Pages) > 1 {
+				v.area.TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
+				painted(t, v, 1)
+			}
+			time.Sleep(100 * time.Millisecond)
+			fyne.DoAndWait(func() {})
+			capture(t, w.fyneWindow.Canvas(), "langrules-"+c.name+"-page-"+size.name+".png")
+		}
 	}
 }
