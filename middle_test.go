@@ -122,6 +122,9 @@ func TestMiddleSource(t *testing.T) {
 	if !w.scriptInMain() || w.mainEditor() != w.textEditor || w.srcDoc != d || midTitles(w) != "[Script] Source" {
 		t.Fatalf("the script's tab: %q", midTitles(w))
 	}
+	if !strings.HasPrefix(w.fyneWindow.Title(), "•") {
+		t.Errorf("the source behind the script's tab, not written: title %q", w.fyneWindow.Title())
+	}
 	if env := w.cmdEnv(); !cmd(elementCommandID("Action")).applies(env) || cmd("md.heading2").applies(env) {
 		t.Error("the screenplay's commands are not back")
 	}
@@ -223,6 +226,25 @@ func TestMiddleNotes(t *testing.T) {
 	}
 	if m.middleBlocked("source") == "" || m.middleBlocked("cards") == "" {
 		t.Error("a Markdown document has no source or cards to put in the middle")
+	}
+}
+
+// A pane is in the dock or in the middle, never both: what brings it into
+// the dock (Help's pages, the source's commands, Side Panes) brings its
+// middle tab to the front instead.
+func TestMiddleOnePlace(t *testing.T) {
+	w, _ := sourceWindow(t, sourceScript, sourceStory)
+	w.openMiddle("help")
+	w.showMiddle("")
+	w.showPane("help", true)
+	if w.paneShown("help") || w.mid.shown != "help" {
+		t.Errorf("Help: in the dock %v, in front %q", w.paneShown("help"), w.mid.shown)
+	}
+	w.dock.toggleAll() // the source out, stashed
+	cmd("source.middle").run(w)
+	w.dock.toggleAll() // back: not the source, a middle tab now
+	if w.paneShown("source") || !w.mid.has("source") || strings.Contains(tabTitles(w), "Source") {
+		t.Errorf("Side Panes brought the source into the dock too: %q", tabTitles(w))
 	}
 }
 

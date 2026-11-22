@@ -19,7 +19,7 @@ import (
 
 // folds are an editor's folds: the script's, or a document's in the
 // main editor (the source, the notes: their Markdown headings), each its
-// own (docs/SWAP.md).
+// own (docs/MIDDLE.md).
 type folds struct {
 	w  *MainWindow
 	ed *editor.ScriptEditor
@@ -84,7 +84,7 @@ func (w *MainWindow) mainFolds() *folds {
 	if w.scriptInMain() {
 		return w.scriptFolds
 	}
-	w.setStatus("Folding works in an editor: the Script tab of the middle has the script (Ctrl+PgUp)")
+	w.setStatus("Folding works in an editor: the Script tab of the middle has the script")
 	return nil
 }
 

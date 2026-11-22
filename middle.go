@@ -128,11 +128,7 @@ func (w *MainWindow) openMiddle(id string) {
 	}
 	p := w.dock.pane(id)
 	slot := w.dock.slotNow(id)
-	wasDocked := w.dock.on[id]
-	w.dock.on[id] = false // one place at a time: a Fyne object has one parent
-	if p.toMiddle != nil {
-		p.toMiddle(w)
-	}
+	wasDocked := w.dock.shown(id)
 	if p.doc != nil {
 		d := p.doc(w)
 		if d == nil {
@@ -144,6 +140,10 @@ func (w *MainWindow) openMiddle(id string) {
 		}
 		m.docs[id] = d
 		d.ed.SetOffstage(true) // laid out when it comes to the front
+	}
+	w.dock.on[id] = false // one place at a time: a Fyne object has one parent
+	if p.toMiddle != nil {
+		p.toMiddle(w)
 	}
 	m.tabs = append(m.tabs, id)
 	w.showMiddle(id)
@@ -221,6 +221,11 @@ func (m *middle) show(id string) {
 	}
 	w.editorKindChanged()
 	w.focusMain()
+	if id == "" {
+		w.setStatus("")
+	} else {
+		w.setStatus(m.status())
+	}
 }
 
 // previewFollowsMain shows the preview of the document now in the main
@@ -302,7 +307,9 @@ func (w *MainWindow) closeMiddleDocs() {
 			w.closeMiddle(id)
 		}
 	}
-	w.showMiddle("")
+	if !w.scriptInMain() {
+		w.showMiddle("")
+	}
 }
 
 // middlePrune closes the middle tabs whose panes are not there for the
@@ -539,6 +546,6 @@ func (w *MainWindow) scriptAway(what string) bool {
 	if w.scriptInMain() {
 		return false
 	}
-	w.setStatus(what + " works in the script: its middle tab first (Ctrl+PgUp, or tap Script)")
+	w.setStatus(what + " works in the script: its middle tab first (tap Script)")
 	return true
 }

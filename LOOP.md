@@ -1089,6 +1089,29 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   machinery this replaces (swap.go's swapWithMain/swapBack and their special cases), don't build around it. The
   ribbon's contextual tabs, Preview and Follow Edits follow the shown middle tab. Screenshots: middle with Script +
   Cards + Source tabs, desktop and phone.
+  Done (branch middletabs): middle.go, docs/MIDDLE.md (was SWAP.md). The middle is a row of tabs (the dock's tab
+  widget behind a `tabHost`; an `overflowRow`, so a phone's row fits with More…), shown only while a tab beside the
+  script's is open. View > Cards (Shift+D, ribbon, outline's Cards button, the pane's full-view button) opens the
+  cards' full view as a middle tab directly; a dock tab's menu has Open in the Middle (View > Open Pane in the
+  Middle), a middle tab's Back to the Side and Close (× at the row's end); the Script tab stays. Source and Notes are
+  Markdown documents there, several open at once; Ctrl+PgDn/PgUp (View > Next/Previous Middle Tab; no keys in the
+  browser, which keeps them), arrows on the row; Adaptation > Source in the Middle (`source.middle`). A pane is in
+  the dock or the middle, never both (`dock.shown` excludes middle panes; `showPane` brings the tab forward). One
+  transition, `middle.show`: preview follows the tab in front (pages / Live Preview / none over a view, back on the
+  next editor tab; a PDF still being made is dropped), offstage editors, link offer on leaving the source, highlights,
+  menus, ribbon, title (• also for a document behind another tab), status, focus — the hook for the state audit.
+  `goToScript` (outline, cards, Changes, Production, source scenes) brings the script's tab forward. Removed: swap.go
+  (swapWithMain/swapBack, w.swapped, w.mainDoc, swappedCenter/IsView, the dock's Script tab scriptPane and its
+  timer), cardsVisible, the dock's boxOf/titleOf special cases. Tests: swap_*_test.go → middle_*_test.go rewritten
+  for tabs; TestMiddlePreviewFollowsShownTab is a table over every pair of tab kinds; new TestMiddleCommands (keys,
+  row arrows), TestMiddlePhone (six tabs on a phone's row), TestMiddleOnePlace; goldens (menus, shortcuts, ribbon,
+  shortcuts help) moved. Gate: root (all but TestBrowserPDF*, the sandbox's Chromium), focus tests, subpackages, vet,
+  wasm green. Shots (TestMiddleScreenshots, middle-{desktop,phone}-0…8): script alone, View > Cards, Script + Cards +
+  Source with each in front, link offer, notes, outline, Cards pane back to the side — looked at. Left open (for the
+  state audit): Choose Source… while the Source tab is open (its document is the one opened); the Script tab's
+  passage caption and tap-to-passage are gone (Cards pane still lights the passage's scenes); the stripboard is not a
+  tab (it puts the script's tab in front); in the ribbon look an Entry (a card's synopsis) swallows menu shortcuts, as
+  for every command; Preview while a view tab is in front does nothing visible.
 - 2026-11-22 (Joop opened Star Wars: A New Hope: "only the 3 line title and then the credit that are a bit uncommon
   don't get parsed properly, and it reads the THE END at the end as a scene instead of action"): Fountain import
   details, Lexington first. Needs the file (not on the VPS) — ask Joop for it. Small; after the middle tabs.

@@ -90,9 +90,9 @@ written to its home.
   restored) comes into the document's editor as `Buffer.Remote` edits, outside its own history
   (`followHome`, from `onTextChanged`). If the block itself goes (Undo of Keep Source in the Script), the
   document is let go as it is, not written back.
-- A source kept **elsewhere** is written to its home when the script is saved (File > Save, auto-save), when it
-  leaves the main editor, and on the Source pane's Done. Until then it is unsaved: the title marks it (•), and
-  closing the window asks (`unsavedDocs`).
+- A source kept **elsewhere** is written to its home when the script is saved (File > Save, auto-save), when its
+  middle tab closes, and on the Source pane's Done; behind another tab it stays open. Until then it is unsaved:
+  the title marks it (•), and closing the window asks (`unsavedDocs`).
 - `w.sourceText(ref)` returns an open source document's live text, so the pane's passages, drafts, Save Source
   As and carrying the source on Save As all see what is being written. `homeSourceText` reads the home itself.
 - The Source pane's Edit/Done edits the same source document (one editor constructor for every kind, with vim,

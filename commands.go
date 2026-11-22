@@ -275,7 +275,7 @@ func (w *MainWindow) do(c *command) func() {
 	return func() {
 		e := w.mainEditor()
 		if e == nil {
-			w.setStatus("Nothing to write in here: the Script tab of the middle has the script (Ctrl+PgUp)")
+			w.setStatus("Nothing to write in here: the Script tab of the middle has the script")
 			return
 		}
 		if f := w.fyneWindow.Canvas().Focused(); f != nil && f != fyne.Focusable(e) {
@@ -296,7 +296,7 @@ func (w *MainWindow) tapped(c *command, anchor fyne.CanvasObject) func() {
 	case c.editing:
 		return func() {
 			if w.mainEditor() == nil {
-				w.setStatus("Nothing to write in here: the Script tab of the middle has the script (Ctrl+PgUp)")
+				w.setStatus("Nothing to write in here: the Script tab of the middle has the script")
 				return
 			}
 			w.noteUse(c)

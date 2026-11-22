@@ -747,7 +747,7 @@ func dockMoves(name, golden string) string {
 	}
 	ms := parseGoldenMenus(golden)
 	var panes []string
-	for _, l := range []string{"Outline", "Notes", "Cards", "Source", "Production", "Help", "Changes"} { // Cards a pane too (docs/SWAP.md)
+	for _, l := range []string{"Outline", "Notes", "Cards", "Source", "Production", "Help", "Changes"} { // Cards a pane too (docs/MIDDLE.md)
 		if it := takeItem(ms, "View", l); it != "" {
 			panes = append(panes, it)
 		}

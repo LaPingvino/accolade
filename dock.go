@@ -172,12 +172,22 @@ func dockCommands() []*command {
 		&command{id: "view.paneSide", label: "Middle Tab Back to the Side", tip: "The middle tab in front back in the side panes", icon: res(dockIcon),
 			run: func(w *MainWindow) { w.backToSide(w.mid.shown) }, enabled: func(e cmdEnv) bool { return e.away }},
 		&command{id: "view.midNext", label: "Next Middle Tab", tip: "The middle tab after the one in front: the script, the cards, a pane put there",
-			keys: []fyne.Shortcut{shortcut(fyne.KeyPageDown, 0)}, icon: theme.NavigateNextIcon,
+			keys: middleKeys(fyne.KeyPageDown), icon: theme.NavigateNextIcon,
 			run: func(w *MainWindow) { w.mid.step(1) }, enabled: func(e cmdEnv) bool { return e.midTabs }},
 		&command{id: "view.midPrev", label: "Previous Middle Tab", tip: "The middle tab before the one in front",
-			keys: []fyne.Shortcut{shortcut(fyne.KeyPageUp, 0)}, icon: theme.NavigateBackIcon,
+			keys: middleKeys(fyne.KeyPageUp), icon: theme.NavigateBackIcon,
 			run: func(w *MainWindow) { w.mid.step(-1) }, enabled: func(e cmdEnv) bool { return e.midTabs }},
 	)
+}
+
+// middleKeys are Ctrl+PgDn and Ctrl+PgUp, the middle tabs' keys; not in
+// the browser, which keeps them for its own tabs (the menu, the palette
+// and the arrow keys on the row there).
+func middleKeys(k fyne.KeyName) []fyne.Shortcut {
+	if inBrowser {
+		return nil
+	}
+	return []fyne.Shortcut{shortcut(k, 0)}
 }
 
 // dockHomes are the panes' toggles and the dock's commands, where a menu
@@ -307,7 +317,7 @@ func (d *dock) applies(p *dockPane) bool {
 // shown reports whether the pane is in the dock (in front or not).
 func (d *dock) shown(id string) bool {
 	p := d.pane(id)
-	return p != nil && d.on[id] && d.applies(p)
+	return p != nil && d.on[id] && d.applies(p) && !d.w.mid.has(id) // in the middle, not also here
 }
 
 // slotNow is where the pane is shown now: its slot, or the phone's sheet.
@@ -452,6 +462,10 @@ func (w *MainWindow) showPane(id string, focus bool) {
 	d := w.dock
 	p := d.pane(id)
 	if p == nil || !d.applies(p) {
+		return
+	}
+	if w.mid.has(id) { // a middle tab: to the front there, not into the dock too (one parent)
+		w.showMiddle(id)
 		return
 	}
 	was := d.shown(id)

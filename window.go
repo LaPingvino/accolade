@@ -1301,6 +1301,9 @@ func (w *MainWindow) updateTitle() {
 		title = mark + d.title() + " — " + title
 	}
 
+	if w.midDoc() == nil && w.unsavedDocs() && !strings.HasPrefix(title, "• ") { // a document behind another tab, not written yet
+		title = "• " + title
+	}
 	w.fyneWindow.SetTitle(title)
 	if w.headerBar != nil {
 		name := strings.TrimSuffix(title, " - Accolade")

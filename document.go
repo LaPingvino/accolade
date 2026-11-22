@@ -17,7 +17,7 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
-// The documents a window edits (docs/SWAP.md). A window has one script,
+// The documents a window edits (docs/MIDDLE.md). A window has one script,
 // its file (w.textEditor, saved by File > Save, shared when editing
 // together); beside it, documents of their own the main editor can hold
 // instead (a middle tab, middle.go): the script's source and its notes.
