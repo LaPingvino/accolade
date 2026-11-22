@@ -100,9 +100,8 @@ func (w *MainWindow) setMarkdown(on bool) {
 	if w.headerBar != nil {
 		w.headerBar.setMarkdown(on)
 	}
-	if on {
-		w.cardsVisible = false // cards are a screenplay's scenes
-	} else {
+	w.middlePrune() // the cards are a screenplay's scenes (middle.go)
+	if !on {
 		w.previewVisible = false // a screenplay's preview is a PDF
 	}
 	w.refreshMenu()
@@ -358,7 +357,7 @@ func (p *previewPanel) update(text string) {
 // preview shows the document as it will look: a screenplay as a PDF, a
 // Markdown document in the preview beside the editor (or hides it).
 func (w *MainWindow) preview() {
-	if !w.editorMarkdown() { // the main editor's: the source swapped in is Markdown
+	if !w.editorMarkdown() { // the main editor's: the source in the middle is Markdown
 		w.previewPDF()
 		return
 	}

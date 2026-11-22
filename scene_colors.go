@@ -173,7 +173,7 @@ func (w *MainWindow) pickColor(it outlineItem, pos fyne.Position, then func()) {
 // written, or the scene or section the editor's cursor is in, under at
 // (nil: at the cursor or the card).
 func (w *MainWindow) pickColorHere(at fyne.CanvasObject) {
-	if !w.cardsVisible && w.scriptAway("Scene or Section Color") { // the script is in the side panes (swap.go)
+	if !w.cardsShown() && w.scriptAway("Scene or Section Color") { // another middle tab in front (middle.go)
 		return
 	}
 	if w.markdown {
@@ -184,14 +184,14 @@ func (w *MainWindow) pickColorHere(at fyne.CanvasObject) {
 	below := func(o fyne.CanvasObject) fyne.Position {
 		return d.AbsolutePositionForObject(o).Add(fyne.NewPos(0, o.Size().Height))
 	}
-	if s, ok := w.fyneWindow.Canvas().Focused().(*synopsisEntry); ok && w.cardsVisible && s.i < len(w.cards.items) {
+	if s, ok := w.fyneWindow.Canvas().Focused().(*synopsisEntry); ok && w.cardsShown() && s.i < len(w.cards.items) {
 		if at == nil {
 			at = s
 		}
 		w.pickColor(w.cards.items[s.i], below(at), nil)
 		return
 	}
-	if w.cardsVisible { // the editor is not shown: no cursor to go by
+	if w.cardsShown() { // the editor is not shown: no cursor to go by
 		w.setStatus("Right-click a card to color it, or write in its synopsis first")
 		return
 	}
@@ -229,7 +229,7 @@ func (w *MainWindow) setOutlineColor(it outlineItem, c string) {
 		// the cards wait while a synopsis is written: shown again, the
 		// synopsis keeps the focus
 		cv := w.fyneWindow.Canvas()
-		if s, ok := cv.Focused().(*synopsisEntry); ok && w.cardsVisible {
+		if s, ok := cv.Focused().(*synopsisEntry); ok && w.cardsShown() {
 			cv.Unfocus()
 			w.cards.update(nw)
 			if k := w.cards.card(s.i); k != nil {

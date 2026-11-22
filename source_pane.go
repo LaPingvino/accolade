@@ -676,7 +676,7 @@ func (s *sourcePane) use(r *sourceRead, ps []passage) {
 		s.offeredWords = nil
 	}
 	s.showBody()
-	if s.w.swapped != "source" { // its rows are not in sight while the source is in the main editor (swap.go)
+	if !s.w.mid.has("source") { // its rows are not in sight while the source is in the middle (middle.go)
 		s.measure(s.width)
 	}
 	s.showReading(false)
@@ -1016,8 +1016,8 @@ func (s *sourcePane) scenesTapped(id int, from fyne.CanvasObject) {
 }
 
 // jumpTo goes to the k-th scene linking to passage id: the script's
-// cursor on it (the Script tab lighting it, if the script is swapped
-// out), the scene flashing; the passage stays picked, the anchor.
+// cursor on it (the script's middle tab brought to the front), the scene
+// flashing; the passage stays picked, the anchor.
 func (s *sourcePane) jumpTo(id, k int) {
 	scenes := s.current().linked(id)
 	if k < 0 || k >= len(scenes) {
@@ -1127,7 +1127,7 @@ func spanLabelsFor(s *sourcePane) map[int]string {
 
 // toggleEdit opens the source as text in the pane, or saves it and
 // shows it as passages again. The text is the window's source document
-// (document.go), the one Swap with Main puts in the main editor.
+// (document.go), the one Open in the Middle puts in the middle.
 func (s *sourcePane) toggleEdit() {
 	if s.ref.Origin == sourceNone {
 		return
@@ -1358,7 +1358,7 @@ func (w *MainWindow) toggleSourceInside() {
 // linkToSource is Adaptation > Link to Source Passage: a link to the passage
 // picked in the source pane, at the cursor.
 func (w *MainWindow) linkToSource() {
-	if w.scriptAway("Link to Source Passage") { // the script is in the side panes (swap.go)
+	if w.scriptAway("Link to Source Passage") { // another middle tab in front (middle.go)
 		return
 	}
 	if w.markdown {
@@ -1412,7 +1412,7 @@ func (s *sourcePane) linkPassage(p int) {
 // sectionsFromSourceHere is Adaptation > Source Headings as Sections: the
 // source's headings, those not in the script yet, as its sections.
 func (w *MainWindow) sectionsFromSourceHere() {
-	if w.scriptAway("Source Headings as Sections") { // the script is in the side panes (swap.go)
+	if w.scriptAway("Source Headings as Sections") { // another middle tab in front (middle.go)
 		return
 	}
 	if w.markdown {

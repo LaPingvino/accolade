@@ -218,6 +218,7 @@ func (w *MainWindow) roleChanged(said bool) {
 	}
 	if writer && w.dock != nil {
 		w.dock.putAway() // the Production pane out (dock.go)
+		w.middlePrune()  // and its middle tab (middle.go)
 	}
 	if w.headerBar != nil {
 		w.headerBar.showRole(w.cmdEnv())

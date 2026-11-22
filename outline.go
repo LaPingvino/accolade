@@ -260,8 +260,7 @@ func (o *outlinePanel) showFold(b *widget.Button, id int) {
 }
 
 // goTo puts the cursor at the start of a line and the focus in the editor.
-// While the script is not in the main editor, the Script tab lights it
-// (goToScript).
+// Another middle tab in front, the script's comes forward (goToScript).
 func (o *outlinePanel) goTo(line int) { o.w.goToScript(line) }
 
 // dragList is a list of the script's items whose rows can be dragged

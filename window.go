@@ -75,18 +75,16 @@ type MainWindow struct {
 	exLabel  *widget.Label
 	exPrompt func(string) // the line is a prompt's (helix s), not a command
 	exVisual [2]int
-	// the card view in the editor's place (cards.go): the Cards pane
-	// swapped with the main area (swap.go)
-	cardsVisible bool
-	// the window's documents (document.go): the script as one, the one
-	// in the main editor while a pane is swapped in (nil for a view),
-	// the source and the notes once opened
-	script, mainDoc, srcDoc, notesDoc *document
-	// swapped is the dock pane swapped with the main area ("" none); the
-	// script is its Script tab meanwhile (swap.go)
-	swapped   string
-	scriptTab *scriptPane
-	cardsDock *cardsPane // the Cards pane (cards_pane.go)
+	// the middle tabs: the script, the cards' full view, the panes put
+	// there (middle.go)
+	mid middle
+	// the window's documents (document.go): the script as one, the
+	// source and the notes once opened
+	script, srcDoc, notesDoc *document
+	// passageSeen are the source's passages' lines as found last, for the
+	// main cursor (source_passage_lines.go)
+	passageSeen linesSeen
+	cardsDock   *cardsPane // the Cards pane (cards_pane.go)
 	// the Characters pane, and the last rename for Undo (characters_pane.go, characters_rename.go)
 	charsPane   *charactersPane
 	charRenamed *renamed
@@ -209,16 +207,15 @@ type MainWindow struct {
 	suggestedName string
 
 	// Auto-save (autosave.go)
-	autoSaveTimer  *uiTimer
-	timers         uiTimers   // the window's (background.go)
-	followTimer    *uiTimer   // the source pane's follow, after typing
-	flashTimer     *uiTimer   // a scene's flash taken away (flashScene)
-	scriptTabTimer *uiTimer   // the Script tab's scenes read again, after typing (swap.go)
-	suggest        *suggester // suggestions from the source while writing (suggest.go)
-	complete       *completer // Tab's completions of names and headings (complete.go)
-	seenRev        uint64     // the text's revision the cursor was last seen in
-	importGen      int        // the import under way (a later one wins)
-	bundleSrc      struct {   // the bundle's source, decoded (sourceText)
+	autoSaveTimer *uiTimer
+	timers        uiTimers   // the window's (background.go)
+	followTimer   *uiTimer   // the source pane's follow, after typing
+	flashTimer    *uiTimer   // a scene's flash taken away (flashScene)
+	suggest       *suggester // suggestions from the source while writing (suggest.go)
+	complete      *completer // Tab's completions of names and headings (complete.go)
+	seenRev       uint64     // the text's revision the cursor was last seen in
+	importGen     int        // the import under way (a later one wins)
+	bundleSrc     struct {   // the bundle's source, decoded (sourceText)
 		raw  []byte
 		text string
 		ok   bool
@@ -274,6 +271,7 @@ func NewMainWindow(app *Application) *MainWindow {
 	// whole of every window again
 	app.setColorScheme(window.settings.GetString("theme"))
 	window.dock = newDock(window)
+	window.mid.w = window
 	window.setupUI()
 	window.setupShortcuts()
 	window.setupCallbacks()
@@ -1258,7 +1256,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.scheduleRevisionMarks()
 	w.scheduleBreakdown()
 	w.dock.edited(text) // the panes in the dock (dock.go)
-	if w.cardsVisible && w.cards != nil {
+	if w.cardsShown() {
 		w.cards.update(text)
 	}
 	if w.stripsVisible && w.stripboard != nil {
@@ -1295,7 +1293,7 @@ func (w *MainWindow) updateTitle() {
 	} else if w.hasChanges {
 		title = "• Untitled - Accolade"
 	}
-	if d := w.mainDoc; d != nil && w.swapped != "" { // the document in the main editor first (swap.go)
+	if d := w.midDoc(); d != nil { // the document in the main editor first (middle.go)
 		mark := ""
 		if d.dirty() {
 			mark = "• "
@@ -1321,7 +1319,7 @@ func (w *MainWindow) updateStatusBar() {
 		return // called while the window is being built
 	}
 	var text string
-	if d := w.main(); d != nil && d.kind != docScript { // the document in the main editor (swap.go)
+	if d := w.main(); d != nil && d.kind != docScript { // the document in the main editor (middle.go)
 		text = w.markdownStats(d.Text()) + " · " + d.kind.String() + ", " + d.where()
 		if w.shared != nil && d.sharedAs() == "" {
 			text += " · yours only, not shared"
@@ -1364,7 +1362,7 @@ func (w *MainWindow) onCursorChanged() {
 
 func (w *MainWindow) updateCurrentElement() {
 	e := w.mainEditor()
-	if e == nil { // a view in the main area (swap.go)
+	if e == nil { // a view in the middle (middle.go)
 		w.currentElement = ""
 		return
 	}
@@ -1519,10 +1517,8 @@ func (w *MainWindow) relayout() {
 	var center fyne.CanvasObject = w.editorView
 	if w.stripsVisible && w.stripboard != nil {
 		center = w.stripboard.box
-	} else if w.swapped != "" { // a pane's document or view (swap.go)
-		center = w.swappedCenter()
-	} else if w.cardsVisible && w.cards != nil {
-		center = w.cards.box
+	} else if !w.scriptInMain() {
+		// another middle tab in front: w.mid.center below puts it there
 	} else if w.pagesVisible && w.pages != nil && w.narrow { // a phone: in the script's place
 		center = w.pages
 	} else if w.pagesVisible && w.pages != nil {
@@ -1533,6 +1529,9 @@ func (w *MainWindow) relayout() {
 		split := container.NewHSplit(w.editorView, w.previewPane.box)
 		split.Offset = 0.55
 		center = split
+	}
+	if !w.stripsVisible || w.stripboard == nil {
+		center = w.mid.center(center) // the tab in front, under the middle's tabs
 	}
 	side := w.dock.object() // dock.go
 	var left fyne.CanvasObject
@@ -1857,7 +1856,7 @@ func defaultScript(now time.Time) string {
 // panes are the parts of the window that take the keyboard, in order:
 // the editor, each dock slot's pane in front, and the search bar when shown.
 func (w *MainWindow) panes() []fyne.Focusable {
-	panes := []fyne.Focusable{w.textEditor}
+	panes := []fyne.Focusable{w.mainFocus()} // the middle's editor, view or tab (middle.go)
 	// each slot's pane in front, the top's first (dock.go)
 	panes = append(panes, w.dock.focusTargets()...)
 	if w.searchBar != nil && w.searchBar.IsVisible() {

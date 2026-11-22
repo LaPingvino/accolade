@@ -110,12 +110,11 @@ func (w *MainWindow) toggleStripboard() {
 		w.setStatus("The stripboard is a screenplay's scenes")
 		return
 	}
-	if !w.stripsVisible && w.swapped != "" { // one thing in the main area: the script back first (swap.go)
-		w.swapBack()
+	if !w.stripsVisible && !w.scriptInMain() { // the script's tab to the front first, the others kept (middle.go)
+		w.showMiddle("")
 	}
 	w.stripsVisible = !w.stripsVisible
 	if w.stripsVisible {
-		w.cardsVisible = false
 		if w.stripboard == nil {
 			w.stripboard = newStripboard(w)
 		}

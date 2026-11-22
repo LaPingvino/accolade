@@ -8,6 +8,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
@@ -17,6 +18,20 @@ func tabTitles(w *MainWindow) string {
 	var out []string
 	for _, p := range w.dock.visible(dockSheet) {
 		if t := w.dock.tabs[p.id]; t != nil {
+			out = append(out, t.title)
+		}
+	}
+	return strings.Join(out, " ")
+}
+
+// midTitles are the middle's tab titles as shown, in order, the one in
+// front in [brackets] ("" with no row: the script alone).
+func midTitles(w *MainWindow) string {
+	var out []string
+	for _, t := range w.mid.tabsIn(nil) {
+		if t.selected {
+			out = append(out, "["+t.title+"]")
+		} else {
 			out = append(out, t.title)
 		}
 	}
@@ -33,23 +48,27 @@ func runeAt(t *testing.T, text, s string) int {
 	return len([]rune(text[:i]))
 }
 
-// The source swapped into the main editor: a Markdown document there,
-// its commands, its own undo, find and replace in it, the title naming
-// it; File > Save writes it beside the script; swapping back puts the
-// script back, the source written.
-func TestSwapSourceIntoMain(t *testing.T) {
+// The source as a middle tab: a Markdown document there, its commands,
+// its own undo, find and replace in it, the title naming it; File > Save
+// writes it beside the script; the script's tab in front again brings the
+// screenplay's commands back; closing the tab writes the source and puts
+// the pane back in reach.
+func TestMiddleSource(t *testing.T) {
 	w, p := sourceWindow(t, sourceScript, sourceStory)
 	script := w.textEditor.Text()
-	w.swapWithMain("source")
-	d := w.mainDoc
-	if w.swapped != "source" || d == nil || d.kind != docSource || w.mainEditor() != d.ed || d.Text() != sourceStory {
-		t.Fatalf("swapped %q, main %v", w.swapped, w.mainEditor() == w.textEditor)
+	w.openMiddle("source")
+	d := w.midDoc()
+	if w.mid.shown != "source" || d == nil || d.kind != docSource || w.mainEditor() != d.ed || d.Text() != sourceStory {
+		t.Fatalf("in front %q, main %v", w.mid.shown, w.mainEditor() == w.textEditor)
 	}
-	if w.swappedCenter() != d.view {
-		t.Error("the source is not in the main area")
+	if w.mid.body != d.view {
+		t.Error("the source is not in the middle")
 	}
-	if got := tabTitles(w); !strings.Contains(got, "Script") || strings.Contains(got, "Source") {
-		t.Errorf("tabs %q: the Script tab in the source's place", got)
+	if got := midTitles(w); got != "Script [Source]" {
+		t.Errorf("middle tabs %q", got)
+	}
+	if got := tabTitles(w); strings.Contains(got, "Source") || strings.Contains(got, "Script") {
+		t.Errorf("dock tabs %q: the source is in the middle, not also in the dock, and the script not there", got)
 	}
 	env := w.cmdEnv()
 	if !cmd("md.heading2").applies(env) || cmd(elementCommandID("Action")).applies(env) || cmd("format.underline").applies(env) {
@@ -99,19 +118,27 @@ func TestSwapSourceIntoMain(t *testing.T) {
 		t.Errorf("after Save: file %q, title %q", data, w.fyneWindow.Title())
 	}
 	d.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("\nThe end.\n") })
-	w.swapWithMain("source") // back
-	if w.swapped != "" || w.mainEditor() != w.textEditor || w.srcDoc != nil || w.swappedCenter() == d.view {
-		t.Fatal("not back")
+	w.showMiddle("") // the script's tab: the source stays open beside it
+	if !w.scriptInMain() || w.mainEditor() != w.textEditor || w.srcDoc != d || midTitles(w) != "[Script] Source" {
+		t.Fatalf("the script's tab: %q", midTitles(w))
+	}
+	if env := w.cmdEnv(); !cmd(elementCommandID("Action")).applies(env) || cmd("md.heading2").applies(env) {
+		t.Error("the screenplay's commands are not back")
+	}
+	w.showMiddle("source")
+	if w.mainEditor() != d.ed || !w.cmdEnv().midDoc {
+		t.Fatal("back to the source's tab")
+	}
+	w.backToSide("source")
+	if !w.scriptInMain() || w.mid.has("source") || w.srcDoc != nil || midTitles(w) != "" {
+		t.Fatalf("not back to the side: %q", midTitles(w))
 	}
 	data, _ = os.ReadFile(filepath.Join(filepath.Dir(p), "story.md"))
 	if !strings.HasSuffix(string(data), "The end.\n") {
 		t.Errorf("not written on the way back: %q", data)
 	}
-	if got := tabTitles(w); !strings.Contains(got, "Source") || strings.Contains(got, "Script") {
-		t.Errorf("tabs %q after", got)
-	}
-	if env := w.cmdEnv(); !cmd(elementCommandID("Action")).applies(env) || cmd("md.heading2").applies(env) {
-		t.Error("the screenplay's commands are not back")
+	if got := tabTitles(w); !strings.Contains(got, "Source") {
+		t.Errorf("dock tabs %q after", got)
 	}
 	if s := w.sourcePane(); !strings.Contains(s.src, "The end.") {
 		t.Error("the pane does not show the source as written")
@@ -122,14 +149,14 @@ func TestSwapSourceIntoMain(t *testing.T) {
 // the script's block at once, all of them one undo step there; a change
 // made to the block in the script (Undo, a co-writer) comes into the
 // source's editor outside its own history.
-func TestSwapSourceInsideScript(t *testing.T) {
+func TestMiddleSourceInsideScript(t *testing.T) {
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
 	w.toggleSourceInside()
 	if w.sourceRef().Origin != sourceInside {
 		t.Fatal("not inside")
 	}
-	w.swapWithMain("source")
-	d := w.mainDoc
+	w.openMiddle("source")
+	d := w.midDoc()
 	if !d.inScript() || d.sharedAs() != "script" {
 		t.Fatal("kept in the script: shared with it")
 	}
@@ -155,7 +182,7 @@ func TestSwapSourceInsideScript(t *testing.T) {
 	if strings.Contains(d.Text(), "Three.") || !strings.Contains(d.Text(), "Then She opened") {
 		t.Errorf("the source's Undo: %q", d.Text())
 	}
-	w.swapBack()
+	w.closeMiddle("source")
 	before := w.textEditor.Text()
 	w.fyneWindow.Canvas().Focus(w.textEditor)
 	w.undo()
@@ -164,63 +191,70 @@ func TestSwapSourceInsideScript(t *testing.T) {
 	}
 }
 
-// The notes in the main editor: written into the script's notes block,
-// the Notes pane following; in a Markdown document as its HTML comment.
-func TestSwapNotes(t *testing.T) {
+// The notes in the middle: written into the script's notes block, the
+// Notes pane following when back; in a Markdown document as its HTML
+// comment.
+func TestMiddleNotes(t *testing.T) {
 	w := newTestWindow(t, "INT. BARN - DAY\n\nRain.\n\n/* Notes\nfirst\n*/\n")
 	w.showPane("notes", false)
-	w.swapWithMain("notes")
-	d := w.mainDoc
-	if d == nil || d.kind != docNotes || d.Text() != "first" || !strings.Contains(tabTitles(w), "Script") {
-		t.Fatalf("notes %v", d)
+	w.openMiddle("notes")
+	d := w.midDoc()
+	if d == nil || d.kind != docNotes || d.Text() != "first" || midTitles(w) != "Script [Notes]" || w.paneShown("notes") {
+		t.Fatalf("notes %v, tabs %q", d, midTitles(w))
 	}
 	d.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert(" and more") })
 	if notesOf(w.textEditor.Text()) != "first and more" {
 		t.Errorf("the script's notes %q", notesOf(w.textEditor.Text()))
 	}
-	w.swapBack()
+	w.backToSide("notes")
 	if w.notesPane().entry.Text != "first and more" {
 		t.Errorf("the Notes pane %q", w.notesPane().entry.Text)
 	}
 
 	m := mdWindow(t, "# Story\n\nText.\n\n<!-- Notes\nmine\n-->\n", 0, 0)
 	m.showPane("notes", false)
-	m.swapWithMain("notes")
-	if m.mainDoc == nil || m.mainDoc.Text() != "mine" {
+	m.openMiddle("notes")
+	if m.midDoc() == nil || m.midDoc().Text() != "mine" {
 		t.Fatal("the Markdown document's notes")
 	}
-	m.mainDoc.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("!") })
+	m.midDoc().ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("!") })
 	if !strings.HasSuffix(m.textEditor.Text(), "<!-- Notes\nmine!\n-->\n") {
 		t.Errorf("Markdown's notes block %q", m.textEditor.Text())
 	}
-	if m.swapBlocked("source") == "" || m.swapBlocked("cards") == "" {
-		t.Error("a Markdown document has no source or cards to swap")
+	if m.middleBlocked("source") == "" || m.middleBlocked("cards") == "" {
+		t.Error("a Markdown document has no source or cards to put in the middle")
 	}
 }
 
-// Swapping is refused, with a reason, where it cannot be.
-func TestSwapBlocked(t *testing.T) {
+// Open in the Middle is refused, with a reason, where it cannot be; the
+// tab's menu item is greyed.
+func TestMiddleBlocked(t *testing.T) {
 	w := newTestWindow(t, "INT. BARN - DAY\n")
 	w.showPane("source", false)
-	w.swapWithMain("source")
-	if w.swapped != "" || !strings.Contains(w.statusLabel.Text, "No source") {
-		t.Errorf("swapped %q, status %q", w.swapped, w.statusLabel.Text)
+	w.openMiddle("source")
+	if w.mid.has("source") || !strings.Contains(w.statusLabel.Text, "No source") || !w.paneShown("source") {
+		t.Errorf("in the middle %v, status %q", w.mid.tabs, w.statusLabel.Text)
+	}
+	if m := w.dock.menu("source"); !m.Items[1].Disabled {
+		t.Error("Open in the Middle not greyed")
 	}
 }
 
-// Another script in the window: the source written first, the script
-// back in the main editor; the same for the document type.
-func TestSwapLeftForAnotherDocument(t *testing.T) {
+// Another script in the window: the source written first and its tab
+// closed, the script in front, a view's tab (the outline) kept; the same
+// for the document type, which closes the cards' tab too.
+func TestMiddleLeftForAnotherDocument(t *testing.T) {
 	w, p := sourceWindow(t, sourceScript, sourceStory)
-	w.swapWithMain("source")
-	w.mainDoc.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(0, false); b.Insert("New first line.\n\n") })
+	w.openMiddle("outline")
+	w.openMiddle("source")
+	w.midDoc().ed.Edit(func(b *buffer.Buffer) { b.SetCursor(0, false); b.Insert("New first line.\n\n") })
 	other := filepath.Join(t.TempDir(), "other.fountain")
 	os.WriteFile(other, []byte("INT. ELSEWHERE - DAY\n"), 0o644)
 	if err := w.LoadFile(other); err != nil {
 		t.Fatal(err)
 	}
-	if w.swapped != "" || w.srcDoc != nil || w.mainEditor() != w.textEditor {
-		t.Error("still swapped")
+	if !w.scriptInMain() || w.srcDoc != nil || w.mainEditor() != w.textEditor || midTitles(w) != "[Script] Outline" {
+		t.Errorf("after Open: %q", midTitles(w))
 	}
 	if data, _ := os.ReadFile(filepath.Join(filepath.Dir(p), "story.md")); !strings.HasPrefix(string(data), "New first line.") {
 		t.Errorf("the source not written: %q", data)
@@ -228,35 +262,43 @@ func TestSwapLeftForAnotherDocument(t *testing.T) {
 
 	n := newTestWindow(t, "INT. BARN - DAY\n\n/* Notes\nkept\n*/\n")
 	n.showPane("notes", false)
-	n.swapWithMain("notes")
+	n.openMiddle("production")
+	n.setOwnRole(roleWriter)
+	if n.mid.has("production") {
+		t.Error("a Writer kept Production's middle tab")
+	}
+	n.openMiddle("cards")
+	n.openMiddle("notes")
 	n.setDocumentType(true)
-	if n.swapped != "" || !strings.HasSuffix(n.textEditor.Text(), "<!-- Notes\nkept\n-->\n") {
-		t.Errorf("swapped %q, %q", n.swapped, n.textEditor.Text())
+	if !n.scriptInMain() || len(n.mid.tabs) != 0 || !strings.HasSuffix(n.textEditor.Text(), "<!-- Notes\nkept\n-->\n") {
+		t.Errorf("middle %v, %q", n.mid.tabs, n.textEditor.Text())
 	}
 }
 
-// Auto-save writes the source in the main editor with the script.
-func TestSwapAutoSave(t *testing.T) {
+// Auto-save writes the source in the middle with the script.
+func TestMiddleAutoSave(t *testing.T) {
 	w, p := sourceWindow(t, sourceScript, sourceStory)
 	w.settings.SetBoolean("auto-save", true)
 	t.Cleanup(func() { w.settings.SetBoolean("auto-save", false) })
-	w.swapWithMain("source")
-	w.mainDoc.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("Saved by itself.\n") })
+	w.openMiddle("source")
+	w.showMiddle("") // behind the script's tab: written all the same
+	w.srcDoc.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("Saved by itself.\n") })
 	w.autoSaveNow()
 	if data, _ := os.ReadFile(filepath.Join(filepath.Dir(p), "story.md")); !strings.HasSuffix(string(data), "Saved by itself.\n") {
 		t.Errorf("not auto-saved: %q", data)
 	}
 }
 
-// A view swapped in (the outline): its box in the main area, nothing to
-// write in (the editing commands say so), the Script tab lighting the
-// scene the outline goes to; the script's cursor commands say why not.
-func TestSwapView(t *testing.T) {
+// A view in the middle (the outline): its box there, nothing to write in
+// (the editing commands say so), the script's cursor commands say why
+// not; a scene tapped puts the script's tab in front at it; the View
+// command shows the tab, and in front closes it.
+func TestMiddleView(t *testing.T) {
 	w := newTestWindow(t, "INT. BARN - DAY\n\nRain.\n\nEXT. FIELD - NIGHT\n\nWind.\n")
 	w.showPane("outline", false)
-	w.swapWithMain("outline")
-	if w.swappedCenter() != w.outlinePane().box || w.mainEditor() != nil || !w.paneInSight("outline") {
-		t.Fatal("the outline is not in the main area")
+	w.openMiddle("outline")
+	if w.mid.body != w.outlinePane().box || w.mainEditor() != nil || !w.paneInSight("outline") || w.paneShown("outline") {
+		t.Fatal("the outline is not in the middle")
 	}
 	if cmd(elementCommandID("Action")).applies(w.cmdEnv()) || cmd("md.heading1").applies(w.cmdEnv()) {
 		t.Error("no editor: no element commands")
@@ -266,61 +308,28 @@ func TestSwapView(t *testing.T) {
 	if w.textEditor.Text() != before || !strings.Contains(w.statusLabel.Text, "Nothing to write in") {
 		t.Errorf("bold with no editor: status %q", w.statusLabel.Text)
 	}
-	w.outlinePane().goTo(4)
-	sp := w.scriptPane()
-	if !sp.lit[1] || sp.lit[0] {
-		t.Errorf("the Script tab lights %v", sp.lit)
-	}
-	// the outline in the main area follows the script's changes (Undo, a peer)
+	// the outline in the middle follows the script's changes (Undo, a peer)
 	w.textEditor.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("\nINT. HALL - DAY\n\nDust.\n") })
 	if items := w.outlinePane().all; len(items) != 3 {
-		t.Errorf("the outline swapped in did not follow the script: %d items", len(items))
+		t.Errorf("the outline in the middle did not follow the script: %d items", len(items))
 	}
 	w.textEditor.Undo()
 	w.omitScene()
-	if w.textEditor.Text() != before || !strings.Contains(w.statusLabel.Text, "Swap with Main") {
+	if w.textEditor.Text() != before || !strings.Contains(w.statusLabel.Text, "its middle tab first") {
 		t.Errorf("omit with the script away: %q", w.statusLabel.Text)
 	}
-	w.togglePane("outline") // its View command: back in its place
-	if w.swapped != "" || w.swappedCenter() == w.outlinePane().box {
-		t.Error("View > Outline did not put it back")
+	w.outlinePane().goTo(4)
+	if line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset()); !w.scriptInMain() || line != 4 ||
+		w.fyneWindow.Canvas().Focused() != w.textEditor {
+		t.Errorf("a scene tapped: script in front %v, line %d", w.scriptInMain(), line)
 	}
-}
-
-// The Script tab follows the source's cursor: the scenes linking to its
-// passage lit, the passage's status said; a tap goes to the scene's
-// passage, and the script's cursor to the scene.
-func TestScriptTabFollowsSource(t *testing.T) {
-	w, _ := sourceWindow(t, sourceScript, sourceStory)
-	w.swapWithMain("source")
-	d := w.mainDoc
-	sp := w.scriptPane()
-	d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
-	var lit []string
-	for i := range sp.items {
-		if sp.lit[i] {
-			lit = append(lit, sp.items[i].Text)
-		}
+	w.togglePane("outline") // its View command: its tab to the front
+	if w.mid.shown != "outline" {
+		t.Fatal("View > Outline did not show its tab")
 	}
-	if strings.Join(lit, ",") != "EXT. GARDEN - DAY" || !strings.Contains(sp.info.Text, "1 scene") {
-		t.Errorf("lit %v, info %q", lit, sp.info.Text)
-	}
-	d.ed.SetCursorOffset(runeAt(t, d.Text(), "a list item"))
-	if !strings.Contains(sp.info.Text, "not adapted yet") {
-		t.Errorf("info %q", sp.info.Text)
-	}
-	for i, it := range sp.items {
-		if it.Text == "INT. HOUSE - NIGHT" {
-			sp.tap(i)
-		}
-	}
-	line, _ := d.ed.Buffer().Position(d.ed.CursorOffset())
-	if got := strings.Split(d.Text(), "\n")[line]; !strings.HasPrefix(got, "She opened the door") {
-		t.Errorf("the source's cursor on %q", got)
-	}
-	sl, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
-	if got := strings.Split(w.textEditor.Text(), "\n")[sl]; got != "INT. HOUSE - NIGHT" {
-		t.Errorf("the script's cursor on %q", got)
+	w.togglePane("outline") // in front: closed
+	if w.mid.has("outline") || !w.scriptInMain() || w.paneShown("outline") {
+		t.Error("View > Outline in front did not close its tab")
 	}
 }
 
@@ -343,18 +352,60 @@ func TestPassageLines(t *testing.T) {
 
 func normLine(s string) string { return strings.Join(normWords(s), " ") }
 
+// typeShortcut is s typed with the keyboard where it is: the focused
+// widget's first (the editors hand the menu's keys on), else the menu's,
+// as the driver does.
+func typeShortcut(w *MainWindow, s fyne.Shortcut) {
+	if w.fyneWindow.MainMenu() != nil && runMenuShortcut(w.fyneWindow.MainMenu(), s) {
+		return // the driver tries the menu bar's first
+	}
+	if f, ok := w.fyneWindow.Canvas().Focused().(fyne.Shortcutable); ok {
+		if _, entry := f.(*widget.Entry); !entry {
+			f.TypedShortcut(s)
+			return
+		}
+	}
+	if w.menuShortcut(s) {
+		return
+	}
+}
+
+// runMenuShortcut runs the menu bar's item with shortcut s, as the driver
+// does; false if none has it.
+func runMenuShortcut(mm *fyne.MainMenu, s fyne.Shortcut) bool {
+	var find func([]*fyne.MenuItem) bool
+	find = func(items []*fyne.MenuItem) bool {
+		for _, it := range items {
+			if it.Shortcut != nil && it.Shortcut.ShortcutName() == s.ShortcutName() && it.Action != nil {
+				it.Action()
+				return true
+			}
+			if it.ChildMenu != nil && find(it.ChildMenu.Items) {
+				return true
+			}
+		}
+		return false
+	}
+	for _, m := range mm.Items {
+		if find(m.Items) {
+			return true
+		}
+	}
+	return false
+}
+
 // Editing together: the notes and a source kept in the script are the
-// script's text, so they go both ways while swapped in; a source kept
+// script's text, so they go both ways while in the middle; a source kept
 // elsewhere is this writer's alone, as the status says.
-func TestSwapTogether(t *testing.T) {
+func TestMiddleTogether(t *testing.T) {
 	_, _, block := withSourceBlock("INT. BARN - DAY\n\nRain.\n", "First passage here.\n\nSecond passage here.")
 	text := "INT. BARN - DAY\n\nRain.\n" + block
 	a, b, _ := sharedPair(t, text)
 	connect(t, a, b)
 	textIs(t, b, "b", text)
 	a.showPane("source", false)
-	a.swapWithMain("source")
-	d := a.mainDoc
+	a.openMiddle("source")
+	d := a.midDoc()
 	if d == nil || !d.inScript() {
 		t.Fatal("the source kept in the shared script is not in a's main editor")
 	}
@@ -369,70 +420,134 @@ func TestSwapTogether(t *testing.T) {
 	}
 }
 
-// On a phone the Script tab is in the sheet, and the swap goes as wide.
-func TestSwapPhone(t *testing.T) {
+// On a phone the middle's tabs are one row: those that do not fit in the
+// More menu, the one in front always on the row; the tab's menu has Back
+// to the Side and Close.
+func TestMiddlePhone(t *testing.T) {
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
 	w.fyneWindow.Resize(fyne.NewSize(380, 800))
 	w.onWindowWidth(380)
 	if !w.narrow {
-		t.Skip("the window is not narrow here")
+		t.Fatal("the window is not narrow here")
 	}
-	w.swapWithMain("source")
-	if !strings.Contains(tabTitles(w), "Script") || w.paneSplit == nil {
-		t.Errorf("tabs %q", tabTitles(w))
+	for _, id := range []string{"cards", "outline", "notes", "help", "characters", "source"} {
+		w.openMiddle(id)
+	}
+	w.showPane("changes", false) // the sheet under the middle: half the height
+
+	if w.mid.shown != "source" || w.mid.row == nil || w.paneSplit == nil {
+		t.Fatalf("tabs %q", midTitles(w))
+	}
+	w.fyneWindow.Content().Refresh()
+	r := w.mid.row
+	r.Layout(r.Objects, r.Size())
+	src, hidden := -1, 0
+	for i, it := range r.items {
+		if it.obj == fyne.CanvasObject(w.mid.tabW["source"]) {
+			src = i
+		}
+		if r.hidden(i) {
+			hidden++
+		}
+	}
+	if src < 0 || r.hidden(src) || hidden == 0 || !r.more.Visible() {
+		t.Errorf("the row: the source's tab hidden %v, %d in the menu", src < 0 || r.hidden(src), hidden)
+	}
+	if rs := r.Size(); rs.Width > 380 {
+		t.Errorf("the row is %v wide on a phone", rs.Width)
 	}
 	// the main editor keeps its cursor in view at a phone's height
-	d := w.mainDoc
+	d := w.midDoc()
 	d.ed.SetCursorOffset(len([]rune(d.Text())))
 	if sc, ok := d.view.Content.(*container.Scroll); !ok || sc.Offset.Y <= 0 {
 		t.Errorf("the source's editor did not scroll to its cursor (%v)", ok)
 	}
-	m := w.dock.menu("source")
-	if m.Items[1].Label != "Swap with Main (put back)" {
-		t.Errorf("menu %q", m.Items[1].Label)
+	m := w.mid.menu("source")
+	if m.Items[0].Label != "Back to the Side" || m.Items[1].Label != "Close Source" || w.mid.menu("") != nil {
+		t.Errorf("menu %q, %q", m.Items[0].Label, m.Items[1].Label)
 	}
-	m.Items[1].Action()
-	if w.swapped != "" {
-		t.Error("not back")
+	m.Items[0].Action()
+	if w.mid.has("source") || !w.paneInSight("source") || w.mid.shown != "characters" {
+		t.Errorf("not back to the side, or not the tab before in front: %q", midTitles(w))
 	}
 }
 
-// Adaptation > Swap Source and Script: the Source pane brought in when it
-// is not there, swapped, and back; View > Swap Pane with Main the same
-// for the pane picked last.
-func TestSwapSourceAndScriptCommand(t *testing.T) {
+// Adaptation > Source in the Middle: the source's tab (opened if it is
+// not), and again the script's; View > Open Pane in the Middle for the
+// pane picked last, Middle Tab Back to the Side, and Ctrl+PgDn/PgUp
+// round the tabs.
+func TestMiddleCommands(t *testing.T) {
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
 	w.togglePane("source") // out of the dock
-	c := cmd("source.swap")
+	c := cmd("source.middle")
 	if !c.canRun(w.cmdEnv()) {
 		t.Fatal("not there with a source")
 	}
 	c.run(w)
-	if w.swapped != "source" || !c.checked(w) || w.fyneWindow.Canvas().Focused() != w.mainDoc.ed {
-		t.Fatalf("swapped %q", w.swapped)
+	if w.mid.shown != "source" || !c.checked(w) || w.fyneWindow.Canvas().Focused() != w.midDoc().ed {
+		t.Fatalf("in front %q", w.mid.shown)
 	}
 	c.run(w)
-	if w.swapped != "" || !w.paneInSight("source") {
-		t.Error("not back, the pane in its place")
+	if !w.scriptInMain() || !w.mid.has("source") || c.checked(w) {
+		t.Error("not the script's tab, the source's kept")
 	}
 	w.showPane("notes", false)
-	cmd("view.paneSwap").run(w)
-	if w.swapped != "notes" {
-		t.Errorf("Swap Pane with Main swapped %q", w.swapped)
+	cmd("view.paneMiddle").run(w)
+	if w.mid.shown != "notes" || midTitles(w) != "Script Source [Notes]" {
+		t.Errorf("Open Pane in the Middle: %q", midTitles(w))
 	}
-	cmd("view.paneSwap").run(w)
-	if w.swapped != "" {
-		t.Error("Swap Pane with Main did not put it back")
+	next, prev := cmd("view.midNext"), cmd("view.midPrev")
+	if !next.canRun(w.cmdEnv()) || len(next.keys) == 0 {
+		t.Fatal("Next Middle Tab not there")
+	}
+	next.run(w)
+	if !w.scriptInMain() {
+		t.Errorf("Next from the last: %q", midTitles(w))
+	}
+	prev.run(w)
+	prev.run(w)
+	if w.mid.shown != "source" {
+		t.Errorf("Previous twice from the script: %q", midTitles(w))
+	}
+	cmd("view.paneSide").run(w)
+	if w.mid.has("source") || !w.paneInSight("source") {
+		t.Errorf("Back to the Side: %q", midTitles(w))
+	}
+	// the keys, with the keyboard in the editor of the tab in front
+	w.showMiddle("")
+	w.fyneWindow.Canvas().Focus(w.textEditor)
+	typeShortcut(w, next.keys[0])
+	if w.mid.shown != "notes" {
+		t.Errorf("Ctrl+PgDn from the script: %q", midTitles(w))
+	}
+	typeShortcut(w, prev.keys[0])
+	if !w.scriptInMain() {
+		t.Errorf("Ctrl+PgUp from the notes: %q", midTitles(w))
+	}
+	// the strip's tabs: the arrows go along, Down into the tab in front
+	t0 := w.mid.tabW[""]
+	t0.TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
+	if w.mid.shown != "notes" || w.fyneWindow.Canvas().Focused() != w.mid.tabW["notes"] {
+		t.Errorf("Right on the Script tab: %q", midTitles(w))
+	}
+	w.mid.tabW["notes"].TypedKey(&fyne.KeyEvent{Name: fyne.KeyDown})
+	if w.fyneWindow.Canvas().Focused() != w.midDoc().ed {
+		t.Error("Down on the Notes tab: not in its editor")
 	}
 }
 
 // The Cards pane: one card a scene or section, its synopsis written into
 // the script, a drag moving the scene, the cursor's scene lit; with the
-// source in the main editor, the passage's scenes lit. Swapped with the
-// main area it is the full Cards view.
+// source in the middle, the passage's scenes lit. View > Cards opens the
+// full view as a middle tab, never in the dock first; a card opened from
+// it puts the script's tab in front, the cards' kept.
 func TestCardsPane(t *testing.T) {
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
-	w.togglePane("cards")
+	w.togglePane("cards") // View > Cards: the middle
+	if !w.cardsShown() || w.paneShown("cards") || midTitles(w) != "Script [Cards]" {
+		t.Fatalf("View > Cards: tabs %q, in the dock %v", midTitles(w), w.paneShown("cards"))
+	}
+	w.backToSide("cards")
 	c := w.cardsPane()
 	if !c.shown() || len(c.items) != 3 || c.items[0].Text != "INT. HOUSE - NIGHT" {
 		t.Fatalf("cards %v", c.items)
@@ -453,8 +568,8 @@ func TestCardsPane(t *testing.T) {
 		t.Errorf("after the drag: %v", c.items)
 	}
 	// the source's passage lights its scenes' cards
-	w.swapWithMain("source")
-	d := w.mainDoc
+	w.openMiddle("source")
+	d := w.midDoc()
 	d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
 	var lit []string
 	for i := range c.items {
@@ -465,15 +580,20 @@ func TestCardsPane(t *testing.T) {
 	if strings.Join(lit, ",") != "EXT. GARDEN - DAY" {
 		t.Errorf("lit for the passage: %v", lit)
 	}
-	w.swapBack()
-	// swapped: the full view
-	w.toggleCards()
-	if w.swapped != "cards" || !w.cardsVisible || w.swappedCenter() != w.cards.box || !strings.Contains(tabTitles(w), "Script") {
-		t.Fatalf("the full Cards view: swapped %q", w.swapped)
+	w.closeMiddle("source")
+	// the pane's full-view button: the middle tab
+	w.openMiddle("cards")
+	if !w.cardsShown() || w.mid.body != w.cards.box || w.paneShown("cards") || midTitles(w) != "Script [Cards]" {
+		t.Fatalf("the full Cards view: tabs %q", midTitles(w))
 	}
 	w.cards.open(0)
-	if w.swapped != "" || w.cardsVisible {
-		t.Error("a card opened: the script not back")
+	if !w.scriptInMain() || !w.mid.has("cards") {
+		t.Error("a card opened: the script not in front, or the cards' tab gone")
+	}
+	w.togglePane("cards") // the cards' tab to the front
+	w.togglePane("cards") // in front: closed
+	if w.mid.has("cards") || w.paneShown("cards") {
+		t.Error("View > Cards in front did not close the tab")
 	}
 }
 
@@ -512,8 +632,8 @@ func TestLinkFixes(t *testing.T) {
 // Not Now leaves the links. The Source pane's Done asks as well.
 func TestLinkOffer(t *testing.T) {
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
-	w.swapWithMain("source")
-	d := w.mainDoc
+	w.openMiddle("source")
+	d := w.midDoc()
 	at := runeAt(t, d.Text(), "She opened")
 	d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+10, "pushed") }) // "She pushed the door…"
 	if w.linkOffer.box.Visible() {
@@ -543,7 +663,18 @@ func TestLinkOffer(t *testing.T) {
 	if w.textEditor.Text() != script {
 		t.Error("Not Now changed the script")
 	}
-	w.swapBack()
+	w.closeMiddle("source")
+
+	// leaving the source's tab (it stays open) asks too
+	w1, _ := sourceWindow(t, sourceScript, sourceStory)
+	w1.openMiddle("source")
+	d1 := w1.midDoc()
+	at = runeAt(t, d1.Text(), "She opened")
+	d1.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+10, "pushed") })
+	w1.showMiddle("")
+	if !w1.linkOffer.box.Visible() || !w1.mid.has("source") {
+		t.Error("leaving the source's tab did not offer")
+	}
 
 	// the pane's Edit and Done
 	w2, _ := sourceWindow(t, sourceScript, sourceStory)
@@ -556,11 +687,12 @@ func TestLinkOffer(t *testing.T) {
 	}
 }
 
-// TestSwapScreenshots renders the swapped states, on the desktop and at
-// a phone's size (SHOT_DIR as in screenshot_test.go): the source in the
-// main editor with the Script tab, the link offer, the notes, the Cards
-// pane, the full Cards view, the outline in the main area.
-func TestSwapScreenshots(t *testing.T) {
+// TestMiddleScreenshots renders the middle's tabs, on the desktop and at
+// a phone's size (SHOT_DIR as in screenshot_test.go): the script alone,
+// Cards from View > Cards (a middle tab, nothing in the sidebar), then
+// Script + Cards + Source with each in front, the link offer, the notes,
+// the outline in the middle, the Cards pane beside the script.
+func TestMiddleScreenshots(t *testing.T) {
 	dir := os.Getenv("SHOT_DIR")
 	if dir == "" {
 		t.Skip("set SHOT_DIR to render screenshots")
@@ -573,43 +705,45 @@ func TestSwapScreenshots(t *testing.T) {
 		w, h float32
 	}{{"desktop", 1100, 680}, {"phone", 380, 800}} {
 		w, _ := sourceWindow(t, sourceScript, sourceStory)
+		w.hidePane("source")
 		w.fyneWindow.Resize(fyne.NewSize(size.w, size.h))
 		w.onWindowWidth(size.w)
 		snap := func(name string) {
 			t.Helper()
 			w.fyneWindow.Content().Refresh()
-			snapWindow(t, w, filepath.Join(dir, "swap-"+size.name+"-"+name+".png"))
+			snapWindow(t, w, filepath.Join(dir, "middle-"+size.name+"-"+name+".png"))
 		}
 		w.textEditor.SetCursorOffset(runeAt(t, w.textEditor.Text(), "EXT. GARDEN - DAY"))
-		snap("0-before")
-		w.swapWithMain("source")
-		d := w.mainDoc
+		snap("0-script")
+		w.cardsPane().update(w.textEditor.Text())
+		w.cardsPane().setSynopsis(0, "Anna hears someone at the door")
+		cmd("view.cards").run(w)
+		snap("1-cards")
+		w.openMiddle("source")
+		d := w.midDoc()
 		d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
-		snap("1-source")
+		snap("2-source")
+		w.showMiddle("")
+		snap("3-script-of-three")
+		w.showMiddle("cards")
+		snap("4-cards-of-three")
+		w.showMiddle("source")
 		at := runeAt(t, d.Text(), "She opened")
 		d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+10, "pushed") })
 		d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
-		snap("2-link-offer")
+		snap("5-link-offer")
 		w.hideLinkOffer()
-		w.swapBack()
-		w.showPane("notes", false)
-		w.swapWithMain("notes")
-		w.mainDoc.SetText("Anna's door: does it open inward?\n\n- the frost scene moves to the morning\n")
-		snap("3-notes")
-		w.swapBack()
-		w.hidePane("notes")
-		w.hidePane("source")
-		w.showPane("cards", false)
-		w.cardsPane().setSynopsis(0, "Anna hears someone at the door")
+		w.openMiddle("notes")
+		w.midDoc().SetText("Anna's door: does it open inward?\n\n- the frost scene moves to the morning\n")
+		snap("6-notes")
+		w.openMiddle("outline")
+		snap("7-outline")
+		w.closeMiddle("outline")
+		w.closeMiddle("notes")
+		w.closeMiddle("source")
+		w.backToSide("cards")
 		w.textEditor.SetCursorOffset(runeAt(t, w.textEditor.Text(), "EXT. GARDEN - NIGHT"))
-		snap("4-cards-pane")
-		w.toggleCards()
-		snap("5-cards-full")
-		w.toggleCards()
-		w.showPane("outline", false)
-		w.swapWithMain("outline")
-		snap("6-outline-main")
-		w.swapBack()
+		snap("8-cards-pane")
 	}
 }
 
@@ -630,24 +764,24 @@ func TestLinkFixesLeaveNearLinks(t *testing.T) {
 	}
 }
 
-// Keep Source in the Script, both ways, with the source open: swapped in,
-// and in the pane's Edit; the document stays open, kept where the source
+// Keep Source in the Script, both ways, with the source open: in the
+// middle, and in the pane's Edit; the document stays open, kept where the source
 // is now, what was being written kept.
 func TestKeepSourceInsideWhileOpen(t *testing.T) {
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
-	w.swapWithMain("source")
-	d := w.mainDoc
+	w.openMiddle("source")
+	d := w.midDoc()
 	d.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("Written first.\n") })
 	w.toggleSourceInside()
-	if w.swapped != "source" || w.mainDoc != d || w.srcDoc != d || !d.inScript() {
-		t.Fatalf("in: swapped %q, doc kept %v", w.swapped, w.srcDoc == d)
+	if w.mid.shown != "source" || w.midDoc() != d || w.srcDoc != d || !d.inScript() {
+		t.Fatalf("in: in front %q, doc kept %v", w.mid.shown, w.srcDoc == d)
 	}
 	if _, _, md, _ := sourceBlock(w.textEditor.Text()); !strings.Contains(md, "Written first.") {
 		t.Error("the block has not what was written")
 	}
 	w.toggleSourceInside()
-	if w.swapped != "source" || w.srcDoc != d || d.inScript() || d.ref.Origin != sourceKept {
-		t.Fatalf("out: swapped %q, ref %+v", w.swapped, d.ref)
+	if w.mid.shown != "source" || w.srcDoc != d || d.inScript() || d.ref.Origin != sourceKept {
+		t.Fatalf("out: in front %q, ref %+v", w.mid.shown, d.ref)
 	}
 	if strings.Contains(w.textEditor.Text(), "/* Source") {
 		t.Error("the block stayed")
@@ -656,7 +790,7 @@ func TestKeepSourceInsideWhileOpen(t *testing.T) {
 	if !strings.Contains(string(data), "Written first.") {
 		t.Errorf("the kept copy %q", data)
 	}
-	w.swapBack()
+	w.backToSide("source")
 
 	s := w.sourcePane()
 	s.toggleEdit()
@@ -668,22 +802,22 @@ func TestKeepSourceInsideWhileOpen(t *testing.T) {
 	s.toggleEdit()
 }
 
-// Rename and a join while the source is swapped in: written first, the
-// script back in the main editor.
-func TestSwapRenameAndJoin(t *testing.T) {
+// Rename and a join while the source is in the middle: written first,
+// its tab closed, the script in front.
+func TestMiddleRenameAndJoin(t *testing.T) {
 	w, p := relocWindow(t)
 	w.showPane("source", false)
-	w.swapWithMain("source")
-	if w.swapped != "source" {
-		t.Fatal("not swapped")
+	w.openMiddle("source")
+	if w.mid.shown != "source" {
+		t.Fatal("not in the middle")
 	}
-	w.mainDoc.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(0, false); b.Insert("Before the rename.\n\n") })
+	w.midDoc().ed.Edit(func(b *buffer.Buffer) { b.SetCursor(0, false); b.Insert("Before the rename.\n\n") })
 	dir := filepath.Dir(p)
 	if err := w.relocate(relocation{rename: true, from: p, to: filepath.Join(dir, "film.fountain"), keepBesideName: true}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if w.swapped != "" || w.srcDoc != nil {
-		t.Error("still swapped after the rename")
+	if !w.scriptInMain() || w.mid.has("source") || w.srcDoc != nil {
+		t.Error("the source's tab still open after the rename")
 	}
 	md, _ := w.sourceText(w.sourceRef())
 	if !strings.HasPrefix(md, "Before the rename.") {
@@ -694,20 +828,21 @@ func TestSwapRenameAndJoin(t *testing.T) {
 	_ = a
 	b.stopSharing()
 	b.showPane("notes", false)
-	b.swapWithMain("notes")
+	b.openMiddle("notes")
 	b.startSharing(key, true)
-	if b.swapped != "" || b.notesDoc != nil {
-		t.Error("a join left the notes swapped in")
+	if !b.scriptInMain() || b.mid.has("notes") || b.notesDoc != nil {
+		t.Error("a join left the notes in the middle")
 	}
 }
 
-// ex's :s and vim's keys act on the source in the main editor, not the
-// script; Live Preview shows the source and is hidden on the way back.
-func TestSwapExVimPreview(t *testing.T) {
+// ex's :s and vim's keys act on the source in the middle, not the
+// script; Live Preview shows the source, and the script's tab in front
+// takes it away (a screenplay's preview is its pages).
+func TestMiddleExVimPreview(t *testing.T) {
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
 	script := w.textEditor.Text()
-	w.swapWithMain("source")
-	d := w.mainDoc
+	w.openMiddle("source")
+	d := w.midDoc()
 	w.runEx("%s/garden/orchard/g")
 	if strings.Contains(d.Text(), "garden") || w.textEditor.Text() != script {
 		t.Errorf(":s went elsewhere: %q", d.Text())
@@ -737,22 +872,22 @@ func TestSwapExVimPreview(t *testing.T) {
 	if l := w.previewPane.line; l == nil || l.summary.Text != w.markdownPageSummary() {
 		t.Errorf("Live Preview's page setup line: %v", l)
 	}
-	w.swapBack()
+	w.closeMiddle("source")
 	if w.previewVisible {
-		t.Error("a screenplay's preview is a PDF: hidden again")
+		t.Error("a screenplay's preview is a PDF: the Live Preview hidden again")
 	}
 }
 
 func richText(r interface{ String() string }) string { return r.String() }
 
-// The notes in a shared session go both ways while swapped in.
-func TestSwapNotesTogether(t *testing.T) {
+// The notes in a shared session go both ways while in the middle.
+func TestMiddleNotesTogether(t *testing.T) {
 	a, b, _ := sharedPair(t, "INT. BARN - DAY\n\n/* Notes\nshared\n*/\n")
 	connect(t, a, b)
 	textIs(t, b, "b", "INT. BARN - DAY\n\n/* Notes\nshared\n*/\n")
 	a.showPane("notes", false)
-	a.swapWithMain("notes")
-	d := a.mainDoc
+	a.openMiddle("notes")
+	d := a.midDoc()
 	d.ed.Edit(func(e *buffer.Buffer) { e.SetCursor(e.Len(), false); e.Insert(" by a") })
 	waitFor(t, "b has a's notes", func() bool { return notesOf(b.textEditor.Text()) == "shared by a" })
 	b.writeNotes("b first; shared by a")

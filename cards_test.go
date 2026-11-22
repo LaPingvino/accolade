@@ -17,7 +17,7 @@ func TestCards(t *testing.T) {
 	w.textEditor.SetText("# ACT ONE\n\nINT. BARN - DAY\n\n= Anna finds the tin.\n\nRain on the roof. Anna lifts the lid of the biscuit tin.\n\nEXT. FIELD - DAY\n\nWind.\n")
 	w.toggleCards()
 	c := w.cards
-	if !w.cardsVisible || len(c.list.Objects) != 2 {
+	if !w.cardsShown() || len(c.list.Objects) != 2 {
 		t.Fatalf("groups: %d objects", len(c.list.Objects))
 	}
 	if _, ok := c.list.Objects[0].(*sectionHeader); !ok {
@@ -56,8 +56,8 @@ func TestCards(t *testing.T) {
 
 	grid = c.list.Objects[1].(*fyne.Container)
 	grid.Objects[1].(*card).Tapped(nil) // the barn, now second
-	if w.cardsVisible {
-		t.Error("still the cards")
+	if w.cardsShown() || !w.mid.has("cards") {
+		t.Error("still the cards, or their tab closed")
 	}
 	if line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset()); line != 7 {
 		t.Errorf("opened at line %d", line)

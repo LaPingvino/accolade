@@ -46,7 +46,7 @@ USA, check your own country's law before using it. The script's Notes say the sa
 | Feature | In the sample |
 |---|---|
 | Title page | Title, Credit, Author, Source, Draft date |
-| Source kept in the bundle | `assets/source.md` (so Swap with Main and the Source pane work) |
+| Source kept in the bundle | `assets/source.md` (so the source in the middle and the Source pane work) |
 | The source's front matter | `title`, `author`, `translator`, `rights` |
 | Source pane | 31 passages, every link found |
 | A link in Text Fragment form | `[[from: #:~:text=…]]` |
@@ -72,7 +72,7 @@ USA, check your own country's law before using it. The script's Notes say the sa
 | Breakdown tags | Wardrobe, Props, Animals, Makeup/Hair, Background Actors |
 | A lost tag | Prohor's basket, gone in Blue |
 | A schedule over two days | Day 1 the square and the timber-yard, Day 2 the General's yard |
-| Swap with Main | the source in the main editor |
+| Source in the Middle | the source as a middle tab beside the script |
 
 One row of the table is one check in `sampleFeatures` (`sample_test.go`).
 

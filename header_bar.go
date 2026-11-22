@@ -240,7 +240,7 @@ func (hb *HeaderBar) setMarkdown(on bool) {
 }
 
 // showEditingRow shows the editing row for what the main editor holds:
-// Markdown's (a Markdown file, the source or notes swapped in: swap.go)
+// Markdown's (a Markdown file, the source or notes in the middle: middle.go)
 // or the screenplay's.
 func (hb *HeaderBar) showEditingRow(markdown, doc bool) {
 	row := hb.screenplayRow
@@ -313,7 +313,7 @@ func (hb *HeaderBar) showFormats() {
 	hb.formatBox.RemoveAll()
 	for _, fb := range conf.formatButtons(key) {
 		b := widget.NewButton(fb.Label, func() {
-			if w.scriptAway(fb.Label) { // the script is in the side panes (swap.go)
+			if w.scriptAway(fb.Label) { // another middle tab in front (middle.go)
 				return
 			}
 			w.textEditor.Edit(func(b *buffer.Buffer) { insertButton(b, fb) })

@@ -43,7 +43,7 @@ type dropTarget struct {
 
 func newCardsView(w *MainWindow) *cardsView {
 	c := &cardsView{w: w, list: container.NewVBox()}
-	back := widget.NewButtonWithIcon("Back to the Script", theme.DocumentIcon(), w.toggleCards)
+	back := widget.NewButtonWithIcon("Back to the Script", theme.DocumentIcon(), func() { w.showMiddle("") })
 	back.Importance = widget.LowImportance
 	heading := widget.NewLabelWithStyle("Cards", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	hint := widget.NewLabel("Tap a card to open its scene; drag it to move it; write its synopsis on it.")
@@ -276,10 +276,7 @@ func (c *cardsView) card(i int) *card {
 func (c *cardsView) open(i int) {
 	w := c.w
 	line := c.items[i].Line
-	if w.cardsVisible {
-		w.toggleCards() // the script back in the main editor
-	}
-	w.goToScript(line)
+	w.goToScript(line) // the script's tab in front
 }
 
 // sectionHeader heads a section's cards; tapped, it opens the section,
@@ -380,21 +377,19 @@ func newHeadingHint(w *MainWindow) string {
 	return "INT. PLACE - DAY"
 }
 
-// toggleCards shows the card view in the editor's place, or the editor:
-// the Cards pane swapped with the main area (swap.go), brought into the
-// dock first if it is not there.
+// toggleCards is the outline's Cards button: the cards' middle tab in
+// front (opened if it is not, out of the dock if it was there), or the
+// script's if it is in front.
 func (w *MainWindow) toggleCards() {
-	if w.markdown && !w.cardsVisible {
+	if w.markdown {
 		w.setStatus("Cards are a screenplay's scenes")
 		return
 	}
-	if w.swapped != "cards" && !w.paneShown("cards") {
-		w.showPane("cards", false)
+	if w.cardsShown() {
+		w.showMiddle("")
+		return
 	}
-	w.swapWithMain("cards")
-	if !w.cardsVisible {
-		w.fyneWindow.Canvas().Focus(w.textEditor)
-	}
+	w.openMiddle("cards")
 }
 
 // canvasCard is a card's paper: the input background with a border.

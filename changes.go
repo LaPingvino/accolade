@@ -142,7 +142,7 @@ func newChangesPanel(w *MainWindow) *changesPanel {
 	)
 	p.list.OnSelected = func(id widget.ListItemID) {
 		if id < len(w.changes) {
-			w.goToScript(w.changes[len(w.changes)-1-id].Line) // swap.go
+			w.goToScript(w.changes[len(w.changes)-1-id].Line) // middle.go
 		}
 		p.list.UnselectAll()
 	}

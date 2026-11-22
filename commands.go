@@ -44,12 +44,13 @@ type cmdEnv struct {
 	writer bool
 	// fontSize: the editor's text size (Larger and Smaller Text)
 	fontSize int
-	// away: the script is not in the main editor, a pane is swapped in
-	// (swap.go); swappedDoc: what is there is a Markdown document of its
-	// own (the source, the notes). markdown stays the file's kind: the
-	// menus that act on the document (Adaptation, Production, Export)
-	// are the script's while it is away
-	away, swappedDoc bool
+	// away: the script is not the middle tab in front (middle.go);
+	// midDoc: what is there is a Markdown document of its own (the
+	// source, the notes); midTabs: there are middle tabs beside the
+	// script's. markdown stays the file's kind: the menus that act on the
+	// document (Adaptation, Production, Export) are the script's while it
+	// is away
+	away, midDoc, midTabs bool
 	// a preview is shown (the page view, or a document's Live Preview:
 	// the Preview tab); livePreview: the Live Preview; pagesShown: pages
 	// are in sight; pdfFile: a PDF to save; refreshable: the pages can be
@@ -71,8 +72,9 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 		e.issued = w.scriptIssued()
 	}
 	e.writer = w.writerView()
-	e.away = w.swapped != ""
-	e.swappedDoc = e.away && w.mainDoc != nil
+	e.away = !w.scriptInMain()
+	e.midDoc = w.midDoc() != nil
+	e.midTabs = len(w.mid.tabs) > 0
 	e.renamed = w.canUndoRename()
 	e.brought = !w.carried.empty()
 	if w.settings != nil {
@@ -91,9 +93,9 @@ func markdownOnly(e cmdEnv) bool   { return e.markdown }
 
 // The rules for the commands that write in the main editor: a
 // screenplay's elements in the script, Markdown's in a Markdown document
-// (the file, or the source or notes swapped in).
+// (the file, or the source or notes in the middle).
 func scriptEditing(e cmdEnv) bool   { return !e.markdown && !e.away }
-func markdownEditing(e cmdEnv) bool { return e.markdown || e.swappedDoc }
+func markdownEditing(e cmdEnv) bool { return e.markdown || e.midDoc }
 func desktopOnly(e cmdEnv) bool     { return !e.browser }
 func withPandoc(e cmdEnv) bool      { return e.pandoc && !e.browser }
 
@@ -112,7 +114,7 @@ type command struct {
 	// mdLabel is the label in a Markdown document, if another
 	mdLabel string
 	// byEditor: mdLabel and mdTip follow what the main editor holds (the
-	// source swapped in is Markdown), not the file's kind
+	// source in the middle is Markdown), not the file's kind
 	byEditor bool
 	// ribbonLabel is its ribbon button's short label, if another: its
 	// group says the rest ("Next" in Adaptation > Links); the full label
@@ -273,7 +275,7 @@ func (w *MainWindow) do(c *command) func() {
 	return func() {
 		e := w.mainEditor()
 		if e == nil {
-			w.setStatus("Nothing to write in here: Swap with Main puts the script back in the main area")
+			w.setStatus("Nothing to write in here: the Script tab of the middle has the script (Ctrl+PgUp)")
 			return
 		}
 		if f := w.fyneWindow.Canvas().Focused(); f != nil && f != fyne.Focusable(e) {
@@ -294,7 +296,7 @@ func (w *MainWindow) tapped(c *command, anchor fyne.CanvasObject) func() {
 	case c.editing:
 		return func() {
 			if w.mainEditor() == nil {
-				w.setStatus("Nothing to write in here: Swap with Main puts the script back in the main area")
+				w.setStatus("Nothing to write in here: the Script tab of the middle has the script (Ctrl+PgUp)")
 				return
 			}
 			w.noteUse(c)
@@ -623,10 +625,10 @@ func newRegistry() *registry {
 		&command{id: "source.suggest", label: "Suggest Links to the Source", icon: func() fyne.Resource { return suggestIcon }, when: screenplayOnly, enabled: withSource, run: (*MainWindow).suggestSourceLinks},
 		&command{id: "source.update", label: "Update Source Links", icon: theme.ViewRefreshIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).updateSourceLinks},
 		&command{id: "source.sections", label: "Source Headings as Sections", icon: res(tocIcon), when: screenplayOnly, enabled: withSource, run: (*MainWindow).sectionsFromSourceHere},
-		// the common case of View > Swap Pane with Main (swap.go)
-		&command{id: "source.swap", label: "Swap Source and Script", ribbonLabel: "Swap", tip: "The source in the main editor, the script in its place in the side panes; again, back",
-			icon: res(swapIcon), when: screenplayOnly, enabled: withSource, run: (*MainWindow).swapSourceAndScript,
-			checked: func(w *MainWindow) bool { return w.swapped == "source" }},
+		// the common case of a pane's Open in the Middle (middle.go)
+		&command{id: "source.middle", label: "Source in the Middle", ribbonLabel: "In the Middle", tip: "The source as a middle tab beside the script, in front; in front already, the script's tab",
+			icon: res(swapIcon), when: screenplayOnly, enabled: withSource, run: (*MainWindow).sourceInMiddle,
+			checked: func(w *MainWindow) bool { return w.mid.shown == "source" }},
 		&command{id: "source.learned", label: "What Accolade Learned…", icon: res(learnedIcon), when: screenplayOnly, enabled: withSource, run: (*MainWindow).showLearned},
 	)
 
@@ -762,7 +764,7 @@ func newRegistry() *registry {
 			sep(), at("md.codeBlock"), at("md.rule"), at("md.table"),
 		)...)},
 		{title: "Adaptation", when: screenplayOnly, homes: []home{
-			at("source.choose"), at("source.saveAs"), at("source.keepInside"), as("view.source", "Source Pane"), at("source.swap"),
+			at("source.choose"), at("source.saveAs"), at("source.keepInside"), as("view.source", "Source Pane"), at("source.middle"),
 			sep(), at("source.next"), at("source.previous"), at("source.adapt"), at("source.cut"), at("source.goScene"),
 			sep(), at("source.link"), at("source.suggest"), at("source.update"), at("source.sections"),
 			sep(), at("source.learned"),
@@ -1082,7 +1084,7 @@ func ribbonLayout() []ribbonTab {
 		// a source's, or a story's next step
 		{title: "Adaptation", when: func(e cmdEnv) bool { return e.source || e.markdown }, groups: []ribbonGroup{
 			{title: "Source", homes: []home{{id: "view.source", label: "Source Pane", short: "Source", large: true},
-				atShort("source.choose", "Choose"), at("source.saveAs"), at("source.keepInside"), at("source.swap")}},
+				atShort("source.choose", "Choose"), at("source.saveAs"), at("source.keepInside"), at("source.middle")}},
 			// Adapt… is the adapting's step, Next and Previous find what to
 			// adapt; Link is the verb by hand, Suggest and Update its variants
 			{title: "Passages", homes: []home{big("source.adapt"), at("source.next"), at("source.previous"), at("source.cut")}},

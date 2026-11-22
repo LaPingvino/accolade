@@ -163,10 +163,10 @@ often it rejoins), written as the Doc is whenever editing pauses (with the kept 
 in its bundle, a kept copy, beside the script) keeps it there. A source Doc the setting no longer names (another
 source picked, or two at once) is let go on every peer that hears of it (`Session.Drop`): not kept, not sent to a
 joiner, and its ops are not taken again from a peer that has it still. The
-window's source document (document.go, SWAP.md) is the Doc's editor: `sharedAs` names the Doc, `changed` sends
+window's source document (document.go, MIDDLE.md) is the Doc's editor: `sharedAs` names the Doc, `changed` sends
 each key (`Doc.SetText`, 3 ms a key on the novel), `followShared` brings the peers' edits in outside its undo
-history, and the Source pane reads its passages from it. The pane's Edit/Done and the source swapped into the main
-editor are live for the peers; the sharer's own home is written on its Save or Done, as for its own edits, so until
+history, and the Source pane reads its passages from it. The pane's Edit/Done and the source in the middle
+are live for the peers; the sharer's own home is written on its Save or Done, as for its own edits, so until
 then its source is marked unsaved (•). The script's Characters and Notes are blocks in the script's text
 (characters_block.go, notes.go): they travel in the script's Doc already, nothing to add.
 
@@ -251,7 +251,7 @@ messages of their own, batched like the text's runs.
   own as the only new one); Renumber or a peer's next look ends it. TestSceneNumbersTogether and TestLearnTogether
   fail when every peer may write (checked). The other "not shared" checks were looked at: the breakdown, the
   schedule, the revision marks and the scene-number follow write sidecars or the margin, never the text (sharing
-  them is step 4); `shareEditsFirst` (Characters' Rename/Merge) and the Swap code's "yours only" are not guards.
+  them is step 4); `shareEditsFirst` (Characters' Rename/Merge) and the middle tabs' "yours only" are not guards.
 - **Undo**: only your own steps (fix 3).
 
 ### Protocol versioning

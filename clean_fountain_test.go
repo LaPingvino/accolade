@@ -116,14 +116,14 @@ func TestCleanFountainExport(t *testing.T) {
 	if c.about.Text != "Your own choice of what goes." {
 		t.Errorf("about %q", c.about.Text)
 	}
-	// with the notes swapped into the main area, the copy is still the script's
-	w.swapWithMain("notes")
+	// with the notes in the middle, the copy is still the script's
+	w.openMiddle("notes")
 	if w.scriptInMain() {
-		t.Fatal("the notes not swapped in")
+		t.Fatal("the notes not in the middle")
 	}
-	defer w.swapWithMain("notes")
+	defer w.closeMiddle("notes")
 	if c3 := w.newCleanFountain(); c3.text != c.text {
-		t.Errorf("swapped: the copy is of\n%s", c3.text)
+		t.Errorf("the notes in front: the copy is of\n%s", c3.text)
 	}
 	// remembered: the next dialog has the same boxes
 	if c2 := w.newCleanFountain(); c2.options() != c.options() {

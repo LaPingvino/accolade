@@ -89,6 +89,8 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Notes** — Ctrl+Shift+K
 - **Cards** — Ctrl+Shift+D (screenplay)
 - **Changes** — Ctrl+Shift+H
+- **Next Middle Tab** — Ctrl+Next
+- **Previous Middle Tab** — Ctrl+Prior
 - **Fullscreen** — Ctrl+Shift+F, Alt+Enter
 
 ## Help menu

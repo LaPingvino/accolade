@@ -478,7 +478,7 @@ func (w *MainWindow) nextSourcePassage() { w.stepSourcePassage(1, "Next Source P
 func (w *MainWindow) previousSourcePassage() { w.stepSourcePassage(-1, "Previous Source Passage") }
 
 func (w *MainWindow) stepSourcePassage(dir int, what string) {
-	if w.scriptAway(what) { // the script is in the side panes (swap.go)
+	if w.scriptAway(what) { // another middle tab in front (middle.go)
 		return
 	}
 	if w.markdown {
@@ -534,8 +534,7 @@ func (w *MainWindow) goToPassageScene() {
 const flashTime = 900 * time.Millisecond
 
 // flashScene lights the scene (or section) at line for a moment, in the
-// script's editor; with the script swapped out the Script tab lights it
-// already.
+// script's editor; not while another middle tab is in front.
 func (w *MainWindow) flashScene(line int) {
 	if !w.scriptInMain() {
 		return
@@ -564,7 +563,7 @@ func (w *MainWindow) flashScene(line int) {
 // toggleCutHere is Adaptation > Mark Source Passage as Cut: the passage
 // picked in the source pane cut on purpose, or not any more.
 func (w *MainWindow) toggleCutHere() {
-	if w.scriptAway("Mark Source Passage as Cut") { // the script is in the side panes (swap.go)
+	if w.scriptAway("Mark Source Passage as Cut") { // another middle tab in front (middle.go)
 		return
 	}
 	if w.markdown {

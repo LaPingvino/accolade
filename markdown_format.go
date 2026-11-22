@@ -321,7 +321,7 @@ func insertFootnote(b *buffer.Buffer) {
 
 // The commands' actions on the window's editor.
 func (w *MainWindow) mdEdit(f func(b *buffer.Buffer)) {
-	w.writeEditor().Edit(f) // the main editor's: the source or notes when swapped in
+	w.writeEditor().Edit(f) // the main editor's: the source or notes in the middle
 }
 
 // askLink asks for a link's (an image's) address, then writes it.

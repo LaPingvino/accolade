@@ -80,6 +80,8 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **Ctrl+Shift+K** Notes
 - **Ctrl+Shift+D** Cards
 - **Ctrl+Shift+H** Changes
+- **Ctrl+Next** Next Middle Tab
+- **Ctrl+Prior** Previous Middle Tab
 - **Ctrl+Shift+F, Alt+Enter** Fullscreen
 
 ## Help

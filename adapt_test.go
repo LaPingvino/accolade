@@ -525,30 +525,31 @@ func shotTo(t *testing.T, w *MainWindow, name string) {
 	}
 }
 
-// With the script away from the main editor (the outline swapped in),
-// the → goes to the scene in the script all the same (the Script tab
-// lights it; nothing flashes in a hidden editor), and Adapt… says to swap
-// back instead of writing where no one sees.
+// With another middle tab in front (the outline), the → goes to the scene
+// in the script: the script's tab comes to the front and the scene
+// flashes; with the outline in front again, Adapt… says to go to the
+// script's tab instead of writing where no one sees.
 func TestAdaptScriptAway(t *testing.T) {
 	script := "Title: G\n\nINT. HOUSE - NIGHT\n\n" + linkOpened + "\n\nINT. LATE - DAY\n\nStuff.\n"
 	w, _ := sourceWindow(t, script, sourceStory)
 	s := w.sourcePane()
 	s.follow()
-	w.swapWithMain("outline")
+	w.openMiddle("outline")
 	if w.scriptInMain() {
-		t.Skip("the outline did not swap in")
+		t.Fatal("the outline is not in front in the middle")
 	}
 	rowOf(s, 2).scenes.OnTapped()
 	if line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset()); line != lineIn(t, script, "INT. HOUSE") {
 		t.Errorf("the script's cursor on line %d", line)
 	}
-	if a, b := w.textEditor.Flash(); a < b {
-		t.Error("a flash in the hidden script")
+	if a, b := w.textEditor.Flash(); !w.scriptInMain() || a >= b {
+		t.Error("the script's tab not in front, or no flash on the scene")
 	}
+	w.showMiddle("outline")
 	s.pick(3)
 	w.adaptSourcePassage()
 	w.nextSourcePassage()
-	if s.adapting != nil || w.textEditor.Text() != script || !strings.Contains(w.statusLabel.Text, "Swap with Main") {
+	if s.adapting != nil || w.textEditor.Text() != script || !strings.Contains(w.statusLabel.Text, "its middle tab first") {
 		t.Errorf("worked away from the script: %q", w.statusLabel.Text)
 	}
 }

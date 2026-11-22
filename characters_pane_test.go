@@ -648,14 +648,15 @@ func TestMergeUndoTags(t *testing.T) {
 	}
 }
 
-// Swapped with the main area, the pane still goes to the cues: the
-// script's cursor moves and the Script tab lights the scene.
-func TestCharactersSwapped(t *testing.T) {
+// In the middle, the pane still goes to the cues: the script's cursor
+// moves, the pane stays in front (the next cue is a tap away); in the
+// dock with another middle tab in front, the script's tab comes forward.
+func TestCharactersInTheMiddle(t *testing.T) {
 	w := charsWindow(t, charsScript)
 	p := w.charactersPane()
-	w.swapWithMain("characters")
-	if w.swapped != "characters" || !w.swappedIsView() {
-		t.Fatalf("swapped %q", w.swapped)
+	w.openMiddle("characters")
+	if w.mid.shown != "characters" || !w.paneInSight("characters") || w.paneShown("characters") {
+		t.Fatalf("in front %q", w.mid.shown)
 	}
 	w.textEditor.SetCursorOffset(0)
 	p.next("BEN", 1)
@@ -663,8 +664,16 @@ func TestCharactersSwapped(t *testing.T) {
 	if lineAt(w.textEditor.Text(), a) != 9 {
 		t.Errorf("the cursor is on line %d", lineAt(w.textEditor.Text(), a))
 	}
-	w.swapBack()
-	if w.swapped != "" {
-		t.Error("not put back")
+	if w.mid.shown != "characters" {
+		t.Error("the pane went out of sight walking the cues")
+	}
+	w.backToSide("characters")
+	if w.mid.has("characters") || !w.paneInSight("characters") {
+		t.Fatal("not back to the side")
+	}
+	w.openMiddle("outline")
+	p.next("ANNA", 0)
+	if !w.scriptInMain() {
+		t.Error("the cue walked to in a script out of sight")
 	}
 }

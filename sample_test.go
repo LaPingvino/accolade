@@ -480,10 +480,10 @@ var sampleFeatures = []struct {
 		f, _, p := w.scheduleFound()
 		return want(len(f.Days) == 2 && len(p.days) == 2 && len(p.days[0]) > 0 && len(p.days[1]) > 0, "%d days", len(f.Days))
 	}},
-	{"Swap with Main: the source in the main editor", func(w *MainWindow) error {
-		w.swapSourceAndScript()
-		defer w.swapBack()
-		return want(w.swapped == "source" && w.mainDoc != nil && strings.Contains(w.mainDoc.Text(), "Otchumyelov"), "swapped %q", w.swapped)
+	{"Source in the Middle: the source as a middle tab", func(w *MainWindow) error {
+		w.sourceInMiddle()
+		defer w.closeMiddle("source")
+		return want(w.mid.shown == "source" && w.midDoc() != nil && strings.Contains(w.midDoc().Text(), "Otchumyelov"), "in front %q", w.mid.shown)
 	}},
 }
 
@@ -532,7 +532,7 @@ func checkSample(t *testing.T, data []byte) {
 
 // TestSampleScreenshots renders the sample open, with SHOT_DIR set: the
 // script with the Source pane, the Characters pane, the Production pane,
-// the stripboard, the source swapped in; desktop and phone.
+// the stripboard, the source in the middle; desktop and phone.
 func TestSampleScreenshots(t *testing.T) {
 	if os.Getenv("SHOT_DIR") == "" {
 		t.Skip("set SHOT_DIR to render screenshots")
@@ -550,9 +550,9 @@ func TestSampleScreenshots(t *testing.T) {
 	board(t, w)
 	comboShot(t, w, "sample-stripboard")
 	w.toggleStripboard()
-	w.swapSourceAndScript()
-	comboShot(t, w, "sample-swapped")
-	w.swapBack()
+	w.sourceInMiddle()
+	comboShot(t, w, "sample-middle")
+	w.closeMiddle("source")
 }
 
 // Open Sample opens the copy left as it was again; a changed one is kept

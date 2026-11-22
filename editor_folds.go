@@ -84,7 +84,7 @@ func (w *MainWindow) mainFolds() *folds {
 	if w.scriptInMain() {
 		return w.scriptFolds
 	}
-	w.setStatus("Folding works in an editor: Swap with Main puts the script back in the main area first")
+	w.setStatus("Folding works in an editor: the Script tab of the middle has the script (Ctrl+PgUp)")
 	return nil
 }
 

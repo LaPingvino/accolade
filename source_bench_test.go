@@ -534,7 +534,7 @@ func BenchmarkSourceEditor(b *testing.B) {
 	})
 }
 
-// A keystroke in the source swapped into the main editor (swap.go):
+// A keystroke in the source as a middle tab (middle.go):
 // kept beside the script (only its own editor), and kept in the script,
 // where each key is written into the script's block (document.go).
 func BenchmarkSwappedSourceKey(b *testing.B) {
@@ -547,8 +547,8 @@ func BenchmarkSwappedSourceKey(b *testing.B) {
 			w, _, _ := benchWindow(b, inside)
 			debounceAtOnce, backgroundAtOnce = false, false // as when typing: the follow waits for a pause
 			b.Cleanup(func() { debounceAtOnce, backgroundAtOnce = true, true })
-			w.swapWithMain("source")
-			d := w.mainDoc
+			w.openMiddle("source")
+			d := w.midDoc()
 			w.fyneWindow.Canvas().Focus(d.ed)
 			d.ed.SetCursorOffset(5000)
 			for b.Loop() {
@@ -556,7 +556,7 @@ func BenchmarkSwappedSourceKey(b *testing.B) {
 			}
 		})
 	}
-	// the notes swapped in, the novel in them (a long notes block)
+	// the notes in the middle, the novel in them (a long notes block)
 	b.Run("notes", func(b *testing.B) {
 		w, _, _ := benchWindow(b, true)
 		md, _ := benchFixture()
@@ -564,31 +564,12 @@ func BenchmarkSwappedSourceKey(b *testing.B) {
 		debounceAtOnce, backgroundAtOnce = false, false
 		b.Cleanup(func() { debounceAtOnce, backgroundAtOnce = true, true })
 		w.showPane("notes", false)
-		w.swapWithMain("notes")
-		d := w.mainDoc
+		w.openMiddle("notes")
+		d := w.midDoc()
 		w.fyneWindow.Canvas().Focus(d.ed)
 		d.ed.SetCursorOffset(5000)
 		for b.Loop() {
 			d.ed.TypedRune('x')
-		}
-	})
-	// what waits for the pause after typing in the source kept in the
-	// script: the Script tab's scenes read again, its lit scenes
-	b.Run("inside-pause", func(b *testing.B) {
-		w, _, _ := benchWindow(b, true)
-		debounceAtOnce, backgroundAtOnce = false, false
-		b.Cleanup(func() { debounceAtOnce, backgroundAtOnce = true, true })
-		w.swapWithMain("source")
-		d := w.mainDoc
-		w.fyneWindow.Canvas().Focus(d.ed)
-		d.ed.SetCursorOffset(5000)
-		for b.Loop() {
-			b.StopTimer()
-			d.ed.TypedRune('x')
-			cancel(&w.followTimer)
-			cancel(&w.scriptTabTimer)
-			b.StartTimer()
-			w.scriptTab.refresh()
 		}
 	})
 	// against: a keystroke in the script itself, the source kept in it

@@ -228,7 +228,7 @@ func (w *MainWindow) newMarkdownPageSetup(done func()) *mdPageSetupDlg {
 func (p *previewPanel) withPageSetup(w *MainWindow) {
 	p.w = w
 	p.line = w.newPageSetupLine(func() string { return "" }, nil)
-	p.line.markdown = w.editorMarkdown // a source swapped into the main editor is a document too
+	p.line.markdown = w.editorMarkdown // a source in the middle is a document too
 	p.line.refresh()
 	p.box = p.layout()
 }

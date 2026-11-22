@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := passageMoves(base, sampleMoves(base, toolbarMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))) // the moves write Linux keys too
+		want := passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -755,12 +755,13 @@ func dockMoves(name, golden string) string {
 			panes = append(panes, "  Characters") // a pane of its own since (characters_pane.go)
 		}
 	}
-	panes = append(panes, "  Side Panes", "  Move Pane to Top", "  Move Pane to Bottom", "  Swap Pane with Main") // docs/SWAP.md
+	panes = append(panes, "  Side Panes", "  Move Pane to Top", "  Move Pane to Bottom", "  Open Pane in the Middle", // docs/MIDDLE.md
+		"  Middle Tab Back to the Side", "  Next Middle Tab [Primary+Next]", "  Previous Middle Tab [Primary+Prior]")
 	for i := range ms {
-		if ms[i].title == "Adaptation" { // its common case of the swap (docs/SWAP.md)
+		if ms[i].title == "Adaptation" { // its common case of Open in the Middle (docs/MIDDLE.md)
 			for j, it := range ms[i].items {
 				if ms[i].labelOf(it) == "Source Pane" {
-					ms[i].items = slices.Insert(ms[i].items, j+1, "  Swap Source and Script")
+					ms[i].items = slices.Insert(ms[i].items, j+1, "  Source in the Middle")
 					break
 				}
 			}
@@ -777,6 +778,24 @@ func dockMoves(name, golden string) string {
 		}
 	}
 	return joinMenus(ms)
+}
+
+// middleMoves: the middle tabs (middle.go) add Next and Previous Middle
+// Tab, Ctrl+PgDn and Ctrl+PgUp, to the shortcuts (and full screen's).
+// Their menu items are dockMoves'.
+func middleMoves(name, golden string) string {
+	var add []string
+	switch {
+	case strings.HasPrefix(name, "shortcuts-"):
+		add = []string{"Primary+Next = Next Middle Tab", "Primary+Prior = Previous Middle Tab"}
+	case strings.HasPrefix(name, "fullscreen-"):
+		add = []string{"Primary+Next", "Primary+Prior"}
+	default:
+		return golden
+	}
+	lines := append(strings.Split(strings.TrimSuffix(golden, "\n"), "\n"), add...)
+	slices.Sort(lines)
+	return strings.Join(lines, "\n") + "\n"
 }
 
 // toolbarMoves: View > Toolbar (ribbon_settings.go) shows and hides the

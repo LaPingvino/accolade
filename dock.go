@@ -68,6 +68,15 @@ type dockPane struct {
 	// edited brings it up to date with the script's text, while it is in
 	// the dock (nil: nothing, or it follows by itself)
 	edited func(w *MainWindow, text string)
+	// In the middle (middle.go): doc is the document its middle tab
+	// edits (the source, the notes), opened; full is what the tab shows
+	// instead of its box (the cards' full view); nil, its box. midFirst:
+	// its View command opens it in the middle, not in the dock (Cards).
+	// toMiddle and toSide are what it does going there and coming back.
+	doc              func(w *MainWindow) *document
+	full             func(w *MainWindow) fyne.CanvasObject
+	midFirst         bool
+	toMiddle, toSide func(w *MainWindow)
 }
 
 // dockPanes are the panes in their first order.
@@ -82,6 +91,7 @@ func dockPanes() []*dockPane {
 		{id: "notes", slot: dockBottom, width: 280, focusOnShow: true,
 			cmd:    &command{label: "Notes", keys: []fyne.Shortcut{shortcut(fyne.KeyK, fyne.KeyModifierShift)}, icon: theme.FileTextIcon},
 			box:    func(w *MainWindow) fyne.CanvasObject { return w.notesPane().entry },
+			doc:    func(w *MainWindow) *document { return w.notesDocument() },
 			focus:  func(w *MainWindow) fyne.Focusable { return w.notesPane().entry },
 			shown:  func(w *MainWindow) { w.notesPane().update(w.textEditor.Text()) },
 			edited: func(w *MainWindow, text string) { w.notesPane().update(text) }},
@@ -92,9 +102,10 @@ func dockPanes() []*dockPane {
 			focus:  func(w *MainWindow) fyne.Focusable { return w.charactersPane().focusTarget() },
 			shown:  func(w *MainWindow) { w.charactersPane().read() },
 			edited: func(w *MainWindow, text string) { w.charactersPane().update(text) }},
-		// the cards beside the script (cards_pane.go); swapped with the
-		// main area, their full view (cards.go)
-		{id: "cards", slot: dockTop, width: 260,
+		// the cards: in the middle at first, their full view (cards.go);
+		// beside the script, one column (cards_pane.go)
+		{id: "cards", slot: dockTop, width: 260, midFirst: true,
+			full:   func(w *MainWindow) fyne.CanvasObject { return w.cardsFull().box },
 			cmd:    &command{label: "Cards", keys: []fyne.Shortcut{shortcut(fyne.KeyD, fyne.KeyModifierShift)}, icon: theme.GridIcon, when: screenplayOnly},
 			box:    func(w *MainWindow) fyne.CanvasObject { return w.cardsPane().box },
 			focus:  func(w *MainWindow) fyne.Focusable { return w.cardsPane().list },
@@ -104,7 +115,17 @@ func dockPanes() []*dockPane {
 			cmd:   &command{label: "Source", tip: "Source: the story the script adapts", icon: func() fyne.Resource { return sourceIcon }, when: screenplayOnly},
 			box:   func(w *MainWindow) fyne.CanvasObject { return w.sourcePane().box },
 			focus: func(w *MainWindow) fyne.Focusable { return w.sourcePane().focusTarget() },
-			shown: func(w *MainWindow) { w.sourcePane().follow() }},
+			shown: func(w *MainWindow) { w.sourcePane().follow() },
+			doc: func(w *MainWindow) *document {
+				if s := w.source; s != nil && s.editing { // the pane's Edit: the same document, in the middle now
+					s.editing = false
+					s.edit.SetText("Edit")
+					s.edit.SetIcon(theme.DocumentCreateIcon())
+					s.showBody()
+				}
+				return w.sourceDoc()
+			},
+			toMiddle: func(w *MainWindow) { w.sourcePane().measuring++ }}, // its rows out of sight: measured again when back
 		{id: "production", slot: dockBottom, width: sourceWidth, focusOnShow: true,
 			cmd: &command{label: "Production", tip: "Production: lock, revise, and the stages to the shoot", icon: func() fyne.Resource { return productionIcon },
 				when: screenplayOnly, role: productionRole},
@@ -136,7 +157,7 @@ func dockCommands() []*command {
 		c, id := p.cmd, p.id
 		c.id = "view." + id
 		c.run = func(w *MainWindow) { w.togglePane(id) }
-		c.checked = func(w *MainWindow) bool { return w.paneShown(id) }
+		c.checked = func(w *MainWindow) bool { return w.paneOn(id) }
 		cmds = append(cmds, c)
 	}
 	return append(cmds,
@@ -146,8 +167,16 @@ func dockCommands() []*command {
 			run: func(w *MainWindow) { w.dock.moveCurrent(dockTop) }},
 		&command{id: "view.paneBottom", label: "Move Pane to Bottom", tip: "The pane picked last to the dock's bottom", icon: theme.MoveDownIcon,
 			run: func(w *MainWindow) { w.dock.moveCurrent(dockBottom) }},
-		&command{id: "view.paneSwap", label: "Swap Pane with Main", tip: "The pane picked last in the main area, the script in its place; again, back (swap.go)", icon: res(swapIcon),
-			run: func(w *MainWindow) { w.dock.swapCurrent() }, checked: func(w *MainWindow) bool { return w.swapped != "" }},
+		&command{id: "view.paneMiddle", label: "Open Pane in the Middle", tip: "The pane picked last as a tab in the middle, beside the script (middle.go)", icon: res(swapIcon),
+			run: func(w *MainWindow) { w.dock.middleCurrent() }},
+		&command{id: "view.paneSide", label: "Middle Tab Back to the Side", tip: "The middle tab in front back in the side panes", icon: res(dockIcon),
+			run: func(w *MainWindow) { w.backToSide(w.mid.shown) }, enabled: func(e cmdEnv) bool { return e.away }},
+		&command{id: "view.midNext", label: "Next Middle Tab", tip: "The middle tab after the one in front: the script, the cards, a pane put there",
+			keys: []fyne.Shortcut{shortcut(fyne.KeyPageDown, 0)}, icon: theme.NavigateNextIcon,
+			run: func(w *MainWindow) { w.mid.step(1) }, enabled: func(e cmdEnv) bool { return e.midTabs }},
+		&command{id: "view.midPrev", label: "Previous Middle Tab", tip: "The middle tab before the one in front",
+			keys: []fyne.Shortcut{shortcut(fyne.KeyPageUp, 0)}, icon: theme.NavigateBackIcon,
+			run: func(w *MainWindow) { w.mid.step(-1) }, enabled: func(e cmdEnv) bool { return e.midTabs }},
 	)
 }
 
@@ -158,7 +187,8 @@ func dockHomes() []home {
 	for _, p := range dockPanes() {
 		homes = append(homes, at("view."+p.id))
 	}
-	return append(homes, at("view.dock"), at("view.paneTop"), at("view.paneBottom"), at("view.paneSwap"))
+	return append(homes, at("view.dock"), at("view.paneTop"), at("view.paneBottom"), at("view.paneMiddle"), at("view.paneSide"),
+		at("view.midNext"), at("view.midPrev"))
 }
 
 // dockRibbonHomes are the ribbon's Panes group: the first two panes
@@ -328,60 +358,26 @@ func (d *dock) setFront(id string) {
 	d.last = id
 }
 
-// edited brings the panes in the dock up to date with the script's text
-// (the Script tab too, while a pane is swapped: swap.go).
+// edited brings the panes up to date with the script's text: those in
+// the dock, and one in the middle showing its own box (the outline).
 func (d *dock) edited(text string) {
 	for _, p := range d.panes {
-		// a pane whose document or full view is in the main area follows when back (swapBack);
-		// a view swapped in (the outline) is its own box there, and follows as ever
-		if p.edited != nil && d.shown(p.id) && (p.id != d.w.swapped || d.w.swappedIsView()) {
+		if p.edited != nil && (d.shown(p.id) || d.w.mid.boxShown(p)) {
 			p.edited(d.w, text)
 		}
 	}
-	if w := d.w; w.swapped != "" && w.scriptTab != nil { // its scenes, once typing pauses
-		w.debounce(&w.scriptTabTimer, followPause, func() {
-			if w.swapped != "" && w.scriptTab != nil {
-				w.scriptTab.refresh()
-			}
-		})
-	}
 }
 
-// boxOf is what the pane's place in the dock shows: its box, or the
-// Script tab while the pane is swapped with the main area.
-func (d *dock) boxOf(p *dockPane) fyne.CanvasObject {
-	if p.id == d.w.swapped {
-		return d.w.scriptPane().box
-	}
-	return p.box(d.w)
-}
-
-// titleOf is the pane's tab's title: "Script" while it is swapped.
-func (d *dock) titleOf(p *dockPane) string {
-	if p.id == d.w.swapped {
-		return "Script"
-	}
-	return p.cmd.label
-}
-
-// focusOf is what takes the keyboard in the pane's place (nil: nothing).
+// focusOf is what takes the keyboard in the pane (nil: nothing).
 func (d *dock) focusOf(p *dockPane) fyne.Focusable {
-	if p.id == d.w.swapped {
-		return d.w.scriptPane().list
-	}
 	if p.focus == nil {
 		return nil
 	}
 	return p.focus(d.w)
 }
 
-// shownNow brings what the pane's place shows up to date as it comes
-// into sight.
+// shownNow brings the pane up to date as it comes into sight.
 func (d *dock) shownNow(p *dockPane) {
-	if p.id == d.w.swapped {
-		d.w.scriptPane().refresh()
-		return
-	}
 	if p.shown != nil {
 		p.shown(d.w)
 	}
@@ -410,32 +406,44 @@ func (d *dock) putAway() {
 func (w *MainWindow) paneShown(id string) bool { return w.dock != nil && w.dock.shown(id) }
 
 // paneInSight reports whether the pane with id is in sight: in the dock,
-// in front of its slot; swapped with the main area, if its box is there
-// (the outline, help…), not when its document or full view is (swap.go).
+// in front of its slot; in the middle, its box in front there (the
+// outline, help…), not its document or full view (middle.go).
 func (w *MainWindow) paneInSight(id string) bool {
-	if id != "" && id == w.swapped {
-		return w.swappedIsView()
+	if w.dock == nil {
+		return false
 	}
-	return w.dock != nil && w.dock.inSight(id)
+	if p := w.dock.pane(id); p != nil && w.mid.has(id) {
+		return w.mid.shown == id && w.mid.boxShown(p)
+	}
+	return w.dock.inSight(id)
 }
+
+// paneOn reports whether the pane is there, in the dock or in the middle
+// (its View command's check).
+func (w *MainWindow) paneOn(id string) bool { return w.paneShown(id) || w.mid.has(id) }
 
 // togglePane is a pane's View command: out of the dock, in it (and to
 // the front of its slot, taking the keyboard if it does); in sight, out.
+// A pane in the middle: to the front there, or in front, its tab closed.
+// Cards come in as a middle tab (midFirst).
 func (w *MainWindow) togglePane(id string) {
 	d := w.dock
 	p := d.pane(id)
 	if p == nil || !d.applies(p) {
 		return
 	}
-	if id == w.swapped { // in the main area: back in its place
-		w.swapBack()
-		return
-	}
-	if d.inSight(id) {
+	switch {
+	case w.mid.has(id) && w.mid.shown == id:
+		w.closeMiddle(id)
+	case w.mid.has(id):
+		w.showMiddle(id)
+	case d.inSight(id):
 		w.hidePane(id)
-		return
+	case p.midFirst && !d.shown(id):
+		w.openMiddle(id)
+	default:
+		w.showPane(id, p.focusOnShow)
 	}
-	w.showPane(id, p.focusOnShow)
 }
 
 // showPane brings the pane into the dock and in front of its slot,
@@ -468,9 +476,6 @@ func (w *MainWindow) hidePane(id string) {
 	if !d.on[id] {
 		return
 	}
-	if id == w.swapped { // the Script tab: the script back first
-		w.swapBack()
-	}
 	slot := d.slotNow(id)
 	d.on[id] = false
 	w.relayout()
@@ -481,9 +486,6 @@ func (w *MainWindow) hidePane(id string) {
 // toggleAll is View > Side Panes: every pane out of sight, or those it
 // took away back again (none: the outline).
 func (d *dock) toggleAll() {
-	if d.w.swapped != "" { // the Script tab goes too: the script back first
-		d.w.swapBack()
-	}
 	if vis := d.visible(dockSheet); len(vis) > 0 {
 		d.stash = nil
 		for _, p := range vis {
@@ -544,22 +546,18 @@ func (d *dock) focusedPane() string {
 	return ""
 }
 
-// swapCurrent is View > Swap Pane with Main: the pane with the keyboard,
-// else the one picked last; while one is swapped, that one back.
-func (d *dock) swapCurrent() {
-	if d.w.swapped != "" {
-		d.w.swapBack()
-		return
-	}
+// middleCurrent is View > Open Pane in the Middle: the pane with the
+// keyboard, else the one picked last.
+func (d *dock) middleCurrent() {
 	id := d.focusedPane()
 	if id == "" {
 		id = d.last
 	}
 	if id == "" || !d.shown(id) {
-		d.w.setStatus("No pane to swap: show one first (View > Outline, Notes…)")
+		d.w.setStatus("No pane to put in the middle: show one first (View > Outline, Notes…)")
 		return
 	}
-	d.w.swapWithMain(id)
+	d.w.openMiddle(id)
 }
 
 // move puts the pane in slot (last there), in front, the keyboard on its
@@ -655,7 +653,7 @@ func (d *dock) slot(slot int) fyne.CanvasObject {
 	var tabs []fyne.CanvasObject
 	width := float32(0)
 	for _, p := range vis {
-		t := newDockTab(d, p.id, d.titleOf(p))
+		t := newDockTab(d, d.w, p.id, p.cmd.label)
 		d.tabs[p.id] = t
 		tabs = append(tabs, t)
 		width = max(width, p.width)
@@ -685,7 +683,7 @@ func (d *dock) slot(slot int) fyne.CanvasObject {
 	if slot == dockSheet {
 		var items []overflowItem
 		for _, p := range vis {
-			id, title := p.id, d.titleOf(p)
+			id, title := p.id, p.cmd.label
 			items = append(items, overflowItem{obj: d.tabs[id], menu: func(fyne.CanvasObject) []*fyne.MenuItem {
 				return []*fyne.MenuItem{fyne.NewMenuItem(title, func() { d.pick(id) })}
 			}})
@@ -702,7 +700,7 @@ func (d *dock) slot(slot int) fyne.CanvasObject {
 	d.bodies[slot] = body
 	hideTip := func() {
 		if p := d.pane(d.inFront(slot)); p != nil {
-			hide.Tip = "Hide " + d.titleOf(p)
+			hide.Tip = "Hide " + p.cmd.label
 			fyne.SetAccessibleLabel(hide, hide.Tip)
 		}
 	}
@@ -728,7 +726,7 @@ func (d *dock) showFront(slot int) {
 			t.setSelected(p.id == front)
 		}
 		if p.id == front {
-			body.Objects = []fyne.CanvasObject{d.boxOf(p)}
+			body.Objects = []fyne.CanvasObject{p.box(d.w)}
 		}
 	}
 	if r := d.sheetRow; slot == dockSheet && r != nil { // the tab in front stays on the phone's row
@@ -772,25 +770,32 @@ func (d *dock) focusTargets() []fyne.Focusable {
 	return out
 }
 
-// menu is a tab's menu: to the other slot, swapped with the main area
-// (or back), out of the dock.
+// menu is a tab's menu: to the other slot, into the middle, out of the
+// dock.
 func (d *dock) menu(id string) *fyne.Menu {
 	p := d.pane(id)
-	title := d.titleOf(p)
+	title := p.cmd.label
 	var items []*fyne.MenuItem
 	if d.slotOf[id] == dockTop {
 		items = append(items, fyne.NewMenuItem("Move to Bottom", func() { d.move(id, dockBottom) }))
 	} else {
 		items = append(items, fyne.NewMenuItem("Move to Top", func() { d.move(id, dockTop) }))
 	}
-	swap := fyne.NewMenuItem("Swap with Main", func() { d.w.swapWithMain(id) })
-	if id == d.w.swapped {
-		swap.Label = "Swap with Main (put back)"
-	} else if why := d.w.swapBlocked(id); why != "" {
-		swap.Disabled = true
-	}
-	items = append(items, swap, fyne.NewMenuItem("Hide "+title, func() { d.w.hidePane(id) }))
+	mid := fyne.NewMenuItem("Open in the Middle", func() { d.w.openMiddle(id) })
+	mid.Disabled = d.w.middleBlocked(id) != ""
+	items = append(items, mid, fyne.NewMenuItem("Hide "+title, func() { d.w.hidePane(id) }))
 	return fyne.NewMenu(title, items...)
+}
+
+func (d *dock) tabOf(id string) *dockTab { return d.tabs[id] }
+
+// enter is Down or Enter on a pane's tab: the keyboard into the pane.
+func (d *dock) enter(id string) {
+	if p := d.pane(id); p != nil {
+		if f := d.focusOf(p); f != nil {
+			d.w.fyneWindow.Canvas().Focus(f)
+		}
+	}
 }
 
 // tabsIn are the tabs of the slot tab t is in, in order.
@@ -804,21 +809,31 @@ func (d *dock) tabsIn(t *dockTab) []*dockTab {
 	return out
 }
 
-// dockTab is a pane's tab: a tap (or Enter, Space) puts it in front, the
-// arrow keys go along the row, Down into the pane, its menu on a
-// right-click, a long press or Shift+F10. The row is one stop for Tab:
-// only the tab in front takes it.
+// tabHost is a row of tabs: the dock's slots, or the middle's (middle.go).
+type tabHost interface {
+	pick(id string)               // tab id in front
+	menu(id string) *fyne.Menu    // its menu (nil: none)
+	tabsIn(t *dockTab) []*dockTab // the tabs of t's row, in order
+	enter(id string)              // Down or Enter on it: into what it shows
+	tabOf(id string) *dockTab     // tab id as built now (a pick may build the row again)
+}
+
+// dockTab is a pane's tab (or a middle tab): a tap (or Enter, Space) puts
+// it in front, the arrow keys go along the row, Down into the pane, its
+// menu on a right-click, a long press or Shift+F10. The row is one stop
+// for Tab: only the tab in front takes it.
 type dockTab struct {
 	widget.BaseWidget
-	d                          *dock
+	h                          tabHost
+	w                          *MainWindow
 	id, title                  string
 	selected, hovered, focused bool
 	press                      *time.Timer // a long press under way (a finger in the browser)
 	pressed                    bool        // it was long: the tap after it is not one
 }
 
-func newDockTab(d *dock, id, title string) *dockTab {
-	t := &dockTab{d: d, id: id, title: title}
+func newDockTab(h tabHost, w *MainWindow, id, title string) *dockTab {
+	t := &dockTab{h: h, w: w, id: id, title: title}
 	t.ExtendBaseWidget(t)
 	return t
 }
@@ -835,7 +850,7 @@ func (t *dockTab) Tapped(*fyne.PointEvent) {
 		t.pressed = false
 		return
 	}
-	t.d.pick(t.id)
+	t.h.pick(t.id)
 }
 
 func (t *dockTab) TappedSecondary(e *fyne.PointEvent) { t.showMenu(e.AbsolutePosition) }
@@ -849,7 +864,11 @@ func (t *dockTab) showMenu(pos fyne.Position) {
 	if pos == (fyne.Position{}) {
 		pos = fyne.CurrentApp().Driver().AbsolutePositionForObject(t).AddXY(0, t.Size().Height)
 	}
-	widget.ShowPopUpMenuAtPosition(t.d.menu(t.id), c, pos)
+	m := t.h.menu(t.id)
+	if m == nil {
+		return
+	}
+	widget.ShowPopUpMenuAtPosition(m, c, pos)
 }
 
 // longPressAfter starts a long press's timer; a test fires it on its own
@@ -905,7 +924,7 @@ func (t *dockTab) FocusLost() {
 
 func (t *dockTab) TypedRune(ch rune) {
 	if ch == ' ' {
-		t.d.pick(t.id)
+		t.h.pick(t.id)
 	}
 }
 
@@ -920,21 +939,16 @@ func (t *dockTab) TypedKey(k *fyne.KeyEvent) {
 	case fyne.KeyEnd:
 		t.step(-1, true)
 	case fyne.KeyReturn, fyne.KeyEnter, fyne.KeyDown:
-		t.d.pick(t.id)
-		if p := t.d.pane(t.id); p != nil {
-			if f := t.d.focusOf(p); f != nil {
-				t.d.w.fyneWindow.Canvas().Focus(f)
-			}
-		}
+		t.h.enter(t.id)
 	case fyne.KeyEscape:
-		t.d.w.focusMain()
+		t.w.focusMain()
 	}
 }
 
 // step picks the tab step along (from the end with fromEnd: Home, End),
 // the keyboard with it.
 func (t *dockTab) step(step int, fromEnd bool) {
-	tabs := t.d.tabsIn(t)
+	tabs := t.h.tabsIn(t)
 	n := len(tabs)
 	if n == 0 {
 		return
@@ -952,8 +966,10 @@ func (t *dockTab) step(step int, fromEnd bool) {
 		}
 	}
 	next := tabs[((i+step)%n+n)%n]
-	t.d.pick(next.id)
-	t.d.w.fyneWindow.Canvas().Focus(next)
+	t.h.pick(next.id)
+	if n := t.h.tabOf(next.id); n != nil {
+		t.w.fyneWindow.Canvas().Focus(n)
+	}
 }
 
 // SkipsFocusChain: Tab reaches only the tab in front of a row.
@@ -971,7 +987,7 @@ func (t *dockTab) AccessibilityActions() []fyne.AccessibleAction {
 	return []fyne.AccessibleAction{fyne.AccessibleActionSelect}
 }
 func (t *dockTab) AccessibilityPerformAction(fyne.AccessibleAction) bool {
-	t.d.pick(t.id)
+	t.h.pick(t.id)
 	return true
 }
 
@@ -992,7 +1008,7 @@ func (t *dockTab) CreateRenderer() fyne.WidgetRenderer {
 	r.min = func() fyne.Size {
 		ts := fyne.MeasureText(t.title, theme.TextSize(), fyne.TextStyle{Bold: true})
 		h := ts.Height + 2*theme.InnerPadding()
-		if t.d.w.narrow {
+		if t.w.narrow {
 			h = max(h, 44) // a finger's
 		}
 		return fyne.NewSize(ts.Width+2*theme.InnerPadding(), h)

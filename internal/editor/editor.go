@@ -375,8 +375,8 @@ func (e *ScriptEditor) RedoTag() any { return e.buf.RedoTag() }
 // Columns is the number of columns the text is wrapped to.
 func (e *ScriptEditor) Columns() int { return e.columns }
 
-// SetOffstage takes the editor out of sight (its document swapped out of
-// the main area: Accolade's Swap with Main) or back. Out of sight, an
+// SetOffstage takes the editor out of sight (its document's tab behind
+// another: Accolade's middle tabs) or back. Out of sight, an
 // edit does not wrap and colour the whole text again: that waits until
 // the layout is asked for (a cursor's place, a row, a key's motion) or the
 // editor is back in sight, laid out once then. Its text, undo history and

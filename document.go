@@ -20,7 +20,7 @@ import (
 // The documents a window edits (docs/SWAP.md). A window has one script,
 // its file (w.textEditor, saved by File > Save, shared when editing
 // together); beside it, documents of their own the main editor can hold
-// instead (View > Swap with Main): the script's source and its notes.
+// instead (a middle tab, middle.go): the script's source and its notes.
 // Whatever needs to know what the writer is typing in asks the main
 // document (w.mainDoc) rather than taking the script's editor for it.
 //
@@ -152,16 +152,6 @@ func (w *MainWindow) scriptDoc() *document {
 	return w.script
 }
 
-// main is the document in the main editor: the script, unless another
-// one was swapped in (swap.go). A view swapped in (the cards, the
-// outline…) leaves no document there: nil.
-func (w *MainWindow) main() *document {
-	if w.swapped == "" {
-		return w.scriptDoc()
-	}
-	return w.mainDoc
-}
-
 // mainEditor is the editor in the main area, nil when a view is there.
 func (w *MainWindow) mainEditor() *editor.ScriptEditor {
 	if d := w.main(); d != nil {
@@ -179,11 +169,8 @@ func (w *MainWindow) writeEditor() *editor.ScriptEditor {
 	return w.textEditor
 }
 
-// scriptInMain reports whether the script is in the main editor.
-func (w *MainWindow) scriptInMain() bool { return w.swapped == "" }
-
 // editorMarkdown reports whether the main editor holds Markdown: a
-// Markdown file, or the source or the notes swapped in.
+// Markdown file, or the source or the notes in the middle.
 func (w *MainWindow) editorMarkdown() bool {
 	if d := w.main(); d != nil && d.kind != docScript {
 		return true
@@ -198,20 +185,6 @@ func (w *MainWindow) mainVim() *vim {
 		return d.vim
 	}
 	return w.vim
-}
-
-// focusMain gives the keyboard to the main area: its editor, else the
-// view there.
-func (w *MainWindow) focusMain() {
-	if e := w.mainEditor(); e != nil {
-		w.fyneWindow.Canvas().Focus(e)
-		return
-	}
-	if p := w.dock.pane(w.swapped); p != nil && p.focus != nil {
-		if f := p.focus(w); f != nil {
-			w.fyneWindow.Canvas().Focus(f)
-		}
-	}
 }
 
 // markdown reports whether the document is Markdown (its editor's mode).
@@ -688,8 +661,8 @@ func (w *MainWindow) docsFollowScript() {
 		}
 		if d.kind == docSource && d.inScript() && w.sourceRef().Origin != sourceInside {
 			d.stored = d.Text()
-			if d == w.mainDoc {
-				w.swapBack()
+			if id := w.mid.docTab(d); id != "" {
+				w.closeMiddle(id)
 			} else {
 				_ = w.closeDoc(d)
 			}
@@ -705,9 +678,7 @@ func (w *MainWindow) docsFollowScript() {
 // script again and the open documents are written and let go, while they
 // still belong to the script they were opened for.
 func (w *MainWindow) leaveDocs() {
-	if w.swapped != "" {
-		w.swapBack()
-	}
+	w.closeMiddleDocs()
 	for _, d := range w.openDocs() {
 		if err := w.closeDoc(d); err != nil && w.fyneWindow != nil {
 			dialog.ShowError(err, w.fyneWindow)

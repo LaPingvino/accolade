@@ -329,7 +329,7 @@ func (r *ribbonBar) refresh() {
 	}
 	r.stage = stage
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
-		boolKey(env.away), boolKey(env.swappedDoc), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
+		boolKey(env.away), boolKey(env.midDoc), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
 		boolKey(env.smart), strconv.Itoa(w.quick().gen), boolKey(r.quickRowShown())}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
@@ -503,7 +503,7 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 			}
 			continue
 		case "elements":
-			if !scriptEditing(env) { // the main editor holds Markdown, or no editor (swap.go)
+			if !scriptEditing(env) { // the main editor holds Markdown, or no editor (middle.go)
 				continue
 			}
 			for _, el := range toolbarElements {
@@ -548,7 +548,7 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 				b := newRibbonButton(r, nil, false)
 				b.label, b.icon = fb.Label, insertBlockIcon
 				b.onTap = func() {
-					if r.w.scriptAway(fb.Label) { // the script is in the side panes (swap.go)
+					if r.w.scriptAway(fb.Label) { // another middle tab in front (middle.go)
 						return
 					}
 					r.w.textEditor.Edit(func(b *buffer.Buffer) { insertButton(b, fb) })

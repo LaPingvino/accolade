@@ -141,7 +141,7 @@ func (p *charactersPane) update(text string) {
 		return
 	}
 	p.w.debounce(&p.timer, followPause, func() {
-		if p.inSight() || p.w.swapped == "characters" {
+		if p.inSight() {
 			p.read()
 		}
 	})
@@ -397,8 +397,8 @@ func (p *charactersPane) next(key string, step int) {
 		b.SetCursor(end, false)
 		b.SetCursor(at, true)
 	})
-	if !w.scriptInMain() { // the script is the Script tab (swap.go): it lights the scene
-		w.scriptPane().follow()
+	if !w.scriptInMain() && w.mid.shown != "characters" { // the script's tab to the front, to see the cue (middle.go)
+		w.showMiddle("")
 	}
 	what := "cue"
 	if m.markdown {

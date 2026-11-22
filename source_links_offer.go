@@ -315,7 +315,7 @@ func (w *MainWindow) hideLinkOffer() {
 // linksOfferOnLeave is the main cursor moving: when it leaves a passage
 // of the source after the text changed, the links are looked at.
 func (w *MainWindow) linksOfferOnLeave() {
-	d := w.mainDoc
+	d := w.midDoc()
 	if d == nil || d.kind != docSource || w.source == nil {
 		return
 	}
@@ -329,7 +329,7 @@ func (w *MainWindow) linksOfferOnLeave() {
 		return
 	}
 	d.atLine = line
-	p := passageAt(d.Text(), s.passages, b, &w.scriptPane().seen)
+	p := passageAt(d.Text(), s.passages, b, &w.passageSeen)
 	if p != d.atPassage {
 		if d.atPassage >= 0 && b.Rev() != d.seenRev {
 			d.seenRev = b.Rev()

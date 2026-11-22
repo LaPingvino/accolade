@@ -16,9 +16,9 @@ import (
 // scene's and section's heading with its colour, and its synopsis to
 // write. A card dragged moves its scene, as the outline's rows do; a tap
 // goes to it. The card of the cursor's scene is lit; with the source in
-// the main editor (swap.go), the cards of the scenes linking to the
-// passage there. Swapped with the main area, the pane is the full Cards
-// view (cards.go).
+// the middle (middle.go), the cards of the scenes linking to the
+// passage there. In the middle, the cards are their full view (cards.go),
+// which View > Cards opens.
 
 type cardsPane struct {
 	w     *MainWindow
@@ -76,9 +76,9 @@ func newCardsPane(w *MainWindow) *cardsPane {
 	}
 	width := canvas.NewRectangle(color.Transparent)
 	width.SetMinSize(fyne.NewSize(260, 0))
-	full := widget.NewButtonWithIcon("", theme.ViewFullScreenIcon(), func() { w.swapWithMain("cards") })
+	full := widget.NewButtonWithIcon("", theme.ViewFullScreenIcon(), func() { w.openMiddle("cards") })
 	full.Importance = widget.LowImportance
-	fyne.SetAccessibleLabel(full, "The cards in the main area")
+	fyne.SetAccessibleLabel(full, "The cards in the middle")
 	hint := widget.NewLabel("Drag a card to move its scene")
 	hint.SizeName = theme.SizeNameCaptionText
 	hint.Importance = widget.LowImportance

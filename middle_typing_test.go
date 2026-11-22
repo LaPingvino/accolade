@@ -15,7 +15,7 @@ import (
 // every kind of edit the script holds what writing the whole stretch
 // would have made, the home as last seen is the home, and the script's
 // cursor stays where it was.
-func TestSwapSpanWrite(t *testing.T) {
+func TestMiddleSpanWrite(t *testing.T) {
 	for _, kind := range []string{"source", "notes"} {
 		t.Run(kind, func(t *testing.T) {
 			var w *MainWindow
@@ -27,8 +27,8 @@ func TestSwapSpanWrite(t *testing.T) {
 				w.showPane("notes", false)
 			}
 			w.textEditor.SetCursorOffset(5)
-			w.swapWithMain(kind)
-			d := w.mainDoc
+			w.openMiddle(kind)
+			d := w.midDoc()
 			if d == nil || !d.inScript() {
 				t.Fatal("not kept in the script")
 			}
@@ -94,7 +94,7 @@ func TestSwapSpanWrite(t *testing.T) {
 					what = "redo"
 					d.ed.Redo()
 				}
-				if kind == "source" && w.mainDoc != d { // the block went: put back
+				if kind == "source" && w.midDoc() != d { // the block went: its tab closed
 					t.Fatalf("after %s: the source was put back", what)
 				}
 				check(what)
@@ -109,21 +109,21 @@ func TestSwapSpanWrite(t *testing.T) {
 	}
 }
 
-// Editing together while typing in the source swapped in: each key goes
+// Editing together while typing in the source in the middle: each key goes
 // into the shared script at once (no delayed write to merge), and the
 // co-writer's edits arriving between the keys (before the block, in it
 // before the cursor, after it) come into the source without losing a key.
 // The debounce is real: the derived views wait for a pause meanwhile.
-func TestSwapTypingTogether(t *testing.T) {
+func TestMiddleTypingTogether(t *testing.T) {
 	_, _, block := withSourceBlock("INT. BARN - DAY\n\nRain.\n", "First passage here.\n\nSecond passage here.")
 	text := "INT. BARN - DAY\n\nRain.\n" + block
 	a, b, _ := sharedPair(t, text)
 	connect(t, a, b)
 	textIs(t, b, "b", text)
 	a.showPane("source", false)
-	a.swapWithMain("source")
+	a.openMiddle("source")
 	realPaths(t)
-	d := a.mainDoc
+	d := a.midDoc()
 	if d == nil || !d.inScript() {
 		t.Fatal("the source kept in the shared script is not in a's main editor")
 	}
@@ -182,14 +182,14 @@ func TestSwapTypingTogether(t *testing.T) {
 	}
 }
 
-// The source and the notes in the main editor fold their Markdown
+// The source and the notes in the middle fold their Markdown
 // headings as the script editor folds its own: View > Fold or Unfold
 // Here, vim's z keys, Tab at a heading's start, the gutter's marks; each
-// editor its own folds. A view in the main area has none.
-func TestSwapFolds(t *testing.T) {
+// editor its own folds. A view in the middle has none.
+func TestMiddleFolds(t *testing.T) {
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
-	w.swapWithMain("source")
-	d := w.mainDoc
+	w.openMiddle("source")
+	d := w.midDoc()
 	text := d.Text()
 	d.ed.SetCursorOffset(strings.Index(text, "She opened"))
 	cmd("view.foldHere").run(w)
@@ -227,11 +227,11 @@ func TestSwapFolds(t *testing.T) {
 		t.Errorf("zR left %v", d.folds.ranges())
 	}
 	w.settings.SetString("editor-keys", "standard")
-	w.swapBack()
+	w.closeMiddle("source")
 
-	// a view in the main area: nothing to fold
+	// a view in the middle: nothing to fold
 	w.showPane("outline", false)
-	w.swapWithMain("outline")
+	w.openMiddle("outline")
 	cmd("view.foldHere").run(w)
 	if !strings.Contains(w.statusText(), "Folding works in an editor") {
 		t.Errorf("status %q", w.statusText())
@@ -287,8 +287,8 @@ func TestLinkOfferCutOnly(t *testing.T) {
 	r := []rune(script)
 	script = string(r[:start]) + block + string(r[end:])
 	w, _ := sourceWindow(t, script, sourceStory)
-	w.swapWithMain("source")
-	d := w.mainDoc
+	w.openMiddle("source")
+	d := w.midDoc()
 	at := runeAt(t, d.Text(), "The next morning")
 	d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+8, "following") }) // "The following morning"
 	d.ed.SetCursorOffset(0)

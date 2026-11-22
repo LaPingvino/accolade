@@ -224,7 +224,7 @@ func (w *MainWindow) tagSelectionAs(category string) {
 // untagSelection takes away the tags on the words selected (or at the
 // cursor).
 func (w *MainWindow) untagSelection() {
-	if w.scriptAway("Untag") { // the script is in the side panes (swap.go)
+	if w.scriptAway("Untag") { // another middle tab in front (middle.go)
 		return
 	}
 	if w.markdown || w.textEditor == nil {
@@ -311,7 +311,7 @@ type tagPicker struct {
 
 // showTagPicker is Production > Tag Selection….
 func (w *MainWindow) showTagPicker() {
-	if w.scriptAway("Tag Selection") { // the script is in the side panes (swap.go)
+	if w.scriptAway("Tag Selection") { // another middle tab in front (middle.go)
 		return
 	}
 	if w.markdown || w.textEditor == nil {

@@ -272,7 +272,7 @@ func (s *quickStore) picks(env cmdEnv) []string {
 
 // quickEnvKey is what the picks depend on, besides the frozen counts.
 func quickEnvKey(env cmdEnv) string {
-	return strings.Join([]string{boolKey(env.markdown), boolKey(env.source), boolKey(env.writer), boolKey(env.away), boolKey(env.swappedDoc), boolKey(env.browser)}, "")
+	return strings.Join([]string{boolKey(env.markdown), boolKey(env.source), boolKey(env.writer), boolKey(env.away), boolKey(env.midDoc), boolKey(env.browser)}, "")
 }
 
 // list is the Quick tab's commands in env: the session's order, those
