@@ -19,8 +19,9 @@ import (
 )
 
 // Export for a Markdown document (docs/ADAPTATION.md, step 2): a web
-// page, Word, OpenDocument and the Markdown as written, made by Accolade
-// itself (internal/prose, goldmark), in the browser too; a PDF through a
+// page, Word, OpenDocument, a PDF and the Markdown as written, made by
+// Accolade itself (internal/prose, goldmark), in the browser too; a PDF
+// of what Accolade's cannot print yet (right to left, CJK) through a
 // browser (headless Chromium on the computer, else the print dialog's
 // Save as PDF); with pandoc on the computer, what pandoc writes too. A
 // screenplay's Export is the other dialog (export_dialog.go), unchanged.
@@ -123,9 +124,18 @@ func exportMarkdownWith(text, title, out, id string, p mdPageSetup, titlePage []
 		}
 		return writeFileAtomic(out, b.Bytes())
 	case "pdf":
+		// Accolade's own (md_pdf.go); a browser's for what it cannot print
+		missing := markdownPDFMissing(text)
+		if missing == "" {
+			data, _, err := markdownPDF(text, title, p, titlePage)
+			if err != nil {
+				return err
+			}
+			return writeFileAtomic(out, data)
+		}
 		browser := localBrowser()
 		if browser == "" {
-			return fmt.Errorf("a PDF is made by a Chromium browser (Chrome, Chromium, Edge, Brave), and none is installed: use Print and Save as PDF")
+			return fmt.Errorf("the PDF cannot print the document as written (%s), and no Chromium browser (Chrome, Chromium, Edge, Brave) is installed to make it: use Print and Save as PDF", missing)
 		}
 		return withPage(text, title, p, titlePage, func(page string) error {
 			return writeViaTemp(out, func(tmp string) error { return browserPDF(browser, page, tmp) })
@@ -266,9 +276,13 @@ func (ed *markdownExportDialog) formatChanged() {
 			o.Disable()
 		}
 	}
-	printing := f.id == "pdf" && pdfByPrinting()
+	text := ed.w.textEditor.Text()
+	printing := f.id == "pdf" && mdPDFByPrinting(text)
 	if f.id == "pdf" {
-		note = "Made by Chromium from the web page, without a dialog."
+		note = "Written by Accolade: headings, emphasis, lists, quotes, code, tables and footnotes, on the page setup's paper; Live Preview's Pages shows it."
+		if missing := markdownPDFMissing(text); missing != "" {
+			note = "Made by Chromium from the web page, without a dialog (Accolade's PDF cannot print " + missing + " yet)."
+		}
 		if printing {
 			note = "Opens the print dialog with the document as a web page: choose Save as PDF there."
 			if !inBrowser {
@@ -286,7 +300,7 @@ func (ed *markdownExportDialog) formatChanged() {
 func (ed *markdownExportDialog) run() {
 	f := markdownExportByLabel(ed.format.Selected)
 	ed.settings.SetString("markdown-export-format", f.id)
-	if f.id == "pdf" && pdfByPrinting() {
+	if f.id == "pdf" && mdPDFByPrinting(ed.w.textEditor.Text()) {
 		_ = ed.settings.Save()
 		ed.dialog.Hide()
 		ed.w.printMarkdown()

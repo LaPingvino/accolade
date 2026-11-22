@@ -256,3 +256,78 @@ func TestPageViewScreenshots(t *testing.T) {
 		f.Close()
 	}
 }
+
+const mdPagesDoc = "---\ntitle: The Lighthouse Keeper\nauthor: A. Writer\n---\n\n# The Lighthouse Keeper\n\n## One\n\n" +
+	"The wind came in from the *west*, and the rain followed it **hard and grey**. Nobody went out that night.[^1]\n\n" +
+	"- a brass compass\n- a letter from his *sister*\n- a key\n\n> The sea gives back what it takes,\n> said his mother.\n\n" +
+	"| Room | Things |\n| --- | --- |\n| Kitchen | a kettle |\n\n```\nlight()\n```\n\n[^1]: Not even the fishermen.\n"
+
+// A Markdown document's PDF is Accolade's own (no browser): its text in
+// the PDF, Lexington's producer, the page setup's paper.
+func TestMarkdownPDFNative(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "doc.pdf")
+	if m := markdownPDFMissing(mdPagesDoc); m != "" {
+		t.Fatalf("missing: %s", m)
+	}
+	if err := exportMarkdownWith(mdPagesDoc, "The Lighthouse Keeper", out, "pdf", mdPageSetup{paper: "letter", titlePage: true},
+		markdownTitlePage(mdPagesDoc, "x.md")); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(out)
+	if !strings.Contains(string(data), "/Producer") || strings.Contains(string(data), "Skia") {
+		t.Error("not Accolade's PDF")
+	}
+	pages, err := pdfin.Pages(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pages) != 2 || !strings.Contains(pages[0][0].Text, "The Lighthouse Keeper") || !strings.Contains(pages[1][0].Text, "The Lighthouse Keeper") {
+		t.Errorf("%d pages: %+v", len(pages), pages)
+	}
+	if m := markdownPDFMissing("# שלום\n\nעולם\n"); !strings.Contains(m, "right to left") {
+		t.Errorf("Hebrew prose: %q", m)
+	}
+}
+
+// The Live Preview's Pages show the document's PDF, and follow the text.
+func TestMarkdownLivePreviewPages(t *testing.T) {
+	for _, size := range []struct {
+		name string
+		size fyne.Size
+	}{{"desktop", fyne.NewSize(1200, 800)}, {"phone", fyne.NewSize(380, 800)}} {
+		w, _ := newDialogTestWindow(t)
+		w.setMarkdown(true)
+		w.settings.SetBoolean(mdTitlePagePref, true)
+		w.textEditor.SetText(mdPagesDoc)
+		w.fyneWindow.Resize(size.size)
+		w.preview()
+		shown := make(chan *pageView, 4)
+		old := pagesShown
+		pagesShown = func(v *pageView) { shown <- v }
+		w.previewPane.mode.SetSelected(previewPages)
+		var v *pageView
+		select {
+		case v = <-shown:
+		case <-time.After(30 * time.Second):
+			t.Fatal("no pages")
+		}
+		if len(v.d.Pages) != 2 || firstText(v.d.Pages[1]) != "The" {
+			t.Errorf("%s: %d pages, the second's first line %q", size.name, len(v.d.Pages), firstText(v.d.Pages[1]))
+		}
+		painted(t, v, 0)
+		if size.name == "desktop" {
+			v.area.TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
+			painted(t, v, 1)
+		}
+		capture(t, w.fyneWindow.Canvas(), "pageview-markdown-"+size.name+".png")
+		w.textEditor.SetText(mdPagesDoc + "\n## Two\n\nMore.\n")
+		select {
+		case v = <-shown:
+		case <-time.After(30 * time.Second):
+			t.Fatal("the pages did not follow the text")
+		}
+		pagesShown = old
+		w.previewPane.mode.SetSelected(previewText)
+		w.settings.SetBoolean(previewPagesPref, false)
+	}
+}

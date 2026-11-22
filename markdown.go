@@ -234,14 +234,26 @@ func markdownBody(text string) string {
 }
 
 // previewPanel shows a Markdown document as formatted prose beside the
-// editor (View > Live Preview), following the text as it is written.
+// editor (View > Live Preview), following the text as it is written; or,
+// with Pages, the document's PDF as Accolade writes it, in a page view.
 type previewPanel struct {
 	text  *widget.RichText
 	box   fyne.CanvasObject
 	width fyne.CanvasObject
 	w     *MainWindow    // the window whose page setup it shows (withPageSetup); nil: none
 	line  *pageSetupLine // its line, at the top
+	mode  *widget.RadioGroup
+	pages *mdPages // the Pages' view, made when first shown
+	last  string   // the text shown
 }
+
+// previewPagesPref keeps whether the Live Preview shows the pages.
+const previewPagesPref = "markdown-preview-pages"
+
+const (
+	previewText  = "Text"
+	previewPages = "Pages"
+)
 
 func newPreviewPanel() *previewPanel {
 	p := &previewPanel{text: widget.NewRichText()}
@@ -254,18 +266,66 @@ func newPreviewPanel() *previewPanel {
 	return p
 }
 
-// layout is the pane: its heading, the page setup's line, the text.
+// showsPages tells whether the preview shows the PDF's pages.
+func (p *previewPanel) showsPages() bool { return p.mode != nil && p.mode.Selected == previewPages }
+
+// layout is the pane: its heading (Text or Pages beside it), the page
+// setup's line, the text or the pages.
 func (p *previewPanel) layout() fyne.CanvasObject {
 	var top fyne.CanvasObject = widget.NewLabelWithStyle("Live Preview", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	if p.w != nil {
+		if p.mode == nil {
+			p.mode = widget.NewRadioGroup([]string{previewText, previewPages}, nil)
+			p.mode.Horizontal = true
+			p.mode.Required = true
+			p.mode.Selected = previewText
+			if p.w.settings != nil && p.w.settings.GetBoolean(previewPagesPref) {
+				p.mode.Selected = previewPages
+			}
+			p.mode.OnChanged = func(string) { p.modeChanged() }
+		}
+		top = container.NewBorder(nil, nil, nil, p.mode, top)
+	}
 	if p.line != nil {
 		top = container.NewVBox(top, p.line.box)
 	}
-	return container.NewStack(p.width, container.NewBorder(top, nil, nil, nil, container.NewVScroll(p.text)))
+	var body fyne.CanvasObject = container.NewVScroll(p.text)
+	if p.showsPages() {
+		if p.pages == nil {
+			p.pages = newMDPages(p.w)
+		}
+		body = p.pages.view
+	}
+	return container.NewStack(p.width, container.NewBorder(top, nil, nil, nil, body))
+}
+
+// modeChanged shows the text or the pages, as chosen (and keeps it).
+func (p *previewPanel) modeChanged() {
+	if p.w == nil {
+		return
+	}
+	if p.w.settings != nil {
+		p.w.settings.SetBoolean(previewPagesPref, p.showsPages())
+		_ = p.w.settings.Save()
+	}
+	if !p.showsPages() && p.pages != nil {
+		p.pages.stop()
+	}
+	p.box = p.layout()
+	p.update(p.last)
+	p.w.relayout()
 }
 
 // update shows text; a table as lines, not in a scroller of its own that
-// would catch a drag meant for the preview's (source_rows.go).
+// would catch a drag meant for the preview's (source_rows.go). The pages
+// are made again a moment after the typing stops.
 func (p *previewPanel) update(text string) {
+	p.last = text
+	if p.showsPages() && p.pages != nil {
+		p.line.refresh()
+		p.pages.update(text)
+		return
+	}
 	p.text.Segments, _ = markdownSegments(markdownBody(text), -1)
 	if p.w != nil { // with its title page
 		p.text.Segments = append(titleSegments(p.w.markdownPageSetup().titlePageOf(text, p.w.scriptName())), p.text.Segments...)

@@ -52,22 +52,23 @@ func (s *Settings) loadDefaults() {
 		"auto-save-interval": 30, // seconds
 
 		// Export settings
-		"export-format":         "PDF",
-		"script-format":         "default", // a Lexington preset (script_format.go)
-		"script-language":       "en",      // of new scripts: their scene headings (language.go)
-		"export-directory":      "",
-		"include-title-page":    true,
-		"export-colors":         false,  // headings in their notes' colors
-		"export-color-style":    "line", // and how (export_dialog.go's colorStyles)
-		"export-color-block":    false,  // a marker, background or text color over the whole block
-		"export-color-tint":     false,  // a line's block tinted
-		"export-color-patterns": false,  // a line's bar patterned, for color blindness
-		"export-pagination":     "",     // page breaks: Lexington's (export_pagination.go)
-		"page-size":             "",     // the script format's (Page Setup: pagesetup.go)
-		"export-template":       "",     // FDX's and LaTeX's: Lexington's
-		"export-revised-only":   false,  // PDF: the revised pages only
-		"markdown-page-size":    "",     // a Markdown document's paper: A4 in Word and ODT, the printer's otherwise
-		"markdown-title-page":   false,
+		"export-format":          "PDF",
+		"script-format":          "default", // a Lexington preset (script_format.go)
+		"script-language":        "en",      // of new scripts: their scene headings (language.go)
+		"export-directory":       "",
+		"include-title-page":     true,
+		"export-colors":          false,  // headings in their notes' colors
+		"export-color-style":     "line", // and how (export_dialog.go's colorStyles)
+		"export-color-block":     false,  // a marker, background or text color over the whole block
+		"export-color-tint":      false,  // a line's block tinted
+		"export-color-patterns":  false,  // a line's bar patterned, for color blindness
+		"export-pagination":      "",     // page breaks: Lexington's (export_pagination.go)
+		"page-size":              "",     // the script format's (Page Setup: pagesetup.go)
+		"export-template":        "",     // FDX's and LaTeX's: Lexington's
+		"export-revised-only":    false,  // PDF: the revised pages only
+		"markdown-page-size":     "",     // a Markdown document's paper: A4 in Word, ODT and PDF, the printer's when printed
+		"markdown-title-page":    false,
+		"markdown-preview-pages": false, // the Live Preview shows the PDF's pages (md_pdf.go)
 
 		"your-name":           "", // what others sharing a script see (changes.go); "" the login's
 		"auto-close-brackets": true,

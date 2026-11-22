@@ -120,7 +120,11 @@ The dialog has the format, the folder and the file name, and what part of the sc
 
 ### Page Setup
 
-File > Page Setup… (also on the ribbon by Print, and in Production > Options) sets how the script prints, for Export, Print and Preview PDF alike: the script format and paper, the title page, scene numbers, CONTINUEDs (Production), colours from the scenes' colour notes and how they show, page breaks, revision marks (once issued), revised pages only and their colour's paper, and FDX's and LaTeX's template. It shows only what the format at its top uses: open from Export, that export's format; from Print, Print; from Preview PDF, the PDF. Export, Print and Preview PDF each show the page setup in a line, with a Page Setup… button; Preview PDF makes the PDF again after a change. Locked pages keep the layout they were locked in. The ribbon's Scene Numbers and CONTINUEDs are the same settings.
+File > Page Setup… (also on the ribbon by Print, and in Production > Options) sets how the script prints, for Export, Print and Preview PDF alike: the script format and paper, the title page, scene numbers, CONTINUEDs (Production), colours from the scenes' colour notes and how they show, page breaks, revision marks (once issued), revised pages only and their colour's paper, and FDX's and LaTeX's template. It shows only what the format at its top uses: open from Export, that export's format; from Print, Print; from Preview PDF, the PDF. Export, Print and Preview PDF each show the page setup in a line, with a Page Setup… button; Preview PDF makes the pages again after a change. Locked pages keep the layout they were locked in. The ribbon's Scene Numbers and CONTINUEDs are the same settings.
+
+### Preview PDF
+
+View > Preview PDF (Ctrl+Shift+P) shows the script's PDF pages beside the script, in its place on a phone: Accolade paints the pages Lexington draws, in the PDF's own fonts, so it needs no PDF viewer and looks the same on the desktop, in the browser and on a phone. Fit and 100% set the size, the magnifiers zoom; with the pages in focus (a tap, or Tab), the arrow keys and Page Up/Down move through them, Left and Right go a page, + and − zoom, 0 fits, 1 is 100%, Escape closes. In the browser two fingers zoom too. Save PDF… (Download PDF in the browser) keeps the PDF, Open in Viewer opens it in the computer's viewer. Export's Preview of a PDF, Production's Revised Pages PDF… and the reports' sheets, one-liner and Day Out of Days show their pages the same way, with a button back to their dialog.
 
 ### Clean Fountain
 
@@ -136,11 +140,11 @@ In a Markdown document, File > Export… offers:
 
 - **Web page (HTML)**, with footnotes;
 - **Word (DOCX)** and **OpenDocument (ODT)**, with real lists and footnotes in the programs' own styles;
-- **PDF**, made with Chromium if it is installed, else through the print dialog's Save as PDF;
+- **PDF**, written by Accolade: headings, emphasis, links, lists, quotes, code, tables and footnotes (at the end), the text in Noto Sans and code in Courier Badi, page numbers at the foot; a document with text read right to left (Hebrew, Arabic) or characters those fonts have not got (Chinese, Japanese…) is made with Chromium if it is installed, else through the print dialog's Save as PDF;
 - **Markdown (as written)** and **Plain text**;
 - with pandoc on the desktop: EPUB, RTF, LaTeX, Org mode, and DOCX and ODT made by pandoc.
 
-A document's Page Setup (File > Page Setup…) has its paper (by default A4 in Word and ODT, the printer's for the web page and PDF) and a title page: the front matter's `title:`, else the first heading, and its `author:`, centred on a page of its own. Export, Print and Live Preview use it.
+A document's Page Setup (File > Page Setup…) has its paper (by default A4 in Word, ODT and PDF, the printer's for the web page) and a title page: the front matter's `title:`, else the first heading, and its `author:`, centred on a page of its own. Export, Print and Live Preview use it. Live Preview's **Pages** (beside **Text** at its top) shows the PDF's pages, made again a moment after the typing stops.
 
 ## Production files
 

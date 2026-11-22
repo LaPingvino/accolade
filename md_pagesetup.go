@@ -19,7 +19,7 @@ import (
 // document has none of.
 
 const (
-	mdPaperPref     = "markdown-page-size"  // "" as before: A4 in Word and ODT, the printer's for a web page
+	mdPaperPref     = "markdown-page-size"  // "" as before: A4 in Word, ODT and PDF, the printer's for a web page
 	mdTitlePagePref = "markdown-title-page" // a page with the title (and the author) before the text
 )
 
@@ -37,7 +37,7 @@ func (w *MainWindow) markdownPageSetup() mdPageSetup {
 }
 
 // mdPapers are the paper choices, the first the default.
-var mdPapers = []string{"Default (A4 in Word and ODT, the printer's otherwise)", "Letter", "A4", "A5"}
+var mdPapers = []string{"Default (A4 in Word, ODT and PDF; the printer's when printed)", "Letter", "A4", "A5"}
 
 // markdownPageSummary is the line saying the document's page setup.
 func (w *MainWindow) markdownPageSummary() string {
