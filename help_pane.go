@@ -294,8 +294,10 @@ func (h *helpPane) printPage() {
 	p := h.page
 	page, err := help.HTML(p, appVersion(), p.Cheat)
 	if err == nil {
-		var dir string
-		if dir, err = os.MkdirTemp("", "accolade-help-"); err == nil {
+		// one folder, the page written over each time: the browser reads the file while it prints,
+		// so it can't go at once, and a new folder per print was never removed
+		dir := filepath.Join(os.TempDir(), "accolade-help")
+		if err = os.MkdirAll(dir, 0o755); err == nil {
 			out := filepath.Join(dir, p.Slug+".html")
 			if err = os.WriteFile(out, page, 0o644); err == nil {
 				h.w.setStatus("Print: choose a printer, or Save as PDF")
