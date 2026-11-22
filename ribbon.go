@@ -166,9 +166,9 @@ type ribbonBar struct {
 	quickRowBox *fyne.Container
 	rowButtons  []*ribbonButton
 
-	selected string // the tab chosen
+	selected string  // the tab chosen
 	height   float32 // the ribbon's height as last built
-	picked   bool   // chosen by the user (a phone's Quick does not take its place)
+	picked   bool    // chosen by the user (a phone's Quick does not take its place)
 	// previewing: the Preview tab is there (it comes forward when it
 	// comes); beforePreview: the tab chosen before it, chosen again when
 	// it goes
