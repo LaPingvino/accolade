@@ -560,6 +560,21 @@ func newRegistry() *registry {
 	image.run = func(w *MainWindow) { w.askLink(true) }
 	table := md("md.table", "Table…", tableIcon, nil)
 	table.run = (*MainWindow).askTable
+	// a note's mark and its text (markdown_notes.go)
+	noteJump := &command{id: "md.noteJump", label: "Go to Note or Reference", text: "Go to Note", ribbonLabel: "To Note", tip: "From a [^1] to its note, from a note back to its mark",
+		icon: theme.NavigateNextIcon, when: markdownEditing, run: func(w *MainWindow) {
+			var said string
+			w.writeEditor().Navigate(func(b *buffer.Buffer) { said = jumpNote(b) })
+			w.setStatus(said)
+		}}
+	renumberNotes := md("md.renumberNotes", "Renumber Notes", nil, nil)
+	renumberNotes.icon, renumberNotes.ribbonLabel = res(renumberIcon), "Renumber"
+	renumberNotes.tip = "Number the notes 1, 2, 3… in the order the text refers to them"
+	renumberNotes.run = func(w *MainWindow) {
+		var said string
+		w.mdEdit(func(b *buffer.Buffer) { said = renumberNotesIn(b) })
+		w.setStatus(said)
+	}
 	add(
 		// a picker of the headings, for the Markdown row and the ribbon
 		&command{id: "md.headings", label: "Heading…", text: "Heading", tip: "Heading level, or normal text", icon: func() fyne.Resource { return headingIcon },
@@ -574,6 +589,7 @@ func newRegistry() *registry {
 		md("md.rule", "Horizontal Rule", ruleIcon, insertRule),
 		table,
 		md("md.footnote", "Footnote", footnoteIcon, insertFootnote),
+		noteJump, renumberNotes,
 	)
 
 	// Adaptation: the source a screenplay adapts (docs/ADAPTATION.md)
@@ -722,7 +738,7 @@ func newRegistry() *registry {
 			at("format.rtl"), at("format.color"),
 			sep(), at("format.bold"), at("format.italic"), at("format.underline"), at("md.strike"), at("md.code"),
 			sep()), append(headings,
-			sep(), at("md.link"), at("md.image"), at("md.footnote"),
+			sep(), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
 			sep(), at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote"),
 			sep(), at("md.codeBlock"), at("md.rule"), at("md.table"),
 		)...)},
@@ -1023,6 +1039,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Emphasis", homes: []home{tool("format.bold"), tool("format.italic"), tool("format.underline"), tool("md.strike"), tool("md.code"),
 				sep(), tool("format.rtl")}}, // a row of its own, under them
 			{title: "Insert", homes: []home{big("md.link"), at("md.image"), at("md.footnote"), at("md.table"), at("md.rule"), at("md.codeBlock")}},
+			{title: "Notes", homes: []home{at("md.noteJump"), at("md.renumberNotes")}},
 			{title: "Lists", homes: []home{at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote")}},
 			// the script's format, its title page, the format's own blocks
 			{title: "Script", homes: []home{{id: "scriptFormat"}, at("file.titlePage"), {id: "formatButtons"}}},

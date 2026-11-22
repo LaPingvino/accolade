@@ -559,7 +559,7 @@ func joinMenus(ms []goldenMenu) string {
 }
 
 // markdownFormat is what a Markdown document's Format menu gained after
-// Italic.
+// Italic (the notes' commands after Footnote: markdown_notes.go).
 const markdownFormat = `  Strikethrough
   Inline Code
   ---
@@ -574,6 +574,8 @@ const markdownFormat = `  Strikethrough
   Link… [Primary+L]
   Image…
   Footnote
+  Go to Note or Reference
+  Renumber Notes
   ---
   Bulleted List
   Numbered List

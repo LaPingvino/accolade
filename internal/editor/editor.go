@@ -95,6 +95,10 @@ type ScriptEditor struct {
 	PageColumns int
 	// OnCursorChanged is called when the cursor or selection moves.
 	OnCursorChanged func()
+	// OnHover, when set, is told of the character under the pointer as it
+	// moves over the text: its offset (-1: none, or the pointer gone), and
+	// its cell's place and size in the editor.
+	OnHover func(offset int, at fyne.Position, cell fyne.Size)
 	// AccessibleName is what screen readers call the editor ("Script").
 	AccessibleName string
 
@@ -978,6 +982,37 @@ func (e *ScriptEditor) DragEnd() { e.dragging = false }
 // Cursor shows the text cursor over the editor.
 func (e *ScriptEditor) Cursor() desktop.Cursor { return desktop.TextCursor }
 
+// MouseIn, MouseMoved and MouseOut tell OnHover what is under the pointer.
+func (e *ScriptEditor) MouseIn(ev *desktop.MouseEvent) { e.MouseMoved(ev) }
+func (e *ScriptEditor) MouseMoved(ev *desktop.MouseEvent) {
+	if e.OnHover == nil {
+		return
+	}
+	off, at := e.charAt(ev.Position)
+	e.OnHover(off, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
+}
+func (e *ScriptEditor) MouseOut() {
+	if e.OnHover != nil {
+		e.OnHover(-1, fyne.Position{}, fyne.Size{})
+	}
+}
+
+// charAt is the character whose cell is at a position in the editor, and
+// the cell's place (-1 if there is none: the gutter, past the text, a
+// line laid out right to left).
+func (e *ScriptEditor) charAt(p fyne.Position) (int, fyne.Position) {
+	e.fresh()
+	row, col := int(p.Y/e.cellHeight()), int(p.X/e.cellWidth())-e.gutter()
+	if p.Y < 0 || row >= len(e.layout.Rows) || col < 0 || e.rowRTL(row) {
+		return -1, fyne.Position{}
+	}
+	r := e.layout.Rows[row]
+	if col < r.Indent || col >= r.Indent+e.layout.RowWidth(row) {
+		return -1, fyne.Position{}
+	}
+	return e.layout.Offset(row, col), fyne.NewPos(float32(e.gutter()+col)*e.cellWidth(), float32(row)*e.cellHeight())
+}
+
 func (e *ScriptEditor) focus() {
 	if app := fyne.CurrentApp(); app != nil {
 		if c := app.Driver().CanvasForObject(e); c != nil {
@@ -1404,6 +1439,7 @@ var (
 	_ fyne.Draggable      = (*ScriptEditor)(nil)
 	_ fyne.DoubleTappable = (*ScriptEditor)(nil)
 	_ desktop.Cursorable  = (*ScriptEditor)(nil)
+	_ desktop.Hoverable   = (*ScriptEditor)(nil)
 	_ fyne.Shortcutable   = (*ScriptEditor)(nil)
 	_ fyne.Tappable       = (*ScriptEditor)(nil)
 	_ desktop.Keyable     = (*ScriptEditor)(nil)

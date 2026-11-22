@@ -20,6 +20,9 @@ tabs: File [Write] Edit Adaptation Collaboration View
   S Table icon=foreground_table.svg name=Table…
   S Rule icon=foreground_rule.svg name=Horizontal Rule
   S Code Block icon=foreground_code-block.svg name=Code Block
+## Notes
+  S To Note icon=foreground_arrow-forward.svg name=Go to Note or Reference
+  S Renumber icon=foreground_renumber.svg name=Renumber Notes
 ## Lists
   S Bullets icon=foreground_bullets.svg name=Bulleted List
   S Numbered icon=foreground_numbers.svg name=Numbered List

@@ -38,7 +38,10 @@ type MainWindow struct {
 	editorView *container.ThemeOverride // the editor with its font settings
 	headerBar  *HeaderBar
 	tooltips   *tooltip.Layer
-	searchBar  *SearchBar
+	// noteTipShown is the note's text shown over its mark in the editor
+	// ("" none: markdown_notes.go)
+	noteTipShown string
+	searchBar    *SearchBar
 
 	// UI layout
 	mainContainer    *container.Split
@@ -276,6 +279,7 @@ func (w *MainWindow) setupUI() {
 	// Create main text editor with Courier Prime font
 	w.textEditor = newScriptEditor(w)
 	w.textEditor.OnCursorChanged = w.onCursorChanged
+	w.textEditor.OnHover = w.noteHover
 
 	// Add some initial content - start with a title page
 	w.textEditor.SetText(defaultScript(time.Now()))
