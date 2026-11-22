@@ -1117,3 +1117,16 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   margins/indent/case/spacing/font with a live sample, the toolbar buttons as a reorderable list; same TOML tab and
   round-trip rule. A .toml that is neither opens as text with a note. Saving a format file inside the formats folder
   makes it pickable at once (presetsIn already reloads by content).
+- 2026-11-22 (Joop, on the folding agent's 4-first + 3-last words: "What about checking shortest unique for start and
+  finish instead? You could auto-fix that when new text breaks this, and when impossible signal this with a
+  warning."): SHORTEST UNIQUE LINKS, right after foldchips merges (second agent slot; touches textfrag/link code,
+  not the middle). A new link's text= start is the fewest first words, and its end the fewest last words, that make
+  the range match exactly this passage in the source (start at least 1 word, a short passage quoted whole when that
+  is shorter). Whenever the source changes (the source pane's Edit, a reload, Update Source Links, opening a script
+  whose source differs from the last time) re-check every link: one that became ambiguous or stopped matching but
+  still identifies its passage by its old anchor/approximate match is lengthened or re-anchored automatically (one
+  undo step, status line "N links lengthened"); one that cannot be made unique (two identical passages, or the
+  passage is gone) gets a warning: the chip "↗ source?" / "↗ 2 places" with a tooltip saying why and the Source
+  pane's issue list. Old links keep reading. Tests: uniqueness after random source edits (property test), the
+  auto-fix, the impossible case's warning; sample regenerated (links get shorter: report before/after lengths
+  for the sample and the novel). Help page updated (replaces the "3 end words" trade-off note).
