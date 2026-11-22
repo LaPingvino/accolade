@@ -152,10 +152,16 @@ type ribbonBar struct {
 	groups   *container.Scroll
 
 	selected string // the tab chosen
-	env      cmdEnv
-	stage    int    // the Production stage shown (stageLock …)
-	builtFor string // what the groups were made for
-	phone    bool
+	// previewing: the Preview tab is there (it comes forward when it
+	// comes); beforePreview: the tab chosen before it, chosen again when
+	// it goes
+	beforePreview string
+	previewing    bool
+	pageCount     *widget.Label // the Preview tab's "Page n of N"
+	env           cmdEnv
+	stage         int    // the Production stage shown (stageLock …)
+	builtFor      string // what the groups were made for
+	phone         bool
 
 	buttons  []*ribbonButton            // the groups' buttons, in order
 	elements map[string]*ribbonButton   // the element buttons, by element
@@ -275,6 +281,14 @@ func (r *ribbonBar) refresh() {
 		setVisible(r.tabs[i], tabShown(t, env))
 	}
 	r.menus.follow(env)
+	if env.preview != r.previewing { // a preview opened or closed
+		r.previewing = env.preview
+		if env.preview {
+			r.beforePreview, r.selected = r.selected, "Preview"
+		} else if r.selected == "Preview" {
+			r.selected = r.beforePreview
+		}
+	}
 	if t, ok := tabOf(r.selected); !ok || !tabShown(t, env) {
 		r.selected = "Write"
 	}
@@ -287,7 +301,7 @@ func (r *ribbonBar) refresh() {
 	}
 	r.stage = stage
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
-		boolKey(env.away), boolKey(env.swappedDoc), boolKey(phone), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage()}, "\x00")
+		boolKey(env.away), boolKey(env.swappedDoc), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage()}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
 		r.phone = phone
@@ -301,6 +315,7 @@ func (r *ribbonBar) refresh() {
 	if r.tipsOn && r.tipLevel == 2 {
 		r.assignTips(2) // other buttons now
 	}
+	r.followPreview()
 }
 
 func boolKey(b bool) string {
@@ -429,6 +444,18 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 			conf.selectFormat(r.format, r.w.scriptFormatKey())
 			r.showing = false
 			addSmall(r.format)
+			continue
+		case "pageCount": // the Preview tab's "Page n of N"
+			if r.pageCount == nil {
+				r.pageCount = widget.NewLabel("")
+				r.pageCount.Alignment = fyne.TextAlignCenter
+				fyne.SetAccessibleLabel(r.pageCount, "Page")
+			}
+			r.pageCount.SetText("")
+			if v := r.w.previewView(); v != nil {
+				r.pageCount.SetText(v.count.Text)
+			}
+			addSmall(r.pageCount)
 			continue
 		case "formatButtons":
 			if !scriptEditing(env) { // they write in the script, in the main editor
@@ -1039,6 +1066,7 @@ type ribbonButton struct {
 	onTap     func()
 
 	disabled, selected, checked, hovered, focused bool
+	dot                                           bool   // a dot by the icon (Refresh: the pages are stale)
 	tip                                           string // the key tip
 	name                                          string // the screen reader's
 	hover                                         tooltip.Hover
@@ -1064,9 +1092,21 @@ func newRibbonButton(r *ribbonBar, c *command, large bool) *ribbonButton {
 			b.icon = c.icon()
 		}
 		b.name = c.labelIn(r.env) + c.keysTip()
+		if c.nameFor != nil {
+			b.name = c.nameFor(r.w) + c.keysTip()
+		}
+		b.dot = c.dot != nil && c.dot(r.w)
 	}
 	b.ExtendBaseWidget(b)
 	return b
+}
+
+// setDot shows the dot by b's icon, or not.
+func (b *ribbonButton) setDot(on bool) {
+	if b.dot != on {
+		b.dot = on
+		b.Refresh()
+	}
 }
 
 // follow enables b and shows it checked as its command's rules say.
@@ -1080,8 +1120,16 @@ func (b *ribbonButton) follow(env cmdEnv) {
 	if b.homeLabel != "" {
 		name = b.homeLabel + b.c.keysTip()
 	}
-	if dis != b.disabled || checked != b.checked || name != b.name {
-		b.disabled, b.checked, b.name = dis, checked, name
+	if b.c.nameFor != nil {
+		name = b.c.nameFor(b.r.w) + b.c.keysTip()
+	}
+	label := b.label
+	if b.c.ribbonLabelFor != nil {
+		label = b.c.ribbonLabelFor(b.r.w)
+	}
+	dot := b.c.dot != nil && b.c.dot(b.r.w)
+	if dis != b.disabled || checked != b.checked || name != b.name || label != b.label || dot != b.dot {
+		b.disabled, b.checked, b.name, b.label, b.dot = dis, checked, name, label, dot
 		b.Refresh()
 	}
 }
@@ -1258,7 +1306,8 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 	keyT := canvas.NewText("", theme.Color(theme.ColorNamePlaceHolder))
 	var lines []*canvas.Text
 	badge := newKeyTipBadge()
-	objects := []fyne.CanvasObject{bg, img, mark, keyT}
+	dot := canvas.NewCircle(theme.Color(theme.ColorNamePrimary))
+	objects := []fyne.CanvasObject{bg, img, mark, keyT, dot}
 	for i := 0; i < 2; i++ {
 		t := canvas.NewText("", theme.Color(theme.ColorNameForeground))
 		lines = append(lines, t)
@@ -1376,6 +1425,9 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 		}
 		ms := mark.MinSize()
 		mark.Move(fyne.NewPos(img.Position().X+(is-ms.Width)/2, img.Position().Y+(is-ms.Height)/2))
+		ds := max(is/3, 6) // the dot: over the icon's top right corner
+		dot.Move(img.Position().AddXY(is-ds*0.6, -ds*0.4))
+		dot.Resize(fyne.NewSquareSize(ds))
 		badge.place(size, b.large || b.r.phone)
 	}
 	r.refresh = func() {
@@ -1420,6 +1472,9 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 			t.Refresh()
 		}
 		badge.show(b.tip)
+		dot.FillColor = theme.Color(theme.ColorNamePrimary)
+		dot.Hidden = !b.dot
+		dot.Refresh()
 		bg.Refresh()
 		img.Refresh()
 		mark.Refresh()

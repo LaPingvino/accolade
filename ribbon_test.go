@@ -146,6 +146,15 @@ func TestRibbonGolden(t *testing.T) {
 	if r.selected != "Write" {
 		t.Errorf("Markdown has a Production tab: %s", r.selected)
 	}
+	// the Preview tab: a document's Live Preview, a script's pages
+	w.settings.SetBoolean(mdTitlePagePref, false) // (another test's may be on)
+	w.preview()
+	ribbonGolden(t, "markdown-preview", dumpRibbon(r))
+	w.preview()
+	w.setDocumentType(false)
+	previewAndWait(t, w)
+	ribbonGolden(t, "screenplay-preview", dumpRibbon(r))
+	w.hidePages()
 }
 
 // buttonOf is the ribbon's button of command id (nil if none shows).
@@ -799,5 +808,16 @@ func TestRibbonFitsDesktop(t *testing.T) {
 		}
 	}
 	w.workAs(roleProduction)
+	w.setDocumentType(false)
+	// the Preview tab: a script's pages, a document's Live Preview
+	uiTurn.Unlock() // (previewAndWait's pages come in the UI's turn)
+	previewAndWait(t, w)
+	uiTurn.Lock()
+	check("Preview screenplay")
+	w.hidePages()
+	w.setDocumentType(true)
+	w.preview()
+	check("Preview markdown")
+	w.preview()
 	w.setDocumentType(false)
 }

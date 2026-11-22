@@ -32,7 +32,10 @@ func (w *MainWindow) showPages(d pdf.Drawing, title, pdfPath, name string, extra
 		w.pages, rebuilt = v, true
 	}
 	v := w.pages
-	v.remake = nil
+	if v.follow != nil {
+		v.follow.stop()
+	}
+	v.remake, v.follow, v.freshPDF, v.setupLine = nil, nil, nil, nil
 	v.extra.Objects = extra
 	v.extra.Refresh()
 	v.setNote("")
@@ -50,12 +53,14 @@ func (w *MainWindow) showPages(d pdf.Drawing, title, pdfPath, name string, extra
 		w.previewDir = dir
 	}
 	v.show(d, title, pdfPath, name)
+	v.followLook()
 	pagesInSight.Store(v)
 	if !wasVisible {
 		if c := w.fyneWindow.Canvas(); c != nil {
 			c.Focus(v.area)
 		}
 	}
+	w.ribbonRefresh() // the Preview tab
 	return v
 }
 
@@ -69,9 +74,14 @@ func (w *MainWindow) hidePages() {
 		return
 	}
 	w.pagesVisible = false
+	if w.pages.follow != nil {
+		w.pages.follow.stop()
+		w.pages.follow = nil
+	}
 	pagesInSight.CompareAndSwap(w.pages, nil)
 	w.relayout()
 	w.focusEditor()
+	w.ribbonRefresh() // the Preview tab goes
 }
 
 // focusEditor gives the script the focus.

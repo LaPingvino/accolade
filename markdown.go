@@ -289,6 +289,9 @@ func (p *previewPanel) layout() fyne.CanvasObject {
 	if p.line != nil {
 		top = container.NewVBox(top, p.line.box)
 	}
+	if p.w != nil && p.w.ribbonOn() { // the Preview tab has it
+		top = nil
+	}
 	var body fyne.CanvasObject = container.NewVScroll(p.text)
 	if p.showsPages() {
 		if p.pages == nil {
@@ -314,6 +317,7 @@ func (p *previewPanel) modeChanged() {
 	p.box = p.layout()
 	p.update(p.last)
 	p.w.relayout()
+	p.w.ribbonRefresh()
 }
 
 // update shows text; a table as lines, not in a scroller of its own that
@@ -323,7 +327,10 @@ func (p *previewPanel) update(text string) {
 	p.last = text
 	if p.showsPages() && p.pages != nil {
 		p.line.refresh()
-		p.pages.update(text)
+		p.pages.view.setStale(true)
+		if p.w.followEdits() || p.pages.view.d == nil {
+			p.pages.update(text)
+		}
 		return
 	}
 	p.text.Segments, _ = markdownSegments(markdownBody(text), -1)
@@ -350,7 +357,8 @@ func (w *MainWindow) preview() {
 		w.previewPane.update(w.writeEditor().Text())
 	}
 	w.relayout()
-	w.refreshMenu() // Live Preview checked, or not, in the menu and on the ribbon
+	w.refreshMenu()   // Live Preview checked, or not, in the menu and on the ribbon
+	w.ribbonRefresh() // the Preview tab
 }
 
 // markdownHTML is a Markdown document as a web page, for printing.

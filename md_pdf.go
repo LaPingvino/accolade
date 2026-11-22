@@ -75,6 +75,8 @@ type mdPages struct {
 func newMDPages(w *MainWindow) *mdPages {
 	m := &mdPages{w: w, view: newPageView(w)}
 	m.view.closeB.Hide() // the preview's own: Text shows the text again
+	// Refresh: the pages made at once
+	m.view.remake = func() { m.updateAfter(w.writeEditor().Text(), 0) }
 	return m
 }
 
@@ -85,7 +87,10 @@ var mdPagesDelay = 400 * time.Millisecond
 var mdPagesAfter = time.AfterFunc
 
 // update makes the pages of text, soon.
-func (m *mdPages) update(text string) {
+func (m *mdPages) update(text string) { m.updateAfter(text, mdPagesDelay) }
+
+// updateAfter makes the pages of text after delay.
+func (m *mdPages) updateAfter(text string, delay time.Duration) {
 	m.mu.Lock()
 	m.gen++
 	gen := m.gen
@@ -98,7 +103,7 @@ func (m *mdPages) update(text string) {
 	title := markdownTitle(text, w.scriptName())
 	page := w.markdownPageSetup()
 	titlePage := page.titlePageOf(text, w.scriptName())
-	t := mdPagesAfter(mdPagesDelay, func() {
+	t := mdPagesAfter(delay, func() {
 		data, d, err := markdownPDF(text, title, page, titlePage)
 		missing := markdownPDFMissing(text)
 		m.mu.Lock()

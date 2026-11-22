@@ -180,6 +180,10 @@ func TestLivePreviewChecked(t *testing.T) {
 	w.setDocumentType(true)
 	r.selectTab("View")
 	w.do(cmd("view.preview"))()
+	if r.selected != "Preview" { // the Preview tab comes forward
+		t.Errorf("the tab chosen: %s", r.selected)
+	}
+	r.selectTab("View")
 	if b := buttonOf(r, "view.preview"); b == nil || !b.checked {
 		t.Error("Live Preview not checked on the ribbon after Ctrl+Shift+P")
 	}

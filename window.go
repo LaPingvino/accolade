@@ -1257,7 +1257,8 @@ func (w *MainWindow) onTextChanged(text string) {
 		}
 	}
 
-	w.ribbonFollow() // a lock or a source block changes what it can give
+	w.followText(text) // the preview's pages (pagefollow.go)
+	w.ribbonFollow()   // a lock or a source block changes what it can give
 	w.scheduleAutoSave()
 }
 
@@ -1404,6 +1405,7 @@ func (w *MainWindow) makePreviewPDF() {
 	out := filepath.Join(dir, name)
 	content := w.textEditor.Text()
 	job := w.outputJob(w.pageSetup(), "pdf", content, nil)
+	job.lines = true // the pages' lines, to follow the edits
 	line := w.previewLine()
 	w.setStatus("Preparing the PDF...")
 	w.previewGen++
@@ -1428,6 +1430,13 @@ func (w *MainWindow) makePreviewPDF() {
 				w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
 			}
 			v.setNote(note)
+			v.setupLine = line
+			v.followLook()
+			newPageFollow(w, v, content, d)
+			if text := w.textEditor.Text(); text != content { // typed meanwhile
+				v.follow.edited(text)
+			}
+			w.ribbonRefresh() // its Setup, Refresh
 			pagesShown(v)
 		})
 	}()
@@ -1481,6 +1490,11 @@ func (w *MainWindow) setContent(content fyne.CanvasObject) {
 // relayout puts the window together: the toolbar and the status bar,
 // the outline and notes on the left if shown, the editor.
 func (w *MainWindow) relayout() {
+	for _, v := range []*pageView{w.pages, w.mdPagesView()} { // their bars: the Menus look's
+		if v != nil {
+			v.followLook()
+		}
+	}
 	var center fyne.CanvasObject = w.editorView
 	if w.stripsVisible && w.stripboard != nil {
 		center = w.stripboard.box

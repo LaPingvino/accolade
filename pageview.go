@@ -65,7 +65,6 @@ type pageView struct {
 	w        *MainWindow
 	d        *pdf.Drawing
 	r        *pdf.Rasterizer
-	gen      int    // the drawing's generation: a render of an older one is dropped
 	pdfPath  string // the PDF the pages are of, "" if there is none
 	name     string // its file's name, for Save PDF…
 	zoom     float32
@@ -73,37 +72,73 @@ type pageView struct {
 	scale    float32
 	narrow   bool   // laid out for a phone
 	pinching bool   // two fingers are zooming: the pages stretch, painted again when they lift
-	remake   func() // makes the pages again after a change in Page Setup (nil: they stay)
+	remake   func() // makes the pages again after a change in Page Setup, and Refresh (nil: they stay)
+	// follow keeps a script's pages following its text (pagefollow.go;
+	// nil: none, or a Markdown document's, which mdPages follows)
+	follow *pageFollow
+	// stale: the text changed since the pages were made (a dot on
+	// Refresh); dimFrom: the pages from there may be out of date, dimmed
+	// (-1: none); pdfStale: the pages shown were made again since the PDF
+	// (Save PDF… makes it again first: freshPDF)
+	stale    bool
+	dimFrom  int
+	pdfStale bool
+	freshPDF func(then func())
+	// painted counts the pages painted (the tests', the measures')
+	painted int
 
-	title   *widget.Label
-	head    *fyne.Container // the title, the count, Close
-	count   *widget.Label
-	note    *widget.Label
-	extra   *fyne.Container // the caller's: a page setup line, Back
-	area    *pageArea
-	scroll  *container.Scroll
-	column  *fyne.Container
-	pages   []*pageImage
-	save    *widget.Button
-	open    *widget.Button
-	closeB  *widget.Button
-	onClose func()
-	box     fyne.CanvasObject
+	title *widget.Label
+	head  *fyne.Container // the title, the count, Close
+	count *widget.Label
+	note  *widget.Label
+	extra *fyne.Container // the caller's: a page setup line, Back
+	// setupLine is the page setup line in extra, if it is one (Preview
+	// PDF's: the Preview tab's Setup has it in the Ribbon look)
+	setupLine *pageSetupLine
+	area      *pageArea
+	scroll    *container.Scroll
+	column    *fyne.Container
+	pages     []*pageImage
+	tools     *fyne.Container // the bar's buttons (the Menus look's; the Ribbon look has the Preview tab)
+	save      *widget.Button
+	open      *widget.Button
+	refreshB  *widget.Button
+	followC   *widget.Check
+	closeB    *widget.Button
+	onClose   func()
+	box       fyne.CanvasObject
 
 	mu        sync.Mutex
-	rendering map[int]int // a page being painted: the width in pixels asked
+	rendering map[int]paintJob // a page being painted: the width in pixels asked, of its version
 }
+
+// paintJob is a page being painted: its width, its version.
+type paintJob struct{ px, ver int }
 
 // pageImage is a page in the column: its shadow, its paper, the image
 // painted of it (none while it is far out of sight).
 type pageImage struct {
-	shadow, paper *canvas.Rectangle
-	img           *canvas.Image
-	px            int // the image's width in pixels, 0 if none
+	shadow, paper, dim *canvas.Rectangle
+	img                *canvas.Image
+	px                 int // the image's width in pixels, 0 if none (or to paint again)
+	ver                int // its drawing's version: a paint of an older one is dropped
+}
+
+func newPageImage() *pageImage {
+	p := &pageImage{
+		shadow: canvas.NewRectangle(color.NRGBA{0, 0, 0, 0x40}),
+		paper:  canvas.NewRectangle(color.White),
+		dim:    canvas.NewRectangle(color.NRGBA{0x80, 0x80, 0x80, 0x70}),
+		img:    canvas.NewImageFromImage(nil),
+	}
+	p.dim.Hide()
+	p.img.FillMode = canvas.ImageFillStretch
+	p.img.ScaleMode = canvas.ImageScaleSmooth
+	return p
 }
 
 func newPageView(w *MainWindow) *pageView {
-	v := &pageView{w: w, fit: true, zoom: 1, scale: 1, rendering: map[int]int{}, narrow: w != nil && w.narrow}
+	v := &pageView{w: w, fit: true, zoom: 1, scale: 1, rendering: map[int]paintJob{}, narrow: w != nil && w.narrow, dimFrom: -1}
 	v.ExtendBaseWidget(v)
 	v.title = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	v.title.Truncation = fyne.TextTruncateEllipsis
@@ -140,6 +175,16 @@ func newPageView(w *MainWindow) *pageView {
 			v.onClose()
 		}
 	})
+	v.refreshB = widget.NewButtonWithIcon("Refresh", theme.ViewRefreshIcon(), v.refresh)
+	v.refreshB.Importance = widget.LowImportance
+	v.followC = widget.NewCheck("Follow Edits", func(on bool) {
+		if w != nil && on != w.followEdits() {
+			w.setFollowEdits(on)
+		}
+	})
+	if w != nil {
+		v.followC.Checked = w.followEdits()
+	}
 	files := container.NewHBox(v.save)
 	if v.open != nil {
 		files.Add(v.open)
@@ -151,9 +196,18 @@ func newPageView(w *MainWindow) *pageView {
 			b.SetText("")
 		}
 	}
-	v.head = container.NewBorder(nil, nil, nil, container.NewHBox(v.count, v.closeB), v.title)
-	tools := container.NewHBox(zoomOut, fit, actual, zoomIn, layout.NewSpacer(), files)
-	top := container.NewVBox(v.head, tools, v.extra, v.note)
+	right := container.NewHBox(v.count, v.closeB)
+	v.tools = container.NewHBox(zoomOut, fit, actual, zoomIn, v.refreshB, v.followC, layout.NewSpacer(), files)
+	if v.narrow { // a phone: Refresh an icon, Follow by the title
+		fyne.SetAccessibleLabel(v.refreshB, v.refreshB.Text)
+		fyne.SetAccessibleLabel(v.followC, v.followC.Text)
+		v.refreshB.SetText("")
+		v.followC.Text = "Follow"
+		right = container.NewHBox(v.followC, v.count, v.closeB)
+		v.tools = container.NewHBox(zoomOut, fit, actual, zoomIn, v.refreshB, layout.NewSpacer(), files)
+	}
+	v.head = container.NewBorder(nil, nil, nil, right, v.title)
+	top := container.NewVBox(v.head, v.tools, v.extra, v.note)
 	v.box = container.NewBorder(top, nil, nil, nil, v.area)
 	fyne.SetAccessibleLabel(v.area, "Pages")
 	return v
@@ -164,53 +218,147 @@ func (v *pageView) CreateRenderer() fyne.WidgetRenderer {
 }
 
 // show shows a drawing: the pages of pdfPath (name its file's name), the
-// place in them and the zoom kept if it is made again.
+// place in them and the zoom kept if it is made again, the pages that
+// look as before not painted again.
 func (v *pageView) show(d pdf.Drawing, title, pdfPath, name string) {
-	again := v.d != nil && len(d.Pages) > 0
-	var at float32
-	if again && v.column.MinSize().Height > 0 {
-		at = v.scroll.Offset.Y / v.column.MinSize().Height
-	}
-	v.d, v.r = &d, pdf.NewRasterizer(&d)
-	v.gen++
 	v.title.SetText(title)
 	v.pdfPath, v.name = pdfPath, name
-	if v.save != nil {
-		v.save.Disable()
-		if pdfPath != "" {
-			v.save.Enable()
+	v.pdfStale = false
+	for _, b := range []*widget.Button{v.save, v.open} {
+		if b != nil {
+			b.Disable()
+			if pdfPath != "" {
+				b.Enable()
+			}
 		}
 	}
-	if v.open != nil {
-		v.open.Disable()
-		if pdfPath != "" {
-			v.open.Enable()
+	v.setStale(false)
+	v.setDrawing(d, -1)
+}
+
+// setDrawing shows d's pages, those from dimFrom on dimmed (-1: none):
+// the place in them (the page, and how far down it) and the zoom kept;
+// a page that looks as it did keeps its painting, the others are painted
+// again (shown as they were until then), only those in sight.
+func (v *pageView) setDrawing(d pdf.Drawing, dimFrom int) {
+	again := v.d != nil && len(d.Pages) > 0
+	page, frac := v.anchor()
+	old := v.d
+	if v.r == nil || old == nil || !sameFonts(old.Fonts, d.Fonts) {
+		v.r = pdf.NewRasterizer(&d)
+		old = nil // painted with other fonts
+	}
+	v.d = &d
+	for i, p := range d.Pages {
+		if i == len(v.pages) {
+			v.pages = append(v.pages, newPageImage())
+		}
+		pi := v.pages[i]
+		if old != nil && i < len(old.Pages) && old.Pages[i].Equal(p) {
+			continue
+		}
+		pi.ver++
+		pi.px = 0 // painted again when in sight
+		if old == nil || i >= len(old.Pages) || old.Pages[i].Width != p.Width || old.Pages[i].Height != p.Height {
+			pi.img.Image = nil
+			pi.img.Refresh()
 		}
 	}
-	v.pages = v.pages[:0]
-	v.column.Objects = nil
-	for range d.Pages {
-		p := &pageImage{
-			shadow: canvas.NewRectangle(color.NRGBA{0, 0, 0, 0x40}),
-			paper:  canvas.NewRectangle(color.White),
-			img:    canvas.NewImageFromImage(nil),
-		}
-		p.img.FillMode = canvas.ImageFillStretch
-		p.img.ScaleMode = canvas.ImageScaleSmooth
-		v.pages = append(v.pages, p)
-		v.column.Objects = append(v.column.Objects, p.shadow, p.paper, p.img)
+	v.pages = v.pages[:len(d.Pages)]
+	v.column.Objects = v.column.Objects[:0]
+	for _, p := range v.pages {
+		v.column.Objects = append(v.column.Objects, p.shadow, p.paper, p.img, p.dim)
 	}
 	v.mu.Lock()
-	v.rendering = map[int]int{}
+	v.rendering = map[int]paintJob{}
 	v.mu.Unlock()
+	v.dim(dimFrom)
 	v.relayout()
 	if again {
-		v.scroll.Offset.Y = at * v.column.MinSize().Height
-		v.scroll.Refresh()
+		v.toAnchor(page, frac)
 	} else {
 		v.scroll.ScrollToTop()
 	}
 	v.showInSight()
+}
+
+// sameFonts reports whether two drawings' fonts are the same files.
+func sameFonts(a, b map[string][]byte) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, x := range a {
+		y, ok := b[k]
+		if !ok || len(x) != len(y) || len(x) > 0 && &x[0] != &y[0] {
+			return false
+		}
+	}
+	return true
+}
+
+// anchor is the page at the view's top and how far down it the top is
+// (0 to 1).
+func (v *pageView) anchor() (int, float32) {
+	if v.d == nil || len(v.d.Pages) == 0 {
+		return 0, 0
+	}
+	tops, _ := v.pageTops()
+	y := v.scroll.Offset.Y
+	for i := len(tops) - 1; i >= 0; i-- {
+		if tops[i]-pageGap <= y {
+			h := float32(v.d.Pages[i].Height)*v.scale + pageGap
+			return i, (y - (tops[i] - pageGap)) / h
+		}
+	}
+	return 0, 0
+}
+
+// toAnchor scrolls to an anchor: page i, frac down it.
+func (v *pageView) toAnchor(i int, frac float32) {
+	tops, _ := v.pageTops()
+	if len(tops) == 0 {
+		return
+	}
+	i = min(i, len(tops)-1)
+	h := float32(v.d.Pages[i].Height)*v.scale + pageGap
+	v.scroll.Offset.Y = max(0, min(tops[i]-pageGap+frac*h, v.column.MinSize().Height-v.scroll.Size().Height))
+	v.scroll.Refresh()
+}
+
+// dim dims the pages from page from on (-1: none): they may be out of
+// date until the pages are all made again.
+func (v *pageView) dim(from int) {
+	v.dimFrom = from
+	for i, p := range v.pages {
+		setVisible(p.dim, from >= 0 && i >= from)
+	}
+}
+
+// setStale says whether the text changed since the pages were made (a
+// dot on Refresh).
+func (v *pageView) setStale(on bool) {
+	if v.stale == on {
+		return
+	}
+	v.stale = on
+	v.refreshB.Importance = widget.LowImportance
+	if on {
+		v.refreshB.Importance = widget.HighImportance
+	}
+	v.refreshB.Refresh()
+	if v.w != nil && v.w.ribbon != nil {
+		v.w.ribbon.followPreview()
+	}
+}
+
+// refresh makes the pages again: the place and zoom kept (Refresh, F5).
+func (v *pageView) refresh() {
+	switch {
+	case v.follow != nil:
+		v.follow.refresh()
+	case v.remake != nil:
+		v.remake()
+	}
 }
 
 // setNote shows a line over the pages ("" none).
@@ -364,42 +512,45 @@ func (v *pageView) showInSight() {
 	if c := fmt.Sprintf("Page %d of %d", current+1, len(v.d.Pages)); c != v.count.Text {
 		v.count.SetText(c)
 		v.head.Refresh() // its width
+		if v.w != nil && v.w.ribbon != nil {
+			v.w.ribbon.followPreview()
+		}
 	}
 }
 
 // paint paints page i px pixels wide, in the background.
 func (v *pageView) paint(i, px int) {
+	pi := v.pages[i]
+	job := paintJob{px, pi.ver}
 	v.mu.Lock()
-	if v.rendering[i] == px {
+	if v.rendering[i] == job {
 		v.mu.Unlock()
 		return
 	}
-	v.rendering[i] = px
+	v.rendering[i] = job
 	v.mu.Unlock()
-	gen, r, p := v.gen, v.r, v.d.Pages[i]
-	if !paintAsync {
+	r, p := v.r, v.d.Pages[i]
+	set := func(img image.Image) {
 		v.mu.Lock()
-		delete(v.rendering, i)
+		wanted := v.rendering[i] == job
+		if wanted {
+			delete(v.rendering, i)
+		}
 		v.mu.Unlock()
-		v.pages[i].img.Image, v.pages[i].px = r.Page(i, float64(px)/p.Width), px
-		v.pages[i].img.Refresh()
+		if !wanted || i >= len(v.pages) || v.pages[i] != pi || pi.ver != job.ver {
+			return
+		}
+		pi.img.Image, pi.px = img, px
+		pi.img.Refresh()
+		v.painted++
+	}
+	if !paintAsync {
+		set(r.Paint(p, float64(px)/p.Width))
 		return
 	}
 	go func() {
-		img := r.Page(i, float64(px)/p.Width)
-		fyne.Do(func() {
-			v.mu.Lock()
-			wanted := v.rendering[i] == px
-			if wanted {
-				delete(v.rendering, i)
-			}
-			v.mu.Unlock()
-			if gen != v.gen || !wanted || i >= len(v.pages) {
-				return
-			}
-			v.pages[i].img.Image, v.pages[i].px = img, px
-			v.pages[i].img.Refresh()
-		})
+		img := r.Paint(p, float64(px)/p.Width)
+		fyne.Do(func() { set(img) })
 	}()
 }
 
@@ -411,7 +562,21 @@ func (v *pageView) image(i int) image.Image {
 	return nil
 }
 
+// withFreshPDF runs then once the PDF is of the pages shown (made again
+// first, if they were made again since).
+func (v *pageView) withFreshPDF(then func()) {
+	if v.pdfStale && v.freshPDF != nil {
+		v.freshPDF(then)
+		return
+	}
+	then()
+}
+
 func (v *pageView) savePDF() {
+	if v.pdfStale && v.freshPDF != nil {
+		v.withFreshPDF(v.savePDF)
+		return
+	}
 	if v.pdfPath == "" {
 		return
 	}
@@ -428,6 +593,10 @@ func (v *pageView) savePDF() {
 }
 
 func (v *pageView) download() {
+	if v.pdfStale && v.freshPDF != nil {
+		v.withFreshPDF(v.download)
+		return
+	}
 	if v.pdfPath == "" {
 		return
 	}
@@ -444,6 +613,10 @@ func (v *pageView) download() {
 }
 
 func (v *pageView) openInViewer() {
+	if v.pdfStale && v.freshPDF != nil {
+		v.withFreshPDF(v.openInViewer)
+		return
+	}
 	if v.pdfPath != "" {
 		openInSystem(v.pdfPath)
 	}
@@ -469,19 +642,19 @@ func (l *pagesLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 	}
 	tops, _ := v.pageTops()
 	for i, p := range v.d.Pages {
-		if 3*i+2 >= len(objects) {
+		if 4*i+3 >= len(objects) {
 			return
 		}
 		pw, ph := float32(p.Width)*v.scale, float32(p.Height)*v.scale
 		x := max((size.Width-pw)/2, pageGap)
 		at := fyne.NewPos(x, tops[i])
 		s := fyne.NewSize(pw, ph)
-		objects[3*i].Move(at.AddXY(3, 3))
-		objects[3*i].Resize(s)
-		objects[3*i+1].Move(at)
-		objects[3*i+1].Resize(s)
-		objects[3*i+2].Move(at)
-		objects[3*i+2].Resize(s)
+		objects[4*i].Move(at.AddXY(3, 3))
+		objects[4*i].Resize(s)
+		for k := 1; k < 4; k++ { // the paper, the painting, the dimming
+			objects[4*i+k].Move(at)
+			objects[4*i+k].Resize(s)
+		}
 	}
 }
 

@@ -50,6 +50,11 @@ type cmdEnv struct {
 	// menus that act on the document (Adaptation, Production, Export)
 	// are the script's while it is away
 	away, swappedDoc bool
+	// a preview is shown (the page view, or a document's Live Preview:
+	// the Preview tab); livePreview: the Live Preview; pagesShown: pages
+	// are in sight; pdfFile: a PDF to save; refreshable: the pages can be
+	// made again; setup: their page setup can be changed (previewtab.go)
+	preview, livePreview, pagesShown, pdfFile, refreshable, setup bool
 }
 
 // cmdEnv is the window's.
@@ -70,6 +75,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	if w.settings != nil {
 		e.fontSize = w.settings.GetInt("font-size")
 	}
+	w.previewEnv(&e)
 	return e
 }
 
@@ -139,6 +145,12 @@ type command struct {
 	// grey them; the palette and the ribbon look at it.
 	enabled func(cmdEnv) bool
 	checked func(w *MainWindow) bool
+	// nameFor, if set, is its ribbon button's tooltip and screen-reader
+	// name as the window has it now (Page Setup…'s summary)
+	nameFor func(w *MainWindow) string
+	// dot, if set, says when its ribbon button shows a dot (Refresh: the
+	// pages are stale)
+	dot func(w *MainWindow) bool
 	// submenu, if set, is made when the menu is (Open Recent)
 	submenu func(w *MainWindow) *fyne.Menu
 	// role: who it is for (role.go); production's are put away in Writer,
@@ -678,6 +690,7 @@ func newRegistry() *registry {
 	add(dockCommands()...)    // the side dock's panes and its own (dock.go)
 	add(helpCommands()...)    // help_pane.go
 	add(settingCommands()...) // ribbon_settings.go
+	add(previewCommands()...) // the Preview tab's (previewtab.go)
 
 	elements := make([]home, len(toolbarElements))
 	for i, el := range toolbarElements {
@@ -1061,5 +1074,6 @@ func ribbonLayout() []ribbonTab {
 			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),
 				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")}},
 		}},
+		previewTab(), // while a preview is shown, last (the others' key tips stay)
 	}
 }

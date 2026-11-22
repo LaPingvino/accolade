@@ -69,8 +69,11 @@ type exportJob struct {
 
 	// the breakdown (breakdown_io.go; nil: none) and the tags by line,
 	// and the scenes' lengths, for FDX
-	breakdown    *lex.TagSet
-	lineTags     map[int][]lex.LineTag
+	breakdown *lex.TagSet
+	lineTags  map[int][]lex.LineTag
+	// lines: the rows carry their lines (lex.Line.Source): a preview's,
+	// for the pages' lines (pagefollow.go)
+	lines        bool
 	sceneLengths bool
 
 	// mergeOmitted prints a run of OMITTED headings as one, "12-14
@@ -145,7 +148,7 @@ func (j exportJob) script(content string) lex.Screenplay {
 		scenes = englishScenes
 	}
 	var s lex.Screenplay
-	if j.revisions != nil || j.lineTags != nil {
+	if j.revisions != nil || j.lineTags != nil || j.lines {
 		s = fountain.ParseLines(scenes, strings.NewReader(content))
 		for i := range s {
 			if n := s[i].Source - 1; n >= 0 && n < len(j.marks) {

@@ -1,0 +1,19 @@
+tabs: File Write Edit Production Collaboration View [Preview]
+## Zoom
+  L Fit icon=foreground_view-fullscreen.svg (checked) name=Fit Width
+  S 100% icon=foreground_view-zoom-fit.svg name=Actual Size
+  S Zoom In icon=foreground_view-zoom-in.svg name=Zoom In
+  S Zoom Out icon=foreground_view-zoom-out.svg name=Zoom Out
+## Pages
+  S Previous icon=foreground_arrow-back.svg name=Previous Page
+  S Next icon=foreground_arrow-forward.svg name=Next Page
+## Output
+  L Save PDF icon=foreground_document-save.svg name=Save PDF…
+  S Open in Viewer icon=foreground_file-application.svg name=Open in Viewer
+## Setup
+  L Letter icon=foreground_document.svg name=Page Setup…: Screenplay · Letter (the format's) · title page.
+## Refresh
+  L Refresh icon=foreground_view-refresh.svg name=Refresh (F5)
+  S Follow Edits icon=foreground_visibility.svg (checked) name=Follow Edits
+## Close
+  L Close Preview icon=foreground_cancel.svg name=Close Preview
