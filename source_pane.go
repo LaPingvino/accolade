@@ -55,20 +55,20 @@ type sourcePane struct {
 	modelFor string       // the script text the model was made from
 	matcher  *linkMatcher // the passages' links found, kept while they stay
 
-	selected   int      // the passage picked (-1 none)
-	selWords   []string // its words, to find it again when the source is read again
-	pickFresh  bool     // picked (or gone to by Next) since the cursor last moved: the anchor
-	pickCursor int      // the cursor then
-	cycle      int      // which of its scenes Go to the Passage's Scene went to last
-	cycleFor   int      // for which passage
-	linkedBy   map[int][]int // the spans (first lines) linking each passage, as the rows show them
+	selected   int            // the passage picked (-1 none)
+	selWords   []string       // its words, to find it again when the source is read again
+	pickFresh  bool           // picked (or gone to by Next) since the cursor last moved: the anchor
+	pickCursor int            // the cursor then
+	cycle      int            // which of its scenes Go to the Passage's Scene went to last
+	cycleFor   int            // for which passage
+	linkedBy   map[int][]int  // the spans (first lines) linking each passage, as the rows show them
 	labels     map[int]string // the spans' names (spanLabels), for the script text labelsFor
 	labelsFor  string
-	acts       []bool        // the rows' heights were made with the line under the text (rowActs)
-	adapting   *adaptDialog  // Adapt… open
-	lit      map[int]bool // linked from the cursor's scene
-	doubt    map[int]bool // an ambiguous link of the scene's fits them
-	jumping  bool         // the cursor is moving because of a tap here
+	acts       []bool       // the rows' heights were made with the line under the text (rowActs)
+	adapting   *adaptDialog // Adapt… open
+	lit        map[int]bool // linked from the cursor's scene
+	doubt      map[int]bool // an ambiguous link of the scene's fits them
+	jumping    bool         // the cursor is moving because of a tap here
 
 	statuses     []passageStatus     // as the rows show them (adaptation.go)
 	changed      map[int]bool        // adapted passages changed since they were linked
@@ -97,22 +97,22 @@ type sourcePane struct {
 	loading          *sourceRead // the source being read in the background
 	hideRows         bool        // the list is told it has none (setHeights)
 
-	title   *widget.Label
-	info    *widget.Label
-	list    *widget.List
-	edit    *widget.Button
-	choose  *widget.Button
+	title      *widget.Label
+	info       *widget.Label
+	list       *widget.List
+	edit       *widget.Button
+	choose     *widget.Button
 	count      *widget.Label // "62% adapted · 5 cut · 12 to go"
 	anchorLine *widget.Label // where Next and Previous go on from
 	next, prev *widget.Button
 	adapt      *widget.Button // Adapt… for the picked passage, beside Next: in sight when the row's is not (a phone's short list)
 	prompt     *statusPrompt
-	editing bool              // the source open as text in the pane (the window's source document)
-	empty   fyne.CanvasObject // no source
-	blank   fyne.CanvasObject // a source with no passages yet
-	tools   *fyne.Container   // the count, Previous and Next: hidden without a source
-	body    *fyne.Container   // the list, the editor or the empty state
-	box     fyne.CanvasObject
+	editing    bool              // the source open as text in the pane (the window's source document)
+	empty      fyne.CanvasObject // no source
+	blank      fyne.CanvasObject // a source with no passages yet
+	tools      *fyne.Container   // the count, Previous and Next: hidden without a source
+	body       *fyne.Container   // the list, the editor or the empty state
+	box        fyne.CanvasObject
 }
 
 func newSourcePane(w *MainWindow) *sourcePane {
@@ -248,10 +248,10 @@ func rowParts(row *fyne.Container) passageRow {
 // linking to the passage, and for the picked one Adapt… and Mark as Cut
 // (or Unmark Cut).
 type rowActs struct {
-	scenes      string // the scenes' button ("" none): → Scene 4, → 2 scenes
-	scenesName  string
-	adapt, cut  bool
-	cutLabel    string
+	scenes     string // the scenes' button ("" none): → Scene 4, → 2 scenes
+	scenesName string
+	adapt, cut bool
+	cutLabel   string
 }
 
 func (a rowActs) any() bool { return a.scenes != "" || a.adapt || a.cut }

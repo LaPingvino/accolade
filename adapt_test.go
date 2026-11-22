@@ -46,9 +46,9 @@ const (
 func TestAnchorRules(t *testing.T) {
 	type c struct {
 		name, script, at string // the cursor on the line holding at
-		picked, top          int
-		kind                 anchorKind
-		next, prev           int
+		picked, top      int
+		kind             anchorKind
+		next, prev       int
 	}
 	middle := "Title: G\n\nEXT. GARDEN - MORNING\n\n" + linkMorning + "\n\nFrost.\n"
 	outOfOrder := "INT. A - DAY\n\n" + linkRain1 + "\n\nINT. B - DAY\n\n" + linkOpened + "\n\nINT. C - DAY\n\nNothing yet.\n"
@@ -452,7 +452,6 @@ func TestRetiredNextSetting(t *testing.T) {
 		t.Error("the rest not read")
 	}
 }
-
 
 // adaptNew adapts passage p as a scene of its own in the story's order
 // (Adapt… with those chosen).

@@ -93,8 +93,8 @@ func (l *choiceList) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(l.box)
 }
 
-func (l *choiceList) FocusGained() { l.focused = true; l.show() }
-func (l *choiceList) FocusLost()   { l.focused = false; l.show() }
+func (l *choiceList) FocusGained()   { l.focused = true; l.show() }
+func (l *choiceList) FocusLost()     { l.focused = false; l.show() }
 func (l *choiceList) TypedRune(rune) {}
 
 func (l *choiceList) TypedKey(ev *fyne.KeyEvent) {

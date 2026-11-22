@@ -1011,7 +1011,7 @@ var ribbonLabels = map[string]string{
 	"view.preview": "Preview", "view.foldHere": "Fold Here", "view.foldSections": "Fold Sections",
 	"app.palette": "Commands",
 	// the settings (ribbon_settings.go)
-	"set.suggest": "Suggest While Writing",
+	"set.suggest":       "Suggest While Writing",
 	"set.revisionMarks": "Revision Marks", "set.lettering": "Scene Lettering", "set.continueds": "CONTINUEDs",
 	"set.sceneNumbers": "Scene Numbers", "set.draftsSide": "Side by Side",
 }

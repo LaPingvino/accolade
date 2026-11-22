@@ -198,7 +198,7 @@ type adaptCtx struct {
 	starts   []string
 	ps       []passage
 	m        *sourceModel
-	cursor   int      // runes
+	cursor   int // runes
 	labels   map[int]string
 	headings []string // the headings the source suggests for the passage's scene, the likely first
 	draft    string   // the passage drafted ("" none: not read yet)
@@ -480,7 +480,7 @@ func insertBlock(text string, line int, block string) sceneEdit {
 	for i := at; i < len(r) && r[i] == '\n'; i++ {
 		trailing++
 	}
-	need := 2             // a blank line before the blocks
+	need := 2 // a blank line before the blocks
 	if body == len(r) {
 		need = 1 // the file's last line ended
 	}

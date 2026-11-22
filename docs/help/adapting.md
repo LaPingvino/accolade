@@ -33,7 +33,7 @@ With a story open as a Markdown document, File > Start a Screenplay from This So
 
 - a title page that names the story (`Source: Based on …`);
 - the story's chapters as sections;
-- the first scene started for the first passage, with its link.
+- the first scene started for the first passage, with its link and the heading the story suggests (its words after INT. selected, to type over).
 
 A saved .md on the desktop stays the source itself, so you can go on writing the story. A script that has a source but nothing written yet gets the same offer in the source pane.
 
@@ -42,7 +42,9 @@ A saved .md on the desktop stays the source itself, so you can go on writing the
 View > Source, or Adaptation > Source Pane, shows the source as a tab in the side panes (at the bottom at first, beside Notes if it is shown; right-click the tab to move it to the top). Each passage is a row.
 
 - **The cursor's scene lights its passages,** and the pane scrolls to them.
-- **Tapping a passage picks it** and goes to the scene that links to it. Tap again for the next scene, if more than one does.
+- **Tapping a passage picks it,** for Adapt…, Mark as Cut and Link to Source Passage, and makes it where Next goes on from. The cursor stays where it is.
+- **A passage a scene adapts shows it under it:** "→ Scene 4" (the scene's number, or its locked one). Tap it to go to the scene, which flashes for a moment. Several scenes: "→ 2 scenes" lists them to choose from. Adaptation > Go to the Passage's Scene does the same from the keyboard, the next scene each time.
+- **The picked passage, if still to do,** shows **Adapt…** and **Mark as Cut** under it (Unmark Cut for a cut one).
 - **Edit** opens the source as text in the pane; **Done** saves it where it is kept. If another program changes the source file, the pane reads it again.
 - **What the source shows,** at the bottom, is how Accolade reads the picked passage: who says what, the scene heading it suggests, what a camera cannot see, the names in it.
 
@@ -92,13 +94,35 @@ The count at the top of the pane reads like "50% adapted · 1 cut · 3 to go". T
 
 Pick it and press Mark as Cut in the pane, or choose Adaptation > Mark Source Passage as Cut. The same command on a cut passage takes the cut back. Cuts are kept in the script's `/* Adaptation` block under `cut:`, so they travel with it. Linking a cut passage takes its cut away.
 
-## Next Source Passage
+## Next, Previous and Adapt…
 
-Adaptation > Next Source Passage (Ctrl+Alt+J), or Next in the pane, takes you to the next passage still to do: the first after the last passage the cursor's scene links to. At the end of the story it goes round to the start.
+Next and Previous find what to adapt; Adapt… writes it. Nothing goes into the script until you say how and where.
 
-By default it starts a scene for it after the cursor's scene, with a placeholder heading (`INT. PLACE - DAY`, selected so you can type over it) and the link in place. If the story enters a new chapter there, the chapter's section comes first. With Preferences > Script > Adapting "Next Source Passage starts a scene for it" off, Next only shows the passage, and the pane offers Start a Scene.
+### Next and Previous
 
-If you press Next again while the passage it showed is still not linked, the pane asks whether to mark it as cut.
+Adaptation > Next Source Passage (Ctrl+Alt+J), or Next in the pane, picks the next passage still to do (neither adapted nor cut), in the story's order, and scrolls to it. Previous Source Passage (Ctrl+Alt+K), or ◀ in the pane, picks the one before. Neither writes anything.
+
+Where they go on from is what you are looking at. The line under the count says which ("after: “…” · picked"):
+
+1. **The passage you picked** (or Next went to), as long as the cursor has not moved since. Pressing Next again goes on from there, so you can step through the passages still to do.
+2. **Else the cursor's scene:** the last passage it links to.
+3. **Else the nearest scene above the cursor** that links any: its last passage.
+4. **Else the passage at the top of the list.**
+
+So you can start in the middle of the story, adapt scenes out of order, or come back to a script half done: Next goes on from where you are, not from the start. When none is left that way, the pane says so and offers to go round to the first (or last) still to do; Next (or Previous) again does the same.
+
+### Adapt…
+
+Adapt… under the picked passage, or Adaptation > Adapt Source Passage… (Ctrl+Alt+A), opens a dialog (on a phone, a sheet at the bottom). It suggests how and where, with the likely choice of each already chosen and why:
+
+- **How:** Start a new scene (a heading and the link); Draft a scene from the passage (also its lines under their cues, the rest as action, which you can edit before it goes in); Add to the current scene (the link at the cursor); Mark as cut; Skip for now (it stays to do, and the next one is picked). Adding to the current scene is the likely one when the story's scene goes on from the passage that scene adapts, or the scene adapts nothing yet; otherwise a new scene, and the dialog says why (for example, the story starts a new scene there: a chapter heading, a break, "The next morning").
+- **Heading:** the place and time the story suggests for the passage (`EXT. GARDEN - MORNING`), with the other likely ones in its list; edit it as you like.
+- **Where** a new scene goes: in the story's order (after the scene adapting the passage before this one, and inside its chapter's section if the script has it), at the cursor, after the cursor's scene, or at the end. The likely one is the story's order, with the scene it goes after named.
+- **What goes in:** exactly the text that will be written, to edit. If the story enters a new chapter the script has no section for, the chapter's section comes first.
+
+Enter takes the choices as they are. Esc cancels. Up and Down change a choice; Tab goes on to the next part. What goes in is one undo step, and only added: a co-writer editing the same script at the time loses nothing. Adapting a passage you had cut takes its cut away in the same step.
+
+A heading you write for a new scene teaches Accolade that place (see What Accolade learned), the same as one you write in the script.
 
 ## Sections from the source
 
@@ -113,7 +137,7 @@ With a source, Accolade offers the next piece of the story in the status bar as 
 - **On an empty line:** the next piece not yet in the scene, a line of dialogue with its cue, or the narration as action.
 - **Typing a scene heading:** INT. or EXT., the place and the time, as read from the passage.
 
-The suggestions come from the passages the scene links to, else the one Next showed. On a phone, a small "Tab" button before the hint does the same as Tab. Preferences > Script > Adapting "Suggest from the source while writing" turns them off.
+The suggestions come from the passages the scene links to, else the one Next picked. On a phone, a small "Tab" button before the hint does the same as Tab. Preferences > Script > Adapting "Suggest from the source while writing" turns them off.
 
 Accolade reads the story with word lists for English, Dutch, Portuguese, Spanish, French, German and Esperanto. It is a heuristic reader, with no AI: it gets most lines right, and some speakers wrong. It needs no network.
 

@@ -31,10 +31,17 @@ pandoc, when installed on the desktop, adds the rest (EPUB, RTF, LaTeX …).
 - **Links** are ordinary Fountain notes in the script, in the browsers' Text Fragments syntax (below):
   `[[from: #:~:text=She opened the door to the garden and,out into the rain.]]`. They hold the passage's words,
   so a link is found again by its text, and edits elsewhere in the draft don't break it.
-- **Moving the cursor** in a scene highlights its passages in the source; clicking a passage goes to its scene.
+- **Moving the cursor** in a scene highlights its passages in the source; under a linked passage "→ Scene 4" goes
+  to its scene (which flashes), "→ 2 scenes" lists them. Clicking a passage picks it, nothing more.
 - **Each passage has a status:** not started, adapted, or cut on purpose. The status shows as a bar beside the passage,
   with a count ("62% adapted").
-- **Next passage** jumps to the first passage not yet adapted and starts a scene for it, with the link in place.
+- **Next and Previous** pick the next or previous passage still to do, from what the writer is looking at (the
+  passage picked since the cursor last moved; the cursor's scene's last passage; the nearest linked scene above the
+  cursor; the top of the list), in the source's order; nothing is written. **Adapt…** writes it: how (a new scene,
+  a drafted one, the current scene, cut, skip) and where (the story's order, the cursor, after the cursor's scene,
+  the end), the likely choice of each chosen with its reason, a preview of exactly what goes in (editable), one undo
+  step, an insertion only (adapt_plan.go, adapt_dialog.go; Joop, 2026-11-22: "a bit of friction … with likely options
+  instead of an immediate insert").
 - **Chapters become sections:** Markdown `## Chapter 3` can be carried over as the Fountain section `## Chapter 3`.
 
 ### The link format
@@ -174,7 +181,6 @@ the cursor's scene only; only the block changes, as part of the writer's last un
   about the name.
 - **A heading written for a scene linked to a passage** (over Next's placeholder, or a link put under a heading
   written in this session), other than any the source's place makes: the place is matched to it from then on.
-- **A passage skipped with Next:** it is asked whether to mark it as cut (step 4).
 - **Skip on a suggested link:** remembered under `skipped links:`.
 
 It learns from actions, not from how the script stands: what the script had when it was opened teaches nothing, and

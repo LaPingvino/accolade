@@ -74,6 +74,8 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 ## Adaptation menu
 
 - **Next Source Passage** — Ctrl+Alt+J (screenplay)
+- **Previous Source Passage** — Ctrl+Alt+K (screenplay)
+- **Adapt Source Passage** — Ctrl+Alt+A (screenplay)
 
 ## Production menu
 

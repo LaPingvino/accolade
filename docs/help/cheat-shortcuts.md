@@ -65,6 +65,8 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 ## Adaptation
 
 - **Ctrl+Alt+J** Next Source Passage
+- **Ctrl+Alt+K** Previous Source Passage
+- **Ctrl+Alt+A** Adapt Source Passage
 
 ## Production
 
