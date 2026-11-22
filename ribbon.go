@@ -295,6 +295,7 @@ func (r *ribbonBar) refresh() {
 	for _, tb := range r.tabs {
 		tb.setSelected(tb.title == r.selected)
 	}
+	r.tabInSight()
 	stage := -1
 	if r.selected == "Production" && !env.markdown {
 		stage = w.productionStage()
@@ -316,6 +317,35 @@ func (r *ribbonBar) refresh() {
 		r.assignTips(2) // other buttons now
 	}
 	r.followPreview()
+}
+
+// tabInSight scrolls the tab row (a phone's, too narrow for them all) to
+// the tab chosen: the Preview tab, last, comes forward out of sight.
+func (r *ribbonBar) tabInSight() {
+	sc, ok := r.tabRow.Objects[0].(*container.Scroll)
+	if !ok || sc.Size().Width <= 0 {
+		return
+	}
+	x := float32(0)
+	for _, tb := range r.tabs {
+		if !tb.Visible() {
+			continue
+		}
+		w := tb.MinSize().Width
+		if tb.title == r.selected {
+			switch {
+			case x < sc.Offset.X:
+				sc.Offset.X = x
+			case x+w > sc.Offset.X+sc.Size().Width:
+				sc.Offset.X = x + w - sc.Size().Width
+			default:
+				return
+			}
+			sc.Refresh()
+			return
+		}
+		x += w + theme.Padding()
+	}
 }
 
 func boolKey(b bool) string {

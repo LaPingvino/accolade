@@ -388,14 +388,29 @@ func TestPreviewTabScreenshots(t *testing.T) {
 		v := previewAndWait(t, w)
 		painted(t, v, 0)
 		capture(t, w.fyneWindow.Canvas(), "previewtab-screenplay-"+size.name+".png")
-		pagesFollowPause = time.Hour // the pages after it stay dimmed for the shot
-		old := debounceAtOnce
-		debounceAtOnce = false
-		pasteAt(w, featureLine(w, 0), " And then the rain stops.")
+		// Follow Edits off: typed, the dot on Refresh
+		w.setFollowEdits(false)
+		before := w.textEditor.Text()
+		line := featureLine(w, 1)
+		pasteAt(w, line, " And then the rain stops, and the street is quiet again for a long while.")
+		capture(t, w.fyneWindow.Canvas(), "previewtab-stale-"+size.name+".png")
+		// the page laid out at once, the pages after it dimmed (as the
+		// pause before the rest is made)
+		f, text := v.follow, w.textEditor.Text()
+		first, last := changedLines(before, text)
+		d, from, n, err := pdf.Redraw(f.base, first, last, drawer(text, f.job(text)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		v.setDrawing(d, from+n)
+		if size.name == "desktop" {
+			v.setZoom(0.33)
+		}
+		v.area.toPage(1) // the page typed on, the next dimmed under it
+		painted(t, v, 1)
+		painted(t, v, 2)
 		capture(t, w.fyneWindow.Canvas(), "previewtab-typed-"+size.name+".png")
-		debounceAtOnce, pagesFollowPause = old, 400*time.Millisecond
-		cancel(&v.follow.timer)
-		v.follow.reflow(v.follow.gen, w.textEditor.Text(), featureLine(w, 0), drawer(w.textEditor.Text(), v.follow.job(w.textEditor.Text())))
+		w.setFollowEdits(true)
 
 		m, _ := newDialogTestWindow(t)
 		m.setMarkdown(true)

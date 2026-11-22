@@ -224,6 +224,9 @@ func (r *ribbonBar) followPreview() {
 	for _, b := range r.byID["preview.refresh"] {
 		b.setDot(v != nil && v.stale)
 	}
+	for _, b := range r.byID["preview.fit"] { // checked while the width fits
+		b.follow(r.env)
+	}
 }
 
 // followLook shows the bar over the pages in the Menus look, not in the
@@ -235,4 +238,18 @@ func (v *pageView) followLook() {
 	if v.setupLine != nil {
 		setVisible(v.extra, bar)
 	}
+	v.fitTop()
+}
+
+// fitTop hides what is over the pages when all of it is hidden (an empty
+// box would still take a line's height).
+func (v *pageView) fitTop() {
+	shown := false
+	for _, o := range v.top.Objects {
+		if o.Visible() && (o != v.extra || len(v.extra.Objects) > 0) {
+			shown = true
+		}
+	}
+	setVisible(v.top, shown)
+	v.box.Refresh()
 }

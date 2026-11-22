@@ -99,6 +99,7 @@ type pageView struct {
 	scroll    *container.Scroll
 	column    *fyne.Container
 	pages     []*pageImage
+	top       *fyne.Container // the bar, the caller's line, the note: over the pages
 	tools     *fyne.Container // the bar's buttons (the Menus look's; the Ribbon look has the Preview tab)
 	save      *widget.Button
 	open      *widget.Button
@@ -207,8 +208,8 @@ func newPageView(w *MainWindow) *pageView {
 		v.tools = container.NewHBox(zoomOut, fit, actual, zoomIn, v.refreshB, layout.NewSpacer(), files)
 	}
 	v.head = container.NewBorder(nil, nil, nil, right, v.title)
-	top := container.NewVBox(v.head, v.tools, v.extra, v.note)
-	v.box = container.NewBorder(top, nil, nil, nil, v.area)
+	v.top = container.NewVBox(v.head, v.tools, v.extra, v.note)
+	v.box = container.NewBorder(v.top, nil, nil, nil, v.area)
 	fyne.SetAccessibleLabel(v.area, "Pages")
 	return v
 }
@@ -364,11 +365,8 @@ func (v *pageView) refresh() {
 // setNote shows a line over the pages ("" none).
 func (v *pageView) setNote(s string) {
 	v.note.SetText(s)
-	if s == "" {
-		v.note.Hide()
-	} else {
-		v.note.Show()
-	}
+	setVisible(v.note, s != "")
+	v.fitTop()
 }
 
 // widest is the widest page's width, in points.
@@ -394,6 +392,9 @@ func (v *pageView) relayout() {
 	}
 	v.column.Refresh()
 	v.scroll.Refresh()
+	if v.w != nil && v.w.ribbon != nil {
+		v.w.ribbon.followPreview() // Fit checked, or not
+	}
 }
 
 func (v *pageView) setFit() {
