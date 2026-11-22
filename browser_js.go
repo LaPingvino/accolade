@@ -264,7 +264,7 @@ func init() {
 	opts := map[string]any{"passive": true}
 	doc.Call("addEventListener", "touchstart", js.FuncOf(func(_ js.Value, args []js.Value) any {
 		ts := args[0].Get("touches")
-		if v := pagesInSight; v != nil && ts.Length() == 2 {
+		if v := pagesInSight.Load(); v != nil && ts.Length() == 2 {
 			on, startDist, startScale = true, dist(ts), v.scale
 		}
 		return nil
@@ -276,7 +276,7 @@ func init() {
 		}
 		factor := float32(sqrt(dist(ts) / startDist))
 		fyne.Do(func() {
-			if v := pagesInSight; v != nil {
+			if v := pagesInSight.Load(); v != nil {
 				v.pinch(startScale, factor)
 			}
 		})
@@ -286,7 +286,7 @@ func init() {
 		if args[0].Get("touches").Length() < 2 && on {
 			on = false
 			fyne.Do(func() {
-				if v := pagesInSight; v != nil {
+				if v := pagesInSight.Load(); v != nil {
 					v.pinchEnd()
 				}
 			})

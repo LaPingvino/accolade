@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -41,9 +42,18 @@ const maxPagePixels = 3000
 // pageGap is the space round and between the pages, in units.
 const pageGap = 12
 
-// pagesShown is told each time a page view has shown a drawing, the last
-// thing its caller does (tests wait on it).
-var pagesShown = func(*pageView) {}
+// pagesShownHook is told each time a page view has shown a drawing, the
+// last thing its caller does (tests wait on it). Atomic: a preview's
+// goroutine calls it while a later test may set it (the test driver runs
+// fyne.Do on the calling goroutine).
+var pagesShownHook atomic.Pointer[func(*pageView)]
+
+// pagesShown tells the hook, if one is set, that v shows a drawing.
+func pagesShown(v *pageView) {
+	if f := pagesShownHook.Load(); f != nil {
+		(*f)(v)
+	}
+}
 
 // paintAsync paints the pages in the background (the tests paint them at
 // once: their driver runs fyne.Do on the calling goroutine).

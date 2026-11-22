@@ -85,9 +85,7 @@ func TestPageSetupPrintAndPreview(t *testing.T) {
 	printFile = func(p string) { printed <- p }
 	t.Cleanup(func() { printFile = oldPrint })
 	shown := make(chan *pageView, 1)
-	oldShown := pagesShown
-	pagesShown = func(v *pageView) { shown <- v }
-	t.Cleanup(func() { pagesShown = oldShown })
+	onPagesShown(t, func(v *pageView) { shown <- v })
 	wait := func(c chan string) string {
 		t.Helper()
 		select {

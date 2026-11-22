@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -49,7 +50,7 @@ func (w *MainWindow) showPages(d pdf.Drawing, title, pdfPath, name string, extra
 		w.previewDir = dir
 	}
 	v.show(d, title, pdfPath, name)
-	pagesInSight = v
+	pagesInSight.Store(v)
 	if !wasVisible {
 		if c := w.fyneWindow.Canvas(); c != nil {
 			c.Focus(v.area)
@@ -59,8 +60,8 @@ func (w *MainWindow) showPages(d pdf.Drawing, title, pdfPath, name string, extra
 }
 
 // pagesInSight is the page view shown (two fingers zoom it in the
-// browser), nil if none.
-var pagesInSight *pageView
+// browser), nil if none. Atomic, as pagesShownHook.
+var pagesInSight atomic.Pointer[pageView]
 
 // hidePages closes the page view.
 func (w *MainWindow) hidePages() {
@@ -68,9 +69,7 @@ func (w *MainWindow) hidePages() {
 		return
 	}
 	w.pagesVisible = false
-	if pagesInSight == w.pages {
-		pagesInSight = nil
-	}
+	pagesInSight.CompareAndSwap(w.pages, nil)
 	w.relayout()
 	w.focusEditor()
 }

@@ -28,13 +28,18 @@ func init() {
 	}
 }
 
+// onPagesShown sets the pagesShown hook to f for this test.
+func onPagesShown(t *testing.T, f func(*pageView)) {
+	t.Helper()
+	old := pagesShownHook.Swap(&f)
+	t.Cleanup(func() { pagesShownHook.Store(old) })
+}
+
 // previewAndWait runs Preview PDF and waits for its pages.
 func previewAndWait(t *testing.T, w *MainWindow) *pageView {
 	t.Helper()
 	shown := make(chan *pageView, 4)
-	old := pagesShown
-	pagesShown = func(v *pageView) { shown <- v }
-	defer func() { pagesShown = old }()
+	onPagesShown(t, func(v *pageView) { shown <- v })
 	w.previewPDF()
 	select {
 	case v := <-shown:
@@ -331,8 +336,8 @@ func TestMarkdownLivePreviewPages(t *testing.T) {
 		w.fyneWindow.Resize(size.size)
 		w.preview()
 		shown := make(chan *pageView, 4)
-		old := pagesShown
-		pagesShown = func(v *pageView) { shown <- v }
+		f := func(v *pageView) { shown <- v }
+		old := pagesShownHook.Swap(&f)
 		w.previewPane.mode.SetSelected(previewPages)
 		var v *pageView
 		select {
@@ -355,7 +360,7 @@ func TestMarkdownLivePreviewPages(t *testing.T) {
 		case <-time.After(30 * time.Second):
 			t.Fatal("the pages did not follow the text")
 		}
-		pagesShown = old
+		pagesShownHook.Store(old)
 		w.previewPane.mode.SetSelected(previewText)
 		w.settings.SetBoolean(previewPagesPref, false)
 	}
@@ -371,9 +376,7 @@ func TestPageViewFollowsSettings(t *testing.T) {
 	v := previewAndWait(t, w)
 	with := len(v.d.Pages)
 	shown := make(chan *pageView, 4)
-	old := pagesShown
-	pagesShown = func(v *pageView) { shown <- v }
-	defer func() { pagesShown = old }()
+	onPagesShown(t, func(v *pageView) { shown <- v })
 	w.changeSetting("include-title-page", func(s *Settings) { s.SetBoolean("include-title-page", false) })
 	select {
 	case v = <-shown:
