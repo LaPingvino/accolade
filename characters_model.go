@@ -2,6 +2,7 @@ package main
 
 import (
 	"cmp"
+	"fmt"
 	"slices"
 	"strings"
 	"unicode"
@@ -31,6 +32,7 @@ type cueSpan struct {
 type charScene struct {
 	line    int
 	heading string
+	label   string // its number as the script shows it: locked (2, 1A), else counted
 }
 
 // charInfo is a character as the pane lists it.
@@ -97,6 +99,7 @@ func screenplayChars(text string, starts []string) *charModel {
 		}
 		return c
 	}
+	labels := spanLabels(text, starts)
 	scene := -1
 	var speaker *charInfo
 	inTitle := false
@@ -114,7 +117,11 @@ func screenplayChars(text string, starts []string) *charModel {
 		switch row.Type {
 		case lex.TypeScene:
 			heading, _ := lex.SceneNumber(strings.TrimPrefix(strings.TrimSpace(lines[line]), "."))
-			m.scenes = append(m.scenes, charScene{line: line, heading: strings.TrimSpace(lex.StripNotes(heading))})
+			label, ok := strings.CutPrefix(labels[line], "Scene ")
+			if !ok {
+				label = fmt.Sprint(len(m.scenes) + 1)
+			}
+			m.scenes = append(m.scenes, charScene{line: line, heading: strings.TrimSpace(lex.StripNotes(heading)), label: label})
 			scene = len(m.scenes) - 1
 			speaker = nil
 		case lex.TypeSpeaker:

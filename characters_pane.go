@@ -334,7 +334,7 @@ func (p *charactersPane) charStats(c charInfo) string {
 	} else {
 		parts = append(parts, plural(len(c.Scenes), "scene"), nOf(c.Speeches, "speech", "speeches"), plural(c.Words, "word"))
 		if len(c.Scenes) > 0 {
-			parts = append(parts, "from scene "+fmt.Sprint(c.Scenes[0]+1))
+			parts = append(parts, "from scene "+p.model.scenes[c.Scenes[0]].label)
 		}
 	}
 	if c.Not {
@@ -628,7 +628,7 @@ func (p *charactersPane) showDetail() {
 	var rows []fyne.CanvasObject
 	for _, sc := range c.Scenes {
 		s := m.scenes[sc]
-		b := widget.NewButton(fmt.Sprintf("%d. %s", sc+1, s.heading), func() { p.w.goToScript(s.line) })
+		b := widget.NewButton(s.label+". "+s.heading, func() { p.w.goToScript(s.line) })
 		b.Alignment = widget.ButtonAlignLeading
 		b.Importance = widget.LowImportance
 		rows = append(rows, b)

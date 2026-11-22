@@ -176,6 +176,39 @@ func TestScreenplayChars(t *testing.T) {
 	}
 }
 
+// "from scene N" and the detail's scenes are the scenes' labels: the
+// locked numbers (an A-number, the number an OMITTED scene keeps), else
+// counted.
+func TestCharSceneLabels(t *testing.T) {
+	script := "INT. HOUSE - DAY #1#\n\nRain.\n\n.OMITTED #2#\n\nINT. HALL - DAY #2A#\n\nANNA\nCoats.\n\n" +
+		"EXT. GARDEN - DAY #3#\n\nBEN\nMore rain.\n\nANNA\nYes.\n\n" +
+		"/* Production\nscene numbers: locked, 10A\nnumbered before the lock: none\n*/\n"
+	w := charsWindow(t, script)
+	p := w.charactersPane()
+	stats := map[string]string{}
+	for _, c := range p.model.chars {
+		stats[c.Name] = p.charStats(c)
+	}
+	if s := stats["ANNA"]; !strings.HasSuffix(s, "from scene 2A") {
+		t.Errorf("ANNA: %q", s)
+	}
+	if s := stats["BEN"]; !strings.HasSuffix(s, "from scene 3") {
+		t.Errorf("BEN: %q", s)
+	}
+	var labels []string
+	for _, sc := range p.model.scenes {
+		labels = append(labels, sc.label)
+	}
+	if strings.Join(labels, " ") != "1 2 2A 3" {
+		t.Errorf("labels %q", labels)
+	}
+	// not locked: counted
+	m := screenplayChars("INT. HOUSE - DAY\n\nRain.\n\nINT. HALL - DAY\n\nANNA\nCoats.\n", nil)
+	if m.scenes[1].label != "2" {
+		t.Errorf("counted: %+v", m.scenes)
+	}
+}
+
 // charsWindow is a window with charsScript and the Characters pane.
 func charsWindow(t *testing.T, script string) *MainWindow {
 	t.Helper()
