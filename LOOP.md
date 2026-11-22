@@ -1140,3 +1140,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   only with Joop: a real Cast button (Google Cast developer registration in his name, a custom receiver page on
   Pages, Chrome/Android senders). The panel: filter by scene/range, character, tag/label (breakdown and stripboard
   tags); per-actor tint, "only X's scenes", narrator mode for headings/action, one-tap next scene, page/time estimate.
+  Joop, same day: "The Markdown images could join cast images for rudimentary storyboard casting support" — so build
+  the Markdown images item with this in mind: one image model (an image referenced from a script or note — Markdown
+  ![](…), a scene's storyboard frame, a character's cast photo in the Characters tab) shared by the page view, the
+  PDF and the Table Read view. Table Read then shows a scene's storyboard frames beside or between its lines (a
+  "Storyboard" toggle), and a character's cast photo next to their name in the filter panel and on their first line.
