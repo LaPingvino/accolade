@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"math"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -892,7 +893,9 @@ func (p *pdfWriter) drawLine(line []piece, x, y, lh float64) {
 }
 
 // link links a rectangle to href: a heading's anchor (#…) in the
-// document, an address; nothing for an anchor no heading has.
+// document, or a web or mail address (http, https, mailto); nothing for an
+// anchor no heading has, nor for any other scheme (javascript:, file:, …),
+// which a PDF reader might act on.
 func (p *pdfWriter) link(href string, x, y, w, h float64) {
 	switch {
 	case href == "" || w <= 0:
@@ -900,9 +903,24 @@ func (p *pdfWriter) link(href string, x, y, w, h float64) {
 		if id, ok := p.anchors[href[1:]]; ok {
 			p.d.Link(x, y, w, h, id)
 		}
-	default:
+	case safeAddress(href):
 		p.d.LinkString(x, y, w, h, href)
 	}
+}
+
+// safeAddress reports whether href is a web or mail address.
+func safeAddress(href string) bool {
+	u, err := url.Parse(strings.TrimSpace(href))
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(u.Scheme) {
+	case "http", "https":
+		return u.Host != ""
+	case "mailto":
+		return u.Opaque != "" || u.Path != ""
+	}
+	return false
 }
 
 // draw prints a piece at x on the line at y, lh high.
