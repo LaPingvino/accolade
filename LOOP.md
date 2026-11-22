@@ -1097,3 +1097,16 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   and CI is green: FyneApp.toml version bump ("Version 0.7.0" commit), annotated tag v0.7.0 with a one-line summary
   like v0.6.0's, push main + tag; then ~/Projects/aur/accolade: pkgver=0.7.0, pkgrel=1, sha256 of the tag tarball,
   makepkg --printsrcinfo > .SRCINFO, makepkg -sf builds and the binary starts, push to AUR (~/.ssh/aur_ed25519).
+- 2026-11-22 (Joop: "Probably good to put a nice UI in for lexington.toml etc configuration? Even if you just want to
+  use it for your CLI... Maybe open that editor directly if you open a lexington.toml file even..."): LEXINGTON
+  SETTINGS EDITOR, next agent slot after middle tabs (it touches lexington_settings.go/Preferences, not the middle).
+  Today Preferences > Script > Edit Lexington Settings… is a raw TOML text box (lexington_settings.go editTOML). Make
+  it a real editor: one page per section of rules.TOMLConf (element sets / own formats, scene-heading languages and
+  their words, file extensions, language rules, export options — whatever the struct has), with lists you add to /
+  remove from, the defaults shown greyed with "override", validation as you type, and a "TOML" tab that keeps the
+  raw text for anything the form can't show (round-trip: comments and unknown keys survive, as lexington_adopt.go
+  already edits text safely). It edits any lexington.toml, not only the settings folder's: File > Open (and the
+  command line, `accolade path/lexington.toml`, and the desktop file's MIME/glob) on a file named lexington.toml —
+  or a .toml that parses as a Lexington config — opens this editor on that file; the title bar says which file and
+  that the CLI reads it. Help page: what each setting does for Accolade and for the `lexington` CLI. Lexington first
+  if the config needs a schema/describe API (field docs, defaults) — tag it. Screenshots desktop + phone.
