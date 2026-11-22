@@ -262,12 +262,14 @@ func (w *MainWindow) offerLinkUpdate(d *document) {
 			return // nothing to ask, or the script changed meanwhile: asked again on the next look
 		}
 		n.old, n.nw = f.old, f.nw
-		n.text.SetText(fmt.Sprintf("A passage of the source opens with other words now: %s in the script %s its old words. "+
-			"Update them to the new ones?", fixesSaid(f.links, f.entries), map[bool]string{true: "quotes", false: "quote"}[f.links+f.entries == 1]))
-		if !n.box.Visible() { // shown already: its text refreshed itself (the whole window again on every key was most of typing's cost)
-			n.box.Show()
-			w.fyneWindow.Content().Refresh()
+		say := fmt.Sprintf("A passage of the source opens with other words now: %s in the script %s its old words. "+
+			"Update them to the new ones?", fixesSaid(f.links, f.entries), map[bool]string{true: "quotes", false: "quote"}[f.links+f.entries == 1])
+		if n.box.Visible() && n.text.Text == say {
+			return // shown as it is: laying the whole window out again on every key was most of typing's cost
 		}
+		n.text.SetText(say)
+		n.box.Show()
+		w.fyneWindow.Content().Refresh()
 	})
 }
 
