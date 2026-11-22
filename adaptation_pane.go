@@ -129,12 +129,11 @@ type statusPrompt struct {
 	yes, skip, no *widget.Button
 	box           *fyne.Container
 	yesDo, skipDo func()
-	passage       int // what it asks about (-1: no passage)
 	wrap          int // asks to go round, after Next (1) or Previous (-1); 0 not
 }
 
 func newStatusPrompt(s *sourcePane) *statusPrompt {
-	p := &statusPrompt{passage: -1}
+	p := &statusPrompt{}
 	p.label = widget.NewLabel("")
 	p.label.Wrapping = fyne.TextWrapWord
 	p.yes = widget.NewButton("", func() {
@@ -163,8 +162,8 @@ func newStatusPrompt(s *sourcePane) *statusPrompt {
 }
 
 // ask shows the question, with the action for its first button.
-func (p *statusPrompt) ask(passage int, text, yes string, do func()) {
-	p.passage, p.wrap, p.yesDo, p.skipDo = passage, 0, do, nil
+func (p *statusPrompt) ask(text, yes string, do func()) {
+	p.wrap, p.yesDo, p.skipDo = 0, do, nil
 	p.skip.Hide()
 	p.label.SetText(text)
 	p.yes.SetText(yes)
@@ -179,7 +178,7 @@ func (p *statusPrompt) ask(passage int, text, yes string, do func()) {
 // askSkip shows a question of a series: its action, a Skip to the next
 // one, and Not Now.
 func (p *statusPrompt) askSkip(text, yes string, do func(), skip string, skipDo func()) {
-	p.ask(-1, text, yes, do)
+	p.ask(text, yes, do)
 	p.skipDo = skipDo
 	p.skip.SetText(skip)
 	fyne.SetAccessibleLabel(p.skip, skip)
@@ -187,7 +186,7 @@ func (p *statusPrompt) askSkip(text, yes string, do func(), skip string, skipDo 
 }
 
 func (p *statusPrompt) hide() {
-	p.passage, p.wrap, p.yesDo, p.skipDo = -1, 0, nil, nil
+	p.wrap, p.yesDo, p.skipDo = 0, nil, nil
 	p.box.Hide()
 }
 
@@ -251,9 +250,6 @@ func (s *sourcePane) showStatuses(m *sourceModel) {
 		s.linkedBy = linkedBy
 		s.syncActs()
 		s.list.Refresh()
-	}
-	if s.prompt.passage >= 0 && s.statusOf(s.prompt.passage) != statusToDo {
-		s.prompt.hide() // linked or cut meanwhile: nothing to ask
 	}
 	count := countOf(s.statuses).String()
 	if n := len(s.changed); n > 0 {
@@ -373,7 +369,7 @@ func (s *sourcePane) stepPassage(dir int) {
 			}
 			text := "No passage to adapt " + end + " " + s.anchorText(a) + ". Go round to “" + shortQuote(s.passages[round].Plain) + "”?"
 			d := dir
-			s.prompt.ask(-1, text, button, func() { s.wrapPassage(d) })
+			s.prompt.ask(text, button, func() { s.wrapPassage(d) })
 			s.prompt.wrap = dir
 			w.setStatus("None left that way: " + button + " in the source pane (or " + map[int]string{1: "Next", -1: "Previous"}[dir] + " again) goes round")
 		}
@@ -435,8 +431,8 @@ func (s *sourcePane) showAnchor(m *sourceModel) {
 	switch a.kind {
 	case anchorStart:
 		t = "Next goes from the start of the source"
-	case anchorView:
-		t = "from: " + s.anchorText(a) + " · the top of the list"
+	case anchorView: // not quoted: a scroll changes it
+		t = "Next goes from the top of the list"
 	case anchorPicked:
 		t = "after: " + s.anchorText(a) + " · picked"
 	case anchorScene:
@@ -459,7 +455,7 @@ func (s *sourcePane) offer(p int) {
 	}
 	s.offeredWords = s.passages[p].Words
 	s.setPicked(p)
-	s.list.ScrollTo(p)
+	s.scrollToTop(p) // its start at the list's top: a short list shows it, and Adapt… under a short one
 }
 
 // offeredPassage is the passage Next showed last, found again by its
@@ -556,6 +552,9 @@ func (w *MainWindow) flashScene(line int) {
 	end = min(end, bodyEnd(text))
 	e.SetFlash(start, end)
 	cancel(&w.flashTimer)
+	if debounceAtOnce { // the tests: no timer left to fire in another test; the next flash takes it away
+		return
+	}
 	w.flashTimer = w.after(flashTime, func() {
 		w.flashTimer = nil
 		e.SetFlash(0, 0)

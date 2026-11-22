@@ -394,13 +394,11 @@ func TestSuggestCompleteThenLine(t *testing.T) {
 	}
 }
 
-// A scene with no link yet, the passage Next showed (Next only showing
-// it) is the one suggested from.
+// A scene with no link yet, the passage Next picked is the one
+// suggested from.
 func TestSuggestNextShown(t *testing.T) {
 	script := "Title: Snow\n\nINT. KITCHEN - NIGHT\n\n[[from: \"Anna opened the kitchen door.\"]]\n\nEXT. STREET - DAY\n\n"
 	w, _ := sourceWindow(t, script, suggestStory)
-	w.settings.SetBoolean("next-passage-inserts", false)
-	t.Cleanup(func() { w.settings.SetBoolean("next-passage-inserts", true) })
 	toEnd(w)
 	w.showSuggestionHint()
 	if h := status(w); strings.HasPrefix(h, "Tab: ") {

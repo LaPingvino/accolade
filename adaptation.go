@@ -655,83 +655,9 @@ func headingPlaceholder(starts []string) (start, words string) {
 	return start, words
 }
 
-// sceneEdit is a new scene put in the script: at At (runes) the Text
-// goes in, and the placeholder [Select, SelectEnd) is selected after.
+// sceneEdit is a new scene put in the script: [At, Replace) replaced
+// by Text (runes; insertBlock makes them the same: an insertion).
 type sceneEdit struct {
-	At, Replace       int // [At, Replace) is replaced (trailing blank lines at the end)
-	Text              string
-	Select, SelectEnd int
-}
-
-// sceneForPassage is the edit that starts a scene for passage p after
-// the scene at the cursor: its chapter's section first if p opens a
-// chapter the script is not in yet (another than that of passage from,
-// where the script is in the source; -1 for none) and has no section of
-// that name, then a scene heading to write over, and the link. If the
-// script has the chapter's section and the cursor is not in it, the
-// scene goes at the end of that chapter, before the next section (sections
-// made from the source's headings before any scene: each scene under its
-// own; a passage under a part's heading before the part's first chapter).
-func sceneForPassage(text string, starts []string, ps []passage, p, from, cursor int) sceneEdit {
-	r := []rune(text)
-	body := bodyEnd(text)
-	line := strings.Count(string(r[:min(cursor, len(r))]), "\n")
-	span := spanAt(sceneSpans(text, starts), line)
-	lines := strings.Count(text, "\n") + 1
-	endLine := span.End // the scene goes in at this line
-
-	var parts []string
-	if ch := chapterOf(ps, p); ch >= 0 {
-		key := strings.Join(ps[ch].Words, " ")
-		outline := outlineOf(text, starts)
-		sec := slices.IndexFunc(outline, func(it outlineItem) bool {
-			return !it.Scene && strings.Join(normWords(it.Text), " ") == key
-		})
-		switch {
-		case sec >= 0:
-			chEnd := lines // the chapter's passages end at the next section, or the end
-			for _, it := range outline[sec+1:] {
-				if !it.Scene {
-					chEnd = it.Line
-					break
-				}
-			}
-			if line < outline[sec].Line || line >= chEnd {
-				endLine = chEnd
-			}
-		case from < 0 || chapterOf(ps, from) != ch:
-			parts = append(parts, strings.Repeat("#", max(ps[ch].Level, 1))+" "+ps[ch].Plain)
-		}
-	}
-	start, words := headingPlaceholder(starts)
-	heading := start + " " + words
-	note, _ := linkNoteFor(matcherFor(ps), p, p)
-	parts = append(parts, heading, note)
-	block := strings.Join(parts, "\n\n")
-
-	// where: the line the next scene starts on, or the end of the script
-	at := 0
-	for i, l := 0, 0; i < len(r) && l < endLine; i++ {
-		if r[i] == '\n' {
-			l++
-			at = i + 1
-		}
-	}
-	var ed sceneEdit
-	if endLine >= lines || at >= body {
-		at = len([]rune(strings.TrimRight(string(r[:body]), "\n")))
-		ed = sceneEdit{At: at, Replace: body, Text: "\n\n" + block}
-		if body == len(r) {
-			ed.Text += "\n"
-		}
-	} else {
-		ed = sceneEdit{At: at, Replace: at, Text: block + "\n\n"}
-		if at >= 2 && !(r[at-1] == '\n' && r[at-2] == '\n') { // a blank line before it
-			ed.Text = "\n" + ed.Text
-		}
-	}
-	h := strings.LastIndex(ed.Text, heading+"\n\n"+parts[len(parts)-1])
-	ed.Select = at + len([]rune(ed.Text[:h])) + len([]rune(start)) + 1
-	ed.SelectEnd = ed.Select + len([]rune(words))
-	return ed
+	At, Replace int
+	Text        string
 }

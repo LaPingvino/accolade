@@ -157,14 +157,14 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.anchorLine.SizeName = theme.SizeNameCaptionText
 	s.anchorLine.Importance = widget.MediumImportance
 	s.anchorLine.Truncation = fyne.TextTruncateEllipsis
-	s.next = widget.NewButtonWithIcon("Next", theme.NavigateNextIcon(), func() { s.stepPassage(1) })
+	s.next = widget.NewButtonWithIcon("Next", theme.NavigateNextIcon(), w.nextSourcePassage)
 	s.next.Importance = widget.LowImportance
 	s.next.IconPlacement = widget.ButtonIconTrailingText
 	fyne.SetAccessibleLabel(s.next, "Next passage to adapt (picks it; nothing is written)")
-	s.prev = widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() { s.stepPassage(-1) })
+	s.prev = widget.NewButtonWithIcon("", theme.NavigateBackIcon(), w.previousSourcePassage)
 	s.prev.Importance = widget.LowImportance
 	fyne.SetAccessibleLabel(s.prev, "Previous passage to adapt")
-	s.adapt = widget.NewButtonWithIcon("Adapt…", adaptIcon, func() { s.adaptPassage(s.selected) })
+	s.adapt = widget.NewButtonWithIcon("Adapt…", adaptIcon, w.adaptSourcePassage)
 	s.adapt.Importance = widget.HighImportance
 	s.adapt.Disable()
 	fyne.SetAccessibleLabel(s.adapt, "Adapt the picked passage: how and where it goes in the script")
@@ -316,7 +316,7 @@ func (s *sourcePane) toggleFull(id int) {
 	}
 	s.full[id] = !s.full[id]
 	if id < len(s.heights) && s.width > 0 {
-		s.heights[id] = s.measured(s.passages[id].Markdown, s.full[id], s.rowActs(id), s.width)
+		s.heights[id] = s.measured(s.passages[id].Markdown, s.full[id], lineActs(s.hasActs(id)), s.width)
 		s.exact[id] = true
 		s.list.SetItemHeight(id, s.heights[id])
 	}
@@ -360,7 +360,10 @@ func (s *sourcePane) show(row *fyne.Container, id int) {
 	r.mark.setStatus(s.statusOf(id), s.changed[id])
 	r.more.OnTapped = func() { s.toggleFull(id) }
 	r.scenes.OnTapped = func() { s.scenesTapped(id, r.scenes) }
-	r.adapt.OnTapped = func() { s.adaptPassage(id) }
+	r.adapt.OnTapped = func() {
+		s.setPicked(id)
+		s.w.adaptSourcePassage()
+	}
 	r.cut.OnTapped = func() {
 		s.setPicked(id)
 		s.toggleCut()
@@ -486,7 +489,7 @@ func (s *sourcePane) measure(width float32) {
 	s.exact = make([]bool, len(s.passages))
 	s.acts = make([]bool, len(s.passages))
 	for id, p := range s.passages {
-		s.acts[id] = s.rowActs(id).any()
+		s.acts[id] = s.hasActs(id)
 		s.heights[id] = s.est.estimate(p, s.full[id], s.acts[id])
 	}
 	s.setHeights(0, len(s.passages))
@@ -526,7 +529,7 @@ func (s *sourcePane) measureStretch(gen int) bool {
 			return
 		}
 		s.exact[id] = true
-		if h := s.measured(s.passages[id].Markdown, s.full[id], s.rowActs(id), s.width); h != s.heights[id] {
+		if h := s.measured(s.passages[id].Markdown, s.full[id], lineActs(s.acts[id]), s.width); h != s.heights[id] {
 			s.heights[id] = h
 			s.list.SetItemHeight(id, h)
 		}
@@ -1036,8 +1039,7 @@ func (s *sourcePane) jumpTo(id, k int) {
 // showAdapt enables Adapt… beside Next while the picked passage can be
 // adapted.
 func (s *sourcePane) showAdapt() {
-	a := s.rowActs(s.selected)
-	if s.selected >= 0 && a.adapt {
+	if st := s.statusOf(s.selected); st == statusToDo || st == statusCut {
 		s.adapt.Enable()
 	} else {
 		s.adapt.Disable()
@@ -1046,24 +1048,52 @@ func (s *sourcePane) showAdapt() {
 
 // syncActs gives the rows whose line came or went (a link to them, the
 // pick) their height again.
+//
+// Many at once (a source read again: its links found after it was
+// measured without them) are estimated again and measured a stretch at a
+// time, as the rows were at first (measure).
 func (s *sourcePane) syncActs() {
 	s.showAdapt()
 	if len(s.acts) != len(s.passages) || len(s.heights) != len(s.passages) {
 		return
 	}
+	var flipped []int
 	for id := range s.passages {
-		a := s.rowActs(id)
-		if a.any() == s.acts[id] {
-			continue
+		if s.hasActs(id) != s.acts[id] {
+			flipped = append(flipped, id)
 		}
-		s.acts[id] = a.any()
+	}
+	if len(flipped) > 8 && s.width > 0 {
+		s.measure(s.width)
+		return
+	}
+	for _, id := range flipped {
+		s.acts[id] = !s.acts[id]
 		if s.width > 0 {
-			s.heights[id], s.exact[id] = s.measured(s.passages[id].Markdown, s.full[id], a, s.width), true
+			s.heights[id], s.exact[id] = s.measured(s.passages[id].Markdown, s.full[id], lineActs(s.acts[id]), s.width), true
 		} else {
 			s.heights[id] = s.est.estimate(s.passages[id], s.full[id], s.acts[id])
 		}
 		s.list.SetItemHeight(id, s.heights[id])
 	}
+}
+
+// hasActs reports whether row id has a line of acts (rowActs) under its
+// text: the scenes linking to it, or the pick's Adapt… and Mark as Cut.
+func (s *sourcePane) hasActs(id int) bool {
+	if len(s.linkedBy[id]) > 0 {
+		return true
+	}
+	return id == s.selected && (s.statusOf(id) == statusToDo || s.statusOf(id) == statusCut)
+}
+
+// lineActs are acts that make the line show, or none: for a row's height
+// (the line's buttons are one row high, whatever they say).
+func lineActs(on bool) rowActs {
+	if on {
+		return rowActs{scenes: "→"}
+	}
+	return rowActs{}
 }
 
 // spanLabelsFor are the script's spans' names (spanLabels), made again

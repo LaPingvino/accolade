@@ -523,3 +523,31 @@ func shotTo(t *testing.T, w *MainWindow, name string) {
 		t.Fatal(err)
 	}
 }
+
+// With the script away from the main editor (the outline swapped in),
+// the → goes to the scene in the script all the same (the Script tab
+// lights it; nothing flashes in a hidden editor), and Adapt… says to swap
+// back instead of writing where no one sees.
+func TestAdaptScriptAway(t *testing.T) {
+	script := "Title: G\n\nINT. HOUSE - NIGHT\n\n" + linkOpened + "\n\nINT. LATE - DAY\n\nStuff.\n"
+	w, _ := sourceWindow(t, script, sourceStory)
+	s := w.sourcePane()
+	s.follow()
+	w.swapWithMain("outline")
+	if w.scriptInMain() {
+		t.Skip("the outline did not swap in")
+	}
+	rowOf(s, 2).scenes.OnTapped()
+	if line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset()); line != lineIn(t, script, "INT. HOUSE") {
+		t.Errorf("the script's cursor on line %d", line)
+	}
+	if a, b := w.textEditor.Flash(); a < b {
+		t.Error("a flash in the hidden script")
+	}
+	s.pick(3)
+	w.adaptSourcePassage()
+	w.nextSourcePassage()
+	if s.adapting != nil || w.textEditor.Text() != script || !strings.Contains(w.statusLabel.Text, "Swap with Main") {
+		t.Errorf("worked away from the script: %q", w.statusLabel.Text)
+	}
+}

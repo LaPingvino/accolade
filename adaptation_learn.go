@@ -39,7 +39,7 @@ import (
 //     only its writer learns from it, so the lesson is written once. A
 //     cue Tab put in is watched only where Tab was pressed.
 //   - A heading written for a scene linked to a passage (written over
-//     Next's placeholder, or a link put under a heading written in this
+//     the placeholder of a scene Adapt… started, or a link put under a heading written in this
 //     session), other than any the source's place makes: the place maps
 //     to it (places:), without the time. A link added under a heading
 //     the script had when it was opened teaches nothing.
@@ -325,7 +325,7 @@ func (l *learner) checkScene(sg *suggester, o *sourceOffers, c *sceneCtx, next *
 	lines := sg.lines
 	changed := false
 	// a heading new since the script was opened, once its scene is linked
-	// (Next's scene, or a link put under it): not one written before, a
+	// (Adapt…'s scene, or a link put under it): not one written before, a
 	// link added to it later
 	if c.head >= 0 && c.head < len(lines) && cursor != c.head && c.linked {
 		heading := strings.TrimSpace(lines[c.head])

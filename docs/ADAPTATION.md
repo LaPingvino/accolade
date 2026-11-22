@@ -179,7 +179,7 @@ the cursor's scene only; only the block changes, as part of the writer's last un
 - **A cue Tab put in, thrown away twice** (its name deleted, the line left with no cue, or renamed to another cue
   than the one learned): the name goes on the "not characters" list. A line deleted whole or reworded says nothing
   about the name.
-- **A heading written for a scene linked to a passage** (over Next's placeholder, or a link put under a heading
+- **A heading written for a scene linked to a passage** (over Adapt…'s placeholder, or written in Adapt…, or a link put under a heading
   written in this session), other than any the source's place makes: the place is matched to it from then on.
 - **Skip on a suggested link:** remembered under `skipped links:`.
 

@@ -294,6 +294,9 @@ func (d *adaptDialog) block(c adaptCtx) string {
 // one is read in the background (on the UI goroutine: a timer of the
 // window's), and puts it in if nothing was chosen or written yet.
 func (d *adaptDialog) waitForReading() {
+	if backgroundAtOnce { // the tests read at once: nothing to wait for
+		return
+	}
 	d.waits++
 	if d.waits > 40 {
 		return

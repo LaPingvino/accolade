@@ -435,7 +435,7 @@ func (s *sourcePane) offerStart(m *sourceModel) {
 	}
 	if !s.seedAsked && len(m.spans) == 1 && m.spans[0].Heading == "" { // no scene, no section
 		s.seedAsked = true
-		s.prompt.ask(-1, "Nothing written yet. Start from the source: its chapters as sections, and the first scene?",
+		s.prompt.ask("Nothing written yet. Start from the source: its chapters as sections, and the first scene?",
 			"Start from the Source", s.seedScript)
 		return
 	}
@@ -444,7 +444,7 @@ func (s *sourcePane) offerStart(m *sourceModel) {
 	}
 	if len(s.src) >= backgroundSource { // a long one is read for it only when asked
 		s.sugg.tried = true
-		s.prompt.ask(-1, "The script has scenes but no links to the source yet. Suggest them, scene by scene?",
+		s.prompt.ask("The script has scenes but no links to the source yet. Suggest them, scene by scene?",
 			"Suggest Links", func() { s.offerSuggestions(false) })
 		return
 	}
