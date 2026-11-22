@@ -237,7 +237,12 @@ func TestLanguageExtensions(t *testing.T) {
 		}
 	}
 	old := lexSettings
-	t.Cleanup(func() { lexSettings = old; sceneConf = lexSettings.Scenes; startsDialects.Clear(); lastStarts.Store(nil) })
+	t.Cleanup(func() {
+		lexSettings = old
+		sceneConf = lexSettings.Scenes
+		startsDialects.Clear()
+		lastStarts.Store(nil)
+	})
 	lexSettings.Extensions = map[string]string{"kissa": "zh"}
 	if l := languageOf("x.kissa"); l != "zh" {
 		t.Errorf("own extension: %q", l)
