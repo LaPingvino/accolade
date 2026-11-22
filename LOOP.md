@@ -1073,3 +1073,22 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   23.7→25.0 ms); B/op +8–10 % a key (+23 % PaneKeystroke/beside) from parsing the links each key, fixed after
   (chips kept by line text) but not measured again. Shots: SHOT_DIR=… go test -run TestBlockFoldScreenshots.
   Rough: three end words leave near-end matching out (nearEnd needs four); ↗ unchecked in the browser build.
+- 2026-11-22 (Joop: "Scrolling on the cards view only works in the gaps"): fixed in the Fyne fork (linux-a11y
+  7ea7b487): Scroll.CanScroll, and the glfw driver hands a scroll to the Scrollable around one that can't move that
+  way (each card's synopsis is a multi-line Entry, whose own scroller swallowed the wheel). Fork tests
+  TestScroll_CanScroll and TestWindow_ScrolledPassesOutward (fails without the driver change). Branch cardscroll.
+- 2026-11-22 (Joop: "the new approach to the cards makes the card open in the sidebar at first and push the script to
+  the sidebar in a very similar view to the outline... Maybe make the cards and script tab like the sidebar when in
+  the middle? And maybe we can use a similar approach for the source, enable them to be active in the middle at the
+  same time with this tabbing?" and "I think that comes from a too careful attempt at the swap with middle task.
+  Being too careful almost broke it more"): MIDDLE TABS, NEXT after folding/chips and BEFORE the state-change audit
+  (the audit then covers the new transitions instead of swap's). The middle becomes a tab strip like the dock's:
+  Script, Cards, Source (and any pane put in the middle) are tabs there, several open at once, one shown; Cards from
+  the View menu/ribbon opens as a middle tab (never in the sidebar first, never pushing the script into the sidebar);
+  a dock pane's "Swap with Main" becomes "Open in the Middle" (a tab) and back "Back to the Side". Remove the swap
+  machinery this replaces (swap.go's swapWithMain/swapBack and their special cases), don't build around it. The
+  ribbon's contextual tabs, Preview and Follow Edits follow the shown middle tab. Screenshots: middle with Script +
+  Cards + Source tabs, desktop and phone.
+- 2026-11-22 (Joop opened Star Wars: A New Hope: "only the 3 line title and then the credit that are a bit uncommon
+  don't get parsed properly, and it reads the THE END at the end as a scene instead of action"): Fountain import
+  details, Lexington first. Needs the file (not on the VPS) — ask Joop for it. Small; after the middle tabs.
