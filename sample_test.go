@@ -175,15 +175,10 @@ func makeSample(t *testing.T) []byte {
 	if h := "EXT. GENERAL ZHIGALOV'S YARD - DAY #1A#"; !strings.Contains(e.Text(), h) {
 		t.Fatalf("no %q:\n%s", h, strings.Join(headsOf(w), "\n"))
 	}
-	// the learner took it for the place of "God's world" in the passage
-	// before: forgotten, as the writer would in What Accolade Learned
-	for _, ls := range lessonsOf(learnedOf(e.Text())) {
-		if strings.HasPrefix(ls.text, "god: ") {
-			s.forgetLesson(ls.text, ls.forget)
-		}
-	}
-	if slices.ContainsFunc(learnedOf(e.Text()).Places, func(p placeEntry) bool { return p.Place == "god" }) {
-		t.Fatal("god is still a place")
+	// the heading teaches nothing: its scene links no passage, and none
+	// reads as a place it renames ("God's world" once did)
+	if pl := learnedOf(e.Text()).Places; len(pl) != 1 {
+		t.Fatalf("places learned: %v", pl)
 	}
 
 	// Production > Lock Pages
@@ -416,7 +411,14 @@ var sampleFeatures = []struct {
 		return want(strings.Contains(notesOf(w.textEditor.Text()), "Public domain in the USA"), "no notes")
 	}},
 	{"scene numbers locked", func(w *MainWindow) error {
-		return want(sceneLockOf(w.textEditor.Text()).locked, "not locked")
+		if !sceneLockOf(w.textEditor.Text()).locked {
+			return fmt.Errorf("not locked")
+		}
+		// the Characters pane says the locked number: HRYUKIN first speaks
+		// in scene 2, the third heading counting the A-scene before it
+		p := sampleChars(w)
+		c, _ := p.charOf("HRYUKIN")
+		return want(strings.HasSuffix(p.charStats(c), "from scene 2"), "%q", p.charStats(c))
 	}},
 	{"an OMITTED scene", func(w *MainWindow) error {
 		return want(strings.Contains(w.textEditor.Text(), "\n.OMITTED #3#\n"), "none")
@@ -459,7 +461,17 @@ var sampleFeatures = []struct {
 	{"a lost breakdown tag", func(w *MainWindow) error {
 		w.updateBreakdown()
 		_, _, ps := w.breakdownNowFound()
-		return want(slices.ContainsFunc(ps, func(p placed) bool { return p.lost && p.element.Name == "basket" }), "none lost")
+		if !slices.ContainsFunc(ps, func(p placed) bool { return p.lost && p.element.Name == "basket" }) {
+			return fmt.Errorf("none lost")
+		}
+		// on the script's words, never in a link's quote
+		links := parseLinks(w.textEditor.Text())
+		for _, p := range ps {
+			if !p.lost && slices.ContainsFunc(links, func(l sourceLink) bool { return p.start < l.End && l.Start < p.end }) {
+				return fmt.Errorf("%q found in a link", p.element.Name)
+			}
+		}
+		return nil
 	}},
 	{"a schedule over two days", func(w *MainWindow) error {
 		w.measureSchedule()
