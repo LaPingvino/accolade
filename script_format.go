@@ -37,25 +37,30 @@ func (c lexConf) formats() []rules.Preset {
 }
 
 // presetsSeen is the last reading of the format folders, kept while
-// their .toml files are the same (name, size, time): the formats are
-// asked for on every refresh of the header, the ribbon, the panes.
+// their .toml files are the same (in order, by name and content; the
+// folders' own paths do not matter): the formats are asked for on every
+// refresh of the header, the ribbon, the panes, and decoding them each
+// time was most of that.
 var presetsSeen struct {
 	sync.Mutex
 	key  string
 	list []rules.Preset
 }
 
-// presetsIn is rules.PresetsIn(dirs...), read again only when a format
+// presetsIn is rules.PresetsIn(dirs...), decoded again only when a format
 // file came, went or changed.
 func presetsIn(dirs ...string) []rules.Preset {
 	var key strings.Builder
 	for _, dir := range dirs {
 		fs, _ := filepath.Glob(filepath.Join(dir, "*.toml"))
-		fmt.Fprintf(&key, "%s\x00", dir)
-		for _, f := range fs {
-			if st, err := os.Stat(f); err == nil {
-				fmt.Fprintf(&key, "%s\x00%d\x00%d\x00", f, st.Size(), st.ModTime().UnixNano())
+		key.WriteString("\x00dir\x00")
+		for _, f := range fs { // (Glob's order is PresetsIn's: sorted)
+			b, err := os.ReadFile(f)
+			if err != nil {
+				continue
 			}
+			fmt.Fprintf(&key, "%s\x00%d\x00", filepath.Base(f), len(b))
+			key.Write(b)
 		}
 	}
 	p := &presetsSeen
