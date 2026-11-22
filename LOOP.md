@@ -998,14 +998,16 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (between the palette and ☰; also View > Lock Ribbon Order in the Ribbon look, its key tip L) switches the window's
   ribbon in place: Smart (a phone's at first) puts a Quick tab first and in front, the other tabs' groups most used
   first (a Production stage's group stays first; unused groups keep their order); Fixed (the desktop's at first) is the
-  standard order. The tab in front stays if both have it (Quick → Write in Fixed). Per window, not kept over a restart
-  (window.ribbonOrder; a window turning narrow with no choice made goes to Quick). Score: a built-in priority per kind
+  standard order. The tab in front stays if both have it (Quick → Write in Fixed). Per window (window.ribbonOrder;
+  the other windows keep theirs); the last choice is remembered per phone or desktop (settings ribbon-order-phone /
+  -desktop) as a new window's and the next start's. A window turning narrow with no choice made puts the order's first
+  tab in front, not over the Preview tab or a tab the user chose. Score: a built-in priority per kind
   and role (screenplay: Scene Heading 95, Undo 92, Action 90, Character 88, Dialogue 86, Save 84, Find 75, Preview 72,
   Parenthetical 70, Redo 55…; with a source Next Passage 80, Adapt 78; production Tag 62, Production pane 60; Markdown:
   Heading… 95, Undo, Save, Bold, Italic, Bullets, Link, Find, Preview, Footnote…) + 20·ln(1+uses); a use is any
   command given (button, menu, key, palette; not the ribbon's own nor the Preview tab's), counts halving every 14 days,
   kept in ribbon-usage.json beside settings.json (this device only; in the browser the same memfs as the settings).
-  Filled to 10, at most 12. Stability: the counts are read once (the app's first use of them) and frozen; the Quick
+  Filled to 10, at most 12 (an env first seen later, e.g. a source or Writer↔Production, may top it up to 12). Stability: the counts are read once (the app's first use of them) and frozen; the Quick
   order is kept for the session per kind of document, what comes later (a source's Next Passage and Adapt, a pin) goes
   at its end, so flipping Smart/Fixed shows the same two ribbons. Long press (browser: 500 ms, not if the groups
   scrolled meanwhile) or right-click (Fyne mobile's long press) on any ribbon button: Pin to Quick / Unpin from Quick /
@@ -1014,7 +1016,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   tips with the tabs'. Tests quick_test.go: scoring and decay, stability within a session and after a restart, pinning
   (long press, the tap after it swallowed), the toggle (in place, per window, flipping twice identical, groups by use,
   key tip, ☰'s check), Preview over Quick, Quick tab and row ≤ 1000 px. No golden changed (the lock's menu item is
-  Ribbon-look only). Shots (SHOT_DIR=… go test -run TestQuickScreenshots, looked at): a 380 px phone shows 5½ of the
-  Quick tab's 10 buttons (Scene Heading … Save), the rest one short swipe away; desktop Smart fits in four columns;
-  the Quick row is ~990 px with ten. Not done: a phone Quick tab in two rows (it would make that tab taller than the
-  others), a Preferences checkbox for the Quick row.
+  Ribbon-look only). Shots (SHOT_DIR=… go test -run TestQuickScreenshots, all eight looked at): a 380 px phone shows
+  6½ of the Quick tab's 10 buttons (Scene, Undo, Action, Character, Dialogue, Save, half of Next; "Scene"/"Paren." are
+  the phone's short element labels), the rest one short swipe; Smart's Edit tab with Find and Lines used puts those
+  groups first; desktop Smart fits in four columns; the Quick row is 872 of 992 px (screenplay, ten), its key tips with
+  the tabs' (the lock L, Commands O, ☰ M). Open for Joop: a phone Quick tab in two rows would end the swipe but make
+  that tab taller than the others (the script jumps on a tab change). Not done: a Preferences checkbox for the Quick
+  row.

@@ -27,7 +27,12 @@ func ribbonOnFor(t *testing.T, w *MainWindow) *ribbonBar {
 	pandocPath = func() string { return "/usr/bin/pandoc" }
 	t.Cleanup(func() { pandocPath = old })
 	w.settings.SetString(lookPref, "ribbon")
-	t.Cleanup(func() { w.settings.SetString(lookPref, "menus") })
+	t.Cleanup(func() {
+		w.settings.SetString(lookPref, "menus")
+		w.settings.SetString(ribbonOrderPref(true), "") // the lock's last choices (the settings are the process's)
+		w.settings.SetString(ribbonOrderPref(false), "")
+		w.settings.SetBoolean(quickRowPref, false)
+	})
 	w.applyEditorSettings()
 	if !w.ribbonShown() {
 		t.Fatal("the ribbon does not show")

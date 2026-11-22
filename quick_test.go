@@ -251,13 +251,17 @@ func TestQuickToggle(t *testing.T) {
 	if r.shownTabs()[0].title != quickTab {
 		t.Error("no Quick tab first in Smart")
 	}
-	// another window keeps its own
+	// another window keeps its own (a new one starts as the lock was last
+	// set on the desktop: Smart now)
 	w2, _ := scriptWindow(t, revScript)
 	ribbonOnFor(t, w2)
-	if w2.cmdEnv().smart {
+	w.app.windows = append(w.app.windows, w2)
+	before := w2.ribbonSmart()
+	r.order.Tapped(&fyne.PointEvent{})
+	if w2.ribbonSmart() != before || w2.ribbonOrder == "" {
 		t.Error("the other window switched too")
 	}
-	r.order.Tapped(&fyne.PointEvent{})
+	w.app.windows = slices.DeleteFunc(w.app.windows, func(x *MainWindow) bool { return x == w2 })
 	if got := dumpRibbon(r); got != fixed {
 		t.Errorf("Fixed again differs:\n%s", lineDiff(fixed, got))
 	}
@@ -305,6 +309,46 @@ func TestQuickToggle(t *testing.T) {
 	if !w2.cmdEnv().smart || w2.ribbon.selected != quickTab {
 		t.Errorf("a phone: smart=%v, %s", w2.cmdEnv().smart, w2.ribbon.selected)
 	}
+	// remembered per phone or desktop: Fixed on the phone, a new window
+	// (or a restart: the settings) starts Fixed there, the desktop as it was
+	w2.toggleRibbonOrder()
+	w2.ribbonOrder = "" // as a new window has it
+	if w2.ribbonSmart() {
+		t.Error("the phone's Fixed not remembered")
+	}
+	if got := w2.settings.GetString(ribbonOrderPref(true)); got != "fixed" {
+		t.Errorf("the phone's setting %q", got)
+	}
+	last := w.ribbonSmart() // w, on the desktop, toggled last
+	w.ribbonOrder = ""       // as a new desktop window has it
+	if w.ribbonSmart() != last || w.settings.GetString(ribbonOrderPref(false)) == "" {
+		t.Error("a new desktop window does not take the desktop's last choice")
+	}
+}
+
+// A window turning narrow with the page view open keeps the Preview tab
+// in front, and a tab the user chose.
+func TestQuickNarrowKeepsPreview(t *testing.T) {
+	w, _ := scriptWindow(t, revScript)
+	r := ribbonOnFor(t, w)
+	w.fyneWindow.Resize(fyne.NewSize(1000, 700))
+	w.fyneWindow.Canvas().Capture()
+	previewAndWait(t, w)
+	toPhone(t, w)
+	if r.selected != "Preview" {
+		t.Errorf("narrow with the preview: %s in front", r.selected)
+	}
+	w.closePreview()
+	if r.selected != "Write" && r.selected != quickTab {
+		t.Errorf("after the preview: %s", r.selected)
+	}
+	w.fyneWindow.Resize(fyne.NewSize(1000, 700))
+	w.fyneWindow.Canvas().Capture()
+	r.selectTab("Edit")
+	toPhone(t, w)
+	if r.selected != "Edit" {
+		t.Errorf("narrow took the chosen tab: %s", r.selected)
+	}
 }
 
 // The Preview tab and Quick: the preview comes forward over Quick and
@@ -350,8 +394,13 @@ func TestQuickFitsDesktop(t *testing.T) {
 		if !r.quickRowBox.Visible() || len(r.rowButtons) < 8 {
 			t.Fatalf("md=%v: no Quick row (%d)", md, len(r.rowButtons))
 		}
-		if got := r.quickRow.MinSize().Width; got > 1000 {
-			t.Errorf("md=%v the Quick row %v wide", md, got)
+		room := r.quickRowBox.Size().Width
+		got := r.quickRow.MinSize().Width
+		if testing.Verbose() {
+			t.Logf("md=%v the Quick row: %v of %v", md, got, room)
+		}
+		if got > room {
+			t.Errorf("md=%v the Quick row %v wide, more than %v", md, got, room)
 		}
 		w.keyPreview(fyne.KeyF10, 0)
 		var tips []string
@@ -379,6 +428,11 @@ func TestQuickScreenshots(t *testing.T) {
 	os.MkdirAll(dir, 0o755)
 	w := suggestWindow(t, suggestScript)
 	r := ribbonOnFor(t, w)
+	for range 30 { // Edit > Find and Lines used a lot: first in Smart
+		w.noteUse(cmd("edit.findNext"))
+		w.noteUse(cmd("format.lineUp"))
+	}
+	restartQuick(w)
 	snap := func(name string) {
 		t.Helper()
 		w.fyneWindow.Content().Refresh()

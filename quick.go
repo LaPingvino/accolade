@@ -373,11 +373,25 @@ func (r *ribbonBar) groupsOf(t ribbonTab) []ribbonGroup {
 
 // The order: Smart or Fixed.
 
+// ribbonOrderPref is the order the lock was last set to on a phone or
+// the desktop (a new window's, and after a restart): "smart", "fixed", or
+// "" (Smart on a phone, Fixed on the desktop).
+func ribbonOrderPref(phone bool) string {
+	if phone {
+		return "ribbon-order-phone"
+	}
+	return "ribbon-order-desktop"
+}
+
 // ribbonSmart reports whether the window's ribbon is in the Smart order:
-// as the lock was set in this window, else Smart on a phone and Fixed on
-// the desktop.
+// as the lock was set in this window, else as it was last set on a
+// phone or the desktop, else Smart on a phone and Fixed on the desktop.
 func (w *MainWindow) ribbonSmart() bool {
-	switch w.ribbonOrder {
+	order := w.ribbonOrder
+	if order == "" && w.settings != nil {
+		order = w.settings.GetString(ribbonOrderPref(w.narrow))
+	}
+	switch order {
 	case "smart":
 		return true
 	case "fixed":
@@ -389,6 +403,19 @@ func (w *MainWindow) ribbonSmart() bool {
 // toggleRibbonOrder is the lock's tap: Smart to Fixed or back, in this
 // window, the tab in front kept if both have it.
 func (w *MainWindow) toggleRibbonOrder() {
+	if w.app != nil { // the others keep theirs, whatever this one saves
+		for _, x := range w.app.windows {
+			if x != w && x.ribbonOrder == "" {
+				x.ribbonOrder = map[bool]string{true: "smart", false: "fixed"}[x.ribbonSmart()]
+			}
+		}
+	}
+	defer func() { // remembered for a new window, and the next start
+		if w.settings != nil {
+			w.settings.SetString(ribbonOrderPref(w.narrow), w.ribbonOrder)
+			_ = w.settings.Save()
+		}
+	}()
 	if w.ribbonSmart() {
 		w.ribbonOrder = "fixed"
 		w.setStatus("Ribbon order: Fixed — the standard order (the lock again for Smart)")
@@ -409,6 +436,10 @@ var quickLabels = map[string]string{
 	"view.production": "Production", "file.newEmpty": "New Empty",
 }
 
+// quickPhoneLabels are elements' labels on a phone's Quick tab (the
+// name and tooltip stay the full one).
+var quickPhoneLabels = map[string]string{elementScene: "Scene", elementParenthetical: "Paren."}
+
 // quickLabel is c's label on the Quick tab: one that stands alone.
 func quickLabel(c *command, env cmdEnv) string {
 	if l, ok := quickLabels[c.id]; ok {
@@ -426,6 +457,9 @@ func (r *ribbonBar) quickButtons() []*ribbonButton {
 		b := newRibbonButton(r, c, false)
 		if el, ok := strings.CutPrefix(id, "format.element."); ok {
 			b.label, b.mark = el, elementMarks[el]
+			if short, ok := quickPhoneLabels[el]; ok && r.phone {
+				b.label = short // one more in a phone's width
+			}
 			b.keys = c.keysShort()
 		} else {
 			b.label = quickLabel(c, r.env) // its name stays the full label

@@ -167,6 +167,7 @@ type ribbonBar struct {
 	rowButtons  []*ribbonButton
 
 	selected string // the tab chosen
+	picked   bool   // chosen by the user (a phone's Quick does not take its place)
 	// previewing: the Preview tab is there (it comes forward when it
 	// comes); beforePreview: the tab chosen before it, chosen again when
 	// it goes
@@ -263,7 +264,7 @@ func tabShown(t ribbonTab, env cmdEnv) bool { return (t.when == nil || t.when(en
 
 // selectTab shows a tab's groups.
 func (r *ribbonBar) selectTab(title string) {
-	r.selected = title
+	r.selected, r.picked = title, true
 	r.refresh()
 }
 
@@ -483,8 +484,8 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 		switch h.id {
 		case quickHome: // the Quick tab's (quick.go)
 			for _, b := range r.quickButtons() {
-				if b.mark != "" {
-					r.elements[b.label] = b
+				if el, ok := strings.CutPrefix(b.c.id, "format.element."); ok {
+					r.elements[el] = b
 				}
 				r.add(b)
 				addSmall(b)

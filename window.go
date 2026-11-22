@@ -1602,8 +1602,8 @@ const narrowWidth = 600
 func (w *MainWindow) onWindowWidth(width float32) {
 	if narrow := width < narrowWidth; narrow != w.narrow {
 		w.narrow = narrow
-		if narrow && w.ribbon != nil && w.ribbonOrder == "" {
-			w.ribbon.selected = "" // a phone's ribbon: Smart, Quick in front (quick.go)
+		if r := w.ribbon; narrow && r != nil && w.ribbonOrder == "" && !r.picked && !r.previewing {
+			r.selected = "" // a phone's ribbon: the order's first tab in front (Quick in Smart: quick.go)
 		}
 		c := w.fyneWindow.Canvas()
 		focused := c.Focused() // a new content drops the focus
