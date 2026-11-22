@@ -140,9 +140,12 @@ func TestPreviewFollowsATypedKey(t *testing.T) {
 	w := newTestWindow(t, featureScript(1, 150))
 	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
 	v := previewAndWait(t, w)
-	whole := time.Now()
-	wholeDrawing(t, w, w.textEditor.Text())
-	wholeTook := time.Since(whole)
+	var wholeTook time.Duration // (for the log alone: made only with -v)
+	if testing.Verbose() {
+		whole := time.Now()
+		wholeDrawing(t, w, w.textEditor.Text())
+		wholeTook = time.Since(whole)
+	}
 	mid := len(v.d.Pages) / 2
 	v.area.toPage(0)
 	for range mid {
