@@ -141,3 +141,44 @@ func TestWide(t *testing.T) {
 		t.Error("widths")
 	}
 }
+
+// A span is one piece of Cols columns: rows break around it, never in it,
+// and the columns before and after it count it as Cols.
+func TestWrapSpans(t *testing.T) {
+	text := []rune("Hold him! [[from: #:~:text=So you bite,ah!]] Now.")
+	start := strings.Index(string(text), "[[")
+	end := strings.Index(string(text), "]]") + 2
+	sp := []Span{{Start: start, End: end, Cols: 8}}
+	l := WrapSpans(text, 20, sp)
+	var got []string
+	for i := range l.Rows {
+		got = append(got, l.RowText(text, i))
+	}
+	// "Hold him! " (10) + the chip (8) fit in 20; " Now." goes on
+	if len(l.Rows) != 2 || l.Rows[0].End != end+1 || l.RowWidth(0) != 10+8+1 {
+		t.Fatalf("rows %q, first width %d", got, l.RowWidth(0))
+	}
+	if row, col := l.RowCol(end); row != 0 || col != 18 {
+		t.Errorf("after the span: row %d col %d", row, col)
+	}
+	if off := l.Offset(0, 12); off != start {
+		t.Errorf("a column on the span gives %d, not its start %d", off, start)
+	}
+	if off := l.Offset(0, 18); off != end {
+		t.Errorf("the column after it gives %d, not its end %d", off, end)
+	}
+	// narrower than the text before it: the span starts a row of its own
+	l = WrapSpans(text, 12, sp)
+	for i, r := range l.Rows {
+		if r.Start > start && r.Start < end {
+			t.Errorf("row %d starts inside the span: %q", i, l.RowText(text, i))
+		}
+	}
+	// formatted lines too
+	f := WrapFormattedSpans(text, 20, []Format{{Indent: 2, Width: 18}}, sp)
+	for i, r := range f.Rows {
+		if r.Start > start && r.Start < end {
+			t.Errorf("formatted row %d starts inside the span", i)
+		}
+	}
+}

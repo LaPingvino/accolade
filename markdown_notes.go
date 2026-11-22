@@ -292,7 +292,11 @@ func noteTip(text string, offset int) string {
 // noteHover shows the note's text under its mark while the pointer is
 // on it in the main editor (a Markdown document's).
 func (w *MainWindow) noteHover(offset int, at fyne.Position, cell fyne.Size) {
-	if !w.markdown || w.tooltips == nil {
+	if !w.markdown {
+		w.chipHover(offset, at, cell) // a screenplay's: its links' chips (link_chips.go)
+		return
+	}
+	if w.tooltips == nil {
 		return
 	}
 	tip := ""

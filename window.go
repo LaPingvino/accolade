@@ -42,6 +42,7 @@ type MainWindow struct {
 	// noteTipShown is the note's text shown over its mark in the editor
 	// ("" none: markdown_notes.go)
 	noteTipShown string
+	chips        chipCache // the script's links as chips, as found last (link_chips.go)
 	searchBar    *SearchBar
 
 	// UI layout

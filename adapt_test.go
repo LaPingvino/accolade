@@ -282,7 +282,8 @@ func TestAdaptNewScene(t *testing.T) {
 	if got := w.textEditor.Text(); got != want {
 		t.Fatalf("inserted:\n%s\nwant\n%s", got, want)
 	}
-	if preview != "INT. PLACE - DAY\n\n"+linkWho {
+	// the preview shows the link as the writer reads it, never encoded
+	if preview != "INT. PLACE - DAY\n\n[[↗ “\"Who's there?\" Anna called, but nobody answered.”]]" {
 		t.Errorf("preview %q", preview)
 	}
 	if s.statusOf(who) != statusAdapted || selected(w) != "PLACE - DAY" || s.adapting != nil {

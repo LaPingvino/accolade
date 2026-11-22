@@ -4,7 +4,10 @@
 // one (CJK, emoji) two: see Width.
 package wrap
 
-import "unicode"
+import (
+	"sort"
+	"unicode"
+)
 
 // Width is how many columns r takes: 2 for East Asian wide and fullwidth
 // characters and emoji, 0 for marks drawn on the character before them
@@ -37,21 +40,96 @@ func zeroWidth(r rune) bool {
 		(r >= 0x1160 && r <= 0x11FF)
 }
 
-// cols is how many columns runes take.
-func cols(runes []rune) int {
+// Span is a stretch of the text, [Start, End) in runes, shown as Cols
+// columns in one piece (a chip drawn in its place): its first rune takes
+// the columns, the others none, and no row breaks inside it.
+type Span struct {
+	Start, End, Cols int
+}
+
+// line is one line being laid out: its runes, and for a line with spans
+// (nil without) each rune's columns and the spans, from the line's start.
+type line struct {
+	r     []rune
+	ws    []int
+	spans [][2]int
+}
+
+// newLine is the line [base, base+len(r)) of a text with spans (sorted):
+// those in it taken in.
+func newLine(r []rune, base int, spans []Span) line {
+	l := line{r: r}
+	for _, s := range spans {
+		if s.Start >= base+len(r) {
+			break
+		}
+		if s.End <= base {
+			continue
+		}
+		if l.ws == nil {
+			l.ws = make([]int, len(r))
+			for i, c := range r {
+				l.ws[i] = Width(c)
+			}
+		}
+		a, b := max(s.Start-base, 0), min(s.End-base, len(r))
+		for i := a; i < b; i++ {
+			l.ws[i] = 0
+		}
+		l.ws[a] = s.Cols
+		l.spans = append(l.spans, [2]int{a, b})
+	}
+	return l
+}
+
+// w is how many columns rune i takes.
+func (l line) w(i int) int {
+	if l.ws != nil {
+		return l.ws[i]
+	}
+	return Width(l.r[i])
+}
+
+// cols is how many columns runes [a, b) take.
+func (l line) cols(a, b int) int {
 	n := 0
-	for _, r := range runes {
-		n += Width(r)
+	for i := a; i < b; i++ {
+		n += l.w(i)
 	}
 	return n
 }
 
+// inside reports whether a row may not break before rune i: it is inside
+// a span.
+func (l line) inside(i int) bool {
+	for _, s := range l.spans {
+		if i > s[0] && i < s[1] {
+			return true
+		}
+	}
+	return false
+}
+
+// whole moves a break at end out of a span: before it, or after it when
+// it starts the row (pos).
+func (l line) whole(end, pos int) int {
+	for _, s := range l.spans {
+		if end > s[0] && end < s[1] {
+			if s[0] > pos {
+				return s[0]
+			}
+			return s[1]
+		}
+	}
+	return end
+}
+
 // fit is the end of the runes from pos that fit in room columns (at least
 // one rune).
-func fit(line []rune, pos, room int) int {
+func (l line) fit(pos, room int) int {
 	end, used := pos, 0
-	for end < len(line) && used+Width(line[end]) <= room {
-		used += Width(line[end])
+	for end < len(l.r) && used+l.w(end) <= room {
+		used += l.w(end)
 		end++
 	}
 	return max(end, pos+1)
@@ -72,6 +150,7 @@ type Layout struct {
 	Rows  []Row
 	Width int
 	text  []rune // for the columns of wide characters
+	spans []Span // shown in one piece (WrapSpans), sorted
 }
 
 // Wrap lays text out in rows of at most width columns. A line breaks after
@@ -80,21 +159,30 @@ type Layout struct {
 // line's leading indentation so wrapped dialogue stays in its column,
 // unless that indentation takes more than half the width.
 func Wrap(text []rune, width int) Layout {
+	return WrapSpans(text, width, nil)
+}
+
+// WrapSpans is Wrap with spans shown in one piece (sorted, apart).
+func WrapSpans(text []rune, width int, spans []Span) Layout {
 	width = max(width, 1)
-	l := Layout{Width: width, text: text}
-	line, start := 0, 0
+	l := Layout{Width: width, text: text, spans: spans}
+	line, start, k := 0, 0, 0
 	for i := 0; i <= len(text); i++ {
 		if i < len(text) && text[i] != '\n' {
 			continue
 		}
-		l.Rows = append(l.Rows, wrapLine(text[start:i], start, line, width)...)
+		for k < len(spans) && spans[k].End <= start {
+			k++
+		}
+		l.Rows = append(l.Rows, wrapLine(newLine(text[start:i], start, spans[k:]), start, line, width)...)
 		line++
 		start = i + 1
 	}
 	return l
 }
 
-func wrapLine(line []rune, base, number, width int) []Row {
+func wrapLine(ln line, base, number, width int) []Row {
+	line := ln.r
 	indent := 0
 	for indent < len(line) && line[indent] == ' ' {
 		indent++
@@ -109,21 +197,22 @@ func wrapLine(line []rune, base, number, width int) []Row {
 	pos, pad := 0, 0
 	for {
 		room := width - pad
-		if cols(line[pos:]) <= room {
+		if ln.cols(pos, len(line)) <= room {
 			return append(rows, Row{Line: number, Start: base + pos, End: base + len(line), Indent: pad, Last: true})
 		}
-		end := fit(line, pos, room)
+		end := ln.fit(pos, room)
 		// break after the last space that fits; keep at least one rune
 		for b := end; b > pos; b-- {
-			if line[b-1] == ' ' && b-1 > pos && b-1 >= leading {
+			if line[b-1] == ' ' && b-1 > pos && b-1 >= leading && !ln.inside(b-1) && !ln.inside(b) {
 				end = b
 				break
 			}
 		}
 		// spaces right at the break stay on this row
-		for end < len(line) && line[end] == ' ' && cols(line[pos:end]) < room {
+		for end < len(line) && line[end] == ' ' && !ln.inside(end) && ln.cols(pos, end) < room {
 			end++
 		}
+		end = ln.whole(end, pos)
 		rows = append(rows, Row{Line: number, Start: base + pos, End: base + end, Indent: pad})
 		pos, pad = end, indent
 		if pad >= width {
@@ -143,9 +232,15 @@ type Format struct {
 // in its format (formats[i] for line i; lines past the end are laid out
 // from column 0). Leading spaces are text here, not an indent.
 func WrapFormatted(text []rune, width int, formats []Format) Layout {
+	return WrapFormattedSpans(text, width, formats, nil)
+}
+
+// WrapFormattedSpans is WrapFormatted with spans shown in one piece
+// (sorted, apart).
+func WrapFormattedSpans(text []rune, width int, formats []Format, spans []Span) Layout {
 	width = max(width, 1)
-	l := Layout{Width: width, text: text}
-	line, start := 0, 0
+	l := Layout{Width: width, text: text, spans: spans}
+	line, start, k := 0, 0, 0
 	for i := 0; i <= len(text); i++ {
 		if i < len(text) && text[i] != '\n' {
 			continue
@@ -154,14 +249,18 @@ func WrapFormatted(text []rune, width int, formats []Format) Layout {
 		if line < len(formats) {
 			f = formats[line]
 		}
-		l.Rows = append(l.Rows, formatLine(text[start:i], start, line, width, f)...)
+		for k < len(spans) && spans[k].End <= start {
+			k++
+		}
+		l.Rows = append(l.Rows, formatLine(newLine(text[start:i], start, spans[k:]), start, line, width, f)...)
 		line++
 		start = i + 1
 	}
 	return l
 }
 
-func formatLine(line []rune, base, number, width int, f Format) []Row {
+func formatLine(ln line, base, number, width int, f Format) []Row {
+	line := ln.r
 	col, room := f.Indent, f.Width
 	if col < 0 || col >= width {
 		col = 0
@@ -172,23 +271,24 @@ func formatLine(line []rune, base, number, width int, f Format) []Row {
 	var rows []Row
 	for pos := 0; ; {
 		end := len(line)
-		if cols(line[pos:]) > room {
-			end = fit(line, pos, room)
+		if ln.cols(pos, len(line)) > room {
+			end = ln.fit(pos, room)
 			for b := end; b > pos+1; b-- {
-				if line[b-1] == ' ' {
+				if line[b-1] == ' ' && !ln.inside(b-1) && !ln.inside(b) {
 					end = b
 					break
 				}
 			}
-			for end < len(line) && line[end] == ' ' && cols(line[pos:end]) < room {
+			for end < len(line) && line[end] == ' ' && !ln.inside(end) && ln.cols(pos, end) < room {
 				end++
 			}
+			end = ln.whole(end, pos)
 		}
 		last := end
-		for last > pos && line[last-1] == ' ' {
+		for last > pos && line[last-1] == ' ' && !ln.inside(last-1) {
 			last--
 		}
-		shown := cols(line[pos:last])
+		shown := ln.cols(pos, last)
 		pad := col
 		switch f.Align {
 		case 'R':
@@ -229,7 +329,40 @@ func (l Layout) cols(start, end int) int {
 	if l.text == nil || end > len(l.text) {
 		return end - start
 	}
-	return cols(l.text[start:end])
+	n := 0
+	if len(l.spans) == 0 {
+		for _, r := range l.text[start:end] {
+			n += Width(r)
+		}
+		return n
+	}
+	for off := start; off < end; off++ {
+		n += l.width(off)
+	}
+	return n
+}
+
+// width is how many columns the rune at off takes: a span's first all of
+// its columns, its others none.
+func (l Layout) width(off int) int {
+	if len(l.spans) > 0 {
+		if s, ok := l.SpanAt(off); ok {
+			if off == s.Start {
+				return s.Cols
+			}
+			return 0
+		}
+	}
+	return Width(l.text[off])
+}
+
+// SpanAt is the span that holds the rune at off, if one does.
+func (l Layout) SpanAt(off int) (Span, bool) {
+	i := sort.Search(len(l.spans), func(i int) bool { return l.spans[i].End > off })
+	if i < len(l.spans) && l.spans[i].Start <= off {
+		return l.spans[i], true
+	}
+	return Span{}, false
 }
 
 // Offset is the text offset for a row and column (clicking or moving the
@@ -244,8 +377,8 @@ func (l Layout) Offset(row, col int) int {
 	}
 	r := l.Rows[row]
 	off := r.Start
-	for c := r.Indent; off < r.End && off < len(l.text) && c+Width(l.text[off]) <= col; off++ {
-		c += Width(l.text[off])
+	for c := r.Indent; off < r.End && off < len(l.text) && c+l.width(off) <= col; off++ {
+		c += l.width(off)
 	}
 	if l.text == nil {
 		off = r.Start + max(0, col-r.Indent)

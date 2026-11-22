@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"image/color"
 	"math"
+	"sort"
 	"strconv"
 	"strings"
 	"unicode"
@@ -83,6 +84,16 @@ type ScriptEditor struct {
 	// FoldLabel is what a folded block's line shows instead of its text
 	// (Fold.Block), asked only for the rows drawn.
 	FoldLabel func(heading int) string
+	// Chips, when set, are stretches of the text drawn as a short label
+	// (Accolade's source links: "↗ source"), sorted and apart, unless the
+	// cursor is inside one (Start < cursor < End): that one is drawn as
+	// its text. Asked at each layout, with the editor's text: the same
+	// slice back for the same text (a new one re-lays the text out). A
+	// screenplay's only: not for Markdown, nor on a line read right to left.
+	Chips func(text string) []Chip
+	// OnChipPressed is told of a right click or a long press on a chip,
+	// with its cell's place and size in the editor (to show its Tip).
+	OnChipPressed func(c Chip, at fyne.Position, cell fyne.Size)
 	// Headings, when set, are the lines that can fold: a gutter column
 	// shows ▾ on them (▸ folded), and a tap there goes to OnFoldTapped.
 	Headings     func() map[int]bool
@@ -156,9 +167,17 @@ type ScriptEditor struct {
 	headings            map[int]bool                        // the lines that can fold (Headings)
 	marks               map[int]*widget.CustomTextGridStyle // the lines' marks (Marks), as drawn
 	inks                map[int][]Ink                       // the lines' inked words (Inks)
+	chips               []Chip                              // the text's (Chips), as asked last
 	laid                laidOut                             // the last layout, for its key
 	// offstage: out of sight (SetOffstage); stale: changed since laid out
 	offstage, stale bool
+}
+
+// Chip is a stretch of the text, [Start, End) in runes, drawn as Label
+// (Chips); Tip is the caller's (what a hover shows).
+type Chip struct {
+	Start, End int
+	Label, Tip string
 }
 
 // Fold is a fold of lines: those in [From, To) hidden under the
@@ -186,6 +205,7 @@ type drawing struct {
 	th                                       fyne.Theme
 	v                                        fyne.ThemeVariant
 	selected, cursor, highlight, number      *widget.CustomTextGridStyle
+	chip                                     *widget.CustomTextGridStyle // a chip's label
 	flash                                    color.Color
 	selStart, selEnd, curRow, curCol, gutter int
 	others                                   []buffer.Span // more selections
@@ -464,7 +484,15 @@ func (e *ScriptEditor) relayout() {
 		line, _ = e.buf.Position(e.buf.Cursor())
 	}
 	key := layoutKey{rev: e.buf.Rev(), columns: e.columns, gutter: g, page: e.PageColumns, line: line,
-		markdown: e.Markdown, syntax: e.Syntax, format: e.Format != nil, rtl: e.LanguageRTL}
+		markdown: e.Markdown, syntax: e.Syntax, format: e.Format != nil, rtl: e.LanguageRTL, raw: -1}
+	e.chips = nil
+	if e.Chips != nil && !e.Markdown {
+		e.chips = e.Chips(e.buf.Text())
+		if len(e.chips) > 0 {
+			key.chips, key.nchips = &e.chips[0], len(e.chips)
+			key.raw = chipAround(e.chips, e.buf.Cursor())
+		}
+	}
 	if !e.laid.ok || e.laid.key != key {
 		e.laid = e.layOut(key)
 	}
@@ -519,7 +547,9 @@ func (e *ScriptEditor) relayout() {
 	}
 	fr, fg, fb, _ := th.Color(theme.ColorNamePrimary, v).RGBA()
 	flash := color.NRGBA{R: uint8(fr >> 8), G: uint8(fg >> 8), B: uint8(fb >> 8), A: 0x50}
-	e.draw = drawing{flash: flash, text: text, kinds: kinds, inline: inline, lineStart: lineStart, th: th, v: v, selected: selected, cursor: cursor,
+	chip := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePrimary, v),
+		BGColor: color.NRGBA{R: uint8(fr >> 8), G: uint8(fg >> 8), B: uint8(fb >> 8), A: 0x28}}
+	e.draw = drawing{chip: chip, flash: flash, text: text, kinds: kinds, inline: inline, lineStart: lineStart, th: th, v: v, selected: selected, cursor: cursor,
 		highlight: highlight, number: number, selStart: selStart, selEnd: selEnd,
 		curRow: curRow, curCol: curCol, gutter: g, others: others, otherCursors: otherCursors}
 	e.drawRows()
@@ -534,6 +564,9 @@ type layoutKey struct {
 	line                     int
 	markdown, syntax, format bool
 	rtl                      bool // LanguageRTL
+	// the chips (Chips: their slice) and the one drawn as text (-1: none)
+	chips       *Chip
+	nchips, raw int
 }
 
 // laidOut is the text laid out for a key.
@@ -546,6 +579,7 @@ type laidOut struct {
 	kinds     []syntax.Kind
 	inline    map[int][]syntax.Span
 	lineStart []int
+	chipAt    map[int]int // the chips drawn as labels, by their start: which of key's
 }
 
 // TypingKinds are the lines' kinds as the editor has them laid out now
@@ -582,6 +616,7 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 	for i, ln := range lines {
 		l.rtl[i] = lex.LineRTL(ln, key.rtl)
 	}
+	spans := l.chipSpans(e.chips, key.raw, lines)
 	var kinds []syntax.Kind
 	if e.Format != nil && !e.Markdown {
 		kinds = e.classifyTyping(lines, key.line)
@@ -596,9 +631,9 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 				formats[i] = mirrored(formats[i], page)
 			}
 		}
-		l.layout = wrap.WrapFormatted(text, max(e.columns-g, 1), formats)
+		l.layout = wrap.WrapFormattedSpans(text, max(e.columns-g, 1), formats, spans)
 	} else {
-		l.layout = wrap.Wrap(text, max(e.columns-g, 1))
+		l.layout = wrap.WrapSpans(text, max(e.columns-g, 1), spans)
 	}
 	switch {
 	case e.Markdown && e.Syntax:
@@ -628,6 +663,70 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 	}
 	l.kinds = kinds
 	return l
+}
+
+// chipSpans are the chips drawn as labels (all but raw, and none on a
+// line read right to left), as spans to wrap in one piece; chipAt is
+// filled in.
+func (l *laidOut) chipSpans(chips []Chip, raw int, lines []string) []wrap.Span {
+	if len(chips) == 0 {
+		return nil
+	}
+	var spans []wrap.Span
+	line, off := 0, 0 // the line chip i is on, and its start
+	for i, c := range chips {
+		if i == raw || c.End <= c.Start {
+			continue
+		}
+		for line < len(lines)-1 && off+utf8.RuneCountInString(lines[line]) < c.Start {
+			off += utf8.RuneCountInString(lines[line]) + 1
+			line++
+		}
+		if line < len(l.rtl) && l.rtl[line] {
+			continue
+		}
+		cols := 0
+		for _, r := range c.Label {
+			cols += wrap.Width(r)
+		}
+		if l.chipAt == nil {
+			l.chipAt = map[int]int{}
+		}
+		l.chipAt[c.Start] = i
+		spans = append(spans, wrap.Span{Start: c.Start, End: c.End, Cols: cols})
+	}
+	return spans
+}
+
+// chipAround is the chip the offset is inside (-1: none).
+func chipAround(chips []Chip, off int) int {
+	i := sort.Search(len(chips), func(i int) bool { return chips[i].End > off })
+	if i < len(chips) && chips[i].Start < off && off < chips[i].End {
+		return i
+	}
+	return -1
+}
+
+// ChipAt is the chip drawn as its label at offset off, if there is one.
+func (e *ScriptEditor) ChipAt(off int) (Chip, bool) {
+	e.fresh()
+	if s, ok := e.layout.SpanAt(off); ok {
+		if i, ok := e.laid.chipAt[s.Start]; ok && i < len(e.chips) {
+			return e.chips[i], true
+		}
+	}
+	return Chip{}, false
+}
+
+// chipUnder is the chip drawn under a position in the editor, and its
+// first cell's place.
+func (e *ScriptEditor) chipUnder(p fyne.Position) (Chip, fyne.Position, bool) {
+	off, at := e.charAt(p)
+	if off < 0 {
+		return Chip{}, at, false
+	}
+	c, ok := e.ChipAt(off)
+	return c, at, ok
 }
 
 // drawRows puts the rows in view (and viewMargin around them) in the grid.
@@ -702,6 +801,21 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 	spans := d.inline[r.Line]
 	inks := e.inks[r.Line]
 	for off := r.Start; off < r.End; off++ {
+		if i, ok := e.laid.chipAt[off]; ok && i < len(e.chips) { // a chip: its label
+			c := e.chips[i]
+			var style widget.TextGridStyle = d.chip
+			if off >= selStart && off < selEnd {
+				style = withBackground(style, selected.BGColor)
+			}
+			for _, ch := range c.Label {
+				cells = append(cells, widget.TextGridCell{Rune: ch, Style: style})
+				if wrap.Width(ch) == 2 {
+					cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: style})
+				}
+			}
+			off = min(c.End, r.End) - 1
+			continue
+		}
 		cell := widget.TextGridCell{Rune: text[off], Style: lineStyle}
 		for _, s := range spans {
 			if at := off - d.lineStart[r.Line]; at >= s.Start && at < s.End {
@@ -749,7 +863,12 @@ func (e *ScriptEditor) labelCells(cells []widget.TextGridCell, r wrap.Row, style
 	if e.FoldLabel != nil {
 		label = e.FoldLabel(r.Line)
 	}
-	room := max(e.columns-e.draw.gutter-r.Indent, 1)
+	room := max(e.columns-e.draw.gutter-r.Indent-1, 1) // the last column clear (a scroll bar over it)
+	if k := e.draw.kinds; e.Format != nil && !e.Markdown && r.Line < len(k) {
+		if f := e.Format(k[r.Line]); f.Width > 0 { // the line's element's width (a phone's narrower page)
+			room = max(min(room, f.Width), 1)
+		}
+	}
 	runes := []rune(label)
 	if w := wrap.Width; len(runes) > 0 {
 		used, n := 0, 0
@@ -1012,7 +1131,11 @@ func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
 		return
 	}
 	e.focus()
-	e.buf.SetCursor(e.offsetAt(ev.Position), e.shift)
+	off := e.offsetAt(ev.Position)
+	if c, _, ok := e.chipUnder(ev.Position); ok && !e.shift { // a chip tapped: into it, its text shown
+		off = min(c.Start+2, c.End-1)
+	}
+	e.buf.SetCursor(off, e.shift)
 	e.goalCol = -1
 	e.changed(false)
 }
@@ -1020,6 +1143,10 @@ func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
 // TappedSecondary puts the cursor at a right click (unless it is in the
 // selection) and tells OnSecondaryTapped.
 func (e *ScriptEditor) TappedSecondary(ev *fyne.PointEvent) {
+	if c, at, ok := e.chipUnder(ev.Position); ok && e.OnChipPressed != nil {
+		e.OnChipPressed(c, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
+		return
+	}
 	if e.OnSecondaryTapped == nil {
 		return
 	}

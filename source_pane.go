@@ -731,6 +731,7 @@ func (s *sourcePane) current() *sourceModel {
 	if s.model == nil || !sameString(s.modelFor, text) {
 		if s.matcher == nil || !samePassages(s.matcher.ps, s.passages) {
 			s.matcher = matcherFor(s.passages)
+			defer s.w.textEditor.RedrawMarks() // the chips count the passages again (link_chips.go)
 		}
 		s.model, s.modelFor = newSourceModelWith(s.matcher, text, s.w.sceneStarts()), text
 	}

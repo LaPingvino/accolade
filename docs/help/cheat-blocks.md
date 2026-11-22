@@ -4,7 +4,7 @@ All of this is plain Fountain (notes and boneyard): other apps open the file and
 
 ## End blocks
 
-Notes is always last; Accolade reads the others in any order.
+Notes is always last; Accolade reads the others in any order. In the editor each is folded to one line that says what it holds (▸ Production · scene numbers locked · Blue): click it or move the cursor in to read it, and it folds again when you leave. Its ▸ in the margin, View > Fold or Unfold Here (Shift+.) or vim's zo keeps it open; Unfold All opens them all. An omitted scene's kept text folds the same way.
 
 - **Production** — `/* Production` … `*/`: lock, revision, pages
 - **Adaptation** — `/* Adaptation` … `*/`: cuts and learned notes
@@ -27,7 +27,7 @@ Notes is always last; Accolade reads the others in any order.
 
 ## In the script
 
-- **Source link** — `[[from: #:~:text=She opened the door,into the rain.]]`
+- **Source link** — `[[from: #:~:text=She opened the door,into the rain.]]`, drawn as a chip: ↗ source
 - **Link to a file** — `[[from: story.md#:~:text=said Anna.-,Yes.]]`
 - **Old link** — `[[from: "She opened the door to…"]]`
 - **Colour** — `INT. KITCHEN - NIGHT [[red]]` or `[[#ff8800]]`

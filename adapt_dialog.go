@@ -41,6 +41,9 @@ type adaptDialog struct {
 	wide       bool            // two columns (a desktop with the room)
 
 	headingNow string // the heading as the preview has it
+	// linksBack puts the links' own text back for their readable form in
+	// the preview (link_chips.go's readableLinks)
+	linksBack func(string) string
 	edited     bool   // the preview written in by hand
 	setting    bool   // the dialog is setting the preview
 	waits      int    // looks again for the story's reading (a long one, read in the background)
@@ -233,6 +236,7 @@ func (d *adaptDialog) update(anew bool) {
 
 func (d *adaptDialog) setPreview(text string) {
 	d.setting = true
+	text, d.linksBack = readableLinks(text)
 	d.preview.SetText(text)
 	d.setting = false
 	d.edited = false
@@ -366,6 +370,9 @@ func (d *adaptDialog) accept() {
 	how := d.howNow()
 	heading := strings.TrimSpace(d.heading.Text)
 	block, edited := d.preview.Text, d.edited
+	if d.linksBack != nil {
+		block = d.linksBack(block)
+	}
 	where := d.plan.Wheres[d.where.Chosen()].Where
 	d.close()
 	switch how {

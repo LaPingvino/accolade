@@ -52,13 +52,15 @@ On a narrow screen (a phone), the side panes go under the script as one row of t
 
 ## Links
 
-A link is a Fountain note in the scene, in the browsers' Text Fragment form. It holds the passage's own words: its first words, and for a longer passage its last words after a comma.
+A link is a Fountain note in the scene, in the browsers' Text Fragment form. It holds the passage's own words: its first four words, and for a longer passage its last three after a comma (the range's comma). A comma in the story's own words is written `%2C`, so it is not read as the range's.
 
 ```
 INT. KITCHEN - NIGHT
 
-[[from: #:~:text=She opened the door to the garden and,out into the rain.]]
+[[from: #:~:text=She opened the door,into the rain.]]
 ```
+
+The editor draws a link as a small chip, **↗ source** (or **↗ 3 passages** for a link to several). Point at it, or press and hold on a touch screen, to read its words as the story has them: "She opened the door … into the rain." Click it, or move the cursor into it, and the link's own text shows, to edit; it is a chip again when the cursor leaves.
 
 Because a link holds words, not a line number, the story can change around it and the link still finds its passage.
 
