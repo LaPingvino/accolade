@@ -202,6 +202,18 @@ func (w *MainWindow) changeHeadings(lang string, how languageChange, words map[s
 // drops it (scene.fountain).
 func withLanguageName(path, lang string) string {
 	dir, base := filepath.Split(path)
+	// a language with an extension of its own (film.hekaya): that
+	// extension, any language part before it gone; leaving one: .fountain
+	if own := lexSettings.ExtensionOf(lang); own != "" {
+		stem := strings.TrimSuffix(base, filepath.Ext(base))
+		if l := filepath.Ext(stem); len(l) > 1 && sceneConf(strings.ToLower(l[1:])) != nil {
+			stem = strings.TrimSuffix(stem, l)
+		}
+		return dir + stem + own
+	}
+	if _, ok := lexSettings.ExtensionLanguage(base); ok {
+		base = strings.TrimSuffix(base, filepath.Ext(base)) + ".fountain"
+	}
 	parts := strings.Split(base, ".")
 	switch {
 	case len(parts) >= 3 && sceneConf(strings.ToLower(parts[len(parts)-2])) != nil:

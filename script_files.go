@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"github.com/LaPingvino/lexington/rules"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -32,9 +33,6 @@ var (
 	typeHighland   = fileType{id: "highland", label: "Highland", ext: ".highland", kind: bundleZip}
 	typeTextPack   = fileType{id: "textpack", label: "TextPack", ext: ".textpack", kind: bundleZip}
 	typeTextBundle = fileType{id: "textbundle", label: "TextBundle", ext: ".textbundle", kind: bundleFolder, desktopOnly: true}
-	// Hekaya's own file: Arabic Fountain as Hekaya writes it, read with
-	// Lexington's fixed hekaya rules (a .hekaya is a .ar.fountain so read)
-	typeHekaya = fileType{id: "hekaya", label: "Hekaya", ext: rules.HekayaExt, lang: rules.Hekaya}
 )
 
 // asItIs is the type of a plain file named otherwise (.txt, .spmd,
@@ -67,11 +65,39 @@ func (t fileType) shownExt() string {
 	return t.ext
 }
 
+// langType is the type of a language's own extension (Lexington's
+// [Extensions]: .hekaya for Hekaya, read with its rules, written as typed).
+func langType(ext, lang string) fileType {
+	label := languageName(lang)
+	if lang == rules.Hekaya {
+		label = "Hekaya"
+	}
+	return fileType{id: "langext", label: label, ext: ext, lang: lang}
+}
+
+// langTypes are the types of the languages' own extensions, in order.
+func langTypes() []fileType {
+	var out []fileType
+	exts := lexSettings.FileExtensions()
+	for _, e := range slices.Sorted(maps.Keys(exts)) {
+		out = append(out, langType("."+e, exts[e]))
+	}
+	return out
+}
+
 // knownTypes are the types by extension.
-var knownTypes = []fileType{typeFountain, typeMarkdown, typeAccolade, typeHighland, typeTextPack, typeTextBundle, typeHekaya}
+func knownTypes() []fileType {
+	return append([]fileType{typeFountain, typeMarkdown, typeAccolade, typeHighland, typeTextPack, typeTextBundle}, langTypes()...)
+}
 
 // plainExts are the plain extensions a script or document can have.
-var plainExts = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", rules.HekayaExt}
+func plainExts() []string {
+	out := []string{".fountain", ".spmd", ".txt", ".md", ".markdown"}
+	for _, t := range langTypes() {
+		out = append(out, t.ext)
+	}
+	return out
+}
 
 // typeOfName is the type a file's name says; a plain one with another
 // extension is "as it is", no extension Fountain (or Markdown).
@@ -80,12 +106,12 @@ func typeOfName(name string, markdown bool) fileType {
 	if l := languageOf(name); ext == ".fountain" && l != "" && !markdown {
 		return dialectType(l)
 	}
-	for _, t := range knownTypes {
+	for _, t := range knownTypes() {
 		if t.ext == ext {
 			return t
 		}
 	}
-	if slices.Contains(plainExts, ext) {
+	if slices.Contains(plainExts(), ext) {
 		return asItIs(filepath.Ext(name))
 	}
 	if markdown {
@@ -98,7 +124,7 @@ func typeOfName(name string, markdown bool) fileType {
 // file can have: then it is taken as it is.
 func hasTypeExt(name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
-	return ext != "" && (slices.ContainsFunc(knownTypes, func(t fileType) bool { return t.ext == ext }) || slices.Contains(plainExts, ext))
+	return ext != "" && (slices.ContainsFunc(knownTypes(), func(t fileType) bool { return t.ext == ext }) || slices.Contains(plainExts(), ext))
 }
 
 // scriptTypes are the types offered, in order: the document's own plain
@@ -117,11 +143,16 @@ func scriptTypes(c lexConf, markdown, browser bool, current, lang string) []file
 		ts = append(ts, t)
 	}
 	ts = append(ts, own)
-	if !markdown && lang != rules.Hekaya && (c.dialect(lang) || (lang != "" && languageOf(current) == lang)) { // film.en.fountain too, as it is
+	ownExt := c.ExtensionOf(lang)                                                                      // a language with an extension of its own: that type, not .lang.fountain
+	if !markdown && ownExt == "" && (c.dialect(lang) || (lang != "" && languageOf(current) == lang)) { // film.en.fountain too, as it is
 		ts = append(ts, dialectType(lang))
 	}
-	if !markdown && (lang == "ar" || lang == rules.Hekaya) { // Arabic: Hekaya's own file too
-		ts = append(ts, typeHekaya)
+	if !markdown {
+		for _, t := range langTypes() { // the language's own file, and for Arabic Hekaya's
+			if t.lang == lang || lang == "ar" && t.lang == rules.Hekaya {
+				ts = append(ts, t)
+			}
+		}
 	}
 	ts = append(ts, typeAccolade, typeHighland, typeTextPack)
 	if !browser {
@@ -170,9 +201,12 @@ func (t fileType) keeps(c lexConf, markdown, browser bool, lang string) string {
 		return "A zipped TextBundle, for other TextBundle apps: " + doc + ", with Accolade's files under assets/." + inside(c, markdown, lang)
 	case "textbundle":
 		return "A TextBundle folder (desktop only): the same as a TextPack, unzipped, for version control."
-	case "hekaya":
-		return "Hekaya's Arabic Fountain, as written, for Hekaya's own tools (read with Hekaya's rules: its keywords, " +
-			"@ names, - قطع -); " + extras + "."
+	case "langext":
+		if t.lang == rules.Hekaya {
+			return "Hekaya's Arabic Fountain, as written, for Hekaya's own tools (read with Hekaya's rules: its keywords, " +
+				"@ names, - قطع -); " + extras + "."
+		}
+		return languageName(t.lang) + " Fountain under its own extension (" + t.ext + "), as written; " + extras + "."
 	case "asis":
 		return "Plain text under its own name (" + t.ext + "), as it is now."
 	}

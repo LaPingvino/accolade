@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -136,12 +137,12 @@ func TestHekayaFile(t *testing.T) {
 	if l := languageOf("film.hekaya"); l != rules.Hekaya {
 		t.Errorf("language %q", l)
 	}
-	if ty := typeOfName("film.hekaya", false); ty.id != "hekaya" || ty.label+" ("+ty.shownExt()+")" != "Hekaya (.hekaya)" {
+	if ty := typeOfName("film.hekaya", false); ty.id != "langext" || ty.label+" ("+ty.shownExt()+")" != "Hekaya (.hekaya)" {
 		t.Errorf("type %+v", ty)
 	}
 	found := false
 	for _, ty := range scriptTypes(machineLex(), false, false, "film.ar.fountain", "ar") {
-		found = found || ty.id == "hekaya"
+		found = found || ty.id == "langext" && ty.lang == rules.Hekaya
 	}
 	if !found {
 		t.Error("Save As offers no Hekaya for an Arabic script")
@@ -159,7 +160,7 @@ func TestHekayaFile(t *testing.T) {
 	if w.language != rules.Hekaya || !w.textEditor.LanguageRTL {
 		t.Errorf("language %q, rtl %v", w.language, w.textEditor.LanguageRTL)
 	}
-	if msg := pdfWarning(w.textEditor.Text(), w.sceneHeaders()); msg != "" {
+	if msg := pdfWarning(w.textEditor.Text(), w.lex().Language(w.language)); msg != "" {
 		t.Errorf("PDF warning for Arabic: %s", msg)
 	}
 	if items := outlineOf(w.textEditor.Text(), w.sceneStarts()); len(items) < 2 {
@@ -219,5 +220,75 @@ func TestLangRulesScreenshots(t *testing.T) {
 			fyne.DoAndWait(func() {})
 			capture(t, w.fyneWindow.Canvas(), "langrules-"+c.name+"-page-"+size.name+".png")
 		}
+	}
+}
+
+// A language's own extension: names, a user-defined one, a save and a
+// reopen as written.
+func TestLanguageExtensions(t *testing.T) {
+	for _, c := range [][3]string{
+		{"film.ar.fountain", rules.Hekaya, "film.hekaya"},
+		{"film.hekaya", "ar", "film.ar.fountain"},
+		{"film.hekaya", rules.Hekaya, "film.hekaya"},
+		{"film.fountain", rules.Hekaya, "film.hekaya"},
+	} {
+		if got := withLanguageName(c[0], c[1]); got != c[2] {
+			t.Errorf("%s as %s: %s, want %s", c[0], c[1], got, c[2])
+		}
+	}
+	old := lexSettings
+	t.Cleanup(func() { lexSettings = old; sceneConf = lexSettings.Scenes; startsDialects.Clear() })
+	lexSettings.Extensions = map[string]string{"kissa": "zh"}
+	if l := languageOf("x.kissa"); l != "zh" {
+		t.Errorf("own extension: %q", l)
+	}
+	if !slices.Contains(openExtensions(), ".kissa") || !slices.Contains(openExtensions(), ".hekaya") {
+		t.Errorf("open: %v", openExtensions())
+	}
+	p := filepath.Join(t.TempDir(), "film.kissa")
+	os.WriteFile(p, []byte(chineseScript), 0o644)
+	w, _ := newDialogTestWindow(t)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	if w.language != "zh" {
+		t.Fatalf("language %q", w.language)
+	}
+	if err := w.SaveFile(); err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := os.ReadFile(p); string(b) != chineseScript {
+		t.Errorf("saved otherwise:\n%s", b)
+	}
+	w2, _ := newDialogTestWindow(t)
+	if err := w2.LoadFile(p); err != nil || w2.language != "zh" || w2.textEditor.Text() != strings.TrimSuffix(chineseScript, "") && !strings.HasPrefix(w2.textEditor.Text(), "Title: 咖啡馆") {
+		t.Errorf("reopened: %v %q", err, w2.language)
+	}
+}
+
+// Action and Transition are marked as the language reads them.
+func TestMarkActionTransitionByRules(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	set := func(lang, text, line string) { // the cursor at the end of the first line of line in text
+		w.setLanguage(lang)
+		w.textEditor.SetText(text)
+		i := strings.Index(text, line)
+		first, _, _ := strings.Cut(strings.TrimPrefix(line, "\n"), "\n")
+		w.textEditor.SetCursorOffset(len([]rune(text[:i+len(line)-len(strings.TrimPrefix(line, "\n"))+len(first)])))
+	}
+	set(rules.Hekaya, "داخلي - قهوة - نهار\n\n@سمير\nأهلا.\n\nقطع\n\nسمير\nكلام.\n", "قطع")
+	w.markLineElement(elementTransition)
+	if !strings.Contains(w.textEditor.Text(), "\n\nقطع\n\n") {
+		t.Errorf("a transition by its word got a mark:\n%s", w.textEditor.Text())
+	}
+	set(rules.Hekaya, "داخلي - قهوة - نهار\n\n@سمير\nأهلا.\n\nسمير\nكلام.\n", "\nسمير\nكلام")
+	w.markLineElement(elementAction)
+	if !strings.Contains(w.textEditor.Text(), "\n!سمير\nكلام") {
+		t.Errorf("a registered name marked Action got no !:\n%q", w.textEditor.Text())
+	}
+	set("zh", "场景1 咖啡馆 日 内\n\n他走了。\n", "他走了。")
+	w.markLineElement(elementAction)
+	if !strings.Contains(w.textEditor.Text(), "\n他走了。\n") {
+		t.Errorf("action marked:\n%s", w.textEditor.Text())
 	}
 }

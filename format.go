@@ -1,7 +1,9 @@
 package main
 
 import (
+	"github.com/LaPingvino/accolade/internal/editor/syntax"
 	"github.com/LaPingvino/lexington/rules"
+	"slices"
 
 	"strings"
 
@@ -206,32 +208,47 @@ func moveLines(e *editor.ScriptEditor, dir int) {
 // registry in the script's own @ uses), @ before it.
 func (w *MainWindow) markLineElement(element string) {
 	e := w.textEditor
-	if element != elementCharacter || e == nil {
-		setLineElement(e, element, w.sceneStarts())
+	if e == nil {
 		return
 	}
 	d := w.dialect()
 	text := e.Text()
 	lines := strings.Split(text, "\n")
 	line, _ := e.Buffer().Position(e.CursorOffset())
-	if line >= len(lines) {
+	if line >= len(lines) || element != elementCharacter && element != elementAction && element != elementTransition {
+		setLineElement(e, element, w.sceneStarts())
 		return
 	}
 	bare := strings.TrimSpace(strings.TrimLeft(lines[line], directionMarks))
 	bare = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(bare, "@"), "!"))
+	if element != elementCharacter {
+		// Action: ! only where the language's rules would read another
+		// element; Transition: none where its words make one (- قطع -)
+		b := strings.TrimSpace(strings.TrimPrefix(bare, ">"))
+		to := ""
+		switch {
+		case element == elementAction && w.readsAs(lines, line, b) != syntax.Action:
+			to = "!" + b
+		case element == elementAction:
+			to = b
+		case d.Transition(b):
+			to = b
+		default:
+			setLineElement(e, element, w.sceneStarts())
+			return
+		}
+		w.replaceLine(line, to)
+		return
+	}
 	cased := strings.ToUpper(bare) != strings.ToLower(bare)
 	if bare == "" || cased && d.Lang.Has(rules.CueCaps) {
 		setLineElement(e, element, w.sceneStarts())
 		return
 	}
-	next := ""
-	if line+1 < len(lines) {
-		next = lines[line+1]
-	}
 	cue := bare
 	var listEdit func(b *buffer.Buffer)
 	switch {
-	case d.Cue(bare, next, d.CastOf(text)):
+	case w.readsAs(lines, line, bare) == syntax.Character:
 	case d.Lang.Has(rules.CueList) && w.language != rules.Hekaya:
 		if start, end, block, ok := addedName(text, bare); ok {
 			listEdit = func(b *buffer.Buffer) { replaceLeast(b, start, end, block) }
@@ -254,4 +271,27 @@ func (w *MainWindow) markLineElement(element string) {
 	if listEdit != nil {
 		w.setStatus(bare + " is in the character list now, so the script reads it as a character")
 	}
+}
+
+// replaceLine puts to in place of a line (keeping its direction mark),
+// the cursor at its end.
+func (w *MainWindow) replaceLine(line int, to string) {
+	w.textEditor.Edit(func(b *buffer.Buffer) {
+		b.Group(func() {
+			start, end := b.LineStart(line), b.LineEnd(line)
+			old := b.Slice(start, end)
+			to := old[:len(old)-len(strings.TrimLeft(old, directionMarks))] + to
+			b.Replace(start, end, to)
+			b.SetCursor(start+len([]rune(to)), false)
+		})
+	})
+}
+
+// readsAs is the element line reads as with its text bare, by the
+// language's rules and everything before and after it (the cues before
+// it register names: the list rule).
+func (w *MainWindow) readsAs(lines []string, line int, bare string) syntax.Kind {
+	typed := slices.Clone(lines)
+	typed[line] = bare
+	return syntax.ClassifyIn(typed, w.sceneStarts(), w.dialect())[line]
 }

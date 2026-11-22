@@ -50,8 +50,8 @@ func (c lexConf) languages() []string {
 // languageOf a file's name ("scene.eo.fountain": "eo"), or "" if it does
 // not say.
 func languageOf(path string) string {
-	if strings.EqualFold(filepath.Ext(path), rules.HekayaExt) {
-		return rules.Hekaya // Hekaya's file: Arabic Fountain, its own rules
+	if l, ok := lexSettings.ExtensionLanguage(filepath.Base(path)); ok {
+		return l // a language's own extension ([Extensions]): film.hekaya is Hekaya's
 	}
 	parts := strings.Split(filepath.Base(path), ".")
 	if len(parts) < 3 {

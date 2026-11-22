@@ -215,6 +215,8 @@ func setConfItem(text string, item rules.Item, key string, conf rules.TOMLConf) 
 		}
 		text = dropTables(text, "Languages."+key)
 		return appendTables(text, stripTable(string(block), "Languages")), nil
+	case "extension":
+		return setTableKey(text, "Extensions", key, tomlValue(conf.Extensions[key])), nil
 	case "elements":
 		block, err := (rules.TOMLConf{Elements: conf.Elements}).Encode()
 		if err != nil {
@@ -601,6 +603,8 @@ func itemDetail(kind, key string, conf rules.TOMLConf, file []byte) string {
 		return strings.Join(words, ", ")
 	case "elements":
 		return plural(len(conf.Elements[key]), "element") + " set"
+	case "extension":
+		return "." + key + " files: " + languageLabel(conf.Extensions[key])
 	case "standard":
 		return languageLabel(conf.Standard)
 	case "format":

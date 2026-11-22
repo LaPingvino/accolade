@@ -883,7 +883,7 @@ func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
 
 func (w *MainWindow) OpenFile() {
 	if inBrowser {
-		pickFile(openExtensions, w.openPath)
+		pickFile(openExtensions(), w.openPath)
 		return
 	}
 	fileDialog := dialog.NewFileOpen(func(closer fyne.URIReadCloser, err error) {
@@ -897,7 +897,7 @@ func (w *MainWindow) OpenFile() {
 	}, w.fyneWindow)
 
 	// what Accolade opens: scripts, Markdown, Final Draft, PDF
-	fileDialog.SetFilter(storage.NewExtensionFileFilter(openExtensions))
+	fileDialog.SetFilter(storage.NewExtensionFileFilter(openExtensions()))
 
 	fileDialog.Show()
 }

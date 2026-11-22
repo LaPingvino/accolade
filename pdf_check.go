@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/LaPingvino/lexington/rules"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -12,8 +13,8 @@ import (
 
 // pdfWarning says what the PDF writer cannot print of a script ("" if
 // it prints well).
-func pdfWarning(content string, scenes []string) string {
-	return cli.PDFWarning(fountain.ParseIn(langFor(scenes), strings.NewReader(content)))
+func pdfWarning(content string, lang rules.Language) string {
+	return cli.PDFWarning(fountain.ParseIn(lang, strings.NewReader(content)))
 }
 
 // pdfOrPrint makes a PDF with makePDF, unless the script has text the
@@ -22,7 +23,7 @@ func pdfWarning(content string, scenes []string) string {
 // Chromium browser on the computer there is no need to ask: exportAs has
 // it make the PDF.
 func (w *MainWindow) pdfOrPrint(content string, makePDF func()) {
-	warning := pdfWarning(content, w.sceneHeaders())
+	warning := pdfWarning(content, w.lex().Language(w.language))
 	if warning == "" || localBrowser() != "" { // a browser makes it (exportAs)
 		makePDF()
 		return

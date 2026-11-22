@@ -141,22 +141,28 @@ func (j exportJob) options(to, output string) cli.Options {
 	return o
 }
 
+// lang is the job's language with all its rules: the script's own (its
+// window's configuration), else by its scene words.
+func (j exportJob) lang() rules.Language {
+	if j.language != "" && j.conf.Knows(j.language) {
+		return j.conf.Language(j.language)
+	}
+	return langFor(j.scenes)
+}
+
 // script is the content parsed and prepared for the job.
 func (j exportJob) script(content string) lex.Screenplay {
-	scenes := j.scenes
-	if scenes == nil {
-		scenes = englishScenes
-	}
+	lang := j.lang()
 	var s lex.Screenplay
 	if j.revisions != nil || j.lineTags != nil || j.lines {
-		s = fountain.ParseLinesIn(langFor(scenes), strings.NewReader(content))
+		s = fountain.ParseLinesIn(lang, strings.NewReader(content))
 		for i := range s {
 			if n := s[i].Source - 1; n >= 0 && n < len(j.marks) {
 				s[i].Revision = j.marks[n]
 			}
 		}
 	} else {
-		s = fountain.ParseIn(langFor(scenes), strings.NewReader(content))
+		s = fountain.ParseIn(lang, strings.NewReader(content))
 	}
 	if j.omitTitlePage {
 		s = withoutTitlePage(s)
@@ -193,7 +199,7 @@ func exportAs(content, outputPath, to string, job exportJob) error {
 		// a script the PDF writer cannot print as written (CJK; Arabic,
 		// whose letters it does not join): a browser on the computer prints Lexington's
 		// HTML (browser_pdf.go)
-		if b := localBrowser(); b != "" && pdfWarning(content, job.scenes) != "" {
+		if b := localBrowser(); b != "" && pdfWarning(content, job.lang()) != "" {
 			dir, err := os.MkdirTemp("", "accolade-pdf-")
 			if err != nil {
 				return err

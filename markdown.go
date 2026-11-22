@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -37,16 +38,29 @@ func kindOfName(name string) (markdown, known bool) {
 	switch strings.ToLower(filepath.Ext(name)) {
 	case ".md", ".markdown":
 		return true, true
-	case ".fountain", ".spmd", ".txt", ".fdx", ".pdf", ".highland", ".accolade", ".hekaya":
+	case ".fountain", ".spmd", ".txt", ".fdx", ".pdf", ".highland", ".accolade":
+		return false, true
+	}
+	if _, ok := lexSettings.ExtensionLanguage(name); ok {
 		return false, true
 	}
 	return false, false
 }
 
-// openExtensions are the files Open offers (the browser's file picker
+// baseOpenExtensions are the files Open offers (the browser's file picker
 // too). A .textbundle is a folder: Open goes into it and opens its text
 // (bundleOf), so it is not among them.
-var openExtensions = []string{".fountain", ".hekaya", ".spmd", ".txt", ".md", ".markdown", ".highland", ".accolade", ".textpack", ".fdx", ".pdf"}
+var baseOpenExtensions = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", ".highland", ".accolade", ".textpack", ".fdx", ".pdf"}
+
+// openExtensions are baseOpenExtensions and the languages' own
+// ([Extensions]: .hekaya).
+func openExtensions() []string {
+	out := slices.Clone(baseOpenExtensions)
+	for _, t := range langTypes() {
+		out = append(out, t.ext)
+	}
+	return out
+}
 
 func isMarkdownFile(name string) bool {
 	md, _ := kindOfName(name)

@@ -432,7 +432,7 @@ func TestAccoladePlainTextRefused(t *testing.T) {
 	if md, known := kindOfName("x.accolade"); md || !known {
 		t.Error("a .accolade is not known as a screenplay")
 	}
-	if !slices.Contains(openExtensions, ".accolade") {
+	if !slices.Contains(openExtensions(), ".accolade") {
 		t.Error("Open does not offer .accolade")
 	}
 }
