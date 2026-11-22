@@ -993,7 +993,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (means 58/59), inside-pause 3/3 — within the machine's noise (load ≈14 from other work, ±20 % between rounds).
   The Tab flow and the cue picker write @ only where the language would not read the name; stats, production
   checks, the characters list read headings by the language's patterns. TestCastCache, TestTabCueByRules.
-- 2026-11-22 (Joop: "55 minutes Accolade gates? … I think we need some cleanup"): after the Quick tab. The race step is out of the gate now (Rules); what remains is ~6 min, the root package's tests ~3 min of it. (1) Measure: `go test -json` over the root package, rank tests by elapsed time; (2) fix the slowest: real timers/sleeps → injected clocks (the long-press/tooltip pattern), the novel-sized text only where a test needs it, shared windows where subtests can reuse one; (3) move self-contained parts out of the root package (page view, source pane model, reports) where it shortens the serial run; target: the root package under 90 s, the gate under 4 min. Before/after numbers in the tick log.
+- 2026-11-22 (Joop: "55 minutes Accolade gates? … I think we need some cleanup"): DONE (branch testspeed, not merged; see the tick log and docs/TESTSPEED.md). After the Quick tab. The race step is out of the gate now (Rules); what remains is ~6 min, the root package's tests ~3 min of it. (1) Measure: `go test -json` over the root package, rank tests by elapsed time; (2) fix the slowest: real timers/sleeps → injected clocks (the long-press/tooltip pattern), the novel-sized text only where a test needs it, shared windows where subtests can reuse one; (3) move self-contained parts out of the root package (page view, source pane model, reports) where it shortens the serial run; target: the root package under 90 s, the gate under 4 min. Before/after numbers in the tick log.
 - 2026-11-22: the Quick tab, Smart and Fixed (branch quicktab, not merged). quick.go. The lock on the ribbon's tab row
   (between the palette and ☰; also View > Lock Ribbon Order in the Ribbon look, its key tip L) switches the window's
   ribbon in place: Smart (a phone's at first) puts a Quick tab first and in front, the other tabs' groups most used
@@ -1035,3 +1035,21 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   height the rest, back and forth identical; the desktop's height unchanged by Quick); TestRibbonSettings (the
   checkbox and View > Quick Row). Shots looked at: quick-phone-smart (both rows), quick-phone-smart-edit (the tab
   switch), quick-desktop-smart (unchanged).
+- 2026-11-22: test speed (branch testspeed, not merged; docs/TESTSPEED.md has the rankings and tables). Measured
+  first: the root package's 669 tests took 187 s with a flat spread (median 0.17 s; the 19 over 1 s only 50 s), so
+  the cost was the fixture — NewMainWindow 92 of the tests' 158 s CPU, 65 of it Fyne re-theming the window just built.
+  Fixed: the theme set before a window is built and only when the scheme changes (also no re-theme of the other
+  windows when one opens; TestNewWindowTakesTheSavedTheme); the format files decoded again only when one changes
+  (presetsIn, keyed by name and content; TestPresetsInFollowsTheFiles, -race clean); the link offer re-lays the
+  window out only when it comes up or its words change (was: every key in a swapped-in source). Tests: heldDebounce
+  (a burst's debounced work run once after it, as the app's pause does) for makeSample's typing (the sample comes out
+  the same but for dates and ids), TestFootnoteReflowInPreview bisects for its paragraph count, TestTailBlocksAsBefore
+  compiles its oracle's regexps once, TestPreviewFollowsATypedKey's log-only layout under -v. No assertion weakened,
+  nothing behind -short. Root: 187 → 93–96 s (three runs, -json, load 2.4–3.6; 85–88 s at lower load). Gate as
+  defined: ~11 → ~8½ min (root 97, step 2 254, focus 123, vet 4, wasm 12, no-pandoc 16; only TestBrowserPDF* fail,
+  the sandbox's missing Chromium). Targeted -race on the changed tests: clean. Left: (1) proposed for the Rules — step
+  2 as `go test -p 1 ./docs/... ./internal/...` (it re-runs the root package *with* the focus tests; steps 1 and 3
+  already cover every root test): the gate ~4½ min; (2) under 4 min needs the Fyne fork: the software painter's shadow
+  blur on every capture (~60 % of the focus tests), test windows never releasing their widgets (live heap → ~500 MB,
+  no CleanCanvas on the test window's Close), test.NewApp's font-cache clear; Lexington's pdf.AddFont per report.
+  Step 3 of the item (moving packages out) not done: the cost is window building, which would move with them.
