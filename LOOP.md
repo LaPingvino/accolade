@@ -1130,3 +1130,13 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   pane's issue list. Old links keep reading. Tests: uniqueness after random source edits (property test), the
   auto-fix, the impossible case's warning; sample regenerated (links get shorter: report before/after lengths
   for the sample and the novel). Help page updated (replaces the "3 end words" trade-off note).
+- 2026-11-22 (Joop: "for the web version, how hard would it be to add Chromecast support and basically cast a script
+  like a Google Sheets presentation, to do table reads etc? Could be good to have a panel with it that filters and
+  shows the relevant parts quickly (pick by scene, by actor, by label etc)" — then "Not yet, probably good for next
+  weekly rate limit"): TABLE READ / CAST, NOT BEFORE the weekly reset of Wed 2026-11-25 (after Markdown images,
+  before citations unless Joop says otherwise). Plan agreed in chat: (1) a Table Read view — own page/window, large
+  type, dark, shows the picked part; cast with Chrome's own Cast tab, or a second window on a projector/TV; (2) the
+  view joins a collab-style session as a follow-only viewer so a phone/laptop drives it (presenter cursor); (3) later,
+  only with Joop: a real Cast button (Google Cast developer registration in his name, a custom receiver page on
+  Pages, Chrome/Android senders). The panel: filter by scene/range, character, tag/label (breakdown and stripboard
+  tags); per-actor tint, "only X's scenes", narrator mode for headings/action, one-tap next scene, page/time estimate.
