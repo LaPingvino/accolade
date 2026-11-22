@@ -34,6 +34,10 @@ var pageZooms = []float32{0.25, 0.33, 0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 3, 4}
 // at 96 dots an inch.
 const pointUnits = 96.0 / 72
 
+// maxPagePixels is the widest a page is painted: zoomed further, the
+// image is stretched (a phone's texture and memory have limits).
+const maxPagePixels = 3000
+
 // pageGap is the space round and between the pages, in units.
 const pageGap = 12
 
@@ -48,17 +52,18 @@ var paintAsync = true
 // pageView shows a drawing's pages with its bar.
 type pageView struct {
 	widget.BaseWidget
-	w       *MainWindow
-	d       *pdf.Drawing
-	r       *pdf.Rasterizer
-	gen     int    // the drawing's generation: a render of an older one is dropped
-	pdfPath string // the PDF the pages are of, "" if there is none
-	name    string // its file's name, for Save PDF…
-	zoom    float32
-	fit     bool // the width fits the view
-	scale   float32
-	narrow  bool   // laid out for a phone
-	remake  func() // makes the pages again after a change in Page Setup (nil: they stay)
+	w        *MainWindow
+	d        *pdf.Drawing
+	r        *pdf.Rasterizer
+	gen      int    // the drawing's generation: a render of an older one is dropped
+	pdfPath  string // the PDF the pages are of, "" if there is none
+	name     string // its file's name, for Save PDF…
+	zoom     float32
+	fit      bool // the width fits the view
+	scale    float32
+	narrow   bool   // laid out for a phone
+	pinching bool   // two fingers are zooming: the pages stretch, painted again when they lift
+	remake   func() // makes the pages again after a change in Page Setup (nil: they stay)
 
 	title   *widget.Label
 	head    *fyne.Container // the title, the count, Close
@@ -281,9 +286,18 @@ func (v *pageView) zoomBy(step int) {
 }
 
 // pinch zooms by a factor from the zoom at the pinch's start (two
-// fingers in the browser, browser_js.go).
+// fingers in the browser, browser_js.go): the pages painted stretch, and
+// are painted again at their size when the fingers lift (pinchEnd).
 func (v *pageView) pinch(start, factor float32) {
+	v.pinching = true
 	v.setZoom(start * factor / pointUnits)
+}
+
+func (v *pageView) pinchEnd() {
+	if v.pinching {
+		v.pinching = false
+		v.showInSight()
+	}
 }
 
 // pageTops are the pages' tops in the column, and its height.
@@ -332,8 +346,8 @@ func (v *pageView) showInSight() {
 			}
 			continue
 		}
-		px := int(math.Round(float64(float32(p.Width) * v.scale * scale)))
-		if px > 0 && pi.px != px {
+		px := min(int(math.Round(float64(float32(p.Width)*v.scale*scale))), maxPagePixels)
+		if px > 0 && pi.px != px && (!v.pinching || pi.px == 0) {
 			v.paint(i, px)
 		}
 	}

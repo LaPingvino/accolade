@@ -5,6 +5,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -143,6 +144,23 @@ func TestPageViewKeys(t *testing.T) {
 	v.pinch(v.scale, 2)
 	if v.fit || v.scale < fit*1.9 {
 		t.Errorf("a pinch to twice: %v from %v", v.scale, fit)
+	}
+	widths := func() (px []int) {
+		for _, p := range v.pages {
+			px = append(px, p.px)
+		}
+		return px
+	}
+	before := widths()
+	v.pinch(v.scale/2, 2.5) // still pinching: the pages painted stretch
+	for i, p := range v.pages {
+		if before[i] != 0 && p.px != before[i] {
+			t.Errorf("page %d painted again while pinching", i+1)
+		}
+	}
+	v.pinchEnd()
+	if slices.Equal(widths(), before) {
+		t.Error("not painted again when the fingers lifted")
 	}
 	a.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
 	if w.pagesVisible {
@@ -340,5 +358,35 @@ func TestMarkdownLivePreviewPages(t *testing.T) {
 		pagesShown = old
 		w.previewPane.mode.SetSelected(previewText)
 		w.settings.SetBoolean(previewPagesPref, false)
+	}
+}
+
+// A setting of the page changed anywhere (the ribbon's too, not only Page
+// Setup's OK) makes the preview's pages again.
+func TestPageViewFollowsSettings(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.textEditor.SetText(pageViewScript)
+	t.Cleanup(func() { w.settings.SetBoolean("include-title-page", true) })
+	w.settings.SetBoolean("include-title-page", true)
+	v := previewAndWait(t, w)
+	with := len(v.d.Pages)
+	shown := make(chan *pageView, 4)
+	old := pagesShown
+	pagesShown = func(v *pageView) { shown <- v }
+	defer func() { pagesShown = old }()
+	w.changeSetting("include-title-page", func(s *Settings) { s.SetBoolean("include-title-page", false) })
+	select {
+	case v = <-shown:
+	case <-time.After(30 * time.Second):
+		t.Fatal("the pages were not made again")
+	}
+	if len(v.d.Pages) != with-1 {
+		t.Errorf("%d pages, %d with the title page", len(v.d.Pages), with)
+	}
+	w.changeSetting("font-size", func(s *Settings) { s.SetFloat("font-size", 17) })
+	select {
+	case <-shown:
+		t.Error("the editor's font size made the pages again")
+	case <-time.After(300 * time.Millisecond):
 	}
 }

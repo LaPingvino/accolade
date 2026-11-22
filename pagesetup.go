@@ -604,7 +604,6 @@ func (p *pageSetupDlg) ok() {
 	if p.done != nil {
 		p.done()
 	}
-	w.pagesAgain() // a preview's pages follow
 }
 
 // documentPages are the paper choices for PDF, DOCX and ODT; the first

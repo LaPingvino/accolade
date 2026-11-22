@@ -2,6 +2,7 @@ package main
 
 import (
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -31,6 +32,12 @@ var themeChoices = [][2]string{{"system", "System"}, {"light", "Light"}, {"dark"
 // changeSetting runs set on the settings, saves them, and applies them to
 // every window (and to an open Preferences window: key).
 func (w *MainWindow) changeSetting(key string, set func(s *Settings)) {
+	before := w.printedLayout()
+	defer func() { // a preview's pages follow a change in how the page prints (the ribbon's too)
+		if !reflect.DeepEqual(before, w.printedLayout()) {
+			w.pagesAgain()
+		}
+	}()
 	set(w.settings)
 	_ = w.settings.Save()
 	if w.app != nil {

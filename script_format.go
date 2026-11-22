@@ -69,6 +69,9 @@ func (w *MainWindow) scriptFormatKey() string {
 // setScriptFormat makes key the script's format: the settings' too (the
 // one new scripts start with), unless only the script has it.
 func (w *MainWindow) setScriptFormat(key string) {
+	if key != w.scriptFormatKey() {
+		defer w.pagesAgain() // a preview's pages in the new format
+	}
 	if machineLex().hasFormat(key) {
 		w.ownFormat = ""
 		w.settings.SetString("script-format", key)

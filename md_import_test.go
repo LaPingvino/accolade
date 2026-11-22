@@ -228,14 +228,19 @@ func TestMarkdownExportDialog(t *testing.T) {
 	}
 }
 
-// A PDF of the document, made by Chromium (when there is one; it cannot
-// run in some sandboxes, as for TestBrowserPDF).
+// A PDF of a document Accolade's own PDF cannot print as written (text
+// read right to left), made by Chromium (when there is one; it cannot run
+// in some sandboxes, as for TestBrowserPDF).
 func TestBrowserPDFMarkdown(t *testing.T) {
 	if localBrowser() == "" {
 		t.Skip("no Chromium browser")
 	}
+	text := storyDraft + "\nשלום, עולם.\n"
+	if markdownPDFMissing(text) == "" {
+		t.Fatal("Accolade's PDF prints Hebrew prose now: give this test a document it cannot")
+	}
 	out := filepath.Join(t.TempDir(), "story.pdf")
-	if err := exportMarkdown(storyDraft, "Story", out, "pdf"); err != nil {
+	if err := exportMarkdown(text, "Story", out, "pdf"); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(out)

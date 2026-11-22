@@ -24,10 +24,11 @@ import (
 // the PDF it is of (name its file's name, for saving), extra over the
 // pages (a page setup line, a way back to a dialog).
 func (w *MainWindow) showPages(d pdf.Drawing, title, pdfPath, name string, extra ...fyne.CanvasObject) *pageView {
-	if w.pages == nil || w.pages.narrow != w.narrow {
+	rebuilt := false
+	if w.pages == nil || w.pages.narrow != w.narrow { // (a phone's bar, or a desktop's)
 		v := newPageView(w)
 		v.onClose = w.hidePages
-		w.pages = v
+		w.pages, rebuilt = v, true
 	}
 	v := w.pages
 	v.remake = nil
@@ -36,8 +37,16 @@ func (w *MainWindow) showPages(d pdf.Drawing, title, pdfPath, name string, extra
 	v.setNote("")
 	wasVisible := w.pagesVisible
 	w.pagesVisible = true
-	if !wasVisible {
+	if !wasVisible || rebuilt {
 		w.relayout()
+	}
+	// the last preview's PDF goes now that these pages are shown (not
+	// before: if making them failed, the pages shown keep their PDF)
+	if dir := filepath.Dir(pdfPath); pdfPath != "" && strings.HasPrefix(filepath.Base(dir), "accolade-preview-") {
+		if w.previewDir != "" && w.previewDir != dir {
+			os.RemoveAll(w.previewDir)
+		}
+		w.previewDir = dir
 	}
 	v.show(d, title, pdfPath, name)
 	pagesInSight = v
@@ -77,16 +86,10 @@ func (w *MainWindow) focusEditor() {
 // page view's Open in Viewer).
 var openInSystem = func(path string) { systemOpen(path) }
 
-// previewTemp is a new folder for a preview's PDF; the last one's goes,
-// as the page view shows one PDF at a time.
-func (w *MainWindow) previewTemp() (string, error) {
-	if w.previewDir != "" {
-		os.RemoveAll(w.previewDir)
-	}
-	dir, err := os.MkdirTemp("", "accolade-preview-")
-	w.previewDir = dir
-	return dir, err
-}
+// previewTemp is a new folder for a preview's PDF; the last one's goes
+// when its pages are shown (showPages), as the page view shows one PDF
+// at a time.
+func previewTemp() (string, error) { return os.MkdirTemp("", "accolade-preview-") }
 
 // browserNote says why the pages shown are not the PDF's: a browser
 // made the PDF (scripts the PDF writer cannot print as written).
@@ -136,6 +139,19 @@ func (w *MainWindow) previewLine() *pageSetupLine {
 	}
 	w.previewSetup.line.refresh()
 	return w.previewSetup.line
+}
+
+// printedLayout is what the printed page goes by: the script's page
+// setup and format, a Markdown document's page setup.
+func (w *MainWindow) printedLayout() any {
+	if w.settings == nil {
+		return nil
+	}
+	return struct {
+		p      pageSetup
+		md     mdPageSetup
+		format string
+	}{w.pageSetup(), w.markdownPageSetup(), w.scriptFormatKey()}
 }
 
 // pagesAgain makes the page view's pages again after a change in Page

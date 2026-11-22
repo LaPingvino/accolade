@@ -283,8 +283,13 @@ func init() {
 		return nil
 	}), opts)
 	end := js.FuncOf(func(_ js.Value, args []js.Value) any {
-		if args[0].Get("touches").Length() < 2 {
+		if args[0].Get("touches").Length() < 2 && on {
 			on = false
+			fyne.Do(func() {
+				if v := pagesInSight; v != nil {
+					v.pinchEnd()
+				}
+			})
 		}
 		return nil
 	})

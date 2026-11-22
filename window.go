@@ -164,6 +164,7 @@ type MainWindow struct {
 	pages          *pageView // the page view: a PDF's pages (pageview.go)
 	pagesVisible   bool
 	previewDir     string // the folder of the PDF the page view shows
+	previewGen     int    // Preview PDF's latest making: an older one's pages are dropped
 
 	// File management
 	currentFile string
@@ -1394,7 +1395,7 @@ func (w *MainWindow) previewPDF() {
 }
 
 func (w *MainWindow) makePreviewPDF() {
-	dir, err := w.previewTemp()
+	dir, err := previewTemp()
 	if err != nil {
 		dialog.ShowError(err, w.fyneWindow)
 		return
@@ -1405,10 +1406,17 @@ func (w *MainWindow) makePreviewPDF() {
 	job := w.outputJob(w.pageSetup(), "pdf", content, nil)
 	line := w.previewLine()
 	w.setStatus("Preparing the PDF...")
+	w.previewGen++
+	gen := w.previewGen
 	go func() {
 		d, note, err := drawScript(content, out, job)
 		fyne.Do(func() {
+			if gen != w.previewGen { // made again since
+				os.RemoveAll(dir)
+				return
+			}
 			if err != nil {
+				os.RemoveAll(dir)
 				w.setStatus("")
 				w.showPDFError(err)
 				return

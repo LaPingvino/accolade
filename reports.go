@@ -608,7 +608,7 @@ func (rd *reportsDialog) showReportPDF(kind string) {
 		dialog.ShowError(err, w.fyneWindow)
 		return
 	}
-	dir, err := w.previewTemp()
+	dir, err := previewTemp()
 	if err != nil {
 		dialog.ShowError(err, w.fyneWindow)
 		return

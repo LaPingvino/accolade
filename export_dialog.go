@@ -298,7 +298,7 @@ func (ed *ExportDialog) previewExport() {
 	var dir string
 	var err error
 	if format == "pdf" {
-		dir, err = w.previewTemp()
+		dir, err = previewTemp()
 	} else {
 		dir, err = os.MkdirTemp("", "accolade-preview-")
 	}
