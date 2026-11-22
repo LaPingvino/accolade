@@ -87,6 +87,10 @@ TOM
 It never stops here.
 ```
 
+### Scripts without capitals
+
+Hebrew, Arabic, Chinese and Japanese have no capitals, so their cues are read by the script's language's rules (Lexington's configuration, `[Languages]`): a name in the script's character list (the Characters tab), a name with a parenthetical right under it, with one of the language's extensions (`张三（画外音）`), or one that comes back as a name more than once; in Arabic, Hekaya's way, a name after its first `@`. Format > Character on a line the rules would not read as a cue puts the name in the character list (one Undo takes both back); in a Hekaya file (`.hekaya`) it writes `@`. Headings can follow the language's own word orders too (`场景1 咖啡馆 日 内`, `18. GERICHTSSAAL INNEN/TAG`), and transitions its words (`- قطع -`, `淡出`).
+
 ### Forced character names
 
 An `@` at the start makes the line a cue, even with lower case letters in it. Use it for names like McBride, and for scripts without capitals (Hebrew, Arabic, Chinese).

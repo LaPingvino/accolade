@@ -11,7 +11,7 @@ On an empty line that is not inside a speech, Tab starts a character cue.
 - Accolade adds the blank line above it if there is none, and one below it if action follows straight after.
 - What you type on that line comes out in capitals.
 - The header bar's element shows Character, and the status bar says "Character: type the name; Enter or Tab for the dialogue".
-- For a name in a script without capitals (Hebrew, Arabic, Chinese), Accolade puts Fountain's `@` in front of it instead.
+- For a name in a script without capitals (Hebrew, Arabic, Chinese), Accolade makes it read as a cue by the language's rules: it puts the name in the character list, or, in a Hekaya file, Fountain's `@` in front of it.
 
 ### Tab or Enter after the name goes to the dialogue
 
@@ -96,7 +96,7 @@ Final Draft sets a paragraph's element with a key or the element list. Accolade 
 - **Ctrl+7** — Centered
 - **Ctrl+8** — Lyrics
 
-On a Mac, Cmd instead of Ctrl. An element key rewrites the line with the Fountain marks that make it that element: `.` for a heading that does not start with INT. or EXT., `@` for a name in a script without capitals, `>` for a transition, `> … <` for centred text, `~` for lyrics, `!` for action that would read as something else. All shortcuts are in [Keyboard Shortcuts](shortcuts.md).
+On a Mac, Cmd instead of Ctrl. An element key rewrites the line with the Fountain marks that make it that element: `.` for a heading that does not start with INT. or EXT., `@` (or the character list) for a name in a script without capitals, `>` for a transition, `> … <` for centred text, `~` for lyrics, `!` for action that would read as something else. All shortcuts are in [Keyboard Shortcuts](shortcuts.md).
 
 ## What is different
 
