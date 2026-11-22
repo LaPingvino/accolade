@@ -19,8 +19,17 @@ import (
 // and the heading that suggests, what a camera cannot see, the names in
 // it. Suggestions in the editor build on this later (step 6).
 
-// readingHeight is how tall the view is at most, before it scrolls.
-const readingHeight = 190
+// readingHeight is how tall the view's text is at most, before it scrolls;
+// readingLeast the least it asks for (a couple of lines). It takes at most
+// readingShare of the pane's height, so a short window keeps its pages
+// (Joop: in a half-screen tile, Next "nudges the ribbon up" — the view
+// asked for its full 190 px as its least, and the window's content no
+// longer fit).
+const (
+	readingHeight = 190
+	readingLeast  = 44
+	readingShare  = 0.4
+)
 
 // readingView is the view at the bottom of the source pane.
 type readingView struct {
@@ -44,7 +53,7 @@ func newReadingView(s *sourcePane) *readingView {
 	v.text = widget.NewRichText()
 	v.text.Wrapping = fyne.TextWrapWord
 	scroll := container.NewVScroll(v.text)
-	scroll.SetMinSize(fyne.NewSize(0, readingHeight))
+	scroll.SetMinSize(fyne.NewSize(0, readingLeast))
 	v.box = container.NewBorder(container.NewBorder(widget.NewSeparator(), nil, nil, v.close, v.title), nil, nil, nil, scroll)
 	v.box.Hide()
 	return v
@@ -190,4 +199,65 @@ func shortLine(s string) string {
 		return strings.Join(words[:24], " ") + "…"
 	}
 	return strings.Join(words, " ")
+}
+
+// bodyReadingLayout lays out the source pane's body (objects[0]) with the
+// reading view under it (objects[1]): the view as tall as its text up to
+// readingHeight, at most readingShare of the space, never less than its
+// own least; its least is all it adds to the pane's.
+type bodyReadingLayout struct{}
+
+func (bodyReadingLayout) MinSize(o []fyne.CanvasObject) fyne.Size {
+	b := o[0].MinSize()
+	if !o[1].Visible() {
+		return b
+	}
+	r := o[1].MinSize()
+	return fyne.NewSize(max(b.Width, r.Width), b.Height+r.Height)
+}
+
+func (bodyReadingLayout) Layout(o []fyne.CanvasObject, size fyne.Size) {
+	o[0].Move(fyne.NewPos(0, 0))
+	if !o[1].Visible() {
+		o[0].Resize(size)
+		return
+	}
+	least := o[1].MinSize().Height
+	h := least - readingLeast + readingHeight // the header and the text at its full height
+	h = min(h, max(least, size.Height*readingShare))
+	h = min(h, size.Height)
+	o[0].Resize(fyne.NewSize(size.Width, size.Height-h))
+	o[1].Move(fyne.NewPos(0, size.Height-h))
+	o[1].Resize(fyne.NewSize(size.Width, h))
+}
+
+// sourcePaneLayout stacks the pane's top (title, Next and Adapt, the
+// prompt, notes; o[0], a vertical scroll) over its body (o[1]). The top
+// takes its full height while that leaves the body its minimum, and
+// scrolls beyond that, down to topLeast: a long anchor line or note
+// never raises the pane's minimum, so it can't push the window (or a
+// tiled one's ribbon) out of reach.
+type sourcePaneLayout struct{}
+
+const topLeast = 80
+
+func (sourcePaneLayout) natural(o []fyne.CanvasObject) float32 {
+	if s, ok := o[0].(*container.Scroll); ok && s.Content != nil {
+		return s.Content.MinSize().Height
+	}
+	return o[0].MinSize().Height
+}
+
+func (l sourcePaneLayout) MinSize(o []fyne.CanvasObject) fyne.Size {
+	b := o[1].MinSize()
+	t := o[0].MinSize()
+	return fyne.NewSize(max(b.Width, t.Width), min(l.natural(o), topLeast)+b.Height)
+}
+
+func (l sourcePaneLayout) Layout(o []fyne.CanvasObject, size fyne.Size) {
+	h := min(l.natural(o), max(min(l.natural(o), topLeast), size.Height-o[1].MinSize().Height))
+	o[0].Move(fyne.NewPos(0, 0))
+	o[0].Resize(fyne.NewSize(size.Width, h))
+	o[1].Move(fyne.NewPos(0, h))
+	o[1].Resize(fyne.NewSize(size.Width, size.Height-h))
 }

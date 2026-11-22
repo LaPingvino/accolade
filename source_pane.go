@@ -181,7 +181,8 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.tools = container.NewVBox(container.NewBorder(nil, nil, nil, container.NewHBox(s.prev, s.next, s.adapt), s.count), s.anchorLine)
 	s.view = newReadingView(s)
 	s.learned = newLearnedView(s)
-	s.box = container.NewBorder(container.NewVBox(head, s.tools, s.prompt.box, s.info, s.learned.box), s.view.box, nil, nil, s.body)
+	top := container.NewVScroll(container.NewVBox(head, s.tools, s.prompt.box, s.info, s.learned.box))
+	s.box = container.New(sourcePaneLayout{}, top, container.New(bodyReadingLayout{}, s.body, s.view.box))
 	return s
 }
 
