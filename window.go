@@ -1346,6 +1346,9 @@ func (w *MainWindow) onCursorChanged() {
 		return
 	}
 	w.flowCursorMoved()
+	if w.noteTipShown != "" && !w.markdown { // a chip's tip (a long press's) goes with a move
+		w.showEditorTip("", fyne.Position{}, fyne.Size{})
+	}
 	w.updateCurrentElement()
 	w.breakdownFollowCursor()
 	w.scheduleSceneNumbers() // the heading just left

@@ -26,6 +26,9 @@ type chipCache struct {
 	lm    *linkMatcher
 	chips []editor.Chip
 	ok    bool
+	// lines are the chips of each line with links, by its text (columns
+	// from the line's start): a key reads its own line's links again only
+	lines map[string][]editor.Chip
 }
 
 // linkChips are the script's links as chips: the editor's Chips. The
@@ -43,12 +46,31 @@ func (w *MainWindow) linkChips(text string) []editor.Chip {
 	if c.ok && c.lm == lm && sameString(c.text, text) {
 		return c.chips
 	}
-	c.text, c.lm, c.ok, c.chips = text, lm, true, findLinkChips(text[:bodyEndByte(text)], lm)
+	if c.lm != lm {
+		c.lines = nil // what links find changed
+	}
+	lines := map[string][]editor.Chip{}
+	c.chips = findLinkChipsIn(text[:bodyEndByte(text)], lm, func(line string, find func() []editor.Chip) []editor.Chip {
+		cs, ok := c.lines[line]
+		if !ok {
+			cs = find()
+		}
+		lines[line] = cs
+		return cs
+	})
+	c.text, c.lm, c.ok, c.lines = text, lm, true, lines
 	return c.chips
 }
 
 // findLinkChips finds the links in a script's body.
 func findLinkChips(body string, lm *linkMatcher) []editor.Chip {
+	return findLinkChipsIn(body, lm, func(_ string, find func() []editor.Chip) []editor.Chip { return find() })
+}
+
+// findLinkChipsIn is findLinkChips, a line's chips (columns from its
+// start) asked of kept: what find finds, or what was found for the same
+// line before.
+func findLinkChipsIn(body string, lm *linkMatcher, kept func(line string, find func() []editor.Chip) []editor.Chip) []editor.Chip {
 	var out []editor.Chip
 	var refs []linkRef
 	off := 0 // in runes, of the line
@@ -64,26 +86,37 @@ func findLinkChips(body string, lm *linkMatcher) []editor.Chip {
 		if inBoneyard || strings.HasPrefix(t, "/*") {
 			inBoneyard = !strings.Contains(strings.TrimPrefix(strings.TrimSpace(t), "/*"), "*/")
 		} else if strings.Contains(line, "[[") {
-			for at := 0; ; {
-				s := strings.Index(line[at:], "[[")
-				if s < 0 {
-					break
-				}
-				s += at
-				e := strings.Index(line[s:], "]]")
-				if e < 0 {
-					break
-				}
-				e += s + 2
-				if refs = appendLinkRefs(refs[:0], line[s+2:e-2]); len(refs) > 0 {
-					start := off + utf8.RuneCountInString(line[:s])
-					label, tip := chipText(refs, lm)
-					out = append(out, editor.Chip{Start: start, End: start + utf8.RuneCountInString(line[s:e]), Label: label, Tip: tip})
-				}
-				at = e
+			for _, c := range kept(line, func() []editor.Chip { return lineChips(line, lm, &refs) }) {
+				c.Start += off
+				c.End += off
+				out = append(out, c)
 			}
 		}
 		off += utf8.RuneCountInString(line) + 1
+	}
+	return out
+}
+
+// lineChips are the links of a line, from its start.
+func lineChips(line string, lm *linkMatcher, refs *[]linkRef) []editor.Chip {
+	var out []editor.Chip
+	for at := 0; ; {
+		s := strings.Index(line[at:], "[[")
+		if s < 0 {
+			break
+		}
+		s += at
+		e := strings.Index(line[s:], "]]")
+		if e < 0 {
+			break
+		}
+		e += s + 2
+		if *refs = appendLinkRefs((*refs)[:0], line[s+2:e-2]); len(*refs) > 0 {
+			start := utf8.RuneCountInString(line[:s])
+			label, tip := chipText(*refs, lm)
+			out = append(out, editor.Chip{Start: start, End: start + utf8.RuneCountInString(line[s:e]), Label: label, Tip: tip})
+		}
+		at = e
 	}
 	return out
 }

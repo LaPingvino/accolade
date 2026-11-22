@@ -72,7 +72,7 @@ When the same words are in the story more than once, Accolade quotes more of the
 
 ### When the source changes
 
-A link whose words were edited in the source is still found if most of it is the same. The pane then shows that passage's mark in the warning colour, and the count says how many are "changed since linked". Link the scene again to bring it up to date.
+A link whose first words were edited in the source is still found if most of them are the same. A link to a longer passage holds only its last three words as well: if those change, the link is not found any more (its chip says **↗ source?**) until the scene is linked again. The pane then shows that passage's mark in the warning colour, and the count says how many are "changed since linked". Link the scene again to bring it up to date.
 
 ### Old links
 

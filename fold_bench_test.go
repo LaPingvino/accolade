@@ -7,6 +7,8 @@ package main
 //	go test -run '^$' -bench 'BenchmarkScriptKey' -benchmem -count 6
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -51,4 +53,37 @@ func BenchmarkScriptKey(b *testing.B) {
 			e.Key("Up", false)
 		}
 	})
+}
+
+// A cursor move in the bench novel's script, the novel kept in it (its
+// block folded): what it allocates, apart from timing (BenchmarkScriptKey
+// times it). The folds' rows reuse their room.
+func TestFoldMoveAllocs(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds the bench novel")
+	}
+	holdUI(t)
+	w, _ := newDialogTestWindow(t)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	md, script := benchFixture()
+	dir := t.TempDir()
+	p := filepath.Join(dir, "story.fountain")
+	os.WriteFile(p, []byte(script), 0o644)
+	os.WriteFile(filepath.Join(dir, "story.md"), []byte(md), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.keepSourceInside(true); err != nil {
+		t.Fatal(err)
+	}
+	e := w.textEditor
+	if len(w.scriptFolds.blockRanges()) == 0 {
+		t.Fatal("the source block is not folded")
+	}
+	e.SetCursorOffset(strings.Index(e.Text(), "INT. PLACE 100"))
+	n := testing.AllocsPerRun(5, func() {
+		e.Key("Down", false)
+		e.Key("Up", false)
+	})
+	t.Logf("a Down and Up: %.0f allocations", n)
 }

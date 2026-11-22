@@ -164,6 +164,7 @@ type ScriptEditor struct {
 	draw                drawing                             // what relayout found, to draw rows with
 	foldAt              map[int]bool                        // the folded headings' lines
 	blockAt             map[int]bool                        // those of blocks, drawn as their labels
+	foldRoom            []wrap.Row                          // room for the rows the folds leave
 	headings            map[int]bool                        // the lines that can fold (Headings)
 	marks               map[int]*widget.CustomTextGridStyle // the lines' marks (Marks), as drawn
 	inks                map[int][]Ink                       // the lines' inked words (Inks)
@@ -982,13 +983,17 @@ func (e *ScriptEditor) fold() map[int]bool {
 		}
 		return false
 	}
-	rows := e.layout.Rows[:0:0]
-	for i, r := range e.layout.Rows {
-		more := i > 0 && e.layout.Rows[i-1].Line == r.Line // a block's line: its first row only
+	// the rows left, in room kept from the last time (a cursor move lays
+	// the rows out again: no new room each time)
+	all := e.layout.Rows
+	rows := e.foldRoom[:0]
+	for i, r := range all {
+		more := i > 0 && all[i-1].Line == r.Line // a block's line: its first row only
 		if !hidden(r.Line) && !(more && e.blockAt[r.Line]) {
 			rows = append(rows, r)
 		}
 	}
+	e.foldRoom = rows
 	e.layout.Rows = rows
 	return headings
 }

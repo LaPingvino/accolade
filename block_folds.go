@@ -85,7 +85,11 @@ func findBlockFolds(text string) []blockFold {
 		if close < 0 {
 			return
 		}
-		in := start + strings.IndexByte(text[start:end]+"\n", '\n') + 1
+		eol := strings.IndexByte(text[start:end], '\n')
+		if eol < 0 {
+			eol = end - start
+		}
+		in := start + eol + 1
 		inEnd := max(start+close, in)
 		first, last := lineOf(start), lineOf(start+close)
 		if last > first {
