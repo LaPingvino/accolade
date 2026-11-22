@@ -119,12 +119,31 @@ func (w *MainWindow) stopTimers() {
 // the timer's goroutine under the test driver, beside the test's).
 var debounceAtOnce = false
 
+// debounceHeld, while a test types a burst (heldDebounce in the tests),
+// keeps each slot's last function instead of running it at once; the
+// burst's end runs them, once each, shortest pause first, as the pause
+// after real typing does.
+var debounceHeld *heldDebounces
+
+type heldDebounces struct {
+	order []**uiTimer // the slots as first seen
+	pause map[**uiTimer]time.Duration
+	f     map[**uiTimer]func()
+}
+
 // debounce runs f after d without another call for the same slot: the
 // last of a burst (typing, a drag) runs, once.
 func (w *MainWindow) debounce(slot **uiTimer, d time.Duration, f func()) {
 	(*slot).Stop()
 	*slot = nil
 	if debounceAtOnce {
+		if h := debounceHeld; h != nil {
+			if _, ok := h.f[slot]; !ok {
+				h.order = append(h.order, slot)
+			}
+			h.pause[slot], h.f[slot] = d, f
+			return
+		}
 		f()
 		return
 	}
@@ -142,6 +161,9 @@ func (w *MainWindow) debounce(slot **uiTimer, d time.Duration, f func()) {
 func cancel(slot **uiTimer) {
 	(*slot).Stop()
 	*slot = nil
+	if h := debounceHeld; h != nil {
+		delete(h.f, slot)
+	}
 }
 
 // backgroundAtOnce makes inBackground work on the calling goroutine, the

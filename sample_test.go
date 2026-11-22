@@ -170,7 +170,9 @@ func makeSample(t *testing.T) []byte {
 	at := runeIndex(t, e.Text(), "EXT. PITCHUGIN'S TIMBER-YARD - DAY")
 	w.fyneWindow.Canvas().Focus(e)
 	e.SetCursorOffset(at)
-	test.Type(e, "EXT. GENERAL ZHIGALOV'S YARD - DAY\n\nA white borzoy puppy noses the gate open and slips out into the lane.\n\n")
+	heldDebounce(func() { // (the panes read the script once, after the typing, as the app does)
+		test.Type(e, "EXT. GENERAL ZHIGALOV'S YARD - DAY\n\nA white borzoy puppy noses the gate open and slips out into the lane.\n\n")
+	})
 	e.SetCursorOffset(0) // the cursor leaves the heading: numbered
 	if h := "EXT. GENERAL ZHIGALOV'S YARD - DAY #1A#"; !strings.Contains(e.Text(), h) {
 		t.Fatalf("no %q:\n%s", h, strings.Join(headsOf(w), "\n"))

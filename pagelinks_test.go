@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -227,18 +228,22 @@ func samePaint(a, b image.Image) bool {
 func TestFootnoteReflowInPreview(t *testing.T) {
 	// a reference on page 1's last lines: a paragraph more before it
 	// moves it to page 2
+	pageOf := map[int]int{} // (each n made once)
 	claimPage := func(n int) int {
+		if p, ok := pageOf[n]; ok {
+			return p
+		}
 		_, d, err := markdownPDF(fnDoc(n), "Notes", mdPageSetup{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return pagesWith(d, "claim")
+		pageOf[n] = pagesWith(d, "claim")
+		return pageOf[n]
 	}
-	n := 1
-	for n < 40 && (claimPage(n) != 0 || claimPage(n+1) != 1) {
-		n++
-	}
-	if n == 40 {
+	// the first n whose one paragraph more moves it: the claim's page grows
+	// with n, so a binary search finds it (checked below as before)
+	n := 1 + sort.Search(39, func(i int) bool { return claimPage(i+2) >= 1 })
+	if n >= 40 || claimPage(n) != 0 || claimPage(n+1) != 1 {
 		t.Fatal("no place where one more paragraph moves the reference")
 	}
 	w, v, shown := mdPagesOf(t, fnDoc(n), fyne.NewSize(1200, 900))
