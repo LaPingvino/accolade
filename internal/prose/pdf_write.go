@@ -238,8 +238,10 @@ func (p *pdfWriter) setup() {
 		style string
 		data  []byte
 	}{{"", p.f.Regular}, {"B", p.f.Bold}, {"I", p.f.Italic}, {"BI", p.f.BoldItalic}} {
-		d.AddUTF8FontFromBytes(faceText, s.style, s.data)
-		d.AddUTF8FontFromBytes(faceMono, s.style, lexfont.GetFont(lexfont.CourierBadiName, s.style))
+		// copies (pdf.AddFont): gofpdf writes into the bytes it gets, and
+		// these are Fyne's own interface font and the embedded Courier Badi
+		pdf.AddFont(d, faceText, s.style, s.data)
+		pdf.AddFont(d, faceMono, s.style, lexfont.GetFont(lexfont.CourierBadiName, s.style))
 	}
 	p.has = map[string]func(rune) bool{faceText: glyphs(p.f.Regular), faceMono: glyphs(lexfont.GetFont(lexfont.CourierBadiName, ""))}
 	d.SetAutoPageBreak(false, 0)
