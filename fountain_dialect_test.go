@@ -9,7 +9,7 @@ import (
 
 func typesOf(text, lang string) string {
 	var out []string
-	for _, l := range fountain.Parse(sceneHeaders(lang), strings.NewReader(text)) {
+	for _, l := range fountain.ParseIn(lexSettings.Language(lang), strings.NewReader(text)) {
 		out = append(out, l.Type)
 	}
 	return strings.Join(out, " ")
