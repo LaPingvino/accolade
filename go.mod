@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	fyne.io/fyne/v2 v2.8.1
 	github.com/BurntSushi/toml v1.6.0
-	github.com/LaPingvino/lexington v1.24.0
+	github.com/LaPingvino/lexington v1.25.0
 	github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3
 	github.com/coder/websocket v1.8.15
 	github.com/pion/logging v0.2.4
@@ -74,5 +74,3 @@ require (
 replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261121030208-0cee01077195 // linux-a11y 0cee0107: ClearFontCache lets old fonts go
 
 replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4
-
-replace github.com/LaPingvino/lexington => ../lexington-resume
