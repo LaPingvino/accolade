@@ -11,7 +11,7 @@ On an empty line that is not inside a speech, Tab starts a character cue.
 - Accolade adds the blank line above it if there is none, and one below it if action follows straight after.
 - What you type on that line comes out in capitals.
 - The header bar's element shows Character, and the status bar says "Character: type the name; Enter or Tab for the dialogue".
-- For a name in a script without capitals (Hebrew, Arabic, Chinese), Accolade makes it read as a cue by the language's rules: it puts the name in the character list, or, in a Hekaya file, Fountain's `@` in front of it.
+- For a name in a script without capitals (Hebrew, Arabic, Chinese), Accolade puts Fountain's `@` in front of it instead.
 
 ### Tab or Enter after the name goes to the dialogue
 
