@@ -40,6 +40,10 @@ func (w *MainWindow) swapWithMain(id string) {
 	if w.swapped != "" {
 		w.swapBack()
 	}
+	// a preview shown is of the document in the main editor: the script's pages go with it and
+	// the document coming in gets its own (Joop: the preview "gets stuck when clicking swap")
+	hadPreview := w.pagesVisible || w.previewVisible
+	w.hidePages()
 	var doc *document
 	switch id {
 	case "source":
@@ -76,8 +80,34 @@ func (w *MainWindow) swapWithMain(id string) {
 	w.relayout()
 	w.editorKindChanged()
 	w.scriptPane().refresh()
+	if id != "cards" {
+		w.previewFollowsMain(hadPreview)
+	}
 	w.focusMain()
 	w.setStatus(w.swapStatus())
+}
+
+// previewFollowsMain shows the preview of the document now in the main
+// editor if one was shown before the swap: a Markdown document's Live
+// Preview (its Pages if those were chosen), a screenplay's pages.
+func (w *MainWindow) previewFollowsMain(had bool) {
+	if !had {
+		return
+	}
+	if w.editorMarkdown() {
+		if w.previewPane == nil {
+			w.previewPane = newPreviewPanel()
+			w.previewPane.withPageSetup(w)
+		}
+		w.previewVisible = true
+		w.previewPane.update(w.writeEditor().Text())
+		w.relayout()
+		w.refreshMenu()
+		w.ribbonRefresh()
+		return
+	}
+	w.previewVisible = false
+	w.previewPDF()
 }
 
 // swapSourceAndScript is Adaptation > Swap Source and Script: the Source
