@@ -1110,3 +1110,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   or a .toml that parses as a Lexington config — opens this editor on that file; the title bar says which file and
   that the CLI reads it. Help page: what each setting does for Accolade and for the `lexington` CLI. Lexington first
   if the config needs a schema/describe API (field docs, defaults) — tag it. Screenshots desktop + phone.
+  Joop, same day: "settings editor when opening any .toml, so including custom formats" — so EVERY .toml Accolade
+  opens goes to a form editor, picked by what the file is: lexington.toml (or a Lexington config) → the settings
+  editor above; a format/preset file (Name, Base, [Elements.…], [[Accolade.Buttons]] — today only a raw text box via
+  Preferences > Edit Format…, preferences_dialog.go editFormat) → a format editor: base format, per element its
+  margins/indent/case/spacing/font with a live sample, the toolbar buttons as a reorderable list; same TOML tab and
+  round-trip rule. A .toml that is neither opens as text with a note. Saving a format file inside the formats folder
+  makes it pickable at once (presetsIn already reloads by content).
