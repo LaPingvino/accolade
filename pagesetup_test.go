@@ -81,11 +81,13 @@ func TestPageSetupPrintAndPreview(t *testing.T) {
 	w.textEditor.SetText(setupScript)
 	t.Cleanup(func() { w.settings.SetBoolean("include-title-page", true) })
 	printed := make(chan string, 1)
-	opened := make(chan string, 1)
-	oldPrint, oldOpen := printFile, openFile
+	oldPrint := printFile
 	printFile = func(p string) { printed <- p }
-	openFile = func(p string) { opened <- p }
-	t.Cleanup(func() { printFile, openFile = oldPrint, oldOpen })
+	t.Cleanup(func() { printFile = oldPrint })
+	shown := make(chan *pageView, 1)
+	oldShown := pagesShown
+	pagesShown = func(v *pageView) { shown <- v }
+	t.Cleanup(func() { pagesShown = oldShown })
 	wait := func(c chan string) string {
 		t.Helper()
 		select {
@@ -96,12 +98,26 @@ func TestPageSetupPrintAndPreview(t *testing.T) {
 		}
 		return ""
 	}
+	waitPages := func() *pageView {
+		t.Helper()
+		select {
+		case v := <-shown:
+			return v
+		case <-time.After(30 * time.Second):
+			t.Fatal("no pages shown")
+		}
+		return nil
+	}
 	pages := func() int {
 		t.Helper()
 		w.previewPDF()
-		ps, err := pdfin.Pages(wait(opened))
+		v := waitPages()
+		ps, err := pdfin.Pages(v.pdfPath)
 		if err != nil {
 			t.Fatal(err)
+		}
+		if len(ps) != len(v.d.Pages) {
+			t.Errorf("the PDF has %d pages, the page view %d", len(ps), len(v.d.Pages))
 		}
 		return len(ps)
 	}
@@ -121,13 +137,18 @@ func TestPageSetupPrintAndPreview(t *testing.T) {
 	if !withPrint || printedTitle() {
 		t.Error("print: the title page did not follow the page setup")
 	}
-	// Preview's dialog says so, and makes the PDF again on a change
+	// Preview's line over the pages says so, and a change in Page Setup
+	// makes the pages again
 	ps := w.previewSetup
 	if ps == nil || !strings.Contains(strings.ToLower(ps.line.summary.Text), "no title page") {
 		t.Fatalf("Preview's line: %+v", ps)
 	}
-	ps.line.changed()
-	wait(opened)
+	p = w.newPageSetup("pdf", nil)
+	p.includeTitlePageCheck.SetChecked(true)
+	p.ok()
+	if v := waitPages(); len(v.d.Pages) != with {
+		t.Errorf("after Page Setup: %d pages, want %d", len(v.d.Pages), with)
+	}
 }
 
 // Page Setup shows only what the format uses, as Export did.
@@ -325,12 +346,9 @@ func TestPageSetupScreenshots(t *testing.T) {
 		d := w.showPrint()
 		capture(t, w.fyneWindow.Canvas(), "print-"+size.name+".png")
 		d.Hide()
-		old := openFile
-		openFile = func(string) {}
-		t.Cleanup(func() { openFile = old })
-		w.showPreviewSetup()
+		previewAndWait(t, w)
 		capture(t, w.fyneWindow.Canvas(), "preview-"+size.name+".png")
-		w.previewSetup.d.Hide()
+		w.hidePages()
 		w.settings.SetBoolean("export-colors", false)
 		// Preferences' card, and a Markdown document's Export and Live Preview
 		pd := NewPreferencesDialog(w.app, w.fyneWindow)

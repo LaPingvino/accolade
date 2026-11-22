@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"math"
 	"mime"
 	"os"
 	"path"
@@ -246,3 +247,49 @@ func onPresence(away, back func()) {
 		return nil
 	}))
 }
+
+// Two fingers on the page view zoom it (a pinch): the browser's touches,
+// which Fyne passes on one finger at a time.
+func init() {
+	var on bool
+	var startDist float64
+	var startScale float32
+	dist := func(ts js.Value) float64 {
+		a, b := ts.Index(0), ts.Index(1)
+		dx := a.Get("clientX").Float() - b.Get("clientX").Float()
+		dy := a.Get("clientY").Float() - b.Get("clientY").Float()
+		return dx*dx + dy*dy
+	}
+	doc := js.Global().Get("document")
+	opts := map[string]any{"passive": true}
+	doc.Call("addEventListener", "touchstart", js.FuncOf(func(_ js.Value, args []js.Value) any {
+		ts := args[0].Get("touches")
+		if v := pagesInSight; v != nil && ts.Length() == 2 {
+			on, startDist, startScale = true, dist(ts), v.scale
+		}
+		return nil
+	}), opts)
+	doc.Call("addEventListener", "touchmove", js.FuncOf(func(_ js.Value, args []js.Value) any {
+		ts := args[0].Get("touches")
+		if !on || ts.Length() != 2 || startDist <= 0 {
+			return nil
+		}
+		factor := float32(sqrt(dist(ts) / startDist))
+		fyne.Do(func() {
+			if v := pagesInSight; v != nil {
+				v.pinch(startScale, factor)
+			}
+		})
+		return nil
+	}), opts)
+	end := js.FuncOf(func(_ js.Value, args []js.Value) any {
+		if args[0].Get("touches").Length() < 2 {
+			on = false
+		}
+		return nil
+	})
+	doc.Call("addEventListener", "touchend", end, opts)
+	doc.Call("addEventListener", "touchcancel", end, opts)
+}
+
+func sqrt(x float64) float64 { return math.Sqrt(x) }

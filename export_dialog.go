@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"github.com/LaPingvino/lexington/cli"
+	"github.com/LaPingvino/lexington/pdf"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -282,8 +284,9 @@ func (ed *ExportDialog) browseOutputDir() {
 	}, ed.window.fyneWindow)
 }
 
-// previewExport writes the export to a temporary file and opens it in
-// the system's viewer for that kind of file.
+// previewExport writes the export to a temporary file: a PDF's pages
+// show in the page view (the dialog steps aside, Back to Export brings
+// it again), another format opens in the system's viewer for it.
 func (ed *ExportDialog) previewExport() {
 	if err := ed.validateFilters(); err != nil {
 		dialog.ShowError(err, ed.window.fyneWindow)
@@ -291,25 +294,56 @@ func (ed *ExportDialog) previewExport() {
 	}
 	f := exportFormatByLabel(ed.formatSelect.Selected)
 	format := f.id
-	dir, err := os.MkdirTemp("", "accolade-preview-")
+	w := ed.window
+	var dir string
+	var err error
+	if format == "pdf" {
+		dir, err = w.previewTemp()
+	} else {
+		dir, err = os.MkdirTemp("", "accolade-preview-")
+	}
 	if err != nil {
-		dialog.ShowError(err, ed.window.fyneWindow)
+		dialog.ShowError(err, w.fyneWindow)
 		return
 	}
-	out := filepath.Join(dir, "preview."+f.ext)
-	content := ed.window.textEditor.Text()
+	name := strings.TrimSuffix(ed.filenameEntry.Text, filepath.Ext(ed.filenameEntry.Text))
+	if name == "" {
+		name = "preview"
+	}
+	out := filepath.Join(dir, name+"."+f.ext)
+	content := w.textEditor.Text()
 	ed.statusLabel.SetText("Preparing the preview...")
 	job := ed.job() // read on the UI thread
 	go func() {
-		err := ed.performExportJob(content, out, format, job)
+		var d pdf.Drawing
+		var note string
+		var err error
+		if format == "pdf" {
+			d, note, err = drawScript(content, out, job)
+		} else {
+			err = ed.performExportJob(content, out, format, job)
+		}
 		fyne.Do(func() {
 			if err != nil {
 				ed.statusLabel.SetText("Preview failed")
-				dialog.ShowError(err, ed.window.fyneWindow)
+				w.showPDFError(err)
 				return
 			}
 			ed.statusLabel.SetText("Ready to export")
-			openFile(out)
+			if format != "pdf" {
+				openFile(out)
+				return
+			}
+			ed.dialog.Hide()
+			title := "Export preview: " + filepath.Base(out)
+			if ed.revisedPages {
+				title = "Revised pages: " + filepath.Base(out)
+			}
+			v := w.showPages(d, title, out, filepath.Base(out), backButton("Back to Export", func() {
+				w.hidePages()
+				ed.dialog.Show()
+			}))
+			v.setNote(note)
 		})
 	}()
 }

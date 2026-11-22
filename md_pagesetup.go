@@ -168,6 +168,7 @@ func (w *MainWindow) newMarkdownPageSetup(done func()) *mdPageSetupDlg {
 		if done != nil {
 			done()
 		}
+		w.pagesAgain() // a preview's pages follow
 	})
 	p.ok.Importance = widget.HighImportance
 	body := container.NewVScroll(container.NewVBox(intro, labelled("Paper:", p.paper), p.titlePage, about))

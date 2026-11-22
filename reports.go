@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"cmp"
 	"fmt"
+	"github.com/LaPingvino/lexington/pdf"
 	"os"
 	"path/filepath"
 	"slices"
@@ -74,6 +75,7 @@ func scriptReport(content string, job exportJob) (r lexreport.Report, err error)
 // reportsDialog is Production > Reports….
 type reportsDialog struct {
 	w       *MainWindow
+	pdfB    *widget.Button // PDF… (Print… for a table the browser prints)
 	dialog  *dialog.CustomDialog
 	rep     lexreport.Report
 	bd      lexreport.Breakdown // the tags, for the breakdown's reports
@@ -193,11 +195,8 @@ func newReportsDialogWith(w *MainWindow, r lexreport.Report, bd lexreport.Breakd
 	fyne.SetAccessibleLabel(rd.reverse, "Reverse the order")
 	rd.kind = widget.NewSelect(labels, func(string) { rd.kindChanged() })
 	csvButton := widget.NewButtonWithIcon("CSV…", theme.DocumentSaveIcon(), rd.saveCSV)
-	pdfLabel := "PDF…"
-	if pdfByPrinting() {
-		pdfLabel = "Print…"
-	}
-	pdfButton := widget.NewButtonWithIcon(pdfLabel, theme.DocumentPrintIcon(), rd.savePDF)
+	pdfButton := widget.NewButtonWithIcon("PDF…", theme.DocumentPrintIcon(), rd.savePDF)
+	rd.pdfB = pdfButton
 	closeButton := widget.NewButtonWithIcon("Close", theme.CancelIcon(), func() { rd.dialog.Hide() })
 	closeButton.Importance = widget.HighImportance
 
@@ -240,6 +239,17 @@ func (rd *reportsDialog) kindOf() string {
 // its own order.
 func (rd *reportsDialog) kindChanged() {
 	kind := rd.kindOf()
+	if rd.pdfB != nil { // Lexington's PDF, shown in the page view; a table the browser prints
+		switch label := "PDF…"; kind {
+		case lexreport.KindSheets, lexreport.KindOneLiner, lexreport.KindDOOD:
+			rd.pdfB.SetText(label)
+		default:
+			if pdfByPrinting() {
+				label = "Print…"
+			}
+			rd.pdfB.SetText(label)
+		}
+	}
 	if rd.w.settings.GetString("report-kind") != kind {
 		rd.w.settings.SetString("report-kind", kind)
 		_ = rd.w.settings.Save()
@@ -531,12 +541,9 @@ func (rd *reportsDialog) reportPage() ([]byte, error) {
 // savePDF makes a PDF of the report shown: Chromium writes it, or the
 // print dialog does (Save as PDF), as a Markdown document's export.
 func (rd *reportsDialog) savePDF() {
-	if rd.kindOf() == lexreport.KindSheets { // the classic sheets, a page a scene
-		rd.saveSheetsPDF()
-		return
-	}
-	if k := rd.kindOf(); k == lexreport.KindOneLiner || k == lexreport.KindDOOD { // Lexington's, as the sheets
-		rd.saveSchedulePDF(k)
+	switch k := rd.kindOf(); k {
+	case lexreport.KindSheets, lexreport.KindOneLiner, lexreport.KindDOOD: // Lexington's PDF: its pages shown
+		rd.showReportPDF(k)
 		return
 	}
 	page, err := rd.reportPage()
@@ -577,22 +584,46 @@ func (rd *reportsDialog) savePDF() {
 	})
 }
 
-// saveSheetsPDF saves the breakdown sheets as a PDF, a page a scene in
-// the classic layout (Lexington writes it: no browser needed).
-func (rd *reportsDialog) saveSheetsPDF() {
+// showReportPDF shows the breakdown sheets (a page a scene in the
+// classic layout), the one-liner or the Day Out of Days as Lexington
+// writes their PDF, in the page view: Save PDF… (Download PDF in the
+// browser) there; the dialog steps aside, Back to Reports brings it
+// again.
+func (rd *reportsDialog) showReportPDF(kind string) {
+	w := rd.w
 	var b bytes.Buffer
-	name := strings.TrimSuffix(rd.w.scriptName(), filepath.Ext(rd.w.scriptName()))
-	if err := lexreport.WriteSheetsPDF(&b, name, rd.rep.Sheets(rd.bd), rd.w.layoutJob().page); err != nil {
-		dialog.ShowError(err, rd.w.fyneWindow)
+	paper := w.layoutJob().page
+	var d pdf.Drawing
+	var err error
+	switch kind {
+	case lexreport.KindSheets:
+		name := strings.TrimSuffix(w.scriptName(), filepath.Ext(w.scriptName()))
+		d, err = lexreport.DrawSheetsPDF(&b, name, rd.rep.Sheets(rd.bd), paper)
+	case lexreport.KindOneLiner:
+		d, err = lexreport.DrawOneLinerPDF(&b, w.scheduleTitle(), rd.rep, rd.bd, rd.sched, lexreport.StripOptions{Lang: w.language}, paper)
+	default:
+		d, err = lexreport.DrawDOODPDF(&b, w.scheduleTitle(), rd.rep, rd.bd, rd.sched, paper)
+	}
+	if err != nil {
+		dialog.ShowError(err, w.fyneWindow)
 		return
 	}
-	rd.saveFile(rd.reportFileName("pdf"), func(p string) error {
-		if err := writeFileAtomic(p, b.Bytes()); err != nil {
-			return err
-		}
-		rd.w.setStatus("Breakdown sheets saved as " + filepath.Base(p))
-		return nil
-	})
+	dir, err := w.previewTemp()
+	if err != nil {
+		dialog.ShowError(err, w.fyneWindow)
+		return
+	}
+	name := rd.reportFileName("pdf")
+	out := filepath.Join(dir, name)
+	if err := os.WriteFile(out, b.Bytes(), 0o644); err != nil {
+		dialog.ShowError(err, w.fyneWindow)
+		return
+	}
+	rd.dialog.Hide()
+	w.showPages(d, rd.kind.Selected, out, name, backButton("Back to Reports", func() {
+		w.hidePages()
+		rd.dialog.Show()
+	}))
 }
 
 // breakdownSummary is the line about the tags above the breakdown's
@@ -607,30 +638,6 @@ func breakdownSummary(bd lexreport.Breakdown, lost int) string {
 		s += ", " + plural(lost, "lost tag") + " left out (the Production pane lists them)"
 	}
 	return s + ". The cast is who speaks, and who is tagged as a cast member."
-}
-
-// saveSchedulePDF saves the one-liner or the Day Out of Days as a PDF
-// (Lexington writes it: no browser needed).
-func (rd *reportsDialog) saveSchedulePDF(kind string) {
-	var b bytes.Buffer
-	title, paper := rd.w.scheduleTitle(), rd.w.layoutJob().page
-	var err error
-	if kind == lexreport.KindOneLiner {
-		err = lexreport.WriteOneLinerPDF(&b, title, rd.rep, rd.bd, rd.sched, lexreport.StripOptions{Lang: rd.w.language}, paper)
-	} else {
-		err = lexreport.WriteDOODPDF(&b, title, rd.rep, rd.bd, rd.sched, paper)
-	}
-	if err != nil {
-		dialog.ShowError(err, rd.w.fyneWindow)
-		return
-	}
-	rd.saveFile(rd.reportFileName("pdf"), func(p string) error {
-		if err := writeFileAtomic(p, b.Bytes()); err != nil {
-			return err
-		}
-		rd.w.setStatus(rd.kind.Selected + " saved as " + filepath.Base(p))
-		return nil
-	})
 }
 
 // scheduleSummary is the line above the schedule's reports.

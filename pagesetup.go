@@ -604,6 +604,7 @@ func (p *pageSetupDlg) ok() {
 	if p.done != nil {
 		p.done()
 	}
+	w.pagesAgain() // a preview's pages follow
 }
 
 // documentPages are the paper choices for PDF, DOCX and ODT; the first
@@ -699,35 +700,8 @@ func (w *MainWindow) showPrint() *dialog.CustomDialog {
 	return d
 }
 
-// previewSetup is Preview PDF's dialog while it is open: a change in Page
-// Setup makes the preview again.
+// previewSetup is Preview PDF's page setup line, over its pages (a
+// change in Page Setup makes them again).
 type previewSetup struct {
-	d    *dialog.CustomDialog
 	line *pageSetupLine
-}
-
-// showPreviewSetup shows, beside the PDF just opened, the page setup it
-// is made with; Page Setup… makes it again with the change.
-func (w *MainWindow) showPreviewSetup() {
-	if w.previewSetup != nil {
-		w.previewSetup.line.refresh()
-		w.previewSetup.d.Show()
-		return
-	}
-	ps := &previewSetup{}
-	ps.line = w.newPageSetupLine(func() string { return "pdf" }, func() {
-		w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
-	})
-	about := widget.NewLabel("The PDF opens in your PDF viewer. A change in Page Setup makes it again.")
-	about.Wrapping = fyne.TextWrapWord
-	closeB := widget.NewButton("Close", func() { ps.d.Hide() })
-	again := widget.NewButtonWithIcon("Again", theme.ViewRefreshIcon(), func() {
-		w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
-	})
-	ps.d = dialog.NewCustomWithoutButtons("Preview PDF", container.NewBorder(nil, w.dialogButtons(closeB, again), nil, nil,
-		container.NewVBox(about, ps.line.box)), w.fyneWindow)
-	ps.d.Resize(fitDialog(w.fyneWindow, 540, 240))
-	ps.d.SetOnEscape(ps.d.Hide)
-	w.previewSetup = ps
-	ps.d.Show()
 }

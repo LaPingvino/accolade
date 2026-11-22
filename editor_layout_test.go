@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/rules"
@@ -99,22 +98,12 @@ func TestEditorFormatInEveryScriptFormat(t *testing.T) {
 	}
 }
 
-// Preview PDF prints the script and opens the PDF.
+// Preview PDF prints the script and shows its pages in the page view.
 func TestPreviewPDF(t *testing.T) {
 	w := newTestWindow(t, "INT. BARN - DAY\n\nRain falls.\n\nANNA\nHello.\n")
-	opened := make(chan string, 1)
-	was := openFile
-	openFile = func(path string) { opened <- path }
-	t.Cleanup(func() { openFile = was })
-	w.previewPDF()
-	select {
-	case path := <-opened:
-		data, err := os.ReadFile(path)
-		if err != nil || !strings.HasPrefix(string(data), "%PDF") || filepath.Ext(path) != ".pdf" {
-			t.Errorf("%s: %v, starts %q", path, err, string(data[:min(len(data), 8)]))
-		}
-		os.RemoveAll(filepath.Dir(path))
-	case <-time.After(30 * time.Second):
-		t.Fatal("no PDF opened")
+	v := previewAndWait(t, w)
+	data, err := os.ReadFile(v.pdfPath)
+	if err != nil || !strings.HasPrefix(string(data), "%PDF") || filepath.Ext(v.pdfPath) != ".pdf" {
+		t.Errorf("%s: %v, starts %q", v.pdfPath, err, string(data[:min(len(data), 8)]))
 	}
 }

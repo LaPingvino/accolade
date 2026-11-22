@@ -14,6 +14,7 @@ import (
 	"github.com/LaPingvino/lexington/fdx"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/pdf"
 	"github.com/LaPingvino/lexington/pdfin"
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -32,6 +33,7 @@ func parseForExport(content string) lex.Screenplay {
 // suggestion or Letter), a template for the formats that take one, and
 // what to do with the script.
 type exportJob struct {
+	record        *pdf.Drawing // a PDF's pages as drawn, filled by the export (the page view)
 	format        string
 	page          string
 	template      string
@@ -95,6 +97,7 @@ func (j exportJob) options(to, output string) cli.Options {
 		Tags:         j.tags,
 		Pagination:   j.pagination,
 		Revisions:    j.revisions,
+		Record:       j.record,
 		Lock:         j.lock,
 		Continueds:   j.continueds,
 		Breakdown:    j.breakdown,

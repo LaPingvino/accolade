@@ -161,6 +161,9 @@ type MainWindow struct {
 	previewPane    *previewPanel // a Markdown document's preview
 	previewSetup   *previewSetup // Preview PDF's page setup (pagesetup.go)
 	previewVisible bool
+	pages          *pageView // the page view: a PDF's pages (pageview.go)
+	pagesVisible   bool
+	previewDir     string // the folder of the PDF the page view shows
 
 	// File management
 	currentFile string
@@ -1384,41 +1387,39 @@ var elementNames = map[syntax.Kind]string{
 }
 
 // previewPDF prints the script as the PDF export does, with the page
-// setup, to a temporary file, and opens it in the PDF viewer; a dialog
-// says the page setup, and makes it again after a change.
+// setup, and shows its pages in the page view, with the page setup
+// they are made with: a change in it makes them again.
 func (w *MainWindow) previewPDF() {
-	w.pdfOrPrint(w.textEditor.Text(), func() {
-		w.makePreviewPDF()
-		w.showPreviewSetup() // the page setup it is made with
-	})
+	w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
 }
 
 func (w *MainWindow) makePreviewPDF() {
-	dir, err := os.MkdirTemp("", "accolade-preview-")
+	dir, err := w.previewTemp()
 	if err != nil {
 		dialog.ShowError(err, w.fyneWindow)
 		return
 	}
-	name := w.untitledName()
-	if w.currentFile != "" {
-		name = filepath.Base(w.currentFile)
-	} else if w.suggestedName != "" {
-		name = w.suggestedName
-	}
-	out := filepath.Join(dir, strings.TrimSuffix(name, filepath.Ext(name))+".pdf")
+	name := w.pdfName()
+	out := filepath.Join(dir, name)
 	content := w.textEditor.Text()
 	job := w.outputJob(w.pageSetup(), "pdf", content, nil)
+	line := w.previewLine()
 	w.setStatus("Preparing the PDF...")
 	go func() {
-		err := exportAs(content, out, "pdf", job)
+		d, note, err := drawScript(content, out, job)
 		fyne.Do(func() {
 			if err != nil {
 				w.setStatus("")
-				dialog.ShowError(fmt.Errorf("could not make the PDF: %v", err), w.fyneWindow)
+				w.showPDFError(err)
 				return
 			}
 			w.setStatus("PDF preview shown")
-			openFile(out)
+			v := w.showPages(d, "Preview: "+name, out, name, line.box)
+			v.remake = func() {
+				line.refresh()
+				w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
+			}
+			v.setNote(note)
 		})
 	}()
 }
@@ -1454,7 +1455,10 @@ func (w *MainWindow) printScript() {
 }
 
 // openFile opens a file in the system's viewer for that kind of file.
-var openFile = func(path string) {
+var openFile = func(path string) { systemOpen(path) }
+
+// systemOpen opens a file in the system's viewer for its kind.
+func systemOpen(path string) {
 	if u, err := url.Parse("file://" + filepath.ToSlash(path)); err == nil {
 		fyne.CurrentApp().OpenURL(u)
 	}
@@ -1475,6 +1479,12 @@ func (w *MainWindow) relayout() {
 		center = w.swappedCenter()
 	} else if w.cardsVisible && w.cards != nil {
 		center = w.cards.box
+	} else if w.pagesVisible && w.pages != nil && w.narrow { // a phone: in the script's place
+		center = w.pages
+	} else if w.pagesVisible && w.pages != nil {
+		split := container.NewHSplit(w.editorView, w.pages)
+		split.Offset = 0.5
+		center = split
 	} else if w.previewVisible && w.previewPane != nil {
 		split := container.NewHSplit(w.editorView, w.previewPane.box)
 		split.Offset = 0.55
