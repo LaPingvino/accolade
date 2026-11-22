@@ -146,7 +146,13 @@ func (l *learner) knowScript(lines []string, starts []string) {
 	for _, b := range blocksIn(lines, 0, len(lines)) {
 		l.known["cue\x00"+b.cue+"\x00"+b.key] = true
 	}
+	for _, k := range parseLinks(strings.Join(lines, "\n")) {
+		l.known[linkKey(k.Ref.key())] = true
+	}
 }
+
+// linkKey is a link's key among the learner's known things.
+func linkKey(k string) string { return "link\x00" + k }
 
 // knowScript takes in a script just opened: what is in it, the writer
 // did not do now.
@@ -327,11 +333,28 @@ func (l *learner) checkScene(sg *suggester, o *sourceOffers, c *sceneCtx, next *
 	// a heading new since the script was opened, once its scene is linked
 	// (Adapt…'s scene, or a link put under it): not one written before, a
 	// link added to it later
+	//
+	// Its links must be new too: those another heading had are not
+	// put under this one ("EXT. YARD" typed above a scene, its links
+	// under it until the blank line after it is typed); seen under a
+	// known heading, they are known.
 	if c.head >= 0 && c.head < len(lines) && cursor != c.head && c.linked {
 		heading := strings.TrimSpace(lines[c.head])
-		if k := headingKey(heading); !l.known[k] {
+		k := headingKey(heading)
+		first := -1
+		for _, ln := range c.links {
+			if l.known[k] {
+				l.known[linkKey(ln.key)] = true
+			} else if first < 0 && !l.known[linkKey(ln.key)] {
+				first = ln.first
+			}
+		}
+		if !l.known[k] && first >= 0 {
 			l.known[k] = true
-			if own(c.head) && learnPlace(sg, o, c.passages[0], heading, next, l.forgotten, starts) {
+			for _, ln := range c.links {
+				l.known[linkKey(ln.key)] = true
+			}
+			if own(c.head) && learnPlace(sg, o, first, heading, next, l.forgotten, starts) {
 				changed = true
 			}
 		}

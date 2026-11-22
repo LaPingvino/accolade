@@ -435,6 +435,36 @@ func TestLearnPlace(t *testing.T) {
 	}
 }
 
+// A heading typed above a scene has that scene's links under it until
+// the blank line after it is typed: they are not put under it, so it
+// teaches nothing (the sample's 1A heading once taught "god", then
+// "the timber-yard", its own place). Links the script had when opened
+// and links put under a heading since are both another's.
+func TestLearnNotFromAnotherScenesLinks(t *testing.T) {
+	w, _ := sourceWindow(t, suggestScript, learnStory)
+	typeAbove := func(at string) {
+		l := lineWith(t, w, at)
+		w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(l), false) })
+		w.onCursorChanged()
+		typeText(w, "EXT. GENERAL'S YARD - DAY\n\nA puppy slips out.\n\n")
+		moveTo(t, w, "Title")
+	}
+	typeAbove("INT. KITCHEN - NIGHT") // the script's links
+	if b := learnedBlock(w); b != "" {
+		t.Fatalf("above the kitchen: %q", b)
+	}
+	toEnd(w)
+	typeText(w, "EXT. KOVAČ ROAD - MORNING\n\n[[from: \"The next morning the street was white\"]]\n\n")
+	moveTo(t, w, "Title")
+	if b := learnedBlock(w); b != "places: street = EXT. KOVAČ ROAD" {
+		t.Fatalf("the road: %q", b)
+	}
+	typeAbove("EXT. KOVAČ ROAD - MORNING") // links put under a heading now
+	if b := learnedBlock(w); b != "places: street = EXT. KOVAČ ROAD" {
+		t.Errorf("above the road: %q", b)
+	}
+}
+
 // A suggested link skipped is remembered in the block and not offered
 // to that scene again; taken away in the view, it is.
 func TestLearnSkippedLink(t *testing.T) {

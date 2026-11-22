@@ -74,6 +74,42 @@ urged
 responded
 ejaculated
 resumed
+# the same in the present tense ("says Otchumyelov", "Hryukin begins")
+tells
+calls
+exclaims
+retorts
+shouts = shouting
+yells = yelling
+screams = screaming
+whispers = whispering
+murmurs = murmuring
+mutters = muttering
+stammers = stammering
+sighs = sighing
+pleads = pleading
+begs = pleading
+begins
+continues
+adds
+observes
+remarks
+protests
+insists
+interrupts
+declares
+inquires
+enquires
+demands
+repeats
+explains
+suggests
+agrees
+admits
+urges
+responds
+resumes
+threatens
 
 [thought]           # thinking and feeling: unfilmable as written
 thought

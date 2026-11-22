@@ -184,7 +184,7 @@ func (l *Lang) isSpeech(t *token) (manner string, ok bool) {
 
 // in reports whether a word, or its first part, is in the list.
 func (s set) in(t *token) bool {
-	return s[t.low] || len(t.parts) > 1 && s[t.parts[0]]
+	return s[t.low] || len(t.parts) > 1 && (s[t.parts[0]] || s[t.parts[len(t.parts)-1]])
 }
 
 // Detect guesses the language of a text from its frequent words: the

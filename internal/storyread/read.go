@@ -142,6 +142,7 @@ type PassageReading struct {
 	Flags      []Flag
 	Scene      int    // which of the Reading's
 	SceneStart string // why a scene starts here, "" if none does
+	Place      PassagePlace
 }
 
 // Reading is what a source shows.
@@ -504,9 +505,10 @@ func (r *reader) nameAt(p *para, k int) (m mention, ok bool) {
 		words = append(words, w)
 	}
 	n := len(words) - 1
+	possessive := false
 	for _, poss := range []string{"’s", "'s"} {
 		if strings.HasSuffix(words[n], poss) && len(words[n]) > len(poss) {
-			words[n] = strings.TrimSuffix(words[n], poss)
+			words[n], possessive = strings.TrimSuffix(words[n], poss), true
 		}
 	}
 	m = mention{from: k, to: end, name: strings.Join(words, " "), titled: titled || l.titles[toks[j].low],
@@ -514,7 +516,12 @@ func (r *reader) nameAt(p *para, k int) (m mention, ok bool) {
 	if k > 0 && (l.determiners[toks[k-1].low] || l.articles[toks[k-1].low]) && joined(k-1, k) {
 		m.afterDet = true
 	}
-	if k > 0 && joined(k-1, k) {
+	// "in Netherfield Park", "à Paris": the preposition's noun phrase ends
+	// with the name. Not so when the name only owns or qualifies the
+	// phrase's noun: "in God's sight", "in Äußerung ihrer Sorgen".
+	goesOn := end < len(toks) && joined(end-1, end) &&
+		(l.articles[toks[end].low] || l.determiners[toks[end].low] || l.possessives[toks[end].low])
+	if k > 0 && joined(k-1, k) && !possessive && !goesOn {
 		if w, ok := l.placeBefore[toks[k-1].low]; ok {
 			m.place = w
 		}
@@ -1320,18 +1327,37 @@ func (r *reader) scenes(out *Reading) {
 	}
 }
 
-// headings suggests each scene's heading: inside or outside from the
-// first place word in its narration (room, street), the place by name if
-// one is there (Netherfield Park), the time from its shift or its first
+// headings suggests each scene's heading and the place each passage's
+// own narration names (PassageReading.Place). A scene is where its first
+// passage that says where it is puts it: by a place's name (Netherfield
+// Park) or a place the writer gave a heading (Hints.Places), else by its
+// first place word with the words that make it a place's name (market
+// square, Pitchugin's timber-yard); inside or outside from that word or
+// the first one there is; the time from the scene's shift or its first
 // time word.
 func (r *reader) headings(out *Reading) {
 	places := map[string]Setting{}
 	for _, pl := range out.Places {
 		places[pl.Name] = pl.Setting
 	}
+	var learned []learnedPlace
+	for pl, given := range r.hints.Places {
+		if g := strings.TrimSpace(given); g != "" {
+			if f := strings.Fields(r.placeKey(pl)); len(f) > 0 {
+				learned = append(learned, learnedPlace{f, g})
+			}
+		}
+	}
+	sort.Slice(learned, func(a, b int) bool { // the longest first, then by words: the same each time
+		x, y := learned[a], learned[b]
+		if len(x.words) != len(y.words) {
+			return len(x.words) > len(y.words)
+		}
+		return strings.Join(x.words, " ") < strings.Join(y.words, " ")
+	})
 	for si := range out.Scenes {
 		sc := &out.Scenes[si]
-		word := ""
+		var pick *PassagePlace // the first passage that says where it is
 		for i := sc.First; i <= sc.Last; i++ {
 			p := r.ps[i]
 			if i == sc.First {
@@ -1339,50 +1365,166 @@ func (r *reader) headings(out *Reading) {
 					sc.Time = t
 				}
 			}
-			for k := range p.toks {
-				t := &p.toks[k]
-				if p.speechAt(k) || p.Kind != Para && p.Kind != DashItem {
-					continue
-				}
-				if sc.Setting == SettingUnknown {
-					switch {
-					case r.l.interior.in(t):
-						sc.Setting, word = Inside, t.text
-					case r.l.exterior.in(t):
-						sc.Setting, word = Outside, t.text
-					}
-				}
-				if sc.Time == "" {
-					if tm, ok := r.l.time[t.low]; ok {
-						sc.Time = tm
-					}
-				}
+			pp, isName := r.passagePlace(p, places, learned)
+			if isName {
+				out.Passages[i].Place = pp
 			}
-			if sc.Place == "" {
-				for _, m := range p.mentions {
-					if st, ok := places[m.name]; ok && !m.inSpeech {
-						sc.Place = strings.ToUpper(m.name)
-						if st != SettingUnknown {
-							sc.Setting = st
-						}
-						break
-					}
-				}
+			if sc.Setting == SettingUnknown {
+				sc.Setting = pp.firstSetting
+			}
+			if sc.Time == "" {
+				sc.Time = pp.firstTime
+			}
+			if pick == nil && pp.Place != "" {
+				pick = &pp
 			}
 		}
-		if sc.Place == "" && word != "" {
-			sc.Place = strings.ToUpper(word)
-		}
-		if sc.Place != "" && len(r.hints.Places) > 0 {
-			pk := r.placeKey(sc.Place)
-			for pl, given := range r.hints.Places {
-				if r.placeKey(pl) == pk && strings.TrimSpace(given) != "" {
-					sc.Given = strings.TrimSpace(given)
-					break
-				}
+		if pick != nil {
+			sc.Place, sc.Given = pick.Place, pick.Given
+			if pick.Setting != SettingUnknown {
+				sc.Setting = pick.Setting
 			}
 		}
 	}
+}
+
+// learnedPlace is a place the writer gave a heading: its words, lower
+// case, without a leading article.
+type learnedPlace struct {
+	words []string
+	given string
+}
+
+// PassagePlace is where a passage's own narration says it is, by a place
+// name or a place the writer gave a heading: Place "" if it names none
+// (its scene's place is then the one to go by).
+type PassagePlace struct {
+	Setting Setting
+	Place   string // in capitals: MARKET SQUARE
+	Given   string // the writer's heading for it (Hints.Places), without the time
+
+	firstSetting Setting // the first place word's, whatever the place
+	firstTime    string  // the first time word's heading time
+}
+
+// passagePlace reads a passage's narration for its place: a place name
+// or a learned place where it first comes (true: one of those), else its
+// first place word's phrase.
+func (r *reader) passagePlace(p *para, places map[string]Setting, learned []learnedPlace) (PassagePlace, bool) {
+	var pp PassagePlace
+	if p.Kind != Para && p.Kind != DashItem {
+		return pp, false
+	}
+	narr := func(k int) bool { return !p.speechAt(k) }
+	var word PassagePlace
+	found := false
+	for k := range p.toks {
+		t := &p.toks[k]
+		if !narr(k) {
+			continue
+		}
+		set := SettingUnknown
+		switch {
+		case r.l.interior.in(t):
+			set = Inside
+		case r.l.exterior.in(t):
+			set = Outside
+		}
+		if pp.firstSetting == SettingUnknown {
+			pp.firstSetting = set
+		}
+		if pp.firstTime == "" {
+			pp.firstTime = r.l.time[t.low]
+		}
+		if found {
+			continue
+		}
+		for _, lp := range learned {
+			if r.wordsAt(p, k, lp.words) {
+				pp.Place, pp.Given, found = strings.ToUpper(p.Text[t.start:p.toks[k+len(lp.words)-1].end]), lp.given, true
+				break
+			}
+		}
+		if !found {
+			for _, m := range p.mentions {
+				if m.from != k {
+					continue
+				}
+				if st, ok := places[m.name]; ok {
+					pp.Place, pp.Setting, found = strings.ToUpper(m.name), st, true
+				}
+				break
+			}
+		}
+		if !found && set != SettingUnknown && word.Place == "" {
+			word.Place, word.Setting = r.placePhrase(p, k)
+		}
+	}
+	if !found {
+		pp.Place, pp.Setting = word.Place, word.Setting
+	}
+	if pp.Place != "" && pp.Given == "" {
+		pk := r.placeKey(pp.Place)
+		for _, lp := range learned {
+			if strings.Join(lp.words, " ") == pk {
+				pp.Given = lp.given
+				break
+			}
+		}
+	}
+	if pp.Setting == SettingUnknown {
+		pp.Setting = pp.firstSetting
+	}
+	return pp, found
+}
+
+// wordsAt reports whether a passage's narration has words from token k,
+// one after the other in the same sentence.
+func (r *reader) wordsAt(p *para, k int, words []string) bool {
+	if k+len(words) > len(p.toks) {
+		return false
+	}
+	for x, w := range words {
+		t := &p.toks[k+x]
+		if t.low != w || p.speechAt(k+x) || x > 0 && !r.sameNounPhrase(p, k+x-1) {
+			return false
+		}
+	}
+	return true
+}
+
+// sameNounPhrase reports whether tokens k and k+1 are written together,
+// nothing but a space between them.
+func (r *reader) sameNounPhrase(p *para, k int) bool {
+	return k+1 < len(p.toks) && p.toks[k].seg == p.toks[k+1].seg && strings.TrimSpace(p.toks[k].after) == ""
+}
+
+// placePhrase is the place a place word at token k names, with the
+// place words and the owner written with it ("market square",
+// "Pitchugin's timber-yard"), and inside or outside by its last word.
+func (r *reader) placePhrase(p *para, k int) (string, Setting) {
+	isPlaceWord := func(x int) bool { return r.l.interior.in(&p.toks[x]) || r.l.exterior.in(&p.toks[x]) }
+	from, to := k, k
+	for to+1 < len(p.toks) && r.sameNounPhrase(p, to) && isPlaceWord(to+1) && !p.speechAt(to+1) {
+		to++
+	}
+	for from > 0 && r.sameNounPhrase(p, from-1) && !p.speechAt(from-1) {
+		t := &p.toks[from-1]
+		if isPlaceWord(from - 1) {
+			from--
+			continue
+		}
+		// an owner's name: "Pitchugin's", "Anna's"
+		if t.cap && !t.sent && !r.noName(t) && (strings.HasSuffix(t.low, "'s") && len(t.low) > 2) {
+			from--
+		}
+		break
+	}
+	set := Outside
+	if r.l.interior.in(&p.toks[to]) {
+		set = Inside
+	}
+	return strings.ToUpper(p.Text[p.toks[from].start:p.toks[to].end]), set
 }
 
 // Heading is a scene's suggested heading with the script's words for

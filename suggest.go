@@ -54,7 +54,8 @@ type offerPiece struct {
 	words   int
 }
 
-// placeGuess is the heading the source suggests for a passage's scene.
+// placeGuess is the heading the source suggests for a passage: the place
+// it names itself, else its scene's.
 type placeGuess struct {
 	Setting     storyread.Setting
 	Place, Time string
@@ -67,7 +68,7 @@ type sourceOffers struct {
 	lang   string         // read in
 	script string         // the script's language then
 	pieces [][]offerPiece // each passage's, in order
-	places []placeGuess   // each passage's scene's
+	places []placeGuess   // each passage's
 	hints  string         // read with (learned.hintsKey)
 }
 
@@ -80,6 +81,9 @@ func offersOf(ps []passage, lang, script string, r *storyread.Reading) *sourceOf
 		}
 		if sc := pr.Scene; sc >= 0 && sc < len(r.Scenes) {
 			o.places[i] = placeGuess{r.Scenes[sc].Setting, r.Scenes[sc].Place, r.Scenes[sc].Time, r.Scenes[sc].Given}
+			if pl := pr.Place; pl.Place != "" { // the passage names its own: Pitchugin's timber-yard in a market-square scene
+				o.places[i] = placeGuess{pl.Setting, pl.Place, r.Scenes[sc].Time, pl.Given}
+			}
 		}
 		if !ps[i].counted() {
 			continue
@@ -160,8 +164,15 @@ type sceneCtx struct {
 	head, end int             // the heading's line, and the line after the scene
 	passages  []int           // linked in it (else the one Next showed), in order
 	linked    bool            // passages are the scene's links
+	links     []sceneLink     // its links found in the source, in the script's order
 	joined    string          // the scene's words, normalised, between spaces
 	lineKeys  map[string]bool // each line's words so
+}
+
+// sceneLink is a link of a scene's: its key and the first passage it names.
+type sceneLink struct {
+	key   string
+	first int
 }
 
 // used reports whether the scene has the piece: its words in a row (a
@@ -514,6 +525,7 @@ func (sg *suggester) sceneOf(s *sourcePane, line int, head bool) *sceneCtx {
 	}
 	for _, l := range parseLinks(strings.Join(body, "\n")) {
 		if mt := s.matcher.matchRef(l.Ref); mt.found() {
+			c.links = append(c.links, sceneLink{l.Ref.key(), mt.Passages[0]})
 			for p := mt.Passages[0]; p <= mt.last(); p++ {
 				if !slices.Contains(c.passages, p) {
 					c.passages = append(c.passages, p)
