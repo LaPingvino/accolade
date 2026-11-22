@@ -14,6 +14,14 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   success), plus the wasm build. The race suite runs in CI on every push (.github/workflows/ci.yml), not locally
   (Joop 2026-11-20: "those tests take long"); after a push, check the CI run (`gh run list -R LaPingvino/accolade`)
   and fix a red one first. Agents run only targeted `-race -run …` tests when fixing a race.
+  2026-11-22 (Joop: "The race tests are useful and important, but I think they are best to leave running on the
+  background almost as an afterthought, and only pick up from there if they miss, then do a static check to find the
+  culprits like we did before"): the merge gate has NO race step (root tests, subpackages, focus tests, vet, wasm,
+  the no-pandoc goldens — about 10 minutes); the race run is CI's after the push. When CI's race job reports one,
+  find the culprit statically first — list the package-level variables and shared state the recent code touches
+  and who writes them from which goroutine (the page view's pagesShown/pagesInSight, gofpdf writing into shared
+  font bytes) — then confirm with one targeted `-race -run` test. Never loop the full race suite to catch it.
+  Agent briefs don't ask for the race suite either.
 - **Pushing to main** redeploys the public browser version (pages.yml), so main must always work in the browser too.
   Anything that needs the desktop (pandoc, `exec`) has a browser fallback, or is left out there with a clear message.
 - **Lexington:** changes it needs go into `~/Projects/lexington` first and are tagged there. Accolade then updates
