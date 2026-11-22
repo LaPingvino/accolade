@@ -969,7 +969,19 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Accolade TestClassifyAgreesWithLexington (Hekaya's samples and a Chinese script), TestMarkCharacterByRules,
   TestHekayaFile. Shots (SHOT_DIR=… -run TestLangRulesScreenshots) /tmp/claude-1000/shots/langrules/langrules-{ar,zh}-
   {editor,page}-{desktop,phone}.png, looked at: Arabic shaped in the page view; Chinese goes to the browser PDF (no
-  CJK in Courier Badi), whose Chromium aborts in the sandbox. Left: the @ is shown, not hidden; stats and production
-  checks still tell headings by scene words only (syntax.ClassifyWith with starts); the editor draws an RTL
-  parenthetical's brackets unmirrored in italics (seen in the shot, not looked into); same-line cues (张三：…) are
-  not read (Fountain has no such element); Lexington's Fountain writer still writes @ for every no-caps cue.
+  CJK in Courier Badi), whose Chromium aborts in the sandbox. Then (Joop): extensions configurable — Lexington's
+  [Extensions] (ext → language; hekaya = "hekaya" built in; carried with a script's language, adopted as an
+  "extension" item), read by cli -i/-o, Accolade's languageOf, open/Save As/rename types (langType), the file picker;
+  withLanguageName gives film.hekaya ⇄ film.ar.fountain; TestExtensions, TestExtensionLanguages,
+  TestLanguageExtensions (a user's .kissa opens as zh, saves byte for byte, reopens). Research of other Fountain
+  dialects with their own extension in docs/LANGUAGES.md: Wrap (.wrap, language by a Language: title key) and
+  Playfount (Russian/Ukrainian, no extension of its own) — no default entry besides Hekaya. Also: Action/Transition
+  marked by the rules (no needless > before - قطع -, ! before a registered name), caps kept beside the no-caps rules
+  (a Latin cue in capitals reads as before), Force/Unforce tested with the rules (a forced later bare name in the
+  registry keeps its @ coming back: it cannot be told from the writer's), lexington-web builds. Left: the @ is
+  shown, not hidden; the Tab flow (keyflow) still writes @ for a no-caps name; stats and production checks tell
+  headings by scene words (syntax.ClassifyWith); characters/details/breakdown find the language by its scene words
+  (langFor), and ar and hekaya have the same words, so a .hekaya there reads as the configured ar; the editor draws
+  an RTL parenthetical's brackets unmirrored in italics; Courier Badi's final ص ض س ش overhang 276 units into the
+  space before them (glyph xmin −276, the advance 600 as HarfBuzz's), seen in the PDF as words touching — a font
+  matter; same-line cues (张三：…) are not read; Lexington's Fountain writer still writes @ for every no-caps cue.
