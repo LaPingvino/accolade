@@ -232,8 +232,9 @@ func (r *ribbonBar) followPreview() {
 // followLook shows the bar over the pages in the Menus look, not in the
 // Ribbon look (its Preview tab has it).
 func (v *pageView) followLook() {
-	bar := v.w == nil || !v.w.ribbonOn()
-	setVisible(v.head, bar)
+	bar := v.w == nil || !v.w.ribbonShown()
+	// (a phone keeps the line with Close: the pages are in the script's place)
+	setVisible(v.head, bar || v.narrow)
 	setVisible(v.tools, bar)
 	if v.setupLine != nil {
 		setVisible(v.extra, bar)

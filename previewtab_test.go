@@ -10,6 +10,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"github.com/LaPingvino/lexington/pdf"
+	"github.com/LaPingvino/lexington/pdfin"
 )
 
 // featureScript is a made-up feature-length screenplay (some 110 pages):
@@ -191,6 +192,48 @@ func TestPreviewReflowsMovedBreaks(t *testing.T) {
 	}
 }
 
+// Lines typed in move the breaks of the pages after them, until a page
+// starts as before: those pages are laid out again, the rest kept.
+func TestPreviewReflowConverges(t *testing.T) {
+	w := newTestWindow(t, featureScript(2, 60))
+	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
+	v := previewAndWait(t, w)
+	pasteAt(w, featureLine(w, 10), "\n\nShe waits.\nHe waits too.\nNobody moves.")
+	st := v.follow.stats
+	t.Logf("three lines on page 11: %d laid out again, kept %v", st.reflowed, st.kept)
+	samePages(t, v, wholeDrawing(t, w, w.textEditor.Text()))
+	if !st.kept || st.reflowed < 3 {
+		t.Errorf("%d pages laid out again, kept %v", st.reflowed, st.kept)
+	}
+}
+
+// Save PDF… after the pages followed the text makes the PDF of the text
+// as it is first; the pages still know their lines after it (the next key
+// lays out one page).
+func TestPreviewFreshPDF(t *testing.T) {
+	w := newTestWindow(t, featureScript(7, 30))
+	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
+	v := previewAndWait(t, w)
+	old := v.pdfPath
+	typeAt(w, featureLine(w, 5), " x")
+	if !v.pdfStale {
+		t.Fatal("the PDF not stale after an edit")
+	}
+	done := false
+	v.withFreshPDF(func() { done = true })
+	if !done || v.pdfStale || v.pdfPath == old {
+		t.Fatalf("fresh PDF: done %v, stale %v, %s", done, v.pdfStale, v.pdfPath)
+	}
+	ps, err := pdfin.Pages(v.pdfPath)
+	if err != nil || len(ps) != len(v.d.Pages) {
+		t.Fatalf("the PDF has %d pages (%v), the view %d", len(ps), err, len(v.d.Pages))
+	}
+	typeAt(w, featureLine(w, 8), " y")
+	if st := v.follow.stats; st.redrawn != 1 || st.reflowed > 4 {
+		t.Errorf("after Save PDF: %d laid out at once, %d after", st.redrawn, st.reflowed)
+	}
+}
+
 // Typing again cancels the pages being made in the background: the
 // older edit's never shown.
 func TestPreviewTypingCancelsTheReflow(t *testing.T) {
@@ -248,7 +291,7 @@ func TestFollowEditsOffAndRefresh(t *testing.T) {
 	}
 	shownCh := make(chan *pageView, 2)
 	onPagesShown(t, func(v *pageView) { shownCh <- v })
-	w.do(cmd("preview.refresh"))()
+	w.keyPreview(fyne.KeyF5, 0) // as the key comes, the script in focus
 	select {
 	case <-shownCh:
 	case <-time.After(60 * time.Second):

@@ -79,6 +79,11 @@ func (w *MainWindow) applyLook() {
 		w.headerArea.Objects[0] = top
 		w.headerArea.Refresh()
 	}
+	for _, v := range []*pageView{w.pages, w.mdPagesView()} { // the bar over the pages: when no ribbon is
+		if v != nil {
+			v.followLook()
+		}
+	}
 	if w.menuless() != w.menuGone { // the menu bar away, or back
 		w.refreshMenu()
 	}

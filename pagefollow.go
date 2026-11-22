@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -119,13 +120,17 @@ func changedLines(a, b string) (int, int) {
 func drawer(text string, job exportJob) func(*pdf.Resume) (pdf.Drawing, error) {
 	var once sync.Once
 	var s lex.Screenplay
-	return func(r *pdf.Resume) (pdf.Drawing, error) {
+	return func(r *pdf.Resume) (d pdf.Drawing, err error) {
+		defer func() { // as exportAs: a fault of Lexington's is an error, not the window gone
+			if p := recover(); p != nil {
+				err = fmt.Errorf("the pages could not be made: %v", p)
+			}
+		}()
 		once.Do(func() {
 			job = withLockedPages(text, "pdf", job)
 			job.lines = true
 			s = job.script(text)
 		})
-		var d pdf.Drawing
 		o := job.options("pdf", "")
 		o.Record = &d
 		if r == nil {
@@ -140,14 +145,16 @@ func drawer(text string, job exportJob) func(*pdf.Resume) (pdf.Drawing, error) {
 			return stop != nil && stop(st)
 		}
 		o.Resume = r
-		err := cli.Write(context.Background(), s, o)
+		err = cli.Write(context.Background(), s, o)
 		return d, err
 	}
 }
 
 // job is the preview's job for text, as Preview PDF makes it.
 func (f *pageFollow) job(text string) exportJob {
-	return f.w.outputJob(f.w.pageSetup(), "pdf", text, nil)
+	j := f.w.outputJob(f.w.pageSetup(), "pdf", text, nil)
+	j.lines = true // the pages' lines
+	return j
 }
 
 // edited follows an edit: the stale pages marked, the edited one laid out

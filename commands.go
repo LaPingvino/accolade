@@ -859,8 +859,10 @@ func (w *MainWindow) menuBar(env cmdEnv) *fyne.MainMenu {
 // previewKey runs the command whose further key (not its menu item's) is
 // name with mod, if one applies; it reports whether one did.
 func (w *MainWindow) previewKey(name fyne.KeyName, mod fyne.KeyModifier) bool {
+	e := cmdEnv{markdown: w.markdown, browser: inBrowser, writer: w.writerView()}
+	w.previewEnv(&e) // (F5: Refresh, while a preview is shown)
 	for _, pk := range commands().previewKeys {
-		if pk.key.Key() == name && pk.key.Mod() == mod && pk.c.applies(cmdEnv{markdown: w.markdown, browser: inBrowser, writer: w.writerView()}) {
+		if pk.key.Key() == name && pk.key.Mod() == mod && pk.c.applies(e) {
 			w.do(pk.c)()
 			return true
 		}
