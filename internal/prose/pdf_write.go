@@ -2,9 +2,9 @@ package prose
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -25,8 +25,12 @@ import (
 // layout is the web page's (markdownHTML): a title page if asked,
 // headings, paragraphs with their emphasis, links, code and line breaks,
 // quotes in italic and indented, lists with their marks, code blocks on
-// grey, a break as a short rule, tables with their header, the
-// footnotes numbered at the end under a rule; page numbers at the foot.
+// grey, a break as a short rule, tables with their header; the
+// footnotes at the foot of the page that refers to them, under a short
+// rule (a long one goes on at the next page's foot), or after each
+// chapter, or the text (Doc.NotesAt); page numbers at the foot. Links
+// work: an address's, a heading's anchor (#…), a note's number to the
+// note and back; the headings are the PDF's outline.
 //
 // Not yet: text read right to left (Hebrew, Arabic: their order on the
 // line), scripts no font here has (CJK…), images (their alt text is in
@@ -132,8 +136,9 @@ func (d *Doc) WritePDF(w io.Writer, f PDFFonts) (pdf.Drawing, error) {
 		size = "A4"
 	}
 	rec := pdf.NewRecorder(pdf.NewFpdf("P", "pt", size))
-	p := &pdfWriter{d: rec, f: f}
+	p := &pdfWriter{d: rec, f: f, doc: d}
 	p.setup()
+	p.prepare()
 	if d.Title != "" {
 		rec.SetTitle(d.Title, true)
 	}
@@ -141,8 +146,21 @@ func (d *Doc) WritePDF(w io.Writer, f PDFFonts) (pdf.Drawing, error) {
 		p.titlePage(d.TitlePage)
 	}
 	p.newPage()
-	p.blocks(d.Blocks, 0, false)
-	p.footnotes()
+	for i, b := range d.Blocks {
+		if c := p.chapterAt[b]; c > 0 && d.NotesAt == NotesAtChapterEnd {
+			p.endnotes(c) // the chapters' before
+		}
+		p.block(b, 0, false, i == 0)
+	}
+	p.finished = true
+	if d.NotesAt == NotesAtPageFoot {
+		for len(p.carry) > 0 { // a long note's rest, on pages of their own
+			p.newPage()
+		}
+	} else {
+		p.endnotes(len(p.chapterTitles))
+	}
+	p.finishPage()
 	p.pageNumbers(len(d.TitlePage) > 0)
 	var b bytes.Buffer
 	if err := rec.Output(&b); err != nil {
@@ -158,12 +176,59 @@ func (d *Doc) WritePDF(w io.Writer, f PDFFonts) (pdf.Drawing, error) {
 type pdfWriter struct {
 	d                        pdf.Drawer
 	f                        PDFFonts
+	doc                      *Doc
 	has                      map[string]func(rune) bool
 	pageW, pageH             float64
 	left, right, top, bottom float64
 	y                        float64
 	atTop                    bool // nothing printed on the page yet
-	notes                    [][]*Block
+
+	// the notes, numbered in the order they are referred to (a note
+	// referred to again keeps its number), by their first block's place
+	notes  []*note
+	noteOf map[**Block]*note
+	// chapterAt is the chapter a top-level heading starts (from 1);
+	// chapterTitles the chapters' headings' text (the first, "": before
+	// any)
+	chapterAt     map[*Block]int
+	chapterTitles []string
+	// anchors are the headings' internal links, by their anchor (ID), and
+	// by the heading; minLevel is the top-level headings' highest level,
+	// outline the last level put in the PDF's outline (-1: none yet)
+	anchors   map[string]int
+	anchorOf  map[*Block]int
+	minLevel  int
+	outline   int
+	foot      []footLine // the notes at this page's foot so far
+	carry     []footLine // the rest of a note too long for its page's foot
+	collect   *[]footLine
+	collected *[]*note        // the notes a note being laid out refers to
+	gapNext   float64         // the gap before the next line laid out for a note
+	decor     []func(float64) // drawn with the next line (a list item's mark)
+	finished  bool            // the text is all laid out: only notes are left
+}
+
+// note is a footnote: its number and text, the chapter of its first
+// reference; its place's link and its first reference's.
+type note struct {
+	num     int
+	blocks  []*Block
+	chapter int
+	dest    int // the link to it
+	back    int // the link to its (first) reference
+	backSet bool
+	placed  bool       // put at a page's foot (or carried to the next)
+	printed bool       // printed among the notes after a chapter or the text
+	lines   []footLine // laid out, once
+	laid    bool
+	nested  []*note // the notes its text refers to
+}
+
+// footLine is a line of a note: the gap before it (none at the top of a
+// page's notes), its height, and how it is drawn with its top at y.
+type footLine struct {
+	gap, h float64
+	draw   func(y float64)
 }
 
 func (p *pdfWriter) setup() {
@@ -188,22 +253,346 @@ func (p *pdfWriter) setup() {
 	d.SetFont(faceText, "", textSize)
 }
 
+// prepare numbers the notes, finds the chapters and the headings'
+// anchors, before anything is laid out.
+func (p *pdfWriter) prepare() {
+	p.noteOf, p.chapterAt, p.anchors, p.anchorOf = map[**Block]*note{}, map[*Block]int{}, map[string]int{}, map[*Block]int{}
+	p.outline = -1
+	// a chapter starts at a top-level heading of the highest level; one
+	// such heading over headings of lower levels is the title, and the
+	// chapters are the next level's
+	count := map[int]int{}
+	for _, b := range p.doc.Blocks {
+		if b.Kind == Heading {
+			count[b.Level]++
+		}
+	}
+	levels := []int{}
+	for lv := 1; lv <= 6; lv++ {
+		if count[lv] > 0 {
+			levels = append(levels, lv)
+		}
+	}
+	chapter := 0
+	if len(levels) > 0 {
+		p.minLevel = levels[0]
+		if count[levels[0]] == 1 && len(levels) > 1 {
+			chapter = levels[1]
+		} else {
+			chapter = levels[0]
+		}
+	}
+	p.chapterTitles = []string{""}
+	numbered := 0
+	var walk func(bs []*Block, top bool)
+	var spans func(ss []Span)
+	spans = func(ss []Span) {
+		for i := range ss {
+			if ss[i].Note == nil || len(ss[i].Note) == 0 || p.noteOf[&ss[i].Note[0]] != nil {
+				continue
+			}
+			numbered++
+			n := &note{num: numbered, blocks: ss[i].Note, chapter: len(p.chapterTitles) - 1, dest: p.d.AddLink(), back: p.d.AddLink()}
+			p.noteOf[&ss[i].Note[0]] = n
+			p.notes = append(p.notes, n)
+			walk(n.blocks, false) // the notes it refers to, after it
+		}
+	}
+	walk = func(bs []*Block, top bool) {
+		for _, b := range bs {
+			if b.Kind == Heading {
+				if top && b.Level == chapter {
+					p.chapterTitles = append(p.chapterTitles, spansText(b.Spans))
+					p.chapterAt[b] = len(p.chapterTitles) - 1
+					if p.doc.NotesPerChapter {
+						numbered = 0
+					}
+				}
+				if b.ID != "" {
+					if _, ok := p.anchors[b.ID]; !ok {
+						p.anchors[b.ID] = p.d.AddLink()
+						p.anchorOf[b] = p.anchors[b.ID]
+					}
+				}
+			}
+			spans(b.Spans)
+			for _, r := range b.Rows {
+				for _, c := range r {
+					spans(c)
+				}
+			}
+			walk(b.Children, false)
+		}
+	}
+	walk(p.doc.Blocks, true)
+}
+
+// noteAt is the note a span refers to (nil: none).
+func (p *pdfWriter) noteAt(s *Span) *note {
+	if len(s.Note) == 0 {
+		return nil
+	}
+	return p.noteOf[&s.Note[0]]
+}
+
 func (p *pdfWriter) newPage() {
+	p.finishPage()
 	p.d.AddPage()
 	p.y, p.atTop = p.top, true
+	if len(p.carry) > 0 { // a note's rest first, as much as the page's share for notes
+		n := 0
+		for n < len(p.carry) && (n == 0 || p.footHeight(append(p.foot, p.carry[:n+1]...)) <= p.footShare()) {
+			n++
+		}
+		p.foot = append(p.foot, p.carry[:n]...)
+		p.carry = p.carry[n:]
+	}
+}
+
+// footHeight is the height the lines take at a page's foot, the space
+// over them with the rule included.
+func (p *pdfWriter) footHeight(lines []footLine) float64 {
+	if len(lines) == 0 {
+		return 0
+	}
+	h := noteSep
+	for i, l := range lines {
+		if i > 0 {
+			h += l.gap
+		}
+		h += l.h
+	}
+	return h
+}
+
+// noteSep is the space over a page's notes, with their rule.
+const noteSep = noteSize * 1.2
+
+// limit is where the text must end on this page: over its notes.
+func (p *pdfWriter) limit() float64 { return p.bottom - p.footHeight(p.foot) }
+
+// finishPage draws the page's notes at its foot, under a short rule.
+func (p *pdfWriter) finishPage() {
+	if len(p.foot) == 0 {
+		return
+	}
+	y := p.bottom - p.footHeight(p.foot)
+	p.d.SetFillColor(140, 140, 140)
+	p.d.Rect(p.left, y+noteSize*0.4, (p.right-p.left)/3, 0.5, "F")
+	y += noteSep
+	for i, l := range p.foot {
+		if i > 0 {
+			y += l.gap
+		}
+		l.draw(y)
+		y += l.h
+	}
+	p.foot = nil
 }
 
 // room makes room for h points, on the next page if this one has not.
 func (p *pdfWriter) room(h float64) {
-	if p.y+h > p.bottom+0.01 && !p.atTop {
+	if p.y+h > p.limit()+0.01 && !p.atTop {
 		p.newPage()
+	}
+}
+
+// keep keeps h points together (a heading with what follows it).
+func (p *pdfWriter) keep(h float64) {
+	if p.collect == nil {
+		p.room(h)
 	}
 }
 
 // gap is space before a block (none at a page's top).
 func (p *pdfWriter) gap(h float64) {
+	if p.collect != nil {
+		if len(*p.collect) > 0 || p.gapNext > 0 {
+			p.gapNext += h
+		}
+		return
+	}
 	if !p.atTop {
 		p.y += h
+	}
+}
+
+// emit lays out a line h high where the text has got to, on the next
+// page if it has not room for it and the notes it refers to (refs: those
+// at the page's foot first appear here); draw draws it with its top at
+// y. A note being laid out keeps its lines instead (collect).
+func (p *pdfWriter) emit(h float64, refs []*note, draw func(y float64)) {
+	decor := p.decor
+	p.decor = nil
+	line := func(y float64) {
+		for _, d := range decor {
+			d(y)
+		}
+		draw(y)
+	}
+	if p.collect != nil {
+		*p.collect = append(*p.collect, footLine{gap: p.gapNext, h: h, draw: line})
+		p.gapNext = 0
+		*p.collected = append(*p.collected, refs...)
+		return
+	}
+	news := p.newNotes(refs, nil)
+	if len(news) == 0 {
+		p.room(h)
+	} else if p.y+h+p.notesRoom(news) > p.limit()+0.01 && !p.atTop {
+		p.newPage()
+	}
+	line(p.y)
+	p.y += h
+	p.atTop = false
+	p.placeNotes(news)
+}
+
+// newNotes are the notes of refs to put at the page's foot, not put yet,
+// each with the notes it refers to after it.
+func (p *pdfWriter) newNotes(refs []*note, out []*note) []*note {
+	if p.doc.NotesAt != NotesAtPageFoot {
+		return nil
+	}
+	for _, n := range refs {
+		if n.placed || slices.Contains(out, n) {
+			continue
+		}
+		out = append(out, n)
+		out = p.newNotes(p.noteLines(n).nested, out)
+	}
+	return out
+}
+
+// notesRoom is the room notes need at the page's foot: the rule's if
+// there are none yet, the notes whole, the last's first line only (it
+// may go on at the next page's foot); none while a note is being carried
+// on (they follow it).
+func (p *pdfWriter) notesRoom(ns []*note) float64 {
+	if len(p.carry) > 0 {
+		return 0
+	}
+	var lines []footLine
+	for i, n := range ns {
+		ls := p.noteLines(n).lines
+		if i == len(ns)-1 && len(ls) > 0 {
+			ls = ls[:1]
+		}
+		lines = append(lines, ls...)
+	}
+	return p.footHeight(append(slices.Clone(p.foot), lines...)) - p.footHeight(p.foot)
+}
+
+// placeNotes puts notes at the page's foot, as much of them as there is
+// room for under the text, and no more than half the page's (a note's
+// first line always, with its reference); the rest is carried to the
+// next page's.
+func (p *pdfWriter) placeNotes(ns []*note) {
+	for _, n := range ns {
+		n.placed = true
+		for i, l := range n.lines {
+			h := p.footHeight(append(slices.Clone(p.foot), l))
+			if len(p.carry) == 0 && p.y+h <= p.bottom+0.01 && (i == 0 || h <= p.footShare()) {
+				p.foot = append(p.foot, l)
+				continue
+			}
+			p.carry = append(p.carry, l)
+		}
+	}
+}
+
+// footShare is the most of a page its notes take while text is to come
+// (all of it when only notes are left).
+func (p *pdfWriter) footShare() float64 {
+	if p.finished {
+		return p.bottom - p.top
+	}
+	return (p.bottom - p.top) / 2
+}
+
+// noteLines lays a note out in lines, once: its number, then its text.
+func (p *pdfWriter) noteLines(n *note) *note {
+	if n.laid {
+		return n
+	}
+	n.laid = true
+	var lines []footLine
+	var refs []*note
+	saved, savedRefs, savedGap, savedDecor := p.collect, p.collected, p.gapNext, p.decor
+	p.collect, p.collected, p.gapNext = &lines, &refs, noteSize*0.3
+	p.decor = []func(float64){p.noteMark(n)}
+	p.noteBlocks(n.blocks, indentStp)
+	if len(lines) == 0 || len(p.decor) > 0 {
+		p.emit(noteSize*leading, nil, func(float64) {})
+	}
+	p.collect, p.collected, p.gapNext, p.decor = saved, savedRefs, savedGap, savedDecor
+	lines[0].gap = noteSize * 0.3
+	n.lines = lines
+	for _, r := range refs {
+		if r != n && !slices.Contains(n.nested, r) {
+			n.nested = append(n.nested, r)
+		}
+	}
+	return n
+}
+
+// noteMark draws a note's number before its first line, a link back to
+// its reference, and is where the references link to.
+func (p *pdfWriter) noteMark(n *note) func(y float64) {
+	return func(y float64) {
+		st := style{size: noteSize}
+		mark := strconv.Itoa(n.num) + "."
+		p.setFont(faceText, st)
+		mw := p.d.GetStringWidth(mark)
+		x := p.left + indentStp - 6 - mw
+		p.draw(piece{text: mark, face: faceText, st: st, w: mw}, x, y, noteSize*leading)
+		p.d.SetLink(n.dest, y, -1)
+		if n.backSet {
+			p.d.Link(x, y, mw, noteSize*leading, n.back)
+		}
+	}
+}
+
+// endnotes prints the notes of the chapters before chapter not printed
+// yet, under a rule: after a chapter, or the text. Numbered again in each
+// chapter, the notes after the text have their chapter's heading over
+// them.
+func (p *pdfWriter) endnotes(chapter int) {
+	var list []*note
+	for _, n := range p.notes {
+		if !n.printed && n.chapter < chapter {
+			n.printed = true
+			list = append(list, n)
+		}
+	}
+	if len(list) == 0 {
+		return
+	}
+	p.gap(textSize)
+	p.keep(3 * noteSize * leading)
+	p.emit(noteSize, nil, func(y float64) {
+		p.d.SetFillColor(140, 140, 140)
+		p.d.Rect(p.left, y, (p.right-p.left)/3, 0.75, "F")
+	})
+	heads := p.doc.NotesPerChapter && list[0].chapter != list[len(list)-1].chapter
+	at := -1
+	for i, n := range list {
+		if heads && n.chapter != at {
+			at = n.chapter
+			if t := p.chapterTitles[at]; t != "" {
+				if i > 0 {
+					p.gap(noteSize * 0.8)
+				}
+				p.keep(3 * noteSize * leading)
+				p.flow([]Span{{Text: t}}, style{size: noteSize, bold: true}, p.left, p.right, alignLeft, nil)
+			}
+		}
+		for j, l := range p.noteLines(n).lines {
+			if i > 0 || j > 0 {
+				p.gap(l.gap)
+			}
+			p.emit(l.h, nil, l.draw)
+		}
 	}
 }
 
@@ -215,16 +604,28 @@ func (p *pdfWriter) titlePage(lines []string) {
 		if i == 0 {
 			st = style{size: 26, bold: true}
 		}
-		y = p.place([]Span{{Text: l}}, st, p.left, p.right, y, alignCenter, false)
+		for _, line := range p.lines(p.pieces([]Span{{Text: l}}, st), p.right-p.left) {
+			p.drawLine(line, p.left+p.centred(line, p.right-p.left), y, st.size*leading)
+			y += st.size * leading
+		}
 		y += st.size * 0.8
 	}
+}
+
+// centred is how far in a line starts to be centred in width.
+func (p *pdfWriter) centred(line []piece, width float64) float64 {
+	total := 0.0
+	for _, pc := range line {
+		total += pc.w
+	}
+	return (width - total) / 2
 }
 
 // style is how inline text prints.
 type style struct {
 	size                       float64
 	bold, italic, mono, strike bool
-	link                       bool
+	href                       string // where it links to ("": nowhere)
 	color                      [3]int
 	rise                       float64 // raised by, in points (a note's number)
 }
@@ -247,7 +648,8 @@ const (
 	alignCenter
 )
 
-// piece is a run of text in one style and font, a space, or a break.
+// piece is a run of text in one style and font, a space, or a break; a
+// note's number is the note's.
 type piece struct {
 	text  string
 	face  string
@@ -255,13 +657,15 @@ type piece struct {
 	space bool
 	brk   bool
 	w     float64
+	note  *note
 }
 
 // pieces are spans as runs: words and spaces, each in the face that has
 // its characters, a note as its number raised.
 func (p *pdfWriter) pieces(spans []Span, base style) []piece {
 	var out []piece
-	for _, s := range spans {
+	for i := range spans {
+		s := spans[i]
 		if s.Comment != "" && s.Text == "" {
 			continue
 		}
@@ -271,17 +675,23 @@ func (p *pdfWriter) pieces(spans []Span, base style) []piece {
 		st.strike = s.Strike
 		st.mono = s.Code
 		if s.Link != "" {
-			st.link, st.color = true, [3]int{26, 13, 171}
+			st.href, st.color = s.Link, [3]int{26, 13, 171}
 		}
 		if s.Break {
 			out = append(out, piece{brk: true, st: st})
 			continue
 		}
 		if s.Note != nil {
-			p.notes = append(p.notes, s.Note)
-			n := st
-			n.size, n.rise = st.size*0.7, st.size*0.35
-			out = append(out, p.runs(strconv.Itoa(len(p.notes)), n)...)
+			n := p.noteAt(&spans[i])
+			if n == nil {
+				continue
+			}
+			ns := st
+			ns.size, ns.rise = st.size*0.7, st.size*0.35
+			for _, r := range p.runs(strconv.Itoa(n.num), ns) {
+				r.note = n
+				out = append(out, r)
+			}
 			continue
 		}
 		text := strings.ReplaceAll(s.Text, "\n", " ")
@@ -308,6 +718,17 @@ func (p *pdfWriter) pieces(spans []Span, base style) []piece {
 	for i := range out {
 		if !out[i].brk {
 			out[i].w = p.width(out[i])
+		}
+	}
+	return out
+}
+
+// refs are the notes a line refers to.
+func refs(line []piece) []*note {
+	var out []*note
+	for _, pc := range line {
+		if pc.note != nil && !slices.Contains(out, pc.note) {
+			out = append(out, pc.note)
 		}
 	}
 	return out
@@ -400,7 +821,7 @@ func (p *pdfWriter) lines(ps []piece, width float64) [][]piece {
 				if w+c.w > width && len(line) > 0 {
 					end()
 				}
-				if n := len(line); n > 0 && line[n-1].face == c.face && line[n-1].st == c.st && !line[n-1].space {
+				if n := len(line); n > 0 && line[n-1].face == c.face && line[n-1].st == c.st && line[n-1].note == c.note && !line[n-1].space {
 					line[n-1].text += c.text
 					line[n-1].w += c.w
 				} else {
@@ -420,39 +841,68 @@ func (p *pdfWriter) lines(ps []piece, width float64) [][]piece {
 // paragraph prints spans from left to right where the text has got to,
 // wrapping, on as many pages as it takes.
 func (p *pdfWriter) paragraph(spans []Span, base style, left, right float64, a align) {
-	p.place(spans, base, left, right, p.y, a, true)
+	p.flow(spans, base, left, right, a, nil)
 }
 
-// place prints spans from left to right at y, wrapping (on the flow of
-// the pages if follow), and gives the y after them.
-func (p *pdfWriter) place(spans []Span, base style, left, right, y float64, a align, follow bool) float64 {
-	ps := p.pieces(spans, base)
+// flow lays spans out from left to right where the text has got to,
+// wrapping, a line at a time (emit); first, if set, is told where the
+// first line's top is, on its page.
+func (p *pdfWriter) flow(spans []Span, base style, left, right float64, a align, first func(y float64)) {
 	lh := base.size * leading
-	lines := p.lines(ps, right-left)
-	for _, line := range lines {
-		if follow {
-			p.y = y
-			p.room(lh)
-			y = p.y
-		}
+	for i, line := range p.lines(p.pieces(spans, base), right-left) {
 		x := left
 		if a == alignCenter {
-			total := 0.0
-			for _, pc := range line {
-				total += pc.w
+			x += p.centred(line, right-left)
+		}
+		p.emit(lh, refs(line), func(y float64) {
+			if i == 0 && first != nil {
+				first(y)
 			}
-			x += (right - left - total) / 2
-		}
-		for _, pc := range line {
-			p.draw(pc, x, y, lh)
-			x += pc.w
-		}
-		y += lh
-		if follow {
-			p.y, p.atTop = y, false
-		}
+			p.drawLine(line, x, y, lh)
+		})
 	}
-	return y
+}
+
+// drawLine draws a line's pieces from x on the line at y, lh high, and
+// links them: a link's text where it is on the line, a note's number to
+// the note (the note's number back to its first reference).
+func (p *pdfWriter) drawLine(line []piece, x, y, lh float64) {
+	for i := 0; i < len(line); {
+		pc := line[i]
+		if pc.note != nil {
+			p.draw(pc, x, y, lh)
+			p.d.Link(x, y-pc.st.rise, pc.w, lh, pc.note.dest)
+			if !pc.note.backSet {
+				pc.note.backSet = true
+				p.d.SetLink(pc.note.back, y, -1)
+			}
+			x += pc.w
+			i++
+			continue
+		}
+		at, w, j := x, 0.0, i
+		for ; j < len(line) && line[j].note == nil && line[j].st.href == pc.st.href; j++ {
+			p.draw(line[j], x, y, lh)
+			x += line[j].w
+			w += line[j].w
+		}
+		p.link(pc.st.href, at, y, w, lh)
+		i = j
+	}
+}
+
+// link links a rectangle to href: a heading's anchor (#…) in the
+// document, an address; nothing for an anchor no heading has.
+func (p *pdfWriter) link(href string, x, y, w, h float64) {
+	switch {
+	case href == "" || w <= 0:
+	case strings.HasPrefix(href, "#"):
+		if id, ok := p.anchors[href[1:]]; ok {
+			p.d.Link(x, y, w, h, id)
+		}
+	default:
+		p.d.LinkString(x, y, w, h, href)
+	}
 }
 
 // draw prints a piece at x on the line at y, lh high.
@@ -463,9 +913,9 @@ func (p *pdfWriter) draw(pc piece, x, y, lh float64) {
 	d.SetXY(x, y-pc.st.rise)
 	d.CellFormat(pc.w, lh, pc.text, "", 0, "L", false, 0, "")
 	base := y + lh/2 + 0.3*pc.st.size // gofpdf's baseline in a cell
-	if pc.st.link || pc.st.strike {
+	if pc.st.href != "" || pc.st.strike {
 		d.SetFillColor(pc.st.color[0], pc.st.color[1], pc.st.color[2])
-		if pc.st.link {
+		if pc.st.href != "" {
 			d.Rect(x, base+pc.st.size*0.12, pc.w, pc.st.size*0.06, "F")
 		}
 		if pc.st.strike {
@@ -498,9 +948,9 @@ func (p *pdfWriter) block(b *Block, indent float64, quoted, first bool) {
 			p.gap(st.size * 0.9)
 		}
 		// with two lines of what follows on its page
-		p.room(st.size*leading + 2*textSize*leading)
-		p.paragraph(b.Spans, st, left, p.right, alignLeft)
-		p.y += st.size * 0.2
+		p.keep(st.size*leading + 2*textSize*leading)
+		p.flow(b.Spans, st, left, p.right, alignLeft, p.headingPlace(b, indent == 0 && !quoted && p.collect == nil))
+		p.gap(st.size * 0.2)
 	case Quote:
 		if !first {
 			p.gap(textSize * 0.6)
@@ -522,13 +972,15 @@ func (p *pdfWriter) block(b *Block, indent float64, quoted, first bool) {
 			if i > 0 {
 				p.gap(textSize * 0.25)
 			}
-			p.room(textSize * leading)
-			at := p.y
+			p.keep(textSize * leading)
 			p.setFont(faceText, body)
 			mw := p.d.GetStringWidth(mark)
-			p.draw(piece{text: mark, face: faceText, st: body, w: mw}, left+indentStp-6-mw, at, textSize*leading)
+			// the mark with the item's first line, wherever it lands
+			p.decor = append(p.decor, func(y float64) {
+				p.draw(piece{text: mark, face: faceText, st: body, w: mw}, left+indentStp-6-mw, y, textSize*leading)
+			})
 			if len(it.Children) == 0 {
-				p.y, p.atTop = at+textSize*leading, false
+				p.emit(textSize*leading, nil, func(float64) {})
 			}
 			p.blocks(it.Children, indent+indentStp, quoted)
 		}
@@ -549,31 +1001,45 @@ func (p *pdfWriter) block(b *Block, indent float64, quoted, first bool) {
 				lines = [][]piece{nil}
 			}
 			for _, line := range lines {
-				p.room(lh)
-				p.d.SetFillColor(242, 242, 242)
-				p.d.Rect(left, p.y, p.right-left, lh, "F")
-				x := left + 4
-				for _, pc := range line {
-					p.draw(pc, x, p.y, lh)
-					x += pc.w
-				}
-				p.y += lh
-				p.atTop = false
+				p.emit(lh, nil, func(y float64) {
+					p.d.SetFillColor(242, 242, 242)
+					p.d.Rect(left, y, p.right-left, lh, "F")
+					p.drawLine(line, left+4, y, lh)
+				})
 			}
 		}
 	case Rule:
 		p.gap(textSize * 0.6)
-		p.room(textSize * leading)
-		w := (p.right - left) / 3
-		p.d.SetFillColor(140, 140, 140)
-		p.d.Rect(left+(p.right-left-w)/2, p.y+textSize*leading/2, w, 0.75, "F")
-		p.y += textSize * leading
-		p.atTop = false
+		p.emit(textSize*leading, nil, func(y float64) {
+			w := (p.right - left) / 3
+			p.d.SetFillColor(140, 140, 140)
+			p.d.Rect(left+(p.right-left-w)/2, y+textSize*leading/2, w, 0.75, "F")
+		})
 	case Table:
 		if !first {
 			p.gap(textSize * 0.6)
 		}
 		p.table(b, left)
+	}
+}
+
+// headingPlace is told where a heading's first line is: the place its
+// anchor's links go to, and (outline) its entry in the PDF's outline.
+func (p *pdfWriter) headingPlace(b *Block, outline bool) func(y float64) {
+	id, linked := p.anchorOf[b]
+	if !linked && !outline {
+		return nil
+	}
+	return func(y float64) {
+		if linked {
+			p.d.SetLink(id, y, -1)
+		}
+		if outline {
+			// a level under the one before at most (the outline has no gaps)
+			lv := min(max(b.Level-p.minLevel, 0), p.outline+1)
+			p.outline = lv
+			p.d.Bookmark(spansText(b.Spans), lv, y)
+		}
 	}
 }
 
@@ -625,6 +1091,7 @@ func (p *pdfWriter) table(b *Block, left float64) {
 		st := style{size: textSize, bold: ri == 0}
 		cells := make([][][]piece, cols)
 		h := lh
+		var notes []*note
 		for c := 0; c < cols; c++ {
 			var spans []Span
 			if c < len(r) {
@@ -632,54 +1099,34 @@ func (p *pdfWriter) table(b *Block, left float64) {
 			}
 			cells[c] = p.lines(p.pieces(spans, st), widths[c]-2*pad)
 			h = max(h, float64(len(cells[c]))*lh)
+			for _, line := range cells[c] {
+				for _, n := range refs(line) {
+					if !slices.Contains(notes, n) {
+						notes = append(notes, n)
+					}
+				}
+			}
 		}
 		h += 2 * pad
-		p.room(h)
-		x := left
-		p.d.SetDrawColor(160, 160, 160)
-		p.d.SetLineWidth(0.5)
-		for c := 0; c < cols; c++ {
-			if ri == 0 {
-				p.d.SetFillColor(235, 235, 235)
-				p.d.Rect(x, p.y, widths[c], h, "FD")
-			} else {
-				p.d.Rect(x, p.y, widths[c], h, "D")
-			}
-			y := p.y + pad
-			for _, line := range cells[c] {
-				lx := x + pad
-				for _, pc := range line {
-					p.draw(pc, lx, y, lh)
-					lx += pc.w
+		p.emit(h, notes, func(top float64) {
+			x := left
+			p.d.SetDrawColor(160, 160, 160)
+			p.d.SetLineWidth(0.5)
+			for c := 0; c < cols; c++ {
+				if ri == 0 {
+					p.d.SetFillColor(235, 235, 235)
+					p.d.Rect(x, top, widths[c], h, "FD")
+				} else {
+					p.d.Rect(x, top, widths[c], h, "D")
 				}
-				y += lh
+				y := top + pad
+				for _, line := range cells[c] {
+					p.drawLine(line, x+pad, y, lh)
+					y += lh
+				}
+				x += widths[c]
 			}
-			x += widths[c]
-		}
-		p.y += h
-		p.atTop = false
-	}
-}
-
-// footnotes prints the notes at the end, under a rule, numbered.
-func (p *pdfWriter) footnotes() {
-	if len(p.notes) == 0 {
-		return
-	}
-	p.gap(textSize)
-	p.room(3 * noteSize * leading)
-	p.d.SetFillColor(140, 140, 140)
-	p.d.Rect(p.left, p.y, (p.right-p.left)/3, 0.75, "F")
-	p.y += noteSize
-	st := style{size: noteSize}
-	for i := 0; i < len(p.notes); i++ { // (a note may add notes)
-		mark := fmt.Sprintf("%d.", i+1)
-		p.room(noteSize * leading)
-		p.setFont(faceText, st)
-		mw := p.d.GetStringWidth(mark)
-		p.draw(piece{text: mark, face: faceText, st: st, w: mw}, p.left+indentStp-6-mw, p.y, noteSize*leading)
-		p.noteBlocks(p.notes[i], indentStp)
-		p.gap(noteSize * 0.3)
+		})
 	}
 }
 

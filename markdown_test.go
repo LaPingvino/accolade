@@ -265,7 +265,7 @@ func TestMarkdownStatsAndPrint(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"<h1>Chapter One</h1>", "<strong>roof</strong>", "<li>the dog"} {
+	for _, want := range []string{`<h1 id="chapter-one">Chapter One</h1>`, "<strong>roof</strong>", "<li>the dog"} {
 		if !strings.Contains(string(page), want) {
 			t.Errorf("no %s in\n%s", want, page)
 		}

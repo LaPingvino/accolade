@@ -1,7 +1,10 @@
 package prose
 
 import (
+	"io"
+	"strconv"
 	"strings"
+	"unicode"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
@@ -9,19 +12,63 @@ import (
 	"github.com/yuin/goldmark/text"
 
 	"github.com/yuin/goldmark/extension"
+	"github.com/yuin/goldmark/parser"
 
 	"github.com/LaPingvino/accolade/internal/pace"
 )
 
 // Markdown is the goldmark Accolade reads Markdown with: GitHub's
-// (tables, strikethrough, autolinks) and footnotes.
-var Markdown = goldmark.New(goldmark.WithExtensions(extension.GFM, extension.Footnote))
+// (tables, strikethrough, autolinks) and footnotes; headings with their
+// anchors (ParseContext's, as GitHub makes them).
+var Markdown = goldmark.New(goldmark.WithExtensions(extension.GFM, extension.Footnote),
+	goldmark.WithParserOptions(parser.WithAutoHeadingID()))
+
+// ParseContext is the context to read Markdown in: the headings' anchors
+// as GitHub makes them ("Chapter Ōne!" is #chapter-ōne, a second
+// "Notes" #notes-1), as a link to #chapter-ōne finds it — in the web
+// page, the PDF and the page view alike.
+func ParseContext() parser.Context {
+	return parser.NewContext(parser.WithIDs(&headingIDs{seen: map[string]bool{}}))
+}
+
+// headingIDs makes the headings' anchors: in lower case, letters, digits,
+// - and _ kept, spaces as -, the rest left out; a repeated one numbered.
+type headingIDs struct{ seen map[string]bool }
+
+func (h *headingIDs) Generate(value []byte, kind ast.NodeKind) []byte {
+	var b strings.Builder
+	for _, r := range strings.TrimSpace(string(value)) {
+		switch {
+		case unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r) || r == '-' || r == '_':
+			b.WriteRune(unicode.ToLower(r))
+		case r == ' ':
+			b.WriteByte('-')
+		}
+	}
+	id := b.String()
+	if id == "" {
+		id = "heading"
+	}
+	out := id
+	for i := 1; h.seen[out]; i++ {
+		out = id + "-" + strconv.Itoa(i)
+	}
+	h.seen[out] = true
+	return []byte(out)
+}
+
+func (h *headingIDs) Put(value []byte) { h.seen[string(value)] = true }
+
+// MarkdownHTML writes Markdown as HTML, the headings with their anchors.
+func MarkdownHTML(src []byte, w io.Writer) error {
+	return Markdown.Convert(src, w, parser.WithContext(ParseContext()))
+}
 
 // FromMarkdown reads Markdown into a document. Its first heading of
 // level 1 is the title.
 func FromMarkdown(src string) *Doc {
 	source := []byte(src)
-	root := Markdown.Parser().Parse(text.NewReader(source))
+	root := Markdown.Parser().Parse(text.NewReader(source), parser.WithContext(ParseContext()))
 	r := &mdReader{src: source, notes: map[int][]*Block{}}
 	// the footnotes first: their links come before them
 	for n := root.FirstChild(); n != nil; n = n.NextSibling() {
@@ -64,7 +111,13 @@ func (r *mdReader) block(n ast.Node) *Block {
 	case *ast.Paragraph, *ast.TextBlock:
 		return &Block{Kind: Para, Spans: r.spans(n, Span{})}
 	case *ast.Heading:
-		return &Block{Kind: Heading, Level: n.Level, Spans: r.spans(n, Span{})}
+		b := &Block{Kind: Heading, Level: n.Level, Spans: r.spans(n, Span{})}
+		if id, ok := n.AttributeString("id"); ok {
+			if v, ok := id.([]byte); ok {
+				b.ID = string(v)
+			}
+		}
+		return b
 	case *ast.Blockquote:
 		return &Block{Kind: Quote, Children: r.blocks(n)}
 	case *ast.List:

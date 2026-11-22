@@ -45,6 +45,9 @@ type Block struct {
 	Start    int // an ordered list's first number
 	Text     string
 	Rows     [][][]Span
+	// ID is a heading's anchor (Markdown's, as [text](#id) links to it;
+	// "" if none)
+	ID string
 }
 
 // Span is text in one format, a line break, a footnote or a comment.
@@ -76,7 +79,21 @@ type Doc struct {
 	TitlePage []string
 	// Dropped counts what could not be carried over (images, objects).
 	Dropped int
+	// NotesAt is where the PDF prints the footnotes, NotesPerChapter
+	// whether their numbers start again in each chapter (Word and ODT
+	// keep theirs as footnotes, numbered through).
+	NotesAt         NotesPlace
+	NotesPerChapter bool
 }
+
+// NotesPlace is where a PDF's footnotes print.
+type NotesPlace int
+
+const (
+	NotesAtPageFoot   NotesPlace = iota // at the foot of the page that refers to them
+	NotesAtChapterEnd                   // after each chapter (its top-level heading's)
+	NotesAtEnd                          // after the document
+)
 
 // Markdown is the document as Markdown: headings with #, emphasis with *,
 // footnotes as [^1] with their text at the end.

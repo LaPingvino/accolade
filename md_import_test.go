@@ -89,7 +89,7 @@ func TestMarkdownExportsText(t *testing.T) {
 	for f, want := range map[string]string{
 		"md":   storyDraft,
 		"txt":  "The Lighthouse Keeper\n\nOne\n\nThe wind came in from the west, and the rain followed it hard and grey.[1]\n\n- a brass compass",
-		"html": "<h1>The Lighthouse Keeper</h1>",
+		"html": `<h1 id="the-lighthouse-keeper">The Lighthouse Keeper</h1>`, // its anchor for [links](#the-lighthouse-keeper)
 	} {
 		out := filepath.Join(dir, "story."+f)
 		if err := exportMarkdown(storyDraft, "The Lighthouse Keeper", out, f); err != nil {

@@ -370,7 +370,7 @@ func markdownHTML(text, title string) ([]byte, error) {
 // title page's lines.
 func markdownHTMLWith(text, title string, p mdPageSetup, titlePage []string) ([]byte, error) {
 	var body bytes.Buffer
-	if err := prose.Markdown.Convert([]byte(markdownBody(text)), &body); err != nil {
+	if err := prose.MarkdownHTML([]byte(markdownBody(text)), &body); err != nil {
 		return nil, err
 	}
 	var out bytes.Buffer
