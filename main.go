@@ -35,6 +35,8 @@ type Application struct {
 	// prefs is the Preferences window while it is open: a setting changed
 	// on the ribbon shows in it (ribbon_settings.go)
 	prefs *PreferencesDialog
+	// quick is the ribbon's usage counts and the session's Quick order (quick.go)
+	quick *quickStore
 }
 
 func NewApplication() *Application {
@@ -213,6 +215,9 @@ func (app *Application) onWindowClosed(window *MainWindow) {
 	window.dropRenameUndo() // what the last rename parked goes
 	window.cancelAutoSave()
 	window.stopTimers()
+	if app.quick != nil { // the counts as they are now (their save may be pending)
+		app.quick.save()
+	}
 
 	// Remove window from list
 	for i, w := range app.windows {

@@ -8,7 +8,7 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **Enter** after a cue or parenthetical: dialogue; on an empty dialogue line: action; after a heading: action
 - **Enter** in a list → the next item
 - **Tab** on “Tab: …” — take it; **Esc** — put it away
-- **Ctrl+K**, **F1** — the command palette; **F10** or **Alt** — the ribbon's key tips
+- **Ctrl+K**, **F1** — the command palette; **F10** or **Alt** — the ribbon's key tips (the lock's letter switches Smart and Fixed)
 
 ## File
 

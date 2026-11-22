@@ -188,6 +188,11 @@ type MainWindow struct {
 	// typing pauses, and the command palette while open (palette.go)
 	ribbon      *ribbonBar
 	ribbonTimer *uiTimer
+	// ribbonOrder is the ribbon's order in this window, as its lock set it:
+	// "smart", "fixed", or "" (Smart on a phone, Fixed on the desktop: quick.go)
+	ribbonOrder string
+	quickTimer  *uiTimer    // the usage counts' save
+	ownQuick    *quickStore // the counts of a window with no app (a test's)
 	palette     *palette
 
 	// Settings
@@ -1597,6 +1602,9 @@ const narrowWidth = 600
 func (w *MainWindow) onWindowWidth(width float32) {
 	if narrow := width < narrowWidth; narrow != w.narrow {
 		w.narrow = narrow
+		if narrow && w.ribbon != nil && w.ribbonOrder == "" {
+			w.ribbon.selected = "" // a phone's ribbon: Smart, Quick in front (quick.go)
+		}
 		c := w.fyneWindow.Canvas()
 		focused := c.Focused() // a new content drops the focus
 		w.relayout()

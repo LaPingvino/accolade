@@ -3,6 +3,7 @@ package main
 import (
 	"image/color"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -39,6 +40,10 @@ import (
 //
 // At a phone's width the tabs are one row and the groups one row that
 // scrolls sideways, every button at least 44 px high.
+//
+// The lock beside ☰ switches the window's ribbon between Smart (a Quick
+// tab first, groups by use: a phone's at first) and Fixed (the order
+// below: the desktop's); quick.go.
 //
 // Keyboard: F10, or Alt pressed and let go with no key between (where the
 // ribbon took the menu bar's place; seen with the focus in the script or
@@ -151,10 +156,15 @@ type ribbonBar struct {
 	tabs     []*ribbonTabButton
 	title    *scriptTitle
 	palette  *ribbonButton // the command palette's, at the tab row's end
+	order    *ribbonButton // the lock: Smart or Fixed (quick.go)
 	menus    *ribbonButton // ☰: the menus, beside it
 	tabRow   *fyne.Container
 	groupBox *fyne.Container // the groups of the tab chosen
 	groups   *container.Scroll
+	// the desktop's Quick row, under the groups (quick.go)
+	quickRow    *fyne.Container
+	quickRowBox *fyne.Container
+	rowButtons  []*ribbonButton
 
 	selected string // the tab chosen
 	// previewing: the Preview tab is there (it comes forward when it
@@ -182,7 +192,8 @@ type ribbonBar struct {
 }
 
 func newRibbon(w *MainWindow) *ribbonBar {
-	r := &ribbonBar{w: w, selected: "Write", stage: -1, byID: map[string][]*ribbonButton{}}
+	// no tab chosen yet: the order's first (Quick in Smart, else Write)
+	r := &ribbonBar{w: w, stage: -1, byID: map[string][]*ribbonButton{}}
 	r.tabBox = container.NewHBox()
 	for _, t := range commands().ribbon {
 		title := t.title
@@ -197,10 +208,12 @@ func newRibbon(w *MainWindow) *ribbonBar {
 	if w.headerBar != nil {
 		r.title.SetText(w.headerBar.titleLabel.Text)
 	}
-	end := commands().ribbonEnd // the palette's, then ☰
+	end := commands().ribbonEnd // the palette's, the lock, then ☰
 	r.palette = newRibbonButton(r, cmd(end[0].id), false)
 	r.palette.iconOnly = true
-	r.menus = newRibbonButton(r, cmd(end[1].id), false)
+	r.order = newRibbonButton(r, cmd(end[1].id), false)
+	r.order.iconOnly = true
+	r.menus = newRibbonButton(r, cmd(end[2].id), false)
 	r.menus.iconOnly = true
 	r.menus.homeLabel = "Menus"
 	r.format = newScriptFormatSelect(w.lex, nil, func(key string) {
@@ -213,8 +226,11 @@ func newRibbon(w *MainWindow) *ribbonBar {
 	fyne.SetAccessibleLabel(r.format, "Script format")
 	r.groupBox = container.NewHBox()
 	r.groups = container.NewHScroll(r.groupBox)
-	r.tabRow = container.New(&tabRowLayout{tabs: r.tabBox}, container.NewHScroll(r.tabBox), r.title, container.NewHBox(r.palette, r.menus))
-	r.box = container.NewVBox(r.tabRow, widget.NewSeparator(), r.groups)
+	r.quickRow = container.NewHBox()
+	r.quickRowBox = container.NewVBox(widget.NewSeparator(), container.NewHScroll(r.quickRow))
+	r.quickRowBox.Hide()
+	r.tabRow = container.New(&tabRowLayout{tabs: r.tabBox}, container.NewHScroll(r.tabBox), r.title, container.NewHBox(r.palette, r.order, r.menus))
+	r.box = container.NewVBox(r.tabRow, widget.NewSeparator(), r.groups, r.quickRowBox)
 	return r
 }
 
@@ -286,6 +302,7 @@ func (r *ribbonBar) refresh() {
 		setVisible(r.tabs[i], tabShown(t, env))
 	}
 	r.menus.follow(env)
+	r.order.follow(env)
 	if env.preview != r.previewing { // a preview opened or closed
 		r.previewing = env.preview
 		if env.preview {
@@ -295,7 +312,10 @@ func (r *ribbonBar) refresh() {
 		}
 	}
 	if t, ok := tabOf(r.selected); !ok || !tabShown(t, env) {
-		r.selected = "Write"
+		r.selected = "Write" // the tab gone (Fixed has no Quick tab), or none chosen yet
+		if env.smart {
+			r.selected = quickTab
+		}
 	}
 	for _, tb := range r.tabs {
 		tb.setSelected(tb.title == r.selected)
@@ -307,13 +327,18 @@ func (r *ribbonBar) refresh() {
 	}
 	r.stage = stage
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
-		boolKey(env.away), boolKey(env.swappedDoc), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage()}, "\x00")
+		boolKey(env.away), boolKey(env.swappedDoc), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
+		boolKey(env.smart), strconv.Itoa(w.quick().gen), boolKey(r.quickRowShown())}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
 		r.phone = phone
 		r.build()
+		r.buildQuickRow()
 	}
 	for _, b := range r.buttons {
+		b.follow(env)
+	}
+	for _, b := range r.rowButtons {
 		b.follow(env)
 	}
 	r.palette.follow(env)
@@ -363,7 +388,8 @@ func boolKey(b bool) string {
 // build makes the chosen tab's groups.
 func (r *ribbonBar) build() {
 	w := r.w
-	for _, b := range r.buttons { // going: a tip of theirs goes with them
+	for _, b := range r.buttons { // going: a tip or a long press of theirs goes with them
+		b.stopPress()
 		b.hover.Out(w.tooltips, b.hoverTip())
 	}
 	r.buttons, r.byID, r.elements = nil, map[string][]*ribbonButton{}, map[string]*ribbonButton{}
@@ -387,7 +413,7 @@ func (r *ribbonBar) build() {
 	strut.SetMinSize(fyne.NewSize(0, h))
 	r.groupBox.Add(strut)
 	first := true
-	for _, g := range t.groups {
+	for _, g := range r.groupsOf(t) { // in Smart the most used first (quick.go)
 		content := r.groupContent(g)
 		if content == nil {
 			continue
@@ -455,6 +481,15 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 			continue
 		}
 		switch h.id {
+		case quickHome: // the Quick tab's (quick.go)
+			for _, b := range r.quickButtons() {
+				if b.mark != "" {
+					r.elements[b.label] = b
+				}
+				r.add(b)
+				addSmall(b)
+			}
+			continue
 		case "elements":
 			if !scriptEditing(env) { // the main editor holds Markdown, or no editor (swap.go)
 				continue
@@ -731,24 +766,28 @@ func (r *ribbonBar) assignTips(level int) {
 	for _, t := range r.tabs {
 		t.setTip("")
 	}
-	r.palette.setTip("")
-	r.menus.setTip("")
-	for _, b := range r.buttons {
-		b.setTip("")
-	}
+	r.clearTips()
 	if level == 1 {
 		tabs := r.shownTabs()
-		labels := make([]string, 0, len(tabs)+2)
+		labels := make([]string, 0, len(tabs)+3+len(r.rowButtons))
 		for _, t := range tabs {
 			labels = append(labels, t.title)
 		}
-		labels = append(labels, r.palette.label, "Menus")
+		labels = append(labels, r.palette.label, "Menus", r.order.label)
+		for _, b := range r.rowButtons { // the desktop's Quick row
+			labels = append(labels, b.label)
+		}
 		tips := keyTipsFor(labels)
 		for i, t := range tabs {
 			t.setTip(tips[i])
 		}
-		r.palette.setTip(tips[len(tabs)])
-		r.menus.setTip(tips[len(tabs)+1])
+		n := len(tabs)
+		r.palette.setTip(tips[n])
+		r.menus.setTip(tips[n+1])
+		r.order.setTip(tips[n+2])
+		for i, b := range r.rowButtons {
+			b.setTip(tips[n+3+i])
+		}
 		return
 	}
 	var bs []*ribbonButton
@@ -762,6 +801,16 @@ func (r *ribbonBar) assignTips(level int) {
 	tips := keyTipsFor(labels)
 	for i, b := range bs {
 		b.setTip(tips[i])
+	}
+}
+
+// clearTips takes every key tip away.
+func (r *ribbonBar) clearTips() {
+	for _, t := range r.tabs {
+		t.setTip("")
+	}
+	for _, b := range append(append([]*ribbonButton{r.palette, r.menus, r.order}, r.buttons...), r.rowButtons...) {
+		b.setTip("")
 	}
 }
 
@@ -819,6 +868,17 @@ func (r *ribbonBar) keyTipTyped(ch rune) bool {
 				r.w.showMenusAt(r.menus)
 			}
 		}
+		for _, b := range append([]*ribbonButton{r.order}, r.rowButtons...) { // the lock, the Quick row
+			if b.tip == typed {
+				b := b
+				match = func() {
+					r.leaveKeyTips(true)
+					b.press()
+				}
+			} else if strings.HasPrefix(b.tip, typed) {
+				prefix = true
+			}
+		}
 	} else {
 		for _, b := range r.buttons {
 			if b.tip == "" {
@@ -868,14 +928,7 @@ func (r *ribbonBar) leaveKeyTips(restore bool) {
 		return
 	}
 	r.tipsOn, r.typed = false, ""
-	for _, t := range r.tabs {
-		t.setTip("")
-	}
-	r.palette.setTip("")
-	r.menus.setTip("")
-	for _, b := range r.buttons {
-		b.setTip("")
-	}
+	r.clearTips()
 	if restore {
 		c := r.w.fyneWindow.Canvas()
 		if r.tipsFrom != nil {
@@ -986,7 +1039,9 @@ func (t *ribbonTabButton) KeyDown(*fyne.KeyEvent) {}
 func (t *ribbonTabButton) KeyUp(k *fyne.KeyEvent) { t.r.w.altUp(k.Name) }
 func (b *ribbonButton) KeyDown(*fyne.KeyEvent)    {}
 func (b *ribbonButton) KeyUp(k *fyne.KeyEvent)    { b.r.w.altUp(k.Name) }
-func (b *ribbonButton) onTabRow() bool            { return b == b.r.palette || b == b.r.menus }
+func (b *ribbonButton) onTabRow() bool {
+	return b == b.r.palette || b == b.r.menus || b == b.r.order
+}
 func (t *ribbonTabButton) TypedRune(ch rune) {
 	if ch == ' ' && !t.r.tipsOn {
 		t.onTap()
@@ -1099,6 +1154,14 @@ type ribbonButton struct {
 	compact   bool // an icon alone, always (B I U)
 	large     bool
 	onTap     func()
+	quick     bool // on the Quick tab or the Quick row (quick.go)
+	row       bool // on the desktop's Quick row: not one of the groups'
+	// holding: a long press under way (a finger: its menu, Pin to Quick);
+	// pressed: it was long, the tap after it is not one; pressAt: the
+	// groups' scroll as it began (a finger scrolling them is no press)
+	holding *time.Timer
+	pressed bool
+	pressAt fyne.Position
 
 	disabled, selected, checked, hovered, focused bool
 	dot                                           bool   // a dot by the icon (Refresh: the pages are stale)
@@ -1131,6 +1194,9 @@ func newRibbonButton(r *ribbonBar, c *command, large bool) *ribbonButton {
 			b.name = c.nameFor(r.w) + c.keysTip()
 		}
 		b.dot = c.dot != nil && c.dot(r.w)
+		if c.iconFor != nil {
+			b.icon = c.iconFor(r.w)
+		}
 	}
 	b.ExtendBaseWidget(b)
 	return b
@@ -1163,6 +1229,12 @@ func (b *ribbonButton) follow(env cmdEnv) {
 		label = b.c.ribbonLabelFor(b.r.w)
 	}
 	dot := b.c.dot != nil && b.c.dot(b.r.w)
+	if b.c.iconFor != nil {
+		if ic := b.c.iconFor(b.r.w); ic != b.icon {
+			b.icon = ic
+			b.Refresh()
+		}
+	}
 	if dis != b.disabled || checked != b.checked || name != b.name || label != b.label || dot != b.dot {
 		b.disabled, b.checked, b.name, b.label, b.dot = dis, checked, name, label, dot
 		b.Refresh()
@@ -1196,6 +1268,7 @@ func (b *ribbonButton) press() {
 	}
 	c := b.c
 	if c.submenu != nil { // Open Recent, Document Type: their menu by it
+		b.r.w.noteUse(c)
 		showMenuBy(b.r.w, b, c.submenu(b.r.w))
 		return
 	}
@@ -1215,7 +1288,49 @@ func (b *ribbonButton) Disable() {
 
 func (b *ribbonButton) Tapped(*fyne.PointEvent) {
 	b.hover.Out(b.r.w.tooltips, b.hoverTip())
+	if b.pressed { // a long press: its menu showed
+		b.pressed = false
+		return
+	}
 	b.press()
+}
+
+// TappedSecondary is a right-click (a long press on a phone's own
+// build): the button's menu, Pin to Quick or Unpin (quick.go).
+func (b *ribbonButton) TappedSecondary(e *fyne.PointEvent) {
+	b.r.showQuickMenu(b, e.AbsolutePosition)
+}
+
+// MouseDown and MouseUp: a press held half a second is a long one, its
+// menu (the browser on a phone sends a finger as the mouse); not if the
+// groups scrolled meanwhile (the finger swiped them).
+func (b *ribbonButton) MouseDown(e *desktop.MouseEvent) {
+	b.pressed = false
+	b.stopPress()
+	if e.Button != desktop.MouseButtonPrimary || b.r.quickMenu(b) == nil {
+		return
+	}
+	pos := e.AbsolutePosition
+	b.pressAt = b.r.groups.Offset
+	b.holding = longPressAfter(500*time.Millisecond, func() {
+		fyne.Do(func() {
+			if b.holding == nil || b.r.groups.Offset != b.pressAt {
+				return
+			}
+			b.holding = nil
+			b.pressed = b.r.showQuickMenu(b, pos)
+		})
+	})
+}
+
+func (b *ribbonButton) MouseUp(*desktop.MouseEvent) { b.stopPress() }
+
+// stopPress ends a long press under way.
+func (b *ribbonButton) stopPress() {
+	if b.holding != nil {
+		b.holding.Stop()
+		b.holding = nil
+	}
 }
 func (b *ribbonButton) MouseIn(*desktop.MouseEvent) {
 	b.hovered = true
@@ -1225,6 +1340,7 @@ func (b *ribbonButton) MouseIn(*desktop.MouseEvent) {
 func (b *ribbonButton) MouseMoved(*desktop.MouseEvent) {}
 func (b *ribbonButton) MouseOut() {
 	b.hovered = false
+	b.stopPress() // dragged away: no long press
 	b.Refresh()
 	b.hover.Out(b.r.w.tooltips, b.hoverTip())
 }
@@ -1351,8 +1467,8 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 	objects = append(objects, badge.bg, badge.text)
 	r := &ribbonRenderer{objects: objects}
 	texts := func() []string {
-		if b.iconOnly && b.r.phone || b == b.r.menus || b.compact {
-			return nil // the palette's on a phone's tab row; ☰ always
+		if b.iconOnly && b.r.phone || b == b.r.menus || b == b.r.order || b.compact {
+			return nil // the palette's on a phone's tab row; ☰ and the lock always
 		}
 		if b.large || b.r.phone {
 			if b.r.phone {

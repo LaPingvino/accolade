@@ -157,6 +157,16 @@ func TestRibbonGolden(t *testing.T) {
 	w.hidePages()
 }
 
+// tabButton is the ribbon's tab titled title.
+func tabButton(r *ribbonBar, title string) *ribbonTabButton {
+	for _, tb := range r.tabs {
+		if tb.title == title {
+			return tb
+		}
+	}
+	return nil
+}
+
 // buttonOf is the ribbon's button of command id (nil if none shows).
 func buttonOf(r *ribbonBar, id string) *ribbonButton {
 	if bs := r.byID[id]; len(bs) > 0 {
@@ -194,7 +204,7 @@ func TestRibbonEnablement(t *testing.T) {
 		t.Errorf("Markdown's tabs %q", tabs)
 	}
 	w.setDocumentType(false)
-	if r.tabs[3].Visible() {
+	if tabButton(r, "Adaptation").Visible() {
 		t.Error("the Adaptation tab without a source")
 	}
 }
@@ -204,7 +214,7 @@ func TestRibbonEnablement(t *testing.T) {
 func TestRibbonSourceArrives(t *testing.T) {
 	w, _ := scriptWindow(t, suggestScript)
 	r := ribbonOnFor(t, w)
-	if r.tabs[3].Visible() {
+	if tabButton(r, "Adaptation").Visible() {
 		t.Fatal("an Adaptation tab without a source")
 	}
 	dir := t.TempDir()
@@ -213,7 +223,7 @@ func TestRibbonSourceArrives(t *testing.T) {
 	if err := w.useSource(p); err != nil {
 		t.Fatal(err)
 	}
-	if !r.tabs[3].Visible() {
+	if !tabButton(r, "Adaptation").Visible() {
 		t.Error("no Adaptation tab once the source came")
 	}
 }

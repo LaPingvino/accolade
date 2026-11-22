@@ -55,6 +55,9 @@ type cmdEnv struct {
 	// are in sight; pdfFile: a PDF to save; refreshable: the pages can be
 	// made again; setup: their page setup can be changed (previewtab.go)
 	preview, livePreview, pagesShown, pdfFile, refreshable, setup bool
+	// ribbon: the ribbon shows; smart: in its Smart order; phone: at a
+	// phone's width (quick.go)
+	ribbon, smart, phone bool
 }
 
 // cmdEnv is the window's.
@@ -76,6 +79,9 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 		e.fontSize = w.settings.GetInt("font-size")
 	}
 	w.previewEnv(&e)
+	e.ribbon = w.ribbonOn()
+	e.smart = e.ribbon && w.ribbonSmart()
+	e.phone = w.narrow
 	return e
 }
 
@@ -151,6 +157,9 @@ type command struct {
 	// dot, if set, says when its ribbon button shows a dot (Refresh: the
 	// pages are stale)
 	dot func(w *MainWindow) bool
+	// iconFor, if set, is its ribbon button's icon as the window has it now
+	// (the ribbon's lock: open in Smart, shut in Fixed)
+	iconFor func(w *MainWindow) fyne.Resource
 	// submenu, if set, is made when the menu is (Open Recent)
 	submenu func(w *MainWindow) *fyne.Menu
 	// role: who it is for (role.go); production's are put away in Writer,
@@ -256,10 +265,10 @@ func keyText(s fyne.Shortcut) string {
 // do is c as a menu item or shortcut does it.
 func (w *MainWindow) do(c *command) func() {
 	if c.pick != nil {
-		return func() { c.pick(w, nil) }
+		return func() { w.noteUse(c); c.pick(w, nil) }
 	}
 	if !c.editing {
-		return func() { c.run(w) }
+		return func() { w.noteUse(c); c.run(w) }
 	}
 	return func() {
 		e := w.mainEditor()
@@ -270,6 +279,7 @@ func (w *MainWindow) do(c *command) func() {
 		if f := w.fyneWindow.Canvas().Focused(); f != nil && f != fyne.Focusable(e) {
 			return // the focus in the notes or search
 		}
+		w.noteUse(c)
 		c.run(w)
 	}
 }
@@ -278,20 +288,21 @@ func (w *MainWindow) do(c *command) func() {
 func (w *MainWindow) tapped(c *command, anchor fyne.CanvasObject) func() {
 	switch {
 	case c.pick != nil:
-		return func() { c.pick(w, anchor) }
+		return func() { w.noteUse(c); c.pick(w, anchor) }
 	case c.tap != nil:
-		return func() { c.tap(w) }
+		return func() { w.noteUse(c); c.tap(w) }
 	case c.editing:
 		return func() {
 			if w.mainEditor() == nil {
 				w.setStatus("Nothing to write in here: Swap with Main puts the script back in the main area")
 				return
 			}
+			w.noteUse(c)
 			c.run(w)
 			w.focusMain()
 		}
 	}
-	return func() { c.run(w) }
+	return func() { w.noteUse(c); c.run(w) }
 }
 
 // home is a command's place in a menu or row: its id, or a separator
@@ -714,6 +725,7 @@ func newRegistry() *registry {
 	add(helpCommands()...)    // help_pane.go
 	add(settingCommands()...) // ribbon_settings.go
 	add(previewCommands()...) // the Preview tab's (previewtab.go)
+	add(quickCommands()...)   // the ribbon's order and the Quick row (quick.go)
 
 	elements := make([]home, len(toolbarElements))
 	for i, el := range toolbarElements {
@@ -771,7 +783,7 @@ func newRegistry() *registry {
 			at("view.preview"), at("view.foldHere"), at("view.foldSections"),
 			at("view.headingsOnly"), at("view.unfoldAll"), sep()},
 			dockHomes()...), // the side dock's panes together, and its own (dock.go)
-			sep(), at("view.statistics"), at("view.fullscreen"), at("set.toolbar"),
+			sep(), at("view.statistics"), at("view.fullscreen"), at("set.toolbar"), at("view.ribbonLock"), at("set.quickRow"),
 			sep(), at("view.documentType"), at("view.role"),
 		)},
 		{title: "Help", homes: helpMenu()},
@@ -808,7 +820,7 @@ func newRegistry() *registry {
 		cmd.ribbonLabel = short
 	}
 	r.ribbon = ribbonLayout()
-	r.ribbonEnd = []home{at("app.palette"), at("view.menu")}
+	r.ribbonEnd = []home{at("app.palette"), at("view.ribbonLock"), at("view.menu")}
 	r.previewKeys = previewKeysOf(r)
 	return r
 }
@@ -1025,6 +1037,9 @@ func ribbonLayout() []ribbonTab {
 	noMarkdown := func(e cmdEnv) bool { return !e.markdown }
 	markdownEnv := func(e cmdEnv) bool { return e.markdown }
 	return []ribbonTab{
+		// Smart's (quick.go): the most useful commands from every tab
+		{title: quickTab, when: func(e cmdEnv) bool { return e.smart }, groups: []ribbonGroup{
+			{title: quickTab, homes: []home{{id: quickHome}}}}},
 		{title: "File", groups: []ribbonGroup{
 			{title: "New", homes: []home{big("file.new"), at("file.newEmpty"), at("file.newMarkdown"), at("file.newWindow"), at("file.newEmptyWindow"),
 				at("set.newLanguage"), at("file.openSample")}}, // "New in: English": the language they are in; the sample to try things on
