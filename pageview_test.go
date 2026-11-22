@@ -11,9 +11,9 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
-	lexreport "github.com/LaPingvino/lexington/report"
 	"github.com/LaPingvino/lexington/pdf"
 	"github.com/LaPingvino/lexington/pdfin"
+	lexreport "github.com/LaPingvino/lexington/report"
 )
 
 // previewAndWait runs Preview PDF and waits for its pages.
