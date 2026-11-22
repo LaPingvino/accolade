@@ -1145,3 +1145,13 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   ![](…), a scene's storyboard frame, a character's cast photo in the Characters tab) shared by the page view, the
   PDF and the Table Read view. Table Read then shows a scene's storyboard frames beside or between its lines (a
   "Storyboard" toggle), and a character's cast photo next to their name in the filter panel and on their first line.
+  Storyboard formats to read (Joop: "check Storyboard Fountain's format"; it became Storyboarder, a different file):
+  (a) Storyboard Fountain (setpixel/storyboard-fountain, MIT, Charles Forman & Chris Smoak, last push 2017) writes the
+  boards INTO the Fountain: a `[[board: <file>.png, duration: 2.50, continued: true]]` note on its own line under the
+  action/dialogue line it illustrates (duration in seconds, only when set by hand; continued = the board carries on
+  from the previous one), plus header notes `[[Storyboard Fountain: 0.0.2]]`, `[[aspectRatio: 2.35]]`,
+  `[[dataPath: <folder>]]` (the images' folder beside the script). Accolade should read these as storyboard frames
+  (and write the same notation for frames added in Accolade — it is plain Fountain notes, so other apps keep them).
+  (b) Storyboarder (wonderunit, its successor; not OSI) keeps boards in JSON `storyboards/Scene-<n>-…/*.storyboarder`
+  beside the script and rewrites scene numbers to `#<n>-<id>#` (docs/PRODUCTION.md §Storyboards): read its boards
+  per scene by that id, never write its files.
