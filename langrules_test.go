@@ -47,7 +47,7 @@ func TestClassifyAgreesWithLexington(t *testing.T) {
 		min        int
 	}
 	samples := []sample{{"zh", chineseScript, 5}}
-	files, _ := filepath.Glob("../lexington-langrules/testdata/hekaya/*.hekaya")
+	files, _ := filepath.Glob("testdata/hekaya/*.hekaya")
 	for _, f := range files {
 		b, _ := os.ReadFile(f)
 		least := 10 // Hekaya's samples; its templates are short
@@ -147,7 +147,7 @@ func TestHekayaFile(t *testing.T) {
 	if !found {
 		t.Error("Save As offers no Hekaya for an Arabic script")
 	}
-	b, err := os.ReadFile("../lexington-langrules/testdata/hekaya/آخر-أيام-الصيف.hekaya")
+	b, err := os.ReadFile("testdata/hekaya/آخر-أيام-الصيف.hekaya")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +176,7 @@ func TestLangRulesScreenshots(t *testing.T) {
 	if dir == "" {
 		t.Skip("SHOT_DIR not set")
 	}
-	ar, err := os.ReadFile("../lexington-langrules/testdata/hekaya/آخر-أيام-الصيف.hekaya")
+	ar, err := os.ReadFile("testdata/hekaya/آخر-أيام-الصيف.hekaya")
 	if err != nil {
 		t.Fatal(err)
 	}
