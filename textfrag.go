@@ -28,11 +28,15 @@ import (
 // only to tell passages that read alike apart (the old form's "(2)").
 //
 // Written readable: only what the grammar needs is percent-encoded (the
-// comma, the dash, the ampersand, the percent sign; and the brackets, so
-// the note's ]] stays the note's), spaces stay spaces. Read leniently:
-// encoded or plain, spaces around the parts aside, a dash inside a term
-// taken as text (the spec rejects it; a term may still not begin or end
-// with one, that is the syntax's).
+// comma, a dash at a term's start or end, the ampersand, the percent
+// sign; and the brackets, so the note's ]] stays the note's), spaces
+// stay spaces, a dash inside a term too ("timber-yard"). Read leniently:
+// encoded or plain (an old link's %2D inside a word as well), spaces
+// around the parts aside, a dash inside a term taken as text (the spec
+// rejects it; a term may still not begin or end with one, that is the
+// syntax's). The writer never reads the encoding: the editor draws a
+// link as a chip, its quote decoded (link_chips.go), and shows the
+// encoded form only while the cursor is inside the link.
 //
 // Matching (findDir) is the spec's on the passages, which are the
 // blocks: each term matched within one passage, as whole words
@@ -155,15 +159,27 @@ func fragmentString(file string, dirs []textDirective, href bool) string {
 }
 
 // encodeTerm is a term as the script shows it: only what the grammar
-// needs encoded (, - & and %), and [ ] so a note's brackets stay its
-// own; a line break is a space.
+// needs encoded (, & and %; a dash only at the term's edges, where it
+// would read as the prefix's or suffix's mark: "timber-yard" stays as it
+// is), and [ ] so a note's brackets stay its own; a line break is a space.
 func encodeTerm(s string) string {
+	first, last := -1, -1 // the term's first and last letters, spaces aside
+	for i, r := range s {
+		if r != ' ' && r != '\n' && r != '\r' && r != '\t' {
+			if first < 0 {
+				first = i
+			}
+			last = i
+		}
+	}
 	var b strings.Builder
-	for _, r := range s {
-		switch r {
-		case '%', ',', '-', '&', '[', ']':
+	for i, r := range s {
+		switch {
+		case r == '-' && i != first && i != last:
+			b.WriteRune(r)
+		case strings.ContainsRune("%,-&[]", r):
 			b.WriteString("%" + strings.ToUpper(strconv.FormatInt(int64(r), 16)))
-		case '\n', '\r', '\t':
+		case r == '\n' || r == '\r' || r == '\t':
 			b.WriteByte(' ')
 		default:
 			b.WriteRune(r)
@@ -606,14 +622,41 @@ func matcherFor(ps []passage) *linkMatcher {
 	return lastMatcher.lm
 }
 
-// Writing: how long a new link's parts are.
+// Writing: how long a new link's parts are, at least: short, so a link
+// reads as a range ("first words … last words"), grown by fragmentFor
+// until it finds its passages only. (Reading old links, cut entries'
+// old form, and near starts keep source.go's linkWords.) Three words of
+// textEnd leave a near end out (nearEnd needs four): an end edited in the
+// source makes the link missing rather than near, and Update Source
+// Links writes it again.
 const (
-	endWords   = 4 // textEnd's words, at least (near ends need four)
-	maxContext = 8 // a prefix's or suffix's words, at most
+	linkStartWords = 4 // textStart's words
+	linkEndWords   = 3 // textEnd's words
+	linkWholeWords = 7 // a passage this short is quoted whole, as textStart alone
+	maxContext     = 8 // a prefix's or suffix's words, at most
 )
 
+// wordFields is how many of fs, from the start (or the end), hold n
+// words: fields of punctuation only (". . .") do not count.
+func wordFields(fs []string, n int, fromEnd bool) int {
+	got := 0
+	for k := range fs {
+		f := fs[k]
+		if fromEnd {
+			f = fs[len(fs)-1-k]
+		}
+		if normWords(f) != nil {
+			got++
+		}
+		if got == n {
+			return k + 1
+		}
+	}
+	return len(fs)
+}
+
 // fragmentFor is a link to passages [i, j]: textStart the first
-// passage's first words (linkWords of them; all if it is short), textEnd
+// passage's first words (linkStartWords of them; all if it is short), textEnd
 // the last one's last words, written as they are in the source (the
 // browser compares the text). If that finds another place too: more of
 // textStart, then of textEnd; else the first words with the words
@@ -635,8 +678,8 @@ func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 		return mt.Kind == linkFound && mt.Passages[0] == i && mt.Last == j
 	}
 	// textStart's and textEnd's fields: [0, ns) of i, [len-ne, len) of j
-	ns, ne := min(linkWords, len(fi)), min(endWords, len(fj))
-	whole := single && len(fi) <= linkWords+endWords
+	ns, ne := wordFields(fi, linkStartWords, false), wordFields(fj, linkEndWords, true)
+	whole := single && len(fi) <= linkWholeWords
 	if whole {
 		ns, ne = len(fi), 0
 	}

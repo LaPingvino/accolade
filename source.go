@@ -133,8 +133,9 @@ type sourceLink struct {
 	Key        string   // Ref's rawKey (the new form's; key() for both)
 }
 
-// linkWords is the number of words a new link quotes, at least: enough
-// to find a passage again, short enough to read.
+// linkWords is the number of first words an old-form link (or cut
+// entry) quotes, at least: enough to find a passage again. New links,
+// in the Text Fragments form, start shorter (textfrag.go's linkStartWords).
 const linkWords = 8
 
 // parseLinks finds the source links in a script: not in a boneyard

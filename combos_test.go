@@ -342,7 +342,7 @@ func TestComboNoLinks(t *testing.T) {
 	}
 	comboShot(t, w, "beside-nolinks")
 	s.prompt.yes.OnTapped() // Link
-	if !strings.Contains(w.textEditor.Text(), "INT. LIGHTHOUSE STAIRS - NIGHT\n\n[[from: #:~:text=Mara climbed the stairs of the old lighthouse,called into the dark.]]\n\nMara climbs") {
+	if !strings.Contains(w.textEditor.Text(), "INT. LIGHTHOUSE STAIRS - NIGHT\n\n[[from: #:~:text=Mara climbed the stairs,into the dark.]]\n\nMara climbs") {
 		t.Errorf("linked:\n%s", w.textEditor.Text())
 	}
 	if !strings.Contains(s.prompt.label.Text, "2 of 3: INT. LAMP ROOM") {

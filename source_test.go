@@ -181,13 +181,13 @@ func TestFragmentForUnique(t *testing.T) {
 		t.Errorf("found as %+v", m)
 	}
 	d, _ = fragmentFor(newLinkMatcher(passagesOf(sourceStory)), 2, 2)
-	if d.Start != "She opened the door to the garden and" || d.End == "" {
-		t.Errorf("eight words and the end: %+v", d)
+	if d.Start != "She opened the door" || d.End != "into the rain." {
+		t.Errorf("four words and the end's three: %+v", d)
 	}
 	if d, unique := fragmentFor(lm, 3, 3); !unique || d.Prefix != "Short." || d.Start != "Short." {
 		t.Errorf("the second Short. by its prefix: %+v %v", d, unique)
 	}
-	if note := fragmentNote("", []textDirective{{Start: `a "b" ]] c, d-e & 5%`}}); note != `[[from: #:~:text=a "b" %5D%5D c%2C d%2De %26 5%25]]` {
+	if note := fragmentNote("", []textDirective{{Start: `a "b" ]] c, d-e & 5%`}}); note != `[[from: #:~:text=a "b" %5D%5D c%2C d-e %26 5%25]]` {
 		t.Errorf("note %q", note)
 	}
 }
@@ -443,7 +443,7 @@ func TestLinkInserted(t *testing.T) {
 	s.list.Select(door)
 	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(4))
 	w.linkToSource()
-	note := `[[from: #:~:text=She opened the door to the garden and,out into the rain.]]`
+	note := `[[from: #:~:text=She opened the door,into the rain.]]`
 	want := "INT. HOUSE - NIGHT\n\nShe looks out.\n\n" + note + "\n\nANNA\nWho's there?\n"
 	if got := w.textEditor.Text(); got != want {
 		t.Fatalf("on an empty line:\n%q\nwant\n%q", got, want)

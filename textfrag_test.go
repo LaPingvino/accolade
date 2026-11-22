@@ -1,7 +1,10 @@
 package main
 
 import (
+	"archive/zip"
+	"bytes"
 	"html"
+	"io"
 	"regexp"
 	"slices"
 	"strings"
@@ -30,9 +33,28 @@ func TestTextDirectiveRoundTrip(t *testing.T) {
 			}
 		}
 	}
-	// readable: only , - & % [ ] encoded
-	if got := encodeTerm("a-b, c & 5% [x]"); got != "a%2Db%2C c %26 5%25 %5Bx%5D" {
+	// readable: only , & % [ ] encoded, and a dash at a term's edges (where
+	// it would read as the prefix's or suffix's mark), not inside a word
+	if got := encodeTerm("a-b, c & 5% [x]"); got != "a-b%2C c %26 5%25 %5Bx%5D" {
 		t.Errorf("encoded %q", got)
+	}
+	for in, want := range map[string]string{
+		"the timber-yard": "the timber-yard", "-yard": "%2Dyard", "timber-": "timber%2D",
+		" - a dash - ": " %2D a dash %2D ", "-": "%2D", "a--": "a-%2D",
+	} {
+		if got := encodeTerm(in); got != want {
+			t.Errorf("encoded %q as %q, want %q", in, got, want)
+		}
+	}
+	// the edges' dashes read back as text; an old link's %2D inside a word too
+	for _, d := range []textDirective{{Prefix: "timber-", Start: "-yard", End: "a - b-", Suffix: "-x"}} {
+		s := fragmentString("", []textDirective{d}, false)
+		if _, dirs, bad := parseFragment(s); bad != "" || len(dirs) != 1 || dirs[0] != d {
+			t.Errorf("%+v as %q read back %+v %q", d, s, dirs, bad)
+		}
+	}
+	if _, dirs, _ := parseFragment("#:~:text=the timber%2Dyard"); len(dirs) != 1 || dirs[0].Start != "the timber-yard" {
+		t.Errorf("old %%2D: %+v", dirs)
 	}
 	if got := encodeTermHref("a b,é"); got != "a%20b%2C%C3%A9" {
 		t.Errorf("href %q", got)
@@ -222,7 +244,7 @@ func TestFragmentRange(t *testing.T) {
 	}
 	// written: the first passage's words to the last's
 	d, u := fragmentFor(lm, 1, 3)
-	if !u || d.Start != "She opened the door to the garden." || d.End != "out into the rain." {
+	if !u || d.Start != "She opened the door" || d.End != "into the rain." {
 		t.Errorf("written range %+v %v", d, u)
 	}
 	// suggestions of neighbours are one range (a heading between is next to)
@@ -330,7 +352,7 @@ func TestUpdateSourceLinks(t *testing.T) {
 	w.updateSourceLinks()
 	text := w.textEditor.Text()
 	for _, want := range []string{
-		"Anna. [[from: #:~:text=She opened the door to the garden and,in from the sea.]]",
+		"Anna. [[from: #:~:text=She opened the door,from the sea.]]",
 		"[[from: \"The rain kept falling.\"]]",                                // ambiguous: as it was
 		"[[from: #:~:text=Who’s there? Anna called%2C but someone answered]]", // near: its words kept
 		"[[from: \"Not in the story at all\"]]",
@@ -578,5 +600,59 @@ func TestFragmentFileNames(t *testing.T) {
 	}
 	if !w.sourceNames(w.sourceRef())[sourceNameKey("Story.HTML")] {
 		t.Error("story.html is not the source's name")
+	}
+}
+
+// New links start short (linkStartWords first words, linkEndWords last,
+// whole up to linkWholeWords) and grow only until they find their passage
+// alone: on the sample's story and on the bench novel, each written link
+// finds its passage and only it.
+func TestShortLinksUnique(t *testing.T) {
+	zr, err := zip.NewReader(bytes.NewReader(sampleAccolade), int64(len(sampleAccolade)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var story string
+	for _, f := range zr.File {
+		if strings.HasSuffix(f.Name, ".textbundle/assets/source.md") {
+			r, _ := f.Open()
+			b, _ := io.ReadAll(r)
+			r.Close()
+			story = string(b)
+		}
+	}
+	novel, _ := benchFixture()
+	for _, c := range []struct{ name, md string }{{"sample", story}, {"novel", novel}} {
+		ps := passagesOf(c.md)
+		lm := newLinkMatcher(ps)
+		linkable, grown, alike := 0, 0, 0
+		for i, p := range ps {
+			if !p.linkable() {
+				continue
+			}
+			linkable++
+			d, unique := fragmentFor(lm, i, i)
+			if !unique {
+				alike++ // a passage that reads as another one does, word for word
+				continue
+			}
+			if mt := lm.matchRef(linkRef{Dir: d}); mt.Kind != linkFound || mt.Passages[0] != i || mt.last() != i {
+				t.Errorf("%s: passage %d's link %+v finds %+v", c.name, i, d, mt)
+			}
+			ws, we := len(normWords(d.Start)), len(normWords(d.End))
+			if d.End == "" && ws > 0 && we == 0 && ws <= linkWholeWords {
+				ws = 0 // quoted whole
+			}
+			if d.End != "" && we == 0 {
+				t.Errorf("%s: passage %d's link ends in no words: %+v", c.name, i, d)
+			}
+			if d.Prefix != "" || d.Suffix != "" || ws > linkStartWords || we > linkEndWords {
+				grown++
+			}
+		}
+		t.Logf("%s: %d passages linkable, %d links grew past the short start, %d alike (not unique)", c.name, linkable, grown, alike)
+		if c.name == "sample" && linkable < 25 {
+			t.Errorf("the sample's story has %d passages", linkable)
+		}
 	}
 }

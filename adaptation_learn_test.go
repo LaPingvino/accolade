@@ -481,7 +481,7 @@ func TestLearnNotFromAnotherScenesLinks(t *testing.T) {
 	d.how.choose(0)
 	d.heading.SetText("INT. PLACE - DAY")
 	d.accept()
-	moveTo(t, w3, "The next morning the street was white")
+	moveTo(t, w3, "The next morning the")
 	l := lineWith(t, w3, "INT. PLACE - DAY")
 	w3.textEditor.Navigate(func(b *buffer.Buffer) { b.Select(b.LineStart(l)+5, b.LineEnd(l)) })
 	w3.onCursorChanged()
@@ -501,8 +501,8 @@ func TestLearnSkippedLink(t *testing.T) {
 		t.Fatalf("asked %q", s.prompt.label.Text)
 	}
 	s.prompt.skip.OnTapped()
-	if b := learnedBlock(w); b != "skipped links:\n  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=Mara climbed the stairs of the old lighthouse,every step out loud.\n"+
-		"  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=\"Is anyone up there?\" Mara called into the dark." {
+	if b := learnedBlock(w); b != "skipped links:\n  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=Mara climbed the stairs,step out loud.\n"+
+		"  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=\"Is anyone up there?\",into the dark." {
 		t.Fatalf("block %q", b)
 	}
 	if body(w) != strings.TrimRight(comboNoLinks, "\n") {

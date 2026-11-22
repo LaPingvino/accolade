@@ -35,7 +35,7 @@ func lineIn(t *testing.T, script, s string) int {
 const (
 	linkOpened  = "[[from: #:~:text=She opened the door to the garden and stepped out into the rain.]]"
 	linkWho     = `[[from: #:~:text="Who's there?" Anna called%2C but nobody answered.]]`
-	linkMorning = "[[from: #:~:text=The next morning the garden was white with,the door stood open.]]"
+	linkMorning = "[[from: #:~:text=The next morning the,door stood open.]]"
 	linkRain1   = "[[from: #:~:text=another-,The rain kept falling.]]"
 )
 
