@@ -75,11 +75,14 @@ type ScriptEditor struct {
 	// Format, when set, lays out each line as its element (its column,
 	// width and alignment), instead of by its leading spaces.
 	Format func(syntax.Kind) wrap.Format
-	// Folds are the line ranges hidden, each [from, to): the lines under a
-	// folded heading (nil: none). A fold the cursor gets into opens: its
-	// heading's line (from-1) goes to OnUnfold.
-	Folds    func() [][2]int
+	// Folds are the line ranges hidden (nil: none): the lines under a
+	// folded heading, or a block folded to one line. A fold the cursor
+	// gets into opens: its heading's line goes to OnUnfold.
+	Folds    func() []Fold
 	OnUnfold func(heading int)
+	// FoldLabel is what a folded block's line shows instead of its text
+	// (Fold.Block), asked only for the rows drawn.
+	FoldLabel func(heading int) string
 	// Headings, when set, are the lines that can fold: a gutter column
 	// shows ▾ on them (▸ folded), and a tap there goes to OnFoldTapped.
 	Headings     func() map[int]bool
@@ -149,12 +152,22 @@ type ScriptEditor struct {
 	gridFirst, gridEnd  int
 	draw                drawing                             // what relayout found, to draw rows with
 	foldAt              map[int]bool                        // the folded headings' lines
+	blockAt             map[int]bool                        // those of blocks, drawn as their labels
 	headings            map[int]bool                        // the lines that can fold (Headings)
 	marks               map[int]*widget.CustomTextGridStyle // the lines' marks (Marks), as drawn
 	inks                map[int][]Ink                       // the lines' inked words (Inks)
 	laid                laidOut                             // the last layout, for its key
 	// offstage: out of sight (SetOffstage); stale: changed since laid out
 	offstage, stale bool
+}
+
+// Fold is a fold of lines: those in [From, To) hidden under the
+// heading, line From-1. A Block's heading is its first line: the cursor
+// on it is inside the fold too (it opens), and while folded the line is
+// drawn as FoldLabel's summary, one row, instead of its text.
+type Fold struct {
+	From, To int
+	Block    bool
 }
 
 // Ink is words of a line drawn in Color and underlined: the line's
@@ -683,6 +696,9 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 	if r.Line < len(kinds) {
 		lineStyle = kindStyle(kinds[r.Line], th, v)
 	}
+	if first && e.blockAt[r.Line] { // a folded block: its summary, quiet
+		return widget.TextGridRow{Cells: e.labelCells(cells, r, number)}
+	}
 	spans := d.inline[r.Line]
 	inks := e.inks[r.Line]
 	for off := r.Start; off < r.End; off++ {
@@ -724,6 +740,39 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		}
 	}
 	return widget.TextGridRow{Cells: cells}
+}
+
+// labelCells are a folded block's row: its label (FoldLabel) after the
+// gutter's cells, cut to the row's width.
+func (e *ScriptEditor) labelCells(cells []widget.TextGridCell, r wrap.Row, style widget.TextGridStyle) []widget.TextGridCell {
+	label := "…"
+	if e.FoldLabel != nil {
+		label = e.FoldLabel(r.Line)
+	}
+	room := max(e.columns-e.draw.gutter-r.Indent, 1)
+	runes := []rune(label)
+	if w := wrap.Width; len(runes) > 0 {
+		used, n := 0, 0
+		for n < len(runes) && used+w(runes[n]) <= room {
+			used += w(runes[n])
+			n++
+		}
+		if n < len(runes) {
+			n = max(n-1, 0)
+			runes = append(runes[:n:n], '…')
+		}
+	}
+	quiet := &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: style.TextColor()}
+	for c := 0; c < r.Indent; c++ {
+		cells = append(cells, widget.TextGridCell{Rune: ' '})
+	}
+	for _, ch := range runes {
+		cells = append(cells, widget.TextGridCell{Rune: ch, Style: quiet})
+		if wrap.Width(ch) == 2 {
+			cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: quiet})
+		}
+	}
+	return cells
 }
 
 // markBar is a marked line's bar (Marks).
@@ -775,6 +824,7 @@ func (e *ScriptEditor) fold() map[int]bool {
 	if e.Folds == nil {
 		return nil
 	}
+	e.blockAt = nil
 	ranges := e.Folds()
 	if len(ranges) == 0 {
 		return nil
@@ -783,14 +833,27 @@ func (e *ScriptEditor) fold() map[int]bool {
 	var shut [][2]int // the cursor's fold opens
 	headings := map[int]bool{}
 	for _, r := range ranges {
-		if line >= r[0] && line < r[1] {
+		from := r.From
+		if r.Block {
+			from-- // the block's first line is in it
+		}
+		if line >= from && line < r.To {
 			if e.OnUnfold != nil {
-				e.OnUnfold(r[0] - 1)
+				e.OnUnfold(r.From - 1)
 			}
 			continue
 		}
-		shut = append(shut, r)
-		headings[r[0]-1] = true
+		shut = append(shut, [2]int{r.From, r.To})
+		headings[r.From-1] = true
+		if r.Block {
+			if e.blockAt == nil {
+				e.blockAt = map[int]bool{}
+			}
+			e.blockAt[r.From-1] = true
+		}
+	}
+	if len(shut) == 0 {
+		return headings
 	}
 	hidden := func(l int) bool {
 		for _, r := range shut {
@@ -801,8 +864,9 @@ func (e *ScriptEditor) fold() map[int]bool {
 		return false
 	}
 	rows := e.layout.Rows[:0:0]
-	for _, r := range e.layout.Rows {
-		if !hidden(r.Line) {
+	for i, r := range e.layout.Rows {
+		more := i > 0 && e.layout.Rows[i-1].Line == r.Line // a block's line: its first row only
+		if !hidden(r.Line) && !(more && e.blockAt[r.Line]) {
 			rows = append(rows, r)
 		}
 	}

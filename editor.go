@@ -41,6 +41,7 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	vi := attachVim(w, e, true)
 	if w != nil {
 		w.scriptFolds = newFolds(w, e, w.outlineItems)
+		w.scriptFolds.blocks = true // Accolade's own blocks fold away (block_folds.go)
 		e.Marks = w.revisionMarksShown
 		e.Inks = w.breakdownInksShown
 		e.OnSecondaryTapped = w.showTagMenu

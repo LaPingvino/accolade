@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+
+	"github.com/LaPingvino/accolade/internal/editor"
 )
 
 // Folds in the editor with vim keys: zc hides a scene's lines (the cursor
@@ -21,7 +23,7 @@ func TestEditorFolds(t *testing.T) {
 	e.TypedKey(escape())
 	e.TypedRune('z')
 	e.TypedRune('c')
-	if r := all(); len(r) != 1 || r[0] != [2]int{1, 5} {
+	if r := all(); len(r) != 1 || r[0] != (editor.Fold{From: 1, To: 5}) {
 		t.Fatalf("zc hid %v", r)
 	}
 	if line, _ := e.Buffer().Position(e.CursorOffset()); line != 0 {

@@ -27,6 +27,16 @@ type folds struct {
 	items func(text string) []outlineItem
 	on    map[string]bool // folded, by foldKey
 	state int             // where Shift+Tab is: foldShown, foldOverview or foldContents
+	// blocks: Accolade's own blocks fold too (the script's editor:
+	// block_folds.go), folded unless opened by hand (opened, by key)
+	blocks bool
+	opened map[string]bool
+	bl     struct {
+		rev  uint64
+		ok   bool
+		list []blockFold
+	}
+	labels map[string]blockLabel // the blocks' summaries, by key
 	// laid is the outline as read for the text at rev, and its headings
 	// that can fold: the editor asks at every layout (each key, each
 	// cursor move), the text read once a change
@@ -44,6 +54,7 @@ type folds struct {
 func newFolds(w *MainWindow, e *editor.ScriptEditor, items func(string) []outlineItem) *folds {
 	f := &folds{w: w, ed: e, items: items}
 	e.Folds = f.ranges
+	e.FoldLabel = f.label
 	e.OnUnfold = f.unfoldAt
 	e.Headings = f.headingLines
 	e.OnFoldTapped = f.foldLine
@@ -111,16 +122,16 @@ func (w *MainWindow) foldHeadings() {
 	}
 }
 
-// editorFoldRanges are the folded items' hidden lines.
-func (f *folds) ranges() [][2]int {
+// ranges are the folded items' hidden lines, and the blocks folded.
+func (f *folds) ranges() []editor.Fold {
+	out := f.blockRanges()
 	if len(f.on) == 0 {
-		return nil
+		return out
 	}
 	text := f.ed.Text()
 	lines := strings.Count(text, "\n") + 1
 	items := f.outline()
 	all := strings.Split(text, "\n")
-	var out [][2]int
 	for i, it := range items {
 		if !f.on[foldKey(it)] {
 			continue
@@ -130,7 +141,7 @@ func (f *folds) ranges() [][2]int {
 			to-- // the blank line before the next stays
 		}
 		if to > it.Line+1 {
-			out = append(out, [2]int{it.Line + 1, to})
+			out = append(out, editor.Fold{From: it.Line + 1, To: to})
 		}
 	}
 	return out
@@ -151,6 +162,11 @@ func (f *folds) cursorItem(items []outlineItem) int {
 // fold folds (or with open false, opens; toggle: either) the section or
 // scene the cursor is in.
 func (f *folds) fold(open, toggle bool) {
+	line, _ := f.ed.Buffer().Position(f.ed.CursorOffset())
+	if b := f.blockAt(line); b != nil { // in a block: it is shown, the cursor in it
+		f.openBlock(b, open && !toggle)
+		return
+	}
 	items := f.outline()
 	i := f.cursorItem(items)
 	if i < 0 {
@@ -174,8 +190,16 @@ func (f *folds) fold(open, toggle bool) {
 	f.ed.Refresh()
 }
 
-// foldAll folds every section and scene, or opens them all.
+// foldAll folds every section and scene and Accolade's blocks, or opens
+// them all (Unfold All, vim's zR).
 func (f *folds) foldAll(open bool) {
+	f.allBlocks(open)
+	f.foldOutline(open)
+}
+
+// foldOutline folds every section and scene, or opens them all: the
+// blocks as they are (Shift+Tab's cycle).
+func (f *folds) foldOutline(open bool) {
 	f.on = nil
 	f.state = foldShown
 	if !open {
@@ -215,12 +239,23 @@ func (f *folds) headingLines() map[int]bool {
 			out[it.Line] = true
 		}
 	}
+	for _, b := range f.blocksOf() {
+		out[b.first] = true
+	}
 	f.laid.headings = out
 	return out
 }
 
 // foldLine folds or opens the heading on line (its fold mark tapped).
 func (f *folds) foldLine(line int) {
+	for _, b := range f.blocksOf() {
+		if b.first == line {
+			cur, _ := f.ed.Buffer().Position(f.ed.CursorOffset())
+			shown := f.opened[b.key] || cur >= b.first && cur <= b.last
+			f.openBlock(&b, !shown)
+			return
+		}
+	}
 	for _, it := range f.outline() {
 		if it.Line != line {
 			continue
@@ -307,7 +342,7 @@ func (f *folds) cycleAll() bool {
 		f.foldHeadings()
 		f.w.setStatus("Contents: all headings")
 	default:
-		f.foldAll(true)
+		f.foldOutline(true)
 		f.w.setStatus("Everything shown")
 	}
 	return true

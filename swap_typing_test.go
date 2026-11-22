@@ -198,7 +198,7 @@ func TestSwapFolds(t *testing.T) {
 		t.Fatalf("Fold Here folded %v", r)
 	}
 	lines := strings.Split(text, "\n")
-	if h := lines[r[0][0]-1]; h != "## Chapter 1" {
+	if h := lines[r[0].From-1]; h != "## Chapter 1" {
 		t.Errorf("folded under %q", h)
 	}
 	if len(w.scriptFolds.on) != 0 {
