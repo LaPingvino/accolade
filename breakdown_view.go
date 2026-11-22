@@ -194,6 +194,10 @@ func (w *MainWindow) tagSelectionAs(category string) {
 	f, bt, _ := w.breakdownNowFound()
 	start, end := w.textEditor.Buffer().Selection()
 	i, j := bt.wordRange(start, end)
+	if i == j && bt.inNote(start, end) {
+		w.setStatus("Tags go on the script's words, not a note's or a source link's")
+		return
+	}
 	if i == j {
 		w.setStatus("Select the words to tag (or put the cursor in a word)")
 		return

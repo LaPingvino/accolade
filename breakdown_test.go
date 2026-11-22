@@ -176,6 +176,43 @@ func TestLostTags(t *testing.T) {
 	}
 }
 
+// Tags are on the script's words: never in a source link's quote or a
+// note, so a tag whose words went from the script is lost though a link
+// above them still quotes them; tagging inside a link says why not.
+func TestTagsSkipLinksAndNotes(t *testing.T) {
+	script := `Title: The Square
+
+EXT. MARKET SQUARE - DAY
+
+[[from: "Not even a beggar near them."]] [[a beggar, cut?]]
+
+The doors stand open. Not even a beggar near them.
+`
+	w, _ := scriptWindow(t, script)
+	tagNow(t, w, "beggar", 0, "Extras") // the link's: nothing tagged
+	if f := w.breakdownNow(); len(f.Tags) != 0 {
+		t.Fatalf("tagged in a link: %+v", f.Tags)
+	}
+	if s := w.statusText(); !strings.Contains(s, "not a note's or a source link's") {
+		t.Errorf("status %q", s)
+	}
+	tagNow(t, w, "beggar", 1, "Extras") // the note's
+	if f := w.breakdownNow(); len(f.Tags) != 0 {
+		t.Fatalf("tagged in a note: %+v", f.Tags)
+	}
+	tagNow(t, w, "beggar", 2, "Extras") // the action's
+	if got := found(w); len(got) != 1 || got[0] != "beggar@beggar@006:033" {
+		t.Fatalf("found %v", got)
+	}
+	if at := w.breakdownNow().Tags[0].At; at != "text=Not even a-,beggar,-near them" {
+		t.Errorf("anchored %q", at)
+	}
+	replaceText(t, w, "Not even a beggar near them.\n", "Nobody.\n")
+	if got := found(w); len(got) != 1 || got[0] != "beggar@lost" {
+		t.Errorf("the words gone, the link still quoting them: %v", got)
+	}
+}
+
 // A tag whose words left its scene is not moved to another place with
 // the same word: it is lost. A scene with the same heading and the word
 // put before its scene does not take it either.

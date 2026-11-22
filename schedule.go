@@ -121,11 +121,22 @@ func (t *bdText) sceneStart(sc int) string {
 // same words (whatever the spaces and line breaks), the same sum.
 func (t *bdText) sceneSum(sc int) string {
 	lo, hi := t.sceneWords(sc)
+	return wordsSum(t.scenes[sc].key.Heading, t.words[lo:hi])
+}
+
+// oldSceneSum is sceneSum as it was before the words left out notes and
+// source links: a strip summed then is not changed if that matches.
+func (t *bdText) oldSceneSum(sc int) string {
+	s := t.scenes[sc]
+	return wordsSum(s.key.Heading, wordsIn(t.runes, s.start, min(s.end, len(t.runes))))
+}
+
+func wordsSum(heading string, ws []bdWord) string {
 	h := sha1.New()
-	h.Write([]byte(t.scenes[sc].key.Heading))
-	for i := lo; i < hi; i++ {
+	h.Write([]byte(heading))
+	for _, w := range ws {
 		h.Write([]byte{0})
-		h.Write([]byte(t.words[i].norm))
+		h.Write([]byte(w.norm))
 	}
 	return fmt.Sprintf("%x", h.Sum(nil)[:8])
 }
@@ -525,7 +536,7 @@ func (f *scheduleFile) changed(t *bdText, p schedPlaced, sc int) (bool, string) 
 	for k, x := range p.days[d] {
 		if x == sc {
 			s := f.Days[d].Strips[k]
-			return s.Sum != "" && s.Sum != t.sceneSum(sc), s.Set
+			return s.Sum != "" && s.Sum != t.sceneSum(sc) && s.Sum != t.oldSceneSum(sc), s.Set
 		}
 	}
 	return false, ""

@@ -744,3 +744,33 @@ func TestStripboardPoolCastKeys(t *testing.T) {
 		t.Errorf("Alt+Up through the menu: %q", got)
 	}
 }
+
+// A scheduled scene's words are the page's: a source link or a note put
+// in or edited is no change, nor a strip summed when the words had them
+// (before they were left out); a word of the script is.
+func TestScheduleSumSkipsNotes(t *testing.T) {
+	text := "INT. KITCHEN - NIGHT\n\n[[from: \"Anna opened the door.\"]]\n\nAnna opens the door. [[slower]]\n"
+	bt := readBdText(text, nil)
+	f := scheduleFile{Days: []schedDay{{Strips: []schedStrip{bt.stripOf(0, "")}}}}
+	old := scheduleFile{Days: []schedDay{{Strips: []schedStrip{bt.stripOf(0, "")}}}}
+	old.Days[0].Strips[0].Sum = wordsSum(bt.scenes[0].key.Heading, wordsIn(bt.runes, 0, len(bt.runes)))
+	if bt.sceneStart(0) != "anna opens the door" {
+		t.Errorf("start %q", bt.sceneStart(0))
+	}
+	changed := func(f scheduleFile, text string) bool {
+		bt := readBdText(text, nil)
+		c, _ := f.changed(bt, f.place(bt), 0)
+		return c
+	}
+	if changed(old, text) {
+		t.Error("summed with the notes, as before: changed")
+	}
+	for _, edit := range []string{text, strings.Replace(text, "Anna opened", "She opened", 1), strings.Replace(text, "slower", "faster", 1)} {
+		if changed(f, edit) {
+			t.Errorf("changed: %q", edit)
+		}
+	}
+	if edit := strings.Replace(text, "opens the door", "opens the window", 1); !changed(f, edit) {
+		t.Error("a word of the script: not changed")
+	}
+}

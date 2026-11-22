@@ -192,7 +192,8 @@ type bdText struct {
 	runes     []rune
 	lineStart []int // each line's first rune
 	scenes    []bdScene
-	words     []bdWord // the body's
+	printed   []rune   // runes with notes blanked (printedRunes)
+	words     []bdWord // the body's, as printed
 	sceneOf   []int    // each word's scene (-1: before the first)
 }
 
@@ -273,7 +274,8 @@ func readBdText(text string, starts []string) *bdText {
 		}
 		t.scenes = append(t.scenes, s)
 	}
-	t.words = wordsIn(t.runes, 0, min(body, len(t.runes)))
+	t.printed = printedRunes(t.runes)
+	t.words = wordsIn(t.printed, 0, min(body, len(t.runes)))
 	t.sceneOf = make([]int, len(t.words))
 	sc := -1
 	for i, w := range t.words {
@@ -283,6 +285,45 @@ func readBdText(text string, starts []string) *bdText {
 		t.sceneOf[i] = sc
 	}
 	return t
+}
+
+// printedRunes is a text with its notes ([[…]]: source links too)
+// blanked, the same length: a tag is on the script's words, never on a
+// link's quote, and is lost when those are gone. A note not closed within
+// its paragraph is left as it is (being typed). The boneyard stays: an
+// omitted scene's text kept there keeps its tags.
+func printedRunes(rs []rune) []rune {
+	out := rs
+	copied := false
+	blank := func(from, to int) {
+		if !copied {
+			out, copied = slices.Clone(rs), true
+		}
+		for i := from; i < to; i++ {
+			if out[i] != '\n' {
+				out[i] = ' '
+			}
+		}
+	}
+	at := func(i int, s string) bool {
+		return i+1 < len(rs) && rs[i] == rune(s[0]) && rs[i+1] == rune(s[1])
+	}
+	for i := 0; i+1 < len(rs); i++ {
+		if !at(i, "[[") {
+			continue
+		}
+		for j := i + 2; j+1 < len(rs); j++ {
+			if at(j, "\n\n") {
+				break // a note ends with its paragraph
+			}
+			if at(j, "]]") {
+				blank(i, j+2)
+				i = j + 1
+				break
+			}
+		}
+	}
+	return out
 }
 
 // printedHeading is a heading as printed: without its number, notes and
@@ -334,7 +375,7 @@ func (t *bdText) anchorOf(i, j int) (bdSceneKey, string) {
 		if a >= b {
 			return ""
 		}
-		return strings.Join(strings.Fields(string(t.runes[t.words[a].start:t.words[b-1].end])), " ")
+		return strings.Join(strings.Fields(string(t.printed[t.words[a].start:t.words[b-1].end])), " ")
 	}
 	d := textDirective{Start: raw(i, j)}
 	if p := max(lo, i-contextWords); p < i {
@@ -344,6 +385,17 @@ func (t *bdText) anchorOf(i, j int) (bdSceneKey, string) {
 		d.Suffix = raw(j, s)
 	}
 	return key, d.String(false)
+}
+
+// inNote reports whether runes [start, end) have a note's (a link's
+// quote): no words to tag.
+func (t *bdText) inNote(start, end int) bool {
+	for i := max(start, 0); i < min(max(end, start+1), len(t.runes)); i++ {
+		if t.printed[i] != t.runes[i] {
+			return true
+		}
+	}
+	return false
 }
 
 // placed is a tag found in the text: its words' runes (lost: not found).
