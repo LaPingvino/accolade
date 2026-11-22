@@ -237,7 +237,7 @@ func TestLanguageExtensions(t *testing.T) {
 		}
 	}
 	old := lexSettings
-	t.Cleanup(func() { lexSettings = old; sceneConf = lexSettings.Scenes; startsDialects.Clear() })
+	t.Cleanup(func() { lexSettings = old; sceneConf = lexSettings.Scenes; startsDialects.Clear(); lastStarts.Store(nil) })
 	lexSettings.Extensions = map[string]string{"kissa": "zh"}
 	if l := languageOf("x.kissa"); l != "zh" {
 		t.Errorf("own extension: %q", l)
@@ -290,5 +290,24 @@ func TestMarkActionTransitionByRules(t *testing.T) {
 	w.markLineElement(elementAction)
 	if !strings.Contains(w.textEditor.Text(), "\n他走了。\n") {
 		t.Errorf("action marked:\n%s", w.textEditor.Text())
+	}
+}
+
+// The Tab flow writes @ only where the language would not read the name.
+func TestTabCueByRules(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.setLanguage("zh")
+	text := "场景1 咖啡馆 日 内\n\n张三\n\n/* Characters\n张三: 主角\n*/\n"
+	w.textEditor.SetText(text)
+	start := len([]rune("场景1 咖啡馆 日 内\n\n"))
+	if got := w.asCue(start, "张三"); got != "张三" {
+		t.Errorf("a listed name: %q", got)
+	}
+	if got := w.asCue(start, "李四"); got != "@李四" {
+		t.Errorf("an unknown name: %q", got)
+	}
+	// stats count a heading by the language's pattern
+	if st := computeStats("场景1 咖啡馆 日 内\n\n他走了。\n\n场景2 街道 夜 外\n\n雨。\n", 0, sceneStarts("zh")); st.Scenes != 2 {
+		t.Errorf("scenes %d", st.Scenes)
 	}
 }

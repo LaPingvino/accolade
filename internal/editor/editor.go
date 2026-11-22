@@ -66,6 +66,7 @@ type ScriptEditor struct {
 	// (its heading patterns, cue and transition rules): nil reads by
 	// SceneStarts as English Fountain.
 	Dialect *fountain.Dialect
+	casts   *fountain.CastCache // Dialect's, the text's cast kept between keys
 	// LanguageRTL is the script's language's direction (Lexington's
 	// [Directions]): a line with no direction mark and no strong letter
 	// reads right to left, laid out mirrored. Every other line follows its
@@ -570,7 +571,7 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 	}
 	var kinds []syntax.Kind
 	if e.Format != nil && !e.Markdown {
-		kinds = syntax.ClassifyTypingIn(lines, e.SceneStarts, e.Dialect, key.line)
+		kinds = e.classifyTyping(lines, key.line)
 		formats := make([]wrap.Format, len(kinds))
 		page := e.PageColumns
 		if page <= 0 {
@@ -602,7 +603,7 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 			}
 		}
 	case kinds == nil && e.Syntax:
-		kinds = syntax.ClassifyIn(lines, e.SceneStarts, e.Dialect)
+		kinds = e.classifyTyping(lines, -1)
 	}
 	if l.lineStart == nil { // where each line starts, for Inks
 		l.lineStart = make([]int, len(lines))
@@ -1472,3 +1473,15 @@ var (
 	_ fyne.Tappable       = (*ScriptEditor)(nil)
 	_ desktop.Keyable     = (*ScriptEditor)(nil)
 )
+
+// classifyTyping is syntax.ClassifyTypingIn by the editor's Dialect, its
+// cast kept between keys (line -1: no cursor line).
+func (e *ScriptEditor) classifyTyping(lines []string, line int) []syntax.Kind {
+	if e.Dialect == nil {
+		return syntax.ClassifyTyping(lines, e.SceneStarts, line)
+	}
+	if e.casts == nil || e.casts.Dialect() != e.Dialect {
+		e.casts = e.Dialect.NewCastCache()
+	}
+	return syntax.ClassifyTypingCached(lines, e.SceneStarts, e.casts, line)
+}

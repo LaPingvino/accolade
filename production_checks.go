@@ -100,7 +100,7 @@ func preLockChecks(text string, starts []string) []prodCheck {
 
 	// the title page
 	if strings.TrimSpace(body) != "" {
-		kinds := syntax.ClassifyWith(lines[:min(len(lines), 40)], starts)
+		kinds := syntax.ClassifyIn(lines[:min(len(lines), 40)], starts, dialectForStarts(starts))
 		if len(kinds) == 0 || kinds[0] != syntax.TitlePage {
 			out = append(out, prodCheck{line: 0, kind: checkTitle, text: "No title page: Edit > Title Page… writes one (the issued sets are listed there later)"})
 		}
@@ -238,7 +238,7 @@ func cueChecks(text string, lines []string, starts []string) []prodCheck {
 	}
 	cues := map[string]*cueInfo{}
 	var order []string
-	for i, k := range syntax.ClassifyWith(masked, starts) {
+	for i, k := range syntax.ClassifyIn(masked, starts, dialectForStarts(starts)) {
 		if k != syntax.Character {
 			continue
 		}
@@ -330,7 +330,7 @@ func longScenes(lines []string, heads []sceneHead, starts []string) []prodCheck 
 			masked[i] = l
 		}
 	}
-	kinds := syntax.ClassifyWith(masked, starts)
+	kinds := syntax.ClassifyIn(masked, starts, dialectForStarts(starts))
 	var out []prodCheck
 	for i, h := range heads {
 		end := len(lines)

@@ -39,6 +39,7 @@ func reloadLexingtonSettings() {
 	lexSettings = readLexingtonSettings()
 	sceneConf = lexSettings.Scenes
 	startsDialects.Clear()
+	lastStarts.Store(nil)
 }
 
 // customFormats are the element sets of the settings that are not

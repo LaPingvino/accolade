@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"unicode"
 
@@ -103,6 +104,25 @@ func isParenthetical(trimmed string) bool {
 	return strings.HasPrefix(trimmed, "(") && strings.HasSuffix(trimmed, ")")
 }
 
+// asCue is a line typed as a cue (at rune offset start) made one: as
+// the language's rules read it already, or asCueOf's way.
+func (w *MainWindow) asCue(start int, line string) string {
+	t := strings.TrimSpace(line)
+	up := strings.ToUpper(t)
+	if t == "" || strings.HasPrefix(t, "@") || strings.IndexFunc(up, unicode.IsUpper) >= 0 {
+		return asCue(line)
+	}
+	lines := strings.Split(w.textEditor.Text(), "\n")
+	i, _ := w.textEditor.Buffer().Position(start)
+	if i < len(lines) {
+		typed := append(append(slices.Clone(lines[:i]), t, "x"), lines[min(i+1, len(lines)):]...)
+		if syntax.ClassifyIn(typed, w.sceneStarts(), w.dialect())[i] == syntax.Character {
+			return t // the language reads it as a cue: no @ (a listed name, a registered one)
+		}
+	}
+	return asCue(line)
+}
+
 // asCue is a line typed as a cue made one: in capitals, or with Fountain's
 // @ for a name in a script without capitals (Hebrew, Arabic, Chinese).
 func asCue(line string) string {
@@ -166,7 +186,7 @@ func (w *MainWindow) flowTab() bool {
 		return true
 
 	case atEnd && w.cueHere():
-		w.toDialogue(start, end, asCue(line))
+		w.toDialogue(start, end, w.asCue(start, line))
 		return true
 
 	case atEnd && (i == 0 || strings.TrimSpace(lines[i-1]) == "") && !isSceneHeadingIn(strings.ToUpper(trimmed), w.sceneStarts()) &&
@@ -239,7 +259,7 @@ func (w *MainWindow) flowEnter() bool {
 
 	switch {
 	case w.cueHere():
-		w.toDialogue(start, end, asCue(line))
+		w.toDialogue(start, end, w.asCue(start, line))
 		return true
 	case b.Cursor() != end && isParenthetical(trimmed) && closingRest(line, col) && w.inSpeech(lines, i):
 		if trimmed == "()" { // nothing in it: the dialogue's line instead

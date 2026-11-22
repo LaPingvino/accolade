@@ -63,7 +63,30 @@ func ClassifyIn(lines []string, sceneStarts []string, d *fountain.Dialect) []Kin
 	if sceneStarts == nil {
 		sceneStarts = SceneStarts
 	}
-	return classify(lines, sceneStarts, d, d.CastOf(strings.Join(lines, "\n")))
+	return classify(lines, sceneStarts, d, d.CastOfLines(lines))
+}
+
+// ClassifyCached is ClassifyIn with the script's cast kept between
+// edits (fountain.CastCache: an editor's, per key).
+func ClassifyCached(lines []string, sceneStarts []string, c *fountain.CastCache) []Kind {
+	if sceneStarts == nil {
+		sceneStarts = SceneStarts
+	}
+	return classify(lines, sceneStarts, c.Dialect(), c.Cast(lines))
+}
+
+// ClassifyTypingCached is ClassifyTypingIn with a cast cache.
+func ClassifyTypingCached(lines []string, sceneStarts []string, c *fountain.CastCache, cursorLine int) []Kind {
+	if cursorLine < 1 || cursorLine >= len(lines) || strings.TrimSpace(lines[cursorLine]) != "" {
+		return ClassifyCached(lines, sceneStarts, c)
+	}
+	typed := append([]string(nil), lines...)
+	typed[cursorLine] = "x"
+	kinds := ClassifyCached(typed, sceneStarts, c)
+	if k := kinds[cursorLine-1]; k == Character || k == Parenthetical {
+		return kinds
+	}
+	return ClassifyCached(lines, sceneStarts, c)
 }
 
 func classify(lines []string, sceneStarts []string, d *fountain.Dialect, cast *fountain.Cast) []Kind {
@@ -125,11 +148,11 @@ body:
 		case strings.HasPrefix(t, ">") && strings.HasSuffix(t, "<"):
 			kinds[i] = Centered
 		case strings.HasPrefix(t, ">"), afterBlank && trimmed(i+1) == "" &&
-			(d == nil && t == upper && strings.HasSuffix(t, "TO:") && t != strings.ToLower(t) || d != nil && d.Transition(t)):
+			(d == nil && t == upper && strings.HasSuffix(t, "TO:") && t != strings.ToLower(t) || d != nil && t == upper && d.Transition(t)):
 			// a transition: forced, or in capitals with blank lines around it
 			kinds[i] = Transition
 		case strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..") && len(t) > 1,
-			afterBlank && (d == nil && hasAnyPrefix(upper, sceneStarts) || d != nil && d.Heading(t)):
+			afterBlank && (hasAnyPrefix(upper, sceneStarts) || d != nil && d.HasPatterns() && d.Heading(t)):
 			// a heading: forced anywhere, by its word after a blank line
 			kinds[i] = SceneHeading
 		case inDialogue && strings.HasPrefix(t, "(") && strings.HasSuffix(t, ")"):

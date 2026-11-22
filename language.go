@@ -2,6 +2,7 @@ package main
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"slices"
 
@@ -111,7 +112,10 @@ func isSceneHeadingIn(line string, starts []string) bool {
 		}
 	}
 	// a heading by one of the language's patterns ("场景1 小区楼下 日 外")
-	if d := dialectForStarts(starts); d != nil && len(d.Lang.Headings) > 0 {
+	if len(line) > 240 { // a paragraph is no heading (fountain's maxShort)
+		return false
+	}
+	if d := dialectForStarts(starts); d != nil && d.HasPatterns() {
 		return d.Heading(strings.TrimSpace(line))
 	}
 	return false
@@ -124,6 +128,24 @@ var startsDialects sync.Map
 // dialectForStarts is the dialect of the language whose scene starts
 // these are (the script's), nil for none the machine knows.
 func dialectForStarts(starts []string) *fountain.Dialect {
+	// asked for every line: the last answer first, without building a key
+	if last := lastStarts.Load(); last != nil && slices.Equal(last.starts, starts) {
+		return last.d
+	}
+	d := dialectForStartsKeyed(starts)
+	lastStarts.Store(&startsHit{slices.Clone(starts), d})
+	return d
+}
+
+// startsHit is dialectForStarts's last answer.
+type startsHit struct {
+	starts []string
+	d      *fountain.Dialect
+}
+
+var lastStarts atomic.Pointer[startsHit]
+
+func dialectForStartsKeyed(starts []string) *fountain.Dialect {
 	key := strings.Join(starts, "\x00")
 	if d, ok := startsDialects.Load(key); ok {
 		return d.(*fountain.Dialect)

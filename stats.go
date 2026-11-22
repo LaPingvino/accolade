@@ -87,7 +87,7 @@ func countScript(text string, starts []string) scriptCounts {
 	st := &c.stats
 	lines := strings.Split(text, "\n")
 	rows := 0
-	for i, k := range syntax.ClassifyWith(lines, starts) {
+	for i, k := range syntax.ClassifyIn(lines, starts, dialectForStarts(starts)) {
 		if k == syntax.TitlePage {
 			continue
 		}

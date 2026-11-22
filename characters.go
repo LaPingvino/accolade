@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/LaPingvino/lexington/rules"
 	"sort"
 	"strings"
 
@@ -21,7 +22,7 @@ import (
 func scriptCharacters(text string, starts []string) []string {
 	lines := strings.Split(text, "\n")
 	count := map[string]int{}
-	for i, k := range syntax.ClassifyWith(lines, starts) {
+	for i, k := range syntax.ClassifyIn(lines, starts, dialectForStarts(starts)) {
 		if k == syntax.Character {
 			if name := cueName(lines[i]); name != "" {
 				count[name]++
@@ -86,7 +87,8 @@ func (w *MainWindow) pickCharacter(at fyne.CanvasObject) {
 // insertCue puts a character cue in as a paragraph of its own, the cursor
 // on the line after it for the dialogue.
 func (w *MainWindow) insertCue(name string) {
-	if name != strings.ToUpper(name) && !strings.HasPrefix(name, "@") {
+	if name != strings.ToUpper(name) && !strings.HasPrefix(name, "@") &&
+		!(w.dialect().Lang.Has(rules.CueList) && isListed(w.textEditor.Text(), name)) {
 		name = "@" + name // a listed name in small letters: Fountain's forced cue (until the language's list rule reads it)
 	}
 	w.textEditor.Edit(func(b *buffer.Buffer) {
