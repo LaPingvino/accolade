@@ -42,7 +42,9 @@ import (
 //     the placeholder of a scene Adapt… started, or a link put under a heading written in this
 //     session), other than any the source's place makes: the place maps
 //     to it (places:), without the time. A link added under a heading
-//     the script had when it was opened teaches nothing.
+//     the script had when it was opened teaches nothing; nor does a
+//     heading typed above a linked scene, its links under it until the
+//     blank line after it is typed (fromAnother); a heading renamed does.
 //   - Skip on a suggested link: written at once (adaptation_suggest.go).
 
 // takenCue is a cue a suggestion put in: the source's name for the
@@ -62,6 +64,7 @@ type learner struct {
 	strikes   map[string]int  // a source name's cue thrown away, by wordsKey
 	forgotten map[string]bool // lessons taken away by the writer
 	known     map[string]bool // headings with their links, cues with their lines, seen already
+	linkHead  map[string]string // a link's key: the known heading it was last seen under
 	knownFor  string          // the file they are of
 	knownOK   bool
 	rev       uint64 // looked at last for this revision and line
@@ -146,13 +149,38 @@ func (l *learner) knowScript(lines []string, starts []string) {
 	for _, b := range blocksIn(lines, 0, len(lines)) {
 		l.known["cue\x00"+b.cue+"\x00"+b.key] = true
 	}
-	for _, k := range parseLinks(strings.Join(lines, "\n")) {
-		l.known[linkKey(k.Ref.key())] = true
+	l.linkHead = map[string]string{}
+	head := ""
+	links := parseLinks(strings.Join(lines, "\n"))
+	for i, k := 0, 0; i < len(lines) && k < len(links); i++ {
+		if headingAt(lines, i, starts) {
+			head = strings.TrimSpace(lines[i])
+		}
+		for ; k < len(links) && links[k].Line == i; k++ {
+			if head != "" {
+				l.linkHead[links[k].Ref.key()] = head
+			}
+		}
 	}
 }
 
-// linkKey is a link's key among the learner's known things.
-func linkKey(k string) string { return "link\x00" + k }
+// fromAnother reports whether a link of scene c is still another
+// heading's: the known heading it was under stands in c's lines, no
+// longer a heading (a heading typed above that one, the blank line after
+// it not typed yet). Under a heading since renamed, or Adapt…'s
+// placeholder written over, it is c's.
+func (l *learner) fromAnother(lines []string, c *sceneCtx, key string) bool {
+	prev := l.linkHead[key]
+	if prev == "" {
+		return false
+	}
+	for i := c.head + 1; i < c.end && i < len(lines); i++ {
+		if strings.Contains(lines[i], prev) {
+			return true
+		}
+	}
+	return false
+}
 
 // knowScript takes in a script just opened: what is in it, the writer
 // did not do now.
@@ -334,28 +362,37 @@ func (l *learner) checkScene(sg *suggester, o *sourceOffers, c *sceneCtx, next *
 	// (Adapt…'s scene, or a link put under it): not one written before, a
 	// link added to it later
 	//
-	// Its links must be new too: those another heading had are not
-	// put under this one ("EXT. YARD" typed above a scene, its links
-	// under it until the blank line after it is typed); seen under a
-	// known heading, they are known.
+	// Not from links still another heading's (fromAnother): typed above
+	// a scene, a heading has its links under it until the blank line
+	// after it is typed.
 	if c.head >= 0 && c.head < len(lines) && cursor != c.head && c.linked {
 		heading := strings.TrimSpace(lines[c.head])
 		k := headingKey(heading)
 		first := -1
-		for _, ln := range c.links {
-			if l.known[k] {
-				l.known[linkKey(ln.key)] = true
-			} else if first < 0 && !l.known[linkKey(ln.key)] {
-				first = ln.first
+		if !l.known[k] {
+			for _, ln := range c.links {
+				if !l.fromAnother(lines, c, ln.key) {
+					first = ln.first
+					break
+				}
 			}
 		}
 		if !l.known[k] && first >= 0 {
 			l.known[k] = true
-			for _, ln := range c.links {
-				l.known[linkKey(ln.key)] = true
-			}
 			if own(c.head) && learnPlace(sg, o, first, heading, next, l.forgotten, starts) {
 				changed = true
+			}
+		}
+		if l.known[k] {
+			if l.linkHead == nil {
+				l.linkHead = map[string]string{}
+			}
+			// a link keeps the heading it was under while that one's words
+			// stand (a heading being typed in front of it, or a link moved)
+			for _, ln := range c.links {
+				if prev := l.linkHead[ln.key]; prev == "" || !slices.ContainsFunc(lines, func(s string) bool { return strings.Contains(s, prev) }) {
+					l.linkHead[ln.key] = heading
+				}
 			}
 		}
 	}

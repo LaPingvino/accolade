@@ -442,14 +442,14 @@ func TestLearnPlace(t *testing.T) {
 // and links put under a heading since are both another's.
 func TestLearnNotFromAnotherScenesLinks(t *testing.T) {
 	w, _ := sourceWindow(t, suggestScript, learnStory)
-	typeAbove := func(at string) {
+	typeAbove := func(at, heading string) {
 		l := lineWith(t, w, at)
 		w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(l), false) })
 		w.onCursorChanged()
-		typeText(w, "EXT. GENERAL'S YARD - DAY\n\nA puppy slips out.\n\n")
+		typeText(w, heading+"\n\nA puppy slips out.\n\n")
 		moveTo(t, w, "Title")
 	}
-	typeAbove("INT. KITCHEN - NIGHT") // the script's links
+	typeAbove("INT. KITCHEN - NIGHT", "EXT. GENERAL'S YARD - DAY") // the script's links
 	if b := learnedBlock(w); b != "" {
 		t.Fatalf("above the kitchen: %q", b)
 	}
@@ -459,9 +459,36 @@ func TestLearnNotFromAnotherScenesLinks(t *testing.T) {
 	if b := learnedBlock(w); b != "places: street = EXT. KOVAČ ROAD" {
 		t.Fatalf("the road: %q", b)
 	}
-	typeAbove("EXT. KOVAČ ROAD - MORNING") // links put under a heading now
+	typeAbove("EXT. KOVAČ ROAD - MORNING", "EXT. KENNEL - DAY") // links put under a heading now
 	if b := learnedBlock(w); b != "places: street = EXT. KOVAČ ROAD" {
 		t.Errorf("above the road: %q", b)
+	}
+
+	// a heading renamed does teach: the old one is gone
+	w2, _ := sourceWindow(t, suggestScript, learnStory)
+	replaceText(t, w2, "INT. KITCHEN - NIGHT", "INT. KOVAČ KITCHEN - NIGHT")
+	moveTo(t, w2, "Anna opened the kitchen door")
+	moveTo(t, w2, "Title")
+	if b := learnedBlock(w2); b != "places: kitchen = INT. KOVAČ KITCHEN" {
+		t.Errorf("renamed: %q", b)
+	}
+	// and Adapt…'s placeholder written over after the cursor was in its scene
+	w3, _ := sourceWindow(t, suggestScript, learnStory)
+	toEnd(w3)
+	w3.nextSourcePassage()
+	w3.adaptSourcePassage()
+	d := w3.sourcePane().adapting
+	d.how.choose(0)
+	d.heading.SetText("INT. PLACE - DAY")
+	d.accept()
+	moveTo(t, w3, "The next morning the street was white")
+	l := lineWith(t, w3, "INT. PLACE - DAY")
+	w3.textEditor.Navigate(func(b *buffer.Buffer) { b.Select(b.LineStart(l)+5, b.LineEnd(l)) })
+	w3.onCursorChanged()
+	typeText(w3, "KOVAČ ROAD - MORNING")
+	moveTo(t, w3, "Title")
+	if b := learnedBlock(w3); b != "places: street = INT. KOVAČ ROAD" {
+		t.Errorf("the placeholder written over later: %q", b)
 	}
 }
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/LaPingvino/accolade/internal/storyread"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -105,5 +106,20 @@ func TestReadingScreenshot(t *testing.T) {
 		}
 		png.Encode(f, w.fyneWindow.Canvas().Capture())
 		f.Close()
+	}
+}
+
+// A passage that names its own place shows it beside its scene's: the
+// heading Adapt… suggests for it.
+func TestWhatTheSourceShowsHere(t *testing.T) {
+	ps := []storyread.Passage{{Text: "Anna walked across the market square."},
+		{Text: "Later she sat at the inn in Meryton, and in Meryton she stayed."}}
+	r := storyread.Read(ps, "en", storyread.Hints{})
+	md := readingMarkdown(r, 1, "INT.", "EXT.", "INT./EXT.")
+	if !strings.Contains(md, "**Scene** EXT. MARKET SQUARE") || !strings.Contains(md, "**Here** INT. MERYTON") {
+		t.Errorf("%s", md)
+	}
+	if md := readingMarkdown(r, 0, "INT.", "EXT.", "INT./EXT."); strings.Contains(md, "**Here**") {
+		t.Errorf("the scene's own: %s", md)
 	}
 }

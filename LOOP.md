@@ -917,15 +917,18 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   learner use it before the scene's: Prohor's passage (29) suggests EXT. PITCHUGIN'S TIMBER-YARD (the learned
   place), the rest EXT. MARKET SQUARE (3 and 6 the timber-yard), where all 31 said EXT. GOD. The learner's side:
   a heading typed above a linked scene had that scene's links under it until the blank line after it was typed,
-  and learned from them ("god", then "the timber-yard = EXT. GENERAL ZHIGALOV'S YARD"); a new heading now learns
-  only from links that are new too (known at open or seen under a known heading = another's). (2) Breakdown words
+  and learned from them ("god", then "the timber-yard = EXT. GENERAL ZHIGALOV'S YARD"); the learner now keeps the
+  known heading each link was under (linkHead), and a new heading does not learn from a link whose old heading's
+  words still stand in its scene (fromAnother); a heading renamed and Adapt…'s placeholder written over still teach.
+  The source pane's "What the source shows" adds "Here <heading>" when a passage names its own place. (2) Breakdown words
   skip notes and source links (blanked: printedRunes; the boneyard stays, an omitted scene's kept text keeps its
   tags: TestRenumberDropsOmittedKeys), so no tag lands in a link's quote,
   a tag whose words left the script is lost though a link quotes them, Tag Selection in a link says why not;
   anchors' context without notes. The schedule's strip sums and first words follow (no link words); a
   strip summed before still matches (oldSceneSum), so no false "changed". (3) The Characters pane's "from scene N"
   and its scene list use the scene labels (locked: 2, 2A; else counted): HRYUKIN "from scene 2". Tests:
-  storyread TestPlaceEvidence, TestLearnNotFromAnotherScenesLinks, TestTagsSkipLinksAndNotes,
+  storyread TestPlaceEvidence, TestLearnNotFromAnotherScenesLinks (also a rename, a placeholder), TestWhatTheSourceShowsHere,
+  TestTagsSkipLinksAndNotes,
   TestScheduleSumSkipsNotes, TestCharSceneLabels; TestSample checks HRYUKIN's label and no tag in a link; the
   generator's forget-"god" step went (it asserts one learned place). Sample regenerated (breakdown anchor,
   schedule starts/sums). Shots adapt-dialog-desktop (Prohor's passage), passage 30, combo-sample-characters,

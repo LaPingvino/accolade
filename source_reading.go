@@ -138,6 +138,12 @@ func readingMarkdown(r *storyread.Reading, p int, in, out, either string) string
 		where = "a scene starts here: " + pr.SceneStart
 	}
 	fmt.Fprintf(&b, "**Scene** %s\n\n*%s*\n\n", mdEscape.Replace(sc.Heading(in, out, either)), mdEscape.Replace(where))
+	if pl := pr.Place; pl.Place != "" { // it names its own place: what Adapt… suggests
+		own := storyread.Scene{Setting: pl.Setting, Place: pl.Place, Given: pl.Given, Time: sc.Time}.Heading(in, out, either)
+		if own != sc.Heading(in, out, either) {
+			fmt.Fprintf(&b, "**Here** %s\n\n", mdEscape.Replace(own))
+		}
+	}
 	if len(pr.Lines) > 0 {
 		b.WriteString("**Who says what**\n\n")
 		for _, l := range pr.Lines {
