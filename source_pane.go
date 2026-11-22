@@ -294,8 +294,11 @@ func fill(r passageRow, md string, full bool, acts rowActs) bool {
 		cutName = "Unmark the picked passage: not cut"
 	}
 	setLabel(r.cut, acts.cut, acts.cutLabel, cutName)
-	setVisible(r.line, r.more.Visible() || acts.any())
-	r.line.Refresh()
+	if on := r.more.Visible() || acts.any(); on != r.line.Visible() {
+		setVisible(r.line, on)
+	} else if on {
+		r.line.Layout.Layout(r.line.Objects, r.line.Size()) // a button came or went
+	}
 	r.body.Layout.Layout(r.body.Objects, r.body.Size())
 	return cut
 }
@@ -1050,8 +1053,8 @@ func (s *sourcePane) showAdapt() {
 // pick) their height again.
 //
 // Many at once (a source read again: its links found after it was
-// measured without them) are estimated again and measured a stretch at a
-// time, as the rows were at first (measure).
+// measured without them) are estimated a line taller or shorter and
+// measured again a stretch at a time, as the rows were at first.
 func (s *sourcePane) syncActs() {
 	s.showAdapt()
 	if len(s.acts) != len(s.passages) || len(s.heights) != len(s.passages) {
@@ -1063,8 +1066,22 @@ func (s *sourcePane) syncActs() {
 			flipped = append(flipped, id)
 		}
 	}
-	if len(flipped) > 8 && s.width > 0 {
-		s.measure(s.width)
+	if len(flipped) > 8 && s.width > 0 { // a line more or less, measured later
+		for _, id := range flipped {
+			s.acts[id] = !s.acts[id]
+			if s.acts[id] {
+				s.heights[id] += s.est.one
+			} else {
+				s.heights[id] = max(s.heights[id]-s.est.one, s.est.one)
+			}
+			s.exact[id] = false
+		}
+		s.setHeights(0, len(s.passages))
+		s.scanned = min(s.scanned, flipped[0])
+		if s.measureT == nil {
+			gen := s.measuring
+			s.w.repeat(&s.measureT, func() bool { return s.measureStretch(gen) })
+		}
 		return
 	}
 	for _, id := range flipped {
