@@ -13,9 +13,17 @@ import (
 // escaped closes, empty blocks, white space after the close, the
 // Markdown marks, blocks not at the end, multi-byte text.
 
+// oldBlocks are oldAt's regexps by their marks (compiled once: compiling
+// one for each of the 20 000 texts was most of the test's time).
+var oldBlocks = map[[2]string]*regexp.Regexp{}
+
 // oldAt is notesMarks.at as it was, with its regexp.
 func oldAt(m notesMarks, text string) (int, string) {
-	block := regexp.MustCompile(`(?s)^` + regexp.QuoteMeta(m.open) + `\n(.*?)\n?` + regexp.QuoteMeta(m.close) + `\s*$`)
+	block := oldBlocks[[2]string{m.open, m.close}]
+	if block == nil {
+		block = regexp.MustCompile(`(?s)^` + regexp.QuoteMeta(m.open) + `\n(.*?)\n?` + regexp.QuoteMeta(m.close) + `\s*$`)
+		oldBlocks[[2]string{m.open, m.close}] = block
+	}
 	i := strings.LastIndex(text, m.open+"\n")
 	if i < 0 || (i > 0 && text[i-1] != '\n') {
 		return -1, ""

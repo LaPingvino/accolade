@@ -1,7 +1,12 @@
 package main
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
+	"strings"
+	"sync"
 
 	"fyne.io/fyne/v2/widget"
 
@@ -19,7 +24,7 @@ import (
 func scriptFormats() []rules.Preset { return machineLex().formats() }
 
 func (c lexConf) formats() []rules.Preset {
-	out, _ := rules.PresetsIn(builtinFormatDir(), userFormatDir())
+	out := presetsIn(builtinFormatDir(), userFormatDir())
 	for _, k := range c.customFormats() {
 		if !slices.ContainsFunc(out, func(p rules.Preset) bool { return p.Key == k }) {
 			out = append(out, rules.Preset{Key: k, Name: k, Description: "Your own, from the Lexington settings.", Elements: c.Elements[k]})
@@ -29,6 +34,38 @@ func (c lexConf) formats() []rules.Preset {
 		out, _ = rules.WithPresetFiles(out, c.carried.formats)
 	}
 	return out
+}
+
+// presetsSeen is the last reading of the format folders, kept while
+// their .toml files are the same (name, size, time): the formats are
+// asked for on every refresh of the header, the ribbon, the panes.
+var presetsSeen struct {
+	sync.Mutex
+	key  string
+	list []rules.Preset
+}
+
+// presetsIn is rules.PresetsIn(dirs...), read again only when a format
+// file came, went or changed.
+func presetsIn(dirs ...string) []rules.Preset {
+	var key strings.Builder
+	for _, dir := range dirs {
+		fs, _ := filepath.Glob(filepath.Join(dir, "*.toml"))
+		fmt.Fprintf(&key, "%s\x00", dir)
+		for _, f := range fs {
+			if st, err := os.Stat(f); err == nil {
+				fmt.Fprintf(&key, "%s\x00%d\x00%d\x00", f, st.Size(), st.ModTime().UnixNano())
+			}
+		}
+	}
+	p := &presetsSeen
+	p.Lock()
+	defer p.Unlock()
+	if p.list == nil || p.key != key.String() {
+		p.list, _ = rules.PresetsIn(dirs...)
+		p.key = key.String()
+	}
+	return slices.Clone(p.list)
 }
 
 // scriptFormat is the format with key, or the screenplay's.
