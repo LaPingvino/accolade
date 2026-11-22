@@ -32,6 +32,8 @@ Each writes plain Markdown on the selection or the cursor's lines; again takes i
 - **Bold** — Ctrl+B; **Italic** — Ctrl+I; **Strikethrough**; **Inline Code**
 - **Link…** — Ctrl+L: asks the address, the selection is its text; **Image…** — the same, `![…](…)`
 - **Footnote** — the next `[^n]` at the cursor, its note at the end
+- **Go to Note or Reference** — from a `[^n]` to its note, from a note back to its mark; the pointer over a mark shows its note
+- **Renumber Notes** — 1, 2, 3… in the order the text refers to them, the notes at the end put in that order
 - **Bulleted List**, **Numbered List**, **Task List**, **Quote** — on the lines (a list replaces another)
 - **Code Block** — fences the lines in ``` ```; **Horizontal Rule**; **Table…** — rows × columns
 
@@ -40,7 +42,8 @@ Each writes plain Markdown on the selection or the cursor's lines; again takes i
 - **Notes** — the notepad is kept at the end in `<!-- Notes` … `-->`
 - **Front matter** — a `---` block at the top is left out of the preview and the word count
 - **Command palette** — Ctrl+K or F1: every command by name
-- **Preview** — Ctrl+Shift+P shows the document formatted beside the editor
+- **Preview** — Ctrl+Shift+P shows the document formatted beside the editor; its Pages are the PDF's, links clickable (Tab goes through them)
+- **Notes in the PDF** — at the foot of the page by default; Page Setup: after each chapter or after the text, numbered through or again in each chapter
 - **Lists go on** — Enter at the end of an item starts the next; Enter on an empty item ends the list
 - **Outline** — the headings (Ctrl+Shift+O)
 - **Document type** — View > Document Type switches between Screenplay and Markdown
