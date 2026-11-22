@@ -64,6 +64,17 @@ func TestRibbonSettings(t *testing.T) {
 	if other.statusBar.Visible() {
 		t.Error("Status Bar did not reach the other window")
 	}
+	// the Quick row: View > Quick Row and Preferences' checkbox are one setting
+	cmd("set.quickRow").run(w)
+	if !s.GetBoolean(quickRowPref) || !pd.quickRowCheck.Checked || !r.quickRowBox.Visible() {
+		t.Errorf("Quick Row: setting %v, Preferences %v, row %v", s.GetBoolean(quickRowPref), pd.quickRowCheck.Checked, r.quickRowBox.Visible())
+	}
+	pd.quickRowCheck.SetChecked(false)
+	pd.saveSettings()
+	w.app.applySettingsToWindows()
+	if s.GetBoolean(quickRowPref) || r.quickRowBox.Visible() {
+		t.Error("Preferences' Quick row checkbox did not take the row away")
+	}
 
 	size := s.GetInt("font-size")
 	buttonOf(r, "set.textLarger").press()

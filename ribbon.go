@@ -167,6 +167,7 @@ type ribbonBar struct {
 	rowButtons  []*ribbonButton
 
 	selected string // the tab chosen
+	height   float32 // the ribbon's height as last built
 	picked   bool   // chosen by the user (a phone's Quick does not take its place)
 	// previewing: the Preview tab is there (it comes forward when it
 	// comes); beforePreview: the tab chosen before it, chosen again when
@@ -437,6 +438,10 @@ func (r *ribbonBar) build() {
 	r.groupBox.Refresh()
 	r.groups.Refresh()
 	r.showElement(w.currentElement)
+	if h := r.box.MinSize().Height; h != r.height { // the phone's Quick tab is a row taller
+		r.height = h
+		w.relayoutTop()
+	}
 }
 
 // groupContent is a group's buttons: large ones a column each, small
@@ -483,12 +488,18 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 		}
 		switch h.id {
 		case quickHome: // the Quick tab's (quick.go)
-			for _, b := range r.quickButtons() {
+			bs := r.quickButtons()
+			for _, b := range bs {
 				if el, ok := strings.CutPrefix(b.c.id, "format.element."); ok {
 					r.elements[el] = b
 				}
 				r.add(b)
-				addSmall(b)
+				if !r.phone {
+					addSmall(b)
+				}
+			}
+			if r.phone && len(bs) > 0 { // two rows, so all are in sight (Joop, 2026-11-22)
+				cols = append(cols, quickRows(bs))
 			}
 			continue
 		case "elements":

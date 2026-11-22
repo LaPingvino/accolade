@@ -329,6 +329,8 @@ func (pd *PreferencesDialog) followSetting(key string) {
 		pd.lineNumbersCheck.SetChecked(s.GetBoolean(key))
 	case "statusbar-visible":
 		pd.statusbarVisibleCheck.SetChecked(s.GetBoolean(key))
+	case quickRowPref:
+		pd.quickRowCheck.SetChecked(s.GetBoolean(key))
 	case suggestPref:
 		pd.suggestCheck.SetChecked(s.GetBoolean(key))
 	case revisionMarksPref:

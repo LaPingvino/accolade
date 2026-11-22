@@ -37,6 +37,7 @@ type PreferencesDialog struct {
 	lookSelect            *widget.Select // the header's rows or the ribbon
 	toolbarVisibleCheck   *widget.Check
 	statusbarVisibleCheck *widget.Check
+	quickRowCheck         *widget.Check // the ribbon's Quick row (quick.go)
 	autoSaveCheck         *widget.Check
 	autoSaveInterval      *widget.Entry
 
@@ -101,6 +102,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.lookSelect = widget.NewSelect(lookChoices, nil)
 	pd.toolbarVisibleCheck = widget.NewCheck("Show toolbar", nil)
 	pd.statusbarVisibleCheck = widget.NewCheck("Show status bar", nil)
+	pd.quickRowCheck = widget.NewCheck("Quick row under the ribbon (the Fixed order)", nil)
 	pd.autoSaveCheck = widget.NewCheck("Auto-save documents", nil)
 	pd.autoSaveInterval = widget.NewEntry()
 	pd.autoSaveInterval.SetPlaceHolder("30")
@@ -185,6 +187,17 @@ func hint(text string) *widget.Label {
 	return l
 }
 
+// quickRowRow is the Quick row's checkbox with its hint: the desktop's
+// (a phone has the Quick tab; hidden there).
+func (pd *PreferencesDialog) quickRowRow() fyne.CanvasObject {
+	box := container.NewVBox(pd.quickRowCheck,
+		hint("The Quick tab's commands as a row of small buttons under the ribbon, like Office's Quick Access toolbar, while the ribbon's lock is shut (Fixed). Also View > Quick Row, or a ribbon button's right-click menu."))
+	if fyne.CurrentDevice().IsMobile() {
+		box.Hide()
+	}
+	return box
+}
+
 func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
 	return container.NewVBox(
 		widget.NewCard("Working As", "", container.NewVBox(
@@ -197,6 +210,7 @@ func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
 			hint("Menus: the menu bar and the toolbar's two rows. Ribbon: tabs of large buttons in their place, the menus under ☰ at the tab row's end (a Mac keeps its menu bar); F10, or Alt pressed alone, shows their keys."),
 			pd.toolbarVisibleCheck,
 			pd.statusbarVisibleCheck,
+			pd.quickRowRow(),
 		)),
 		widget.NewCard("Saving", "", container.NewVBox(
 			pd.autoSaveCheck,
@@ -291,6 +305,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	}
 	pd.toolbarVisibleCheck.SetChecked(s.GetBoolean("toolbar-visible"))
 	pd.statusbarVisibleCheck.SetChecked(s.GetBoolean("statusbar-visible"))
+	pd.quickRowCheck.SetChecked(s.GetBoolean(quickRowPref))
 	pd.autoSaveCheck.SetChecked(s.GetBoolean("auto-save"))
 	pd.autoSaveInterval.SetText(strconv.Itoa(s.GetInt("auto-save-interval")))
 
@@ -337,6 +352,7 @@ func (pd *PreferencesDialog) saveSettings() {
 	}
 	s.SetBoolean("toolbar-visible", pd.toolbarVisibleCheck.Checked)
 	s.SetBoolean("statusbar-visible", pd.statusbarVisibleCheck.Checked)
+	s.SetBoolean(quickRowPref, pd.quickRowCheck.Checked)
 	s.SetBoolean("auto-save", pd.autoSaveCheck.Checked)
 	if interval, err := strconv.Atoi(pd.autoSaveInterval.Text); err == nil && interval > 0 {
 		s.SetInt("auto-save-interval", interval)

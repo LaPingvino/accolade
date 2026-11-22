@@ -48,6 +48,9 @@ type MainWindow struct {
 	mainContainer    *container.Split
 	sidePanel        *container.Split
 	toolbarContainer *fyne.Container
+	// frame is the window's content around the script: the toolbar (or
+	// ribbon) on top, the status bar at the foot (relayout)
+	frame *fyne.Container
 	// Status bar
 	statusBar *fyne.Container
 	// bottom is the status bar with the notice above it that a script
@@ -1561,7 +1564,8 @@ func (w *MainWindow) relayout() {
 		objects = append(objects, left)
 	}
 	objects = append(objects, center, w.bottom)
-	var content fyne.CanvasObject = container.New(layout.NewBorderLayout(w.toolbarContainer, w.bottom, left, nil), objects...)
+	w.frame = container.New(layout.NewBorderLayout(w.toolbarContainer, w.bottom, left, nil), objects...)
+	var content fyne.CanvasObject = w.frame
 	if w.isFullscreen {
 		// the way back, in sight (not only Ctrl+Shift+F)
 		leave := widget.NewButtonWithIcon("Leave full screen", theme.ViewRestoreIcon(), w.toggleFullscreen)
@@ -1572,6 +1576,16 @@ func (w *MainWindow) relayout() {
 		content = container.NewBorder(container.NewHBox(layout.NewSpacer(), leave), nil, nil, nil, content)
 	}
 	w.setContent(content)
+}
+
+// relayoutTop lays the window out again round the top (the ribbon grew
+// or shrank a row: the phone's Quick tab), the script below getting the
+// height left.
+func (w *MainWindow) relayoutTop() {
+	if w.frame != nil {
+		w.toolbarContainer.Refresh()
+		w.frame.Refresh()
+	}
 }
 
 // sidePaneDefault is the side dock's share of a wide window at first.

@@ -472,3 +472,86 @@ func TestQuickScreenshots(t *testing.T) {
 	r.leaveKeyTips(false)
 	cmd("set.quickRow").run(w)
 }
+
+// A phone's Quick tab: its buttons in two balanced rows, every one inside
+// the window and not cut; the script below gets the height left, a row
+// less on Quick, and going to another tab and back lays it out as before.
+func TestQuickPhoneTwoRows(t *testing.T) {
+	holdUI(t)
+	w := suggestWindow(t, suggestScript)
+	r := ribbonOnFor(t, w)
+	toPhone(t, w)
+	if r.selected != quickTab {
+		t.Fatalf("%s in front", r.selected)
+	}
+	d := fyne.CurrentApp().Driver()
+	type geo struct{ top, height, ribbon float32 }
+	at := func() geo {
+		w.fyneWindow.Canvas().Capture() // laid out
+		var e fyne.CanvasObject = w.textEditor
+		if w.narrow && w.paneSplit != nil { // the script over the panes: their split shares the height
+			e = w.paneSplit
+		}
+		return geo{d.AbsolutePositionForObject(e).Y, e.Size().Height, d.AbsolutePositionForObject(r.box).Y + r.box.Size().Height}
+	}
+	quick := at()
+	bs := r.buttons
+	if len(bs) < 8 {
+		t.Fatalf("Quick holds %d", len(bs))
+	}
+	rows := map[float32][]string{}
+	for _, b := range bs {
+		p, s, m := d.AbsolutePositionForObject(b), b.Size(), b.MinSize()
+		if p.X < 0 || p.X+s.Width > 380 || p.Y+s.Height > quick.ribbon {
+			t.Errorf("%s at %v, %v: outside", b.label, p, s)
+		}
+		if s.Width < m.Width || s.Height < m.Height {
+			t.Errorf("%s is %v, less than its %v", b.label, s, m)
+		}
+		rows[p.Y] = append(rows[p.Y], b.label)
+	}
+	if len(rows) != 2 {
+		t.Errorf("Quick in %d rows: %v", len(rows), rows)
+	}
+	var counts []int
+	for _, row := range rows {
+		counts = append(counts, len(row))
+	}
+	if counts[0]-counts[1] > 1 || counts[1]-counts[0] > 1 {
+		t.Errorf("rows not balanced: %v", rows)
+	}
+	if r.groups.Offset.X != 0 || r.groupBox.MinSize().Width > r.groups.Size().Width {
+		t.Errorf("Quick scrolls: %v wide in %v", r.groupBox.MinSize().Width, r.groups.Size().Width)
+	}
+	if quick.top < quick.ribbon {
+		t.Errorf("the script at %v, under the ribbon's foot at %v", quick.top, quick.ribbon)
+	}
+	r.selectTab("Write")
+	write := at()
+	if write.top >= quick.top || write.height <= quick.height {
+		t.Errorf("Write's script not taller: %+v vs Quick's %+v", write, quick)
+	}
+	if write.top < write.ribbon || write.top-write.ribbon != quick.top-quick.ribbon {
+		t.Errorf("a gap or overlap: Write %+v, Quick %+v", write, quick)
+	}
+	if d := (quick.top - write.top) - (write.height - quick.height); d > 0.5 || d < -0.5 {
+		t.Errorf("the script and panes did not get the height left: %+v vs %+v", write, quick)
+	}
+	r.selectTab(quickTab)
+	if again := at(); again != quick {
+		t.Errorf("Quick again: %+v, was %+v", again, quick)
+	}
+	r.selectTab("Write")
+	if again := at(); again != write {
+		t.Errorf("Write again: %+v, was %+v", again, write)
+	}
+	// the desktop keeps Quick in three-row columns, one ribbon height
+	w.fyneWindow.Resize(fyne.NewSize(1000, 700))
+	w.ribbonOrder = "smart"
+	r.selectTab("Write")
+	dw := at()
+	r.selectTab(quickTab)
+	if dq := at(); dq != dw {
+		t.Errorf("the desktop's Quick changes the height: %+v vs %+v", dq, dw)
+	}
+}

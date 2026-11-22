@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -46,8 +48,8 @@ import (
 // off. Pins come first, in the order pinned, and are kept with the counts.
 //
 // The desktop can also have the Quick commands as a row under the ribbon
-// (View > Quick Row, or a right-click on any ribbon button; off at
-// first), like Office's Quick Access toolbar, while the order is Fixed.
+// (View > Quick Row, Preferences, or a right-click on any ribbon button;
+// off at first), like Office's Quick Access toolbar, while the order is Fixed.
 
 const (
 	quickTab      = "Quick"
@@ -468,6 +470,21 @@ func (r *ribbonBar) quickButtons() []*ribbonButton {
 		out = append(out, b)
 	}
 	return out
+}
+
+// quickRows lays the phone's Quick buttons out in two rows, in their
+// order, row by row: the first row the larger half (5+5, 6+5, 6+6), so a
+// phone shows them all without a swipe.
+func quickRows(bs []*ribbonButton) fyne.CanvasObject {
+	n := (len(bs) + 1) / 2
+	row := func(bs []*ribbonButton) fyne.CanvasObject {
+		objs := make([]fyne.CanvasObject, len(bs))
+		for i, b := range bs {
+			objs[i] = b
+		}
+		return container.New(layout.NewCustomPaddedHBoxLayout(2), objs...)
+	}
+	return container.New(layout.NewCustomPaddedVBoxLayout(2), row(bs[:n]), row(bs[n:]))
 }
 
 // quickRowShown reports whether the desktop's Quick row shows: set, in

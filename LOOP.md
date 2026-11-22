@@ -1023,3 +1023,15 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the tabs' (the lock L, Commands O, ☰ M). Open for Joop: a phone Quick tab in two rows would end the swipe but make
   that tab taller than the others (the script jumps on a tab change). Not done: a Preferences checkbox for the Quick
   row.
+- 2026-11-22: the phone's Quick tab in two rows (branch quick2rows, not merged; Joop chose it). At a phone's width the
+  Quick tab lays its buttons out in two rows in their order, row by row, the first the larger half (5+5, 6+5, 6+6):
+  at 380 px all ten show without a swipe (Scene, Undo, Action, Character, Dialogue / Save, Next Passage, Adapt, Find,
+  Preview). That tab is a row taller than the others (accepted); the window lays out again round the top
+  (relayoutTop: the frame Border kept in w.frame) when the ribbon's height changes, so the script and panes get the
+  height left, no gap or overlap, and the same layout each time back and forth. The desktop's Quick tab (three-row
+  columns) and Quick row are as they were. Preferences > General > Appearance: "Quick row under the ribbon" (hidden on
+  a mobile device), one setting with View > Quick Row. Tests: TestQuickPhoneTwoRows (every button inside 380 px and
+  not cut, two balanced rows, no scroll; the script-and-panes split at the ribbon's foot on Quick and Write, its
+  height the rest, back and forth identical; the desktop's height unchanged by Quick); TestRibbonSettings (the
+  checkbox and View > Quick Row). Shots looked at: quick-phone-smart (both rows), quick-phone-smart-edit (the tab
+  switch), quick-desktop-smart (unchanged).
