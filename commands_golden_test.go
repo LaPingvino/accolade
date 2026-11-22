@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := sampleMoves(base, toolbarMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))) // the moves write Linux keys too
+		want := passageMoves(base, sampleMoves(base, toolbarMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -799,6 +799,32 @@ func toolbarMoves(name, golden string) string {
 		}
 	}
 	return joinMenus(ms)
+}
+
+// passageMoves: Next and Previous only move, Adapt… writes, Go to the
+// Passage's Scene (adapt_dialog.go): the Adaptation menu's passage group
+// before its links, and the new keys.
+func passageMoves(name, golden string) string {
+	switch {
+	case strings.HasPrefix(name, "menu-screenplay"):
+		return strings.Replace(golden, `  Link to Source Passage
+  Next Source Passage [Primary+Alt+J]
+  Mark Source Passage as Cut
+`, `  Next Source Passage [Primary+Alt+J]
+  Previous Source Passage [Primary+Alt+K]
+  Adapt Source Passage… [Primary+Alt+A]
+  Mark Source Passage as Cut
+  Go to the Passage's Scene
+  ---
+  Link to Source Passage
+`, 1)
+	case strings.HasPrefix(name, "shortcuts-screenplay"):
+		golden = strings.Replace(golden, "Primary+Alt+J = Next Source Passage\n", "Primary+Alt+A = Adapt Source Passage…\nPrimary+Alt+J = Next Source Passage\n", 1)
+		return strings.Replace(golden, "Primary+Alt+J = Next Source Passage\n", "Primary+Alt+J = Next Source Passage\nPrimary+Alt+K = Previous Source Passage\n", 1)
+	case strings.HasPrefix(name, "fullscreen-screenplay"):
+		return strings.Replace(golden, "Primary+Alt+J\n", "Primary+Alt+A\nPrimary+Alt+J\nPrimary+Alt+K\n", 1)
+	}
+	return golden
 }
 
 // sampleMoves: File > Open Sample after Open Recent (sample.go).

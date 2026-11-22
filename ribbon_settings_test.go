@@ -125,7 +125,7 @@ func TestRibbonSettings(t *testing.T) {
 		labels[e.label] = e
 	}
 	for _, l := range []string{"Line Numbers", "Status Bar", "Ribbon", "Larger Text", "Smaller Text", "Theme > Light",
-		"Suggest from the Source While Writing", "Next Source Passage Starts a Scene", "CONTINUED Where a Scene Breaks"} {
+		"Suggest from the Source While Writing", "CONTINUED Where a Scene Breaks"} {
 		if _, ok := labels[l]; !ok {
 			t.Errorf("the palette has no %q", l)
 		}

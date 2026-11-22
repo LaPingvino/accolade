@@ -599,8 +599,15 @@ func newRegistry() *registry {
 		&command{id: "source.keepInside", label: "Keep Source in the Script", icon: res(keepInsideIcon), when: screenplayOnly, enabled: withSource, run: (*MainWindow).toggleSourceInside,
 			checked: func(w *MainWindow) bool { return w.textEditor != nil && w.sourceRef().Origin == sourceInside }},
 		&command{id: "source.link", label: "Link to Source Passage", icon: func() fyne.Resource { return linkIcon }, when: screenplayOnly, enabled: withSource, run: (*MainWindow).linkToSource},
+		// Next and Previous only move (pick the passage); Adapt… writes it
 		&command{id: "source.next", label: "Next Source Passage", keys: []fyne.Shortcut{shortcut(fyne.KeyJ, fyne.KeyModifierAlt)}, icon: theme.NavigateNextIcon, when: screenplayOnly, enabled: withSource,
 			run: (*MainWindow).nextSourcePassage},
+		&command{id: "source.previous", label: "Previous Source Passage", keys: []fyne.Shortcut{shortcut(fyne.KeyK, fyne.KeyModifierAlt)}, icon: theme.NavigateBackIcon, when: screenplayOnly, enabled: withSource,
+			run: (*MainWindow).previousSourcePassage},
+		&command{id: "source.adapt", label: "Adapt Source Passage…", keys: []fyne.Shortcut{shortcut(fyne.KeyA, fyne.KeyModifierAlt)}, icon: res(adaptIcon), when: screenplayOnly, enabled: withSource,
+			tip: "How and where the passage picked in the source goes in the script, with the likely choices and what goes in", run: (*MainWindow).adaptSourcePassage},
+		&command{id: "source.goScene", label: "Go to the Passage's Scene", icon: theme.NavigateNextIcon, when: screenplayOnly, enabled: withSource,
+			run: (*MainWindow).goToPassageScene},
 		&command{id: "source.cut", label: "Mark Source Passage as Cut", icon: theme.ContentCutIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).toggleCutHere},
 		&command{id: "source.suggest", label: "Suggest Links to the Source", icon: func() fyne.Resource { return suggestIcon }, when: screenplayOnly, enabled: withSource, run: (*MainWindow).suggestSourceLinks},
 		&command{id: "source.update", label: "Update Source Links", icon: theme.ViewRefreshIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).updateSourceLinks},
@@ -744,7 +751,8 @@ func newRegistry() *registry {
 		)...)},
 		{title: "Adaptation", when: screenplayOnly, homes: []home{
 			at("source.choose"), at("source.saveAs"), at("source.keepInside"), as("view.source", "Source Pane"), at("source.swap"),
-			sep(), at("source.link"), at("source.next"), at("source.cut"), at("source.suggest"), at("source.update"), at("source.sections"),
+			sep(), at("source.next"), at("source.previous"), at("source.adapt"), at("source.cut"), at("source.goScene"),
+			sep(), at("source.link"), at("source.suggest"), at("source.update"), at("source.sections"),
 			sep(), at("source.learned"),
 		}},
 		{title: "Production", when: screenplayOnly, role: productionRole, homes: []home{
@@ -988,7 +996,8 @@ var ribbonLabels = map[string]string{
 	"edit.findNext": "Next", "edit.findPrevious": "Previous", "format.lineUp": "Move Up", "format.lineDown": "Move Down",
 	"format.language": "Language",
 	// Adaptation
-	"source.saveAs": "Save As", "source.keepInside": "Keep in Script", "source.next": "Next", "source.link": "Link",
+	"source.saveAs": "Save As", "source.keepInside": "Keep in Script", "source.next": "Next", "source.previous": "Previous",
+	"source.adapt": "Adapt", "source.goScene": "To Its Scene", "source.link": "Link",
 	"source.cut": "Mark as Cut", "source.suggest": "Suggest", "source.update": "Update",
 	"source.sections": "Headings as Sections", "source.learned": "Learned Notes",
 	// Production
@@ -1002,7 +1011,7 @@ var ribbonLabels = map[string]string{
 	"view.preview": "Preview", "view.foldHere": "Fold Here", "view.foldSections": "Fold Sections",
 	"app.palette": "Commands",
 	// the settings (ribbon_settings.go)
-	"set.suggest": "Suggest While Writing", "set.nextInserts": "Next Starts a Scene",
+	"set.suggest": "Suggest While Writing",
 	"set.revisionMarks": "Revision Marks", "set.lettering": "Scene Lettering", "set.continueds": "CONTINUEDs",
 	"set.sceneNumbers": "Scene Numbers", "set.draftsSide": "Side by Side",
 }
@@ -1059,11 +1068,12 @@ func ribbonLayout() []ribbonTab {
 		{title: "Adaptation", when: func(e cmdEnv) bool { return e.source || e.markdown }, groups: []ribbonGroup{
 			{title: "Source", homes: []home{{id: "view.source", label: "Source Pane", short: "Source", large: true},
 				atShort("source.choose", "Choose"), at("source.saveAs"), at("source.keepInside"), at("source.swap")}},
-			// Next is the adapting's step, Link its verb; Suggest and Update
-			// are linking's variants
-			{title: "Links", homes: []home{big("source.next"), big("source.link"), at("source.suggest"), at("source.update"), at("source.cut"), at("source.sections")}},
+			// Adapt… is the adapting's step, Next and Previous find what to
+			// adapt; Link is the verb by hand, Suggest and Update its variants
+			{title: "Passages", homes: []home{big("source.adapt"), at("source.next"), at("source.previous"), at("source.cut")}},
+			{title: "Links", homes: []home{big("source.link"), at("source.suggest"), at("source.update"), at("source.sections")}},
 			{title: "Learned", homes: []home{big("source.learned")}},
-			{title: "Options", homes: []home{at("set.suggest"), at("set.nextInserts")}},
+			{title: "Options", homes: []home{at("set.suggest")}},
 			{title: "Start", homes: []home{big("file.startScreenplay")}},
 		}},
 		// the stage's actions first, as the Production pane has them

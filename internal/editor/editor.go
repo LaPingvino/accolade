@@ -118,6 +118,9 @@ type ScriptEditor struct {
 	// highlights are ranges shown with a highlight background (search
 	// matches); [start, end) rune offsets
 	highlights [][2]int
+	// flash is a range shown lit for a moment (a scene gone to from the
+	// source pane: SetFlash); [start, end) rune offsets, empty for none
+	flash [2]int
 	// Syntax colours the text by Fountain element
 	Syntax bool
 	// Markdown: the text is Markdown, coloured as such and wrapped as
@@ -163,6 +166,7 @@ type drawing struct {
 	th                                       fyne.Theme
 	v                                        fyne.ThemeVariant
 	selected, cursor, highlight, number      *widget.CustomTextGridStyle
+	flash                                    color.Color
 	selStart, selEnd, curRow, curCol, gutter int
 	others                                   []buffer.Span // more selections
 	otherCursors                             map[int][]int // their cursors' columns by row
@@ -232,6 +236,20 @@ func (e *ScriptEditor) SetHighlights(ranges [][2]int) {
 	e.highlights = ranges
 	e.relayout()
 }
+
+// SetFlash lights [start, end) (rune offsets) apart from the search's
+// highlights, until it is set again (an empty range: none). The caller
+// takes it away after a moment.
+func (e *ScriptEditor) SetFlash(start, end int) {
+	if e.flash == [2]int{start, end} {
+		return
+	}
+	e.flash = [2]int{start, end}
+	e.relayout()
+}
+
+// Flash is the range SetFlash lights.
+func (e *ScriptEditor) Flash() (start, end int) { return e.flash[0], e.flash[1] }
 
 // Edit changes the text through the buffer and reports the change: use
 // Buffer().Group inside for one undo step.
@@ -479,7 +497,9 @@ func (e *ScriptEditor) relayout() {
 		r, c := e.layout.RowCol(o.Cursor)
 		otherCursors[r] = append(otherCursors[r], c)
 	}
-	e.draw = drawing{text: text, kinds: kinds, inline: inline, lineStart: lineStart, th: th, v: v, selected: selected, cursor: cursor,
+	fr, fg, fb, _ := th.Color(theme.ColorNamePrimary, v).RGBA()
+	flash := color.NRGBA{R: uint8(fr >> 8), G: uint8(fg >> 8), B: uint8(fb >> 8), A: 0x50}
+	e.draw = drawing{flash: flash, text: text, kinds: kinds, inline: inline, lineStart: lineStart, th: th, v: v, selected: selected, cursor: cursor,
 		highlight: highlight, number: number, selStart: selStart, selEnd: selEnd,
 		curRow: curRow, curCol: curCol, gutter: g, others: others, otherCursors: otherCursors}
 	e.drawRows()
@@ -675,6 +695,8 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 			cell.Style = withBackground(cell.Style, selected.BGColor)
 		case highlighted(off):
 			cell.Style = withBackground(cell.Style, highlight.BGColor)
+		case off >= e.flash[0] && off < e.flash[1]:
+			cell.Style = withBackground(cell.Style, d.flash)
 		}
 		cells = append(cells, cell)
 		if wrap.Width(cell.Rune) == 2 { // a wide character's second column

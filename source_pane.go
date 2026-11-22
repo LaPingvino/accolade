@@ -25,9 +25,12 @@ import (
 
 // The source pane: the Notes pane's other tab (View > Source), the
 // script's source as prose, one passage under the other. Tapping a
-// passage picks it (for Adaptation > Link to Source Passage) and goes to the
-// scene that links to it, the next one on each tap if several do; the
-// passages the cursor's scene links to are lit, and scrolled to.
+// passage picks it (for Adapt…, Mark as Cut, Adaptation > Link to Source
+// Passage); a passage scenes link to shows them under it ("→ Scene 4",
+// "→ 2 scenes"), and that goes to the scene, which flashes; the passages
+// the cursor's scene links to are lit, and scrolled to. Next and
+// Previous pick the next passage still to do from where the writer is
+// (the caption under the count says from where: adapt_plan.go).
 //
 // It shows the source read-only; Edit opens it as text in the pane, and
 // Done saves it to its file (the browser too: there is one window, so no
@@ -52,8 +55,17 @@ type sourcePane struct {
 	modelFor string       // the script text the model was made from
 	matcher  *linkMatcher // the passages' links found, kept while they stay
 
-	selected int          // the passage picked (-1 none)
-	cycle    int          // which of its scenes the last tap went to
+	selected   int      // the passage picked (-1 none)
+	selWords   []string // its words, to find it again when the source is read again
+	pickFresh  bool     // picked (or gone to by Next) since the cursor last moved: the anchor
+	pickCursor int      // the cursor then
+	cycle      int      // which of its scenes Go to the Passage's Scene went to last
+	cycleFor   int      // for which passage
+	linkedBy   map[int][]int // the spans (first lines) linking each passage, as the rows show them
+	labels     map[int]string // the spans' names (spanLabels), for the script text labelsFor
+	labelsFor  string
+	acts       []bool        // the rows' heights were made with the line under the text (rowActs)
+	adapting   *adaptDialog  // Adapt… open
 	lit      map[int]bool // linked from the cursor's scene
 	doubt    map[int]bool // an ambiguous link of the scene's fits them
 	jumping  bool         // the cursor is moving because of a tap here
@@ -65,7 +77,6 @@ type sourcePane struct {
 	seedAsked    bool                // an unwritten script offered to start from the source
 	fresh        bool                // the source just read: the list not scrolled yet
 	offered      int                 // the passage Next showed last (-1 none)
-	nextAt       int                 // where Next's scene goes after (runes; -1: the cursor)
 	offeredWords []string            // its words, to find it again
 
 	reading    *storyread.Reading // what the source shows (source_reading.go)
@@ -91,20 +102,21 @@ type sourcePane struct {
 	list    *widget.List
 	edit    *widget.Button
 	choose  *widget.Button
-	count   *widget.Label // "62% adapted · 5 cut · 12 to go"
-	next    *widget.Button
-	cut     *widget.Button
-	prompt  *statusPrompt
+	count      *widget.Label // "62% adapted · 5 cut · 12 to go"
+	anchorLine *widget.Label // where Next and Previous go on from
+	next, prev *widget.Button
+	adapt      *widget.Button // Adapt… for the picked passage, beside Next: in sight when the row's is not (a phone's short list)
+	prompt     *statusPrompt
 	editing bool              // the source open as text in the pane (the window's source document)
 	empty   fyne.CanvasObject // no source
 	blank   fyne.CanvasObject // a source with no passages yet
-	tools   *fyne.Container   // the count, Next and Cut: hidden without a source
+	tools   *fyne.Container   // the count, Previous and Next: hidden without a source
 	body    *fyne.Container   // the list, the editor or the empty state
 	box     fyne.CanvasObject
 }
 
 func newSourcePane(w *MainWindow) *sourcePane {
-	s := &sourcePane{w: w, selected: -1, offered: -1, nextAt: -1, lit: map[int]bool{}, doubt: map[int]bool{},
+	s := &sourcePane{w: w, selected: -1, offered: -1, cycleFor: -1, lit: map[int]bool{}, doubt: map[int]bool{},
 		ref: sourceRef{Origin: -1}} // none read yet: the first load shows what there is, the empty state too
 	s.title = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	s.title.Truncation = fyne.TextTruncateEllipsis
@@ -141,13 +153,21 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.count.SizeName = theme.SizeNameCaptionText
 	s.count.TextStyle.Bold = true
 	s.count.Wrapping = fyne.TextWrapWord // a phone's width: on two lines, not under the buttons
-	s.next = widget.NewButtonWithIcon("Next", theme.MediaSkipNextIcon(), s.nextPassage)
+	s.anchorLine = widget.NewLabel("")
+	s.anchorLine.SizeName = theme.SizeNameCaptionText
+	s.anchorLine.Importance = widget.MediumImportance
+	s.anchorLine.Truncation = fyne.TextTruncateEllipsis
+	s.next = widget.NewButtonWithIcon("Next", theme.NavigateNextIcon(), func() { s.stepPassage(1) })
 	s.next.Importance = widget.LowImportance
-	fyne.SetAccessibleLabel(s.next, "Next passage to adapt")
-	s.cut = widget.NewButtonWithIcon("Mark as Cut", theme.ContentCutIcon(), s.toggleCut)
-	s.cut.Importance = widget.LowImportance
-	s.cut.Disable()
-	fyne.SetAccessibleLabel(s.cut, "Mark the picked passage as cut on purpose")
+	s.next.IconPlacement = widget.ButtonIconTrailingText
+	fyne.SetAccessibleLabel(s.next, "Next passage to adapt (picks it; nothing is written)")
+	s.prev = widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() { s.stepPassage(-1) })
+	s.prev.Importance = widget.LowImportance
+	fyne.SetAccessibleLabel(s.prev, "Previous passage to adapt")
+	s.adapt = widget.NewButtonWithIcon("Adapt…", adaptIcon, func() { s.adaptPassage(s.selected) })
+	s.adapt.Importance = widget.HighImportance
+	s.adapt.Disable()
+	fyne.SetAccessibleLabel(s.adapt, "Adapt the picked passage: how and where it goes in the script")
 	s.prompt = newStatusPrompt(s)
 	none := widget.NewLabel(noSourceText())
 	none.Wrapping = fyne.TextWrapWord
@@ -158,7 +178,7 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.blank = container.NewVBox(blank)
 	s.body = container.NewStack(newWidthWatch(s.list, s.onWidth))
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(s.edit, s.choose), s.title)
-	s.tools = container.NewBorder(nil, nil, nil, container.NewHBox(s.next, s.cut), s.count)
+	s.tools = container.NewVBox(container.NewBorder(nil, nil, nil, container.NewHBox(s.prev, s.next, s.adapt), s.count), s.anchorLine)
 	s.view = newReadingView(s)
 	s.learned = newLearnedView(s)
 	s.box = container.NewBorder(container.NewVBox(head, s.tools, s.prompt.box, s.info, s.learned.box), s.view.box, nil, nil, s.body)
@@ -167,10 +187,11 @@ func newSourcePane(w *MainWindow) *sourcePane {
 
 // newPassageRow is a passage's row: its background (lit), a bar on its
 // left (picked), its status mark (adaptation_pane.go), its text, and
-// under a long one Show All (source_rows.go). Nothing in it scrolls, so
-// a drag over it scrolls the list. The text and Show All are stacked, so
-// the button is never over the text, whatever height the list gives the
-// row.
+// under it a line with Show All for a long one (source_rows.go), the
+// scenes linking to it (→ Scene 4), and for the picked one Adapt… and
+// Mark as Cut. Nothing in it scrolls, so a drag over it scrolls the list.
+// The text and the line are stacked, so a button is never over the text,
+// whatever height the list gives the row.
 func newPassageRow() *fyne.Container {
 	bg := canvas.NewRectangle(color.Transparent)
 	bg.CornerRadius = 4
@@ -180,34 +201,66 @@ func newPassageRow() *fyne.Container {
 	text.Wrapping = fyne.TextWrapWord
 	more := newMoreButton()
 	more.Hide()
+	scenes := newRowButton("", theme.NavigateNextIcon())
+	adapt := newRowButton("Adapt…", theme.DocumentCreateIcon())
+	adapt.Importance = widget.HighImportance
+	cut := newRowButton("Mark as Cut", theme.ContentCutIcon())
+	line := container.NewHBox(more, scenes, adapt, cut)
+	line.Hide()
 	left := container.NewHBox(bar, newStatusMark()) // clear of the list's scroll bar on the right
-	return container.NewStack(bg, container.NewBorder(nil, nil, left, nil, container.NewVBox(text, more)))
+	return container.NewStack(bg, container.NewBorder(nil, nil, left, nil, container.NewVBox(text, line)))
+}
+
+// newRowButton is a small button of a row's line, hidden at first.
+func newRowButton(label string, icon fyne.Resource) *widget.Button {
+	b := widget.NewButtonWithIcon(label, icon, nil)
+	b.Importance = widget.LowImportance
+	b.Hide()
+	return b
 }
 
 // passageRow is a row's parts.
 type passageRow struct {
 	bg, bar *canvas.Rectangle
 	mark    *statusMark
-	body    *fyne.Container // text over more
+	body    *fyne.Container // text over line
 	text    *widget.RichText
+	line    *fyne.Container // more, scenes, adapt, cut
 	more    *widget.Button
+	scenes  *widget.Button // → Scene 4
+	adapt   *widget.Button
+	cut     *widget.Button
 }
 
 func rowParts(row *fyne.Container) passageRow {
 	inner := row.Objects[1].(*fyne.Container)
 	body, left := inner.Objects[0].(*fyne.Container), inner.Objects[1].(*fyne.Container)
+	line := body.Objects[1].(*fyne.Container)
 	return passageRow{
 		bg: row.Objects[0].(*canvas.Rectangle), bar: left.Objects[0].(*canvas.Rectangle),
 		mark: left.Objects[1].(*statusMark), body: body,
-		text: body.Objects[0].(*widget.RichText), more: body.Objects[1].(*widget.Button),
+		text: body.Objects[0].(*widget.RichText), line: line, more: line.Objects[0].(*widget.Button),
+		scenes: line.Objects[1].(*widget.Button), adapt: line.Objects[2].(*widget.Button), cut: line.Objects[3].(*widget.Button),
 	}
 }
 
-// fill puts md in a row, shown in full or short; it reports whether it
-// was cut. The row is laid out again: the list may have sized it before
-// (with Show All hidden, or another passage's text in it), and showing
-// or hiding the button does not move it.
-func fill(r passageRow, md string, full bool) bool {
+// rowActs is what a row's line shows besides Show All: the scenes
+// linking to the passage, and for the picked one Adapt… and Mark as Cut
+// (or Unmark Cut).
+type rowActs struct {
+	scenes      string // the scenes' button ("" none): → Scene 4, → 2 scenes
+	scenesName  string
+	adapt, cut  bool
+	cutLabel    string
+}
+
+func (a rowActs) any() bool { return a.scenes != "" || a.adapt || a.cut }
+
+// fill puts md in a row, shown in full or short, with its line's acts;
+// it reports whether it was cut. The row is laid out again: the list may
+// have sized it before (with the line hidden, or another passage's text
+// in it), and showing or hiding a button does not move it.
+func fill(r passageRow, md string, full bool, acts rowActs) bool {
 	segs, cut := rowSegments(md, !full)
 	r.text.Segments = segs
 	r.text.Refresh()
@@ -225,16 +278,32 @@ func fill(r passageRow, md string, full bool) bool {
 	default:
 		r.more.Hide()
 	}
+	setLabel := func(b *widget.Button, on bool, text, name string) {
+		setVisible(b, on)
+		if on && b.Text != text {
+			b.SetText(text)
+		}
+		if on {
+			fyne.SetAccessibleLabel(b, name)
+		}
+	}
+	setLabel(r.scenes, acts.scenes != "", acts.scenes, acts.scenesName)
+	setLabel(r.adapt, acts.adapt, "Adapt…", "Adapt the picked passage: how and where it goes in the script")
+	cutName := "Mark the picked passage as cut on purpose"
+	if acts.cutLabel == "Unmark Cut" {
+		cutName = "Unmark the picked passage: not cut"
+	}
+	setLabel(r.cut, acts.cut, acts.cutLabel, cutName)
+	setVisible(r.line, r.more.Visible() || acts.any())
+	r.line.Refresh()
 	r.body.Layout.Layout(r.body.Objects, r.body.Size())
 	return cut
 }
 
 // rowKey is what a row shows, to tell whether it has to be filled again.
-func rowKey(md string, full bool) string {
-	if full {
-		return "full\x00" + md
-	}
-	return "short\x00" + md
+func rowKey(md string, full bool, acts rowActs) string {
+	k := fmt.Sprintf("%v\x00%v\x00", full, acts)
+	return k + md
 }
 
 // toggleFull is Show All / Show Less on row id.
@@ -247,7 +316,7 @@ func (s *sourcePane) toggleFull(id int) {
 	}
 	s.full[id] = !s.full[id]
 	if id < len(s.heights) && s.width > 0 {
-		s.heights[id] = s.measured(s.passages[id].Markdown, s.full[id], s.width)
+		s.heights[id] = s.measured(s.passages[id].Markdown, s.full[id], s.rowActs(id), s.width)
 		s.exact[id] = true
 		s.list.SetItemHeight(id, s.heights[id])
 	}
@@ -263,6 +332,26 @@ func tint(name fyne.ThemeColorName, alpha uint8) color.Color {
 	return color.NRGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), alpha}
 }
 
+// rowActs are row id's line's acts as the pane is now.
+func (s *sourcePane) rowActs(id int) rowActs {
+	var a rowActs
+	if sc := s.linkedBy[id]; len(sc) == 1 {
+		label := spanLabelsFor(s)[sc[0]]
+		a.scenes, a.scenesName = label, "Go to "+label+", which adapts this passage"
+	} else if len(sc) > 1 {
+		a.scenes, a.scenesName = plural(len(sc), "scene"), fmt.Sprintf("Choose one of the %d scenes adapting this passage", len(sc))
+	}
+	if id == s.selected {
+		switch s.statusOf(id) {
+		case statusToDo:
+			a.adapt, a.cut, a.cutLabel = true, true, "Mark as Cut"
+		case statusCut:
+			a.adapt, a.cut, a.cutLabel = true, true, "Unmark Cut"
+		}
+	}
+	return a
+}
+
 // show fills a row with passage id.
 func (s *sourcePane) show(row *fyne.Container, id int) {
 	p := s.passages[id]
@@ -270,6 +359,12 @@ func (s *sourcePane) show(row *fyne.Container, id int) {
 	bg, bar, text := r.bg, r.bar, r.text
 	r.mark.setStatus(s.statusOf(id), s.changed[id])
 	r.more.OnTapped = func() { s.toggleFull(id) }
+	r.scenes.OnTapped = func() { s.scenesTapped(id, r.scenes) }
+	r.adapt.OnTapped = func() { s.adaptPassage(id) }
+	r.cut.OnTapped = func() {
+		s.setPicked(id)
+		s.toggleCut()
+	}
 	switch {
 	case s.lit[id]:
 		bg.FillColor = tint(theme.ColorNamePrimary, 0x38)
@@ -287,9 +382,10 @@ func (s *sourcePane) show(row *fyne.Container, id int) {
 	if s.shownMD == nil {
 		s.shownMD = map[*widget.RichText]string{}
 	}
-	key := rowKey(p.Markdown, s.full[id])
+	acts := s.rowActs(id)
+	key := rowKey(p.Markdown, s.full[id], acts)
 	if k, ok := s.shownMD[text]; !ok || k != key { // wrapping it again is what takes the time
-		fill(r, p.Markdown, s.full[id])
+		fill(r, p.Markdown, s.full[id], acts)
 		s.shownMD[text] = key
 	}
 }
@@ -324,13 +420,13 @@ type rowEstimate struct {
 	width, one, step, perLine float32
 }
 
-// measured is the height of a row showing md (in full or short) at the
-// width.
-func (s *sourcePane) measured(md string, full bool, width float32) float32 {
+// measured is the height of a row showing md (in full or short, with
+// its line's acts) at the width.
+func (s *sourcePane) measured(md string, full bool, acts rowActs, width float32) float32 {
 	if s.measureRow == nil {
 		s.measureRow = newPassageRow()
 	}
-	fill(rowParts(s.measureRow), md, full)
+	fill(rowParts(s.measureRow), md, full, acts)
 	s.measureRow.Resize(fyne.NewSize(width, 1))
 	return s.measureRow.MinSize().Height
 }
@@ -339,7 +435,7 @@ func (s *sourcePane) measured(md string, full bool, width float32) float32 {
 // and a two lines' row measured, and the characters of the source's
 // opening that fit on a line.
 func (s *sourcePane) estimateFor(width float32) rowEstimate {
-	e := rowEstimate{width: width, one: s.measured("x", true, width)}
+	e := rowEstimate{width: width, one: s.measured("x", true, rowActs{}, width)}
 	text := rowParts(s.measureRow).text
 	pad := theme.InnerPadding()
 	lineW := max(text.Size().Width-2*pad, 10)
@@ -358,17 +454,19 @@ func (s *sourcePane) estimateFor(width float32) rowEstimate {
 	charW := max(sz.Width/float32(max(utf8.RuneCountInString(str), 1)), 1)
 	e.perLine = max(lineW/charW*0.92, 1) // words wrap a little before the edge
 	two := strings.Repeat("x ", int(e.perLine*1.5)/2+1)
-	e.step = max(s.measured(two, true, width)-e.one, 1)
+	e.step = max(s.measured(two, true, rowActs{}, width)-e.one, 1)
 	return e
 }
 
 // estimate is a passage's row's height, by its length (in full or
-// short, Show All under it).
-func (e rowEstimate) estimate(p passage, full bool) float32 {
+// short, Show All or the acts' line under it).
+func (e rowEstimate) estimate(p passage, full, line bool) float32 {
 	n := utf8.RuneCountInString(p.Plain)
 	more := float32(0)
 	if !full && n > rowBudget {
 		n, more = shortRunes(p), e.one
+	} else if line {
+		more = e.one
 	}
 	lines := max(1, int(math.Ceil(float64(float32(n)/e.perLine))))
 	return e.one + float32(lines-1)*e.step + more
@@ -386,8 +484,10 @@ func (s *sourcePane) measure(width float32) {
 	s.est = s.estimateFor(width)
 	s.heights = make([]float32, len(s.passages))
 	s.exact = make([]bool, len(s.passages))
+	s.acts = make([]bool, len(s.passages))
 	for id, p := range s.passages {
-		s.heights[id] = s.est.estimate(p, s.full[id])
+		s.acts[id] = s.rowActs(id).any()
+		s.heights[id] = s.est.estimate(p, s.full[id], s.acts[id])
 	}
 	s.setHeights(0, len(s.passages))
 	gen := s.measuring
@@ -426,7 +526,7 @@ func (s *sourcePane) measureStretch(gen int) bool {
 			return
 		}
 		s.exact[id] = true
-		if h := s.measured(s.passages[id].Markdown, s.full[id], s.width); h != s.heights[id] {
+		if h := s.measured(s.passages[id].Markdown, s.full[id], s.rowActs(id), s.width); h != s.heights[id] {
 			s.heights[id] = h
 			s.list.SetItemHeight(id, h)
 		}
@@ -543,9 +643,24 @@ func (s *sourcePane) use(r *sourceRead, ps []passage) {
 	s.passages = ps
 	s.model, s.modelFor, s.matcher = nil, "", nil
 	s.reading = nil
-	if s.selected >= len(s.passages) {
+	if s.selected >= 0 { // found again by its words, or none
+		old := s.selected
 		s.selected = -1
+		for d := 0; d < len(s.passages) && s.selWords != nil; d++ { // the nearest of those with them
+			if q := old - d; q >= 0 && q < len(s.passages) && slices.Equal(s.passages[q].Words, s.selWords) {
+				s.selected = q
+				break
+			}
+			if q := old + d; q < len(s.passages) && slices.Equal(s.passages[q].Words, s.selWords) {
+				s.selected = q
+				break
+			}
+		}
+		if s.selected < 0 {
+			s.selWords, s.pickFresh = nil, false
+		}
 	}
+	s.linkedBy = nil
 	s.lit, s.doubt = map[int]bool{}, map[int]bool{}
 	s.full = nil
 	s.statuses = nil
@@ -658,12 +773,14 @@ func (s *sourcePane) follow() {
 		s.learned.ok = false
 		s.prompt.hide()
 		s.next.Disable()
-		s.cut.Disable()
+		s.prev.Disable()
 		return
 	}
 	s.next.Enable()
+	s.prev.Enable()
 	m := s.current()
 	s.showStatuses(m)
+	s.showAnchor(m)
 	s.learned.update(s)
 	s.offerStart(m)
 	line, _ := s.w.textEditor.Buffer().Position(s.w.textEditor.CursorOffset())
@@ -832,34 +949,131 @@ func (s *sourcePane) inSight(ps map[int]bool) bool {
 	return false
 }
 
-// pick is a tap on passage id: it is the picked one, and the cursor goes
-// to the scene linking to it (on another tap, the next such scene).
+// pick is a tap on passage id: it is the picked one (for Adapt…, Mark
+// as Cut, Link to Source Passage) and where Next goes on from; the
+// scenes linking to it are the button under it.
 func (s *sourcePane) pick(id int) {
 	if id < 0 || id >= len(s.passages) {
 		return
 	}
-	if id == s.selected {
-		s.cycle++
-	} else {
-		s.selected, s.cycle = id, 0
+	s.setPicked(id)
+	switch sc := s.current().linked(id); {
+	case len(sc) > 0:
+		s.w.setStatus("Picked; " + spanLabelsFor(s)[sc[0]] + " adapts it: → under it goes there")
+	case s.statusOf(id) == statusToDo || s.statusOf(id) == statusCut:
+		s.w.setStatus("Picked: Adapt… under it writes it into the script; Next goes on after it")
+	default:
+		s.w.setStatus("Picked")
 	}
-	s.list.Refresh()
-	s.showCutButton()
-	s.showReading(true)
-	scenes := s.current().linked(id)
-	if len(scenes) == 0 {
-		s.w.setStatus("Picked; no scene links to it yet: Adaptation > Link to Source Passage puts the link at the cursor")
+}
+
+// setPicked makes passage id the picked one, the anchor until the cursor
+// moves.
+func (s *sourcePane) setPicked(id int) {
+	if id < 0 || id >= len(s.passages) {
 		return
 	}
-	line := scenes[s.cycle%len(scenes)]
-	s.jumping = true
-	s.w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) })
-	s.jumping = false
-	if len(scenes) > 1 {
-		s.w.setStatus(fmt.Sprintf("Scene %d of %d from this passage: tap it again for the next", s.cycle%len(scenes)+1, len(scenes)))
-	} else {
-		s.w.setStatus("The scene from this passage")
+	s.selected, s.selWords = id, s.passages[id].Words
+	s.pickFresh, s.pickCursor = true, s.w.textEditor.CursorOffset()
+	s.list.Refresh()
+	s.syncActs()
+	s.showReading(true)
+	if s.ref.Origin != sourceNone {
+		s.showAnchor(s.current())
 	}
+}
+
+// scenesTapped is the → under passage id: to its scene, or a list of
+// them to choose from.
+func (s *sourcePane) scenesTapped(id int, from fyne.CanvasObject) {
+	s.setPicked(id)
+	scenes := s.current().linked(id)
+	switch len(scenes) {
+	case 0:
+		return
+	case 1:
+		s.jumpTo(id, 0)
+		return
+	}
+	labels := spanLabelsFor(s)
+	m := s.current()
+	var items []*fyne.MenuItem
+	for k, l := range scenes {
+		k := k
+		items = append(items, fyne.NewMenuItem(labels[l]+spanHeading(spanAt(m.spans, l)), func() { s.jumpTo(id, k) }))
+	}
+	c := s.w.fyneWindow.Canvas()
+	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(from).Add(fyne.NewPos(0, from.Size().Height))
+	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", items...), c, pos)
+}
+
+// jumpTo goes to the k-th scene linking to passage id: the script's
+// cursor on it (the Script tab lighting it, if the script is swapped
+// out), the scene flashing; the passage stays picked, the anchor.
+func (s *sourcePane) jumpTo(id, k int) {
+	scenes := s.current().linked(id)
+	if k < 0 || k >= len(scenes) {
+		return
+	}
+	w := s.w
+	line := scenes[k]
+	s.jumping = true
+	w.goToScript(line)
+	s.jumping = false
+	s.cycleFor, s.cycle = id, k
+	s.selected, s.selWords = id, s.passages[id].Words
+	s.pickFresh, s.pickCursor = true, w.textEditor.CursorOffset()
+	w.flashScene(line)
+	label := spanLabelsFor(s)[line]
+	if len(scenes) > 1 {
+		w.setStatus(fmt.Sprintf("%s, %d of %d from this passage (Go to the Passage's Scene again: the next)", label, k+1, len(scenes)))
+	} else {
+		w.setStatus(label + ", from this passage")
+	}
+	s.showAnchor(s.current())
+}
+
+// showAdapt enables Adapt… beside Next while the picked passage can be
+// adapted.
+func (s *sourcePane) showAdapt() {
+	a := s.rowActs(s.selected)
+	if s.selected >= 0 && a.adapt {
+		s.adapt.Enable()
+	} else {
+		s.adapt.Disable()
+	}
+}
+
+// syncActs gives the rows whose line came or went (a link to them, the
+// pick) their height again.
+func (s *sourcePane) syncActs() {
+	s.showAdapt()
+	if len(s.acts) != len(s.passages) || len(s.heights) != len(s.passages) {
+		return
+	}
+	for id := range s.passages {
+		a := s.rowActs(id)
+		if a.any() == s.acts[id] {
+			continue
+		}
+		s.acts[id] = a.any()
+		if s.width > 0 {
+			s.heights[id], s.exact[id] = s.measured(s.passages[id].Markdown, s.full[id], a, s.width), true
+		} else {
+			s.heights[id] = s.est.estimate(s.passages[id], s.full[id], s.acts[id])
+		}
+		s.list.SetItemHeight(id, s.heights[id])
+	}
+}
+
+// spanLabelsFor are the script's spans' names (spanLabels), made again
+// when the script changed.
+func spanLabelsFor(s *sourcePane) map[int]string {
+	text := s.w.textEditor.Text()
+	if s.labels == nil || !sameString(s.labelsFor, text) {
+		s.labels, s.labelsFor = spanLabels(text, s.w.sceneStarts()), text
+	}
+	return s.labels
 }
 
 // toggleEdit opens the source as text in the pane, or saves it and
@@ -1112,17 +1326,24 @@ func (w *MainWindow) linkToSource() {
 		w.setStatus("Pick the passage in the source first")
 		return
 	}
-	d, unique := fragmentFor(matcherFor(s.passages), s.selected, s.selected)
+	s.linkPassage(s.selected)
+}
+
+// linkPassage puts a link to passage p at the script's cursor: one undo
+// step, with its cut entry taken away if it was cut.
+func (s *sourcePane) linkPassage(p int) {
+	w := s.w
+	d, unique := fragmentFor(matcherFor(s.passages), p, p)
 	note, quote := fragmentNote("", []textDirective{d}), d.Start
 	e := w.textEditor
 	at, insert, after := insertLink(e.Text(), e.CursorOffset(), note, w.sceneStarts())
 	m := s.current()
-	uncut := unique && m.status[s.selected] == statusCut // an ambiguous link does not adapt it
+	uncut := unique && m.status[p] == statusCut // an ambiguous link does not adapt it
 	e.Edit(func(b *buffer.Buffer) {
 		b.Group(func() {
 			if uncut { // linked now, so not cut: its entry goes (at the end, after the link's place)
 				inside, _ := adaptationBlock(b.Text())
-				start, end, block := withAdaptationBlock(b.Text(), withCuts(inside, s.cutsWithout(m, s.selected)))
+				start, end, block := withAdaptationBlock(b.Text(), withCuts(inside, s.cutsWithout(m, p)))
 				if start >= at {
 					b.Replace(start, end, block)
 				}

@@ -412,17 +412,22 @@ func TestLearnPlace(t *testing.T) {
 	if b := learnedBlock(w2); b != "" {
 		t.Errorf("as read: %q", b)
 	}
-	// Next's scene, its placeholder written over
+	// Adapt…'s new scene, its placeholder heading written over
 	w3, _ := sourceWindow(t, suggestScript, learnStory)
 	toEnd(w3)
 	w3.nextSourcePassage()
+	w3.adaptSourcePassage()
+	d := w3.sourcePane().adapting
+	d.how.choose(0)
+	d.heading.SetText("INT. PLACE - DAY")
+	d.accept()
 	if sel := w3.textEditor.Buffer().SelectedText(); sel != "PLACE - DAY" {
-		t.Fatalf("Next selected %q", sel)
+		t.Fatalf("Adapt… selected %q", sel)
 	}
 	typeText(w3, "KOVAČ ROAD - MORNING")
 	moveTo(t, w3, "Title")
 	if b := learnedBlock(w3); b != "places: street = INT. KOVAČ ROAD" {
-		t.Errorf("after Next: %q", b)
+		t.Errorf("after Adapt…: %q", b)
 	}
 	forgetRow(t, w, "street: EXT. KOVAČ ROAD")
 	if b := learnedBlock(w); b != "" {

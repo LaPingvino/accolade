@@ -62,7 +62,6 @@ type PreferencesDialog struct {
 	revisionMarksSelect *widget.Select // the current revision's marks, or all issues'
 	revisionHeaderEntry *widget.Entry  // a changed page's header
 	revisionDateSelect  *widget.Select // its date's layout
-	nextInsertsCheck    *widget.Check
 	suggestCheck        *widget.Check
 }
 
@@ -142,7 +141,6 @@ func (pd *PreferencesDialog) createWidgets() {
 		dates = append(dates, d.label)
 	}
 	pd.revisionDateSelect = widget.NewSelect(dates, nil)
-	pd.nextInsertsCheck = widget.NewCheck("Next Source Passage starts a scene for it (else it shows the passage and offers to)", nil)
 	pd.suggestCheck = widget.NewCheck("Suggest from the source while writing: lines, action, headings (Tab takes them)", nil)
 }
 
@@ -253,7 +251,6 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 		widget.NewCard("Page Setup", "How Export, Print and Preview PDF lay the page out", container.NewBorder(nil, nil, nil,
 			container.NewVBox(widget.NewButtonWithIcon("Page Setup…", theme.DocumentIcon(), pd.openPageSetup)), pd.pageSummary)),
 		widget.NewCard("Adapting", "A script made from a story beside it (View > Source)", container.NewVBox(
-			pd.nextInsertsCheck,
 			pd.suggestCheck,
 		)),
 		pd.newProductionCard(container.NewVBox(
@@ -310,7 +307,6 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.exportDirEntry.SetText(s.GetString("export-directory"))
 	pd.yourNameEntry.SetText(s.GetString("your-name"))
 	pd.showPageSetup()
-	pd.nextInsertsCheck.SetChecked(s.GetBoolean("next-passage-inserts"))
 	pd.suggestCheck.SetChecked(s.GetBoolean(suggestPref))
 	pd.sceneLettersSelect.SetSelected(sceneLettering(lex.ParseNumberStyle(s.GetString(sceneNumberStylePref))))
 	pd.revisionMarksSelect.SetSelected(revisionMarkChoices[0])
@@ -365,7 +361,6 @@ func (pd *PreferencesDialog) saveSettings() {
 	s.SetString("export-format", exportFormatLabel(pd.exportFormatSelect.Selected))
 	s.SetString("export-directory", pd.exportDirEntry.Text)
 	s.SetString("your-name", strings.TrimSpace(pd.yourNameEntry.Text))
-	s.SetBoolean("next-passage-inserts", pd.nextInsertsCheck.Checked)
 	s.SetBoolean(suggestPref, pd.suggestCheck.Checked)
 	s.SetString(sceneNumberStylePref, letteringStyle(pd.sceneLettersSelect.Selected).String())
 	marks := "last"

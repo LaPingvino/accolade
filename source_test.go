@@ -521,8 +521,9 @@ func TestCursorLightsPassages(t *testing.T) {
 	}
 }
 
-// Tapping a passage goes to the scene linking to it; with several, each
-// tap goes to the next.
+// Tapping a passage picks it, the cursor staying; the → under it (Go
+// to the Passage's Scene) goes to the scene linking to it, with several
+// the next each time.
 func TestTapPassageJumps(t *testing.T) {
 	script := sourceScript + "\nINT. HOUSE - LATER\n\nAgain. [[from: \"She opened the door to the garden\"]]\n"
 	w, _ := sourceWindow(t, script, sourceStory)
@@ -530,10 +531,14 @@ func TestTapPassageJumps(t *testing.T) {
 	door := passageNamed(t, s.passages, "She opened")
 	first, second := lineWith(t, w, "INT. HOUSE - NIGHT"), lineWith(t, w, "INT. HOUSE - LATER")
 	w.textEditor.SetCursorOffset(len([]rune(script)))
+	s.list.Select(door)
+	if got := cursorLine(w); got != strings.Count(script, "\n") || s.selected != door {
+		t.Errorf("a tap went to line %d, picked %d", got, s.selected)
+	}
 	for _, want := range []int{first, second, first} {
-		s.list.Select(door)
+		w.goToPassageScene()
 		if got := cursorLine(w); got != want {
-			t.Errorf("tap: line %d, want %d", got, want)
+			t.Errorf("to its scene: line %d, want %d", got, want)
 		}
 		if s.selected != door {
 			t.Errorf("picked %d", s.selected)
@@ -545,7 +550,7 @@ func TestTapPassageJumps(t *testing.T) {
 	// a passage no scene links to: picked, the cursor stays
 	before := w.textEditor.CursorOffset()
 	s.list.Select(passageNamed(t, s.passages, "a list item"))
-	if w.textEditor.CursorOffset() != before || !strings.Contains(w.statusLabel.Text, "no scene links") {
+	if w.textEditor.CursorOffset() != before || !strings.Contains(w.statusLabel.Text, "Adapt…") {
 		t.Errorf("unlinked: moved %v, %q", w.textEditor.CursorOffset() != before, w.statusLabel.Text)
 	}
 }

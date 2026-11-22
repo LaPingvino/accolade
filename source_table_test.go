@@ -259,6 +259,7 @@ func TestSourceShowAllBelowText(t *testing.T) {
 			t.Errorf("%s: no row with Show All in view", when)
 		}
 	}
+	s.list.ScrollTo(table) // the caption under the count (where Next goes on from) takes a line of the short slot
 	check("slot as opened")
 	for _, off := range []float64{0.5, 0.65, 0.8} {
 		w.dock.split.SetOffset(off)

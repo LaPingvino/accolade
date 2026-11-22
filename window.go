@@ -202,6 +202,7 @@ type MainWindow struct {
 	autoSaveTimer  *uiTimer
 	timers         uiTimers   // the window's (background.go)
 	followTimer    *uiTimer   // the source pane's follow, after typing
+	flashTimer     *uiTimer   // a scene's flash taken away (flashScene)
 	scriptTabTimer *uiTimer   // the Script tab's scenes read again, after typing (swap.go)
 	suggest        *suggester // suggestions from the source while writing (suggest.go)
 	complete       *completer // Tab's completions of names and headings (complete.go)

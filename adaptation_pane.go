@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -17,8 +18,8 @@ import (
 )
 
 // The source pane's side of the statuses (adaptation.go): a mark beside
-// each passage, the count, Mark as Cut, and Next passage with what it
-// asks.
+// each passage, the count, Mark as Cut, Next and Previous (adapt_plan.go
+// for where they go on from), Adapt… (adapt_dialog.go).
 
 // statusMarkWidth is how wide a passage's status mark is.
 const statusMarkWidth = 7
@@ -120,16 +121,16 @@ func (r *statusMarkRenderer) Refresh() {
 	}
 }
 
-// statusPrompt is the pane's question after Next: start a scene for the
-// passage, or mark the one skipped as cut. Not a dialog: writing goes
-// on, and the next Next replaces it.
+// statusPrompt is the pane's question: go round after Next found none
+// left, a suggested link, starting from the source. Not a dialog:
+// writing goes on, and the next question replaces it.
 type statusPrompt struct {
 	label         *widget.Label
 	yes, skip, no *widget.Button
 	box           *fyne.Container
 	yesDo, skipDo func()
-	passage       int // what it asks about
-	skipping      bool
+	passage       int // what it asks about (-1: no passage)
+	wrap          int // asks to go round, after Next (1) or Previous (-1); 0 not
 }
 
 func newStatusPrompt(s *sourcePane) *statusPrompt {
@@ -162,8 +163,8 @@ func newStatusPrompt(s *sourcePane) *statusPrompt {
 }
 
 // ask shows the question, with the action for its first button.
-func (p *statusPrompt) ask(passage int, skipping bool, text, yes string, do func()) {
-	p.passage, p.skipping, p.yesDo, p.skipDo = passage, skipping, do, nil
+func (p *statusPrompt) ask(passage int, text, yes string, do func()) {
+	p.passage, p.wrap, p.yesDo, p.skipDo = passage, 0, do, nil
 	p.skip.Hide()
 	p.label.SetText(text)
 	p.yes.SetText(yes)
@@ -178,7 +179,7 @@ func (p *statusPrompt) ask(passage int, skipping bool, text, yes string, do func
 // askSkip shows a question of a series: its action, a Skip to the next
 // one, and Not Now.
 func (p *statusPrompt) askSkip(text, yes string, do func(), skip string, skipDo func()) {
-	p.ask(-1, false, text, yes, do)
+	p.ask(-1, text, yes, do)
 	p.skipDo = skipDo
 	p.skip.SetText(skip)
 	fyne.SetAccessibleLabel(p.skip, skip)
@@ -186,7 +187,7 @@ func (p *statusPrompt) askSkip(text, yes string, do func(), skip string, skipDo 
 }
 
 func (p *statusPrompt) hide() {
-	p.passage, p.yesDo, p.skipDo = -1, nil, nil
+	p.passage, p.wrap, p.yesDo, p.skipDo = -1, 0, nil, nil
 	p.box.Hide()
 }
 
@@ -231,9 +232,24 @@ func (s *sourcePane) showStatuses(m *sourceModel) {
 			}
 		}
 	}
-	if !slices.Equal(m.status, s.statuses) || !sameSet(changed, s.changed) {
+	linkedBy := map[int][]int{}
+	for i, mt := range m.matches {
+		if !mt.found() {
+			continue
+		}
+		at := spanAt(m.spans, m.links[i].Line).Line
+		for p := mt.Passages[0]; p <= mt.last(); p++ {
+			if !slices.Contains(linkedBy[p], at) {
+				linkedBy[p] = append(linkedBy[p], at)
+				slices.Sort(linkedBy[p])
+			}
+		}
+	}
+	if !slices.Equal(m.status, s.statuses) || !sameSet(changed, s.changed) || !sameLinks(linkedBy, s.linkedBy) {
 		s.statuses = slices.Clone(m.status)
 		s.changed = changed
+		s.linkedBy = linkedBy
+		s.syncActs()
 		s.list.Refresh()
 	}
 	if s.prompt.passage >= 0 && s.statusOf(s.prompt.passage) != statusToDo {
@@ -244,26 +260,20 @@ func (s *sourcePane) showStatuses(m *sourceModel) {
 		count += fmt.Sprintf(" · %d changed since linked", n)
 	}
 	s.count.SetText(count)
-	s.showCutButton()
 }
 
-// showCutButton is Mark as Cut, or Unmark for a cut passage; there only
-// while a passage that can be cut is picked.
-func (s *sourcePane) showCutButton() {
-	st := s.statusOf(s.selected)
-	label, name := "Mark as Cut", "Mark the picked passage as cut on purpose"
-	if st == statusCut {
-		label, name = "Unmark Cut", "Unmark the picked passage: not cut"
+// sameLinks reports whether a and b link the same passages to the same
+// spans.
+func sameLinks(a, b map[int][]int) bool {
+	if len(a) != len(b) {
+		return false
 	}
-	if s.cut.Text != label {
-		s.cut.SetText(label)
+	for k, v := range a {
+		if !slices.Equal(v, b[k]) {
+			return false
+		}
 	}
-	fyne.SetAccessibleLabel(s.cut, name)
-	if st == statusToDo || st == statusCut {
-		s.cut.Enable()
-	} else {
-		s.cut.Disable()
-	}
+	return true
 }
 
 // toggleCut marks the picked passage as cut, or unmarks it: one edit to
@@ -325,13 +335,11 @@ func (s *sourcePane) cutsWithout(m *sourceModel, p int) []cutMark {
 	return cuts
 }
 
-// nextPassage is Next passage: the first passage after where the script
-// is in the source (the last one the cursor's scene links to, or the
-// one Next showed last) that is neither adapted nor cut. It is picked
-// and scrolled to; a scene is started for it (or offered, as the
-// preference says). Pressed again without linking the one it showed,
-// it asks whether that one is cut.
-func (s *sourcePane) nextPassage() {
+// stepPassage is Next (dir 1) and Previous (dir -1): the passage still
+// to do after (before) the anchor, in the source's order, picked and
+// scrolled to; nothing is written (Adapt… writes it). At the end it says
+// so and offers to go round; pressed again then, it goes round.
+func (s *sourcePane) stepPassage(dir int) {
 	w := s.w
 	if !s.shown() {
 		w.showPane("source", false)
@@ -342,67 +350,116 @@ func (s *sourcePane) nextPassage() {
 		return
 	}
 	m := s.current()
-	e := w.textEditor
-	line, _ := e.Buffer().Position(e.CursorOffset())
-	pos := m.position(line)
-	s.nextAt = -1 // the scene goes after the cursor's
-	if last, at := m.lastLinked(); pos < 0 && last >= 0 {
-		// the cursor before every link (a script just opened): on from the
-		// last passage adapted, the scene after the scene linking to it
-		pos, s.nextAt = last, e.Buffer().LineStart(at)
+	if s.prompt.wrap == dir && s.prompt.box.Visible() { // pressed again on the offer: round
+		s.prompt.hide()
+		s.wrapPassage(dir)
+		return
 	}
-	skipped := -1
-	if o := s.offeredPassage(); o >= 0 && m.status[o] == statusToDo {
-		skipped = o
-		pos = max(pos, o)
-	}
-	next, wrapped := m.nextToDo(pos)
-	if skipped >= 0 && next == skipped {
-		next = -1 // the only one left
-	}
-	s.offer(next)
-	switch {
-	case skipped >= 0:
-		sk := skipped
-		text := "Skipped “" + shortQuote(s.passages[sk].Plain) + "”. Cut it on purpose?"
-		s.prompt.ask(sk, true, text, "Mark as Cut", func() { s.setCut(sk, true) })
-		if next >= 0 && w.nextInserts() {
-			s.startScene(next)
+	a := s.anchorNow(m)
+	next := m.step(a, dir)
+	if next < 0 {
+		round := m.wrapTo(dir)
+		switch {
+		case round < 0:
+			s.prompt.hide()
+			w.setStatus("Every passage is adapted or cut; what is added to the source later, Next finds")
+		case round == a.passage && a.kind == anchorPicked:
+			s.prompt.hide()
+			w.setStatus("No other passage is left to adapt")
+		default:
+			end, button := "after", "From the Start"
+			if dir < 0 {
+				end, button = "before", "From the End"
+			}
+			text := "No passage to adapt " + end + " " + s.anchorText(a) + ". Go round to “" + shortQuote(s.passages[round].Plain) + "”?"
+			d := dir
+			s.prompt.ask(-1, text, button, func() { s.wrapPassage(d) })
+			s.prompt.wrap = dir
+			w.setStatus("None left that way: " + button + " in the source pane (or " + map[int]string{1: "Next", -1: "Previous"}[dir] + " again) goes round")
 		}
-	case next < 0:
-		s.prompt.hide()
-	case w.nextInserts():
-		s.prompt.hide()
-		s.startScene(next)
-	default:
-		n := next
-		s.prompt.ask(n, false, "Next: “"+shortQuote(s.passages[n].Plain)+"”", "Start a Scene", func() { s.startScene(n) })
+		s.follow()
+		return
 	}
-	switch {
-	case next < 0 && skipped >= 0:
-		w.setStatus("No other passage is left to adapt")
-	case next < 0:
-		w.setStatus("Every passage is adapted or cut; what is added to the source later, Next finds")
-	case wrapped:
-		w.setStatus("Next passage, from the start of the source: none is left after this scene's")
-	case !w.nextInserts():
-		w.setStatus("Next passage: Start a Scene in the source pane, or link it where you like")
-	}
+	s.prompt.hide()
+	s.offer(next)
+	w.setStatus("To adapt: “" + shortQuote(s.passages[next].Plain) + "”. Adapt… writes it into the script")
 	s.follow()
 }
 
-// offer picks passage p as the one Next shows, and scrolls to it.
+// wrapPassage goes round: the first passage still to do (dir 1), or the
+// last.
+func (s *sourcePane) wrapPassage(dir int) {
+	p := s.current().wrapTo(dir)
+	if p < 0 {
+		return
+	}
+	s.offer(p)
+	from := "start"
+	if dir < 0 {
+		from = "end"
+	}
+	s.w.setStatus("From the " + from + " of the source: “" + shortQuote(s.passages[p].Plain) + "”")
+	s.follow()
+}
+
+// anchorNow is the anchor as the writer is now: the passage picked, if
+// picked (or gone to with Next) since the cursor last moved; the
+// cursor's scene; the top of the pane's list.
+func (s *sourcePane) anchorNow(m *sourceModel) anchor {
+	e := s.w.textEditor
+	picked := -1
+	if s.pickFresh && e.CursorOffset() == s.pickCursor && s.selected >= 0 && s.selected < len(s.passages) {
+		picked = s.selected
+	}
+	top := -1
+	if s.shown() && s.list.Size().Height > 0 && len(s.heights) == len(s.passages) && len(s.passages) > 0 {
+		top = s.firstInView()
+	}
+	line, _ := e.Buffer().Position(e.CursorOffset())
+	return m.anchorAt(line, picked, top)
+}
+
+// anchorText is the anchor in words: “…”, the passage.
+func (s *sourcePane) anchorText(a anchor) string {
+	if a.passage < 0 || a.passage >= len(s.passages) {
+		return "the start of the source"
+	}
+	return "“" + shortQuote(s.passages[a.passage].Plain) + "”"
+}
+
+// showAnchor is the caption line saying where Next and Previous go on
+// from.
+func (s *sourcePane) showAnchor(m *sourceModel) {
+	a := s.anchorNow(m)
+	var t string
+	switch a.kind {
+	case anchorStart:
+		t = "Next goes from the start of the source"
+	case anchorView:
+		t = "from: " + s.anchorText(a) + " · the top of the list"
+	case anchorPicked:
+		t = "after: " + s.anchorText(a) + " · picked"
+	case anchorScene:
+		t = "after: " + s.anchorText(a) + " · the cursor's scene"
+	case anchorBefore:
+		label := spanLabelsFor(s)[a.span]
+		t = "after: " + s.anchorText(a) + " · " + label + ", above the cursor"
+	}
+	if s.anchorLine.Text != t {
+		s.anchorLine.SetText(t)
+	}
+}
+
+// offer picks passage p as the one Next or Previous went to, and scrolls
+// to it.
 func (s *sourcePane) offer(p int) {
 	s.offered, s.offeredWords = p, nil
 	if p < 0 {
 		return
 	}
 	s.offeredWords = s.passages[p].Words
-	s.selected, s.cycle = p, 0
-	s.list.Refresh()
+	s.setPicked(p)
 	s.list.ScrollTo(p)
-	s.showCutButton()
-	s.showReading(true)
 }
 
 // offeredPassage is the passage Next showed last, found again by its
@@ -416,52 +473,93 @@ func (s *sourcePane) offeredPassage() int {
 	return s.offered
 }
 
-// startScene puts a scene for passage p in the script after the
-// cursor's scene (or after the one Next went on from, nextAt;
-// sceneForPassage), one undo step, its heading's placeholder selected to
-// write over.
-func (s *sourcePane) startScene(p int) {
-	w := s.w
-	if p < 0 || p >= len(s.passages) {
-		return
-	}
-	e := w.textEditor
-	at := e.CursorOffset()
-	if s.nextAt >= 0 && s.nextAt <= len([]rune(e.Text())) {
-		at = s.nextAt
-	}
-	s.nextAt = -1
-	line, _ := e.Buffer().Position(at)
-	ed := sceneForPassage(e.Text(), w.sceneStarts(), s.passages, p, s.current().position(line), at)
-	e.Edit(func(b *buffer.Buffer) {
-		b.Group(func() {
-			b.Replace(ed.At, ed.Replace, ed.Text)
-			b.Select(ed.Select, ed.SelectEnd)
-		})
-	})
-	w.fyneWindow.Canvas().Focus(e)
-	w.setStatus("A scene for “" + shortQuote(s.passages[p].Plain) + "”: write its heading over the placeholder")
-	s.follow()
-}
-
 // The window's side.
 
-// nextInserts reports whether Next passage starts a scene for the
-// passage itself (the preference "next-passage-inserts"), or only shows
-// it with the offer.
-func (w *MainWindow) nextInserts() bool {
-	return w.settings == nil || w.settings.GetBoolean("next-passage-inserts")
-}
-
 // nextSourcePassage is Adaptation > Next Source Passage.
-func (w *MainWindow) nextSourcePassage() {
-	if w.scriptAway("Next Source Passage") { // the script is in the side panes (swap.go)
+func (w *MainWindow) nextSourcePassage() { w.stepSourcePassage(1, "Next Source Passage") }
+
+// previousSourcePassage is Adaptation > Previous Source Passage.
+func (w *MainWindow) previousSourcePassage() { w.stepSourcePassage(-1, "Previous Source Passage") }
+
+func (w *MainWindow) stepSourcePassage(dir int, what string) {
+	if w.scriptAway(what) { // the script is in the side panes (swap.go)
 		return
 	}
 	if w.markdown {
 		return
 	}
-	w.sourcePane().nextPassage()
+	w.sourcePane().stepPassage(dir)
+}
+
+// adaptSourcePassage is Adaptation > Adapt Source Passage…: Adapt… for
+// the passage picked in the source pane.
+func (w *MainWindow) adaptSourcePassage() {
+	if w.scriptAway("Adapt Source Passage") {
+		return
+	}
+	if w.markdown {
+		return
+	}
+	s := w.sourcePane()
+	if !s.shown() {
+		w.showPane("source", false)
+	}
+	s.load()
+	s.adaptPassage(s.selected)
+}
+
+// goToPassageScene is Adaptation > Go to the Passage's Scene: the scene
+// linking to the passage picked in the source pane, the next of them on
+// each go if several do.
+func (w *MainWindow) goToPassageScene() {
+	if w.markdown {
+		return
+	}
+	s := w.sourcePane()
+	s.load()
+	if s.selected < 0 || s.selected >= len(s.passages) {
+		w.setStatus("Pick the passage in the source first")
+		return
+	}
+	scenes := s.current().linked(s.selected)
+	if len(scenes) == 0 {
+		w.setStatus("No scene links to “" + shortQuote(s.passages[s.selected].Plain) + "” yet: Adapt… writes it into the script")
+		return
+	}
+	if s.cycleFor != s.selected {
+		s.cycleFor, s.cycle = s.selected, 0
+	} else {
+		s.cycle++
+	}
+	s.jumpTo(s.selected, s.cycle%len(scenes))
+}
+
+// flashTime is how long a scene gone to from the source pane is lit.
+const flashTime = 900 * time.Millisecond
+
+// flashScene lights the scene (or section) at line for a moment, in the
+// script's editor; with the script swapped out the Script tab lights it
+// already.
+func (w *MainWindow) flashScene(line int) {
+	if !w.scriptInMain() {
+		return
+	}
+	e := w.textEditor
+	text := e.Text()
+	span := spanAt(sceneSpans(text, w.sceneStarts()), line)
+	b := e.Buffer()
+	n, _ := b.Position(b.Len())
+	start, end := b.LineStart(span.Line), b.Len()
+	if span.End <= n {
+		end = b.LineStart(span.End)
+	}
+	end = min(end, bodyEnd(text))
+	e.SetFlash(start, end)
+	cancel(&w.flashTimer)
+	w.flashTimer = w.after(flashTime, func() {
+		w.flashTimer = nil
+		e.SetFlash(0, 0)
+	})
 }
 
 // toggleCutHere is Adaptation > Mark Source Passage as Cut: the passage

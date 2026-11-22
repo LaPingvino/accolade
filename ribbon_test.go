@@ -225,8 +225,11 @@ func TestRibbonSourceTab(t *testing.T) {
 	if r.selected != "Adaptation" {
 		t.Fatal("no Adaptation tab with a source")
 	}
-	if b := buttonOf(r, "source.next"); b == nil || b.Disabled() || !b.large {
-		t.Error("Next Source Passage: not a large enabled button")
+	if b := buttonOf(r, "source.adapt"); b == nil || b.Disabled() || !b.large {
+		t.Error("Adapt Source Passage: not a large enabled button")
+	}
+	if b := buttonOf(r, "source.next"); b == nil || b.Disabled() {
+		t.Error("Next Source Passage: not an enabled button")
 	}
 }
 

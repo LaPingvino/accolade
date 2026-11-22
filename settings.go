@@ -95,9 +95,6 @@ func (s *Settings) loadDefaults() {
 		// the report Production > Reports… shows first (reports.go)
 		"report-kind": "scenes",
 
-		// Adapting (adaptation.go): Next Source Passage starts a scene
-		// for the passage, or only shows it and offers to
-		"next-passage-inserts": true,
 		// suggestions from the source while writing (suggest.go)
 		"suggest-from-source": true,
 	}
@@ -105,6 +102,12 @@ func (s *Settings) loadDefaults() {
 	for key, value := range defaults {
 		s.data[key] = value
 	}
+}
+
+// retiredSettings are settings that went: taken out of a settings file
+// that has them.
+var retiredSettings = []string{
+	"next-passage-inserts", // Next Source Passage started a scene (before Adapt…, 2026-11-22)
 }
 
 func (s *Settings) load() {
@@ -131,6 +134,14 @@ func (s *Settings) load() {
 	// Merge loaded data with defaults
 	for key, value := range loadedData {
 		s.data[key] = value
+	}
+	// gone settings: Next Source Passage only moves now, Adapt… writes
+	// (adapt_dialog.go)
+	for _, key := range retiredSettings {
+		if _, ok := s.data[key]; ok {
+			delete(s.data, key)
+			s.dirty = true
+		}
 	}
 	// a user from before the role: as their settings show (role.go)
 	if _, ok := loadedData[rolePref]; !ok {

@@ -207,8 +207,8 @@ func TestComboNoSource(t *testing.T) {
 		if !textAfter(t, w, "## Chapter 1", "[[from: #:~:text=Mara climbed") || textAfter(t, w, "## Chapter 2", "[[from: #:~:text=Mara climbed") {
 			t.Errorf("the first scene is not under Chapter 1:\n%s", text)
 		}
-		if selected(w) != "PLACE - DAY" {
-			t.Errorf("selected %q", selected(w))
+		if sel := selected(w); sel == "" || !strings.Contains(text, ". "+sel+"\n") {
+			t.Errorf("selected %q", sel)
 		}
 		// a new script after it does not keep its source
 		w.createNewFile(true)
@@ -288,13 +288,14 @@ func checkStarted(t *testing.T, w *MainWindow) {
 	if !textAfter(t, w, "## Chapter 1", "[[from: #:~:text=Mara climbed") || textAfter(t, w, "## Chapter 2", "[[from: #:~:text=Mara climbed") {
 		t.Errorf("the first scene is not under Chapter 1:\n%s", text)
 	}
-	if selected(w) != "PLACE - DAY" || w.suggestedName != "lighthouse.fountain" || !w.sourcePane().shown() {
+	// the heading the story suggests, its words after INT. selected to write over
+	if sel := selected(w); sel == "" || !strings.Contains(text, ". "+sel+"\n") || w.suggestedName != "lighthouse.fountain" || !w.sourcePane().shown() {
 		t.Errorf("selected %q, name %q, shown %v", selected(w), w.suggestedName, w.sourcePane().shown())
 	}
 	// a scene for a later chapter goes under its section, wherever the cursor is
 	s := w.sourcePane()
 	w.textEditor.SetCursorOffset(len([]rune(w.textEditor.Text())))
-	s.startScene(passageNamed(t, s.passages, "The storm came"))
+	adaptNew(s, passageNamed(t, s.passages, "The storm came"))
 	if !textAfter(t, w, "## Chapter 2", "[[from: #:~:text=The storm came") || textAfter(t, w, "## Chapter 3", "[[from: #:~:text=The storm came") {
 		t.Errorf("Chapter 2's scene is not under it:\n%s", w.textEditor.Text())
 	}
@@ -438,13 +439,11 @@ func TestComboPartial(t *testing.T) {
 			}
 			comboShot(t, w, c.name+"-partial")
 			w.textEditor.SetCursorOffset(0)
-			s.nextPassage()
+			s.stepPassage(1)
+			adaptNew(s, s.selected)
 			if !textAfter(t, w, "Only the gulls. Come up", "[[from: #:~:text=The storm came") ||
 				!textAfter(t, w, "Only the gulls. Come up", "## Chapter 2") || !textAfter(t, w, "## Chapter 2", "[[from: #:~:text=The storm came") {
-				t.Errorf("Next from the top:\n%s", w.textEditor.Text())
-			}
-			if selected(w) != "PLACE - DAY" {
-				t.Errorf("selected %q", selected(w))
+				t.Errorf("Next from the top, then Adapt…:\n%s", w.textEditor.Text())
 			}
 			if c.name == "inside" && w.sourceRef().Origin != sourceInside {
 				t.Errorf("the source left the script: %+v", w.sourceRef())
@@ -566,7 +565,10 @@ func TestComboGrowing(t *testing.T) {
 		t.Errorf("count %q", got)
 	}
 	comboShot(t, w, "growing-partial")
-	s.nextPassage()
+	s.stepPassage(1)
+	if s.selected >= 0 && s.statusOf(s.selected) == statusToDo {
+		adaptNew(s, s.selected)
+	}
 	if st := w.statusLabel.Text; !strings.Contains(st, "added to the source later") {
 		t.Errorf("Next at the end of a source being written: %q", st)
 	}
@@ -599,7 +601,10 @@ func TestComboGrowing(t *testing.T) {
 	}
 	comboShot(t, w, "growing-changed")
 	w.textEditor.SetCursorOffset(len([]rune(w.textEditor.Text())))
-	s.nextPassage()
+	s.stepPassage(1)
+	if s.selected >= 0 && s.statusOf(s.selected) == statusToDo {
+		adaptNew(s, s.selected)
+	}
 	if !strings.Contains(w.textEditor.Text(), `[[from: #:~:text=The storm came`) {
 		t.Errorf("Next did not go on into what was added:\n%s", w.textEditor.Text())
 	}

@@ -171,14 +171,14 @@ func TestMarkAsCut(t *testing.T) {
 	s.follow()
 	item := passageNamed(t, s.passages, "a list item")
 	before := w.textEditor.Text()
-	if !s.cut.Disabled() {
+	if rowOf(s, item).cut.Visible() {
 		t.Error("Mark as Cut with nothing picked")
 	}
 	s.list.Select(item)
-	if s.cut.Disabled() || s.cut.Text != "Mark as Cut" {
-		t.Fatalf("cut button: %q disabled %v", s.cut.Text, s.cut.Disabled())
+	if c := rowOf(s, item).cut; !c.Visible() || c.Text != "Mark as Cut" || !rowOf(s, item).adapt.Visible() {
+		t.Fatalf("cut button: %q shown %v", c.Text, c.Visible())
 	}
-	s.cut.OnTapped()
+	rowOf(s, item).cut.OnTapped()
 	text := w.textEditor.Text()
 	inside, ok := adaptationBlock(text)
 	if !ok || inside != "cut:\n  #:~:text=a list item of its own" {
@@ -190,8 +190,8 @@ func TestMarkAsCut(t *testing.T) {
 	if _, _, md, _ := sourceBlock(text); md != sourceStory {
 		t.Errorf("source block changed: %q", md)
 	}
-	if s.statusOf(item) != statusCut || s.cut.Text != "Unmark Cut" || !strings.Contains(s.count.Text, "1 cut") {
-		t.Errorf("after cut: %v %q %q", s.statusOf(item), s.cut.Text, s.count.Text)
+	if c := rowOf(s, item).cut; s.statusOf(item) != statusCut || c.Text != "Unmark Cut" || !strings.Contains(s.count.Text, "1 cut") {
+		t.Errorf("after cut: %v %q %q", s.statusOf(item), c.Text, s.count.Text)
 	}
 	if mark := rowMark(s, item); mark.status != statusCut {
 		t.Errorf("row mark %v", mark.status)
@@ -220,9 +220,10 @@ func TestMarkAsCut(t *testing.T) {
 		t.Errorf("unmarked one: %q", inside)
 	}
 	// an adapted passage or a heading is not cut
-	s.list.Select(passageNamed(t, s.passages, "She opened"))
-	if !s.cut.Disabled() {
-		t.Error("cut enabled for an adapted passage")
+	opened := passageNamed(t, s.passages, "She opened")
+	s.list.Select(opened)
+	if r := rowOf(s, opened); r.cut.Visible() || r.adapt.Visible() || !r.scenes.Visible() {
+		t.Error("cut or Adapt… for an adapted passage, or no → to its scene")
 	}
 	// linking a cut passage takes its entry out, in the same step (the
 	// second of two alike too: its prefix tells it apart)
@@ -249,6 +250,13 @@ func TestMarkAsCut(t *testing.T) {
 	}
 }
 
+// rowOf is passage id's row as the list shows it.
+func rowOf(s *sourcePane, id int) passageRow {
+	row := newPassageRow()
+	s.show(row, id)
+	return rowParts(row)
+}
+
 // rowMark is the status mark of passage id's row as the list shows it.
 func rowMark(s *sourcePane, id int) *statusMark {
 	row := newPassageRow()
@@ -257,123 +265,6 @@ func rowMark(s *sourcePane, id int) *statusMark {
 }
 
 const nextScript = "Title: The Garden\n\nINT. HOUSE - NIGHT\n\nAnna at the door. [[from: \"She opened the door to the garden and…\"]]\n\nINT. LATER - DAY\n\nStuff.\n\n/* Notes\nkeep\n*/\n"
-
-// Next passage, starting scenes: after the cursor's scene's last linked
-// passage, the first neither adapted nor cut, its scene after the
-// cursor's, a new chapter's section before it, one undo step.
-func TestNextInserts(t *testing.T) {
-	w, _ := sourceWindow(t, nextScript, sourceStory)
-	s := w.sourcePane()
-	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(lineWith(t, w, "Anna at the door")))
-	w.nextSourcePassage()
-	who := passageNamed(t, s.passages, `"Who's`)
-	note := `[[from: #:~:text="Who's there?" Anna called%2C but nobody answered.]]`
-	want := strings.Replace(nextScript, "INT. LATER", "INT. PLACE - DAY\n\n"+note+"\n\nINT. LATER", 1)
-	if got := w.textEditor.Text(); got != want {
-		t.Fatalf("inserted:\n%s\nwant\n%s", got, want)
-	}
-	if s.selected != who || w.textEditor.SelectedText() != "PLACE - DAY" {
-		t.Errorf("picked %d, selected %q", s.selected, w.textEditor.SelectedText())
-	}
-	m := s.current()
-	if l := m.links[1]; spanAt(m.spans, l.Line).Heading != "INT. PLACE - DAY" || s.statusOf(who) != statusAdapted {
-		t.Errorf("the link is not in the new scene: %+v", spanAt(m.spans, l.Line))
-	}
-	w.textEditor.Undo()
-	if w.textEditor.Text() != nextScript {
-		t.Fatalf("not one undo step:\n%s", w.textEditor.Text())
-	}
-	w.textEditor.Redo()
-	// from the new scene: the next ones, each after the scene before
-	w.nextSourcePassage()
-	w.nextSourcePassage()
-	if s.selected != passageNamed(t, s.passages, "and another") {
-		t.Errorf("third: picked %q", s.passages[s.selected].Plain)
-	}
-	// the rain is there twice: Next starts it, its link telling it from
-	// the other by the words before it (prefix-), so it is adapted
-	w.nextSourcePassage()
-	if s.selected != 6 {
-		t.Fatalf("fourth: %q", s.passages[s.selected].Plain)
-	}
-	if s.prompt.box.Visible() {
-		t.Error("asked about a skip")
-	}
-	if !strings.Contains(w.textEditor.Text(), "[[from: #:~:text=another-,The rain kept falling.]]") || s.statusOf(6) != statusAdapted {
-		t.Errorf("the first rain: %v\n%s", s.statusOf(6), w.textEditor.Text())
-	}
-	// a new chapter: its section first
-	w.nextSourcePassage()
-	text := w.textEditor.Text()
-	if !strings.Contains(text, "## Chapter 2\n\nINT. PLACE - DAY\n\n[[from: #:~:text=The next morning the garden was white with,the door stood open.]]") {
-		t.Errorf("chapter 2:\n%s", text)
-	}
-	if strings.Count(text, "## Chapter 1") != 0 {
-		t.Error("a section for the chapter the script is in already")
-	}
-	// at the end, before the blocks
-	if !strings.HasSuffix(text, "/* Notes\nkeep\n*/\n") || notesOf(text) != "keep" {
-		t.Errorf("notes:\n%s", text)
-	}
-}
-
-// Next only showing (the preference off): the passage picked and
-// offered; pressed again without linking, it asks whether that one is
-// cut, in the pane; the answer is one undo step.
-func TestNextShowsAndSkips(t *testing.T) {
-	w, _ := sourceWindow(t, nextScript, sourceStory)
-	w.settings.SetBoolean("next-passage-inserts", false)
-	t.Cleanup(func() { // the settings are the process's (GetSettings): the default back for the next tests
-		w.settings.SetBoolean("next-passage-inserts", true)
-	})
-	s := w.sourcePane()
-	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(lineWith(t, w, "Anna at the door")))
-	who := passageNamed(t, s.passages, `"Who's`)
-	item := passageNamed(t, s.passages, "a list item")
-	w.nextSourcePassage()
-	if w.textEditor.Text() != nextScript || s.selected != who || !s.prompt.box.Visible() || s.prompt.yes.Text != "Start a Scene" {
-		t.Fatalf("shown: picked %d, prompt %v %q", s.selected, s.prompt.box.Visible(), s.prompt.yes.Text)
-	}
-	// again, not linked: skipped, asked; the next one is shown
-	w.nextSourcePassage()
-	if s.selected != item || !s.prompt.skipping || s.prompt.passage != who || s.prompt.yes.Text != "Mark as Cut" ||
-		!strings.Contains(s.prompt.label.Text, "Skipped") {
-		t.Fatalf("skip: picked %d, prompt %+v %q", s.selected, s.prompt.passage, s.prompt.label.Text)
-	}
-	if u := unnamed(w.fyneWindow.Canvas()); len(u) > 0 {
-		t.Errorf("no name for %q", u)
-	}
-	s.prompt.yes.OnTapped()
-	if s.statusOf(who) != statusCut || s.prompt.box.Visible() {
-		t.Errorf("answered: %v, prompt %v", s.statusOf(who), s.prompt.box.Visible())
-	}
-	w.textEditor.Undo()
-	if w.textEditor.Text() != nextScript {
-		t.Errorf("cut not one step:\n%s", w.textEditor.Text())
-	}
-	// Start a Scene from the offer
-	w.nextSourcePassage() // skips the list item; offers "and another"
-	s.prompt.no.OnTapped()
-	if s.prompt.box.Visible() {
-		t.Error("Not Now left it")
-	}
-	w.textEditor.SetCursorOffset(0)
-	s.startScene(s.offered)
-	if s.statusOf(s.offered) != statusAdapted {
-		t.Error("Start a Scene did not link")
-	}
-	// on from the new scene, skipping each: the rain, the morning, the
-	// second rain, then from the start again
-	for _, want := range []int{6, 8, 9, who} {
-		w.nextSourcePassage()
-		if s.selected != want {
-			t.Fatalf("next: %q, want %q", s.passages[s.selected].Plain, s.passages[want].Plain)
-		}
-	}
-	if !strings.Contains(w.statusLabel.Text, "from the start") || s.prompt.passage != 9 {
-		t.Errorf("wrapped: %q, asks about %d", w.statusLabel.Text, s.prompt.passage)
-	}
-}
 
 // Every passage done: Next says so; Markdown has none of it.
 func TestNextAllDone(t *testing.T) {
@@ -423,11 +314,6 @@ func TestStatusScreenshots(t *testing.T) {
 		w.app.setColorScheme(scheme)
 		shot("accolade-statuses-" + scheme + ".png")
 	}
-	w.settings.SetBoolean("next-passage-inserts", false)
-	t.Cleanup(func() { // the settings are the process's (GetSettings): the default back for the next tests
-		w.settings.SetBoolean("next-passage-inserts", true)
-	})
-	w.nextSourcePassage()
-	w.nextSourcePassage()
-	shot("accolade-statuses-skip-dark.png")
+	s.stepPassage(1)
+	shot("accolade-statuses-next-dark.png")
 }

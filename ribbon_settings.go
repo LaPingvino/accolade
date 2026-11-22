@@ -133,7 +133,6 @@ func settingCommands() []*command {
 		toggleSetting("set.statusBar", "Status Bar", "statusbar-visible", statusBarIcon, nil),
 		lookRibbon,
 		toggleSetting("set.suggest", "Suggest from the Source While Writing", suggestPref, suggestWhileIcon, nil),
-		toggleSetting("set.nextInserts", "Next Source Passage Starts a Scene", "next-passage-inserts", nextSceneOptIcon, nil),
 		choiceSetting("set.revisionMarks", "Revision Marks Since", revisionMarksPref, marksIcon,
 			[][2]string{{"last", revisionMarkChoices[0]}, {"all", revisionMarkChoices[1]}}, marks),
 		choiceSetting("set.lettering", "A New Scene's Number", sceneNumberStylePref, letteringIcon, lettering, nil),
@@ -332,8 +331,6 @@ func (pd *PreferencesDialog) followSetting(key string) {
 		pd.statusbarVisibleCheck.SetChecked(s.GetBoolean(key))
 	case suggestPref:
 		pd.suggestCheck.SetChecked(s.GetBoolean(key))
-	case "next-passage-inserts":
-		pd.nextInsertsCheck.SetChecked(s.GetBoolean(key))
 	case revisionMarksPref:
 		pd.revisionMarksSelect.SetSelected(revisionMarkChoices[0])
 		if s.GetString(key) == "all" {

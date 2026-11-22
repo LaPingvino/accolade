@@ -120,13 +120,23 @@ func (w *MainWindow) newScriptFromSource(md, name, file string) {
 }
 
 // firstScene starts the script's first scene, for the source's first
-// passage (Next), or offers it, as the preference says.
+// passage still to do (the writer asked to start from the source: no
+// Adapt… between), in the story's order, with the heading the source
+// suggests, its words after INT. selected to write over.
 func (s *sourcePane) firstScene() {
 	s.load()
 	if !slices.ContainsFunc(s.passages, passage.counted) {
 		return
 	}
-	s.nextPassage()
+	p := s.current().wrapTo(1)
+	if p < 0 {
+		return
+	}
+	c := s.adaptCtx(p)
+	pl := planAdapt(c, p)
+	place, heading := pl.Wheres[0], pl.Headings[0]
+	s.offer(p)
+	s.putScene(p, place, sceneBlock(c, p, place.Line, heading, ""), heading, true)
 }
 
 // seedScript puts the source's headings in an unwritten script as its
