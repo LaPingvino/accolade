@@ -151,3 +151,33 @@ func TestPreferencesFontShot(t *testing.T) {
 	defer f.Close()
 	png.Encode(f, pd.win.Canvas().Capture())
 }
+
+// The saved theme is the window's from the start (set before the window
+// is built), and a second window does not theme the app again.
+func TestNewWindowTakesTheSavedTheme(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	s := GetSettings()
+	s.SetString("theme", "dark")
+	t.Cleanup(func() { s.SetString("theme", "system") })
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	app := &Application{fyneApp: a}
+	w := NewMainWindow(app)
+	t.Cleanup(w.stopTimers)
+	if _, ok := a.Settings().Theme().(*DarkTheme); !ok {
+		t.Fatalf("the new window's theme: %T", a.Settings().Theme())
+	}
+	other := &LightTheme{}
+	a.Settings().SetTheme(other) // (not through setColorScheme: what a second window would undo)
+	w2 := NewMainWindow(app)
+	t.Cleanup(w2.stopTimers)
+	if a.Settings().Theme() != other {
+		t.Errorf("a second window set the theme again: %T", a.Settings().Theme())
+	}
+	app.setColorScheme("light")
+	app.setColorScheme("dark")
+	if _, ok := a.Settings().Theme().(*DarkTheme); !ok {
+		t.Errorf("a changed scheme is not applied: %T", a.Settings().Theme())
+	}
+}

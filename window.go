@@ -269,6 +269,9 @@ func NewMainWindow(app *Application) *MainWindow {
 	}
 
 	window.settings = GetSettings() // shared with the preferences dialog
+	// the theme before the window is built: setting it later themes the
+	// whole of every window again
+	app.setColorScheme(window.settings.GetString("theme"))
 	window.dock = newDock(window)
 	window.setupUI()
 	window.setupShortcuts()
@@ -410,8 +413,7 @@ func (w *MainWindow) setupCallbacks() {
 // Fyne's drag and drop API may differ from GTK
 
 func (w *MainWindow) applySettings() {
-	// Apply theme
-	w.app.setColorScheme(w.settings.GetString("theme"))
+	// (the theme: NewMainWindow, before the window is built)
 
 	// Apply editor settings
 	w.applyEditorSettings()

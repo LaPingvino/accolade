@@ -37,6 +37,10 @@ type Application struct {
 	prefs *PreferencesDialog
 	// quick is the ribbon's usage counts and the session's Quick order (quick.go)
 	quick *quickStore
+	// scheme is the colour scheme last given to Fyne (setColorScheme;
+	// schemeSet once there is one)
+	scheme    string
+	schemeSet bool
 }
 
 func NewApplication() *Application {
@@ -331,6 +335,10 @@ func (app *Application) applySettingsToWindows() {
 }
 
 func (app *Application) setColorScheme(scheme string) {
+	if app.schemeSet && scheme == app.scheme { // a new window: the theme is set already
+		return
+	}
+	app.scheme, app.schemeSet = scheme, true
 	log.Printf("Setting color scheme to: %s", scheme)
 
 	switch scheme {
