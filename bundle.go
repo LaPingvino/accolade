@@ -516,7 +516,7 @@ type bundleSave struct {
 
 // lex is the configuration the script is saved with.
 func (s bundleSave) lex() lexConf {
-	if s.conf.Scenes == nil {
+	if s.conf.Languages == nil {
 		return machineLex()
 	}
 	return s.conf

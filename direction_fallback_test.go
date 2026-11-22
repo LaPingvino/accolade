@@ -150,7 +150,7 @@ func TestDirectionCarried(t *testing.T) {
 	w2.addToMySettings()
 	w2.adoptAsked.apply()
 	b, _ := os.ReadFile(filepath.Join(conf2, "lexington.toml"))
-	if !lexSettings.RTL("xr") || !strings.Contains(string(b), "[Directions]") {
+	if !lexSettings.RTL("xr") || !strings.Contains(string(b), "[Languages.xr]") || !strings.Contains(string(b), `Direction = "rtl"`) {
 		t.Errorf("added:\n%s", b)
 	}
 	// Hebrew is still right to left there (a language not named keeps

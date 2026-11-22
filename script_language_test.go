@@ -89,7 +89,7 @@ func TestWithLanguageName(t *testing.T) {
 }
 
 func TestLanguageLabels(t *testing.T) {
-	for l := range rules.DefaultConf().Scenes { // Lexington's own: tests add others
+	for l := range rules.DefaultConf().Languages { // Lexington's own: tests add others
 		if languageLabel(l) == l {
 			t.Errorf("%s has no name", l)
 		}

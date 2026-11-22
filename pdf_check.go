@@ -13,7 +13,7 @@ import (
 // pdfWarning says what the PDF writer cannot print of a script ("" if
 // it prints well).
 func pdfWarning(content string, scenes []string) string {
-	return cli.PDFWarning(fountain.Parse(scenes, strings.NewReader(content)))
+	return cli.PDFWarning(fountain.ParseIn(langFor(scenes), strings.NewReader(content)))
 }
 
 // pdfOrPrint makes a PDF with makePDF, unless the script has text the

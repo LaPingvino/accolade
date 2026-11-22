@@ -16,47 +16,47 @@ import (
 type SearchBar struct {
 	window    *MainWindow
 	container *fyne.Container
-	
+
 	// Search widgets
-	searchEntry   *escEntry
-	replaceEntry  *escEntry
-	
+	searchEntry  *escEntry
+	replaceEntry *escEntry
+
 	// Control buttons
-	findNextButton     *widget.Button
-	findPrevButton     *widget.Button
-	replaceButton      *widget.Button
-	replaceAllButton   *widget.Button
-	closeButton        *widget.Button
-	
+	findNextButton   *widget.Button
+	findPrevButton   *widget.Button
+	replaceButton    *widget.Button
+	replaceAllButton *widget.Button
+	closeButton      *widget.Button
+
 	// Options
 	caseSensitiveCheck *widget.Check
 	wholeWordCheck     *widget.Check
 	regexCheck         *widget.Check
-	
+
 	// Status
 	statusLabel *widget.Label
-	
+
 	// State
-	isVisible     bool
-	replaceMode   bool
-	currentMatch  int
-	totalMatches  int
-	searchText    string
+	isVisible    bool
+	replaceMode  bool
+	currentMatch int
+	totalMatches int
+	searchText   string
 }
 
 func NewSearchBar(window *MainWindow) *SearchBar {
 	sb := &SearchBar{
-		window:        window,
-		isVisible:     false,
-		replaceMode:   false,
-		currentMatch:  0,
-		totalMatches:  0,
+		window:       window,
+		isVisible:    false,
+		replaceMode:  false,
+		currentMatch: 0,
+		totalMatches: 0,
 	}
-	
+
 	sb.createWidgets()
 	sb.createLayout()
 	sb.setupCallbacks()
-	
+
 	return sb
 }
 
@@ -64,45 +64,45 @@ func (sb *SearchBar) createWidgets() {
 	// Search entry
 	sb.searchEntry = newEscEntry(sb.window.hideFindReplace)
 	sb.searchEntry.SetPlaceHolder("Find...")
-	
+
 	// Replace entry
 	sb.replaceEntry = newEscEntry(sb.window.hideFindReplace)
 	sb.replaceEntry.SetPlaceHolder("Replace with...")
-	
+
 	// Control buttons
 	sb.findNextButton = widget.NewButtonWithIcon("Next", theme.NavigateNextIcon(), func() {
 		sb.findNext()
 	})
-	
+
 	sb.findPrevButton = widget.NewButtonWithIcon("Previous", theme.NavigateBackIcon(), func() {
 		sb.findPrevious()
 	})
-	
+
 	sb.replaceButton = widget.NewButtonWithIcon("Replace", theme.DocumentSaveIcon(), func() {
 		sb.replaceOne()
 	})
-	
+
 	sb.replaceAllButton = widget.NewButtonWithIcon("Replace All", theme.ContentCopyIcon(), func() {
 		sb.replaceAll()
 	})
-	
+
 	sb.closeButton = widget.NewButtonWithIcon("", theme.CancelIcon(), func() {
 		sb.Hide()
 	})
-	
+
 	// Options
 	sb.caseSensitiveCheck = widget.NewCheck("Case sensitive", func(checked bool) {
 		sb.updateSearch()
 	})
-	
+
 	sb.wholeWordCheck = widget.NewCheck("Whole words", func(checked bool) {
 		sb.updateSearch()
 	})
-	
+
 	sb.regexCheck = widget.NewCheck("Regular expression", func(checked bool) {
 		sb.updateSearch()
 	})
-	
+
 	// Status
 	sb.statusLabel = widget.NewLabel("No matches")
 }
@@ -117,30 +117,30 @@ func (sb *SearchBar) createLayout() {
 	// HBox they were a few characters wide)
 	searchRow := container.NewBorder(nil, nil, widget.NewLabel("Find:"),
 		container.NewHBox(sb.findPrevButton, sb.findNextButton, sb.closeButton), sb.searchEntry)
-	
+
 	// Replace row (initially hidden)
 	replaceRow := container.NewBorder(nil, nil, widget.NewLabel("Replace:"),
 		container.NewHBox(sb.replaceButton, sb.replaceAllButton), sb.replaceEntry)
-	
+
 	// Options row
 	optionsRow := container.NewHBox(
 		sb.caseSensitiveCheck,
 		sb.wholeWordCheck,
 		sb.regexCheck,
-		widget.NewLabel(""),  // Spacer
+		widget.NewLabel(""), // Spacer
 		sb.statusLabel,
 	)
-	
+
 	// Main container
 	sb.container = container.NewVBox(
 		searchRow,
 		replaceRow,
 		optionsRow,
 	)
-	
+
 	// Initially hide replace row
 	replaceRow.Hide()
-	
+
 	// Initially hide the whole container
 	sb.container.Hide()
 }
@@ -151,12 +151,12 @@ func (sb *SearchBar) setupCallbacks() {
 		sb.searchText = text
 		sb.updateSearch()
 	}
-	
+
 	// Handle Enter key in search entry
 	sb.searchEntry.OnSubmitted = func(text string) {
 		sb.findNext()
 	}
-	
+
 	// Handle Enter key in replace entry
 	sb.replaceEntry.OnSubmitted = func(text string) {
 		sb.replaceOne()
@@ -192,7 +192,7 @@ func (sb *SearchBar) Hide() {
 
 func (sb *SearchBar) SetReplaceMode(enabled bool) {
 	sb.replaceMode = enabled
-	
+
 	// Get replace row (second child)
 	if len(sb.container.Objects) >= 2 {
 		replaceRow := sb.container.Objects[1]
@@ -202,7 +202,7 @@ func (sb *SearchBar) SetReplaceMode(enabled bool) {
 			replaceRow.Hide()
 		}
 	}
-	
+
 	sb.container.Refresh()
 	sb.relayout()
 }
@@ -486,6 +486,7 @@ func (sb *SearchBar) SetWholeWords(wholeWords bool) {
 func (sb *SearchBar) SetRegularExpression(regex bool) {
 	sb.regexCheck.SetChecked(regex)
 }
+
 // relayout makes room for the search bar in the window (or gives it
 // back): the window's layout keeps the old height of the top bar until it
 // is refreshed, and the search bar was drawn over the toolbar.

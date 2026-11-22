@@ -67,7 +67,7 @@ type cleanFountainDlg struct {
 	d       dialog.Dialog
 	text    string // the script, as the dialog opened
 	preset  *widget.Select
-	about   *widget.Label // what the preset takes out
+	about   *widget.Label   // what the preset takes out
 	checks  []*widget.Check // in fountain.StripKeys' order
 	summary *widget.Label
 	export  *widget.Button

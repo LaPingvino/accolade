@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
-
 )
 
 func newDialogTestWindow(t *testing.T) (*MainWindow, *Application) {
@@ -38,8 +37,6 @@ func capture(t *testing.T, c fyne.Canvas, name string) {
 		f.Close()
 	}
 }
-
-
 
 // No dialog has an empty dismiss button any more, and Preferences is a
 // window of its own.
@@ -90,10 +87,6 @@ func TestDialogsHaveNoEmptyButton(t *testing.T) {
 	capture(t, pd.win.Canvas(), "preferences.png")
 	pd.cancel()
 }
-
-
-
-
 
 // Opening or importing a file replaces a window that holds only what it
 // was filled with (the sample, an import not edited since); a window with

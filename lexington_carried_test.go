@@ -111,7 +111,7 @@ func TestCarriedConfRoundTrip(t *testing.T) {
 	if s := w.statusText(); !strings.Contains(s, "Add to My Settings") || !strings.Contains(s, "My Radio") {
 		t.Errorf("status: %q", s)
 	}
-	if lexSettings.Scenes["xq"] != nil || machineLex().hasFormat("my-radio") || fileExists(filepath.Join(conf, "lexington.toml")) ||
+	if lexSettings.Scenes("xq") != nil || machineLex().hasFormat("my-radio") || fileExists(filepath.Join(conf, "lexington.toml")) ||
 		fileExists(filepath.Join(conf, "formats", "my-radio.toml")) {
 		t.Error("opening changed the machine's settings")
 	}
@@ -120,7 +120,7 @@ func TestCarriedConfRoundTrip(t *testing.T) {
 	}
 	// exports read the script's settings: its format, its language
 	o := w.layoutJob().options("pdf", "out.pdf")
-	if o.Conf == nil || o.Conf.Elements["my-radio"]["action"].Style != "b" || o.Conf.Scenes["xq"] == nil || o.Elements != "my-radio" {
+	if o.Conf == nil || o.Conf.Elements["my-radio"]["action"].Style != "b" || o.Conf.Scenes("xq") == nil || o.Elements != "my-radio" {
 		t.Errorf("export options: %+v", o)
 	}
 	if !cmd("file.addSettings").applies(w.cmdEnv()) {
@@ -221,7 +221,7 @@ func TestReadCarriedNames(t *testing.T) {
 		names = append(names, n)
 	}
 	c := readCarried(names, func(n string) ([]byte, error) { return []byte(files[n]), nil })
-	if c == nil || len(c.formats) != 1 || c.formats["fine"] == nil || c.lex.Scenes["zz"] == nil {
+	if c == nil || len(c.formats) != 1 || c.formats["fine"] == nil || c.lex.Scenes("zz") == nil {
 		t.Fatalf("read: %+v", c)
 	}
 }
@@ -242,7 +242,7 @@ func TestAddToMySettings(t *testing.T) {
 		t.Fatalf("listed: %+v", a)
 	}
 	a.apply()
-	if lexSettings.Scenes["xq"] == nil || !machineLex().hasFormat("my-radio") {
+	if lexSettings.Scenes("xq") == nil || !machineLex().hasFormat("my-radio") {
 		t.Fatal("not added")
 	}
 	if b, _ := os.ReadFile(filepath.Join(conf, "formats", "my-radio.toml")); string(b) != myRadio {
@@ -301,9 +301,9 @@ func TestAddToMySettingsClash(t *testing.T) {
 	if !strings.Contains(text, "# mine, keep this") || !strings.Contains(text, "# my words") || !strings.Contains(text, "nl = ") {
 		t.Errorf("lexington.toml lost something:\n%s", text)
 	}
-	if !slices.Equal(lexSettings.Scenes["xq"], []string{"INNE", "UTE"}) || !slices.Equal(lexSettings.Scenes["xq-2"], []string{"ENDE", "AUSE"}) ||
-		lexSettings.Matchups["xq-2"] == nil {
-		t.Errorf("languages: xq %v, xq-2 %v\n%s", lexSettings.Scenes["xq"], lexSettings.Scenes["xq-2"], text)
+	if !slices.Equal(lexSettings.Scenes("xq"), []string{"INNE", "UTE"}) || !slices.Equal(lexSettings.Scenes("xq-2"), []string{"ENDE", "AUSE"}) ||
+		lexSettings.Language("xq-2").Matchup == nil {
+		t.Errorf("languages: xq %v, xq-2 %v\n%s", lexSettings.Scenes("xq"), lexSettings.Scenes("xq-2"), text)
 	}
 	if f, _ := os.ReadFile(filepath.Join(conf, "formats", "my-radio.toml")); string(f) != myRadio {
 		t.Errorf("take theirs: %q", f)
@@ -339,9 +339,9 @@ func TestAdoptTOMLText(t *testing.T) {
 	}
 	conf := filepath.Join(os.Getenv("XDG_CONFIG_HOME"), "accolade")
 	os.MkdirAll(conf, 0o755)
-	inline := "Scenes = { en = [\"INT\", \"EXT\"] }\n"
+	inline := "[Languages]\nzz = { Scenes = [\"INT\", \"EXT\"] }\n"
 	os.WriteFile(filepath.Join(conf, "lexington.toml"), []byte(inline), 0o644)
-	theirs := rules.TOMLConf{Scenes: map[string][]string{"zz": {"Z"}}}
+	theirs := rules.TOMLConf{Languages: map[string]rules.Language{"zz": {Scenes: []string{"Z"}}}}
 	_, err := adopt([]adoptChoice{{item: carriedItem{kind: "language", key: "zz", state: itemNew, theirs: theirs}, how: adoptAdd}})
 	if err == nil {
 		t.Error("an inline table was added to")

@@ -26,7 +26,7 @@ func TestChangesHistory(t *testing.T) {
 	key, _ := collab.NewKey()
 	w0.settings.SetString("your-name", "Anna")
 	a.startSharing(key, false)
-	_ = os.Remove(keptSharedPath(key)) // b from nothing, as on another computer
+	_ = os.Remove(keptSharedPath(key))         // b from nothing, as on another computer
 	w0.settings.SetString("your-name", "Bram") // the windows share the settings
 	b.startSharing(key, true)
 	t.Cleanup(func() { a.stopSharing(); b.stopSharing() })

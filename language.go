@@ -1,8 +1,13 @@
 package main
 
 import (
+	"sync"
+
+	"slices"
+
+	"github.com/LaPingvino/lexington/fountain"
+
 	"path/filepath"
-	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -33,28 +38,26 @@ type lexConf struct {
 func machineLex() lexConf { return lexConf{TOMLConf: lexSettings} }
 
 // knows tells whether lang is a language with scene headings.
-func (c lexConf) knows(lang string) bool { return c.Scenes[lang] != nil }
+func (c lexConf) knows(lang string) bool { return c.Knows(lang) }
 
 // scriptLanguages are the languages with scene headings, in order.
 func scriptLanguages() []string { return machineLex().languages() }
 
 func (c lexConf) languages() []string {
-	var ls []string
-	for l := range c.Scenes {
-		ls = append(ls, l)
-	}
-	sort.Strings(ls)
-	return ls
+	return c.LanguageNames()
 }
 
 // languageOf a file's name ("scene.eo.fountain": "eo"), or "" if it does
 // not say.
 func languageOf(path string) string {
+	if strings.EqualFold(filepath.Ext(path), rules.HekayaExt) {
+		return rules.Hekaya // Hekaya's file: Arabic Fountain, its own rules
+	}
 	parts := strings.Split(filepath.Base(path), ".")
 	if len(parts) < 3 {
 		return ""
 	}
-	if l := strings.ToLower(parts[len(parts)-2]); sceneConf[l] != nil {
+	if l := strings.ToLower(parts[len(parts)-2]); sceneConf(l) != nil {
 		return l
 	}
 	return ""
@@ -65,13 +68,13 @@ func languageOf(path string) string {
 func sceneHeaders(lang string) []string { return machineLex().headers(lang) }
 
 func (c lexConf) headers(lang string) []string {
-	if h := c.Scenes[lang]; h != nil {
+	if h := c.Scenes(lang); h != nil {
 		return h
 	}
-	if h := c.Scenes["en"]; h != nil {
+	if h := c.Scenes("en"); h != nil {
 		return h
 	}
-	return rules.DefaultConf().Scenes["en"]
+	return rules.DefaultConf().Scenes("en")
 }
 
 // sceneStarts are what a language's scene headings start with, for
@@ -107,14 +110,40 @@ func isSceneHeadingIn(line string, starts []string) bool {
 			return true
 		}
 	}
+	// a heading by one of the language's patterns ("场景1 小区楼下 日 外")
+	if d := dialectForStarts(starts); d != nil && len(d.Lang.Headings) > 0 {
+		return d.Heading(strings.TrimSpace(line))
+	}
 	return false
+}
+
+// startsDialects are the dialects of the languages by their starts
+// (dialectForStarts), forgotten when the settings change.
+var startsDialects sync.Map
+
+// dialectForStarts is the dialect of the language whose scene starts
+// these are (the script's), nil for none the machine knows.
+func dialectForStarts(starts []string) *fountain.Dialect {
+	key := strings.Join(starts, "\x00")
+	if d, ok := startsDialects.Load(key); ok {
+		return d.(*fountain.Dialect)
+	}
+	var d *fountain.Dialect
+	for _, l := range append(scriptLanguages(), rules.Hekaya) {
+		if slices.Equal(sceneStarts(l), starts) {
+			d = fountain.NewDialect(lexSettings.Language(l))
+			break
+		}
+	}
+	startsDialects.Store(key, d)
+	return d
 }
 
 // allSceneHeaders are every language's scene heading starts.
 func allSceneHeaders() []string {
 	var all []string
 	for _, l := range scriptLanguages() {
-		all = append(all, sceneConf[l]...)
+		all = append(all, sceneConf(l)...)
 	}
 	return all
 }
@@ -145,4 +174,30 @@ func headingsLanguage(text, preferred string) string {
 		}
 	}
 	return preferred
+}
+
+// langFor is the language whose scene words scenes are, with all its
+// rules (cue, transition, heading patterns: Lexington's rules.Language),
+// for the code that is handed a language's scene words: the window's
+// language first, then any the machine knows; English's rules with
+// those words for none.
+func langFor(scenes []string) rules.Language {
+	if scenes == nil {
+		return lexSettings.Language("en")
+	}
+	for _, l := range append(scriptLanguages(), rules.Hekaya) {
+		if slices.Equal(lexSettings.Scenes(l), scenes) {
+			return lexSettings.Language(l)
+		}
+	}
+	return rules.Words(scenes)
+}
+
+// dialect is the script's language's rules, ready to read lines with.
+func (w *MainWindow) dialect() *fountain.Dialect {
+	lang := "en"
+	if w != nil && w.language != "" {
+		lang = w.language
+	}
+	return fountain.NewDialect(w.lex().Language(lang))
 }

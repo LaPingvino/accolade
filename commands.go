@@ -498,7 +498,7 @@ func newRegistry() *registry {
 	for i, el := range toolbarElements {
 		add(&command{id: elementCommandID(el), label: el, text: elementMarks[el], keys: []fyne.Shortcut{shortcut(fyne.KeyName(rune('1'+i)), 0)},
 			editing: true, when: scriptEditing,
-			run: func(w *MainWindow) { setLineElement(w.textEditor, el, w.sceneStarts()) }})
+			run: func(w *MainWindow) { w.markLineElement(el) }})
 	}
 	emphasis := func(marker string) func(w *MainWindow) {
 		return func(w *MainWindow) { toggleEmphasis(w.writeEditor(), marker) }

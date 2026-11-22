@@ -92,7 +92,7 @@ func headingTag(heading string, scenes []string) string {
 func detailsOf(text string, scenes []string, elements rules.Set) details {
 	var d details
 	tags := map[string]int{}
-	s := fountain.Parse(scenes, strings.NewReader(text))
+	s := fountain.ParseIn(langFor(scenes), strings.NewReader(text))
 	roles := map[string]*role{}
 	var speaker *role
 	inTitle := false

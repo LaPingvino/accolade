@@ -118,7 +118,7 @@ func TestStatusBarElement(t *testing.T) {
 		"> FADE OUT.":                           "Transition",
 	} {
 		i := strings.Index(doc, line)
-		w.textEditor.SetCursorOffset(len([]rune(doc[:i]))+1)
+		w.textEditor.SetCursorOffset(len([]rune(doc[:i])) + 1)
 		w.updateCurrentElement()
 		if w.currentElement != want {
 			t.Errorf("cursor in %q: element %q, want %q", line, w.currentElement, want)

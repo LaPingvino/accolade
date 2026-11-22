@@ -29,7 +29,7 @@ func (c lexConf) standardFountain(text, lang string) string {
 	if !c.dialect(lang) {
 		return text
 	}
-	return fountain.Force(text, c.headers(lang), c.headers(c.standard()))
+	return fountain.ForceIn(text, c.Language(lang), c.Language(c.standard()))
 }
 
 // dialectFountain is standard Fountain read as lang's text: the marks
@@ -40,7 +40,7 @@ func (c lexConf) dialectFountain(text, lang string) string {
 	if !c.dialect(lang) {
 		return text
 	}
-	return fountain.Unforce(text, c.headers(lang), c.headers(c.standard()))
+	return fountain.UnforceIn(text, c.Language(lang), c.Language(c.standard()))
 }
 
 // dialect tells whether lang is a language whose scripts are a dialect

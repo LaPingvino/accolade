@@ -38,6 +38,7 @@ func readLexingtonSettings() rules.TOMLConf {
 func reloadLexingtonSettings() {
 	lexSettings = readLexingtonSettings()
 	sceneConf = lexSettings.Scenes
+	startsDialects.Clear()
 }
 
 // customFormats are the element sets of the settings that are not

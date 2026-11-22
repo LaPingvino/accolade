@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/LaPingvino/lexington/rules"
+
 	"strings"
 
 	"github.com/LaPingvino/accolade/internal/editor"
@@ -192,4 +194,64 @@ func moveLines(e *editor.ScriptEditor, dir int) {
 			}
 		})
 	})
+}
+
+// markLineElement makes the line with the cursor the element, as the
+// script's language reads it (Lexington's rules for it, LOOP.md's
+// language rules): a line marked Character that the rules would not read
+// as a cue is made one so that it reads back the same — in capitals with
+// @ where needed in a language written in capitals; else its name put in
+// the script's character list (the list rule, one undo step with the
+// line), or, where the language has no list (Hekaya's .hekaya keeps its
+// registry in the script's own @ uses), @ before it.
+func (w *MainWindow) markLineElement(element string) {
+	e := w.textEditor
+	if element != elementCharacter || e == nil {
+		setLineElement(e, element, w.sceneStarts())
+		return
+	}
+	d := w.dialect()
+	text := e.Text()
+	lines := strings.Split(text, "\n")
+	line, _ := e.Buffer().Position(e.CursorOffset())
+	if line >= len(lines) {
+		return
+	}
+	bare := strings.TrimSpace(strings.TrimLeft(lines[line], directionMarks))
+	bare = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(bare, "@"), "!"))
+	cased := strings.ToUpper(bare) != strings.ToLower(bare)
+	if bare == "" || cased && d.Lang.Has(rules.CueCaps) {
+		setLineElement(e, element, w.sceneStarts())
+		return
+	}
+	next := ""
+	if line+1 < len(lines) {
+		next = lines[line+1]
+	}
+	cue := bare
+	var listEdit func(b *buffer.Buffer)
+	switch {
+	case d.Cue(bare, next, d.CastOf(text)):
+	case d.Lang.Has(rules.CueList) && w.language != rules.Hekaya:
+		if start, end, block, ok := addedName(text, bare); ok {
+			listEdit = func(b *buffer.Buffer) { replaceLeast(b, start, end, block) }
+		}
+	default:
+		cue = "@" + bare
+	}
+	e.Edit(func(b *buffer.Buffer) {
+		b.Group(func() {
+			if listEdit != nil {
+				listEdit(b) // the list is after the line: its place stays
+			}
+			start, end := b.LineStart(line), b.LineEnd(line)
+			old := b.Slice(start, end)
+			to := old[:len(old)-len(strings.TrimLeft(old, directionMarks))] + cue
+			b.Replace(start, end, to)
+			b.SetCursor(start+len([]rune(to)), false)
+		})
+	})
+	if listEdit != nil {
+		w.setStatus(bare + " is in the character list now, so the script reads it as a character")
+	}
 }

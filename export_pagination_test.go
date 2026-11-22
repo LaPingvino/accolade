@@ -18,7 +18,9 @@ func TestExportPagination(t *testing.T) {
 	if ed.paginationSelect.Selected != "Script format's" || w.outputJob(ed.chosen(), "pdf", w.textEditor.Text(), nil).options("pdf", "x.pdf").Pagination != "" {
 		t.Errorf("default %q", ed.paginationSelect.Selected)
 	}
-	parts := func() bool { return !ed.paginationKeep.Disabled() && !ed.paginationWidows.Disabled() && !ed.paginationMore.Disabled() }
+	parts := func() bool {
+		return !ed.paginationKeep.Disabled() && !ed.paginationWidows.Disabled() && !ed.paginationMore.Disabled()
+	}
 	for _, c := range []struct{ choice, want string }{
 		{"All (as screenplay software)", "all"},
 		{"None (as before)", "none"},

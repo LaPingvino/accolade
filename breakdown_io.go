@@ -368,7 +368,7 @@ func exportTags(f *breakdownFile, bt *bdText, ps []placed, scenes []string, alia
 		scenes = englishScenes
 	}
 	body := bt.text[:bodyEndByte(bt.text)]
-	for _, row := range fountain.ParseLines(scenes, strings.NewReader(body)) {
+	for _, row := range fountain.ParseLinesIn(langFor(scenes), strings.NewReader(body)) {
 		if row.Type != lex.TypeSpeaker || row.Source <= 0 {
 			continue
 		}

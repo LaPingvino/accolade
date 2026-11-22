@@ -3,6 +3,7 @@ package main
 import (
 	"cmp"
 	"fmt"
+	"github.com/LaPingvino/lexington/rules"
 	"os"
 	"path"
 	"path/filepath"
@@ -31,6 +32,9 @@ var (
 	typeHighland   = fileType{id: "highland", label: "Highland", ext: ".highland", kind: bundleZip}
 	typeTextPack   = fileType{id: "textpack", label: "TextPack", ext: ".textpack", kind: bundleZip}
 	typeTextBundle = fileType{id: "textbundle", label: "TextBundle", ext: ".textbundle", kind: bundleFolder, desktopOnly: true}
+	// Hekaya's own file: Arabic Fountain as Hekaya writes it, read with
+	// Lexington's fixed hekaya rules (a .hekaya is a .ar.fountain so read)
+	typeHekaya = fileType{id: "hekaya", label: "Hekaya", ext: rules.HekayaExt, lang: rules.Hekaya}
 )
 
 // asItIs is the type of a plain file named otherwise (.txt, .spmd,
@@ -64,10 +68,10 @@ func (t fileType) shownExt() string {
 }
 
 // knownTypes are the types by extension.
-var knownTypes = []fileType{typeFountain, typeMarkdown, typeAccolade, typeHighland, typeTextPack, typeTextBundle}
+var knownTypes = []fileType{typeFountain, typeMarkdown, typeAccolade, typeHighland, typeTextPack, typeTextBundle, typeHekaya}
 
 // plainExts are the plain extensions a script or document can have.
-var plainExts = []string{".fountain", ".spmd", ".txt", ".md", ".markdown"}
+var plainExts = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", rules.HekayaExt}
 
 // typeOfName is the type a file's name says; a plain one with another
 // extension is "as it is", no extension Fountain (or Markdown).
@@ -113,8 +117,11 @@ func scriptTypes(c lexConf, markdown, browser bool, current, lang string) []file
 		ts = append(ts, t)
 	}
 	ts = append(ts, own)
-	if !markdown && (c.dialect(lang) || (lang != "" && languageOf(current) == lang)) { // film.en.fountain too, as it is
+	if !markdown && lang != rules.Hekaya && (c.dialect(lang) || (lang != "" && languageOf(current) == lang)) { // film.en.fountain too, as it is
 		ts = append(ts, dialectType(lang))
+	}
+	if !markdown && (lang == "ar" || lang == rules.Hekaya) { // Arabic: Hekaya's own file too
+		ts = append(ts, typeHekaya)
 	}
 	ts = append(ts, typeAccolade, typeHighland, typeTextPack)
 	if !browser {
@@ -163,6 +170,9 @@ func (t fileType) keeps(c lexConf, markdown, browser bool, lang string) string {
 		return "A zipped TextBundle, for other TextBundle apps: " + doc + ", with Accolade's files under assets/." + inside(c, markdown, lang)
 	case "textbundle":
 		return "A TextBundle folder (desktop only): the same as a TextPack, unzipped, for version control."
+	case "hekaya":
+		return "Hekaya's Arabic Fountain, as written, for Hekaya's own tools (read with Hekaya's rules: its keywords, " +
+			"@ names, - قطع -); " + extras + "."
 	case "asis":
 		return "Plain text under its own name (" + t.ext + "), as it is now."
 	}
@@ -206,7 +216,7 @@ func splitScriptName(name string) nameParts {
 		ext, rest = "", name
 	}
 	p := nameParts{base: rest, ext: ext}
-	if l := filepath.Ext(rest); len(l) > 1 && sceneConf[strings.ToLower(l[1:])] != nil {
+	if l := filepath.Ext(rest); len(l) > 1 && sceneConf(strings.ToLower(l[1:])) != nil {
 		p.lang = strings.ToLower(l[1:])
 		p.base = strings.TrimSuffix(rest, l)
 	}

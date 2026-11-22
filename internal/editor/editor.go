@@ -5,6 +5,8 @@
 package editor
 
 import (
+	"github.com/LaPingvino/lexington/fountain"
+
 	"fmt"
 	"image/color"
 	"math"
@@ -60,6 +62,10 @@ type ScriptEditor struct {
 	// SceneStarts are what scene headings start with in the script's
 	// language, for the colours (nil: English)
 	SceneStarts []string
+	// Dialect is the script's language's rules as Lexington reads them
+	// (its heading patterns, cue and transition rules): nil reads by
+	// SceneStarts as English Fountain.
+	Dialect *fountain.Dialect
 	// LanguageRTL is the script's language's direction (Lexington's
 	// [Directions]): a line with no direction mark and no strong letter
 	// reads right to left, laid out mirrored. Every other line follows its
@@ -564,7 +570,7 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 	}
 	var kinds []syntax.Kind
 	if e.Format != nil && !e.Markdown {
-		kinds = syntax.ClassifyTyping(lines, e.SceneStarts, key.line)
+		kinds = syntax.ClassifyTypingIn(lines, e.SceneStarts, e.Dialect, key.line)
 		formats := make([]wrap.Format, len(kinds))
 		page := e.PageColumns
 		if page <= 0 {
@@ -596,7 +602,7 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 			}
 		}
 	case kinds == nil && e.Syntax:
-		kinds = syntax.ClassifyWith(lines, e.SceneStarts)
+		kinds = syntax.ClassifyIn(lines, e.SceneStarts, e.Dialect)
 	}
 	if l.lineStart == nil { // where each line starts, for Inks
 		l.lineStart = make([]int, len(lines))

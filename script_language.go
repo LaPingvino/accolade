@@ -204,7 +204,7 @@ func withLanguageName(path, lang string) string {
 	dir, base := filepath.Split(path)
 	parts := strings.Split(base, ".")
 	switch {
-	case len(parts) >= 3 && sceneConf[strings.ToLower(parts[len(parts)-2])] != nil:
+	case len(parts) >= 3 && sceneConf(strings.ToLower(parts[len(parts)-2])) != nil:
 		if lang == standardLanguage() {
 			parts = append(parts[:len(parts)-2], parts[len(parts)-1])
 		} else {

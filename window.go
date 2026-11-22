@@ -11,6 +11,7 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
 	"github.com/LaPingvino/accolade/internal/pace"
 	"github.com/LaPingvino/accolade/internal/tooltip"
+	"github.com/LaPingvino/lexington/fountain"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -1016,6 +1017,7 @@ func (w *MainWindow) setLanguage(lang string) {
 	w.ribbonRefresh() // its place button too
 	if w.textEditor != nil {
 		w.textEditor.SceneStarts = conf.starts(lang)
+		w.textEditor.Dialect = fountain.NewDialect(conf.Language(lang))
 		w.textEditor.LanguageRTL = conf.RTL(lang) // for a line with no direction of its own
 		w.textEditor.Refresh()
 	}
@@ -1368,8 +1370,8 @@ func (w *MainWindow) updateCurrentElement() {
 		return
 	}
 	kinds, ok := w.textEditor.TypingKinds() // as the editor laid them out
-	if !ok || !slices.Equal(w.textEditor.SceneStarts, w.sceneStarts()) {
-		kinds = syntax.ClassifyTyping(strings.Split(text, "\n"), w.sceneStarts(), line)
+	if !ok || !slices.Equal(w.textEditor.SceneStarts, w.sceneStarts()) || w.textEditor.Dialect != w.dialect() {
+		kinds = syntax.ClassifyTypingIn(strings.Split(text, "\n"), w.sceneStarts(), w.dialect(), line)
 	}
 	w.currentElement = elementNames[kinds[min(line, len(kinds)-1)]]
 	if w.cueHere() { // Tab made it a cue (keyflow.go)

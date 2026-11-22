@@ -54,8 +54,7 @@ func bothName(it carriedItem) string {
 		taken := false
 		switch it.kind {
 		case "language":
-			_, dir := lexSettings.Directions[n]
-			taken = lexSettings.Scenes[n] != nil || lexSettings.Matchups[n] != nil || dir
+			taken = lexSettings.Knows(n)
 		case "elements", "format":
 			taken = machineLex().hasFormat(n)
 		}
@@ -201,20 +200,21 @@ func sameButFor(before, after rules.TOMLConf, want map[rules.Item]rules.TOMLConf
 func setConfItem(text string, item rules.Item, key string, conf rules.TOMLConf) (string, error) {
 	switch item.Kind {
 	case "language":
-		// as theirs has it: what theirs lacks goes (a matchup they have none of)
-		for table, m := range map[string]map[string][]string{"Scenes": conf.Scenes, "Matchups": conf.Matchups} {
-			if v, ok := m[key]; ok {
-				text = setTableKey(text, table, key, tomlValue(v))
-			} else {
-				text = dropTableKey(text, table, key)
-			}
+		// as theirs has it, in full (Lexington's [Languages.key]); the
+		// tables of older files lose the key
+		for _, table := range []string{"Scenes", "Matchups", "Directions"} {
+			text = dropTableKey(text, table, key)
 		}
-		if d, ok := conf.Directions[key]; ok { // its direction (else the default's)
-			text = setTableKey(text, "Directions", key, tomlValue(d))
-		} else {
-			text = dropTableKey(text, "Directions", key)
+		l, ok := conf.Languages[key]
+		if !ok {
+			l = conf.Language(key)
 		}
-		return text, nil
+		block, err := (rules.TOMLConf{Languages: map[string]rules.Language{key: l}}).Encode()
+		if err != nil {
+			return "", err
+		}
+		text = dropTables(text, "Languages."+key)
+		return appendTables(text, stripTable(string(block), "Languages")), nil
 	case "elements":
 		block, err := (rules.TOMLConf{Elements: conf.Elements}).Encode()
 		if err != nil {
@@ -594,9 +594,9 @@ func (it carriedItem) mineDetail() string {
 func itemDetail(kind, key string, conf rules.TOMLConf, file []byte) string {
 	switch kind {
 	case "language":
-		words := conf.Scenes[key]
+		words := conf.Scenes(key)
 		if len(words) == 0 {
-			words = conf.Matchups[key]
+			words = conf.Language(key).Matchup
 		}
 		return strings.Join(words, ", ")
 	case "elements":

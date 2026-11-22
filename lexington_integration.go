@@ -53,7 +53,7 @@ func (lp *LexingtonParser) ParseText(text string) ([]ParsedElement, error) {
 
 		// Check for formatting (bold, italic, underline)
 		content := string(line.Contents)
-		parsedElement.IsBold = strings.Contains(content, "**") || 
+		parsedElement.IsBold = strings.Contains(content, "**") ||
 			(line.Type == lex.TypeScene) ||
 			(line.Type == lex.TypeSpeaker)
 		parsedElement.IsItalic = strings.Contains(content, "*") && !parsedElement.IsBold
@@ -83,49 +83,49 @@ func (pe *ParsedElement) GetElementStyle() ElementStyle {
 		style.LeftMargin = 1.5
 		style.RightMargin = 1.0
 		style.Alignment = "left"
-		
+
 	case lex.TypeSpeaker:
 		style.FontSize = 12
 		style.LeftMargin = 3.7
 		style.RightMargin = 1.5
 		style.Alignment = "left"
-		
+
 	case lex.TypeDialog:
 		style.FontSize = 12
 		style.LeftMargin = 2.5
 		style.RightMargin = 1.5
 		style.Alignment = "left"
-		
+
 	case lex.TypeParen:
 		style.FontSize = 12
 		style.LeftMargin = 3.1
 		style.RightMargin = 1.5
 		style.Alignment = "left"
-		
+
 	case lex.TypeAction:
 		style.FontSize = 12
 		style.LeftMargin = 1.5
 		style.RightMargin = 1.0
 		style.Alignment = "left"
-		
+
 	case lex.TypeTrans:
 		style.FontSize = 12
 		style.LeftMargin = 1.5
 		style.RightMargin = 1.0
 		style.Alignment = "right"
-		
+
 	case lex.TypeCenter:
 		style.FontSize = 12
 		style.LeftMargin = 1.5
 		style.RightMargin = 1.0
 		style.Alignment = "center"
-		
+
 	case lex.TypeTitle:
 		style.FontSize = 12
 		style.LeftMargin = 1.5
 		style.RightMargin = 1.0
 		style.Alignment = "center"
-		
+
 	default:
 		style.LeftMargin = 1.5
 		style.RightMargin = 1.0
@@ -150,17 +150,17 @@ type ElementStyle struct {
 // FormatForPreview converts parsed elements to HTML for preview
 func (lp *LexingtonParser) FormatForPreview(elements []ParsedElement) string {
 	var html strings.Builder
-	
+
 	html.WriteString(`<div style="font-family: 'Courier Prime', 'Courier New', monospace; font-size: 12pt; line-height: 1.2; white-space: pre-wrap;">`)
-	
+
 	for _, element := range elements {
 		style := element.GetElementStyle()
-		
+
 		// Build CSS style
 		cssStyle := "margin-left: " + formatMargin(style.LeftMargin) + "; " +
 			"margin-right: " + formatMargin(style.RightMargin) + "; " +
 			"text-align: " + style.Alignment + "; "
-		
+
 		if style.IsBold {
 			cssStyle += "font-weight: bold; "
 		}
@@ -170,7 +170,7 @@ func (lp *LexingtonParser) FormatForPreview(elements []ParsedElement) string {
 		if style.IsUnder {
 			cssStyle += "text-decoration: underline; "
 		}
-		
+
 		// Add spacing for certain elements
 		switch element.Type {
 		case lex.TypeScene:
@@ -183,12 +183,12 @@ func (lp *LexingtonParser) FormatForPreview(elements []ParsedElement) string {
 			html.WriteString("<br/>")
 			continue
 		}
-		
+
 		html.WriteString(`<div style="` + cssStyle + `">`)
 		html.WriteString(strings.ReplaceAll(element.Text, "\n", "<br/>"))
 		html.WriteString("</div>")
 	}
-	
+
 	html.WriteString("</div>")
 	return html.String()
 }
@@ -202,7 +202,7 @@ func formatMargin(inches float64) string {
 func GetAvailableFonts() []string {
 	return []string{
 		"Courier Prime",
-		"Courier New", 
+		"Courier New",
 		"Courier",
 		"Monaco",
 		"Menlo",
@@ -225,7 +225,7 @@ func IsScriptFont(fontName string) bool {
 // ParseLexFile parses a .lex file directly
 func (lp *LexingtonParser) ParseLexFile(reader io.Reader) ([]ParsedElement, error) {
 	screenplay := lex.Parse(reader)
-	
+
 	var elements []ParsedElement
 	lineNum := 1
 
@@ -239,7 +239,7 @@ func (lp *LexingtonParser) ParseLexFile(reader io.Reader) ([]ParsedElement, erro
 
 		// Check for formatting
 		content := string(line.Contents)
-		parsedElement.IsBold = strings.Contains(content, "**") || 
+		parsedElement.IsBold = strings.Contains(content, "**") ||
 			(line.Type == lex.TypeScene) ||
 			(line.Type == lex.TypeSpeaker)
 		parsedElement.IsItalic = strings.Contains(content, "*") && !parsedElement.IsBold

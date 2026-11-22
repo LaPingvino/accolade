@@ -94,7 +94,7 @@ func (w *MainWindow) inSpeech(lines []string, i int) bool {
 		typed = append([]string(nil), lines...)
 		typed[i] = "x"
 	}
-	k := syntax.ClassifyWith(typed, w.sceneStarts())[i]
+	k := syntax.ClassifyIn(typed, w.sceneStarts(), w.dialect())[i]
 	return k == syntax.Dialogue || k == syntax.Parenthetical
 }
 

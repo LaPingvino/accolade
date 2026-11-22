@@ -22,7 +22,7 @@ import (
 // PDF and HTML export go through the lexington library, which parses
 // the script the same way the lexington command line tool does.
 
-var englishScenes = rules.DefaultConf().Scenes["en"]
+var englishScenes = rules.DefaultConf().Scenes("en")
 
 func parseForExport(content string) lex.Screenplay {
 	return fountain.Parse(englishScenes, strings.NewReader(content))
@@ -109,7 +109,7 @@ func (j exportJob) options(to, output string) cli.Options {
 		MergeOmitted: j.mergeOmitted,
 		SceneIn:      j.language, // the HTML's direction for a line with none of its own
 	}
-	if j.conf.Scenes != nil { // the script's own, with what it brought
+	if j.conf.Languages != nil { // the script's own, with what it brought
 		conf := j.conf.TOMLConf
 		conf.Elements = maps.Clone(conf.Elements)
 		if conf.Elements == nil {
@@ -149,14 +149,14 @@ func (j exportJob) script(content string) lex.Screenplay {
 	}
 	var s lex.Screenplay
 	if j.revisions != nil || j.lineTags != nil || j.lines {
-		s = fountain.ParseLines(scenes, strings.NewReader(content))
+		s = fountain.ParseLinesIn(langFor(scenes), strings.NewReader(content))
 		for i := range s {
 			if n := s[i].Source - 1; n >= 0 && n < len(j.marks) {
 				s[i].Revision = j.marks[n]
 			}
 		}
 	} else {
-		s = fountain.Parse(scenes, strings.NewReader(content))
+		s = fountain.ParseIn(langFor(scenes), strings.NewReader(content))
 	}
 	if j.omitTitlePage {
 		s = withoutTitlePage(s)

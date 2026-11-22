@@ -15,7 +15,7 @@ func TestLexingtonSettings(t *testing.T) {
 		t.Fatalf("wrong TOML: %v", err)
 	}
 	text := strings.Replace(defaultLexingtonSettings(), "[Elements.default", "[Elements.mine", 1)
-	text = strings.Replace(text, "[Scenes]\n", "[Scenes]\n  xx = [\"INNE\", \"UTE\"]\n", 1)
+	text += "\n[Languages.xx]\nScenes = [\"INNE\", \"UTE\"]\n"
 	if err := saveLexingtonSettings(text); err != nil {
 		t.Fatal(err)
 	}

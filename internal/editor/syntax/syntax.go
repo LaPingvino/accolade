@@ -6,6 +6,8 @@ package syntax
 import (
 	"strings"
 	"unicode"
+
+	"github.com/LaPingvino/lexington/fountain"
 )
 
 // Kind is the Fountain element a line belongs to.
@@ -45,6 +47,26 @@ func ClassifyWith(lines []string, sceneStarts []string) []Kind {
 	if sceneStarts == nil {
 		sceneStarts = SceneStarts
 	}
+	return classify(lines, sceneStarts, nil, nil)
+}
+
+// ClassifyIn returns the kind of each line as a language's rules read
+// it (Lexington's fountain.Dialect: its heading words and patterns, its
+// cue and transition rules), with the script's cast for the list and
+// repeat rules: the names in its /* Characters */ block (lines holds the
+// whole text) and every cue before. sceneStarts are its scene words as
+// the editor tells them apart (for the title page).
+func ClassifyIn(lines []string, sceneStarts []string, d *fountain.Dialect) []Kind {
+	if d == nil {
+		return ClassifyWith(lines, sceneStarts)
+	}
+	if sceneStarts == nil {
+		sceneStarts = SceneStarts
+	}
+	return classify(lines, sceneStarts, d, d.CastOf(strings.Join(lines, "\n")))
+}
+
+func classify(lines []string, sceneStarts []string, d *fountain.Dialect, cast *fountain.Cast) []Kind {
 	kinds := make([]Kind, len(lines))
 	trimmed := func(i int) string {
 		if i < 0 || i >= len(lines) {
@@ -102,19 +124,25 @@ body:
 			kinds[i] = Synopsis
 		case strings.HasPrefix(t, ">") && strings.HasSuffix(t, "<"):
 			kinds[i] = Centered
-		case strings.HasPrefix(t, ">"), afterBlank && trimmed(i+1) == "" && t == upper && strings.HasSuffix(t, "TO:") && t != strings.ToLower(t):
+		case strings.HasPrefix(t, ">"), afterBlank && trimmed(i+1) == "" &&
+			(d == nil && t == upper && strings.HasSuffix(t, "TO:") && t != strings.ToLower(t) || d != nil && d.Transition(t)):
 			// a transition: forced, or in capitals with blank lines around it
 			kinds[i] = Transition
-		case strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..") && len(t) > 1, afterBlank && hasAnyPrefix(upper, sceneStarts):
+		case strings.HasPrefix(t, ".") && !strings.HasPrefix(t, "..") && len(t) > 1,
+			afterBlank && (d == nil && hasAnyPrefix(upper, sceneStarts) || d != nil && d.Heading(t)):
 			// a heading: forced anywhere, by its word after a blank line
 			kinds[i] = SceneHeading
 		case inDialogue && strings.HasPrefix(t, "(") && strings.HasSuffix(t, ")"):
 			kinds[i] = Parenthetical
 		case inDialogue:
 			kinds[i] = Dialogue
-		case trimmed(i+1) != "" && (strings.HasPrefix(t, "@") || afterBlank && isCharacterCue(t)):
+		case trimmed(i+1) != "" && (strings.HasPrefix(t, "@") ||
+			afterBlank && (d == nil && isCharacterCue(t) || d != nil && d.Cue(t, trimmed(i+1), cast))):
 			kinds[i] = Character
 			inDialogue = true
+			if d != nil && d.Lang.Has("list") {
+				cast.Add(t) // a later bare name is a cue (Lexington's list rule)
+			}
 			continue
 		default:
 			kinds[i] = Action
@@ -130,16 +158,21 @@ body:
 // with the cursor right after a character name or a parenthetical is where
 // its dialogue goes (Fountain's rules wait for the dialogue's text).
 func ClassifyTyping(lines []string, sceneStarts []string, cursorLine int) []Kind {
+	return ClassifyTypingIn(lines, sceneStarts, nil, cursorLine)
+}
+
+// ClassifyTypingIn is ClassifyTyping by a language's rules (ClassifyIn).
+func ClassifyTypingIn(lines []string, sceneStarts []string, d *fountain.Dialect, cursorLine int) []Kind {
 	if cursorLine < 1 || cursorLine >= len(lines) || strings.TrimSpace(lines[cursorLine]) != "" {
-		return ClassifyWith(lines, sceneStarts)
+		return ClassifyIn(lines, sceneStarts, d)
 	}
 	typed := append([]string(nil), lines...)
 	typed[cursorLine] = "x"
-	kinds := ClassifyWith(typed, sceneStarts)
+	kinds := ClassifyIn(typed, sceneStarts, d)
 	if k := kinds[cursorLine-1]; k == Character || k == Parenthetical {
 		return kinds
 	}
-	return ClassifyWith(lines, sceneStarts)
+	return ClassifyIn(lines, sceneStarts, d)
 }
 
 // twoSpaces tells whether a line is two spaces or more and nothing else.

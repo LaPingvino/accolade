@@ -103,7 +103,7 @@ func screenplayChars(text string, starts []string) *charModel {
 	scene := -1
 	var speaker *charInfo
 	inTitle := false
-	for _, row := range fountain.ParseLines(starts, strings.NewReader(body)) {
+	for _, row := range fountain.ParseLinesIn(langFor(starts), strings.NewReader(body)) {
 		switch row.Type {
 		case lex.TypeTitlePage:
 			inTitle = true

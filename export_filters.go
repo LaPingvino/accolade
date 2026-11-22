@@ -67,7 +67,7 @@ func scriptSpeakers(text string, scenes []string) []string {
 		scenes = englishScenes
 	}
 	count := map[string]int{}
-	for _, l := range fountain.Parse(scenes, strings.NewReader(text)) {
+	for _, l := range fountain.ParseIn(langFor(scenes), strings.NewReader(text)) {
 		if l.Type == lex.TypeSpeaker {
 			if name := lex.Speaker(l.Contents); name != "" {
 				count[name]++

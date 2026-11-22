@@ -12,15 +12,15 @@ import (
 
 type LexingtonConverter struct {
 	// Configuration
-	configPath   string
-	tempDir      string
-	
+	configPath string
+	tempDir    string
+
 	// Conversion settings
-	theme        string
-	margins      map[string]float64
-	fontSize     int
-	fontFamily   string
-	
+	theme      string
+	margins    map[string]float64
+	fontSize   int
+	fontFamily string
+
 	// Cache
 	lastContent  string
 	lastHTML     string
@@ -35,7 +35,7 @@ func NewLexingtonConverter() *LexingtonConverter {
 		log.Printf("Failed to create temp directory: %v", err)
 		tempDir = "/tmp"
 	}
-	
+
 	return &LexingtonConverter{
 		tempDir:      tempDir,
 		theme:        "default",
@@ -48,12 +48,12 @@ func NewLexingtonConverter() *LexingtonConverter {
 
 func (lc *LexingtonConverter) ConvertToHTML(fountainText string, restrictedMode bool) (string, error) {
 	// Check cache first
-	if lc.lastContent == fountainText && 
-	   lc.lastHTML != "" && 
-	   time.Since(lc.cacheTime) < lc.cacheTimeout {
+	if lc.lastContent == fountainText &&
+		lc.lastHTML != "" &&
+		time.Since(lc.cacheTime) < lc.cacheTimeout {
 		return lc.lastHTML, nil
 	}
-	
+
 	// Create temporary input file
 	inputFile := filepath.Join(lc.tempDir, "input.fountain")
 	err := os.WriteFile(inputFile, []byte(fountainText), 0644)
@@ -61,33 +61,33 @@ func (lc *LexingtonConverter) ConvertToHTML(fountainText string, restrictedMode 
 		return "", fmt.Errorf("failed to write input file: %v", err)
 	}
 	defer os.Remove(inputFile)
-	
+
 	// Build lexington command
 	cmd := exec.Command("lexington", "-i", inputFile, "-to", "html")
-	
+
 	// Add configuration if available
 	if lc.configPath != "" {
 		cmd.Args = append(cmd.Args, "-config", lc.configPath)
 	}
-	
+
 	// Execute lexington
 	output, err := cmd.Output()
 	if err != nil {
 		return "", fmt.Errorf("lexington conversion failed: %v", err)
 	}
-	
+
 	htmlContent := string(output)
-	
+
 	// Apply restricted mode if needed
 	if restrictedMode {
 		htmlContent = lc.sanitizeHTML(htmlContent)
 	}
-	
+
 	// Update cache
 	lc.lastContent = fountainText
 	lc.lastHTML = htmlContent
 	lc.cacheTime = time.Now()
-	
+
 	return htmlContent, nil
 }
 
@@ -99,21 +99,21 @@ func (lc *LexingtonConverter) ConvertToPDF(fountainText string, outputPath strin
 		return fmt.Errorf("failed to write input file: %v", err)
 	}
 	defer os.Remove(inputFile)
-	
+
 	// Build lexington command
 	cmd := exec.Command("lexington", "-i", inputFile, "-o", outputPath, "-to", "pdf")
-	
+
 	// Add configuration if available
 	if lc.configPath != "" {
 		cmd.Args = append(cmd.Args, "-config", lc.configPath)
 	}
-	
+
 	// Execute lexington
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("lexington PDF conversion failed: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -125,16 +125,16 @@ func (lc *LexingtonConverter) ConvertToFDX(fountainText string, outputPath strin
 		return fmt.Errorf("failed to write input file: %v", err)
 	}
 	defer os.Remove(inputFile)
-	
+
 	// Build lexington command
 	cmd := exec.Command("lexington", "-i", inputFile, "-o", outputPath, "-to", "fdx")
-	
+
 	// Execute lexington
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("lexington FDX conversion failed: %v", err)
 	}
-	
+
 	return nil
 }
 
@@ -146,7 +146,7 @@ func (lc *LexingtonConverter) sanitizeHTML(html string) string {
 	html = strings.ReplaceAll(html, "onclick=", "data-onclick=")
 	html = strings.ReplaceAll(html, "onload=", "data-onload=")
 	html = strings.ReplaceAll(html, "onerror=", "data-onerror=")
-	
+
 	return html
 }
 
@@ -199,7 +199,7 @@ func (lc *LexingtonConverter) GetLexingtonVersion() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	return strings.TrimSpace(string(output)), nil
 }
 
@@ -212,7 +212,7 @@ type ValidationError struct {
 func (lc *LexingtonConverter) ValidateFountain(fountainText string) []ValidationError {
 	// TODO: Use lexington linter to validate Fountain syntax
 	errors := []ValidationError{}
-	
+
 	// Create temporary input file
 	inputFile := filepath.Join(lc.tempDir, "input.fountain")
 	err := os.WriteFile(inputFile, []byte(fountainText), 0644)
@@ -224,7 +224,7 @@ func (lc *LexingtonConverter) ValidateFountain(fountainText string) []Validation
 		return errors
 	}
 	defer os.Remove(inputFile)
-	
+
 	// Run lexington linter if available
 	cmd := exec.Command("lexington", "-i", inputFile, "-lint")
 	output, err := cmd.Output()
@@ -232,14 +232,14 @@ func (lc *LexingtonConverter) ValidateFountain(fountainText string) []Validation
 		// Linter might not be available, that's okay
 		return errors
 	}
-	
+
 	// Parse linter output
 	lines := strings.Split(string(output), "\n")
 	for _, line := range lines {
 		if strings.TrimSpace(line) == "" {
 			continue
 		}
-		
+
 		// Parse error format: "line:column: message"
 		parts := strings.SplitN(line, ":", 3)
 		if len(parts) >= 3 {
@@ -250,7 +250,7 @@ func (lc *LexingtonConverter) ValidateFountain(fountainText string) []Validation
 			})
 		}
 	}
-	
+
 	return errors
 }
 
@@ -283,11 +283,10 @@ type FountainStructure struct {
 }
 
 type SceneInfo struct {
-	Number      int
-	Heading     string
-	Location    string
-	TimeOfDay   string
-	PageNumber  int
-	Characters  []string
+	Number     int
+	Heading    string
+	Location   string
+	TimeOfDay  string
+	PageNumber int
+	Characters []string
 }
-
