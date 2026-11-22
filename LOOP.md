@@ -1092,3 +1092,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
 - 2026-11-22 (Joop opened Star Wars: A New Hope: "only the 3 line title and then the credit that are a bit uncommon
   don't get parsed properly, and it reads the THE END at the end as a scene instead of action"): Fountain import
   details, Lexington first. Needs the file (not on the VPS) — ask Joop for it. Small; after the middle tabs.
+- 2026-11-22 (Joop runs the AUR release, 0.6.0, and found today's issues there: "I think it's good to tag the new
+  version and push it to the AUR when done"): RELEASE v0.7.0 once cardscroll, foldchips and middletabs are merged
+  and CI is green: FyneApp.toml version bump ("Version 0.7.0" commit), annotated tag v0.7.0 with a one-line summary
+  like v0.6.0's, push main + tag; then ~/Projects/aur/accolade: pkgver=0.7.0, pkgrel=1, sha256 of the tag tarball,
+  makepkg --printsrcinfo > .SRCINFO, makepkg -sf builds and the binary starts, push to AUR (~/.ssh/aur_ed25519).
