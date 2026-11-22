@@ -86,6 +86,14 @@ type pageView struct {
 	freshPDF func(then func())
 	// painted counts the pages painted (the tests', the measures')
 	painted int
+	// links are the drawing's (pageview_links.go); hoverLink the one
+	// under the pointer, focusLink the keyboard's (-1: none); tip the
+	// tip shown for one
+	links     []drawnLink
+	hoverLink int
+	focusLink int
+	marks     linkMarks
+	tip       string
 
 	title *widget.Label
 	head  *fyne.Container // the title, the count, Close
@@ -139,7 +147,8 @@ func newPageImage() *pageImage {
 }
 
 func newPageView(w *MainWindow) *pageView {
-	v := &pageView{w: w, fit: true, zoom: 1, scale: 1, rendering: map[int]paintJob{}, narrow: w != nil && w.narrow, dimFrom: -1}
+	v := &pageView{w: w, fit: true, zoom: 1, scale: 1, rendering: map[int]paintJob{}, narrow: w != nil && w.narrow, dimFrom: -1,
+		hoverLink: -1, focusLink: -1, marks: newLinkMarks()}
 	v.ExtendBaseWidget(v)
 	v.title = widget.NewLabelWithStyle("", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	v.title.Truncation = fyne.TextTruncateEllipsis
@@ -270,6 +279,11 @@ func (v *pageView) setDrawing(d pdf.Drawing, dimFrom int) {
 	for _, p := range v.pages {
 		v.column.Objects = append(v.column.Objects, p.shadow, p.paper, p.img, p.dim)
 	}
+	v.column.Objects = append(v.column.Objects, v.marks.lit, v.marks.ring)
+	// the links as now drawn (a page that looks the same may link
+	// elsewhere: a heading moved)
+	v.links, v.focusLink = drawingLinks(v.d), -1
+	v.hover(-1)
 	v.mu.Lock()
 	v.rendering = map[int]paintJob{}
 	v.mu.Unlock()
@@ -657,6 +671,7 @@ func (l *pagesLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
 			objects[4*i+k].Resize(s)
 		}
 	}
+	v.markLinks()
 }
 
 // pageArea is the pages' scroller, which takes the focus: the keys move
@@ -667,6 +682,7 @@ type pageArea struct {
 	frame   *canvas.Rectangle
 	focused bool
 	width   float32
+	shift   bool // held: Tab goes back through the links
 }
 
 func newPageArea(v *pageView) *pageArea {
@@ -714,8 +730,13 @@ func (r *pageAreaRenderer) Refresh() {
 func (r *pageAreaRenderer) Objects() []fyne.CanvasObject { return r.objects }
 func (r *pageAreaRenderer) Destroy()                     {}
 
-func (a *pageArea) FocusGained() { a.focused = true; a.Refresh() }
-func (a *pageArea) FocusLost()   { a.focused = false; a.Refresh() }
+func (a *pageArea) FocusGained() { a.focused = true; a.Refresh(); a.v.markLinks() }
+func (a *pageArea) FocusLost() {
+	a.focused, a.shift = false, false
+	a.v.focusLink = -1
+	a.Refresh()
+	a.v.markLinks()
+}
 func (a *pageArea) TypedRune(r rune) {
 	switch r {
 	case '+', '=':
@@ -757,6 +778,12 @@ func (a *pageArea) TypedKey(e *fyne.KeyEvent) {
 		if v.onClose != nil {
 			v.onClose()
 		}
+	case fyne.KeyTab:
+		if i := v.nextLink(a.shift); i >= 0 {
+			v.focusOn(i)
+		}
+	case fyne.KeyReturn, fyne.KeyEnter:
+		v.followLink(v.focusLink)
 	}
 }
 
@@ -790,9 +817,15 @@ func (a *pageArea) toPage(step int) {
 	a.scrollBy(target - a.v.scroll.Offset.Y)
 }
 
-// Tapped gives the pages the focus (the keys then move through them).
-func (a *pageArea) Tapped(*fyne.PointEvent) {
+// Tapped gives the pages the focus (the keys then move through them),
+// and follows a link tapped.
+func (a *pageArea) Tapped(e *fyne.PointEvent) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(a); c != nil {
 		c.Focus(a)
+	}
+	if i := a.v.linkAt(e.Position); i >= 0 {
+		a.v.focusLink = i
+		a.v.followLink(i)
+		a.v.markLinks()
 	}
 }

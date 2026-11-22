@@ -2,6 +2,7 @@ package main
 
 import (
 	"html"
+	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -11,29 +12,50 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
+	"github.com/LaPingvino/accolade/internal/prose"
 )
 
 // A Markdown document's page setup (pagesetup.go has a screenplay's): the
-// paper, and a title page, as its Export, Print and Live Preview use them.
+// paper, and a title page, as its Export, Print and Live Preview use them;
+// where the PDF's notes print and how they are numbered.
 // Its own keys: a screenplay's paper "" is its script format's, which a
 // document has none of.
 
 const (
 	mdPaperPref     = "markdown-page-size"  // "" as before: A4 in Word, ODT and PDF, the printer's for a web page
 	mdTitlePagePref = "markdown-title-page" // a page with the title (and the author) before the text
+	// where the PDF's notes print: "" at the page's foot, "chapter" after
+	// each chapter, "end" after the text; numbered again in each chapter
+	mdNotesPref           = "markdown-notes"
+	mdNotesPerChapterPref = "markdown-notes-per-chapter"
 )
 
 // mdPageSetup is a Markdown document's page setup.
 type mdPageSetup struct {
-	paper     string // "", letter, a4, a5
-	titlePage bool
+	paper           string // "", letter, a4, a5
+	titlePage       bool
+	notesAt         prose.NotesPlace
+	notesPerChapter bool
 }
+
+// mdNotesPlaces are the notes' places as kept, in prose.NotesPlace's
+// order, and as Page Setup says them.
+var (
+	mdNotesPlaces = []string{"", "chapter", "end"}
+	mdNotesLabels = []string{"At the foot of the page", "After each chapter", "After the text"}
+	mdNumberings  = []string{"Through the document", "Again in each chapter"}
+)
 
 func (w *MainWindow) markdownPageSetup() mdPageSetup {
 	if w.settings == nil {
 		return mdPageSetup{}
 	}
-	return mdPageSetup{paper: w.settings.GetString(mdPaperPref), titlePage: w.settings.GetBoolean(mdTitlePagePref)}
+	p := mdPageSetup{paper: w.settings.GetString(mdPaperPref), titlePage: w.settings.GetBoolean(mdTitlePagePref),
+		notesPerChapter: w.settings.GetBoolean(mdNotesPerChapterPref)}
+	if i := slices.Index(mdNotesPlaces, w.settings.GetString(mdNotesPref)); i > 0 {
+		p.notesAt = prose.NotesPlace(i)
+	}
+	return p
 }
 
 // mdPapers are the paper choices, the first the default.
@@ -46,10 +68,20 @@ func (w *MainWindow) markdownPageSummary() string {
 	if p.paper != "" {
 		paper = paperName(p.paper)
 	}
+	s := paper + " · no title page"
 	if p.titlePage {
-		return paper + " · title page."
+		s = paper + " · title page"
 	}
-	return paper + " · no title page."
+	switch p.notesAt { // the notes only when not at the page's foot, numbered through
+	case prose.NotesAtChapterEnd:
+		s += " · notes after each chapter"
+	case prose.NotesAtEnd:
+		s += " · notes after the text"
+	}
+	if p.notesPerChapter {
+		s += " · notes numbered by chapter"
+	}
+	return s + "."
 }
 
 // markdownTitlePage is the title page's lines for text (named name): its
@@ -126,6 +158,8 @@ type mdPageSetupDlg struct {
 	d         *dialog.CustomDialog
 	paper     *widget.Select
 	titlePage *widget.Check
+	notes     *widget.Select
+	numbering *widget.Select
 	ok        *widget.Button
 }
 
@@ -148,18 +182,29 @@ func (w *MainWindow) newMarkdownPageSetup(done func()) *mdPageSetupDlg {
 		}
 	}
 	p.titlePage.SetChecked(s.titlePage)
+	p.notes = widget.NewSelect(mdNotesLabels, nil)
+	p.notes.SetSelected(mdNotesLabels[s.notesAt])
+	p.numbering = widget.NewSelect(mdNumberings, nil)
+	p.numbering.SetSelected(mdNumberings[0])
+	if s.notesPerChapter {
+		p.numbering.SetSelected(mdNumberings[1])
+	}
 	intro := widget.NewLabel("How the document prints: Export (web page, Word, ODT, PDF), Print and Live Preview use these.")
 	intro.Wrapping = fyne.TextWrapWord
 	about := hint("The title page has the title — the front matter's title:, else the first heading — and its author: from the front matter, centred, on a page of its own.")
+	notesAbout := hint("Notes: where the PDF and the pages print the footnotes, and how they are numbered (Word and ODT keep them at the page's foot, numbered through). A chapter starts at a top-level heading; under a single title heading, at the next level's.")
 	cancel := widget.NewButton("Cancel", func() { p.d.Hide() })
 	p.ok = widget.NewButton("OK", func() {
-		chosen := mdPageSetup{paper: chosenPaper(p.paper.Selected), titlePage: p.titlePage.Checked}
+		chosen := mdPageSetup{paper: chosenPaper(p.paper.Selected), titlePage: p.titlePage.Checked,
+			notesAt: prose.NotesPlace(max(slices.Index(mdNotesLabels, p.notes.Selected), 0)), notesPerChapter: p.numbering.Selected == mdNumberings[1]}
 		if p.paper.Selected == mdPapers[0] {
 			chosen.paper = ""
 		}
 		w.changeSetting(pageSetupPref, func(s *Settings) {
 			s.SetString(mdPaperPref, chosen.paper)
 			s.SetBoolean(mdTitlePagePref, chosen.titlePage)
+			s.SetString(mdNotesPref, mdNotesPlaces[chosen.notesAt])
+			s.SetBoolean(mdNotesPerChapterPref, chosen.notesPerChapter)
 		})
 		p.d.Hide()
 		if w.previewVisible && w.previewPane != nil { // the preview shows it at once
@@ -170,9 +215,10 @@ func (w *MainWindow) newMarkdownPageSetup(done func()) *mdPageSetupDlg {
 		}
 	})
 	p.ok.Importance = widget.HighImportance
-	body := container.NewVScroll(container.NewVBox(intro, labelled("Paper:", p.paper), p.titlePage, about))
+	body := container.NewVScroll(container.NewVBox(intro, labelled("Paper:", p.paper), p.titlePage, about,
+		labelled("Notes:", p.notes), labelled("Numbering:", p.numbering), notesAbout))
 	p.d = dialog.NewCustomWithoutButtons("Page Setup", container.NewBorder(nil, w.dialogButtons(cancel, p.ok), nil, nil, body), w.fyneWindow)
-	p.d.Resize(fitDialog(w.fyneWindow, 520, 340))
+	p.d.Resize(fitDialog(w.fyneWindow, 520, 470))
 	p.d.SetOnEscape(p.d.Hide)
 	return p
 }

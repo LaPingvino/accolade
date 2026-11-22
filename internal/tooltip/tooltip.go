@@ -74,10 +74,16 @@ func (l *Layer) TipPosition() fyne.Position {
 // ShowTip shows tip just below obj (a widget inside the layer's window),
 // kept within the layer's width.
 func (l *Layer) ShowTip(tip string, obj fyne.CanvasObject) {
+	l.ShowTipUnder(tip, obj, fyne.NewPos(0, 0), obj.Size())
+}
+
+// ShowTipUnder shows tip just below a part of obj: the area at (in obj)
+// size big (a link on a page).
+func (l *Layer) ShowTipUnder(tip string, obj fyne.CanvasObject, in fyne.Position, area fyne.Size) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	d := fyne.CurrentApp().Driver()
-	at := d.AbsolutePositionForObject(obj).Subtract(d.AbsolutePositionForObject(l))
+	at := d.AbsolutePositionForObject(obj).Subtract(d.AbsolutePositionForObject(l)).Add(in)
 
 	th := l.Theme()
 	v := fyne.CurrentApp().Settings().ThemeVariant()
@@ -90,7 +96,7 @@ func (l *Layer) ShowTip(tip string, obj fyne.CanvasObject) {
 	l.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
 
 	size := l.text.MinSize().Add(fyne.NewSize(2*pad, 2*pad))
-	pos := fyne.NewPos(at.X+(obj.Size().Width-size.Width)/2, at.Y+obj.Size().Height+2)
+	pos := fyne.NewPos(at.X+(area.Width-size.Width)/2, at.Y+area.Height+2)
 	pos.X = max(0, min(pos.X, l.Size().Width-size.Width))
 	l.bg.Move(pos)
 	l.bg.Resize(size)
