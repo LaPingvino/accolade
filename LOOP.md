@@ -1414,3 +1414,12 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   like org's subtree move), Alt+←/→ promotes/demotes (section levels # / ##, a scene into/out of a section), Alt+Shift
   for barf/slurp; the same commands in the menu next to Fold/Unfold (a "Structure" group), in vim/helix (z-prefixed
   or g-prefixed where free, matching the fold keys) and in ex (:move-up, :promote, …, completed).
+- 2026-11-23 (Joop: "I think Scrite or any tool like that also has something like a timeline view? Maybe we can do that
+  as a card view variant..."): TIMELINE, a variant of the Cards tab (a Grid / Timeline toggle in its header, the
+  choice kept per script). Scenes left to right in story order as blocks whose width is their length (page eighths,
+  as the stripboard measures), coloured by scene colour, the act/section headings as bands above; optional lanes by
+  character or storyline/tag (a scene appears in each lane it belongs to; a character's lane shows where they are
+  absent too); zoom with Ctrl+wheel/pinch; tap opens the scene, drag reorders through the STRUCTURAL MOVES commands
+  (one undo step, same rules), keyboard ←/→ between scenes, Alt+←/→ to move one. Reuse the stripboard's drawing where
+  it fits (stripboard.go draws production strips; this is story order, not shooting order). Screenshots desktop and
+  phone (phone: vertical timeline). After the structural moves, since dragging needs them.
