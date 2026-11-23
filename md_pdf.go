@@ -6,10 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
-	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
 	"github.com/LaPingvino/lexington/pdf"
 
@@ -67,9 +65,8 @@ func mdPDFByPrinting(text string) bool {
 type mdPages struct {
 	w     *MainWindow
 	view  *pageView
-	mu    sync.Mutex
-	timer *time.Timer
-	gen   int
+	timer *uiTimer // the pause before they are made
+	gen   int      // the latest making: an older one's pages are dropped
 	dir   string
 }
 
@@ -84,69 +81,57 @@ func newMDPages(w *MainWindow) *mdPages {
 // mdPagesDelay is how long after the last change the pages are made.
 var mdPagesDelay = 400 * time.Millisecond
 
-// mdPagesAfter runs f after d (the tests run it at once).
-var mdPagesAfter = time.AfterFunc
-
 // update makes the pages of text, soon.
 func (m *mdPages) update(text string) { m.updateAfter(text, mdPagesDelay) }
 
-// updateAfter makes the pages of text after delay.
+// updateAfter makes the pages of text after delay, in the background
+// (background.go: the tests' at once).
 func (m *mdPages) updateAfter(text string, delay time.Duration) {
-	m.mu.Lock()
 	m.gen++
 	gen := m.gen
-	if m.timer != nil {
-		m.timer.Stop()
-	}
-	m.mu.Unlock()
 	w := m.w
 	name := strings.TrimSuffix(w.pdfName(), ".pdf")
 	title := markdownTitle(text, w.scriptName())
 	page := w.markdownPageSetup()
 	titlePage := page.titlePageOf(text, w.scriptName())
-	t := mdPagesAfter(delay, func() {
-		data, d, err := markdownPDF(text, title, page, titlePage)
-		missing := markdownPDFMissing(text)
-		m.mu.Lock()
-		stale := gen != m.gen
-		if m.dir == "" {
-			m.dir, _ = os.MkdirTemp("", "accolade-pages-")
-		}
-		out := filepath.Join(m.dir, name+".pdf")
-		m.mu.Unlock()
-		if stale || err != nil {
+	if m.dir == "" {
+		m.dir, _ = os.MkdirTemp("", "accolade-pages-")
+	}
+	out := filepath.Join(m.dir, name+".pdf")
+	type made struct {
+		d       pdf.Drawing
+		missing string
+		out     string
+		err     error
+	}
+	w.debounce(&m.timer, delay, func() {
+		if gen != m.gen {
 			return
 		}
-		if os.WriteFile(out, data, 0o644) != nil {
-			out = ""
-		}
-		fyne.Do(func() {
-			if gen != m.gen {
+		inBackground(func() made {
+			data, d, err := markdownPDF(text, title, page, titlePage)
+			r := made{d: d, missing: markdownPDFMissing(text), out: out, err: err}
+			if err == nil && os.WriteFile(out, data, 0o644) != nil {
+				r.out = ""
+			}
+			return r
+		}, func(r made) {
+			if gen != m.gen || r.err != nil {
 				return
 			}
 			note := ""
-			if missing != "" {
-				note = "This PDF cannot print the document as written yet (" + missing + "): Export makes it through a browser."
+			if r.missing != "" {
+				note = "This PDF cannot print the document as written yet (" + r.missing + "): Export makes it through a browser."
 			}
 			m.view.setNote(note)
-			m.view.show(d, name+".pdf", out, name+".pdf")
+			m.view.show(r.d, name+".pdf", r.out, name+".pdf")
 			pagesShown(m.view)
 		})
 	})
-	m.mu.Lock()
-	if gen == m.gen {
-		m.timer = t
-	} else {
-		t.Stop()
-	}
-	m.mu.Unlock()
 }
 
+// stop drops the pages being made.
 func (m *mdPages) stop() {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	if m.timer != nil {
-		m.timer.Stop()
-	}
+	cancel(&m.timer)
 	m.gen++
 }

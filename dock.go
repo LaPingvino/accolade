@@ -885,9 +885,11 @@ func (t *dockTab) showMenu(pos fyne.Position) {
 	widget.ShowPopUpMenuAtPosition(m, c, pos)
 }
 
-// longPressAfter starts a long press's timer; a test fires it on its own
-// goroutine (Fyne's test driver runs fyne.Do on the caller's).
-var longPressAfter = time.AfterFunc
+// longPressAfter runs f, UI code, after d in the UI's turn (uiDo); a test
+// replaces it and runs f itself, in its own turn.
+var longPressAfter = func(d time.Duration, f func()) *time.Timer {
+	return time.AfterFunc(d, func() { uiDo(f) })
+}
 
 // MouseDown and MouseUp: a press held half a second is a long one, the
 // menu (the browser on a phone sends a finger as the mouse).
@@ -898,11 +900,9 @@ func (t *dockTab) MouseDown(e *desktop.MouseEvent) {
 	}
 	pos := e.AbsolutePosition
 	t.press = longPressAfter(500*time.Millisecond, func() {
-		fyne.Do(func() {
-			t.press = nil
-			t.pressed = true
-			t.showMenu(pos)
-		})
+		t.press = nil
+		t.pressed = true
+		t.showMenu(pos)
 	})
 }
 

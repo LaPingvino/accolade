@@ -278,11 +278,12 @@ func TestDockLongPress(t *testing.T) {
 	c := w.fyneWindow.Canvas()
 	ev := &desktop.MouseEvent{Button: desktop.MouseButtonPrimary}
 	var fire func()
+	oldAfter := longPressAfter
 	longPressAfter = func(d time.Duration, f func()) *time.Timer {
 		fire = f
 		return time.NewTimer(time.Hour) // stopped by MouseUp, never fires
 	}
-	t.Cleanup(func() { longPressAfter = time.AfterFunc })
+	t.Cleanup(func() { longPressAfter = oldAfter })
 	tab.MouseDown(ev)
 	fire() // the half second is up, on this goroutine
 	if c.Overlays().Top() == nil {

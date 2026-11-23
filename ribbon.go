@@ -1325,13 +1325,11 @@ func (b *ribbonButton) MouseDown(e *desktop.MouseEvent) {
 	pos := e.AbsolutePosition
 	b.pressAt = b.r.groups.Offset
 	b.holding = longPressAfter(500*time.Millisecond, func() {
-		fyne.Do(func() {
-			if b.holding == nil || b.r.groups.Offset != b.pressAt {
-				return
-			}
-			b.holding = nil
-			b.pressed = b.r.showQuickMenu(b, pos)
-		})
+		if b.holding == nil || b.r.groups.Offset != b.pressAt {
+			return
+		}
+		b.holding = nil
+		b.pressed = b.r.showQuickMenu(b, pos)
 	})
 }
 

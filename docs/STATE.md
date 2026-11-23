@@ -18,10 +18,11 @@ of it and keep it until told otherwise. A view goes stale when what is in front 
   is the same object for the window's life, so Open, New, a join or a type change would otherwise look like no
   change at all; the epoch moves on at the end of each of those.
 - **One hook.** `mainDocChanged` goes through the views (`docViews`, one table) and brings along each one in sight
-  whose record is not what it should describe. It runs at the end of `middle.show`, and at the end of every
-  transition that replaces or changes the script, which is bracketed by `defer w.scriptChange()()` (nested brackets
-  are one; the epoch moves on and the views follow when the outermost ends, so a view shown midway — of a script
-  half read — is followed again).
+  whose record is not what it should describe. It runs at the end of `middle.show`, at the end of a role change
+  (Writer/Production put panes and tabs away; called on every change of the preferences, so it does not move the
+  epoch: the pages are not made again for a font size), and at the end of every transition that replaces or changes
+  the script, which is bracketed by `defer w.scriptChange()()` (nested brackets are one; the epoch moves on and the
+  views follow when the outermost ends, so a view shown midway — of a script half read — is followed again).
 - **One invariant test.** `TestViewsFollowTheFront` (state_test.go) drives every transition below, from the script
   in front and from the source in front, with the outline, the characters, the find bar (searching "the") and the
   preview shown, and checks after each: every view in sight has the record it should, and what it shows is of the
@@ -73,7 +74,7 @@ it reads the script's notes block on each edit).
 | 6 | outline rows | drag, colour, Cards button with the source in front | would have moved and coloured script scenes by the source's rows | **fixed**: script only (the drag says so, the colour menu and the Cards button are not there) |
 | 7 | find bar | a view (cards, the outline) to the front | highlights cleared in the script, the count left ("3 of 11" with nothing lit) | **fixed**: found again in the editor the commands act on |
 | 8 | find bar | another editor tab to the front | the old editor's highlights cleared, the count of the old document kept until the next key | **fixed**: matches found again in the document now in front |
-| 9 | page view | Open, New, Open Sample, an import, a join, a rename, the role, with the **source** in front | the tab change put the script in front *before* the new text was there: the pages were made of the **old script** (with Follow Edits off they stayed so) | **fixed**: the request in flight is the view's (`pagesComing`): at the transition's end it is made again of the script as it is then |
+| 9 | page view | Open, New, Open Sample, an import, a join, a rename, with the **source** in front | the tab change put the script in front *before* the new text was there: the pages were made of the **old script** (with Follow Edits off they stayed so) | **fixed**: the request in flight is the view's (`pagesComing`): at the transition's end it is made again of the script as it is then |
 | 10 | page view | sharing then leaving at once | the second change came while the first pages were being made, hidden: those (of before) were shown | **fixed** (same: a Preview being made counts as shown) |
 | 11 | page view | Open/New/a rename with the script in front, Follow Edits off | the old script's pages until Refresh | **fixed**: made again at the transition's end |
 | 12 | page view | document type to Markdown with the pages shown | a screenplay's pages of a Markdown document | **fixed**: the Live Preview instead |
@@ -83,7 +84,7 @@ it reads the script's notes block on each edit).
 | 16 | Live Preview | document type to screenplay | closed by setMarkdown | the hook closes it too when it would be of a screenplay |
 | 17 | status bar, title | every transition | each transition called them itself, some not at its end | the hook at the end of each; the calls at the end of Open, New, the imports and setMarkdown are gone |
 | 18 | menus, ribbon | every transition | as 17 | the hook (`editorKindChanged`) |
-| 19 | Cards pane, cards' view, Characters | Open, New, a join, the role | followed the text by `dock.edited`, unrecorded | recorded; followed at the end if not |
+| 19 | Cards pane, cards' view, Characters | Open, New, a join, a role change | followed the text by `dock.edited`, unrecorded | recorded; followed at the end if not |
 | 20 | Source pane caption, lights | Open, New, a rename, the source changing | followed by `followSource` on edits | recorded, followed at the end |
 | 21 | Adapt… | the script replaced while it is open (a peer's type change, a join by a pasted link) | planned on the old script, its Insert into the new one | **fixed**: closed, with a status line |
 | 22 | Page Setup line | role, type | the page view's line is made with each Preview; the Live Preview's refreshes with it | follows with 11, 12, 16 |
@@ -94,6 +95,27 @@ it reads the script's notes block on each edit).
 | 27 | everything | **Revert** | — | there is no Revert command; Restore Draft is one edit (`Replace`), which every view follows as an edit (pages with Follow Edits) |
 
 27 pairs; 15 fixed (1, 2, 4–13, 21, 23 and the outline's rows), the rest checked or by design.
+
+## Background → UI hand-overs (background.go)
+
+Fyne's test driver runs `fyne.Do`'s function on the calling goroutine, so a background result handed over with a
+plain `fyne.Do` ran beside the test (CI's race job; 8d93f6a moved the script's Preview to `uiDo`). `uiDo` takes the
+UI's turn (`uiTurn`), as the real drivers do by running one function at a time on the UI goroutine. A blanket switch
+deadlocked: tests that run "background" work inline (`paintAsync=false`, `mdPagesAfter`, a test firing a long press
+itself) did so on the test's goroutine while it held the turn, and the turn is not taken twice.
+
+The design: **the seam that makes work inline is the seam that skips the lock.** Every hand-over is one of
+`inBackground` (work in a goroutine, its result through `uiDo`; in the tests, `backgroundAtOnce`, work and result on
+the caller's goroutine in its turn), `w.after`/`debounce` (a timer through `uiDo`; `debounceAtOnce` inline), or a
+seam whose default hands over with `uiDo` and whose test replacement runs the UI part itself (`longPressAfter`,
+`tooltip.Run`/`afterFunc`). The UI part never calls `uiDo` itself. So `paintAsync` and `mdPagesAfter` are gone: the
+pages paint through `inBackground`, the Live Preview's Pages wait through `debounce` and are made through
+`inBackground`; the exports, Print, the report PDF and the pandoc import through `inBackground`; the PDF import's
+progress, the peers' count, the away timer and the browser's events through `uiDo`. Real use is unchanged: the
+real drivers queue `fyne.Do`'s function to the UI goroutine either way, where the turn is never contended.
+`TestNoPlainFyneDo` reads every non-test .go file (the `_js.go` ones too) and fails on a `fyne.Do` outside
+background.go, but for the editor's relayout after a focus event (UI goroutine, no hand-over) and the tooltip
+package's default runner (Accolade sets `uiDo`).
 
 ## Left
 

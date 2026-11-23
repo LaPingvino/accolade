@@ -17,17 +17,6 @@ import (
 	lexreport "github.com/LaPingvino/lexington/report"
 )
 
-// The pages are painted at once, and the Live Preview's pages made at
-// once: the test driver runs fyne.Do on the goroutine that calls it, so
-// background work would race the test.
-func init() {
-	paintAsync = false
-	mdPagesAfter = func(_ time.Duration, f func()) *time.Timer {
-		f()
-		return time.NewTimer(time.Hour)
-	}
-}
-
 // onPagesShown sets the pagesShown hook to f for this test.
 func onPagesShown(t *testing.T, f func(*pageView)) {
 	t.Helper()

@@ -314,39 +314,42 @@ func (ed *ExportDialog) previewExport() {
 	content := w.textEditor.Text()
 	ed.statusLabel.SetText("Preparing the preview...")
 	job := ed.job() // read on the UI thread
-	go func() {
-		var d pdf.Drawing
-		var note string
-		var err error
+	type made struct {
+		d    pdf.Drawing
+		note string
+		err  error
+	}
+	inBackground(func() (r made) {
 		if format == "pdf" {
-			d, note, err = drawScript(content, out, job)
+			r.d, r.note, r.err = drawScript(content, out, job)
 		} else {
-			err = ed.performExportJob(content, out, format, job)
+			r.err = ed.performExportJob(content, out, format, job)
 		}
-		fyne.Do(func() {
-			if err != nil {
-				ed.statusLabel.SetText("Preview failed")
-				w.showPDFError(err)
-				return
-			}
-			ed.statusLabel.SetText("Ready to export")
-			if format != "pdf" {
-				openFile(out)
-				return
-			}
-			ed.dialog.Hide()
-			title := "Export preview: " + filepath.Base(out)
-			if ed.revisedPages {
-				title = "Revised pages: " + filepath.Base(out)
-			}
-			v := w.showPages(d, title, out, filepath.Base(out), backButton("Back to Export", func() {
-				w.hidePages()
-				ed.dialog.Show()
-			}))
-			v.setNote(note)
-			pagesShown(v)
-		})
-	}()
+		return r
+	}, func(r made) {
+		d, note, err := r.d, r.note, r.err
+		if err != nil {
+			ed.statusLabel.SetText("Preview failed")
+			w.showPDFError(err)
+			return
+		}
+		ed.statusLabel.SetText("Ready to export")
+		if format != "pdf" {
+			openFile(out)
+			return
+		}
+		ed.dialog.Hide()
+		title := "Export preview: " + filepath.Base(out)
+		if ed.revisedPages {
+			title = "Revised pages: " + filepath.Base(out)
+		}
+		v := w.showPages(d, title, out, filepath.Base(out), backButton("Back to Export", func() {
+			w.hidePages()
+			ed.dialog.Show()
+		}))
+		v.setNote(note)
+		pagesShown(v)
+	})
 }
 
 func (ed *ExportDialog) exportDocument() {
@@ -434,12 +437,8 @@ func (ed *ExportDialog) runExport() {
 
 	// Perform export in goroutine
 	job := ed.job() // the options, read here on the UI thread
-	go func() {
-		err := ed.performExportJob(content, outputPath, format, job)
-
-		// Update UI on main thread
-		fyne.Do(func() { ed.finishExport(err, outputPath) })
-	}()
+	inBackground(func() error { return ed.performExportJob(content, outputPath, format, job) },
+		func(err error) { ed.finishExport(err, outputPath) })
 }
 
 // format is the export format's id.

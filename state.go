@@ -10,8 +10,9 @@ import "fmt"
 // docKey, the document and the script's epoch then. Every transition of
 // what the window shows ends in mainDocChanged: a middle tab coming to the
 // front (middle.show), and anything that replaces or changes the script
-// (Open, New, an import, a restore, a revert, a join or leaving one, the
-// document type, a rename, the role), bracketed by scriptChange. There
+// (Open, New, an import, a restore, a join or leaving one, the document
+// type, a rename, another source), bracketed by scriptChange, and a role
+// change (which puts panes and tabs away). There
 // each view in sight whose record is not what it should describe follows:
 // one place, instead of each transition resetting what it remembers to.
 // TestViewsFollowTheFront drives every transition and checks each view.

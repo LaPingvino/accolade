@@ -203,7 +203,7 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 // connect finds the script's peers until ctx ends.
 func (w *MainWindow) connect(ctx context.Context, s *shared) {
 	s.network = collab.Join(ctx, s.session, s.key, collab.Trackers, func(n int) {
-		fyne.Do(func() {
+		uiDo(func() {
 			s.peers = n
 			w.updateStatusBar()
 		})

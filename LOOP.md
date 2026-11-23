@@ -1332,3 +1332,29 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   too), guesses 439 right / 174 wrong; position off: 0 by position, guesses 1,361 / 249, 12,297 more not found.
   Another source (14, wholly rewritten passages): 0 by position, 6 guesses all right (was 3 written + 3 guessed).
   Long source, stretch reworded (300): 0 by position, 79 / 7 guesses, 2 not found (off: 88 not found).
+- 2026-11-23: the state-change audit (branch stateaudit, not merged), on the middle tabs' transitions. docs/STATE.md:
+  13 views derived from a document (pages and Follow Edits, Live Preview and its Page Setup line, find bar, outline,
+  Cards pane and full view, Characters, Source pane, Adapt…, status bar, title, menus/ribbon) and 27 (view,
+  transition) pairs that could go stale, each with its verdict. Prevention (state.go): each view records the
+  document it shows (`docKey`: the document and the script's epoch — the script's document is the same object
+  across Open); one hook, `mainDocChanged`, at the end of `middle.show`, of a role change and of every transition
+  that replaces or changes the script (`defer w.scriptChange()()`: Open, New, Open Sample, the imports, a restore,
+  a join/leave, the document type, a rename, Choose Source); one table `docViews`; TestViewsFollowTheFront drives
+  27 transitions from the script and from the source in front (54 runs) and checks each view's record and what it
+  shows (red with the old outline). Fixed: the OUTLINE shows the document in front (Joop: "Outline might also need
+  to refresh on context?") — the script's scenes, the source's chapters and passages (a click goes into the
+  source), the notes' headings, edits in them refreshed after a pause, drag/colour/Cards the script's only; the find
+  bar finds again in the tab now in front (it kept the old count, highlights cleared); a Preview asked midway
+  through Open/New/a join with the source in front was of the old script (made again at the end; one being made
+  counts as shown); pages over a script turned Markdown give way to its Live Preview; Preview with a view tab in
+  front brings the script's tab with it; Choose Source… with the Source tab open reopens the tab on the new source
+  (it kept the old text, which in a bundle a save could write back); Adapt… closes when the script changes under
+  it. Background → UI: every hand-over goes through uiDo, inBackground, w.after/debounce or a seam whose default
+  hands over with uiDo and whose test replacement runs the UI part itself (longPressAfter, tooltip.Run); the UI
+  part never calls uiDo — so a test holding the turn runs background work inline without deadlock. paintAsync and
+  mdPagesAfter are gone (painting and the Live Preview's Pages through inBackground/debounce); exports, Print, the
+  report PDF, the pandoc import through inBackground; PDF import progress, peers, away timer, browser events through
+  uiDo. TestNoPlainFyneDo fails on fyne.Do outside background.go (the _js.go files read too; allowed: the editor's
+  relayout after a focus event, the tooltip package's default runner). Shots: TestOutlineScreenshots
+  (outline-{desktop,phone}-{0-script,1-source,2-notes}) looked at. Left: the outline's passages show no status
+  (adapted/cut); Adapt… is closed rather than planned again; Restore Draft is an edit (no Revert command exists).

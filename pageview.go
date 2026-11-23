@@ -55,10 +55,6 @@ func pagesShown(v *pageView) {
 	}
 }
 
-// paintAsync paints the pages in the background (the tests paint them at
-// once: their driver runs fyne.Do on the calling goroutine).
-var paintAsync = true
-
 // pageView shows a drawing's pages with its bar.
 type pageView struct {
 	widget.BaseWidget
@@ -559,14 +555,7 @@ func (v *pageView) paint(i, px int) {
 		pi.img.Refresh()
 		v.painted++
 	}
-	if !paintAsync {
-		set(r.Paint(p, float64(px)/p.Width))
-		return
-	}
-	go func() {
-		img := r.Paint(p, float64(px)/p.Width)
-		fyne.Do(func() { set(img) })
-	}()
+	inBackground(func() image.Image { return r.Paint(p, float64(px)/p.Width) }, set)
 }
 
 // image is page i as painted, nil if it is not (tests look).

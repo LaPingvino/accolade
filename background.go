@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 
 	"github.com/LaPingvino/accolade/internal/pace"
+	"github.com/LaPingvino/accolade/internal/tooltip"
 )
 
 // Timers and background work, for a window.
@@ -30,6 +31,17 @@ var uiTurn sync.Mutex
 
 // uiDo is fyne.Do for work coming back from another goroutine: f runs on
 // the UI goroutine, in its turn (uiTurn).
+//
+// Every hand-over from another goroutine to the UI goes through here:
+// inBackground's result, a timer's function (after), a long press's
+// (longPressAfter), a tip's (tooltip.Run), the network's and the browser's
+// callbacks. Never call it from UI code: under the test driver f runs on
+// the caller's goroutine, and the turn is not taken twice. The tests'
+// at-once modes (backgroundAtOnce, debounceAtOnce, a test's own fire of a
+// long press) run the UI's part themselves, on the test's goroutine in its
+// turn, never through uiDo — that is what lets a test hold the turn
+// (holdUI) and still run background work inline. TestNoPlainFyneDo keeps
+// fyne.Do itself here.
 func uiDo(f func()) {
 	fyne.Do(func() {
 		uiTurn.Lock()
@@ -37,6 +49,8 @@ func uiDo(f func()) {
 		f()
 	})
 }
+
+func init() { tooltip.Run = uiDo } // a tip's delayed showing (internal/tooltip)
 
 // uiTimer is a timer of a window's.
 type uiTimer struct {

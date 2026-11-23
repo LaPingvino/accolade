@@ -161,11 +161,12 @@ func TestQuickPin(t *testing.T) {
 	b := buttonOf(r, "edit.selectAll")
 	ev := &desktop.MouseEvent{Button: desktop.MouseButtonPrimary}
 	var fire func()
+	oldAfter := longPressAfter
 	longPressAfter = func(d time.Duration, f func()) *time.Timer {
 		fire = f
 		return time.NewTimer(time.Hour)
 	}
-	t.Cleanup(func() { longPressAfter = time.AfterFunc })
+	t.Cleanup(func() { longPressAfter = oldAfter })
 	c := w.fyneWindow.Canvas()
 	b.MouseDown(ev)
 	fire()

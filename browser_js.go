@@ -10,8 +10,6 @@ import (
 	"path"
 	"strings"
 	"syscall/js"
-
-	"fyne.io/fyne/v2"
 )
 
 // In the web version files live in memory (web/memfs.js): opening takes
@@ -70,7 +68,7 @@ func pickFile(exts []string, open func(path string)) {
 			go func() { // not in the page's event: file writes wait
 				p := path.Join("/files", name)
 				if os.MkdirAll("/files", 0o755) == nil && os.WriteFile(p, data, 0o644) == nil {
-					fyne.Do(func() { open(p) })
+					uiDo(func() { open(p) })
 				}
 			}()
 			return nil
@@ -199,7 +197,7 @@ func setPageKey(key string) {
 func onPageKey(join func(link string)) {
 	js.Global().Call("addEventListener", "hashchange", js.FuncOf(func(js.Value, []js.Value) any {
 		if link := pageLink(); strings.Contains(link, "#k=") {
-			go fyne.Do(func() { join(link) })
+			go uiDo(func() { join(link) })
 		}
 		return nil
 	}))
@@ -218,7 +216,7 @@ func browserFullscreen(on bool, left func()) {
 			if !doc.Get("fullscreenElement").Truthy() {
 				doc.Call("removeEventListener", "fullscreenchange", change)
 				change.Release()
-				go fyne.Do(left)
+				go uiDo(left)
 			}
 			return nil
 		})
@@ -275,7 +273,7 @@ func init() {
 			return nil
 		}
 		factor := float32(sqrt(dist(ts) / startDist))
-		fyne.Do(func() {
+		uiDo(func() {
 			if v := pagesInSight.Load(); v != nil {
 				v.pinch(startScale, factor)
 			}
@@ -285,7 +283,7 @@ func init() {
 	end := js.FuncOf(func(_ js.Value, args []js.Value) any {
 		if args[0].Get("touches").Length() < 2 && on {
 			on = false
-			fyne.Do(func() {
+			uiDo(func() {
 				if v := pagesInSight.Load(); v != nil {
 					v.pinchEnd()
 				}

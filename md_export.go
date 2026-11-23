@@ -333,22 +333,19 @@ func (ed *markdownExportDialog) run() {
 		titlePage := page.titlePageOf(text, ed.w.scriptName())
 		ed.export.Disable()
 		ed.status.SetText("Exporting...")
-		go func() {
-			err := exportMarkdownWith(text, title, out, f.id, page, titlePage)
-			fyne.Do(func() {
-				ed.export.Enable()
-				if err != nil {
-					ed.status.SetText("Export failed")
-					dialog.ShowError(fmt.Errorf("export failed: %v", err), ed.w.fyneWindow)
-					return
-				}
-				ed.dialog.Hide()
-				if inBrowser {
-					offerDownload(out)
-				}
-				ed.w.setStatus("Exported to " + out)
-			})
-		}()
+		inBackground(func() error { return exportMarkdownWith(text, title, out, f.id, page, titlePage) }, func(err error) {
+			ed.export.Enable()
+			if err != nil {
+				ed.status.SetText("Export failed")
+				dialog.ShowError(fmt.Errorf("export failed: %v", err), ed.w.fyneWindow)
+				return
+			}
+			ed.dialog.Hide()
+			if inBrowser {
+				offerDownload(out)
+			}
+			ed.w.setStatus("Exported to " + out)
+		})
 	}
 	if _, err := os.Stat(out); err == nil && !inBrowser {
 		dialog.ShowConfirm("Replace File", fmt.Sprintf("%s exists. Replace it?", name), func(ok bool) {

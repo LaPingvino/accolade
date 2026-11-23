@@ -9,8 +9,6 @@ import (
 	"sync/atomic"
 	"syscall/js"
 	"time"
-
-	"fyne.io/fyne/v2"
 )
 
 // The web version's watchdog (web/index.html): the app's main loop marks
@@ -22,7 +20,7 @@ var appState atomic.Value // what the windows were doing, as of the last beat
 func watchdog(app *Application) {
 	go func() {
 		for range time.Tick(time.Second) {
-			fyne.Do(func() {
+			uiDo(func() {
 				appState.Store(stateOf(app))
 				js.Global().Set("accoladeAlive", js.Global().Get("Date").Call("now"))
 			})

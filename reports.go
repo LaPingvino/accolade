@@ -569,17 +569,16 @@ func (rd *reportsDialog) savePDF() {
 	browser, w := localBrowser(), rd.w
 	rd.saveFile(rd.reportFileName("pdf"), func(p string) error {
 		w.setStatus("Making the PDF...")
-		go func() { // Chromium takes a moment: not on the window's thread
+		inBackground(func() error { // Chromium takes a moment: not on the window's thread
 			defer os.RemoveAll(dir)
-			err := writeViaTemp(p, func(tmp string) error { return browserPDF(browser, htmlPath, tmp) })
-			fyne.Do(func() {
-				if err != nil {
-					dialog.ShowError(fmt.Errorf("could not make the PDF: %v", err), w.fyneWindow)
-					return
-				}
-				w.setStatus("Report saved as " + filepath.Base(p))
-			})
-		}()
+			return writeViaTemp(p, func(tmp string) error { return browserPDF(browser, htmlPath, tmp) })
+		}, func(err error) {
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("could not make the PDF: %v", err), w.fyneWindow)
+				return
+			}
+			w.setStatus("Report saved as " + filepath.Base(p))
+		})
 		return nil
 	})
 }

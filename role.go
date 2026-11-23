@@ -207,8 +207,9 @@ func (w *MainWindow) roleAfterRename(oldPath, newPath string) {
 // the header, the side panel; production's panes put away in Writer. said
 // shows the status line for it.
 func (w *MainWindow) roleChanged(said bool) {
-	// the views follow at the end (state.go)
-	defer w.scriptChange()()
+	// a pane or tab put away: the views in sight follow at the end (state.go);
+	// the script is the same (called on every change of the preferences)
+	defer w.mainDocChanged()
 	if w.fyneWindow == nil {
 		return
 	}

@@ -150,16 +150,20 @@ func (w *MainWindow) ImportWithPandoc() {
 	w.chooseFile(pandocExtensions(), func(p string) {
 		w.withTarget(func(t *MainWindow) {
 			t.setStatus("Importing " + filepath.Base(p) + " with pandoc...")
-			go func() {
+			type read struct {
+				md  string
+				err error
+			}
+			inBackground(func() read {
 				md, err := pandocToMarkdown(p)
-				fyne.Do(func() {
-					if err != nil {
-						dialog.ShowError(fmt.Errorf("could not import %s: %v", filepath.Base(p), err), t.fyneWindow)
-						return
-					}
-					t.showImportedMarkdown(p, md, "pandoc", 0)
-				})
-			}()
+				return read{md, err}
+			}, func(r read) {
+				if r.err != nil {
+					dialog.ShowError(fmt.Errorf("could not import %s: %v", filepath.Base(p), r.err), t.fyneWindow)
+					return
+				}
+				t.showImportedMarkdown(p, r.md, "pandoc", 0)
+			})
 		})
 	})
 }

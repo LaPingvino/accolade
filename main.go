@@ -314,7 +314,7 @@ func (app *Application) pauseWhenAway() {
 	var timer *time.Timer
 	onPresence(func() {
 		timer = time.AfterFunc(awayPause, func() {
-			fyne.Do(func() {
+			uiDo(func() {
 				for _, w := range app.windows {
 					w.pauseSharing()
 				}
@@ -324,7 +324,7 @@ func (app *Application) pauseWhenAway() {
 		if timer != nil {
 			timer.Stop()
 		}
-		fyne.Do(func() {
+		uiDo(func() {
 			for _, w := range app.windows {
 				w.resumeSharing()
 			}

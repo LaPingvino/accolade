@@ -755,7 +755,7 @@ func (w *MainWindow) readPDFInBackground(filePath, what string,
 		defer cancel()
 		text, skipped, err := read(ctx, func(n, pages int) {
 			pace.YieldNow() // the browser's page draws and takes input meanwhile (internal/pace)
-			fyne.Do(func() {
+			uiDo(func() {
 				bar.SetValue(float64(n) / float64(max(pages, 1)))
 				label.SetText(fmt.Sprintf("Read %d of %d pages", n, pages))
 				if n == pages {
@@ -763,7 +763,7 @@ func (w *MainWindow) readPDFInBackground(filePath, what string,
 				}
 			})
 		})
-		fyne.Do(func() {
+		uiDo(func() {
 			d.Hide()
 			if ctx.Err() != nil && errors.Is(err, context.Canceled) {
 				return // cancelled: nothing to show
@@ -1511,17 +1511,14 @@ func (w *MainWindow) printScript() {
 	content := w.textEditor.Text()
 	job := w.outputJob(w.pageSetup(), "html", content, nil)
 	w.setStatus("Preparing to print...")
-	go func() {
-		err := exportAs(content, out, "html", job)
-		fyne.Do(func() {
-			if err != nil {
-				dialog.ShowError(fmt.Errorf("could not prepare the script to print: %v", err), w.fyneWindow)
-				return
-			}
-			w.setStatus("Print: choose a printer, or Save as PDF")
-			printFile(out)
-		})
-	}()
+	inBackground(func() error { return exportAs(content, out, "html", job) }, func(err error) {
+		if err != nil {
+			dialog.ShowError(fmt.Errorf("could not prepare the script to print: %v", err), w.fyneWindow)
+			return
+		}
+		w.setStatus("Print: choose a printer, or Save as PDF")
+		printFile(out)
+	})
 }
 
 // openFile opens a file in the system's viewer for that kind of file.

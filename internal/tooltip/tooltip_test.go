@@ -14,11 +14,12 @@ import (
 // manualDelay has a tip's delay end only when the test fires it.
 func manualDelay(t *testing.T) (fire func()) {
 	var f func()
+	old := afterFunc
 	afterFunc = func(_ time.Duration, g func()) *time.Timer {
 		f = g
 		return time.NewTimer(time.Hour) // stopped by Out, never fires
 	}
-	t.Cleanup(func() { afterFunc = time.AfterFunc })
+	t.Cleanup(func() { afterFunc = old })
 	return func() { f() }
 }
 
