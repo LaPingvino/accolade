@@ -85,6 +85,9 @@ type cmdEnv struct {
 	// compare: Compare is the middle tab in front; compareChanged: with
 	// changes to go to (compare_tab.go)
 	compare, compareChanged bool
+	// tableRead: the Table Read is the middle tab in front (its tab);
+	// tableReadOpen: it is open, there or in its window (tableread_tab.go)
+	tableRead, tableReadOpen bool
 }
 
 // cmdEnv is the window's.
@@ -119,6 +122,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	w.charactersEnv(&e)
 	w.sessionEnv(&e)
 	w.compareEnv(&e)
+	w.tableReadEnv(&e)
 	return e
 }
 
@@ -826,6 +830,7 @@ func newRegistry() *registry {
 	add(charactersCommands()...) // the Characters tab's (characters_tab.go)
 	add(sessionCommands()...)    // the Session tab's (session_tab.go)
 	add(compareCommands()...)    // the Compare tab's (compare_tab.go)
+	add(tableReadCommands()...)  // the Table Read's (tableread_tab.go)
 	add(quickCommands()...)      // the ribbon's order and the Quick row (quick.go)
 
 	elements := make([]home, len(toolbarElements))
@@ -878,20 +883,21 @@ func newRegistry() *registry {
 			sep(), // the board's own, while it is in front (stripstab.go)
 		}, stripsMenuHomes()...)},
 		{title: "Collaboration", homes: []home{
-			at("file.share"), at("file.join"),
+			at("file.share"), at("file.join"), at("tableread.followLink"),
 			sep(), at("file.saveDraft"), at("file.drafts"), at("collab.compare"),
 		}},
 		{title: "View", homes: append(append([]home{
-			at("view.preview"), at("view.foldHere"), at("view.foldSections"),
+			at("view.preview"), at("view.tableRead"), at("view.foldHere"), at("view.foldSections"),
 			at("view.headingsOnly"), at("view.unfoldAll"), {label: "Structure", sub: structureMenu()}, at("view.timelineStrip"), sep()},
 			dockHomes()...), // the side dock's panes together, and its own (dock.go)
 			sep(), at("view.statistics"), at("view.fullscreen"), at("set.toolbar"), at("view.ribbonLock"), at("set.quickRow"),
 			at("view.topRowAdd"), at("view.topRowReset"),
 			sep(), at("view.documentType"), at("view.role"),
 		)},
-		{title: "Cards", when: cardsInFront, homes: cardsMenu()},  // while the cards are in front (cards_tab.go)
-		{title: "Compare", when: comparing, homes: compareMenu()}, // while Compare is in front (compare_tab.go)
-		{title: "Session", when: sharedNow, homes: sessionMenu()}, // while the script is shared (session_tab.go)
+		{title: "Cards", when: cardsInFront, homes: cardsMenu()},              // while the cards are in front (cards_tab.go)
+		{title: "Compare", when: comparing, homes: compareMenu()},             // while Compare is in front (compare_tab.go)
+		{title: "Session", when: sharedNow, homes: sessionMenu()},             // while the script is shared (session_tab.go)
+		{title: "Table Read", when: tableReadInFront, homes: tableReadMenu()}, // while it is in front (tableread_tab.go)
 		{title: "Help", homes: helpMenu()},
 	}
 	r.topRow = []home{
@@ -1253,6 +1259,8 @@ func ribbonLayout() []ribbonTab {
 		}},
 		{title: "Collaboration", groups: []ribbonGroup{
 			{title: "Together", homes: []home{big("file.share"), at("file.join"), at("view.changes")}},
+			// the script read aloud, a TV following (tableread_tab.go)
+			{title: "Table Read", homes: []home{big("view.tableRead"), at("tableread.followLink")}},
 			{title: "Drafts", homes: []home{big("file.saveDraft"), at("file.drafts"), at("collab.compare"), at("set.draftsSide")}},
 		}},
 		{title: "View", groups: []ribbonGroup{
@@ -1273,5 +1281,6 @@ func ribbonLayout() []ribbonTab {
 		charactersTab(), // while the Characters pane is in sight (characters_tab.go)
 		sessionTab(),    // while the script is shared (session_tab.go)
 		compareTab(),    // while Compare is in front (compare_tab.go)
+		tableReadTab(),  // while the Table Read is in front (tableread_tab.go)
 	}
 }

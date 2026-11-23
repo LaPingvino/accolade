@@ -1216,6 +1216,15 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (b) Storyboarder (wonderunit, its successor; not OSI) keeps boards in JSON `storyboards/Scene-<n>-…/*.storyboarder`
   beside the script and rewrites scene numbers to `#<n>-<id>#` (docs/PRODUCTION.md §Storyboards): read its boards
   per scene by that id, never write its files.
+  BUILT 2026-11-23 (branch tableread), levels (1) and (2); (3) the Cast button waits for Joop's registration.
+  tableread.go reads (scenes, cues, narrator runs, frames, cast in order, eighths and a page a minute);
+  tableread_view.go shows (a desktop window; in the browser and on a phone a middle tab with a forward Table Read
+  ribbon tab and menu); tableread_follow.go follows a person through the session's presence (their Table Read's
+  line while it is open, else their cursor's), the follow link `#k=<key>&follow` joining as a viewer
+  (collab.Presence.View; nothing sent: script ops, settings, source; a typed edit put back). Tags: breakdown
+  elements, shoot days, scene colours. Help: docs/help/table-read.md. Not done: the pick is not kept across runs
+  (no state of its own, as agreed); a Storyboarder board's own duration/dialogue not shown; a "beside" layout of
+  the frames (they show between the lines).
 - 2026-11-23 (Joop, with his own "Kredu min, Sinjorino" adaptation — a free adaptation of a 70k-word Esperanto novel,
   21 scenes, 3 [[from:]] links, the Enkonduko and long runs skipped; the file is private: measure on the copy in
   ~/.local/share/accolade-bench/kredu only, never commit it or quote it in fixtures, build synthetic tests of the same shape):

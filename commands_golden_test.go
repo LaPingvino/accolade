@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))) // the moves write Linux keys too
+		want := tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -943,6 +943,16 @@ func fixLinesMoves(name, golden string) string {
 func frameMoves(name, golden string) string {
 	if strings.HasPrefix(name, "menu-screenplay") {
 		return strings.Replace(golden, "# Adaptation\n", "  ---\n  Storyboard Frame…\n# Adaptation\n", 1)
+	}
+	return golden
+}
+
+// tableReadMoves: View > Table Read after Preview PDF, Copy the Follow
+// Link after Join a Shared Script… (tableread_tab.go).
+func tableReadMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-screenplay") {
+		golden = strings.Replace(golden, "  Join a Shared Script…\n", "  Join a Shared Script…\n  Copy the Follow Link\n", 1)
+		golden = strings.Replace(golden, "  Preview PDF [Primary+Shift+P]\n", "  Preview PDF [Primary+Shift+P]\n  Table Read\n", 1)
 	}
 	return golden
 }

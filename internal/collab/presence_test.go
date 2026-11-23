@@ -112,3 +112,20 @@ func TestPresenceOldPeer(t *testing.T) {
 		t.Error("a presence reads as more than itself")
 	}
 }
+
+// A viewer says so (a Table Read following only): the others see it.
+func TestPresenceViewer(t *testing.T) {
+	key, _ := NewKey()
+	a, b := NewSession(key, New("a")), NewSession(key, New("b"))
+	b.Viewer = true
+	a.AddPeer("b", func(m []byte) error { return b.Receive("a", m) })
+	b.AddPeer("a", func(m []byte) error { return a.Receive("b", m) })
+	a.SetHere("Ann", 4)
+	b.SetHere("TV", 0)
+	if h := a.Here(); len(h) != 1 || !h[0].View || h[0].Name != "TV" {
+		t.Errorf("a sees %+v", h)
+	}
+	if h := b.Here(); len(h) != 1 || h[0].View || h[0].Line != 4 {
+		t.Errorf("b sees %+v", h)
+	}
+}

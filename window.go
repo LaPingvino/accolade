@@ -127,6 +127,12 @@ type MainWindow struct {
 	cards        *cardsView
 	compare      *compareView // Compare, a middle tab (drafts_view.go)
 	scriptFolds  *folds       // the script editor's (editor_folds.go)
+	// the Table Read (tableread_view.go), its reading again as typing pauses
+	tableRead      *tableReadView
+	tableReadTimer *uiTimer
+	// joinAsFollower: the session joined next is joined with the follow
+	// link, as a follow-only viewer (tableread_follow.go)
+	joinAsFollower bool
 	// mdCounted is the Markdown text the status bar counted last (markdown.go)
 	mdCounted struct {
 		text, out string
@@ -1346,6 +1352,7 @@ func (w *MainWindow) onTextChanged(text string) {
 		w.stripboard.update()
 	}
 	w.followSource()
+	w.tableReadEdited()  // the Table Read reads it again (tableread_view.go)
 	w.docsFollowScript() // the notes or source kept in it, open as documents (document.go)
 	if w.scriptInMain() {
 		if w.previewVisible && w.previewPane != nil {

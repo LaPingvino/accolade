@@ -61,7 +61,7 @@ func keptSharedSource(k collab.Key) string {
 // kept in the script, or none, clears the setting.
 func (w *MainWindow) shareSourceAnew() {
 	s := w.shared
-	if s == nil || !s.synced || w.markdown {
+	if s == nil || !s.synced || w.markdown || s.followOnly { // a viewer shares nothing
 		return
 	}
 	ref := w.sourceRef()
@@ -138,6 +138,9 @@ func (w *MainWindow) bindSource() {
 
 // shareSourceEdit sends the source document's change to the peers.
 func (w *MainWindow) shareSourceEdit(name, text string) {
+	if w.shared.followOnly { // a viewer's edit stays its own (tableread_follow.go)
+		return
+	}
 	var ops []collab.Op
 	w.shared.session.DoIn(name, func(d *collab.Doc) {
 		if !d.Empty() { // a Doc not come yet: the edit stays this peer's (followShared)

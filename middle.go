@@ -111,6 +111,8 @@ func makeMiddleViews() map[string]*midView {
 			closed: func(w *MainWindow) { w.compare = nil }},
 		// on a phone, the page view (pageview_window.go): beside the script's
 		// tab, so the way back to the script is a tap
+		// the Table Read, in the browser and on a phone (tableread_view.go)
+		"tableread": tableReadMidView(),
 		"pages": {title: "Pages", applies: func(*MainWindow) bool { return true },
 			box: func(w *MainWindow) fyne.CanvasObject {
 				if w.pages == nil {

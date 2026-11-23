@@ -19,6 +19,9 @@ type Presence struct {
 	Line    int    `json:"l"`
 	Seq     uint64 `json:"s"`
 	Gone    bool   `json:"g,omitempty"`
+	// View: a viewer that follows only (a Table Read on a TV): it edits
+	// nothing and is not to be followed. Older peers ignore it.
+	View bool `json:"v,omitempty"`
 }
 
 // HereEvery is how often a window says it is here, HereFor how long a
@@ -40,7 +43,7 @@ type heard struct {
 // nothing changed, it says it is still here.
 func (s *Session) SetHere(name string, line int) {
 	s.mu.Lock()
-	s.me = Presence{Replica: s.replica, Name: name, Line: line, Seq: s.me.Seq + 1}
+	s.me = Presence{Replica: s.replica, Name: name, Line: line, Seq: s.me.Seq + 1, View: s.Viewer}
 	me := s.me
 	peers := s.othersThan("")
 	s.mu.Unlock()
@@ -56,7 +59,7 @@ func (s *Session) Leave() {
 		s.mu.Unlock()
 		return
 	}
-	s.me = Presence{Replica: s.replica, Name: s.me.Name, Seq: s.me.Seq + 1, Gone: true}
+	s.me = Presence{Replica: s.replica, Name: s.me.Name, Seq: s.me.Seq + 1, Gone: true, View: s.Viewer}
 	me := s.me
 	peers := s.othersThan("")
 	s.mu.Unlock()

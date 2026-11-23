@@ -100,6 +100,8 @@ type Session struct {
 	// OnHere is called (outside the lock, in Run) when who is here
 	// changed (Here), or what line they are on.
 	OnHere func()
+	// Viewer: this side follows only (Presence.View), said with SetHere
+	Viewer bool
 	// Now, if set, is the clock presence goes by (the tests').
 	Now  func() time.Time
 	me   Presence         // this side's, as last said (SetHere)

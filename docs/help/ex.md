@@ -82,7 +82,7 @@ The elements: `scene-heading`, `action`, `character`, `parenthetical`, `dialogue
 
 - **:h[elp]** `[command or page]` — This list in the Help tab; :h scene the line on :scene; :h fountain a help page
 
-The pages: `index`, `fountain`, `final-draft`, `adapting`, `fixing-imports`, `production`, `shortcuts`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
+The pages: `index`, `fountain`, `final-draft`, `adapting`, `fixing-imports`, `production`, `table-read`, `shortcuts`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
 
 ## Accolade's commands
 
@@ -120,6 +120,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:join-shared-script** — Collaboration > Join a Shared Script
 - **:compare** — Collaboration > Compare
 - **:compare-drafts-side-by-side** — Collaboration > Drafts > Compare Drafts Side by Side
+- **:table-read-follow-link** — A link for a TV or another screen: its Table Read follows yours, and it edits nothing (the script is shared first) (Collaboration > Copy the Follow Link) (screenplay)
 
 ### Edit
 
@@ -271,6 +272,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:toolbar** — View > Toolbar
 - **:add-to-top-row** — View > Add to the Top Row
 - **:reset-top-row** — View > Reset the Top Row
+- **:table-read** — The script read aloud: large type on dark, a scene at a time, each actor's lines in a tint of their own (a window for a TV or projector; in the browser, a page to cast) (View > Table Read) (screenplay)
 - **:lock-ribbon-order** — View > Lock Ribbon Order (not in the browser)
 - **:quick-row** — View > Quick Row (not in the browser)
 
@@ -360,3 +362,15 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:previous-change** — The changed scene before (Compare > Previous Change) (while the Compare tab is there)
 - **:next-change** — The next changed scene (Compare > Next Change) (while the Compare tab is there)
 - **:close-compare** — Compare > Close Compare (while the Compare tab is there)
+
+### Table Read
+
+- **:table-read-previous** — The scene picked before this one (←, Page Up) (Table Read > Previous Scene Read) (while the Table Read tab is there)
+- **:table-read-next** — The next scene picked (→, Page Down, Space) (Table Read > Next Scene Read) (while the Table Read tab is there)
+- **:table-read-pick** — The panel: the scenes, a character's scenes, a tag's; narrator, storyboard, tints; who to follow (Table Read > Pick What Is Read) (while the Table Read tab is there)
+- **:table-read-narrator** — Headings and action read by one voice, marked NARRATOR (Table Read > Narrator Mode) (while the Table Read tab is there)
+- **:table-read-storyboard** — The scene's storyboard frames between its lines (Table Read > Show Storyboard Frames) (while the Table Read tab is there)
+- **:table-read-tints** — Each actor's lines in a colour of their own (Table Read > Actor Tints) (while the Table Read tab is there)
+- **:table-read-fullscreen** — The Table Read filling the screen (in the browser, the page: cast it with Chrome's Cast…) (Table Read > Table Read Full Screen) (while the Table Read tab is there)
+- **:table-read-follow** `item` — The Table Read goes where they are reading (the script shared: who is here) (Table Read > Follow in the Table Read) (while the Table Read tab is there)
+- **:table-read-close** — Table Read > Close Table Read (while the Table Read tab is there)

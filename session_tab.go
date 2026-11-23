@@ -92,7 +92,7 @@ func (w *MainWindow) sayHere(always bool) {
 	if s == nil || s.paused {
 		return
 	}
-	line := w.scriptCursorLine()
+	line := w.hereLine() // the Table Read's, while it leads (tableread_follow.go)
 	if !always && line == s.hereLine && s.saidHere {
 		return
 	}
@@ -135,7 +135,8 @@ func (w *MainWindow) hereChanged() {
 			w.followTo(them.Line)
 		}
 	}
-	w.updateStatusBar() // "Shared · 1 other"
+	w.tableReadFollowHere() // the Table Read following someone (tableread_follow.go)
+	w.updateStatusBar()     // "Shared · 1 other"
 	w.ribbonFollow()
 }
 
@@ -278,12 +279,12 @@ func sessionTab() ribbonTab {
 	return ribbonTab{title: "Session", when: sharedNow, contextual: true, groups: []ribbonGroup{
 		{title: "Here", homes: []home{{id: "sessionPeople"}}},
 		{title: "Follow", homes: []home{at("session.follow"), at("session.stopFollowing")}},
-		{title: "Link", homes: []home{big("session.copyLink")}},
+		{title: "Link", homes: []home{big("session.copyLink"), at("tableread.followLink")}},
 		{title: "Leave", homes: []home{big("session.leave")}},
 	}}
 }
 
 // sessionMenu is the Session menu, while the script is shared (the Menus look).
 func sessionMenu() []home {
-	return []home{at("session.follow"), at("session.stopFollowing"), sep(), at("session.copyLink"), at("session.leave")}
+	return []home{at("session.follow"), at("session.stopFollowing"), sep(), at("session.copyLink"), at("tableread.followLink"), at("session.leave")}
 }

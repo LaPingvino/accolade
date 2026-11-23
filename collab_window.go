@@ -87,6 +87,9 @@ type shared struct {
 	// once they sent them), so changes here go to them
 	synced bool
 	paused bool // let go of the peers while the page is hidden
+	// followOnly: joined with the follow link, a viewer that edits
+	// nothing (tableread_follow.go)
+	followOnly bool
 	// who is here (session_tab.go): this side's replica; the line said
 	// last; the beat saying it is still here; the one followed ("":
 	// nobody), their name and line as last followed
@@ -128,7 +131,8 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 		}
 		session = collab.NewSession(key, doc)
 	}
-	s := &shared{session: session, key: key, own: !joining}
+	s := &shared{session: session, key: key, own: !joining, followOnly: joining && w.joinAsFollower}
+	w.joinAsFollower = false
 	if joining {
 		_, err := os.Stat(ownMarkPath(key))
 		s.own = err == nil
@@ -209,13 +213,16 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 		w.shareMeta("markdown", strconv.FormatBool(w.markdown))
 		w.shareSourceAnew() // the source, if kept outside the script (collab_source.go)
 	}
-	setPageKey(key.String()) // a reload of the page comes back to it
+	setPageKey(s.pageKey()) // a reload of the page comes back to it (a viewer's as one)
 	w.keepSharedState()
 	w.sayHere(true) // who is here (session_tab.go)
 	w.hereBeat(s)
 	w.connect(ctx, s)
 	w.updateStatusBar()
 	w.ribbonRefresh() // the Session tab
+	if s.followOnly { // the follow link's: the Table Read, following (tableread_follow.go)
+		w.startFollowOnly()
+	}
 }
 
 // connect finds the script's peers until ctx ends.
@@ -258,6 +265,9 @@ func (w *MainWindow) stopSharing() {
 		s.stateTimer.Stop()
 		s.beat.Stop()
 		w.shared = nil
+		if w.tableRead != nil && w.tableRead.follow != "" {
+			w.tableRead.stopFollow() // nobody to follow now
+		}
 		setPageKey("")
 		w.updateStatusBar()
 		w.ribbonRefresh() // the Session tab goes
@@ -296,6 +306,10 @@ func (w *MainWindow) newDocument() {
 // shareEdit sends the editor's change to the peers.
 func (w *MainWindow) shareEdit(text string) {
 	if w.shared == nil {
+		return
+	}
+	if w.shared.followOnly { // a viewer edits nothing: the edit is put back (tableread_follow.go)
+		w.putBackFollowerEdit()
 		return
 	}
 	var ops []collab.Op
@@ -368,7 +382,7 @@ func (w *MainWindow) applyRemote(by string) {
 // shareMeta sends a setting of the script (its language, its format) to
 // the peers, if it is shared and has theirs.
 func (w *MainWindow) shareMeta(key, value string) {
-	if w.shared != nil && w.shared.synced {
+	if w.shared != nil && w.shared.synced && !w.shared.followOnly { // a viewer's settings stay its own
 		w.shared.session.SetMeta(key, value)
 	}
 }
@@ -455,11 +469,15 @@ func (w *MainWindow) join(linkOrKey string) {
 		return
 	}
 	if w.shared != nil { // the address shows this one's until the other is joined
-		setPageKey(w.shared.key.String())
+		setPageKey(w.shared.pageKey())
 	}
+	follow := isFollowLink(linkOrKey) // the follow link's: a viewer (tableread_follow.go)
 	w.withTarget(func(target *MainWindow) {
+		target.joinAsFollower = follow
 		target.startSharing(key, true)
-		target.setStatus("Joining the shared script…")
+		if !follow {
+			target.setStatus("Joining the shared script…")
+		}
 	})
 }
 
