@@ -176,6 +176,7 @@ type MainWindow struct {
 	carrySource            []byte
 	renameAsked            *renameAsk        // the rename editor last opened (rename.go)
 	cleanAsked             *cleanFountainDlg // Export Clean Fountain… last opened (clean_fountain.go)
+	fixAsked               *fixupDlg         // Fix Lines Like This… while open (fixup_dialog.go)
 	saveAsAsked            *saveAsAsk        // the Save As chooser last opened (saveas_dialog.go)
 	sourceBeside           string
 	highlandWarned         map[string]bool // the files the Highland warning was given for
@@ -675,6 +676,11 @@ func (w *MainWindow) importFile(filePath string) error {
 func (w *MainWindow) showImported(filePath, text, from string) {
 	// the views follow at the end (state.go)
 	defer w.scriptChange()()
+	// a re-import keeps the fix-up rules, offered again (fixup_dialog.go)
+	text, rules := w.carryFixRules(filePath, text)
+	if len(rules) > 0 {
+		defer w.offerFixRules(rules)
+	}
 	w.newDocument()
 	w.cancelAutoSave()
 	w.forgetUnsavedSource()

@@ -17,7 +17,7 @@ import (
 
 // Export > Clean Fountain… (LOOP.md, Joop 2026-11-20): a .fountain of the
 // script for other apps and other people, without Accolade's data — its
-// blocks at the end (Notes, Source, Adaptation, Production, Characters)
+// blocks at the end (Notes, Source, Adaptation, Production, Characters, Fix-Up)
 // and the links to the source, [[from: …]] — always, and as the boxes
 // say (remembered) the writer's own: notes, boneyard, scene numbers,
 // OMITTED headings, the title page, the outline. What is stripped and
@@ -102,7 +102,7 @@ func (w *MainWindow) newCleanFountain() *cleanFountainDlg {
 		boxes.Add(ch)
 	}
 	intro := widget.NewLabel("A copy of the script for other apps and other people. Accolade's own data always goes: " +
-		"the blocks at the end (Notes, Source, Adaptation, Production, Characters) and the links to the source, [[from: …]]. " +
+		"the blocks at the end (Notes, Source, Adaptation, Production, Characters, Fix-Up) and the links to the source, [[from: …]]. " +
 		"The script itself is not changed.")
 	intro.Wrapping = fyne.TextWrapWord
 	parts := []fyne.CanvasObject{intro}

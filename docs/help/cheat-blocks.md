@@ -9,6 +9,7 @@ Notes is always last; Accolade reads the others in any order. In the editor each
 - **Production** — `/* Production` … `*/`: lock, revision, pages
 - **Adaptation** — `/* Adaptation` … `*/`: cuts and learned notes
 - **Characters** — `/* Characters` … `*/`: the character list and its notes
+- **Fix-Up** — `/* Fix-Up` … `*/`: Fix Lines Like This rules, to apply again after a re-import
 - **Source** — `/* Source` … `*/`: the story, when kept in the script
 - **Notes** — `/* Notes` … `*/`: the notepad (Ctrl+Shift+K)
 

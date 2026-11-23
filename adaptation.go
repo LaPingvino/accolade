@@ -63,6 +63,7 @@ var tails struct {
 // block starts (in bytes; the text's length without one).
 type tailSet struct {
 	src, adapt, prod, chars tailBlock
+	fix                     tailBlock // the pattern fixer's rules (fixup.go)
 	notes                   int
 }
 
@@ -103,7 +104,7 @@ func tailSetOf(text string) tailSet {
 // known there hides those before it), in bytes, then gives their places
 // in runes too.
 func findTails(text string) (t tailSet) {
-	src, adapt, prod, chars := &t.src, &t.adapt, &t.prod, &t.chars
+	src, adapt, prod, chars, fix := &t.src, &t.adapt, &t.prod, &t.chars, &t.fix
 	blocks, _ := fountain.EndBlocks(text)
 	t.notes = len(text)
 	for _, b := range blocks {
@@ -121,6 +122,8 @@ func findTails(text string) (t tailSet) {
 			to = prod
 		case fountain.EndCharacters:
 			to = chars
+		case fountain.EndFixUp:
+			to = fix
 		default:
 			continue
 		}
@@ -144,7 +147,7 @@ func findTails(text string) (t tailSet) {
 		return n
 	}
 	found := []*tailBlock{}
-	for _, b := range []*tailBlock{src, adapt, prod, chars} {
+	for _, b := range []*tailBlock{src, adapt, prod, chars, fix} {
 		if b.ok {
 			found = append(found, b)
 		}

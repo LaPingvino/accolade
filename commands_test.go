@@ -225,7 +225,7 @@ func TestAdaptationMenu(t *testing.T) {
 	}
 	want := []string{"Choose Source…", "Save Source As…", "Keep Source in the Script", "Source Pane", "Source in the Middle", "---",
 		"Next Source Passage", "Previous Source Passage", "Adapt Source Passage…", "Mark Source Passage as Cut", "Go to the Passage's Scene", "---",
-		"Link to Source Passage", "Suggest Links to the Source", "Update Source Links", "Source Headings as Sections", "---", "What Accolade Learned…"}
+		"Link to Source Passage", "Suggest Links to the Source", "Update Source Links", "Source Headings as Sections", "---", "What Accolade Learned…", "Fix Lines Like This…"}
 	if got := labelsOf(m, "Adaptation"); !slices.Equal(got, want) {
 		t.Errorf("Adaptation %q", got)
 	}

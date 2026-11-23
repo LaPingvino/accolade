@@ -91,7 +91,7 @@ Saving or renaming a plain script as .accolade carries them in, with its source.
 File > Open… (in the browser: Open from Your Computer…) also takes these. They open as a new, unsaved script; Save asks where to put the .fountain and leaves the original alone.
 
 - **Final Draft (.fdx)** — the whole script, with scene numbers and colours, notes, revisions, locked pages and breakdown tags. Details in [Coming from Final Draft](final-draft.md#opening-final-draft-files).
-- **PDF of a screenplay** — read back into Fountain by its layout (Lexington's own, Final Draft's, Highland's, Fade In's, Word's). A scanned PDF is read with OCR: Accolade asks what language the pages are in, and uses tesseract if it is installed, else its built-in OCR, which reads English. Check the result: a PDF only shows how a script looked.
+- **PDF of a screenplay** — read back into Fountain by its layout (Lexington's own, Final Draft's, Highland's, Fade In's, Word's). A scanned PDF is read with OCR: Accolade asks what language the pages are in, and uses tesseract if it is installed, else its built-in OCR, which reads English. Check the result: a PDF only shows how a script looked. Lines of a kind it read wrong are set right all at once with Edit > Fix Lines Like This… ([Fixing an Imported Script](fixing-imports.md)).
 - **Beat** — a Fountain file from Beat opens as it is; Beat's breakdown tags in its data block are read into the breakdown.
 
 ## Importing documents
@@ -130,7 +130,7 @@ In the Ribbon look the Preview tab comes forward while pages (or a Markdown docu
 
 ### Clean Fountain
 
-File > Export Clean Fountain… writes a `.fountain` copy for other apps and other people, without Accolade's data: the end blocks (Notes, Source, Adaptation, Production, Characters) and the source links `[[from: …]]` always go. Ticked, more goes too: all notes, all boneyard (an omitted scene's kept text too), scene numbers, OMITTED headings (with the scene kept under each), the title page, and sections and synopses (the writer's outline). The ticks are remembered. Three presets set them: **Clean** (Accolade's data only), **Reading copy** (no notes, no outline) and **Writer's version** (no scene numbers, no OMITTED: the writer's draft without the shooting script's layers).
+File > Export Clean Fountain… writes a `.fountain` copy for other apps and other people, without Accolade's data: the end blocks (Notes, Source, Adaptation, Production, Characters, Fix-Up) and the source links `[[from: …]]` always go. Ticked, more goes too: all notes, all boneyard (an omitted scene's kept text too), scene numbers, OMITTED headings (with the scene kept under each), the title page, and sections and synopses (the writer's outline). The ticks are remembered. Three presets set them: **Clean** (Accolade's data only), **Reading copy** (no notes, no outline) and **Writer's version** (no scene numbers, no OMITTED: the writer's draft without the shooting script's layers).
 
 The rest of the file stays exactly as written. A line that held only what was taken out goes with it, and a line that would read as something else without it gets its force mark, so the copy reads as the script does. A script in another language is written as standard Fountain, as other apps read it. The script itself is never changed; in the browser the copy downloads. On the command line it is Lexington's `-strip` (see [Lexington on the Command Line](lexington.md)).
 

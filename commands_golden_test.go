@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))) // the moves write Linux keys too
+		want := fixLinesMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -842,6 +842,20 @@ func passageMoves(name, golden string) string {
 		return strings.Replace(golden, "Primary+Alt+J = Next Source Passage\n", "Primary+Alt+J = Next Source Passage\nPrimary+Alt+K = Previous Source Passage\n", 1)
 	case strings.HasPrefix(name, "fullscreen-screenplay"):
 		return strings.Replace(golden, "Primary+Alt+J\n", "Primary+Alt+A\nPrimary+Alt+J\nPrimary+Alt+K\n", 1)
+	}
+	return golden
+}
+
+// fixLinesMoves: Fix Lines Like This… (fixup_dialog.go) in Edit after the
+// finding, at the Adaptation menu's end and the editor's context menu's.
+func fixLinesMoves(name, golden string) string {
+	const item = "Fix Lines Like This…\n"
+	switch {
+	case strings.HasPrefix(name, "menu-screenplay"):
+		golden = strings.Replace(golden, "  Find Previous [Primary+Shift+G]\n", "  Find Previous [Primary+Shift+G]\n  "+item, 1)
+		return strings.Replace(golden, "  What Accolade Learned…\n", "  What Accolade Learned…\n  "+item, 1)
+	case strings.HasPrefix(name, "context-screenplay"):
+		return strings.TrimSuffix(golden, "\n") + "\n---\n" + item
 	}
 	return golden
 }

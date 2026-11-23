@@ -315,10 +315,11 @@ Ask Tom about the ending.
 - **Production** holds the scene number lock, the current revision, the page lock and the OMITTED print setting.
 - **Adaptation** holds the passages you cut on purpose and what Accolade learned while you adapted: names, places, skipped links.
 - **Characters** is the character list (View > Characters): a name at the start of a line, its note after a colon, and under it, indented, the fields `age:`, `look:`, `arc:` and `actor:` and more lines of the note. A name alone is a character with nothing written yet. Names keep the case they are written in, so a list of names in small letters works too; a cue matches its entry in any case.
+- **Fix-Up** holds the rules Edit > Fix Lines Like This… applied to an imported script, one a line (`heading: Scene <number> - <text> → <text> #<number>#`), to apply again after a re-import ([Fixing an Imported Script](fixing-imports.md)).
 - **Source** holds the story itself, when you choose Adaptation > Keep Source in the Script. Otherwise the source lives beside the script or in the bundle.
 - **Notes** is the notepad (View > Notes, Ctrl+Shift+K).
 
-Notes always comes last. Accolade puts a new Production, Adaptation or Characters block straight after the script and the Source block just before Notes, and it reads the others in any order. You can read and edit the blocks by hand; lines Accolade does not know are kept.
+Notes always comes last. Accolade puts a new Production, Adaptation, Characters or Fix-Up block straight after the script and the Source block just before Notes, and it reads the others in any order. You can read and edit the blocks by hand; lines Accolade does not know are kept.
 
 Other apps ignore the blocks, but they travel with the file. To hand the script on without them, use File > Export Clean Fountain… (see [File Formats](formats.md#clean-fountain)).
 

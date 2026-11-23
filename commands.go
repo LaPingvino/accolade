@@ -499,6 +499,10 @@ func newRegistry() *registry {
 		&command{id: "edit.findReplace", label: "Find and replace", shownKeys: "F", icon: theme.SearchIcon, run: (*MainWindow).showFindReplace},
 		&command{id: "edit.findNext", label: "Find Next", keys: []fyne.Shortcut{shortcut(fyne.KeyG, 0)}, icon: theme.NavigateNextIcon, run: (*MainWindow).findNext},
 		&command{id: "edit.findPrevious", label: "Find Previous", keys: []fyne.Shortcut{shortcut(fyne.KeyG, fyne.KeyModifierShift)}, icon: theme.NavigateBackIcon, run: (*MainWindow).findPrevious},
+		// the pattern fixer: an imported script's lines set right at once (fixup.go)
+		&command{id: "edit.fixLines", label: "Fix Lines Like This…", ribbonLabel: "Fix Lines",
+			tip: "Every line like the cursor's made a heading, a cue, a transition…, or dropped: previewed, one undo step",
+			icon: theme.SearchReplaceIcon, when: scriptEditing, run: (*MainWindow).showPatternFixer},
 		&command{id: "edit.cut", label: "Cut", shownKeys: "X", icon: theme.ContentCutIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCut{Clipboard: c} })},
 		&command{id: "edit.copy", label: "Copy", shownKeys: "C", icon: theme.ContentCopyIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCopy{Clipboard: c} })},
 		&command{id: "edit.paste", label: "Paste", shownKeys: "V", icon: theme.ContentPasteIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutPaste{Clipboard: c} })},
@@ -750,6 +754,7 @@ func newRegistry() *registry {
 			at("edit.undo"), at("edit.redo"),
 			sep(), at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll"),
 			sep(), at("edit.find"), at("edit.replace"), at("edit.findNext"), at("edit.findPrevious"),
+			at("edit.fixLines"),
 			sep(), at("format.lineUp"), at("format.lineDown"),
 			// the script's own: its title page and its language
 			sep(), at("file.titlePage"), at("format.language"),
@@ -767,7 +772,7 @@ func newRegistry() *registry {
 			at("source.choose"), at("source.saveAs"), at("source.keepInside"), as("view.source", "Source Pane"), at("source.middle"),
 			sep(), at("source.next"), at("source.previous"), at("source.adapt"), at("source.cut"), at("source.goScene"),
 			sep(), at("source.link"), at("source.suggest"), at("source.update"), at("source.sections"),
-			sep(), at("source.learned"),
+			sep(), at("source.learned"), at("edit.fixLines"),
 		}},
 		{title: "Production", when: screenplayOnly, role: productionRole, homes: []home{
 			at("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
@@ -813,6 +818,7 @@ func newRegistry() *registry {
 	r.context = []home{
 		madeFor(productionRole, (*MainWindow).tagAsLastItems), at("production.tag"), madeFor(productionRole, (*MainWindow).untagHereItems),
 		sep(), at("edit.cut"), at("edit.copy"), at("edit.paste"),
+		sep(), at("edit.fixLines"),
 	}
 	for id, short := range ribbonLabels {
 		cmd := r.byID[id]
@@ -1077,6 +1083,8 @@ func ribbonLayout() []ribbonTab {
 			// small ones named by what differs
 			{title: "Find", homes: []home{big("edit.find"), at("edit.findNext"), at("edit.findPrevious"), at("edit.replace")}},
 			{title: "Lines", homes: []home{at("format.lineUp"), at("format.lineDown")}},
+			// an imported script's lines set right, many at once (fixup.go)
+			{title: "Fix-Up", homes: []home{big("edit.fixLines")}},
 			{title: "Script", mdTitle: "Document", homes: []home{at("file.titlePage"), at("format.language")}},
 			// the editor's keys (standard, vim, helix), beside the rest of the preferences
 			{title: "Settings", homes: []home{at("set.editorKeys"), at("app.preferences")}},
