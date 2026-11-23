@@ -9,6 +9,7 @@ package tooltip
 
 import (
 	"image/color"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,7 +39,8 @@ var afterFunc = func(d time.Duration, f func()) *time.Timer {
 type Layer struct {
 	widget.BaseWidget
 	bg   *canvas.Rectangle
-	text *canvas.Text
+	text *canvas.Text   // the tip's first line
+	more []*canvas.Text // its other lines: a tip with \n, or wrapped to the window's width
 
 	mu    sync.Mutex // guards the fields below
 	shown bool
@@ -94,20 +96,43 @@ func (l *Layer) ShowTipUnder(tip string, obj fyne.CanvasObject, in fyne.Position
 	th := l.Theme()
 	v := fyne.CurrentApp().Settings().ThemeVariant()
 	pad := th.Size(theme.SizeNameInnerPadding) / 2
-	l.text.Text = tip
-	l.text.TextSize = th.Size(theme.SizeNameCaptionText)
-	// dark on light themes and light on dark ones, like most desktops' tips
-	l.text.Color = th.Color(theme.ColorNameBackground, v)
+	size := th.Size(theme.SizeNameCaptionText)
+	lines := wrapLines(tip, l.Size().Width-4*pad, size)
+	for len(l.more) < len(lines)-1 {
+		l.more = append(l.more, canvas.NewText("", color.Transparent))
+	}
+	texts := append([]*canvas.Text{l.text}, l.more...)
+	box := fyne.NewSize(0, 0)
+	for i, t := range texts {
+		if i >= len(lines) {
+			t.Hide()
+			continue
+		}
+		t.Text = lines[i]
+		t.TextSize = size
+		// dark on light themes and light on dark ones, like most desktops' tips
+		t.Color = th.Color(theme.ColorNameBackground, v)
+		m := t.MinSize()
+		box.Width = max(box.Width, m.Width)
+		box.Height += m.Height
+	}
 	l.bg.FillColor = th.Color(theme.ColorNameForeground, v)
 	l.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
 
-	size := l.text.MinSize().Add(fyne.NewSize(2*pad, 2*pad))
-	pos := fyne.NewPos(at.X+(area.Width-size.Width)/2, at.Y+area.Height+2)
-	pos.X = max(0, min(pos.X, l.Size().Width-size.Width))
+	box = box.Add(fyne.NewSize(2*pad, 2*pad))
+	pos := fyne.NewPos(at.X+(area.Width-box.Width)/2, at.Y+area.Height+2)
+	pos.X = max(0, min(pos.X, l.Size().Width-box.Width))
 	l.bg.Move(pos)
-	l.bg.Resize(size)
-	l.text.Move(pos.Add(fyne.NewPos(pad, pad)))
-	l.text.Resize(l.text.MinSize())
+	l.bg.Resize(box)
+	y := pos.Y + pad
+	for i, t := range texts[:len(lines)] {
+		t.Move(fyne.NewPos(pos.X+pad, y))
+		t.Resize(t.MinSize())
+		y += t.MinSize().Height
+		if i > 0 {
+			t.Show()
+		}
+	}
 	l.shown, l.tip, l.pos = true, tip, pos
 	l.bg.Show()
 	l.text.Show()
@@ -121,6 +146,9 @@ func (l *Layer) HideTip() {
 	l.shown = false
 	l.bg.Hide()
 	l.text.Hide()
+	for _, t := range l.more {
+		t.Hide()
+	}
 	l.Refresh()
 }
 
@@ -129,13 +157,48 @@ type layerRenderer struct {
 	objects []fyne.CanvasObject
 }
 
-func (r *layerRenderer) Layout(fyne.Size)             {}
-func (r *layerRenderer) MinSize() fyne.Size           { return fyne.NewSize(0, 0) }
-func (r *layerRenderer) Objects() []fyne.CanvasObject { return r.objects }
-func (r *layerRenderer) Destroy()                     {}
+func (r *layerRenderer) Layout(fyne.Size)   {}
+func (r *layerRenderer) MinSize() fyne.Size { return fyne.NewSize(0, 0) }
+func (r *layerRenderer) Objects() []fyne.CanvasObject {
+	if len(r.objects) != 2+len(r.l.more) {
+		r.objects = r.objects[:2]
+		for _, t := range r.l.more {
+			r.objects = append(r.objects, t)
+		}
+	}
+	return r.objects
+}
+func (r *layerRenderer) Destroy() {}
 func (r *layerRenderer) Refresh() {
 	r.l.bg.Refresh()
 	r.l.text.Refresh()
+	for _, t := range r.l.more {
+		t.Refresh()
+	}
+}
+
+// wrapLines is a tip's lines: its own, each broken between words to fit
+// width (no breaking for a width of 0 or less, before a layer is laid out).
+func wrapLines(tip string, width, size float32) []string {
+	var out []string
+	for _, line := range strings.Split(tip, "\n") {
+		if width <= 0 || fyne.MeasureText(line, size, fyne.TextStyle{}).Width <= width {
+			out = append(out, line)
+			continue
+		}
+		cur := ""
+		for _, w := range strings.Fields(line) {
+			next := strings.TrimSpace(cur + " " + w)
+			if cur != "" && fyne.MeasureText(next, size, fyne.TextStyle{}).Width > width {
+				out = append(out, cur)
+				cur = w
+				continue
+			}
+			cur = next
+		}
+		out = append(out, cur)
+	}
+	return out
 }
 
 // Hover shows a widget's tip on a Layer: after Delay once the pointer

@@ -56,6 +56,16 @@ Each writes plain Markdown on the selection or the cursor's lines; again takes i
 
 More: [Adapting a Story](adapting.md).
 
+## Citations
+
+Pandoc's citations, as Zettlr writes them: `[@doe99]`, `[@doe99, p. 12]`, `[see @doe99; @roe01, ch. 2]`, `[-@doe99]` (the author left out), and `@doe99` in the text (`@doe99 [p. 12]`). An address like `me@example.org` is no citation; `@{a key, with spaces}` is one.
+
+- **The library** — the front matter's `bibliography: refs.bib` (the first, if it lists more), else a `.bib` or CSL-JSON `.json` in the bundle's `assets/` or beside the document (the document's own name first: `essay.json`, `essay.bib`), else **Preferences > Editor > Citations: Main library**. CSL-JSON (Zotero's Better BibTeX: *Better CSL JSON*, kept updated) or BibTeX/BibLaTeX. A file exported again is read again; one caught half-written keeps the library read before.
+- **@** — typing a key lists the library's entries (key, author, year, title): ↑↓ choose, Tab or Enter puts the key in, Esc closes; a tap on a phone. Keys, authors and titles match, without accents.
+- **The pointer over a citation** shows its entry (a tap on a phone); a key the library lacks says so.
+- **View > References** — what the document cites, in order, and the front matter's `nocite:`; a tap goes to the first citation.
+- **Export with pandoc** (EPUB, Word, ODT, LaTeX…) — cites with `--citeproc` and the library, in the front matter's `csl:` style (a `.csl` file beside the document or in its bundle, or one Pandoc knows), Chicago author-date without one. Accolade's own PDF, Word and ODT and the preview show citations as written.
+
 ## Pictures
 
 `![alt text](assets/harbour.png "Caption")` — a path beside the document or in its bundle's `assets/` (a name not found is looked for in `assets/` too), or a `data:` URI. PNG, JPEG, GIF and WebP show; an SVG shows as its alt text for now. A picture on the web is never fetched — not in the preview, not in an export: its alt text and link stand in its place.

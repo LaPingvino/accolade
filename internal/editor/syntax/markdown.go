@@ -179,6 +179,7 @@ const (
 	Emphasis                       // *italic*
 	CodeSpan                       // `code`
 	Link                           // [text](url), <https://...>
+	Cite                           // [@key, p. 1], @key (cite.go)
 )
 
 // Span is an emphasised stretch of a line, in runes [Start, End), its
@@ -208,6 +209,7 @@ func MarkdownInline(line string) []Span {
 		return -1
 	}
 	wordAt := func(i int) bool { return i >= 0 && i < len(r) && (unicode.IsLetter(r[i]) || unicode.IsDigit(r[i])) }
+	at := strings.ContainsRune(line, '@') // citations are looked for only then
 	for i := 0; i < len(r); i++ {
 		switch c := r[i]; {
 		case c == '\\':
@@ -229,7 +231,25 @@ func MarkdownInline(line string) []Span {
 				if j := closing(end+2, ")"); j >= 0 {
 					spans = append(spans, Span{i, j + 1, Link})
 					i = j
+					continue
 				}
+			}
+			if at && (i+1 < len(r) && r[i+1] == '^' || i > 0 && r[i-1] == ']') { // a note's mark [^label], a reference link's [label]
+				if j := closeBracket(r, i); j > 0 {
+					i = j
+				}
+				continue
+			}
+			if at {
+				if c, ok := citationAt(r, i, false); ok {
+					spans = append(spans, Span{c.Start, c.End, Cite})
+					i = c.End - 1
+				}
+			}
+		case c == '@' && at:
+			if ct, ok := citationAt(r, i, false); ok {
+				spans = append(spans, Span{ct.Start, ct.End, Cite})
+				i = ct.End - 1
 			}
 		case c == '<' && strings.HasPrefix(string(r[i+1:]), "http"):
 			if j := closing(i+1, ">"); j >= 0 && !strings.ContainsRune(string(r[i:j]), ' ') {

@@ -302,6 +302,9 @@ func (w *MainWindow) noteHover(offset int, at fyne.Position, cell fyne.Size) {
 	tip := ""
 	if offset >= 0 {
 		tip = noteTip(w.textEditor.Text(), offset)
+		if tip == "" {
+			tip = w.citeTipAt(w.textEditor.Text(), offset) // a citation's entry (citations.go)
+		}
 	}
 	if tip == w.noteTipShown {
 		return

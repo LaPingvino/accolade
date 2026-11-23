@@ -84,6 +84,11 @@ type MainWindow struct {
 	exPrompt func(string) // the line is a prompt's (helix s), not a command
 	exVisual [2]int
 	exPop    *exPop // the ':' line's completion list (ex_window.go)
+	// cites is a Markdown document's library, citePop the @ list over the
+	// editor (citations.go, cite_complete.go)
+	cites      *citeState
+	citePop    *citePop
+	references *referencesPanel // View > References (references_pane.go)
 	// the middle tabs: the script, the cards' full view, the panes put
 	// there (middle.go)
 	mid middle
@@ -1365,6 +1370,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	}
 
 	w.followText(text) // the preview's pages (pagefollow.go)
+	w.citeFollow(true) // the @ list (cite_complete.go)
 	w.ribbonFollow()   // a lock or a source block changes what it can give
 	w.scheduleAutoSave()
 }
@@ -1474,6 +1480,8 @@ func (w *MainWindow) onCursorChanged() {
 	// what Tab would complete or take from the source, or nothing once
 	// it no longer applies
 	w.showSuggestionHint()
+	w.citeFollow(false) // the @ list goes with the cursor (cite_complete.go)
+	w.citeTipAtCursor() // a phone's tap on a citation: its entry
 }
 
 func (w *MainWindow) updateCurrentElement() {
@@ -1626,7 +1634,7 @@ func systemOpen(path string) {
 
 // setContent shows content in the window, with the tooltip layer over it.
 func (w *MainWindow) setContent(content fyne.CanvasObject) {
-	w.fyneWindow.SetContent(container.New(&windowLayout{w: w}, content, w.exPopup().layer, w.tooltips))
+	w.fyneWindow.SetContent(container.New(&windowLayout{w: w}, content, w.exPopup().layer, w.citePopup().layer, w.tooltips))
 }
 
 // relayout puts the window together: the toolbar and the status bar,

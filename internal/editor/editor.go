@@ -1202,7 +1202,7 @@ func kindStyle(k syntax.Kind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGri
 }
 
 // inlineStyle is a line's style with Markdown's emphasis on it: bold,
-// italic, code dimmed, links in the accent colour.
+// italic, code dimmed, links in the accent colour, citations in green.
 func inlineStyle(line widget.TextGridStyle, k syntax.InlineKind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGridStyle {
 	out := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNameForeground, v)}
 	if line != nil {
@@ -1217,6 +1217,8 @@ func inlineStyle(line widget.TextGridStyle, k syntax.InlineKind, th fyne.Theme, 
 		out.FGColor = mix(th.Color(theme.ColorNameForeground, v), th.Color(theme.ColorNameBackground, v), 0.45)
 	case syntax.Link:
 		out.FGColor = th.Color(theme.ColorNamePrimary, v)
+	case syntax.Cite: // the theme's green, towards the text's colour to be read as text
+		out.FGColor = mix(th.Color(theme.ColorNameSuccess, v), th.Color(theme.ColorNameForeground, v), 0.35)
 	}
 	return out
 }
@@ -1568,6 +1570,9 @@ func (e *ScriptEditor) wordAt(off int) (start, end int) {
 	}
 	return start, end
 }
+
+// CellSize is the size of a character's cell (the cursor's).
+func (e *ScriptEditor) CellSize() fyne.Size { return fyne.NewSize(e.cellWidth(), e.cellHeight()) }
 
 // CursorPosition is where the cursor cell is drawn, relative to the editor.
 func (e *ScriptEditor) CursorPosition() fyne.Position {

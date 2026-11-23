@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))) // the moves write Linux keys too
+		want := referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -979,6 +979,15 @@ func linkUpMoves(name, golden string) string {
 		return strings.Replace(golden, "Primary+Alt+J = Next Source Passage\n", "Primary+Alt+G = Link Guess for This Scene…\nPrimary+Alt+J = Next Source Passage\n", 1)
 	case strings.HasPrefix(name, "fullscreen-screenplay"):
 		return strings.Replace(golden, "Primary+Alt+J\n", "Primary+Alt+G\nPrimary+Alt+J\n", 1)
+	}
+	return golden
+}
+
+// referencesMoves: View > References, a Markdown document's pane, before
+// Help (references_pane.go).
+func referencesMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-markdown") {
+		return strings.Replace(golden, "  Help\n  Changes [Primary+Shift+H]\n", "  References\n  Help\n  Changes [Primary+Shift+H]\n", 1)
 	}
 	return golden
 }

@@ -152,8 +152,11 @@ func exportMarkdownWith(text, title, out, id string, p mdPageSetup, titlePage []
 	if err := os.WriteFile(src, []byte(body), 0o644); err != nil {
 		return err
 	}
+	if err := pandocFiles(dir, p.cite); err != nil { // the library it cites from (citations.go)
+		return err
+	}
 	return writeViaTemp(out, func(tmp string) error {
-		return runPandoc("-f", "gfm", "-t", f.pandoc, "--standalone", "--metadata", "title="+title, "-o", tmp, src)
+		return runPandoc(pandocArgs(f.pandoc, title, src, tmp, dir, p.cite)...)
 	})
 }
 
@@ -335,7 +338,20 @@ func (ed *markdownExportDialog) run() {
 		titlePage := page.titlePageOf(text, ed.w.scriptName())
 		ed.export.Disable()
 		ed.status.SetText("Exporting...")
-		inBackground(func() error { return exportMarkdownWith(text, title, out, f.id, page, titlePage) }, func(err error) {
+		var cites citeInputs
+		if f.pandoc != "" {
+			cites = ed.w.citeInputsFor(text) // where the library may be: read in the background
+		}
+		inBackground(func() error {
+			if f.pandoc != "" {
+				c, err := citeExportFor(text, cites)
+				if err != nil {
+					return err
+				}
+				page.cite = c
+			}
+			return exportMarkdownWith(text, title, out, f.id, page, titlePage)
+		}, func(err error) {
 			ed.export.Enable()
 			if err != nil {
 				ed.status.SetText("Export failed")

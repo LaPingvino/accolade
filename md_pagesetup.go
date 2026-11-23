@@ -41,6 +41,7 @@ type mdPageSetup struct {
 	notesPerChapter bool
 	altCaptions     bool           // a picture without a title has its alt text as caption
 	pics            *images.Loader // the document's pictures (not a setting: the window's)
+	cite            citeExport     // Pandoc's export: the library and style it cites with (citations.go)
 }
 
 // mdNotesPlaces are the notes' places as kept, in prose.NotesPlace's

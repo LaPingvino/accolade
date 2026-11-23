@@ -56,6 +56,7 @@ func (s *Settings) loadDefaults() {
 		"script-format":          "default", // a Lexington preset (script_format.go)
 		"script-language":        "en",      // of new scripts: their scene headings (language.go)
 		"export-directory":       "",
+		citeLibraryPref:          "", // a Markdown document's library when it names none (citations.go)
 		"include-title-page":     true,
 		"export-colors":          false,  // headings in their notes' colors
 		"export-color-style":     "line", // and how (export_dialog.go's colorStyles)

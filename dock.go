@@ -132,6 +132,13 @@ func dockPanes() []*dockPane {
 			box:   func(w *MainWindow) fyne.CanvasObject { return w.productionPane().box },
 			focus: func(w *MainWindow) fyne.Focusable { return w.productionPane().focusTarget() },
 			shown: func(w *MainWindow) { w.productionPane().refresh() }},
+		// what a Markdown document cites (references_pane.go)
+		{id: "references", slot: dockBottom, width: 240,
+			cmd:    &command{label: "References", tip: "References: what the document cites, from its library", icon: theme.DocumentIcon, when: markdownOnly},
+			box:    func(w *MainWindow) fyne.CanvasObject { return w.referencesPane().box },
+			focus:  func(w *MainWindow) fyne.Focusable { return w.referencesPane().list },
+			shown:  func(w *MainWindow) { w.referencesPane().refresh() },
+			edited: func(w *MainWindow, _ string) { w.referencesPane().edited() }},
 		{id: "help", slot: dockBottom, width: 280, focusOnShow: true,
 			cmd:   &command{label: "Help", tip: "Help: the pages, cheat sheets and a search", icon: theme.HelpIcon},
 			box:   func(w *MainWindow) fyne.CanvasObject { return w.helpPane().box },

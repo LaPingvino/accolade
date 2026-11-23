@@ -263,6 +263,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:characters** — View > Characters
 - **:cards** — View > Cards (screenplay)
 - **:production** — View > Production (screenplay; working as Production)
+- **:references** — View > References (Markdown)
 - **:help-pane** — View > Help
 - **:changes** — View > Changes
 - **:side-panes** — View > Side Panes

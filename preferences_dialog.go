@@ -58,6 +58,7 @@ type PreferencesDialog struct {
 	removeFormatButton  *widget.Button
 	exportFormatSelect  *widget.Select
 	exportDirEntry      *widget.Entry
+	libraryEntry        *widget.Entry // the main library for citations (citations.go)
 	yourNameEntry       *widget.Entry
 	pageSummary         *widget.Label // the page setup (Page Setup… sets it: pagesetup.go)
 	sceneLettersSelect  *widget.Select
@@ -132,6 +133,8 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.yourNameEntry.SetPlaceHolder(os.Getenv("USER"))
 	pd.exportDirEntry = widget.NewEntry()
 	pd.exportDirEntry.SetPlaceHolder("Choose export directory...")
+	pd.libraryEntry = widget.NewEntry()
+	pd.libraryEntry.SetPlaceHolder("~/Zotero/library.json")
 	pd.pageSummary = widget.NewLabel("")
 	pd.pageSummary.Wrapping = fyne.TextWrapWord
 	pd.sceneLettersSelect = widget.NewSelect(sceneLetterings, nil)
@@ -238,7 +241,24 @@ func (pd *PreferencesDialog) createEditorTab() fyne.CanvasObject {
 			pd.autoCloseBracketsCheck,
 			labelled("Keys (vim, helix: Escape for normal mode):", pd.keysSelect),
 		)),
+		pd.citationsCard(),
 	)
+}
+
+// citationsCard is the main library a Markdown document cites from when
+// it names none (citations.go); none in the browser, whose files have no
+// path to keep.
+func (pd *PreferencesDialog) citationsCard() fyne.CanvasObject {
+	card := widget.NewCard("Citations", "Markdown: [@key] and @key cite from a library", container.NewVBox(
+		labelledWith("Main library:", pd.libraryEntry, widget.NewButton("Choose File…", func() {
+			chooseFileIn(pd.host, []string{".json", ".bib"}, func(p string) { pd.libraryEntry.SetText(p) })
+		})),
+		hint("CSL-JSON (Zotero's Better BibTeX: Better CSL JSON, kept up to date) or BibTeX/BibLaTeX. A document's front matter (bibliography: refs.bib) comes first, then a .bib or .json beside the document or in its bundle, then this. A re-exported file is read again."),
+	))
+	if inBrowser {
+		card.Hide()
+	}
+	return card
 }
 
 func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
@@ -321,6 +341,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.languageSelect.SetSelected(s.GetString("script-language"))
 	pd.exportFormatSelect.SetSelected(exportFormatLabel(s.GetString("export-format")))
 	pd.exportDirEntry.SetText(s.GetString("export-directory"))
+	pd.libraryEntry.SetText(s.GetString(citeLibraryPref))
 	pd.yourNameEntry.SetText(s.GetString("your-name"))
 	pd.showPageSetup()
 	pd.suggestCheck.SetChecked(s.GetBoolean(suggestPref))
@@ -382,6 +403,7 @@ func (pd *PreferencesDialog) saveSettings() {
 	}
 	s.SetString("export-format", exportFormatLabel(pd.exportFormatSelect.Selected))
 	s.SetString("export-directory", pd.exportDirEntry.Text)
+	s.SetString(citeLibraryPref, strings.TrimSpace(pd.libraryEntry.Text))
 	s.SetString("your-name", strings.TrimSpace(pd.yourNameEntry.Text))
 	s.SetBoolean(suggestPref, pd.suggestCheck.Checked)
 	s.SetString(sceneNumberStylePref, letteringStyle(pd.sceneLettersSelect.Selected).String())

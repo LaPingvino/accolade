@@ -112,6 +112,9 @@ func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 		if script && k.Name == fyne.KeyEscape && w != nil && w.suggest != nil && w.suggest.dismiss() && !vi.active() {
 			return true
 		}
+		if script && w != nil && w.citeKey(k) { // the @ list's keys while it is open (cite_complete.go)
+			return true
+		}
 		return vi.key(k)
 	}
 	e.OnShortcut = func(s fyne.Shortcut) bool {

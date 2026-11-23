@@ -85,3 +85,35 @@ func TestTipOnFocus(t *testing.T) {
 		t.Error("unfocused: the tip stays")
 	}
 }
+
+// A tip's lines are its own, each wrapped to the window's width; they go
+// with the tip.
+func TestTipLines(t *testing.T) {
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	layer := NewLayer()
+	box := container.NewVBox()
+	w := test.NewWindow(container.NewStack(box, layer))
+	t.Cleanup(w.Close)
+	w.Resize(fyne.NewSize(200, 300))
+	layer.ShowTipUnder("Kurt Gödel (1931)\nÜber formal unentscheidbare Sätze der Principia Mathematica und verwandter Systeme", box, fyne.NewPos(0, 0), fyne.NewSize(8, 16))
+	shown := 0
+	for _, o := range layer.CreateRenderer().Objects()[1:] {
+		if txt := o.(interface{ Visible() bool }); txt.Visible() {
+			shown++
+		}
+	}
+	if len(layer.more) < 2 || shown < 3 {
+		t.Errorf("%d lines shown (%d made), want the title wrapped", shown, 1+len(layer.more))
+	}
+	if layer.bg.Size().Width > 200 {
+		t.Errorf("the tip is %v wide in a 200 window", layer.bg.Size())
+	}
+	layer.ShowTipUnder("One line", box, fyne.NewPos(0, 0), fyne.NewSize(8, 16))
+	for _, m := range layer.more {
+		if m.Visible() {
+			t.Error("a line of the tip before is still shown")
+		}
+	}
+	layer.HideTip()
+}
