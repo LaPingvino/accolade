@@ -1516,3 +1516,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   numbers and an English name inside a Hebrew line (bidi), Hebrew scene words (פנים/חוץ, יום/לילה …) from Lexington's
   config (add a [Languages.he] if it lacks one, tagged), rtl. Screenshots: editor, page view and the exported PDF
   page (rendered), so Joop can open it and print it.
+- 2026-11-23 (pattern fixer merged): Three Comrades did not improve because its PDF carries the scanner's own poor
+  text layer, so Accolade never offers OCR. Add a text-layer quality check on import (share of dictionary/real words,
+  odd character runs, words broken by stray spaces): below a bar, offer "This PDF's text looks garbled — read it with
+  OCR instead?" (the existing ocr_ask.go flow), never automatically.
