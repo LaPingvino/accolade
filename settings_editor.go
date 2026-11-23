@@ -447,6 +447,8 @@ func (e *tomlEditor) languageField(lang string, f rules.Field) fyne.CanvasObject
 			}
 			e.langDo(lang, true, set(m, path...))
 		}, reset)
+	case "TitleCentred": // the keys centred under the title (the rest: the foot), in order
+		return list(now.TitleCentred, def.Centred(), "Title")
 	}
 	return widget.NewLabel("")
 }

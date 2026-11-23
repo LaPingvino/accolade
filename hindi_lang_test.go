@@ -232,3 +232,33 @@ func TestLanguageVariantsHidden(t *testing.T) {
 		t.Errorf("selectOption: %q in %v", sel2.Selected, sel2.Options)
 	}
 }
+
+// devaMarkdown is a Hindi Markdown document: a heading, emphasis, a list.
+const devaMarkdown = "# हिन्दी में कहानी\n\nक्षत्रिय किसान ने **धर्म** और *श्रद्धा* से ज्ञान पाया। कृष्ण की ट्रेन आई, र्‍य भी।\n\n" +
+	"* पहला शर्मा\n* दूसरा हिन्दी\n"
+
+// Markdown in Devanagari: its PDF (Accolade's own, internal/prose) shaped,
+// no browser needed, and the Live Preview's Pages show the same glyphs.
+func TestDevanagariMarkdownScreenshots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if m := markdownPDFMissing(devaMarkdown, nil); m != "" {
+		t.Errorf("Accolade's PDF cannot print it: %q", m)
+	}
+	w, _, _ := mdPagesOf(t, devaMarkdown, fyne.NewSize(1200, 800))
+	uiSleep(300 * time.Millisecond)
+	w.fyneWindow.Content().Refresh()
+	f, err := os.Create(filepath.Join(dir, "hi-deva-md-pages.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, w.fyneWindow.Canvas().Capture()); err != nil {
+		t.Fatal(err)
+	}
+}

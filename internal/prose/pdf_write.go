@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	lexfont "github.com/LaPingvino/lexington/font"
 	"github.com/LaPingvino/lexington/pdf"
@@ -43,6 +44,11 @@ import (
 // title under it as a caption; one in a line of text as high as the
 // line. One that cannot be read (missing, on the web — never fetched —,
 // an SVG) is a quiet placeholder: its alt text and where it is.
+//
+// Devanagari is shaped as Lexington's screenplay PDF shapes it
+// (pdf.Shaper: conjuncts, the i-matra, reph, marks on their letters; the
+// text read back as written), a run in one face, a long word broken
+// between clusters.
 //
 // Not yet: text read right to left (Hebrew, Arabic: their order on the
 // line), scripts no font here has (CJK…). PDFMissing says what a
@@ -214,11 +220,12 @@ type pdfWriter struct {
 	foot      []footLine // the notes at this page's foot so far
 	carry     []footLine // the rest of a note too long for its page's foot
 	collect   *[]footLine
-	collected *[]*note        // the notes a note being laid out refers to
-	gapNext   float64         // the gap before the next line laid out for a note
-	decor     []func(float64) // drawn with the next line (a list item's mark)
-	finished  bool            // the text is all laid out: only notes are left
-	pics      map[string]*pic // the pictures read, by their Image
+	collected *[]*note               // the notes a note being laid out refers to
+	gapNext   float64                // the gap before the next line laid out for a note
+	decor     []func(float64)        // drawn with the next line (a list item's mark)
+	finished  bool                   // the text is all laid out: only notes are left
+	pics      map[string]*pic        // the pictures read, by their Image
+	shapers   map[string]*pdf.Shaper // the faces' shapers, by face and style (made when first needed)
 }
 
 // pic is a picture in the PDF: its name there and its size in pixels, or
@@ -814,26 +821,71 @@ func (p *pdfWriter) face(r rune, st style) string {
 	return other
 }
 
-// runs is a word in runs of one face each.
+// runs is a word in runs of one face each. A Devanagari run (its
+// letters, signs, joiners and marks) is shaped whole, so it is in one
+// face, its first letter's: the text face has the joiners, not the
+// letters, and क्‍ष split there would print unjoined.
 func (p *pdfWriter) runs(word string, st style) []piece {
 	var out []piece
-	for _, r := range word {
-		f := p.face(r, st)
-		if n := len(out); n > 0 && out[n-1].face == f {
-			out[n-1].text += string(r)
-			continue
+	rs := []rune(word)
+	for i := 0; i < len(rs); {
+		j := i + 1
+		if pdf.DevanagariRune(rs[i]) {
+			j = max(pdf.DevanagariRunEnd(rs, i), j)
 		}
-		out = append(out, piece{text: string(r), face: f, st: st})
+		f := p.face(p.letter(rs[i:j]), st)
+		if n := len(out); n > 0 && out[n-1].face == f {
+			out[n-1].text += string(rs[i:j])
+		} else {
+			out = append(out, piece{text: string(rs[i:j]), face: f, st: st})
+		}
+		i = j
 	}
 	return out
+}
+
+// letter is the character whose face a Devanagari run (or a single
+// character) prints in: its first that is not a joiner.
+func (p *pdfWriter) letter(run []rune) rune {
+	for _, r := range run {
+		if r != 0x200C && r != 0x200D {
+			return r
+		}
+	}
+	return run[0]
+}
+
+// shaper is the shaper of a face in a style: the file given to AddFont.
+func (p *pdfWriter) shaper(face string, st style) *pdf.Shaper {
+	key := face + st.fontStyle()
+	if s, ok := p.shapers[key]; ok {
+		return s
+	}
+	var data []byte
+	switch face {
+	case faceMono:
+		data = lexfont.GetFont(lexfont.CourierBadiName, st.fontStyle())
+	default:
+		data = map[string][]byte{"": p.f.Regular, "B": p.f.Bold, "I": p.f.Italic, "BI": p.f.BoldItalic}[st.fontStyle()]
+	}
+	if p.shapers == nil {
+		p.shapers = map[string]*pdf.Shaper{}
+	}
+	s := pdf.ShaperOf(data)
+	p.shapers[key] = s
+	return s
 }
 
 func (p *pdfWriter) setFont(face string, st style) {
 	p.d.SetFont(face, st.fontStyle(), st.size)
 }
 
+// width is a piece's width as draw prints it: its Devanagari shaped.
 func (p *pdfWriter) width(pc piece) float64 {
 	p.setFont(pc.face, pc.st)
+	if pdf.HasDevanagari(pc.text) {
+		return p.shaper(pc.face, pc.st).Width(p.d, pc.text)
+	}
 	return p.d.GetStringWidth(pc.text)
 }
 
@@ -885,7 +937,10 @@ func (p *pdfWriter) hangingLines(ps []piece, first, rest float64) [][]piece {
 			end()
 			continue
 		}
-		// a word longer than the line: as much of it as fits
+		// a word longer than the line: as much of it as fits, broken
+		// between clusters (a conjunct, a letter and its marks are one),
+		// each part measured whole (shaped, its clusters' widths add up
+		// to no more than it)
 		for k := i; k < j; k++ {
 			pc := ps[k]
 			if pc.pic != nil {
@@ -896,19 +951,26 @@ func (p *pdfWriter) hangingLines(ps []piece, first, rest float64) [][]piece {
 				w += pc.w
 				continue
 			}
-			for _, r := range pc.text {
+			for _, cluster := range clusters(pc.text) {
 				c := pc
-				c.text = string(r)
+				c.text = cluster
 				c.w = p.width(c)
+				n := len(line)
+				joins := n > 0 && line[n-1].face == c.face && line[n-1].st == c.st && line[n-1].note == c.note && !line[n-1].space
+				if joins {
+					merged := line[n-1]
+					merged.text += c.text
+					merged.w = p.width(merged)
+					if w-line[n-1].w+merged.w <= width {
+						w += merged.w - line[n-1].w
+						line[n-1] = merged
+						continue
+					}
+				}
 				if w+c.w > width && len(line) > 0 {
 					end()
 				}
-				if n := len(line); n > 0 && line[n-1].face == c.face && line[n-1].st == c.st && line[n-1].note == c.note && !line[n-1].space {
-					line[n-1].text += c.text
-					line[n-1].w += c.w
-				} else {
-					line = append(line, c)
-				}
+				line = append(line, c)
 				w += c.w
 			}
 		}
@@ -918,6 +980,23 @@ func (p *pdfWriter) hangingLines(ps []piece, first, rest float64) [][]piece {
 		end()
 	}
 	return lines
+}
+
+// clusters are text's clusters: a character with the marks and joiners
+// on it, a Devanagari conjunct (pdf.JoinsBefore), where a word too long
+// for its line may break.
+func clusters(text string) []string {
+	var out []string
+	var prev rune
+	for i, r := range text {
+		if len(out) > 0 && pdf.JoinsBefore(prev, r) {
+			out[len(out)-1] += text[i : i+utf8.RuneLen(r)]
+		} else {
+			out = append(out, string(r))
+		}
+		prev = r
+	}
+	return out
 }
 
 // paragraph prints spans from left to right where the text has got to,
@@ -1023,7 +1102,11 @@ func (p *pdfWriter) draw(pc piece, x, y, lh float64) {
 	p.setFont(pc.face, pc.st)
 	d.SetTextColor(pc.st.color[0], pc.st.color[1], pc.st.color[2])
 	d.SetXY(x, y-pc.st.rise)
-	d.CellFormat(pc.w, lh, pc.text, "", 0, "L", false, 0, "")
+	if pdf.HasDevanagari(pc.text) { // shaped, its text read back as written
+		p.shaper(pc.face, pc.st).Cell(d, pc.face, pc.st.fontStyle(), pc.st.size, pc.w, lh, pc.text, "L")
+	} else {
+		d.CellFormat(pc.w, lh, pc.text, "", 0, "L", false, 0, "")
+	}
 	base := y + lh/2 + 0.3*pc.st.size // gofpdf's baseline in a cell
 	if pc.st.href != "" || pc.st.strike {
 		d.SetFillColor(pc.st.color[0], pc.st.color[1], pc.st.color[2])
