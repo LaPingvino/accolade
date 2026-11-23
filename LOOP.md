@@ -1319,3 +1319,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   which pattern fits, the writer able to correct a label once for the whole document ("these are cues"). Benchmark:
   period scripts in public-domain or freely available form (1930s–40s studio shooting scripts with numbered shots;
   stage plays), Renata's locally; for each, labelled lines right/wrong.
+  2026-11-23: the full Hope Talks chain is on this machine for local measurement only (copyrighted; never commit,
+  upload or quote): the Spanish book (López Luna, 2017 digital edition, text PDF, ~37k words, running header on every
+  page) and the 2026 final Fountain in /tmp/claude-1000/hopetalks/ (RAM disk: copy to ~/drive or ask Joop again if
+  gone), the 2011 screenplay PDF and the earlier conversions in ~/drive/Esperanto/Filmo vivo de Zamenhof/. Benchmarks:
+  2011 PDF → 2026 Fountain (screenplay source, fix-up), book → 2026 Fountain (across languages, stretch).
