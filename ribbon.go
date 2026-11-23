@@ -169,21 +169,17 @@ type ribbonBar struct {
 	selected string  // the tab chosen
 	height   float32 // the ribbon's height as last built
 	picked   bool    // chosen by the user (a phone's Quick does not take its place)
-	// previewing: the Preview tab is there (it comes forward when it
-	// comes); beforePreview: the tab chosen before it, chosen again when
-	// it goes
-	beforePreview string
-	previewing    bool
-	// boarding: the stripboard is the middle tab in front, the Production
-	// tab (on its Schedule stage) forward as it comes; beforeStrips: the
-	// tab chosen before, chosen again as it goes
-	beforeStrips string
-	boarding     bool
-	pageCount    *widget.Label // the Preview tab's "Page n of N"
-	env          cmdEnv
-	stage        int    // the Production stage shown (stageLock …)
-	builtFor     string // what the groups were made for
-	phone        bool
+	// previewing: the Preview tab is there; boarding: the Stripboard tab
+	// (the board the middle tab in front): each comes forward as it comes
+	// (contextual tabs); beforeContext: the tab chosen before the first
+	// came, chosen again when the last goes
+	beforeContext        string
+	previewing, boarding bool
+	pageCount            *widget.Label // the Preview tab's "Page n of N"
+	env                  cmdEnv
+	stage                int    // the Production stage shown (stageLock …)
+	builtFor             string // what the groups were made for
+	phone                bool
 
 	buttons  []*ribbonButton            // the groups' buttons, in order
 	elements map[string]*ribbonButton   // the element buttons, by element
@@ -284,6 +280,33 @@ func tabOf(title string) (ribbonTab, bool) {
 	return ribbonTab{}, false
 }
 
+// contextFollow brings a contextual tab forward as its view comes (on:
+// shown now; *was: as last seen), the tab chosen before kept; as it goes,
+// the other contextual tab still there, else that one, comes back.
+func (r *ribbonBar) contextFollow(was *bool, on bool, title string) {
+	if on == *was {
+		return
+	}
+	*was = on
+	if on {
+		if t, ok := tabOf(r.selected); !ok || !t.contextual {
+			r.beforeContext = r.selected
+		}
+		r.selected = title
+		return
+	}
+	if r.selected != title {
+		return
+	}
+	r.selected = r.beforeContext
+	switch {
+	case r.boarding:
+		r.selected = "Stripboard"
+	case r.previewing:
+		r.selected = "Preview"
+	}
+}
+
 // productionStage is the stage the Production pane shows (the one looked
 // at, while it is in sight), else the script's own.
 func (w *MainWindow) productionStage() int {
@@ -313,22 +336,8 @@ func (r *ribbonBar) refresh() {
 	}
 	r.menus.follow(env)
 	r.order.follow(env)
-	if env.strips != r.boarding { // the stripboard came to the front or left it
-		r.boarding = env.strips
-		if env.strips {
-			r.beforeStrips, r.selected = r.selected, "Production"
-		} else if r.selected == "Production" {
-			r.selected = r.beforeStrips
-		}
-	}
-	if env.preview != r.previewing { // a preview opened or closed
-		r.previewing = env.preview
-		if env.preview {
-			r.beforePreview, r.selected = r.selected, "Preview"
-		} else if r.selected == "Preview" {
-			r.selected = r.beforePreview
-		}
-	}
+	r.contextFollow(&r.boarding, env.strips, "Stripboard") // the stripboard came to the front or left it
+	r.contextFollow(&r.previewing, env.preview, "Preview") // a preview opened or closed
 	if t, ok := tabOf(r.selected); !ok || !tabShown(t, env) {
 		r.selected = "Write" // the tab gone (Fixed has no Quick tab), or none chosen yet
 		if env.smart {

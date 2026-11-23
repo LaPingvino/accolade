@@ -863,8 +863,8 @@ func TestMiddleNotesTogether(t *testing.T) {
 
 // The stripboard is a middle tab (docs/MIDDLE.md): opened by its command,
 // one tab among the others, the side panes beside it, the ribbon's
-// Production tab on its Schedule stage while it is in front; Back to the
-// Script and a scene opened keep its tab; the command in front closes
+// Stripboard tab while it is in front; the Script tab and a scene opened
+// keep its tab; the command in front closes
 // it; it has no place in the side panes; the Writer role closes it.
 func TestMiddleStripboard(t *testing.T) {
 	w := newTestWindow(t, schedScript)
@@ -883,8 +883,8 @@ func TestMiddleStripboard(t *testing.T) {
 	if w.mid.body != fyne.CanvasObject(w.stripboard.box) || !w.paneInSight("outline") || w.sideSplit == nil {
 		t.Error("the board is not in the middle with the side panes beside it")
 	}
-	if r.selected != "Production" || r.stage != stageSchedule {
-		t.Errorf("the ribbon: %q, stage %d", r.selected, r.stage)
+	if r.selected != "Stripboard" {
+		t.Errorf("the ribbon: %q", r.selected)
 	}
 	if e := w.cmdEnv(); !e.away || e.midSide {
 		t.Error("the board can go back to the side")
@@ -896,9 +896,9 @@ func TestMiddleStripboard(t *testing.T) {
 	if !w.mid.has("strips") {
 		t.Error("Back to the Side closed it")
 	}
-	test.Tap(findButton(w.stripboard.box, "Back to the Script"))
+	w.showMiddle("")
 	if !w.scriptInMain() || !w.mid.has("strips") || r.selected != "Write" {
-		t.Errorf("Back to the Script: tabs %q, the ribbon's %q", midTitles(w), r.selected)
+		t.Errorf("the Script tab: tabs %q, the ribbon's %q", midTitles(w), r.selected)
 	}
 	w.mid.step(-1) // round to the last: the board
 	if !w.stripsShown() {

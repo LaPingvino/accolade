@@ -161,18 +161,23 @@ type MainWindow struct {
 	// imported is closed when the PDF import under way is in
 	imported chan struct{}
 	// the side dock and its panes (dock.go), each made at its first need
-	dock          *dock
-	outline       *outlinePanel
-	notes         *notesPanel
-	source        *sourcePane
-	production    *productionPane
-	help          *helpPane
-	narrow        bool             // a phone's width: the panes under the script (relayout)
-	paneSplit     *container.Split // the script over the panes, while narrow
-	sideSplit     *container.Split // the panes beside the script, while wide
-	paneTaller    *tooltip.Button  // makes them taller, or half again
-	unsavedSource string           // the source chosen for a script not saved yet (source.go)
-	unsavedExtras string           // the kept extras of a script not saved yet (extras.go)
+	dock       *dock
+	outline    *outlinePanel
+	notes      *notesPanel
+	source     *sourcePane
+	production *productionPane
+	help       *helpPane
+	narrow     bool             // a phone's width: the panes under the script (relayout)
+	paneSplit  *container.Split // the script over the panes, while narrow
+	sideSplit  *container.Split // the panes beside the script, while wide
+	paneTaller *tooltip.Button  // makes them taller, or half again
+	// sheetDown: a phone's sheet of panes folded down to its tab row (the
+	// stripboard in front: the board the room); sheetBefore: the split as
+	// it was, back as the board goes (middle.go: sheetFollow)
+	sheetDown     bool
+	sheetBefore   float64
+	unsavedSource string // the source chosen for a script not saved yet (source.go)
+	unsavedExtras string // the kept extras of a script not saved yet (extras.go)
 	// flattenTo is where a bundle's extras go when it is saved as a plain
 	// file, as asked (flatten.go); then back to the kept copy
 	flattenTo    flattenChoice
@@ -1598,6 +1603,9 @@ func (w *MainWindow) relayout() {
 		if w.paneSplit != nil {
 			offset = w.paneSplit.Offset
 		}
+		if w.sheetDown { // its row alone (dock.slot hides the pane)
+			offset = 1
+		}
 		w.paneSplit = container.NewVSplit(center, narrowFit(side))
 		w.paneSplit.Offset = offset
 		w.showPaneSize()
@@ -1660,12 +1668,47 @@ const (
 
 // showPaneSize shows what the panes' size button does next.
 func (w *MainWindow) showPaneSize() {
-	if w.paneSplit.Offset > paneTall+0.05 {
+	if w.sheetDown {
+		w.paneTaller.Icon, w.paneTaller.Tip = theme.MoveUpIcon(), "Show the panes"
+	} else if w.paneSplit.Offset > paneTall+0.05 {
 		w.paneTaller.Icon, w.paneTaller.Tip = theme.MoveUpIcon(), "Make the panes taller"
 	} else {
 		w.paneTaller.Icon, w.paneTaller.Tip = theme.MoveDownIcon(), "Make the panes half the height again"
 	}
 	w.paneTaller.Refresh()
+}
+
+// raiseSheet unfolds a phone's sheet of panes folded down, to the height
+// it had (half the window if none): reporting whether it was down. The
+// caller lays the window out again.
+func (w *MainWindow) raiseSheet() bool {
+	if !w.sheetDown {
+		return false
+	}
+	w.sheetDown = false
+	if w.paneSplit != nil {
+		w.paneSplit.Offset = w.sheetBefore
+		if w.sheetBefore <= 0.05 || w.sheetBefore >= 0.95 {
+			w.paneSplit.Offset = paneHalf
+		}
+	}
+	return true
+}
+
+// sheetFollow folds a phone's sheet of panes down as the stripboard comes
+// to the front of the middle (from, to: the tab in front before and now),
+// the board the room; as it goes, the sheet comes back as it was.
+func (w *MainWindow) sheetFollow(from, to string) {
+	switch {
+	case to == "strips" && from != "strips":
+		w.sheetBefore = paneHalf
+		if w.paneSplit != nil {
+			w.sheetBefore = w.paneSplit.Offset
+		}
+		w.sheetDown = true
+	case from == "strips" && to != "strips":
+		w.raiseSheet()
+	}
 }
 
 // narrowWidth is the window's width under which the panes go under the
@@ -1676,7 +1719,7 @@ const narrowWidth = 600
 func (w *MainWindow) onWindowWidth(width float32) {
 	if narrow := width < narrowWidth; narrow != w.narrow {
 		w.narrow = narrow
-		if r := w.ribbon; narrow && r != nil && w.ribbonOrder == "" && !r.picked && !r.previewing {
+		if r := w.ribbon; narrow && r != nil && w.ribbonOrder == "" && !r.picked && !r.previewing && !r.boarding {
 			r.selected = "" // a phone's ribbon: the order's first tab in front (Quick in Smart: quick.go)
 		}
 		c := w.fyneWindow.Canvas()

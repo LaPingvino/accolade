@@ -448,6 +448,11 @@ func (w *MainWindow) togglePane(id string) {
 		w.closeMiddle(id)
 	case w.mid.has(id):
 		w.showMiddle(id)
+	case w.narrow && w.sheetDown && d.shown(id): // folded down under the board: up, it in front
+		d.setFront(id)
+		w.raiseSheet()
+		w.relayout()
+		d.shownNow(p)
 	case d.inSight(id):
 		w.hidePane(id)
 	case p.midFirst && !d.shown(id):
@@ -473,6 +478,9 @@ func (w *MainWindow) showPane(id string, focus bool) {
 	d.on[id] = true
 	d.stash = nil
 	d.setFront(id)
+	if w.narrow && w.raiseSheet() { // a phone's sheet folded down: up
+		was = false
+	}
 	if was && d.bodies[d.slotNow(id)] != nil {
 		d.showFront(d.slotNow(id)) // already there: only the tab in front
 	} else {
@@ -682,6 +690,10 @@ func (d *dock) slot(slot int) fyne.CanvasObject {
 		d.w.paneTaller = tooltip.NewButton(theme.MoveUpIcon(), "", nil, d.w.tooltips)
 		d.w.paneTaller.Importance = widget.LowImportance
 		d.w.paneTaller.OnTapped = func() {
+			if d.w.raiseSheet() { // folded down under the board: back up
+				d.w.relayout()
+				return
+			}
 			if d.w.paneSplit.Offset > paneTall+0.05 {
 				d.w.paneSplit.SetOffset(paneTall)
 			} else {
@@ -713,6 +725,9 @@ func (d *dock) slot(slot int) fyne.CanvasObject {
 	wide.SetMinSize(fyne.NewSize(width, 0))
 	body := container.NewStack()
 	d.bodies[slot] = body
+	if slot == dockSheet && d.w.sheetDown { // folded down: the row alone (its tabs bring it up)
+		body.Hide()
+	}
 	hideTip := func() {
 		if p := d.pane(d.inFront(slot)); p != nil {
 			hide.Tip = "Hide " + p.cmd.label
@@ -756,9 +771,13 @@ func (d *dock) showFront(slot int) {
 	}
 }
 
-// pick puts a tab's pane in front (a tap on it, an arrow key).
+// pick puts a tab's pane in front (a tap on it, an arrow key); a phone's
+// sheet folded down comes up with it.
 func (d *dock) pick(id string) {
 	d.setFront(id)
+	if d.w.narrow && d.w.raiseSheet() {
+		d.w.relayout()
+	}
 	slot := d.slotNow(id)
 	d.showFront(slot)
 	if p := d.pane(id); p != nil {

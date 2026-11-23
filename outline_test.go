@@ -123,8 +123,8 @@ func TestFullscreenWithoutDistractions(t *testing.T) {
 	}
 }
 
-// In full screen with Cards or the Stripboard, "Leave full screen" and the
-// view's "Back to the Script" are both in sight and do not overlap (the
+// In full screen with Cards, "Leave full screen" and the view's "Back to
+// the Script" are both in sight and do not overlap (the
 // leave button used to float over the view's top-right corner).
 func TestFullscreenLeaveDoesNotCoverBack(t *testing.T) {
 	w := newTestWindow(t, "INT. BARN - DAY\n\nRain.\n")
@@ -138,7 +138,7 @@ func TestFullscreenLeaveDoesNotCoverBack(t *testing.T) {
 	for _, view := range []struct {
 		name   string
 		toggle func()
-	}{{"cards", w.toggleCards}, {"stripboard", w.toggleStripboard}} {
+	}{{"cards", w.toggleCards}} {
 		view.toggle()
 		c := w.fyneWindow.Content()
 		leave, back := findButton(c, "Leave full screen"), findButton(c, "Back to the Script")

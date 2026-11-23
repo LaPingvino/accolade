@@ -211,7 +211,7 @@ func quickCandidates() []string {
 		}
 	}
 	for _, t := range commands().ribbon {
-		if t.title == quickTab || t.title == "Preview" {
+		if t.title == quickTab || t.contextual {
 			continue
 		}
 		for _, g := range t.groups {
@@ -358,7 +358,7 @@ func (s *quickStore) groupUse(g ribbonGroup) float64 {
 // in Smart the most used first (a Production stage's group stays first;
 // unused groups keep their standard order after the used ones).
 func (r *ribbonBar) groupsOf(t ribbonTab) []ribbonGroup {
-	if !r.env.smart || t.title == quickTab || t.title == "Preview" {
+	if !r.env.smart || t.title == quickTab || t.contextual {
 		return t.groups
 	}
 	s := r.w.quick()

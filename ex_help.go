@@ -92,6 +92,12 @@ func exHelpSection(c *exCmd) string {
 	return "Elsewhere"
 }
 
+// withMarkdown is e for a Markdown document.
+func withMarkdown(e cmdEnv) cmdEnv {
+	e.markdown = true
+	return e
+}
+
 // exHelpLine is a command's line: its name (with its abbreviation), what
 // follows it, what it does, and where it applies.
 func exHelpLine(c *exCmd) string {
@@ -106,7 +112,20 @@ func exHelpLine(c *exCmd) string {
 	line += " — " + c.desc
 	if rc := commands().byID[c.id]; rc != nil && !c.line() {
 		var notes []string
-		sp, md := rc.appliesForRole(cmdEnv{}), rc.appliesForRole(cmdEnv{markdown: true})
+		// a contextual tab's: in the view's env (else every command of it
+		// read as "not in the browser")
+		base, view := cmdEnv{}, ""
+		for _, v := range []struct {
+			e    cmdEnv
+			note string
+		}{{cmdEnv{strips: true}, "while the stripboard is in front"}, {cmdEnv{preview: true}, "while a preview is shown"},
+			{cmdEnv{preview: true, livePreview: true}, "while a Live Preview is shown"}} {
+			if !rc.appliesForRole(cmdEnv{}) && !rc.appliesForRole(cmdEnv{markdown: true}) && view == "" &&
+				(rc.appliesForRole(v.e) || rc.appliesForRole(withMarkdown(v.e))) {
+				base, view = v.e, v.note
+			}
+		}
+		sp, md := rc.appliesForRole(base), rc.appliesForRole(withMarkdown(base))
 		switch {
 		case sp && !md:
 			notes = append(notes, "screenplay")
@@ -116,7 +135,12 @@ func exHelpLine(c *exCmd) string {
 		if rc.role == productionRole {
 			notes = append(notes, "working as Production")
 		}
-		if !rc.appliesForRole(cmdEnv{browser: true}) && !rc.appliesForRole(cmdEnv{markdown: true, browser: true}) {
+		if view != "" {
+			notes = append(notes, view)
+		}
+		inBrowser := base
+		inBrowser.browser = true
+		if !rc.appliesForRole(inBrowser) && !rc.appliesForRole(withMarkdown(inBrowser)) {
 			notes = append(notes, "not in the browser")
 		}
 		if len(notes) > 0 {

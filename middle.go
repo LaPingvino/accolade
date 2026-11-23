@@ -287,6 +287,7 @@ func (m *middle) show(id string) {
 		}
 		w.previewVisible = false
 	}
+	w.sheetFollow(m.shown, id) // a phone's panes folded down under the board
 	m.shown = id
 	w.textEditor.SetOffstage(id != "") // out of sight: laid out again when back (internal/editor)
 	if d := m.docs[id]; d != nil {

@@ -19,23 +19,26 @@ import (
 )
 
 // The stripboard (Production > Stripboard, the Schedule stage's Open
-// Stripboard, View > Stripboard, the Schedule stage's Open Stripboard):
-// the schedule as a middle tab (middle.go), as the cards' full view is,
-// built on them (a strip is dragged as a card is): the script's tab and
-// the others beside it, the side panes beside it, the ribbon's Production
-// tab on its Schedule stage while it is in front. A strip a scene, in its
+// Stripboard, View > Stripboard): the schedule as a middle tab
+// (middle.go), as the cards' full view is, built on them (a strip is
+// dragged as a card is): the script's tab and the others beside it, the
+// side panes beside it (a phone's sheet under it folded down), the
+// ribbon's Stripboard tab in front while it is (stripstab.go: its
+// commands, the board's own toolbar no more). A strip a scene, in its
 // colour by INT/EXT and day or night (white INT. DAY, yellow EXT. DAY,
 // blue INT. NIGHT, green EXT. NIGHT: lexreport.StripColour), with its
 // number, INT/EXT, location, D/N, length in eighths and cast numbers; the
 // days one under the other, each with its head (date, call, notes) and
 // its break ("End of Day 1 — 4 6/8 pages"); then the strips on no day.
 //
-// A strip is dragged to its place (on a desktop), or selected (a tap, or
-// Tab) and moved with Move Up / Move Down (Alt+Up / Alt+Down) and Move to
-// (a day, or back to the unscheduled): the way on a phone, where a drag
-// scrolls the board. Group by Location / by Cast sort the selected
-// strip's day (or the unscheduled) once, as a suggestion: nothing is
-// sorted by itself. Undo takes the board's last change back.
+// A strip is dragged to its place (on a desktop; on a phone by its grip,
+// a drag elsewhere scrolling the board), or selected (a tap, or Tab) and
+// moved with the tab's Move Up / Move Down (Alt+Up / Alt+Down) and Move
+// To (a day, or back to the unscheduled); a long press or a right-click
+// has the strip's actions. A day folds to its head (its band), the board
+// shorter. Group by Location / by Cast sort the selected strip's day (or
+// the unscheduled) once, as a suggestion: nothing is sorted by itself.
+// Undo takes the board's last change back.
 
 // stripboardView is the board.
 type stripboardView struct {
@@ -43,14 +46,10 @@ type stripboardView struct {
 	box    *fyne.Container
 	list   *fyne.Container
 	scroll *container.Scroll
-	count  *widget.Label
+	count  *widget.Label // the board's first line: how much is on a day
 
-	actions                          *fyne.Container
-	up, down, open, check, toPool    *widget.Button
-	addDay, undo, byLocation, byCast *widget.Button
-	moveTo                           *widget.Select
-	moveChoices                      []int // moveTo's options' days (-1: the unscheduled)
-	settingMove                      bool
+	state  stripState      // what the Stripboard tab's commands can do now (stripstab.go)
+	folded map[string]bool // the days folded to their head, by ID
 
 	selected int // the scene selected (-1: none)
 	strips   map[int]*stripWidget
@@ -77,33 +76,15 @@ type stripTarget struct {
 }
 
 func newStripboard(w *MainWindow) *stripboardView {
-	sb := &stripboardView{w: w, selected: -1, list: container.NewVBox(), strips: map[int]*stripWidget{}}
-	back := widget.NewButtonWithIcon("Back to the Script", theme.DocumentIcon(), func() { w.showMiddle("") })
-	back.Importance = widget.LowImportance
-	heading := widget.NewLabelWithStyle("Stripboard", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	sb := &stripboardView{w: w, selected: -1, list: container.NewVBox(), strips: map[int]*stripWidget{}, folded: map[string]bool{}}
 	sb.count = widget.NewLabel("")
 	sb.count.Wrapping = fyne.TextWrapWord
 	sb.count.SizeName = theme.SizeNameCaptionText
-	button := func(label string, icon fyne.Resource, f func()) *widget.Button {
-		return widget.NewButtonWithIcon(label, icon, f)
-	}
-	sb.up = button("Move Up", theme.MoveUpIcon(), func() { sb.shift(-1) })
-	sb.down = button("Move Down", theme.MoveDownIcon(), func() { sb.shift(1) })
-	sb.moveTo = widget.NewSelect(nil, func(string) { sb.moveToChosen() })
-	sb.moveTo.PlaceHolder = "Move to…"
-	fyne.SetAccessibleLabel(sb.moveTo, "Move the strip to a day")
-	sb.toPool = button("Unschedule", theme.ContentRemoveIcon(), func() { sb.moveSelected(-1, 0) })
-	sb.open = button("Open Scene", theme.DocumentIcon(), func() { sb.openScene(sb.selected) })
-	sb.check = button("Checked", theme.ConfirmIcon(), sb.checkSelected)
-	sb.addDay = button("Add Day", theme.ContentAddIcon(), w.addShootDay)
-	sb.addDay.Importance = widget.HighImportance
-	sb.byLocation = button("Group by Location", theme.ListIcon(), func() { sb.group("location") })
-	sb.byCast = button("Group by Cast", theme.AccountIcon(), func() { sb.group("cast") })
-	sb.undo = button("Undo", theme.ContentUndoIcon(), w.undoSchedule)
-	sb.actions = container.NewVBox()
+	// the strips the tab's whole height: the commands are the ribbon's
+	// (the Menus look's Production menu has them too), the way back the
+	// Script tab beside it
 	sb.scroll = container.NewVScroll(sb.list)
-	top := container.NewVBox(container.NewBorder(nil, nil, heading, back, sb.count), sb.actions)
-	sb.box = container.NewBorder(top, nil, nil, nil, sb.scroll)
+	sb.box = container.NewStack(sb.scroll)
 	return sb
 }
 
@@ -148,6 +129,11 @@ func (w *MainWindow) showStripboard(d, sc int) {
 		sb.selected = sc
 		sb.shownKey = ""
 	}
+	f, bt, p := w.scheduleFound() // its day unfolded
+	if sc >= 0 && sc < len(bt.scenes) && p.dayOf[sc] >= 0 {
+		sb.unfold(f, p.dayOf[sc])
+	}
+	sb.unfold(f, d)
 	sb.update()
 	if sc >= 0 {
 		if s := sb.strips[sc]; s != nil {
@@ -197,7 +183,7 @@ func (sb *stripboardView) update() {
 			}
 		}
 	}
-	fmt.Fprintf(&key, "P%v|L%d|", sb.pool, len(p.lost))
+	fmt.Fprintf(&key, "P%v|L%d|Z%v|", sb.pool, len(p.lost), sb.folded)
 	for i, s := range bt.scenes {
 		fmt.Fprintf(&key, "%s %s %v|", s.label, s.heading, s.omitted)
 		if st := w.stripOfScene(i); st != nil {
@@ -209,7 +195,7 @@ func (sb *stripboardView) update() {
 		sb.shownKey = k
 		sb.rebuild(f, bt, p)
 	}
-	sb.showActions(f, bt, p)
+	sb.follow(f, bt, p)
 }
 
 // measuredStrips are the strips by scene as measured (nil: not yet).
@@ -232,6 +218,7 @@ func (sb *stripboardView) rebuild(f *scheduleFile, bt *bdText, p schedPlaced) {
 	sb.targets = nil
 	sb.strips = map[int]*stripWidget{}
 	eighths := w.sceneEighths()
+	sb.list.Add(sb.count)
 	addStrip := func(sc, day, at int) {
 		s := newStripWidget(sb, sc, w.stripOfScene(sc), w.flagOf(f, bt, p, sc))
 		sb.strips[sc] = s
@@ -239,10 +226,19 @@ func (sb *stripboardView) rebuild(f *scheduleFile, bt *bdText, p schedPlaced) {
 		sb.targets = append(sb.targets, stripTarget{obj: s, day: day, at: at, halves: true})
 	}
 	for d, day := range f.Days {
-		h := newDayHeader(sb, d, day)
-		sb.list.Add(h)
-		sb.targets = append(sb.targets, stripTarget{obj: h, day: d, at: 0})
 		scenes := p.scenesOf(d)
+		total := "measuring…"
+		if eighths != nil {
+			total = lengthText(dayLength(scenes, eighths))
+		}
+		folded := sb.folded[day.ID]
+		h := newDayHeader(sb, d, day, folded, len(scenes), total)
+		sb.list.Add(h)
+		if folded { // its band alone: a strip dropped on it goes to its end
+			sb.targets = append(sb.targets, stripTarget{obj: h, day: d, at: len(scenes)})
+			continue
+		}
+		sb.targets = append(sb.targets, stripTarget{obj: h, day: d, at: 0})
 		if len(scenes) == 0 {
 			empty := note(fmt.Sprintf("No scenes yet: drag strips here, or select one and Move to Day %d.", d+1))
 			sb.list.Add(empty)
@@ -250,10 +246,6 @@ func (sb *stripboardView) rebuild(f *scheduleFile, bt *bdText, p schedPlaced) {
 		}
 		for k, sc := range scenes {
 			addStrip(sc, d, k)
-		}
-		total := "measuring…"
-		if eighths != nil {
-			total = lengthText(dayLength(scenes, eighths))
 		}
 		br := newDayBreak(fmt.Sprintf("End of Day %d — %s", d+1, total))
 		sb.list.Add(br)
@@ -291,66 +283,22 @@ func (sb *stripboardView) rebuild(f *scheduleFile, bt *bdText, p schedPlaced) {
 	}
 }
 
-// showActions shows the selected strip's actions and the board's.
-func (sb *stripboardView) showActions(f *scheduleFile, bt *bdText, p schedPlaced) {
+// follow works out what the Stripboard tab's commands can do now (the
+// selected strip's moves, its flag, the board's undo) and shows it on the
+// ribbon.
+func (sb *stripboardView) follow(f *scheduleFile, bt *bdText, p schedPlaced) {
 	w := sb.w
 	sel := sb.selected
-	day := -1
+	st := stripState{selected: sel >= 0, day: -1, days: len(f.Days), measured: w.scheduleMeasured(), undo: w.schedule.undo != nil}
 	if sel >= 0 {
-		day = p.dayOf[sel]
+		st.day = p.dayOf[sel]
+		st.up = st.day > 0 || (st.day == 0 && p.at[sel] > 0) || (st.day < 0 && len(f.Days) > 0 && len(sb.pool) > 0 && sb.pool[0] == sel)
+		st.down = st.day >= 0
+		st.flag = w.flagOf(f, bt, p, sel).changed
 	}
-	// the Move to choices: the days and the unscheduled, not where it is
-	var opts []string
-	sb.moveChoices = nil
-	for d := range f.Days {
-		if d != day {
-			opts = append(opts, fmt.Sprintf("Day %d", d+1))
-			sb.moveChoices = append(sb.moveChoices, d)
-		}
-	}
-	if day >= 0 {
-		opts = append(opts, "Unscheduled")
-		sb.moveChoices = append(sb.moveChoices, -1)
-	}
-	sb.settingMove = true
-	sb.moveTo.Options = opts
-	sb.moveTo.ClearSelected()
-	sb.settingMove = false
-	enable := func(b fyne.Disableable, on bool) {
-		if on {
-			b.Enable()
-		} else {
-			b.Disable()
-		}
-	}
-	has := sel >= 0
-	enable(sb.up, has && (day > 0 || (day == 0 && p.at[sel] > 0) || (day < 0 && len(f.Days) > 0 && len(sb.pool) > 0 && sb.pool[0] == sel)))
-	enable(sb.down, has && day >= 0)
-	enable(sb.moveTo, has && len(opts) > 0)
-	enable(sb.toPool, has && day >= 0)
-	enable(sb.open, has)
-	flag := has && w.flagOf(f, bt, p, sel).changed
-	enable(sb.check, flag)
-	enable(sb.undo, w.schedule.undo != nil)
-	scope := "the Unscheduled"
-	if day >= 0 {
-		scope = fmt.Sprintf("Day %d", day+1)
-	}
-	sb.byLocation.SetText("Group " + scope + " by Location")
-	sb.byCast.SetText("Group " + scope + " by Cast")
-	enable(sb.byLocation, w.scheduleMeasured())
-	enable(sb.byCast, w.scheduleMeasured())
-	strip := []fyne.CanvasObject{sb.up, sb.down, sb.moveTo, sb.toPool, sb.open, sb.check}
-	board := []fyne.CanvasObject{sb.addDay, sb.byLocation, sb.byCast, sb.undo}
-	var rows []fyne.CanvasObject
-	if w.narrow { // a phone: two columns, one under the other
-		rows = []fyne.CanvasObject{container.NewGridWithColumns(2, append(strip, sb.addDay, sb.undo)...), sb.byLocation, sb.byCast}
-	} else {
-		rows = []fyne.CanvasObject{container.NewHScroll(container.NewHBox(strip...)), container.NewHScroll(container.NewHBox(board...))}
-	}
-	if len(sb.actions.Objects) == 0 || sb.narrow != w.narrow || len(sb.actions.Objects) != len(rows) {
-		sb.actions.Objects = rows
-		sb.actions.Refresh()
+	sb.state = st
+	if r := w.ribbon; r != nil && w.ribbonShown() {
+		r.followStrips()
 	}
 }
 
@@ -365,8 +313,7 @@ func (sb *stripboardView) selectScene(sc int, focus bool) {
 		if s := sb.strips[sc]; s != nil {
 			s.showState()
 		}
-		f, bt, p := sb.w.scheduleFound()
-		sb.showActions(f, bt, p)
+		sb.follow(sb.w.scheduleFound())
 	}
 	if s := sb.strips[sc]; s != nil && focus {
 		sb.w.fyneWindow.Canvas().Focus(s)
@@ -374,10 +321,15 @@ func (sb *stripboardView) selectScene(sc int, focus bool) {
 	}
 }
 
-// order are the scenes in the board's order: the days', then the pool's.
+// order are the scenes in the board's order as shown: the days' (not a
+// folded one's), then the pool's.
 func (sb *stripboardView) order() []int {
 	var out []int
+	f := sb.w.scheduleNow()
 	for d := range sb.p.days {
+		if d < len(f.Days) && sb.folded[f.Days[d].ID] {
+			continue
+		}
 		out = append(out, sb.p.scenesOf(d)...)
 	}
 	return append(out, sb.pool...)
@@ -431,10 +383,14 @@ func (sb *stripboardView) moveScene(sc, d, at int) {
 	sb.afterMove(sc)
 }
 
-// afterMove keeps the moved strip selected, in sight, with the focus.
+// afterMove keeps the moved strip selected, in sight (its day unfolded),
+// with the focus.
 func (sb *stripboardView) afterMove(sc int) {
 	sb.shownKey = ""
 	sb.update()
+	if d := sb.p.dayOf[sc]; d >= 0 && sb.unfold(sb.w.scheduleNow(), d) {
+		sb.update()
+	}
 	sb.selected = -1
 	sb.selectScene(sc, true)
 	if d := sb.p.dayOf[sc]; d >= 0 {
@@ -444,21 +400,99 @@ func (sb *stripboardView) afterMove(sc int) {
 	}
 }
 
-// moveToChosen is Move to's choice.
-func (sb *stripboardView) moveToChosen() {
-	if sb.settingMove {
+// moveItems are Move To's choices for scene sc's strip: the days and the
+// unscheduled, not where it is (a day's end).
+func (sb *stripboardView) moveItems(sc int) []*fyne.MenuItem {
+	var items []*fyne.MenuItem
+	day := sb.p.dayOf[sc]
+	for d := range sb.p.days {
+		if d != day {
+			items = append(items, fyne.NewMenuItem(fmt.Sprintf("Day %d", d+1), func() { sb.moveScene(sc, d, len(sb.p.scenesOf(d))) }))
+		}
+	}
+	if day >= 0 {
+		items = append(items, fyne.NewMenuItem("Unscheduled", func() { sb.moveScene(sc, -1, 0) }))
+	}
+	return items
+}
+
+// stripMenu is a strip's actions (a long press, a right-click): the
+// Stripboard tab's for it.
+func (sb *stripboardView) stripMenu(sc int) *fyne.Menu {
+	sb.selectScene(sc, false)
+	st := sb.state
+	item := func(label string, on bool, f func()) *fyne.MenuItem {
+		it := fyne.NewMenuItem(label, f)
+		it.Disabled = !on
+		return it
+	}
+	moveTo := fyne.NewMenuItem("Move To", nil)
+	moveTo.ChildMenu = fyne.NewMenu("", sb.moveItems(sc)...)
+	moveTo.Disabled = len(moveTo.ChildMenu.Items) == 0
+	items := []*fyne.MenuItem{
+		item("Move Up", st.up, func() { sb.shift(-1) }),
+		item("Move Down", st.down, func() { sb.shift(1) }),
+		moveTo,
+		item("Unschedule", st.day >= 0, func() { sb.moveScene(sc, -1, 0) }),
+		fyne.NewMenuItemSeparator(),
+		item("Open Scene", true, func() { sb.openScene(sc) }),
+		item("Checked", st.flag, sb.checkSelected),
+	}
+	if st.day >= 0 {
+		d := st.day
+		items = append(items, item(fmt.Sprintf("Edit Day %d…", d+1), true, func() { sb.editDay(d) }))
+	}
+	return fyne.NewMenu("", items...)
+}
+
+// showStripMenu shows a strip's actions at pos.
+func (sb *stripboardView) showStripMenu(sc int, pos fyne.Position) {
+	widget.ShowPopUpMenuAtPosition(sb.stripMenu(sc), sb.w.fyneWindow.Canvas(), pos)
+}
+
+// fold folds day d to its head, or unfolds it.
+func (sb *stripboardView) fold(d int, on bool) {
+	f := sb.w.scheduleNow()
+	if d < 0 || d >= len(f.Days) {
 		return
 	}
-	i := sb.moveTo.SelectedIndex()
-	if i < 0 || i >= len(sb.moveChoices) {
-		return
+	if on {
+		sb.folded[f.Days[d].ID] = true
+		if sb.selected >= 0 && sb.p.dayOf[sb.selected] == d {
+			sb.selected = -1 // out of sight: no strip to act on unseen
+		}
+	} else {
+		delete(sb.folded, f.Days[d].ID)
 	}
-	d := sb.moveChoices[i]
-	at := 0
-	if d >= 0 {
-		at = len(sb.p.scenesOf(d)) // at the day's end
+	sb.shownKey = ""
+	sb.update()
+}
+
+// foldAll folds every day, or unfolds them.
+func (sb *stripboardView) foldAll(on bool) {
+	f := sb.w.scheduleNow()
+	for d := range f.Days {
+		if on {
+			sb.folded[f.Days[d].ID] = true
+		} else {
+			delete(sb.folded, f.Days[d].ID)
+		}
 	}
-	sb.moveSelected(d, at)
+	if on && sb.selected >= 0 && sb.p.dayOf[sb.selected] >= 0 {
+		sb.selected = -1
+	}
+	sb.shownKey = ""
+	sb.update()
+}
+
+// unfold unfolds day d of f if it is folded, reporting whether it was.
+func (sb *stripboardView) unfold(f *scheduleFile, d int) bool {
+	if d < 0 || d >= len(f.Days) || !sb.folded[f.Days[d].ID] {
+		return false
+	}
+	delete(sb.folded, f.Days[d].ID)
+	sb.shownKey = ""
+	return true
 }
 
 // group sorts the selected strip's day (or the unscheduled) by location
@@ -496,6 +530,9 @@ func (sb *stripboardView) poolInScriptOrder() {
 func (sb *stripboardView) checkSelected() {
 	sc := sb.selected
 	w := sb.w
+	if sc < 0 {
+		return
+	}
 	w.changeSchedule(func(f *scheduleFile, bt *bdText, p schedPlaced) bool {
 		f.check(bt, p, sc, w.currentSet())
 		return true
@@ -603,6 +640,13 @@ type stripWidget struct {
 	body    fyne.CanvasObject
 	focused bool
 	label   string
+	grip    *stripGrip // a phone's: what a finger drags it by
+	// holding: a long press under way (its menu: the strip's actions);
+	// pressed: it was long, the tap after it is not one; pressAt: the
+	// board's scroll as it began (a finger scrolling is no press)
+	holding *time.Timer
+	pressed bool
+	pressAt fyne.Position
 }
 
 // paperTheme is the app's theme in its light variant: a strip is paper,
@@ -670,10 +714,11 @@ func newStripWidget(sb *stripboardView, sc int, st *lexreport.Strip, flag stripF
 	}
 	num := label(scene.label, true)
 	var content fyne.CanvasObject
-	if sb.w.narrow { // a phone: two lines
+	if sb.w.narrow { // a phone: two lines, the grip a finger drags it by
 		first := label(scene.label+" · "+ie+" · "+loc, true)
 		second := label(strings.Join(nonEmpty(dn, length+" pg", castText(cast)), " · "), false)
-		content = container.NewVBox(first, second)
+		s.grip = newStripGrip(s)
+		content = container.NewBorder(nil, nil, nil, s.grip, container.NewVBox(first, second))
 	} else {
 		left := container.NewHBox(cell(48, num), cell(40, label(ie, false)))
 		right := container.NewHBox(cell(32, label(dn, false)), cell(56, label(length, false)), cell(110, label(castText(cast), false)))
@@ -760,15 +805,63 @@ func (s *stripWidget) showState() {
 
 func (s *stripWidget) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(s.body) }
 
-// Tapped selects the strip.
-func (s *stripWidget) Tapped(*fyne.PointEvent) { s.sb.selectScene(s.sc, true) }
+// Tapped selects the strip (not after a long press: its menu showed).
+func (s *stripWidget) Tapped(*fyne.PointEvent) {
+	if s.pressed {
+		s.pressed = false
+		return
+	}
+	s.sb.selectScene(s.sc, true)
+}
+
+// TappedSecondary is a right-click (a long press on a phone's own build):
+// the strip's actions.
+func (s *stripWidget) TappedSecondary(e *fyne.PointEvent) {
+	s.sb.showStripMenu(s.sc, e.AbsolutePosition)
+}
+
+// MouseDown and MouseUp: a press held half a second is a long one, the
+// strip's actions (the browser on a phone sends a finger as the mouse);
+// not if the board scrolled meanwhile, or the strip is dragged.
+func (s *stripWidget) MouseDown(e *desktop.MouseEvent) {
+	s.pressed = false
+	s.stopPress()
+	if e.Button != desktop.MouseButtonPrimary {
+		return
+	}
+	pos := e.AbsolutePosition
+	s.pressAt = s.sb.scroll.Offset
+	s.holding = longPressAfter(500*time.Millisecond, func() {
+		if s.holding == nil || s.sb.scroll.Offset != s.pressAt {
+			return
+		}
+		s.holding = nil
+		s.pressed = true
+		s.sb.showStripMenu(s.sc, pos)
+	})
+}
+
+func (s *stripWidget) MouseUp(*desktop.MouseEvent) { s.stopPress() }
+
+func (s *stripWidget) MouseIn(*desktop.MouseEvent)    {}
+func (s *stripWidget) MouseMoved(*desktop.MouseEvent) {}
+func (s *stripWidget) MouseOut()                      { s.stopPress() }
+
+// stopPress ends a long press under way.
+func (s *stripWidget) stopPress() {
+	if s.holding != nil {
+		s.holding.Stop()
+		s.holding = nil
+	}
+}
 
 // DoubleTapped opens its scene.
 func (s *stripWidget) DoubleTapped(*fyne.PointEvent) { s.sb.openScene(s.sc) }
 
 // Dragged moves the strip on a desktop; on a phone a drag scrolls the
-// board (Move Up, Move Down and Move to move strips there).
+// board (the strip's grip moves it there).
 func (s *stripWidget) Dragged(e *fyne.DragEvent) {
+	s.stopPress()
 	if s.sb.w.narrow {
 		s.sb.scroll.Scrolled(&fyne.ScrollEvent{Scrolled: fyne.Delta{DY: e.Dragged.DY}})
 		return
@@ -844,16 +937,80 @@ func (w *MainWindow) orStrip(dir int, f func()) func() {
 // Cursor is a pointer: the strip can be tapped and dragged.
 func (s *stripWidget) Cursor() desktop.Cursor { return desktop.PointerCursor }
 
-// newDayHeader is a day's head: its number, date, call and notes, and a
-// button to edit them.
-func newDayHeader(sb *stripboardView, d int, day schedDay) fyne.CanvasObject {
+// stripGrip is a phone's strip's grip: a finger drags the strip by it
+// (elsewhere a drag scrolls the board), the board scrolling as it nears
+// an edge.
+type stripGrip struct {
+	widget.BaseWidget
+	s *stripWidget
+}
+
+func newStripGrip(s *stripWidget) *stripGrip {
+	g := &stripGrip{s: s}
+	g.ExtendBaseWidget(g)
+	return g
+}
+
+func (g *stripGrip) CreateRenderer() fyne.WidgetRenderer {
+	icon := widget.NewIcon(theme.MenuIcon())
+	return widget.NewSimpleRenderer(container.New(fixedWidth(40), container.NewCenter(icon)))
+}
+
+func (g *stripGrip) Dragged(e *fyne.DragEvent) {
+	s := g.s
+	s.stopPress()
+	s.dragged.Dragged(e)
+	s.sb.edgeScroll(s, e.AbsolutePosition)
+}
+
+func (g *stripGrip) DragEnd() { g.s.dragged.DragEnd() }
+
+func (g *stripGrip) Cursor() desktop.Cursor { return desktop.VResizeCursor }
+
+// edgeScroll scrolls the board a little while strip s is dragged near
+// its top or bottom edge, the strip kept under the finger.
+func (sb *stripboardView) edgeScroll(s *stripWidget, pos fyne.Position) {
+	top := fyne.CurrentApp().Driver().AbsolutePositionForObject(sb.scroll).Y
+	h := sb.scroll.Size().Height
+	var dy float32
+	switch {
+	case pos.Y < top+48:
+		dy = -24
+	case pos.Y > top+h-48:
+		dy = 24
+	default:
+		return
+	}
+	before := sb.scroll.Offset.Y
+	sb.scroll.ScrollToOffset(fyne.NewPos(0, before+dy))
+	if moved := sb.scroll.Offset.Y - before; moved != 0 {
+		s.Move(s.Position().AddXY(0, moved))
+	}
+}
+
+// newDayHeader is a day's head: its number, date, call and notes, a
+// button folding it to this band (its scenes and length said on it) and
+// one to edit it.
+func newDayHeader(sb *stripboardView, d int, day schedDay, folded bool, scenes int, total string) fyne.CanvasObject {
 	title := widget.NewLabelWithStyle(dayLabel(d, day), fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	title.Truncation = fyne.TextTruncateEllipsis
+	icon, name := theme.MenuDropDownIcon(), fmt.Sprintf("Fold Day %d", d+1)
+	if folded {
+		icon, name = theme.MenuExpandIcon(), fmt.Sprintf("Unfold Day %d", d+1)
+	}
+	fold := widget.NewButtonWithIcon("", icon, func() { sb.fold(d, !folded) })
+	fold.Importance = widget.LowImportance
+	fyne.SetAccessibleLabel(fold, name)
 	edit := widget.NewButtonWithIcon("", theme.DocumentCreateIcon(), func() { sb.editDay(d) })
 	edit.Importance = widget.LowImportance
 	fyne.SetAccessibleLabel(edit, fmt.Sprintf("Edit Day %d (date, call, notes)", d+1))
-	rows := []fyne.CanvasObject{widget.NewSeparator(), container.NewBorder(nil, nil, nil, edit, title)}
-	if day.Notes != "" {
+	rows := []fyne.CanvasObject{widget.NewSeparator(), container.NewBorder(nil, nil, fold, edit, title)}
+	if folded { // what is in it, under its head (a phone's line is short)
+		sum := widget.NewLabel(plural(scenes, "scene") + " · " + total)
+		sum.SizeName = theme.SizeNameCaptionText
+		sum.Truncation = fyne.TextTruncateEllipsis
+		rows = append(rows, sum)
+	} else if day.Notes != "" {
 		n := note(day.Notes)
 		rows = append(rows, n)
 	}

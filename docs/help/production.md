@@ -130,14 +130,15 @@ Tags are not written in the script. Each tag is found again by its words and its
 
 ### The stripboard
 
-Production > Stripboard shows the scenes as strips in place of the editor. A strip's colour says interior or exterior, day or night (white, yellow, blue, green). It shows the scene's number, location, length in eighths and cast numbers.
+Production > Stripboard shows the scenes as strips, in a tab beside the script's. While it is in front the ribbon has a Stripboard tab with its commands (in the Menus look, the Production menu has them). A strip's colour says interior or exterior, day or night (white, yellow, blue, green). It shows the scene's number, location, length in eighths and cast numbers.
 
 - **Shoot days** each have a date, a call time and notes, and end with a bar like "End of Day 1 — 4 6/8 pages". Add Day makes one.
-- **Moving strips:** drag them, or select one and use Move Up / Move Down (Alt+Up / Alt+Down). Unschedule puts it back in the pool of unscheduled scenes.
+- **Moving strips:** drag them, or select one and use Move Up / Move Down (Alt+Up / Alt+Down) or Move To. Unschedule puts it back in the pool of unscheduled scenes. On a phone, drag a strip by its grip (≡) at its end; a long press shows what you can do with it.
+- **Folding days:** the ▾ by a day's head folds it to one band, with its scenes and length; Fold Days folds them all.
 - **Group by Location** and **Group by Cast** sort the strips once.
 - **Undo** on the board takes back the last move.
 - A scene changed in a revision since it was scheduled is flagged on its strip. Checked clears the flag.
-- Back to the Script returns to the editor.
+- The Script tab returns to the editor; Close closes the board.
 
 Production > Schedule… opens the pane's Schedule stage: how many scenes are on a day, and buttons for the board, the reports and the calendar.
 

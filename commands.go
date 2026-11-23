@@ -53,8 +53,10 @@ type cmdEnv struct {
 	away, midDoc, midTabs bool
 	// midSide: the middle tab in front can go back to the side panes (a
 	// pane's; not the stripboard, the pages); strips: the stripboard is
-	// in front (the ribbon's Production tab comes forward)
+	// in front (the ribbon's Stripboard tab comes forward); board: what
+	// its commands can do (stripstab.go)
 	midSide, strips bool
+	board           stripState
 	// a preview is shown (the page view, or a document's Live Preview:
 	// the Preview tab); livePreview: the Live Preview; pagesShown: pages
 	// are in sight; pdfFile: a PDF to save; refreshable: the pages can be
@@ -81,6 +83,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	e.midTabs = len(w.mid.tabs) > 0
 	e.midSide = e.away && middleView(w.mid.shown) == nil
 	e.strips = w.stripsShown()
+	w.stripsEnv(&e)
 	e.renamed = w.canUndoRename()
 	e.brought = !w.carried.empty()
 	if w.settings != nil {
@@ -751,6 +754,7 @@ func newRegistry() *registry {
 	add(helpCommands()...)      // help_pane.go
 	add(settingCommands()...)   // ribbon_settings.go
 	add(previewCommands()...)   // the Preview tab's (previewtab.go)
+	add(stripsCommands()...)    // the Stripboard tab's (stripstab.go)
 	add(quickCommands()...)     // the ribbon's order and the Quick row (quick.go)
 
 	elements := make([]home, len(toolbarElements))
@@ -793,14 +797,15 @@ func newRegistry() *registry {
 			sep(), at("source.link"), at("source.linkGuess"), at("source.linkUp"), at("source.update"), at("source.sections"),
 			sep(), at("source.learned"), at("edit.fixLines"),
 		}},
-		{title: "Production", when: screenplayOnly, role: productionRole, homes: []home{
+		{title: "Production", when: screenplayOnly, role: productionRole, homes: append([]home{
 			at("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
 			sep(), at("production.omit"), at("production.restore"),
 			sep(), at("production.issue"), at("production.withdraw"), at("production.lockPages"), at("production.unlockPages"),
 			sep(), at("production.tag"), at("production.untag"), at("production.showTags"), at("production.breakdown"),
 			at("production.stripboard"), at("production.schedule"), at("production.ics"),
 			sep(), at("production.reports"),
-		}},
+			sep(), // the board's own, while it is in front (stripstab.go)
+		}, stripsMenuHomes()...)},
 		{title: "Collaboration", homes: []home{
 			at("file.share"), at("file.join"),
 			sep(), at("file.saveDraft"), at("file.drafts"), at("collab.compare"),
@@ -1031,6 +1036,10 @@ type ribbonTab struct {
 	when   func(cmdEnv) bool
 	role   cmdRole
 	groups []ribbonGroup
+	// contextual: a view's own (Preview, Stripboard), there while it is
+	// shown and brought forward as it comes; not counted for Quick, its
+	// order its own in Smart (quick.go)
+	contextual bool
 }
 
 // ribbonGroup is a group of a ribbon tab: its title under its buttons;
@@ -1178,5 +1187,6 @@ func ribbonLayout() []ribbonTab {
 				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")}},
 		}},
 		previewTab(), // while a preview is shown, last (the others' key tips stay)
+		stripsTab(),  // while the stripboard is in front (stripstab.go)
 	}
 }

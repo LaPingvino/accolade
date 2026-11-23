@@ -207,7 +207,7 @@ func checkViews(t *testing.T, w *MainWindow, when string) {
 	if w.mid.has("pages") && slices.Index(w.mid.tabs, "pages") != 0 {
 		t.Errorf("%s: the Pages tab is not next to Script: %v", when, w.mid.tabs)
 	}
-	if w.stripsShown() && w.ribbon != nil && w.ribbon.selected != "Production" {
+	if w.stripsShown() && w.ribbon != nil && w.ribbon.selected != "Stripboard" {
 		t.Errorf("%s: the stripboard in front, the ribbon's %q tab", when, w.ribbon.selected)
 	}
 	if d := w.midDoc(); d != nil && !strings.Contains(w.fyneWindow.Title(), d.title()) {

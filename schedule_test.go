@@ -177,9 +177,9 @@ func TestScheduleOrder(t *testing.T) {
 	if !found {
 		t.Errorf("no day break with %s", lengthText(want))
 	}
-	// Move to: the choice
+	// Move To: the choice (the tab's menu, and the strip's)
 	sb.selectScene(0, false)
-	sb.moveTo.SetSelected("Day 2")
+	menuItemNamed(t, sb.moveItems(0), "Day 2").Action()
 	if got := strings.Join(days(w), "|"); got != "garden|shed,garden,kitchen" {
 		t.Errorf("moved to day 2: %q", got)
 	}
@@ -188,6 +188,18 @@ func TestScheduleOrder(t *testing.T) {
 	if got := strings.Join(days(w), "|"); got != "shed,garden,kitchen" || len(sb.pool) != 1 {
 		t.Errorf("day removed: %q, pool %v", got, sb.pool)
 	}
+}
+
+// menuItemNamed is the item labelled label among items.
+func menuItemNamed(t *testing.T, items []*fyne.MenuItem, label string) *fyne.MenuItem {
+	t.Helper()
+	for _, it := range items {
+		if it.Label == label {
+			return it
+		}
+	}
+	t.Fatalf("no %q in the menu", label)
+	return nil
 }
 
 // textOf is the texts in an object, its children's too.
@@ -345,10 +357,10 @@ func TestScheduleRevisionFlag(t *testing.T) {
 		t.Errorf("strip %q, count %q", sb.strips[0].label, sb.count.Text)
 	}
 	sb.selectScene(0, false)
-	if sb.check.Disabled() {
+	if !stripFlagged(w.cmdEnv()) {
 		t.Error("Checked is greyed")
 	}
-	test.Tap(sb.check)
+	cmd("strips.checked").run(w)
 	f, bt, p = w.scheduleFound()
 	if w.flagOf(f, bt, p, 0).changed {
 		t.Error("still flagged after Checked")
@@ -581,8 +593,10 @@ func TestStripboardDrag(t *testing.T) {
 	}
 }
 
-// On a phone the board is a list of two-line strips, its actions in two
-// columns, no wider than the window.
+// On a phone the board is a list of two-line strips, no wider than the
+// window, no toolbar over them (the ribbon's tab has its commands); a
+// drag scrolls it, the strip's grip moves it, a long press shows its
+// actions; the side panes' sheet is folded down under it.
 func TestStripboardNarrow(t *testing.T) {
 	holdUI(t)
 	w, _ := scriptWindow(t, schedScript)
@@ -594,8 +608,8 @@ func TestStripboardNarrow(t *testing.T) {
 	if mw := sb.box.MinSize().Width; mw > 380 {
 		t.Errorf("the board is at least %v wide", mw)
 	}
-	if !sb.narrow || len(sb.actions.Objects) != 3 {
-		t.Error("the actions are not in one grid")
+	if !sb.narrow || sb.box.Objects[0] != fyne.CanvasObject(sb.scroll) || len(sb.box.Objects) != 1 {
+		t.Error("something over the strips")
 	}
 	if got := w.fyneWindow.Canvas().Capture().Bounds().Dx(); got != 380 {
 		t.Errorf("the window is %d wide", got)
@@ -606,7 +620,75 @@ func TestStripboardNarrow(t *testing.T) {
 	if got := days(w)[0]; got != "kitchen" {
 		t.Errorf("moved by a drag on a phone: %q", got)
 	}
+	// the grip moves it: the garden (unscheduled) dragged by it onto the
+	// kitchen's lower half, after it
+	garden := sb.strips[1]
+	if garden.grip == nil || sb.strips[0].grip == nil {
+		t.Fatal("no grip on a phone's strip")
+	}
+	d := fyne.CurrentApp().Driver()
+	from, to := d.AbsolutePositionForObject(garden), d.AbsolutePositionForObject(sb.strips[0])
+	dy := to.Y + sb.strips[0].Size().Height*3/4 - (from.Y + garden.Size().Height/2)
+	garden.grip.Dragged(&fyne.DragEvent{Dragged: fyne.Delta{DY: dy}})
+	garden.grip.DragEnd()
+	if got := days(w)[0]; got != "kitchen,garden" {
+		t.Errorf("dragged by its grip: %q", got)
+	}
+	// a long press: the strip's actions; the tap after it is no tap
+	var fire func()
+	oldAfter := longPressAfter
+	longPressAfter = func(_ time.Duration, f func()) *time.Timer {
+		fire = f
+		return time.NewTimer(time.Hour)
+	}
+	t.Cleanup(func() { longPressAfter = oldAfter })
+	c := w.fyneWindow.Canvas()
+	s := sb.strips[0]
+	s.MouseDown(&desktop.MouseEvent{Button: desktop.MouseButtonPrimary})
+	fire()
+	if c.Overlays().Top() == nil || sb.selected != 0 {
+		t.Fatalf("no menu after a long press (selected %d)", sb.selected)
+	}
+	for c.Overlays().Top() != nil {
+		c.Overlays().Remove(c.Overlays().Top())
+	}
+	s.Tapped(&fyne.PointEvent{})
+	if s.pressed {
+		t.Error("the long press's tap not swallowed")
+	}
+	m := sb.stripMenu(0)
+	if l := m.Items[0].Label; l != "Move Up" || !m.Items[0].Disabled {
+		t.Errorf("the strip's menu: %q (disabled %v): the day's first", l, m.Items[0].Disabled)
+	}
+	menuItemNamed(t, m.Items, "Unschedule").Action()
+	if got := days(w)[0]; got != "garden" {
+		t.Errorf("unscheduled from its menu: %q", got)
+	}
+	// a day folds to its band: a strip dropped on it goes to its end
+	sb.fold(0, true)
+	if sb.strips[1] != nil || !strings.Contains(textOf(sb.list), "1 scene · ") {
+		t.Errorf("folded: its strips shown, or no band: %q", textOf(sb.list))
+	}
+	var band fyne.CanvasObject
+	for _, tg := range sb.targets {
+		if tg.day == 0 {
+			band = tg.obj
+		}
+	}
+	at := d.AbsolutePositionForObject(band)
+	sb.dropped(0, sb.strips[0], at.AddXY(10, band.Size().Height/2))
+	if got := days(w)[0]; got != "garden,kitchen" || sb.strips[0] == nil {
+		t.Errorf("dropped on the folded day: %q (unfolded to show it: %v)", got, sb.strips[0] != nil)
+	}
+	// the side panes' sheet folded down under the board; a pane shown
+	// brings it up
+	if !w.sheetDown {
+		t.Error("the sheet is up under the board")
+	}
 	p := prodPane(t, w)
+	if w.sheetDown || !p.shown() {
+		t.Error("the sheet stayed down for a pane shown")
+	}
 	p.pick(stageSchedule)
 	if p.box.MinSize().Width > sourceWidth {
 		t.Errorf("the pane is at least %v wide", p.box.MinSize().Width)
@@ -675,6 +757,34 @@ func TestScheduleScreenshots(t *testing.T) {
 	b.Reset()
 	lexreport.WriteOneLinerPDF(&b, "The Shed", rep, w.schedule.breakdown, w.lexScheduleFor(&rep), lexreport.StripOptions{}, "")
 	os.WriteFile(filepath.Join(dir, "schedule-oneliner.pdf"), b.Bytes(), 0o644)
+}
+
+// SHOT_DIR renders the stripboard in the Ribbon look, wide and on a
+// phone, the outline in the side panes (a phone's sheet folded down under
+// the board); then with its second day folded.
+func TestStripboardRibbonScreenshots(t *testing.T) {
+	holdUI(t)
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	w, _ := scriptWindow(t, schedScript)
+	ribbonOnFor(t, w)
+	w.togglePane("outline")
+	sb := board(t, w)
+	w.addShootDay()
+	w.addShootDay()
+	for _, m := range []struct{ sc, d int }{{2, 0}, {1, 0}, {0, 1}} {
+		sb.selectScene(m.sc, false)
+		sb.moveSelected(m.d, 9)
+	}
+	sb.setDay(0, "2026-12-01", "18:00", "The shed and the garden, Kovač house", false)
+	sb.setDay(1, "2026-12-02", "07:00", "", false)
+	sb.update()
+	sb.selectScene(1, true)
+	comboShot(t, w, "stripboard-ribbon")
+	sb.fold(1, true)
+	comboShot(t, w, "stripboard-folded")
 }
 
 // In an .accolade the schedule is in the bundle, and read again after an

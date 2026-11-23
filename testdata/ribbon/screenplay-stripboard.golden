@@ -1,0 +1,20 @@
+tabs: File Write Edit Production Collaboration View [Stripboard]
+## Move
+  L Move To icon=foreground_mail-forward.svg (disabled) name=Move Strip To…
+  S Up icon=foreground_arrow-up.svg (disabled) name=Move Strip Up
+  S Down icon=foreground_arrow-down.svg (disabled) name=Move Strip Down
+  S Unschedule icon=foreground_content-remove.svg (disabled) name=Unschedule Strip
+  S Undo icon=foreground_content-undo.svg (disabled) name=Undo Board Change
+## Day
+  L Add Day icon=foreground_add-day.svg name=Add Day
+  S Edit Day icon=foreground_document-create.svg (disabled) name=Edit Day…
+  S Fold Days icon=foreground_fold.svg (disabled) name=Fold All Days
+  S Unfold Days icon=foreground_unfold.svg (disabled) name=Unfold All Days
+## Group
+  S By Location icon=foreground_list.svg name=Group the Unscheduled by Location
+  S By Cast icon=foreground_account.svg name=Group the Unscheduled by Cast
+## Check
+  L Open Scene icon=foreground_document.svg (disabled) name=Open Strip's Scene
+  S Checked icon=foreground_check.svg (disabled) name=Strip Checked
+## Close
+  L Close icon=foreground_cancel.svg name=Close Stripboard

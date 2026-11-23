@@ -21,10 +21,12 @@ Two middle tabs are no dock pane (`midView`, `middleViews`), with no place in th
 Close alone, and View > Middle Tab Back to the Side is greyed for them (`cmdEnv.midSide`). The **Stripboard**
 (Production > Stripboard, View > Stripboard, the Schedule stage's Open Stripboard and its rows; too wide for the side
 panes, where the Production pane's Schedule stage is its side form) is a tab like the cards' full view: the side
-panes beside it, its Back to the Script and Open Scene bring the script's tab forward and keep it, its command in
+panes beside it, the Script tab and Open Scene bring the script's tab forward and keep it, its command in
 front closes it, the Writer role and a Markdown document close it (`middlePrune`), and while it is in front the
-ribbon's Production tab comes forward on its Schedule stage (`env.strips`, as the Preview tab does) and goes back to
-the tab before as it leaves. On a **phone** the script's page view is a tab, **Pages**, always right after Script
+ribbon's contextual **Stripboard** tab comes forward (`env.strips`, stripstab.go, as the Preview tab does: its
+commands, the board's own toolbar gone) and goes back to the tab before as it leaves (`contextFollow`); Production
+stays there, on its Schedule stage. On a phone the dock's sheet folds down to its tab row while the board is in
+front (`sheetFollow`: back as it was when the board goes; its ↑, a tab of it or a pane shown brings it up). On a **phone** the script's page view is a tab, **Pages**, always right after Script
 (`pagesTabFollow`, LOOP.md 2026-11-23: before it took the script's place, and the way back was closing the
 preview): Preview opens it in front; a tap on Script and back keeps the pages (`show` hands no preview over between
 the script, the pages and a view while it is there; a document's tab coming in closes it and gets its own); the
@@ -271,8 +273,8 @@ what waits for the pause (the Script tab) ≈3 ms.
 - `TestRelinkReanchors`, `TestRelinkInWindow` (relink_test.go): the edits for a passage changed (none when
   nothing changed); written at once when the cursor leaves the passage, one undo step; the pane's Done, the
   file read again, a script opened after its source changed.
-- `TestMiddleStripboard`: the board's tab among the others, the side panes beside it, the ribbon's Production tab
-  on Schedule, Close only (no Back to the Side), Back to the Script and Open Scene keeping it, Previous Middle Tab,
+- `TestMiddleStripboard`: the board's tab among the others, the side panes beside it, the ribbon's Stripboard tab,
+  Close only (no Back to the Side), the Script tab and Open Scene keeping it, Previous Middle Tab,
   the Schedule stage's row bringing it forward, the command in front closing it, the Writer role closing it.
 - `TestMiddlePhonePages`: Preview on a phone opens Pages next to Script in front; Script and back keeps the pages
   (not made again), the Preview tab only with them in front, through the cards, the tab's ×, a desktop's width (the

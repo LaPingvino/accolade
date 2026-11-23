@@ -196,6 +196,7 @@ var exKeywords = map[string]string{
 	"structure.expand": "select unit", "structure.shrink": "select unit", // selections, not moves: with the menus'
 
 	"structure.swap": "move swap scenes sections", "structure.move": "scenes sections",
+	"strips.up": "move stripboard", "strips.down": "move stripboard", "strips.moveTo": "move stripboard day", "strips.unschedule": "stripboard",
 	"source.next": "go move jump", "source.previous": "go move jump", "source.goScene": "move jump",
 	"preview.nextPage": "go move", "preview.previousPage": "go move", "md.noteJump": "move jump",
 	"edit.findNext": "go move", "edit.findPrevious": "go move",

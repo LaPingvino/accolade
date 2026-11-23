@@ -160,6 +160,13 @@ func TestRibbonGolden(t *testing.T) {
 	previewAndWait(t, w)
 	ribbonGolden(t, "screenplay-preview", dumpRibbon(r))
 	w.hidePages()
+	// the Stripboard tab: the board in front
+	w.toggleStripboard()
+	if r.selected != "Stripboard" {
+		t.Errorf("the board in front: the %s tab", r.selected)
+	}
+	ribbonGolden(t, "screenplay-stripboard", dumpRibbon(r))
+	w.toggleStripboard()
 }
 
 // tabButton is the ribbon's tab titled title.

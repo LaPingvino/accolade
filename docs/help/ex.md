@@ -56,6 +56,9 @@ Line commands take a range of lines before their name; without one they act on t
 - **:move-pane-bottom** — View > Move Pane to Bottom
 - **:move-pane-middle** — View > Open Pane in the Middle
 - **:move-pane-side** — View > Middle Tab Back to the Side
+- **:move-strip-to** — Production > Move Strip To (working as Production; while the stripboard is in front)
+- **:move-strip-up** — Production > Move Strip Up (working as Production; while the stripboard is in front)
+- **:move-strip-down** — Production > Move Strip Down (working as Production; while the stripboard is in front)
 
 Moves are named `move-…-up` and `move-…-down`, so `:mo` lists them all; jumps `go-…`, `next-…` and `previous-…`.
 
@@ -224,6 +227,16 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:new-scenes-number** `item` — Production > Options > A New Scene's Number (screenplay; working as Production)
 - **:continued-where-scene-breaks** — Production > Options > CONTINUED Where a Scene Breaks (screenplay; working as Production)
 - **:number-scenes-in-exports** — Production > Options > Number the Scenes in Exports (screenplay; working as Production)
+- **:unschedule-strip** — Production > Unschedule Strip (working as Production; while the stripboard is in front)
+- **:undo-board-change** — Production > Undo Board Change (working as Production; while the stripboard is in front)
+- **:edit-day** — Production > Edit Day (working as Production; while the stripboard is in front)
+- **:fold-all-days** — Production > Fold All Days (working as Production; while the stripboard is in front)
+- **:unfold-all-days** — Production > Unfold All Days (working as Production; while the stripboard is in front)
+- **:group-by-location** — Production > Group by Location (working as Production; while the stripboard is in front)
+- **:group-by-cast** — Production > Group by Cast (working as Production; while the stripboard is in front)
+- **:open-strip-scene** — Production > Open Strip's Scene (working as Production; while the stripboard is in front)
+- **:strip-checked** — Production > Strip Checked (working as Production; while the stripboard is in front)
+- **:close-stripboard** — Production > Close Stripboard (working as Production; while the stripboard is in front)
 
 ### View
 
@@ -269,17 +282,17 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 
 ### Preview
 
-- **:fit-width** — Preview > Zoom > Fit Width (not in the browser)
-- **:actual-size** — Preview > Zoom > Actual Size (not in the browser)
-- **:zoom-in** — Preview > Zoom > Zoom In (not in the browser)
-- **:zoom-out** — Preview > Zoom > Zoom Out (not in the browser)
-- **:previous-page** — Preview > Pages > Previous Page (not in the browser)
-- **:next-page** — Preview > Pages > Next Page (not in the browser)
-- **:save-pdf** — Preview > Output > Save PDF (not in the browser)
-- **:open-in-viewer** — Preview > Output > Open in Viewer (not in the browser)
-- **:preview-page-setup** — Preview > Setup > Page Setup (not in the browser)
-- **:preview-text** — Preview > Show > Text (not in the browser)
-- **:preview-pages** — Preview > Show > Pages (not in the browser)
-- **:preview-refresh** — Preview > Refresh > Refresh (not in the browser)
-- **:preview-follow-edits** — Preview > Refresh > Follow Edits (not in the browser)
-- **:close-preview** — Preview > Close > Close Preview (not in the browser)
+- **:fit-width** — Preview > Zoom > Fit Width (while a preview is shown)
+- **:actual-size** — Preview > Zoom > Actual Size (while a preview is shown)
+- **:zoom-in** — Preview > Zoom > Zoom In (while a preview is shown)
+- **:zoom-out** — Preview > Zoom > Zoom Out (while a preview is shown)
+- **:previous-page** — Preview > Pages > Previous Page (while a preview is shown)
+- **:next-page** — Preview > Pages > Next Page (while a preview is shown)
+- **:save-pdf** — Preview > Output > Save PDF (while a preview is shown)
+- **:open-in-viewer** — Preview > Output > Open in Viewer (while a preview is shown; not in the browser)
+- **:preview-page-setup** — Preview > Setup > Page Setup (while a preview is shown)
+- **:preview-text** — Preview > Show > Text (while a Live Preview is shown)
+- **:preview-pages** — Preview > Show > Pages (while a Live Preview is shown)
+- **:preview-refresh** — Preview > Refresh > Refresh (while a preview is shown)
+- **:preview-follow-edits** — Preview > Refresh > Follow Edits (while a preview is shown)
+- **:close-preview** — Preview > Close > Close Preview (while a preview is shown)

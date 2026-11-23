@@ -1313,25 +1313,36 @@ of its last change. A file that cannot be read is never written over.
 - `pool` is how the unscheduled are grouped (`location`, `cast`, or script order): set by Group … by Location / by
   Cast with no strip on a day selected, back to script order by a tap on the unscheduled's head.
 
-**The stripboard** (stripboard.go; Production > Stripboard, the stage's Open Stripboard). In the editor's place, as
-the cards are, and dragged as they are (`dragged` now takes any `dropBoard`). The days one under the other: each its
+**The stripboard** (stripboard.go; Production > Stripboard, the stage's Open Stripboard). A middle tab, as the
+cards' full view is, and dragged as they are (`dragged` now takes any `dropBoard`). The days one under the other: each its
 head (Day 1 · Tue 1 Dec 2026 · Call 07:00, its notes, an edit button for date, call, notes or removing the day), its
 strips, its black break "End of Day 1 — 4 6/8 pages"; then "Unscheduled · 69 scenes" and their strips; lost strips
 last. A strip is paper in its colour, its ink dark whatever the theme: number, I/E, location, D/N (`*` from the scene
 before), length, cast numbers; the flag under it in red.
 
+- Its commands are the ribbon's contextual **Stripboard** tab (stripstab.go, as the Preview tab is; LOOP.md
+  2026-11-23, Joop: "so same as preview ribbon"), there and in front while the board is: Move (Move To, Up, Down,
+  Unschedule, Undo), Day (Add Day, Edit Day…, Fold / Unfold Days), Group (by Location, by Cast), Check (Open Scene,
+  Checked), Close. In the Menus look the Production menu has them while the board is in front; the palette and `:`
+  too; a strip's long press or right-click its own. The board has no toolbar: its first line is the count, then the
+  strips, the tab's whole height.
 - Drag a strip (desktop): onto a strip's upper half before it, lower half after it, onto a day's head or empty
-  placeholder its start, its break its end, the unscheduled's head back to the pool.
+  placeholder its start, its break its end, a folded day's band its end, the unscheduled's head back to the pool.
+- A day folds to its band (its head's ▾; the tab's Fold Days): its scenes and length under its head, the board
+  shorter; a strip moved onto it, or shown from the Schedule stage, unfolds it.
 - Without a drag (phones, keyboard): a tap or Tab selects a strip (outlined; focused: a thicker outline), Up/Down
   select the next, Enter opens the scene. **Move Up / Move Down** (Alt+Up / Alt+Down) move it over its neighbour,
   across a day break into the day before or after; the pool's first strip up goes to the last day's end, the last
   day's last strip down back to the pool (Alt+Up/Down are Edit > Move Line Up/Down's keys, which give them to a strip
-  that has the focus). **Move to…** picks a day or Unscheduled. **Unschedule**, **Open Scene**,
+  that has the focus). **Move To** picks a day or Unscheduled. **Unschedule**, **Open Scene**,
   **Checked**.
 - **Add Day** (dated the day after the last dated day), **Group Day 2 by Location / by Cast** (the selected strip's
   day, or the unscheduled): one click, once, never by itself. By location: in order of each location's first strip,
   then INT/EXT and D/N; by cast: the cast numbers compared in turn (the lead's scenes first), then location. **Undo**.
-- On a phone (under 600 px) each strip is two lines, the actions two columns over the board, a drag scrolls.
+- On a phone (under 600 px) each strip is two lines with a grip (≡) at its end: a finger drags the strip by it (the
+  board scrolling near its edges), a drag elsewhere scrolls; a long press has the strip's actions (Move Up/Down, Move
+  To, Unschedule, Open Scene, Checked, Edit Day…). The dock's sheet folds down to its tab row while the board is in
+  front.
 
 **The Schedule stage** (production_schedule.go). The strip's fourth button (on its own row: 320 px hold three). "18 of
 87 scenes on a day · 3 days" (OMITTED scenes left out; "· 2 changed scenes to check", "· 1 lost strip"); the days
@@ -1352,9 +1363,12 @@ cast member tagged showing on the strip, Alt+Up through the menu; the revision f
 kept copy, read again, never written over when unreadable, the next day's date; the one-liner and DOOD as the Reports
 dialog makes them against golden CSVs (testdata/schedule/), the .ics; the stage's counts, rows and buttons, the menu
 items; the keys (Up/Down, Alt+Up); drops on a strip's halves and the pool's head; the phone's layout (the board and the
-pane within 380/320 px, a drag scrolling); the board's focus visible and everything named. Shots: `SHOT_DIR=… go test
--run TestScheduleScreenshots` (combo-stripboard-wide/phone.png, combo-schedule-stage-wide/phone.png,
-schedule-dood.pdf, schedule-oneliner.pdf).
+pane within 380/320 px, a drag scrolling, the grip moving, the long press's menu, a folded day, the sheet folded
+down); the board's focus visible and everything named; the Stripboard tab (stripstab_test.go: forward and back, its
+buttons following the selection, its key tips, Production on Schedule, a phone; the Production menu in the Menus
+look). Shots: `SHOT_DIR=… go test -run 'TestScheduleScreenshots|TestStripboardRibbonScreenshots'`
+(combo-stripboard-wide/phone.png, combo-stripboard-ribbon-…, combo-stripboard-folded-…,
+combo-schedule-stage-wide/phone.png, schedule-dood.pdf, schedule-oneliner.pdf).
 
 **Rough**
 

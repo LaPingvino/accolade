@@ -1605,6 +1605,16 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   contextual ribbon tab that shows while the view is in front (previewtab.go). So: a contextual "Stripboard" ribbon
   tab with the board's commands (grouped: Move, Day, Group, Check), shown while the board is in front on every
   screen size, and the in-pane toolbar removed (not only on phones).
+  Done (branch stripribbon, not merged): stripstab.go — the contextual Stripboard tab (Move: Move To, Up, Down,
+  Unschedule, Undo; Day: Add Day, Edit Day…, Fold/Unfold Days; Group: by Location, by Cast; Check: Open Scene,
+  Checked; Close), registry commands (menus, palette, :move-strip-up …); `ribbonTab.contextual` with Preview,
+  `contextFollow` in place of the jump to Production › Schedule (Production still there, on Schedule). The board
+  has no toolbar in either look (Menus look: the Production menu has the commands while it is in front — unlike
+  Preview, which keeps its bar there); its count is its first line. Phone: a grip (≡) per strip drags it (edge
+  scroll), a drag elsewhere scrolls, a long press (or right-click) has its actions; days fold to bands (everywhere);
+  the dock's sheet folds down to its row while the board is in front (sheetFollow). internal/structure is not on
+  main: the board's own moves. Shots before/after: combo-stripboard-ribbon-*, combo-stripboard-folded-*,
+  middle-phone-9-stripboard.
 - 2026-11-23 (Hebrew/Arabic samples merged; left wrong, from its report): (1) PDF title page: rtl lines sit ~0.5 in
   left of the Latin ones (centred on mirrored margins); (2) editor: a Hebrew run inside a left-to-right line (title
   page values) shows letter-reversed — only whole rtl lines are mirrored, runs inside ltr lines need bidi reordering;
