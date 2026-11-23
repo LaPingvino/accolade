@@ -2,6 +2,7 @@ package structure
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
@@ -235,3 +236,96 @@ func Plain(lines []string) Script {
 // Lines are text's lines; Text is lines as text again.
 func Lines(text string) []string { return strings.Split(text, "\n") }
 func Text(lines []string) string { return strings.Join(lines, "\n") }
+
+// Span is the scene (k Scene) or section (k Section) holding line i: its
+// heading's line and its last line with something on it (a section: all
+// it holds). ok is false when line i is in none (the title page, a
+// section's own lines for a scene, the blocks at the end).
+func (t *Tree) Span(i int, k Kind) (first, last int, ok bool) {
+	var in *Node
+	for _, n := range t.path(i) {
+		if n.Kind == k {
+			in = n
+		}
+	}
+	if in == nil {
+		return 0, 0, false
+	}
+	return in.First, in.Last, true
+}
+
+// SpanOf is the units of kind k from the one holding line i on, n of
+// them in all, side by side in one parent (a scene in another section
+// is not taken, nor that section's heading): first, the first's
+// heading, and last, the last's last line.
+func (t *Tree) SpanOf(i int, k Kind, n int) (first, last int, ok bool) {
+	first, last, ok = t.Span(i, k)
+	if !ok {
+		return 0, 0, false
+	}
+	var at *Node
+	for _, c := range t.containers() {
+		if c.First == first && c.Kind == k {
+			at = c
+		}
+	}
+	units := t.ofKind(k)
+	j := slices.Index(units, at)
+	for m := 1; m < n && j+1 < len(units); m++ {
+		nx := units[j+1]
+		if nx.Parent != at.Parent {
+			break
+		}
+		j++
+		last = nx.Last
+	}
+	return first, last, true
+}
+
+// ofKind are the units of kind k in the text's order.
+func (t *Tree) ofKind(k Kind) []*Node {
+	var out []*Node
+	for _, c := range t.containers() {
+		if c.Kind == k {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// Trail is the last of the blank lines after line last, up to the next
+// unit or the body's end: what "a scene" takes with it, as vim's "a
+// paragraph" takes the blank lines after it.
+func (t *Tree) Trail(last int) int {
+	i := last // blank lines are no unit's: past the body's end too, up to an end block
+	for i+1 < len(t.S.Lines) && t.sep(i+1) && strings.TrimSpace(t.S.Lines[i+1]) == "" {
+		i++
+	}
+	return i
+}
+
+// HeadAfter is the heading line of the n-th unit of kind k after line i
+// (before it: back), and whether there is one; past the last (first),
+// the last (first) there is.
+func (t *Tree) HeadAfter(i int, k Kind, n int, back bool) (int, bool) {
+	units := t.ofKind(k)
+	at := -1
+	for j, u := range units {
+		if back && u.First < i || !back && u.First > i {
+			if back {
+				at = j
+			} else if at < 0 {
+				at = j
+			}
+		}
+	}
+	if at < 0 {
+		return 0, false
+	}
+	if back {
+		at = max(at-(n-1), 0)
+	} else {
+		at = min(at+(n-1), len(units)-1)
+	}
+	return units[at].First, true
+}

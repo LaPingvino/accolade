@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/LaPingvino/accolade/internal/structure"
+
 	"fyne.io/fyne/v2"
 
 	"github.com/LaPingvino/lexington/rules"
@@ -91,6 +93,18 @@ func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 		}
 	}
 	vi.org = func(cmd string) bool { return script && w != nil && w.org(cmd) }
+	vi.tree = func() *structure.Tree { // the script as the window reads it (its language's headings)
+		if !script || w == nil || w.markdown {
+			return nil
+		}
+		tr, _ := w.structTree(e.Text())
+		return tr
+	}
+	vi.exWith = func(visual [2]int, text string) {
+		if w != nil {
+			w.showExWith(visual, text)
+		}
+	}
 	vi.fold = func(cmd rune) {
 		if w == nil {
 			return

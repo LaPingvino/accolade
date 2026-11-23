@@ -9,6 +9,7 @@ import (
 
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/structure"
 )
 
 // A vim mode for the editor (Preferences > Editor): Escape leaves typing
@@ -65,6 +66,22 @@ type vim struct {
 	helix   func() bool // helix keys instead of vim's
 	anchor  int         // where the visual selection started
 	vcur    int         // the visual cursor (the buffer's is at the selection's end)
+
+	// the screenplay's structure (vim_structure.go): a pending ] or [
+	// (]] [[ ]s [s), a pending text object's i or a and what it is for
+	// (an operator, v for visual, h for helix's select), helix's pending
+	// m (mi mas …); the register's unit, if it holds a whole scene or
+	// section (unitText: while it is still the register's)
+	bracket, obj, objFor rune
+	match                bool
+	unitKind             rune
+	unitText             string
+	helixUnit            [3]int // helix: the unit last selected (kind, from, to)
+	// tree reads the text as its units, the window's way (its language);
+	// nil: plainly (structure.Plain)
+	tree func() *structure.Tree
+	// exWith opens the command line with the lines given and text typed
+	exWith func(visual [2]int, text string)
 }
 
 func newVim(e *editor.ScriptEditor) *vim {
@@ -77,6 +94,7 @@ func (v *vim) active() bool { return v.on != nil && v.on() }
 func (v *vim) setMode(m vimMode) {
 	v.mode = m
 	v.count, v.op, v.g, v.replace = 0, 0, false, false
+	v.bracket, v.obj, v.match = 0, 0, false
 	if v.helix != nil && v.helix() && m != vimInsert {
 		if v.status != nil {
 			v.status("-- HELIX NORMAL --")
@@ -96,6 +114,7 @@ func (v *vim) setMode(m vimMode) {
 // typing.
 func (v *vim) reset(on bool) {
 	v.count, v.op, v.opCount, v.g, v.z, v.replace = 0, 0, 0, false, false, false
+	v.bracket, v.obj, v.match = 0, 0, false
 	v.anchor, v.vcur = 0, 0
 	v.mode = vimInsert
 	if v.e != nil {
@@ -210,6 +229,9 @@ func (v *vim) rune(r rune) bool {
 	}
 	if r >= '1' && r <= '9' || r == '0' && v.count > 0 {
 		v.count = v.count*10 + int(r-'0')
+		return true
+	}
+	if v.structureKey(r) { // ]] [[ ]s [s, the scene and section objects (vim_structure.go)
 		return true
 	}
 	if v.g {
@@ -348,6 +370,8 @@ func (v *vim) normalKey(r rune) {
 		}
 	case 'g':
 		v.g = true
+	case 'm': // the structure's move: m with a scene or section object (vim_structure.go)
+		v.op, v.opCount, v.count = r, v.count, 0
 	default:
 		v.motion(r)
 	}
@@ -485,6 +509,10 @@ func wordEnd(t []rune, c int) int {
 func (v *vim) operatorKey(r rune) {
 	op := v.op
 	v.op = 0
+	if op == 'm' { // m takes a scene or section object only (structureKey)
+		v.times()
+		return
+	}
 	t := []rune(v.e.Text())
 	c := v.e.CursorOffset()
 	n := v.times()
@@ -568,6 +596,9 @@ func (v *vim) apply(op rune, t []rune, from, to int, lines bool) {
 // put pastes the register after (or before) the cursor, n times.
 func (v *vim) put(before bool, n int) {
 	if v.reg == "" {
+		return
+	}
+	if v.putUnit(before, n) { // a scene or section: before or after the cursor's
 		return
 	}
 	text := strings.Repeat(v.reg, n)
@@ -750,6 +781,9 @@ func (v *vim) helixKey(r rune) {
 		}
 		lines := to > from && t[to-1] == '\n'
 		v.reg, v.regLine = string(t[from:to]), lines
+		if hu := v.helixUnit; hu[0] != 0 && hu[1] == from && hu[2] == to { // a scene or section selected as one (mas)
+			v.unitKind, v.unitText = rune(hu[0]), v.reg
+		}
 		if r == 'y' {
 			break
 		}
@@ -762,6 +796,9 @@ func (v *vim) helixKey(r rune) {
 			v.status(vimInsert.String())
 		}
 	case 'p', 'P':
+		if v.putUnit(r == 'P', 1) {
+			break
+		}
 		at := to
 		if r == 'P' {
 			at = from

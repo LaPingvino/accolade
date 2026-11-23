@@ -504,7 +504,11 @@ func (w *MainWindow) showPrompt(label string, done func(string)) {
 }
 
 // showEx opens the command line, with '<,'> for the lines given.
-func (w *MainWindow) showEx(visual [2]int) {
+func (w *MainWindow) showEx(visual [2]int) { w.showExWith(visual, "") }
+
+// showExWith opens the command line with '<,'> for the lines given and
+// more typed after it (vim's mas: :'<,'>move ).
+func (w *MainWindow) showExWith(visual [2]int, more string) {
 	if w.exBar == nil {
 		w.exEntry = newExLine(w)
 		w.exLabel = widget.NewLabel(":")
@@ -522,6 +526,7 @@ func (w *MainWindow) showEx(visual [2]int) {
 	if visual[0] >= 0 {
 		text = "'<,'>"
 	}
+	text += more
 	l.set(text)
 	setVisible(w.statusBar, true)
 	w.exBar.Show()
