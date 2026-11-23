@@ -88,6 +88,8 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:open** — File > Open
 - **:recent** `item` — File > Open Recent
 - **:open-sample** — File > Open Sample
+- **:open-hebrew-sample** — File > Open Hebrew Sample
+- **:open-arabic-sample** — File > Open Arabic Sample
 - **:import-as-markdown** — File > Import as Markdown
 - **:import-with-pandoc** — File > Import with pandoc (not in the browser)
 - **:start-screenplay-from-this-source** — File > Start a Screenplay from This Source (Markdown)
