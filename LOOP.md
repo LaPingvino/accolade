@@ -1283,3 +1283,17 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   leaves the script byte for byte (TestRelinkWeakLeavesScript). Shot: relink-chip-check (SHOT_DIR, that test).
   Open: guesses live for the session only; the moved/copied guard compares each lone pair with every passage (bag
   of words), slow-ish for a whole-novel swap with many lone pairs (background).
+- 2026-11-23 (Joop: "I don't have much more examples than this xD so I guess we might need other ways to sharpen
+  that afterwards..."): ADAPTATION BENCHMARK, with the link-up item. (1) Two or three public-domain pairs from Project
+  Gutenberg — a novel/story and a period stage adaptation of it (A Christmas Carol and a 19th-century stage version;
+  Treasure Island and its play; Doyle's stories and Gillette's 1899 Sherlock Holmes) — converted to source.md +
+  .fountain with a hand-checked scene→source mapping, committed under testdata/adapt-bench/ (public domain, note the
+  Gutenberg etext numbers); (2) synthetic loose adaptations made to measure (intro skipped, scenes merged, dialogue
+  reworded) with their true mapping; (3) Joop's Kredu min, Sinjorino measured locally only (private). A benchmark
+  test reports per pair: scenes guessed right / wrong / silent, cuts suggested right / wrong.
+  STRETCH GOAL (Joop: hopetalks.fountain "by Renata Ventura, and while it refers to a loose source, that source is in
+  Spanish. That reference would be a massive challenge, but is probably a great stretch goal benchmark."): matching
+  across languages (script in one language, source in another). Her script is her work: never commit, upload or
+  quote it; local measurement only, and only once the Spanish source is at hand (ask Joop). Approaches to weigh then:
+  a bilingual word list per language pair, names/numbers/places as language-free anchors plus order, or an offline
+  translation of the source first.
