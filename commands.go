@@ -511,7 +511,7 @@ func newRegistry() *registry {
 		&command{id: "edit.findPrevious", label: "Find Previous", keys: []fyne.Shortcut{shortcut(fyne.KeyG, fyne.KeyModifierShift)}, icon: theme.NavigateBackIcon, run: (*MainWindow).findPrevious},
 		// the pattern fixer: an imported script's lines set right at once (fixup.go)
 		&command{id: "edit.fixLines", label: "Fix Lines Like This…", ribbonLabel: "Fix Lines",
-			tip: "Every line like the cursor's made a heading, a cue, a transition…, or dropped: previewed, one undo step",
+			tip:  "Every line like the cursor's made a heading, a cue, a transition…, or dropped: previewed, one undo step",
 			icon: theme.SearchReplaceIcon, when: scriptEditing, run: (*MainWindow).showPatternFixer},
 		&command{id: "edit.cut", label: "Cut", shownKeys: "X", icon: theme.ContentCutIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCut{Clipboard: c} })},
 		&command{id: "edit.copy", label: "Copy", shownKeys: "C", icon: theme.ContentCopyIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCopy{Clipboard: c} })},
