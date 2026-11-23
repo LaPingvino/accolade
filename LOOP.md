@@ -1863,3 +1863,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   check-devanagari.py checking the rule); (3) one shared width function — Lexington's wrap (pdf/devanagari.go,
   wrap.JoinsBefore) and Accolade's rungrid/cursor count cells by it; (4) a specimen page (every cluster type with
   its cell count) as a Courier Badi proof PDF and an Accolade sample/screenshot, so it can be checked by eye.
+  Spec extras (Joop: "Once an approach is out there, others might start picking it up"): a permissive licence for
+  the spec text, test vectors (clusters with their cell counts), a small Go reference function; and a short STORY at
+  its head, in Joop's framing: "for the purpose of building a screenplay editor that already supported Arabic
+  monospace, adding Hindi monospace was a logical next step. Because of the nature of the script, this is not as
+  clear as other scripts, and the approach of old typewriters gave us a nice middle ground to give an acceptable font
+  that follows the spirit and is allowed to look nice." After 1.105: offer Joop a short note for Unicode's Text
+  Terminal WG / Monotty (outward: his to post).
