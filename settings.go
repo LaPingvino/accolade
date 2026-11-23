@@ -91,7 +91,8 @@ func (s *Settings) loadDefaults() {
 		"export-page-colours": false,
 		// the scenes' (CONTINUED) and CONTINUED: in the PDF (lockedpages.go;
 		// a page lock keeps its own)
-		"export-continueds": false,
+		"export-continueds":        false,
+		"export-storyboard-frames": false,
 		// the report Production > Reports… shows first (reports.go)
 		"report-kind": "scenes",
 

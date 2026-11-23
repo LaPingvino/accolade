@@ -164,7 +164,7 @@ func (r *runRenderer) Refresh() {
 					img := r.image(ni)
 					ni++
 					at, w := span(i, j)
-					img.Image = wideGlyph(b.String(), col, style.Bold, size, w, ch)
+					img.Image, img.FillMode = wideGlyph(b.String(), col, style.Bold, size, w, ch), canvas.ImageFillStretch
 					img.Move(fyne.NewPos(at, top))
 					img.Resize(fyne.NewSize(w, ch))
 					img.Refresh()
@@ -186,6 +186,32 @@ func (r *runRenderer) Refresh() {
 				t.Resize(fyne.NewSize(w, ch))
 			}
 			i = j
+		}
+	}
+	for y, row := range r.g.Rows { // the pictures over their cells (a chip's thumbnail)
+		top := float32(y) * ch
+		x := float32(0)
+		for i := 0; i < len(row.Cells); i++ {
+			pc, ok := row.Cells[i].Style.(*pictureCell)
+			if !ok || !pc.lead {
+				x += float32(cellWidth(row.Cells[i].Rune)) * cw
+				continue
+			}
+			j, w := i, float32(0)
+			for ; j < len(row.Cells); j++ {
+				if q, ok := row.Cells[j].Style.(*pictureCell); !ok || q.img != pc.img || (j > i && q.lead) {
+					break
+				}
+				w += cw
+			}
+			img := r.image(ni)
+			ni++
+			img.Image, img.FillMode = pc.img, canvas.ImageFillContain
+			img.Move(fyne.NewPos(x+1, top+1))
+			img.Resize(fyne.NewSize(w-2, ch-2))
+			img.Refresh()
+			x += w
+			i = j - 1
 		}
 	}
 	r.objects = r.objects[:0]

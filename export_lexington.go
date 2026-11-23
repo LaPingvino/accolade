@@ -81,6 +81,10 @@ type exportJob struct {
 	// format but FDX and Fountain, the pages and their lock alike
 	mergeOmitted bool
 
+	// pictures are the storyboard frames' files, by their notes' names,
+	// for a PDF that prints them (nil: none printed; storyboard.go)
+	pictures map[string][]byte
+
 	// conf is the script's Lexington configuration (MainWindow.lex), its
 	// formats among the element sets; unset: the machine's files
 	conf lexConf
@@ -108,6 +112,7 @@ func (j exportJob) options(to, output string) cli.Options {
 		SceneLengths: j.sceneLengths,
 		MergeOmitted: j.mergeOmitted,
 		SceneIn:      j.language, // the HTML's direction for a line with none of its own
+		Pictures:     j.pictures,
 	}
 	if j.conf.Languages != nil { // the script's own, with what it brought
 		conf := j.conf.TOMLConf

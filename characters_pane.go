@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"strings"
 
@@ -66,6 +67,7 @@ type charactersPane struct {
 		aliases  *widget.Label
 		actions  *fyne.Container
 		note     *widget.Entry
+		photo    *canvas.Image // the cast photo, larger
 		fields   [fieldCount]*widget.Entry
 		fieldRow [fieldCount]*widget.FormItem
 		noteRow  *widget.FormItem
@@ -417,6 +419,7 @@ type charRow struct {
 	aliases     *widget.Label // the learned notes' other names, under the cue
 	texts       *fyne.Container
 	cast        *widget.Label
+	photo       *canvas.Image // the cast photo, small (hidden: none)
 	bg          *canvas.Rectangle
 	open        *widget.Button
 	key         string
@@ -438,6 +441,10 @@ func newCharRow(p *charactersPane) *charRow {
 	r.cast = widget.NewLabel("")
 	r.cast.SizeName = theme.SizeNameCaptionText
 	r.cast.Importance = widget.LowImportance
+	r.photo = canvas.NewImageFromImage(nil)
+	r.photo.FillMode = canvas.ImageFillContain
+	r.photo.SetMinSize(fyne.NewSize(40, 40))
+	r.photo.Hide()
 	r.bg = canvas.NewRectangle(color.Transparent)
 	r.bg.CornerRadius = theme.InputRadiusSize()
 	r.open = widget.NewButtonWithIcon("", theme.NavigateNextIcon(), func() { p.openChar(r.key) })
@@ -464,6 +471,13 @@ func (r *charRow) show(p *charactersPane, i int) {
 	} else {
 		r.cast.Hide()
 	}
+	if img := p.photoOf(c, 80); img != nil {
+		r.photo.Image = img
+		r.photo.Show()
+		r.photo.Refresh()
+	} else {
+		r.photo.Hide()
+	}
 	if c.Not {
 		r.name.Importance = widget.LowImportance
 	} else {
@@ -482,7 +496,7 @@ func (r *charRow) CreateRenderer() fyne.WidgetRenderer {
 	top := container.NewBorder(nil, nil, nil, r.cast, r.name)
 	texts := container.New(layout.NewCustomPaddedVBoxLayout(-2*theme.Padding()), top, r.stats, r.aliases)
 	r.texts = texts
-	return widget.NewSimpleRenderer(container.NewStack(r.bg, container.NewBorder(nil, nil, nil, r.open, texts)))
+	return widget.NewSimpleRenderer(container.NewStack(r.bg, container.NewBorder(nil, nil, r.photo, r.open, texts)))
 }
 
 // The character opened: back to the list, the next and previous cue, the
@@ -536,13 +550,18 @@ func (p *charactersPane) makeDetail() {
 		items = append(items, d.fieldRow[f])
 	}
 	d.fields[fieldLook].SetPlaceHolder("What we see")
+	d.fields[fieldPhoto].SetPlaceHolder("A picture: Choose Photo…")
+	d.photo = canvas.NewImageFromImage(nil)
+	d.photo.FillMode = canvas.ImageFillContain
+	d.photo.SetMinSize(fyne.NewSize(120, 120))
+	d.photo.Hide()
 	d.fields[fieldArc].SetPlaceHolder("How they change")
 	d.form = widget.NewForm(items...)
 	d.form.Orientation = widget.Adaptive
 	scenesTitle := widget.NewLabel("Scenes")
 	scenesTitle.TextStyle = fyne.TextStyle{Bold: true}
 	d.scenes = container.NewVBox()
-	d.box = container.NewVBox(container.NewBorder(nil, nil, back, nil, d.name), d.stats, d.aliases, nav, d.actions, widget.NewSeparator(),
+	d.box = container.NewVBox(container.NewBorder(nil, nil, back, nil, d.name), container.NewHBox(d.photo), d.stats, d.aliases, nav, d.actions, widget.NewSeparator(),
 		d.form, d.listed, widget.NewSeparator(), scenesTitle, d.scenes)
 }
 
@@ -579,6 +598,13 @@ func (p *charactersPane) showDetail() {
 		name = fmt.Sprintf("%s  #%d", c.Name, n)
 	}
 	d.name.SetText(name)
+	if img := p.photoOf(c, 360); img != nil {
+		d.photo.Image = img
+		d.photo.Show()
+		d.photo.Refresh()
+	} else {
+		d.photo.Hide()
+	}
 	d.stats.SetText(p.charStats(c))
 	if len(c.Aliases) > 0 {
 		d.aliases.SetText("Also called (the learned notes): " + strings.Join(c.Aliases, ", "))
@@ -664,7 +690,43 @@ func (p *charactersPane) actionButtons(c charInfo) []fyne.CanvasObject {
 	if c.Entry < 0 {
 		out = append(out, btn("Add to the List", func() { p.addToList(c.Key) }))
 	}
+	out = append(out, btn("Choose Photo…", func() { p.choosePhoto(c.Key) }))
 	return out
+}
+
+// photoOf is a character's cast photo, at most size pixels a side (nil:
+// none, or it cannot be read).
+func (p *charactersPane) photoOf(c charInfo, size int) image.Image {
+	m := p.model
+	if m == nil || m.markdown || c.Entry < 0 || c.Entry >= len(m.list.entries) {
+		return nil
+	}
+	src := strings.TrimSpace(m.list.entries[c.Entry].Fields[fieldPhoto])
+	if src == "" {
+		return nil
+	}
+	return p.w.pictures().Thumbnail(src, size, size)
+}
+
+// choosePhoto picks a picture for a character's cast photo, keeps it with
+// the script (pictures.go) and names it in their entry.
+func (p *charactersPane) choosePhoto(key string) {
+	w := p.w
+	if w.bundle == nil && (w.currentFile == "" || inBrowser) {
+		dialog.ShowError(errNoPictureHome, w.fyneWindow)
+		return
+	}
+	chooseFileIn(w.fyneWindow, pictureExtensions, func(picked string) {
+		w.keepPicture(picked, w.pictureFolder(""), func(rel string, err error) {
+			if err != nil {
+				dialog.ShowError(fmt.Errorf("could not keep the photo: %v", err), w.fyneWindow)
+				return
+			}
+			p.writeEntry(key, fieldPhoto, func(e *charEntry) { e.Fields[fieldPhoto] = rel })
+			p.showDetail()
+			p.refresh()
+		})
+	})
 }
 
 // charOf is the character with key as the model has it.

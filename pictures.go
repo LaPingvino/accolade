@@ -3,9 +3,12 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"html"
 	"image/color"
+	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -219,3 +222,93 @@ func mimeOf(data []byte) string {
 	}
 	return "image/png"
 }
+
+// pictureFolder is where pictures added to the document go, as the
+// document names them: dataPath's folder when a screenplay names one,
+// else a bundle's assets/, else Name.assets/ beside the plain file.
+func (w *MainWindow) pictureFolder(dataPath string) string {
+	switch {
+	case dataPath != "":
+		return strings.Trim(path.Clean(dataPath), "/")
+	case w.bundle != nil:
+		return "assets"
+	}
+	return strings.TrimSuffix(filepath.Base(w.currentFile), filepath.Ext(w.currentFile)) + ".assets"
+}
+
+// errNoPictureHome: an unsaved script (or a plain file in the browser)
+// has nowhere to keep a picture.
+var errNoPictureHome = errors.New("save the script first — as an .accolade (File › Save As) to keep its pictures inside it, " +
+	"or, on the desktop, as a plain file to keep them in a folder beside it")
+
+// keepPicture copies the picture file at src into the document's picture
+// folder (folder), under its own name (numbered if another picture has
+// it), and tells done the name the document links it by (relative to
+// the document). Read from the folder at once (the loader made again).
+func (w *MainWindow) keepPicture(src, folder string, done func(rel string, err error)) {
+	data, err := readPickedFile(src)
+	if err == nil {
+		_, err = images.Decode(data, src)
+		if errors.Is(err, images.ErrSVG) {
+			err = nil // kept: shown as its alt text
+		}
+	}
+	if err != nil {
+		done("", fmt.Errorf("%s: %v", filepath.Base(src), err))
+		return
+	}
+	name := pictureName(filepath.Base(src))
+	if b := w.bundle; b != nil {
+		for i := 2; ; i++ { // a name not taken by another picture
+			old, err := b.readExtra(folder + "/" + name)
+			if err != nil || bytes.Equal(old, data) {
+				break
+			}
+			ext := path.Ext(name)
+			name = fmt.Sprintf("%s-%d%s", strings.TrimSuffix(pictureName(filepath.Base(src)), ext), i, ext)
+		}
+		rel := folder + "/" + name
+		files := []bundleFile{{rel, data}}
+		w.queueBundle(bundleJob{run: func(b *textBundle) (*textBundle, error) {
+			if b == nil {
+				return nil, errors.New("the script's bundle is gone")
+			}
+			return saveBundleFiles(b, files, false)
+		}, done: func(err error) { done(rel, err) }})
+		return
+	}
+	if w.currentFile == "" || inBrowser {
+		done("", errNoPictureHome)
+		return
+	}
+	dir := filepath.Join(filepath.Dir(w.currentFile), filepath.FromSlash(folder))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		done("", err)
+		return
+	}
+	name = uniqueName(dir, name, data)
+	if err := writeFileAtomic(filepath.Join(dir, name), data); err != nil {
+		done("", err)
+		return
+	}
+	w.pictures().Forget()
+	done(folder+"/"+name, nil)
+}
+
+// pictureName is a file's name as a picture's in a document: no spaces
+// (a Markdown link and a board note read it as it is).
+func pictureName(name string) string {
+	name = strings.Map(func(r rune) rune {
+		if r == ' ' || r == ',' || r == '(' || r == ')' || r == '[' || r == ']' || r == '<' || r == '>' {
+			return '-'
+		}
+		return r
+	}, name)
+	return strings.TrimLeft(name, ".-")
+}
+
+// readPickedFile reads a file picked in the file dialog.
+var readPickedFile = os.ReadFile
+
+// pictureExtensions are the pictures a file dialog offers.
+var pictureExtensions = []string{".png", ".jpg", ".jpeg", ".gif", ".webp"}

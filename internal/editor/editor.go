@@ -6,6 +6,7 @@ package editor
 
 import (
 	"github.com/LaPingvino/lexington/fountain"
+	"image"
 
 	"fmt"
 	"image/color"
@@ -94,6 +95,9 @@ type ScriptEditor struct {
 	// OnChipPressed is told of a right click or a long press on a chip,
 	// with its cell's place and size in the editor (to show its Tip).
 	OnChipPressed func(c Chip, at fyne.Position, cell fyne.Size)
+	// OnChipTapped is told of a tap on a chip with an Image (one without
+	// is tapped into: its text shown).
+	OnChipTapped func(c Chip, at fyne.Position, cell fyne.Size)
 	// Headings, when set, are the lines that can fold: a gutter column
 	// shows ▾ on them (▸ folded), and a tap there goes to OnFoldTapped.
 	Headings     func() map[int]bool
@@ -189,6 +193,11 @@ type Chip struct {
 	Start, End int
 	Label, Tip string
 	Warn       bool // drawn in the warning colour (a link that cannot find its passage alone)
+	// Image, when set, is drawn over the label's first ImageCols cells
+	// (spaces in Label), its shape kept, a row high: a storyboard frame's
+	// thumbnail. A tap on such a chip goes to OnChipTapped.
+	Image     image.Image
+	ImageCols int
 }
 
 // Tag is a label after a line (Tags); Short is drawn instead where Label
@@ -837,7 +846,11 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 			if off >= selStart && off < selEnd {
 				style = withBackground(style, selected.BGColor)
 			}
-			for _, ch := range c.Label {
+			for k, ch := range []rune(c.Label) {
+				if k < c.ImageCols && c.Image != nil {
+					cells = append(cells, widget.TextGridCell{Rune: ' ', Style: &pictureCell{TextGridStyle: style, img: c.Image, lead: k == 0}})
+					continue
+				}
 				cells = append(cells, widget.TextGridCell{Rune: ch, Style: style})
 				if wrap.Width(ch) == 2 {
 					cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: style})
@@ -1205,6 +1218,14 @@ func inked(s widget.TextGridStyle, c color.Color) widget.TextGridStyle {
 	return out
 }
 
+// pictureCell is a cell a picture is drawn over (a chip's thumbnail):
+// lead in the first of its run.
+type pictureCell struct {
+	widget.TextGridStyle
+	img  image.Image
+	lead bool
+}
+
 // withBackground is a line style with a background colour added.
 func withBackground(s widget.TextGridStyle, bg color.Color) widget.TextGridStyle {
 	out := &widget.CustomTextGridStyle{BGColor: bg}
@@ -1250,6 +1271,10 @@ func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
 	}
 	if line, t, at, ok := e.tagAt(ev.Position); ok {
 		e.OnTagTapped(line, t, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
+		return
+	}
+	if c, at, ok := e.chipUnder(ev.Position); ok && !e.shift && c.Image != nil && e.OnChipTapped != nil {
+		e.OnChipTapped(c, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
 		return
 	}
 	e.focus()

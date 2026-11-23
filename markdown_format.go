@@ -7,7 +7,9 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
@@ -334,7 +336,23 @@ func (w *MainWindow) askLink(image bool) {
 	}
 	fyne.SetAccessibleLabel(url, field)
 	focus := w.fyneWindow.Canvas().Focused()
-	d := dialog.NewForm(title, "Insert", "Cancel", []*widget.FormItem{widget.NewFormItem(field, url)}, func(ok bool) {
+	items := []*widget.FormItem{widget.NewFormItem(field, url)}
+	if image { // a file of one's own: kept with the document (pictures.go)
+		choose := widget.NewButtonWithIcon("Choose a Picture…", theme.FolderOpenIcon(), func() {
+			chooseFileIn(w.fyneWindow, pictureExtensions, func(picked string) {
+				w.keepPicture(picked, w.pictureFolder(""), func(rel string, err error) {
+					if err != nil {
+						dialog.ShowError(err, w.fyneWindow)
+						return
+					}
+					url.SetText(rel)
+				})
+			})
+		})
+		note := hint("Copied into the bundle's assets/, or a folder beside the document; an address on the web is linked, never fetched.")
+		items = append(items, widget.NewFormItem("", container.NewVBox(choose, note)))
+	}
+	d := dialog.NewForm(title, "Insert", "Cancel", items, func(ok bool) {
 		if ok && strings.TrimSpace(url.Text) != "" {
 			w.mdEdit(func(b *buffer.Buffer) { insertMarkdownLink(b, strings.TrimSpace(url.Text), image) })
 		}
@@ -344,7 +362,11 @@ func (w *MainWindow) askLink(image bool) {
 			w.focusMain()
 		}
 	}, w.fyneWindow)
-	d.Resize(fyne.NewSize(420, 160))
+	if image {
+		d.Resize(fyne.NewSize(460, 260))
+	} else {
+		d.Resize(fyne.NewSize(420, 160))
+	}
 	d.Show()
 	w.fyneWindow.Canvas().Focus(url)
 }

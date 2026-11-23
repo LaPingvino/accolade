@@ -19,6 +19,7 @@ import (
 //	  look: a red coat, always
 //	  arc: from fear to trust
 //	  actor: Jane Doe
+//	  photo: assets/anna.jpg
 //	  She keeps the letters she never sends.
 //	ben
 //	*/
@@ -26,7 +27,9 @@ import (
 // A line that starts at the margin is a character: the name, then after
 // ":" the first line of their note. The indented lines under it are
 // theirs: a few fields by key (age; look, also description or
-// appearance; arc; actor, also casting or played by), and the rest the
+// appearance; arc; actor, also casting or played by; photo, the cast
+// photo's file, kept in the bundle's assets/ or a folder beside the
+// script: pictures.go), and the rest the
 // note. A name alone is a character listed with nothing to say yet.
 //
 // The block is the script's character list. The Characters pane lists
@@ -59,13 +62,14 @@ const (
 	fieldLook
 	fieldArc
 	fieldActor
+	fieldPhoto // the cast photo: a picture in the bundle's assets/ (or beside the script)
 	fieldCount
 )
 
 // fieldKeys are the fields' keys as written, and fieldLabels as shown.
 var (
-	fieldKeys   = [fieldCount]string{"age", "look", "arc", "actor"}
-	fieldLabels = [fieldCount]string{"Age", "Look", "Arc", "Actor"}
+	fieldKeys   = [fieldCount]string{"age", "look", "arc", "actor", "photo"}
+	fieldLabels = [fieldCount]string{"Age", "Look", "Arc", "Actor", "Photo"}
 )
 
 // fieldOf is the field a key names (-1: none: the line is the note's).
@@ -79,6 +83,8 @@ func fieldOf(key string) int {
 		return fieldArc
 	case "actor", "casting", "cast", "played by":
 		return fieldActor
+	case "photo", "picture", "headshot", "cast photo":
+		return fieldPhoto
 	}
 	return -1
 }
@@ -87,7 +93,7 @@ func fieldOf(key string) int {
 type charEntry struct {
 	Name   string             // as written
 	Note   string             // the note: the line after the name, then the others, one a line
-	Fields [fieldCount]string // age, look, arc, actor
+	Fields [fieldCount]string // age, look, arc, actor, photo
 	// from, to are its lines in the block's inside: [from, to)
 	from, to int
 }

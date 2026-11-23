@@ -29,6 +29,7 @@ import (
 const (
 	revisedOnlyPref = "export-revised-only" // revised pages only (PDF)
 	templatePref    = "export-template"     // FDX's and LaTeX's template, "" Lexington's
+	framesPref      = "export-storyboard-frames"
 )
 
 // pageSetup is what the printed page looks like, as the settings have
@@ -48,6 +49,7 @@ type pageSetup struct {
 	revisedOnly   bool
 	pageColours   bool // the changed pages on their colour's paper
 	template      string
+	frames        bool // the storyboard frames under their lines (PDF; storyboard.go)
 }
 
 // pageSetupOf is the page setup the settings s have.
@@ -67,6 +69,7 @@ func pageSetupOf(s *Settings) pageSetup {
 		revisedOnly:   s.GetBoolean(revisedOnlyPref),
 		pageColours:   s.GetBoolean("export-page-colours"),
 		template:      s.GetString(templatePref),
+		frames:        s.GetBoolean(framesPref),
 	}
 }
 
@@ -86,6 +89,7 @@ func (p pageSetup) writeTo(s *Settings) {
 	s.SetBoolean(revisedOnlyPref, p.revisedOnly)
 	s.SetBoolean("export-page-colours", p.pageColours)
 	s.SetString(templatePref, strings.TrimSpace(p.template))
+	s.SetBoolean(framesPref, p.frames)
 }
 
 // pageSetupPref is the key changeSetting is given for a page setup's
@@ -151,6 +155,9 @@ func (w *MainWindow) outputJob(p pageSetup, format, text string, part func(*expo
 	}
 	if format == "pdf" { // in the pages its revision prints against
 		j = w.withIssuedPages(j, text)
+	}
+	if format == "pdf" && p.frames {
+		j.pictures = w.framePictures(text)
 	}
 	return j
 }
@@ -276,6 +283,9 @@ func (w *MainWindow) pageSummary(p pageSetup, format string) string {
 	if a.continueds && p.continueds {
 		parts = append(parts, "CONTINUEDs")
 	}
+	if a.continueds && p.frames {
+		parts = append(parts, "storyboard frames")
+	}
 	if a.revisions && p.revisions {
 		r := "revision marks"
 		if a.revisedPages && p.revisedOnly {
@@ -385,6 +395,7 @@ type pageSetupDlg struct {
 	includeTitlePageCheck *widget.Check
 	sceneNumbersCheck     *widget.Check
 	continuedsCheck       *widget.Check
+	framesCheck           *widget.Check
 	colorsCheck           *widget.Check
 	colorStyleSelect      *widget.Select
 	colorOptions          *fyne.Container
@@ -436,6 +447,7 @@ func (w *MainWindow) newPageSetup(format string, done func()) *pageSetupDlg {
 	p.includeTitlePageCheck = widget.NewCheck("Title page", nil)
 	p.sceneNumbersCheck = widget.NewCheck("Number the scenes not numbered", nil)
 	p.continuedsCheck = widget.NewCheck("CONTINUED where a scene breaks", nil)
+	p.framesCheck = widget.NewCheck("Print storyboard frames ([[board: …]]) under their lines", nil)
 	p.colorsCheck = widget.NewCheck("Colours: headings in their notes' colours", func(bool) { p.enable() })
 	var styles []string
 	for _, s := range colorStyles {
@@ -493,6 +505,9 @@ func (p *pageSetupDlg) show() {
 	}
 	if a.continueds && p.w.role() == roleProduction {
 		objs = append(objs, p.continuedsCheck)
+	}
+	if a.continueds { // (the PDF's)
+		objs = append(objs, p.framesCheck)
 	}
 	if a.script {
 		objs = append(objs, p.colorsCheck, p.colorOptions, p.paginationBox)
@@ -563,6 +578,7 @@ func (p *pageSetupDlg) load(s pageSetup) {
 	p.revisedOnlyCheck.SetChecked(s.revisedOnly)
 	p.pageColoursCheck.SetChecked(s.pageColours)
 	p.templateEntry.SetText(s.template)
+	p.framesCheck.SetChecked(s.frames)
 	p.enable()
 }
 
@@ -583,6 +599,7 @@ func (p *pageSetupDlg) chosen() pageSetup {
 		revisedOnly:   p.revisedOnlyCheck.Checked,
 		pageColours:   p.pageColoursCheck.Checked,
 		template:      strings.TrimSpace(p.templateEntry.Text),
+		frames:        p.framesCheck.Checked,
 	}
 }
 
