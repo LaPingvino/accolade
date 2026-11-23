@@ -76,6 +76,15 @@ type cmdEnv struct {
 	// the title page (contextual.go)
 	fixup, fixupPDF, titlePage bool
 	fixupRules                 bool // the script keeps fix-up rules
+	// characters: the Characters pane in sight; character: one chosen
+	// in it (characters_tab.go)
+	characters, character bool
+	// shared: the script shared (the Session tab); others: someone else
+	// is here; following: someone followed (session_tab.go)
+	shared, others, following bool
+	// compare: Compare is the middle tab in front; compareChanged: with
+	// changes to go to (compare_tab.go)
+	compare, compareChanged bool
 }
 
 // cmdEnv is the window's.
@@ -107,6 +116,9 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	e.phone = w.narrow
 	e.topEdited = w.topRowEdited()
 	w.contextEnv(&e)
+	w.charactersEnv(&e)
+	w.sessionEnv(&e)
+	w.compareEnv(&e)
 	return e
 }
 
@@ -802,16 +814,19 @@ func newRegistry() *registry {
 	add(&command{id: "app.palette", label: "Command Palette…", tip: "Command palette: find any command", icon: func() fyne.Resource { return paletteIcon },
 		keys: []fyne.Shortcut{shortcut(fyne.KeyK, 0), plainKey(fyne.KeyF1, 0)}, run: (*MainWindow).showPalette})
 	add(&command{id: "help.about", label: "About Accolade", icon: theme.InfoIcon, run: func(w *MainWindow) { w.app.showAbout() }})
-	add(structureCommands()...) // the structural moves (structure_window.go)
-	add(dockCommands()...)      // the side dock's panes and its own (dock.go)
-	add(helpCommands()...)      // help_pane.go
-	add(settingCommands()...)   // ribbon_settings.go
-	add(previewCommands()...)   // the Preview tab's (previewtab.go)
-	add(stripsCommands()...)    // the Stripboard tab's (stripstab.go)
-	add(cardsCommands()...)     // the Cards tab's (cards_tab.go)
-	add(topRowCommands()...)    // the top row's own (toprow.go)
-	add(contextCommands()...)   // the Fix-Up and Title Page tabs' (contextual.go)
-	add(quickCommands()...)     // the ribbon's order and the Quick row (quick.go)
+	add(structureCommands()...)  // the structural moves (structure_window.go)
+	add(dockCommands()...)       // the side dock's panes and its own (dock.go)
+	add(helpCommands()...)       // help_pane.go
+	add(settingCommands()...)    // ribbon_settings.go
+	add(previewCommands()...)    // the Preview tab's (previewtab.go)
+	add(stripsCommands()...)     // the Stripboard tab's (stripstab.go)
+	add(cardsCommands()...)      // the Cards tab's (cards_tab.go)
+	add(topRowCommands()...)     // the top row's own (toprow.go)
+	add(contextCommands()...)    // the Fix-Up and Title Page tabs' (contextual.go)
+	add(charactersCommands()...) // the Characters tab's (characters_tab.go)
+	add(sessionCommands()...)    // the Session tab's (session_tab.go)
+	add(compareCommands()...)    // the Compare tab's (compare_tab.go)
+	add(quickCommands()...)      // the ribbon's order and the Quick row (quick.go)
 
 	elements := make([]home, len(toolbarElements))
 	for i, el := range toolbarElements {
@@ -874,7 +889,9 @@ func newRegistry() *registry {
 			at("view.topRowAdd"), at("view.topRowReset"),
 			sep(), at("view.documentType"), at("view.role"),
 		)},
-		{title: "Cards", when: cardsInFront, homes: cardsMenu()}, // while the cards are in front (cards_tab.go)
+		{title: "Cards", when: cardsInFront, homes: cardsMenu()},  // while the cards are in front (cards_tab.go)
+		{title: "Compare", when: comparing, homes: compareMenu()}, // while Compare is in front (compare_tab.go)
+		{title: "Session", when: sharedNow, homes: sessionMenu()}, // while the script is shared (session_tab.go)
 		{title: "Help", homes: helpMenu()},
 	}
 	r.topRow = []home{
@@ -1248,10 +1265,13 @@ func ribbonLayout() []ribbonTab {
 			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),
 				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")}},
 		}},
-		fixUpTab(),     // after an import until saved (contextual.go)
-		titlePageTab(), // while the cursor is in the title page
-		previewTab(),   // while a preview is shown, last (the others' key tips stay)
-		stripsTab(),    // while the stripboard is in front (stripstab.go)
-		cardsTab(),     // while the cards are in front (cards_tab.go)
+		fixUpTab(),      // after an import until saved (contextual.go)
+		titlePageTab(),  // while the cursor is in the title page
+		previewTab(),    // while a preview is shown, last (the others' key tips stay)
+		stripsTab(),     // while the stripboard is in front (stripstab.go)
+		cardsTab(),      // while the cards are in front (cards_tab.go)
+		charactersTab(), // while the Characters pane is in sight (characters_tab.go)
+		sessionTab(),    // while the script is shared (session_tab.go)
+		compareTab(),    // while Compare is in front (compare_tab.go)
 	}
 }

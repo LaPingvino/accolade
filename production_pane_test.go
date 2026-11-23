@@ -343,10 +343,10 @@ func TestProductionButtons(t *testing.T) {
 	}
 	clearOverlays(w)
 	test.Tap(p.compare)
-	if !dialogShows(w, "Compare") || !dialogShows(w, "White") {
+	if w.compare == nil || w.mid.shown != "compare" || !strings.Contains(w.compare.from.Selected, "White") { // a middle tab now
 		t.Error("Compare with White shows no comparison")
 	}
-	clearOverlays(w)
+	w.closeCompare()
 }
 
 // Revised Pages PDF… sets the export up: PDF, the marks, revised pages

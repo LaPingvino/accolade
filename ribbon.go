@@ -176,7 +176,7 @@ type ribbonBar struct {
 	height   float32 // the ribbon's height as last built
 	picked   bool    // chosen by the user (a phone's Quick does not take its place)
 	// the contextual tabs (Preview, Stripboard, Cards, Fix-Up, Title
-	// Page) shown as last refreshed; beforeContext: the tab chosen before
+	// Page, Characters, Session, Compare) shown as last refreshed; beforeContext: the tab chosen before
 	// the first came forward (or was chosen), chosen again when the last
 	// goes (followContext)
 	ctxShown      map[string]bool
@@ -475,7 +475,7 @@ func (r *ribbonBar) refresh() {
 	r.stage = stage
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
 		boolKey(env.away), boolKey(env.midDoc), boolKey(env.strips), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), boolKey(env.cards), boolKey(env.timeline),
-		boolKey(env.fixup), boolKey(env.fixupPDF), boolKey(env.titlePage), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
+		boolKey(env.fixup), boolKey(env.fixupPDF), boolKey(env.titlePage), boolKey(env.characters), boolKey(env.shared), boolKey(env.compare), w.hereKey(), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
 		boolKey(env.smart), strconv.Itoa(w.quick().gen), boolKey(r.quickRowShown())}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
@@ -687,6 +687,11 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 				r.pageCount.SetText(v.count.Text)
 			}
 			addSmall(r.pageCount)
+			continue
+		case "sessionPeople": // the Session tab's: who is here (session_tab.go)
+			for _, o := range r.peopleHere() {
+				addSmall(o)
+			}
 			continue
 		case "formatButtons":
 			if !scriptEditing(env) { // they write in the script, in the main editor

@@ -49,7 +49,7 @@ func TestRegistryIsWhole(t *testing.T) {
 	placed := map[string]bool{}
 	note := func(homes []home) {
 		for _, h := range homes {
-			if h.id != "" && h.id != "elements" && h.id != "formatButtons" && h.id != "scriptFormat" && h.id != "pageCount" && h.id != quickHome {
+			if h.id != "" && h.id != "elements" && h.id != "formatButtons" && h.id != "scriptFormat" && h.id != "pageCount" && h.id != "sessionPeople" && h.id != quickHome {
 				cmd(h.id) // panics for one not defined
 				placed[h.id] = true
 			}

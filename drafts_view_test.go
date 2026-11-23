@@ -110,7 +110,7 @@ func TestDraftsDialog(t *testing.T) {
 	}
 }
 
-// On a phone the dialogs fit, the compare is one under the other.
+// On a phone the dialogs fit, the compare (a middle tab) too, one under the other.
 func TestDraftsDialogPhone(t *testing.T) {
 	w := draftsShotWindow(t, fyne.NewSize(380, 800))
 	dd, _ := newDraftsDialog(w)
@@ -123,8 +123,8 @@ func TestDraftsDialogPhone(t *testing.T) {
 	if !cv.narrow {
 		t.Error("not narrow")
 	}
-	if top := w.fyneWindow.Canvas().Overlays().Top(); top == nil || top.MinSize().Width > 380 {
-		t.Errorf("compare %v wide", top.MinSize().Width)
+	if w.mid.shown != "compare" || cv.box.MinSize().Width > 380 { // a middle tab, as narrow as the phone
+		t.Errorf("compare in front %q, %v wide", w.mid.shown, cv.box.MinSize().Width)
 	}
 	for _, o := range cv.body.Objects {
 		if _, ok := o.(*widget.RichText); ok {

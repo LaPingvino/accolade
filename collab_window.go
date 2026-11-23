@@ -87,6 +87,15 @@ type shared struct {
 	// once they sent them), so changes here go to them
 	synced bool
 	paused bool // let go of the peers while the page is hidden
+	// who is here (session_tab.go): this side's replica; the line said
+	// last; the beat saying it is still here; the one followed ("":
+	// nobody), their name and line as last followed
+	replica            string
+	hereLine           int
+	saidHere           bool
+	beat               *uiTimer
+	follow, followName string
+	followLine         int
 }
 
 func newReplica() string {
@@ -156,6 +165,12 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 	s.session.Do(func(d *collab.Doc) { replica = d.Replica() })
 	// who this is, for the others' history of changes (changes.go)
 	s.session.SetMeta(nameKey(replica), w.yourName())
+	s.replica = replica
+	s.session.OnHere = func() {
+		if w.shared == s {
+			w.hereChanged()
+		}
+	}
 	s.session.OnMeta = func(key, value string) {
 		if w.shared == s {
 			s.synced = true
@@ -196,8 +211,11 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 	}
 	setPageKey(key.String()) // a reload of the page comes back to it
 	w.keepSharedState()
+	w.sayHere(true) // who is here (session_tab.go)
+	w.hereBeat(s)
 	w.connect(ctx, s)
 	w.updateStatusBar()
+	w.ribbonRefresh() // the Session tab
 }
 
 // connect finds the script's peers until ctx ends.
@@ -225,6 +243,7 @@ func (w *MainWindow) resumeSharing() {
 	if s := w.shared; s != nil && s.paused {
 		ctx, cancel := context.WithCancel(context.Background())
 		s.stop, s.paused = cancel, false
+		w.sayHere(true)
 		w.connect(ctx, s)
 		w.updateStatusBar()
 	}
@@ -234,11 +253,14 @@ func (w *MainWindow) resumeSharing() {
 // kept for a reload is kept too, for a window that is closed.
 func (w *MainWindow) stopSharing() {
 	if s := w.shared; s != nil {
+		s.session.Leave() // off the others' list at once (session_tab.go)
 		s.stop()
 		s.stateTimer.Stop()
+		s.beat.Stop()
 		w.shared = nil
 		setPageKey("")
 		w.updateStatusBar()
+		w.ribbonRefresh() // the Session tab goes
 	}
 }
 
@@ -264,6 +286,7 @@ func (w *MainWindow) leaveSharing() {
 func (w *MainWindow) newDocument() {
 	w.fixupFrom = "" // another document: no import to fix up (contextual.go)
 	w.leaveDocs()    // the script back in the main editor, its documents written (document.go)
+	w.closeCompare() // its drafts are the script's going
 	if w.shared != nil {
 		w.leaveSharing()
 		w.setStatus("Left the shared script: it goes on with the others")
@@ -278,6 +301,9 @@ func (w *MainWindow) shareEdit(text string) {
 	var ops []collab.Op
 	w.shared.session.Do(func(d *collab.Doc) { ops = d.SetText(text) })
 	w.shared.session.Local(ops)
+	if len(ops) > 0 { // this side's own edit (a peer's makes none here)
+		w.typedWhileFollowing()
+	}
 	w.keepSharedState()
 }
 
@@ -455,13 +481,15 @@ func (w *MainWindow) sharingStatus() string {
 		}
 		return "Shared · " + who + " is newer than yours: update yours"
 	}
-	switch w.shared.peers {
+	// connected, or here through one connected (a chain: session_tab.go)
+	switch n := max(w.shared.peers, len(w.shared.session.Here())); n {
 	case 0:
 		return "Shared · looking for others"
 	case 1:
 		return "Shared · 1 other"
+	default:
+		return fmt.Sprintf("Shared · %d others", n)
 	}
-	return fmt.Sprintf("Shared · %d others", w.shared.peers)
 }
 
 // wroteLine reports whether the script's line i is this writer's to

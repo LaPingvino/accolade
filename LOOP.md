@@ -1710,3 +1710,19 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (off by default) — the story as a strip over the editor, the cursor's scene lit, "Scene n of m · length · act ·
   only its synopsis · gone longest: ANNA 7"; tap goes there; folds to a line; re-read 400 ms after typing, the pages
   measured 3 s after. Typing benchmark pair (BenchmarkScriptKey sample vs sample-strip): no difference.
+- 2026-11-23: CONTEXTUAL RIBBON TABS (4) SESSION, (5) CHARACTERS, (6) COMPARE, done (branch ctxtabs2, not merged), all
+  through ribbon.go's followContext. (5) characters_tab.go: Characters, forward, while the Characters pane is in sight
+  (dock or middle); on the pane's current character (opened, else tapped last; the tip names them): Rename
+  Everywhere…, Merge Into…, Add Alias…, Not a Character (checked), Their Note (opens them, the note focused), Previous/
+  Next Cue, Their Scenes (a submenu: :their-scenes 3), Close; Markdown: rename and the places. Cast photo later.
+  (4) session_tab.go: Session, not forward, while shared: who is here as a button each in a colour of their own (fnv
+  of the replica; tapped: follow), Follow (submenu, :follow Bob) / Stop Following, Copy the Link, Leave; a Session menu
+  in the Menus look. Presence is new in internal/collab (presence.go): a message's "h" (protocol stays 5, old peers
+  ignore it), each window saying name + cursor line on coming, on a line change and every 30 s; gone on Leave, when
+  the peer it came through goes (RemovePeer), or after 90 s quiet; passed on along a chain, told to a peer joining;
+  not in meta, not kept. Following moves the cursor to their line as theirs moves (focus left where it is), until you
+  type, they leave, or Stop. The editor does not draw the others' cursors yet (a next step: their colour at their
+  line). (6) compare_tab.go: Compare is a middle tab now, not a modal dialog (a ribbon under a dialog cannot be
+  tapped): From/To/Side by side over it, the Compare tab forward with Next/Previous Change (round the changed scenes,
+  "Change 2 of 3: heading"), Side by Side, Close; Menus look: a Compare menu and its own bar. Opening another document
+  closes it. Accept/Keep left out: Compare is read only (taking a change over or back is for when it can edit).

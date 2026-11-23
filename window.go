@@ -125,7 +125,8 @@ type MainWindow struct {
 	changes      []change
 	changesPanel *changesPanel
 	cards        *cardsView
-	scriptFolds  *folds // the script editor's (editor_folds.go)
+	compare      *compareView // Compare, a middle tab (drafts_view.go)
+	scriptFolds  *folds       // the script editor's (editor_folds.go)
 	// mdCounted is the Markdown text the status bar counted last (markdown.go)
 	mdCounted struct {
 		text, out string
@@ -1442,7 +1443,8 @@ func (w *MainWindow) onCursorChanged() {
 	if w.cardsDock != nil && w.paneInSight("cards") {
 		w.cardsDock.follow() // the scene's card
 	}
-	w.stripCursor() // the timeline strip's lit scene
+	w.stripCursor()  // the timeline strip's lit scene
+	w.sayHere(false) // the line the others see this side on (session_tab.go)
 	if w.cards != nil && w.cardsShown() {
 		w.cards.follow() // the current card
 	}

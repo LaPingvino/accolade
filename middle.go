@@ -97,6 +97,18 @@ func makeMiddleViews() map[string]*midView {
 				w.productionFollow()
 			},
 			closed: func(w *MainWindow) { w.productionFollow() }},
+		// Compare (drafts_view.go): two drafts, or one and the script now;
+		// the ribbon's Compare tab while in front (compare_tab.go)
+		"compare": {title: "Compare", applies: func(w *MainWindow) bool { return w.compare != nil },
+			why: "Nothing to compare: Collaboration > Compare…",
+			box: func(w *MainWindow) fyne.CanvasObject {
+				if w.compare == nil {
+					return layout.NewSpacer()
+				}
+				w.compare.follow()
+				return w.compare.box
+			},
+			closed: func(w *MainWindow) { w.compare = nil }},
 		// on a phone, the page view (pageview_window.go): beside the script's
 		// tab, so the way back to the script is a tap
 		"pages": {title: "Pages", applies: func(*MainWindow) bool { return true },

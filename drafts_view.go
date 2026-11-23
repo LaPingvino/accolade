@@ -130,6 +130,7 @@ func newDraftsDialog(w *MainWindow) (*draftsDialog, error) {
 	}
 	dd.compare = widget.NewButtonWithIcon("Compare", theme.ViewRestoreIcon(), func() {
 		if dd.selected >= 0 {
+			dd.dialog.Hide() // the compare is a middle tab
 			showCompare(w, dd.drafts, dd.drafts[dd.selected].ID, "")
 		}
 	})
@@ -215,7 +216,10 @@ func (dd *draftsDialog) askRestore() {
 // nowID stands for the script as it is now among the drafts to compare.
 const nowID = ""
 
-// compareView is Compare: two versions, by scene and element.
+// compareView is Compare: two versions, by scene and element, as a
+// middle tab (middle.go) with the ribbon's Compare tab while it is in
+// front (compare_tab.go); in the Menus look a bar of its own has the
+// tab's Previous, Next and Close.
 type compareView struct {
 	w          *MainWindow
 	drafts     []savedDraft // newest first
@@ -225,20 +229,27 @@ type compareView struct {
 	narrow     bool
 	summary    *widget.Label
 	body       *fyne.Container
-	dialog     *dialog.CustomDialog
+	scroll     *container.Scroll
+	bar        *fyne.Container // the Menus look's Previous, Next, Close
+	box        fyne.CanvasObject
 	labels     []string // the selects' options: drafts, then the script now
 	ids        []string
 	gen        int
 	rows       []scriptdiff.Row // as shown last (tests)
+	// changes are the changed scenes' headings in the body, in order;
+	// at is the one gone to last (-1: none yet)
+	changes []fyne.CanvasObject
+	titles  []string
+	at      int
 }
 
 const nowLabel = "The script now"
 
-// showCompare compares draft fromID with toID (nowID: the script now).
+// showCompare compares draft fromID with toID (nowID: the script now),
+// in the Compare middle tab (one at a time: a new compare replaces it).
 func showCompare(w *MainWindow, drafts []savedDraft, fromID, toID string) *compareView {
-	cv := &compareView{w: w, drafts: drafts}
-	size := fitDialog(w.fyneWindow, 1000+dialogMargin, 680+dialogMargin).SubtractWidthHeight(dialogMargin, dialogMargin)
-	cv.narrow = size.Width < 600
+	cv := &compareView{w: w, drafts: drafts, at: -1}
+	cv.narrow = w.narrow
 	cv.labels, cv.ids = []string{nowLabel}, []string{nowID}
 	hasSource := w.draftSource() != nil
 	for _, d := range drafts {
@@ -251,9 +262,12 @@ func showCompare(w *MainWindow, drafts []savedDraft, fromID, toID string) *compa
 	cv.what = widget.NewSelect([]string{"Script", "Source"}, func(string) { cv.show() })
 	cv.what.SetSelected("Script")
 	cv.sideBySide = widget.NewCheck("Side by side", func(on bool) {
+		if on == cv.w.draftsSideBySide() {
+			return
+		}
 		cv.w.settings.SetBoolean(draftsSidePref, on)
 		_ = cv.w.settings.Save()
-		cv.w.ribbonRefresh() // Collaboration > Drafts > Side by Side
+		cv.w.ribbonRefresh() // Collaboration > Drafts > Side by Side, the Compare tab's
 		cv.show()
 	})
 	cv.sideBySide.SetChecked(w.draftsSideBySide())
@@ -261,8 +275,7 @@ func showCompare(w *MainWindow, drafts []savedDraft, fromID, toID string) *compa
 	cv.summary.Wrapping = fyne.TextWrapWord
 	cv.summary.Importance = widget.LowImportance
 	cv.body = container.NewVBox()
-	closeButton := widget.NewButtonWithIcon("Close", theme.CancelIcon(), func() { cv.dialog.Hide() })
-	closeButton.Importance = widget.HighImportance
+	cv.scroll = container.NewVScroll(cv.body)
 
 	var top fyne.CanvasObject
 	fromRow, toRow := labelled("From:", cv.from), labelled("To:", cv.to)
@@ -276,21 +289,64 @@ func showCompare(w *MainWindow, drafts []savedDraft, fromID, toID string) *compa
 		extras = append(extras, cv.sideBySide)
 		top = container.NewVBox(container.NewGridWithColumns(2, fromRow, toRow), container.NewHBox(extras...))
 	}
+	prev := widget.NewButtonWithIcon("", theme.NavigateBackIcon(), func() { cv.step(-1) })
+	fyne.SetAccessibleLabel(prev, "Previous change")
+	next := widget.NewButtonWithIcon("Next Change", theme.NavigateNextIcon(), func() { cv.step(1) })
+	closeButton := widget.NewButtonWithIcon("Close", theme.CancelIcon(), func() { w.closeCompare() })
 	note := widget.NewLabel("Read only: restoring a whole draft is in Drafts…")
 	note.Importance = widget.LowImportance
-	buttons := container.NewHBox(note, layout.NewSpacer(), closeButton)
-	if cv.narrow {
-		buttons = container.NewHBox(layout.NewSpacer(), closeButton)
+	cv.bar = container.NewHBox(prev, next, layout.NewSpacer(), closeButton)
+	if !cv.narrow {
+		cv.bar = container.NewHBox(prev, next, note, layout.NewSpacer(), closeButton)
 	}
-	content := container.NewBorder(container.NewVBox(top, cv.summary),
-		container.NewVBox(widget.NewSeparator(), buttons), nil, nil, container.NewVScroll(cv.body))
-	cv.dialog = dialog.NewCustomWithoutButtons("Compare", content, w.fyneWindow)
-	cv.dialog.SetOnEscape(func() { cv.dialog.Hide() })
-	cv.dialog.Resize(size.AddWidthHeight(dialogMargin, dialogMargin))
+	cv.box = container.NewBorder(container.NewVBox(cv.bar, top, cv.summary), nil, nil, nil, cv.scroll)
+	cv.follow()
 	cv.from.SetSelected(cv.labelOf(fromID))
 	cv.to.SetSelected(cv.labelOf(toID))
-	cv.dialog.Show()
+	w.compare = cv
+	if w.mid.has("compare") {
+		w.showMiddle("compare")
+		w.relayout() // this one's box, if it was in front already
+	} else {
+		w.openMiddle("compare")
+	}
 	return cv
+}
+
+// follow shows the Menus look's bar and Side by side, or leaves them to
+// the ribbon's tab.
+func (cv *compareView) follow() {
+	setVisible(cv.bar, !cv.w.ribbonOn())
+	setVisible(cv.sideBySide, !cv.w.ribbonOn())
+}
+
+// closeCompare closes the Compare middle tab.
+func (w *MainWindow) closeCompare() {
+	if w.mid.has("compare") {
+		w.closeMiddle("compare")
+	}
+	w.compare = nil
+}
+
+// step goes to the next changed scene (by 1) or the one before (-1).
+func (cv *compareView) step(by int) {
+	n := len(cv.changes)
+	if n == 0 {
+		cv.w.setStatus("No changes to go to")
+		return
+	}
+	switch {
+	case cv.at < 0 && by < 0:
+		cv.at = n - 1
+	case cv.at < 0:
+		cv.at = 0
+	default:
+		cv.at = (cv.at + by + n) % n
+	}
+	o := cv.changes[cv.at]
+	cv.scroll.Offset.Y = max(0, min(o.Position().Y, cv.body.MinSize().Height-cv.scroll.Size().Height))
+	cv.scroll.Refresh()
+	cv.w.setStatus(fmt.Sprintf("Change %d of %d: %s", cv.at+1, n, cv.titles[cv.at]))
 }
 
 func (cv *compareView) labelOf(id string) string {
@@ -388,6 +444,8 @@ const maxCompareRows = 400
 func (cv *compareView) render(rows []scriptdiff.Row) {
 	cv.rows = rows
 	cv.body.RemoveAll()
+	cv.changes, cv.titles, cv.at = nil, nil, -1
+	cv.scroll.Offset.Y = 0
 	removed, added, changed := scriptdiff.Count(rows)
 	scenes := scriptdiff.Group(rows)
 	nChanged := 0
@@ -433,7 +491,9 @@ func (cv *compareView) render(rows []scriptdiff.Row) {
 		h := widget.NewLabel(title)
 		h.TextStyle.Bold = true
 		h.Wrapping = fyne.TextWrapWord
-		cv.body.Add(container.NewVBox(widget.NewSeparator(), h))
+		mark := container.NewVBox(widget.NewSeparator(), h)
+		cv.changes, cv.titles = append(cv.changes, mark), append(cv.titles, title)
+		cv.body.Add(mark)
 		run := 0
 		for i := 0; i < len(rows); i++ {
 			r := rows[i]

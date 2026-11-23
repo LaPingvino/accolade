@@ -335,3 +335,28 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:add-contact** — Title Page > Add > Add Contact (while the Title Page tab is there)
 - **:add-notes** — Title Page > Add > Add Notes (while the Title Page tab is there)
 - **:add-copyright** — Title Page > Add > Add Copyright (while the Title Page tab is there)
+
+### Characters
+
+- **:rename-character** — The character renamed wherever the name stands, each in its own case, one undo step (Characters > Character > Rename Everywhere) (while the Characters tab is there)
+- **:merge-character** — The character's cues take another's name, their notes together (Characters > Character > Merge Into) (while the Characters tab is there)
+- **:add-alias** — Another name the story or a cue has for the character (the learned notes) (Characters > Character > Add Alias) (while the Characters tab is there)
+- **:not-a-character** — Left out of the characters and the source's reading (the learned notes); again: a character after all (Characters > Character > Not a Character) (while the Characters tab is there)
+- **:character-note** — The character opened in the pane, their note to type in (kept in the script's character list) (Characters > Notes > Their Note) (while the Characters tab is there)
+- **:next-cue** — The script's cursor on the character's next cue (Characters > Places > Next Cue) (while the Characters tab is there)
+- **:previous-cue** — The script's cursor on the character's cue before (Characters > Places > Previous Cue) (while the Characters tab is there)
+- **:their-scenes** `item` — The scenes the character speaks in: one to go to (Characters > Places > Their Scenes) (while the Characters tab is there)
+- **:close-characters** — Characters > Close > Close Characters (while the Characters tab is there)
+
+### Session
+
+- **:follow** `item` — Session > Follow (while the Session tab is there)
+- **:stop-following** — Session > Stop Following (while the Session tab is there)
+- **:copy-link** — Session > Copy the Link (while the Session tab is there)
+- **:leave-shared-script** — Session > Leave the Shared Script (while the Session tab is there)
+
+### Compare
+
+- **:previous-change** — The changed scene before (Compare > Previous Change) (while the Compare tab is there)
+- **:next-change** — The next changed scene (Compare > Next Change) (while the Compare tab is there)
+- **:close-compare** — Compare > Close Compare (while the Compare tab is there)

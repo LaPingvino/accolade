@@ -296,6 +296,10 @@ func draftsSideBySideCommand() *command {
 		run: func(w *MainWindow) {
 			on := !w.draftsSideBySide()
 			w.changeSetting(draftsSidePref, func(s *Settings) { s.SetBoolean(draftsSidePref, on) })
+			if cv := w.compare; cv != nil { // the Compare tab open: it follows
+				cv.sideBySide.SetChecked(on)
+				cv.show()
+			}
 		}}
 }
 

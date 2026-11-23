@@ -360,6 +360,7 @@ func (p *charactersPane) next(key string, step int) {
 	places := c.places()
 	p.lit = key
 	p.list.Refresh()
+	w.ribbonFollow() // the Characters tab's current character (characters_tab.go)
 	if len(places) == 0 {
 		w.setStatus(c.Name + " has no lines yet")
 		return
@@ -575,6 +576,7 @@ func (p *charactersPane) makeDetail() {
 // openChar opens the character with key.
 func (p *charactersPane) openChar(key string) {
 	p.open, p.lit = key, key
+	p.w.ribbonFollow() // the Characters tab's current character
 	p.showDetail()
 	p.body.Objects = []fyne.CanvasObject{container.NewVScroll(p.detail.box)}
 	p.body.Refresh()

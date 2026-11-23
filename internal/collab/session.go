@@ -6,6 +6,7 @@ import (
 	"maps"
 	"slices"
 	"sync"
+	"time"
 )
 
 // message is what peers send each other, sealed with the key: a hello
@@ -30,6 +31,8 @@ type message struct {
 	// By is the replica whose edit the runs are, passed on as it is when
 	// relayed ("": a catch-up of several peers' edits)
 	By string `json:"by,omitempty"`
+	// Here is a peer saying it is here, or leaves (presence.go)
+	Here *Presence `json:"h,omitempty"`
 }
 
 // docVersion is a Doc's state in a hello.
@@ -94,12 +97,19 @@ type Session struct {
 	// on the UI goroutine, in the same step as its editor, so a key typed
 	// meanwhile is never compared with a document that is ahead of it.
 	Run func(func())
+	// OnHere is called (outside the lock, in Run) when who is here
+	// changed (Here), or what line they are on.
+	OnHere func()
+	// Now, if set, is the clock presence goes by (the tests').
+	Now  func() time.Time
+	me   Presence         // this side's, as last said (SetHere)
+	here map[string]heard // the others', by replica
 }
 
 // NewSession shares doc, the script, with the peers that have key.
 func NewSession(key Key, doc *Doc) *Session {
 	return &Session{key: key, replica: doc.replica, docs: map[string]*Doc{Script: doc}, peers: map[string]func([]byte) error{},
-		other: map[string]bool{}, dropped: map[string]bool{}, meta: map[string]Value{}, proto: Protocol}
+		other: map[string]bool{}, dropped: map[string]bool{}, meta: map[string]Value{}, proto: Protocol, here: map[string]heard{}}
 }
 
 // Do is f with the script's Doc, the session locked.
@@ -205,15 +215,26 @@ func (s *Session) AddPeer(id string, send func([]byte) error) error {
 	s.mu.Lock()
 	s.peers[id] = send
 	hello := s.hello()
+	heres := s.heres()
 	s.mu.Unlock()
-	return s.send(send, hello)
+	if err := s.send(send, hello); err != nil {
+		return err
+	}
+	for _, p := range heres { // who is here, for it (presence.go)
+		_ = s.send(send, message{Here: &p})
+	}
+	return nil
 }
 
 // RemovePeer forgets a peer that went away.
 func (s *Session) RemovePeer(id string) {
 	s.mu.Lock()
 	delete(s.peers, id)
+	dropped := s.dropVia(id)
 	s.mu.Unlock()
+	if dropped {
+		s.hereChanged()
+	}
 }
 
 // Receive handles a message from peer from: a hello gets the ops it
@@ -314,9 +335,22 @@ func (s *Session) receive(from string, m message) {
 			newer[k] = v
 		}
 	}
+	var here *Presence // a peer's presence, new: passed on
+	if m.Here != nil && s.heardHere(from, *m.Here) {
+		here = m.Here
+	}
 	to := s.peers[from]
 	others := s.othersThan(from)
 	s.mu.Unlock()
+
+	if here != nil {
+		for _, p := range others {
+			_ = s.send(p, message{Here: here})
+		}
+		if s.OnHere != nil {
+			s.OnHere()
+		}
+	}
 
 	if newer != nil && to != nil {
 		_ = s.send(to, message{Meta: newer})
