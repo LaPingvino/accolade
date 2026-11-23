@@ -351,7 +351,7 @@ func (l *ringList) FocusGained() { l.List.FocusGained(); l.showRing(true) }
 func (l *ringList) FocusLost()   { l.List.FocusLost(); l.showRing(false) }
 
 func (l *ringList) showRing(on bool) {
-	l.ring.StrokeColor = theme.Color(theme.ColorNameFocus)
+	l.ring.StrokeColor = theme.Color(theme.ColorNamePrimary) // the focus colour is too faint for a line round a large area
 	l.ring.Hidden = !on
 	l.ring.Refresh()
 }

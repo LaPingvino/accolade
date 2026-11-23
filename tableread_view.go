@@ -877,7 +877,7 @@ func (a *trArea) FocusLost()   { a.focused = false; a.showRing(false) }
 
 // showRing shows or hides the focus line.
 func (a *trArea) showRing(on bool) {
-	a.ring.StrokeColor = theme.Color(theme.ColorNameFocus)
+	a.ring.StrokeColor = theme.Color(theme.ColorNamePrimary) // the focus colour is too faint for a line round a large area
 	a.ring.Hidden = !on
 	a.ring.Refresh()
 }
