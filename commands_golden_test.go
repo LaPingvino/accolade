@@ -460,6 +460,13 @@ func structureMoves(base, golden string) string {
 			key{"Shift+Alt+Left", "Pass the Last Speech On"}, key{"Shift+Alt+Right", "Take In the Next Speech"},
 			key{"Alt+T", "Swap Speakers' Lines"}, key{"Alt+O", "Expand Selection"}, key{"Alt+I", "Shrink Selection"})
 	}
+	if runtime.GOOS == "darwin" { // Option+Left/Right move by word there
+		for i, k := range keys {
+			if strings.HasSuffix(k.keys, "Left") || strings.HasSuffix(k.keys, "Right") {
+				keys[i].keys = "Control+" + k.keys
+			}
+		}
+	}
 	switch {
 	case strings.HasPrefix(base, "menu-"):
 		golden = strings.Replace(golden, "  ---\n  Move Line Up [Alt+Up]\n  Move Line Down [Alt+Down]\n", "", 1)

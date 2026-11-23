@@ -143,6 +143,10 @@ type command struct {
 	// the tip shows that something else handles (Undo's Ctrl+Z)
 	keys      []fyne.Shortcut
 	shownKeys string
+	// macKeys, if set, are its keys on a Mac instead (Option+←/→ move by
+	// word there: too ingrained to take); pcKeys keep the others' there,
+	// for the help pages, which are one for all
+	macKeys, pcKeys []fyne.Shortcut
 	// editing commands act on the script being written in: from a menu
 	// (or its shortcut) only while the editor has the focus, from a
 	// button with the focus given back to the editor
@@ -841,6 +845,13 @@ func newRegistry() *registry {
 			panic("ribbonLabels: no command " + id)
 		}
 		cmd.ribbonLabel = short
+	}
+	if onMac { // the keys a Mac has instead
+		for _, c := range r.commands {
+			if c.macKeys != nil {
+				c.pcKeys, c.keys = c.keys, c.macKeys
+			}
+		}
 	}
 	r.ribbon = ribbonLayout()
 	r.ribbonEnd = []home{at("app.palette"), at("view.ribbonLock"), at("view.menu")}

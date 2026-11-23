@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"slices"
 
 	"fyne.io/fyne/v2"
@@ -26,6 +27,8 @@ import (
 // their scenes (the status says so).
 //
 //	Alt+Up / Alt+Down          the unit at the cursor (or the selected ones) past the one before / after
+//	(on a Mac Control+Option+Left/Right and with Shift: Option+Left/Right
+//	move by word there)
 //	Alt+Left / Alt+Right       promote / demote: a section's level; a scene out of its section / into the
 //	                           next; a speech's line out into action / action into the speech beside it
 //	Alt+Shift+Up / Down        a speech or paragraph into the scene before / after
@@ -33,6 +36,9 @@ import (
 //	                           scene's first speech in
 //	Alt+T                      the two speakers' lines (this speech's and the one before) change places
 //	Alt+O / Alt+I              expand / shrink the selection by unit (helix's keys)
+
+// onMac: the desktop on a Mac, where some keys are others (macKeys).
+var onMac = runtime.GOOS == "darwin"
 
 // structReader reads a text for the engine as the window does: the
 // screenplay's elements in its language, its outline's headings, its
@@ -355,6 +361,15 @@ type structSelection struct {
 // ex (:move-up, :promote, :slurp, :swap-ranges …).
 func structureCommands() []*command {
 	mv := func(op structure.Op) func(w *MainWindow) { return func(w *MainWindow) { w.structDo(op) } }
+	// on a Mac Option+←/→ (and with Shift) move and select by word: there
+	// the sideways moves take Control+Option
+	mac := func(k fyne.KeyName, shift bool) []fyne.Shortcut {
+		mod := fyne.KeyModifierControl | fyne.KeyModifierAlt
+		if shift {
+			mod |= fyne.KeyModifierShift
+		}
+		return []fyne.Shortcut{plainKey(k, mod)}
+	}
 	alt := func(k fyne.KeyName, shift bool) []fyne.Shortcut {
 		mod := fyne.KeyModifierAlt
 		if shift {
@@ -378,17 +393,17 @@ func structureCommands() []*command {
 			tip: "Move the section, scene, speech or paragraph at the cursor (or the selected ones) up past the one before"},
 		{id: "structure.down", label: "Move Down", ex: "move-down", keys: alt(fyne.KeyDown, false), icon: theme.MoveDownIcon, run: step(1, structure.MoveDown),
 			tip: "Move the section, scene, speech or paragraph at the cursor (or the selected ones) down past the next"},
-		{id: "structure.promote", label: "Promote", ex: "promote", keys: alt(fyne.KeyLeft, false), icon: theme.NavigateBackIcon, editing: true, when: screenplayOnly, run: mv(structure.Promote),
+		{id: "structure.promote", label: "Promote", ex: "promote", keys: alt(fyne.KeyLeft, false), macKeys: mac(fyne.KeyLeft, false), icon: theme.NavigateBackIcon, editing: true, when: screenplayOnly, run: mv(structure.Promote),
 			tip: "Out: a section a level up, a scene out of its section, a speech's line out into action"},
-		{id: "structure.demote", label: "Demote", ex: "demote", keys: alt(fyne.KeyRight, false), icon: theme.NavigateNextIcon, editing: true, when: screenplayOnly, run: mv(structure.Demote),
+		{id: "structure.demote", label: "Demote", ex: "demote", keys: alt(fyne.KeyRight, false), macKeys: mac(fyne.KeyRight, false), icon: theme.NavigateNextIcon, editing: true, when: screenplayOnly, run: mv(structure.Demote),
 			tip: "In: a section a level down, a scene into the next section, action into the speech beside it"},
 		{id: "structure.intoPrev", label: "Into the Scene Before", ex: "into-previous", keys: alt(fyne.KeyUp, true), icon: theme.UploadIcon, editing: true, when: screenplayOnly, run: mv(structure.IntoPrev),
 			tip: "The speech or paragraph at the cursor into the end of the scene before"},
 		{id: "structure.intoNext", label: "Into the Next Scene", ex: "into-next", keys: alt(fyne.KeyDown, true), icon: theme.DownloadIcon, editing: true, when: screenplayOnly, run: mv(structure.IntoNext),
 			tip: "The speech or paragraph at the cursor into the start of the next scene"},
-		{id: "structure.barf", label: "Pass the Last Speech On", ex: "barf", keys: alt(fyne.KeyLeft, true), icon: theme.ContentRemoveIcon, editing: true, when: screenplayOnly, run: mv(structure.Barf),
+		{id: "structure.barf", label: "Pass the Last Speech On", ex: "barf", keys: alt(fyne.KeyLeft, true), macKeys: mac(fyne.KeyLeft, true), icon: theme.ContentRemoveIcon, editing: true, when: screenplayOnly, run: mv(structure.Barf),
 			tip: "Barf: this scene's last speech or paragraph out into the next scene"},
-		{id: "structure.slurp", label: "Take In the Next Speech", ex: "slurp", keys: alt(fyne.KeyRight, true), icon: theme.ContentAddIcon, editing: true, when: screenplayOnly, run: mv(structure.Slurp),
+		{id: "structure.slurp", label: "Take In the Next Speech", ex: "slurp", keys: alt(fyne.KeyRight, true), macKeys: mac(fyne.KeyRight, true), icon: theme.ContentAddIcon, editing: true, when: screenplayOnly, run: mv(structure.Slurp),
 			tip: "Slurp: the next scene's first speech or paragraph into the end of this one"},
 		{id: "structure.transpose", label: "Swap Speakers' Lines", ex: "transpose-speakers", keys: alt(fyne.KeyT, false), icon: theme.AccountIcon, editing: true, when: screenplayOnly, run: mv(structure.Transpose),
 			tip: "This speech's lines to the speaker before, theirs to this one (the cues change places)"},

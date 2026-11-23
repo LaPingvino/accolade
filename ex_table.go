@@ -125,17 +125,8 @@ func exWindowCommands() []*exCmd {
 		// next-… and previous-…, with "go" among their keywords.
 		{name: "scene", short: "sc", usage: "heading or number", arg: argScene, argReq: true, run: (*MainWindow).exScene,
 			desc: "Go to a scene or section: its number, or its heading (Tab lists them)", group: exGroupMoves, keywords: "go move jump"},
-		{name: "move-scene-up", run: exOrg("M-k"),
-			desc: "Move the scene or section under the cursor, with all it holds, above the one before (Alt+K in vim)", group: exGroupMoves, keywords: "section"},
-		{name: "move-scene-down", run: exOrg("M-j"),
-			desc: "Move the scene or section under the cursor, with all it holds, below the one after (Alt+J in vim)", group: exGroupMoves, keywords: "section"},
-		// STRUCTURAL MOVES (queued, a branch of its own): move-speech-up
-		// and -down, move-beat-…, and the like go here, beside
-		// move-scene-*, named the same way.
-		{name: "promote-section", run: exOrg("M-h"),
-			desc: "Make the section under the cursor one level higher (one # fewer; Alt+H in vim)", group: exGroupMoves, keywords: "move level outdent"},
-		{name: "demote-section", run: exOrg("M-l"),
-			desc: "Make the section under the cursor one level deeper (one # more; Alt+L in vim)", group: exGroupMoves, keywords: "move level indent"},
+		// the structural moves (move-up, promote, slurp, swap-ranges …)
+		// are the registry's structure.* commands, named by their ex field
 		{name: "next-heading", run: exOrg("gj"),
 			desc: "Go to the next scene or section heading (gj in vim)", group: exGroupMoves, keywords: "go move jump scene"},
 		{name: "previous-heading", run: exOrg("gk"),
@@ -188,8 +179,6 @@ var exNames = map[string]string{
 	"md.noteJump":       "go-note",
 	"write.elementKind": "elements-list-or-buttons",
 	"write.place":       "inside-outside",
-	"format.lineUp":     "move-line-up",
-	"format.lineDown":   "move-line-down",
 	"view.paneTop":      "move-pane-top",
 	"view.paneBottom":   "move-pane-bottom",
 	"view.paneMiddle":   "move-pane-middle",
@@ -198,7 +187,15 @@ var exNames = map[string]string{
 
 // exKeywords are registry commands' keywords (the moves').
 var exKeywords = map[string]string{
-	"format.lineUp": "move", "format.lineDown": "move",
+	// the structural moves: all found by :mo, with what they do
+	"structure.up": "scene section speech", "structure.down": "scene section speech",
+	"structure.promote": "move out level outdent raise", "structure.demote": "move in level indent lower",
+	"structure.intoPrev": "move scene speech", "structure.intoNext": "move scene speech",
+	"structure.barf": "move speech scene", "structure.slurp": "move speech scene",
+	"structure.transpose": "move swap speaker cue", "structure.raise": "move action dialogue", "structure.lower": "move action dialogue",
+	"structure.expand": "select unit", "structure.shrink": "select unit", // selections, not moves: with the menus'
+
+	"structure.swap": "move swap scenes sections", "structure.move": "scenes sections",
 	"source.next": "go move jump", "source.previous": "go move jump", "source.goScene": "move jump",
 	"preview.nextPage": "go move", "preview.previousPage": "go move", "md.noteJump": "move jump",
 	"edit.findNext": "go move", "edit.findPrevious": "go move",
@@ -276,33 +273,52 @@ func newExTable() *exTable {
 	for _, c := range exLineCommands {
 		add(c)
 	}
+	early := map[string]bool{} // the structural moves, with the scene moves: :mo lists them together
 	for _, c := range exWindowCommands() {
 		add(c)
+		if c.name == "scene" {
+			for _, rc := range commands().commands {
+				if strings.HasPrefix(rc.id, "structure.") && exKeywords[rc.id] != "" && !strings.HasPrefix(exKeywords[rc.id], "select") {
+					add(exRegistryCmd(rc))
+					early[rc.id] = true
+				}
+			}
+		}
 	}
 	for _, c := range commands().commands {
-		if _, by := exByCommand(c); by {
+		if _, by := exByCommand(c); by || early[c.id] {
 			continue
 		}
-		name, ok := exNames[c.id]
-		if !ok {
-			name = exLabelName(c.label)
+		if ec := exRegistryCmd(c); ec != nil {
+			add(ec)
 		}
-		if name == "" || c.id == "edit.undo" { // :undo is the line command
-			continue
-		}
-		ec := &exCmd{name: name, desc: exDesc(c), group: exGroupMenus, keywords: exKeywords[c.id], id: c.id}
-		if c.submenu != nil {
-			ec.arg, ec.argReq, ec.usage = argItems, true, "item"
-		}
-		if c.id == "file.export" {
-			ec.arg, ec.usage = argExport, "[format]"
-		}
-		if strings.HasPrefix(name, "move-") {
-			ec.group = exGroupMoves
-		}
-		add(ec)
 	}
 	return t
+}
+
+// exRegistryCmd is a registry command as an ex command (nil: none).
+func exRegistryCmd(c *command) *exCmd {
+	name, ok := exNames[c.id]
+	if c.ex != "" { // its own (command.ex)
+		name, ok = c.ex, true
+	}
+	if !ok {
+		name = exLabelName(c.label)
+	}
+	if name == "" || c.id == "edit.undo" { // :undo is the line command
+		return nil
+	}
+	ec := &exCmd{name: name, desc: exDesc(c), group: exGroupMenus, keywords: exKeywords[c.id], id: c.id}
+	if c.submenu != nil {
+		ec.arg, ec.argReq, ec.usage = argItems, true, "item"
+	}
+	if c.id == "file.export" {
+		ec.arg, ec.usage = argExport, "[format]"
+	}
+	if strings.HasPrefix(name, "move-") || strings.HasPrefix(c.id, "structure.") && !strings.HasPrefix(exKeywords[c.id], "select") {
+		ec.group = exGroupMoves
+	}
+	return ec
 }
 
 // exDesc is a registry command's line: its label (the menu's words),
@@ -314,6 +330,9 @@ func exDesc(c *command) string {
 		return label
 	}
 	home := strings.TrimSuffix(hs[0], "…")
+	if c.ex != "" && c.tip != "" { // a name of its own: what it does says more than the label
+		return c.tip + " (" + home + ")"
+	}
 	if i := strings.LastIndex(home, " > "); i >= 0 && home[i+3:] == label {
 		return home // Edit > Move Line Up: the label is its end
 	}
@@ -430,7 +449,7 @@ type exCompletion struct {
 }
 
 // exFavourites are the commands shown on an empty line.
-var exFavourites = []string{"help", "write", "substitute", "global", "scene", "move-scene-up", "move-scene-down",
+var exFavourites = []string{"help", "write", "substitute", "global", "scene", "move-up", "move-down",
 	"preview", "export", "outline", "cards", "find", "fold", "palette", "quit"}
 
 // complete is what completes line in ctx (the cursor at its end).

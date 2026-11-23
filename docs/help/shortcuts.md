@@ -86,12 +86,12 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Fold or Unfold Here** — Ctrl+Shift+.
 - **Move Up** — Alt+Up
 - **Move Down** — Alt+Down
-- **Promote** — Alt+Left (screenplay)
-- **Demote** — Alt+Right (screenplay)
+- **Promote** — Alt+Left (screenplay; on a Mac Control+Option+Left)
+- **Demote** — Alt+Right (screenplay; on a Mac Control+Option+Right)
 - **Into the Scene Before** — Shift+Alt+Up (screenplay)
 - **Into the Next Scene** — Shift+Alt+Down (screenplay)
-- **Pass the Last Speech On** — Shift+Alt+Left (screenplay)
-- **Take In the Next Speech** — Shift+Alt+Right (screenplay)
+- **Pass the Last Speech On** — Shift+Alt+Left (screenplay; on a Mac Control+Shift+Option+Left)
+- **Take In the Next Speech** — Shift+Alt+Right (screenplay; on a Mac Control+Shift+Option+Right)
 - **Swap Speakers' Lines** — Alt+T (screenplay)
 - **Expand Selection** — Alt+O (screenplay)
 - **Shrink Selection** — Alt+I (screenplay)

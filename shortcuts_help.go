@@ -59,7 +59,11 @@ func commandKeys(c *command) []string {
 			out = append(out, k)
 		}
 	}
-	for _, k := range c.keys {
+	ks := c.keys
+	if c.pcKeys != nil { // the page is one for all: a Mac's are a note (macNote)
+		ks = c.pcKeys
+	}
+	for _, k := range ks {
 		add(keyName(k))
 	}
 	if c.shownKeys != "" {
@@ -95,6 +99,9 @@ func shortcutLine(c *command, env cmdEnv, both bool) string {
 	}
 	if !env.browser && !inBrowser {
 		notes = append(notes, "not in the browser")
+	}
+	if n := macNote(c); n != "" {
+		notes = append(notes, n)
 	}
 	if len(notes) > 0 {
 		line += " (" + strings.Join(notes, "; ") + ")"
@@ -252,5 +259,27 @@ func shortcutsSheet(env cmdEnv, both bool) string {
 			fmt.Fprintf(&b, "- **%s** %s\n", strings.Join(commandKeys(c), ", "), label)
 		}
 	}
+	var mac []string // the keys a Mac has instead
+	for _, c := range commands().commands {
+		if n := macNote(c); n != "" && (c.applies(env) || both) {
+			mac = append(mac, "- **"+strings.TrimPrefix(n, "on a Mac ")+"** "+strings.TrimSuffix(c.labelIn(env), "…"))
+		}
+	}
+	if len(mac) > 0 {
+		b.WriteString("\n## On a Mac\n\nOption+Left and Option+Right move by word there, so these take Control+Option:\n\n" + strings.Join(mac, "\n") + "\n")
+	}
 	return b.String()
+}
+
+// macNote says a command's keys on a Mac where they are others ("" none).
+func macNote(c *command) string {
+	if c.macKeys == nil {
+		return ""
+	}
+	var ks []string
+	for _, k := range c.macKeys {
+		n := strings.Replace(keyName(k), "Ctrl+", "Control+", 1)
+		ks = append(ks, strings.Replace(n, "Alt+", "Option+", 1))
+	}
+	return "on a Mac " + strings.Join(ks, ", ")
 }

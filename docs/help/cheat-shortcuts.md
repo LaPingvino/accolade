@@ -104,3 +104,12 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **F6** Next Pane
 - **Shift+F6** Previous Pane
 - **F10** Ribbon Key Tips
+
+## On a Mac
+
+Option+Left and Option+Right move by word there, so these take Control+Option:
+
+- **Control+Option+Left** Promote
+- **Control+Option+Right** Demote
+- **Control+Shift+Option+Left** Pass the Last Speech On
+- **Control+Shift+Option+Right** Take In the Next Speech

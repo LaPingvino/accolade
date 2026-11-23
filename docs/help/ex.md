@@ -35,16 +35,23 @@ Line commands take a range of lines before their name; without one they act on t
 - **:t** `address` — Copy the lines to after a line (:t. doubles the line)
 - **:co[py]** `address` — Copy the lines to after a line, as :t
 - **:sc[ene]** `heading or number` — Go to a scene or section: its number, or its heading (Tab lists them)
-- **:move-scene-up** — Move the scene or section under the cursor, with all it holds, above the one before (Alt+K in vim)
-- **:move-scene-down** — Move the scene or section under the cursor, with all it holds, below the one after (Alt+J in vim)
-- **:promote-section** — Make the section under the cursor one level higher (one # fewer; Alt+H in vim)
-- **:demote-section** — Make the section under the cursor one level deeper (one # more; Alt+L in vim)
+- **:move-up** — Move the section, scene, speech or paragraph at the cursor (or the selected ones) up past the one before (View > Structure > Move Up)
+- **:move-down** — Move the section, scene, speech or paragraph at the cursor (or the selected ones) down past the next (View > Structure > Move Down)
+- **:promote** — Out: a section a level up, a scene out of its section, a speech's line out into action (View > Structure > Promote) (screenplay)
+- **:demote** — In: a section a level down, a scene into the next section, action into the speech beside it (View > Structure > Demote) (screenplay)
+- **:into-previous** — The speech or paragraph at the cursor into the end of the scene before (View > Structure > Into the Scene Before) (screenplay)
+- **:into-next** — The speech or paragraph at the cursor into the start of the next scene (View > Structure > Into the Next Scene) (screenplay)
+- **:barf** — Barf: this scene's last speech or paragraph out into the next scene (View > Structure > Pass the Last Speech On) (screenplay)
+- **:slurp** — Slurp: the next scene's first speech or paragraph into the end of this one (View > Structure > Take In the Next Speech) (screenplay)
+- **:transpose-speakers** — This speech's lines to the speaker before, theirs to this one (the cues change places) (View > Structure > Swap Speakers' Lines) (screenplay)
+- **:raise** — The speech's line at the cursor (or the selected ones) out into action (as Promote on a line) (View > Structure > Line to Action) (screenplay)
+- **:lower** — The action at the cursor into the speech beside it, as its lines (as Demote on action) (View > Structure > Action into the Speech) (screenplay)
+- **:swap-ranges** — Swap scenes, runs of scenes or sections with others (View > Structure > Swap) (screenplay)
+- **:move-range** — Move scenes, a run of scenes or a section before or after another (View > Structure > Move) (screenplay)
 - **:next-heading** — Go to the next scene or section heading (gj in vim)
 - **:previous-heading** — Go to this scene's or section's heading, or the one before (gk in vim)
 - **:go-parent-section** — Go to the section the cursor's heading is in (gh in vim)
 - **:go-first-inside** — Go to the first heading inside the cursor's section (gl in vim)
-- **:move-line-up** — Edit > Move Line Up
-- **:move-line-down** — Edit > Move Line Down
 - **:move-pane-top** — View > Move Pane to Top
 - **:move-pane-bottom** — View > Move Pane to Bottom
 - **:move-pane-middle** — View > Open Pane in the Middle
@@ -229,6 +236,8 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:fullscreen** — View > Fullscreen
 - **:document-type** `item` — View > Document Type
 - **:working-as** `item` — View > Working As (screenplay)
+- **:expand-selection** — Select the unit around the selection: the line, its speech, its scene, its section (View > Structure > Expand Selection) (screenplay)
+- **:shrink-selection** — Back to the selection before Expand Selection (View > Structure > Shrink Selection) (screenplay)
 - **:outline** — View > Outline
 - **:notes** — View > Notes
 - **:characters** — View > Characters

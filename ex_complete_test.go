@@ -59,7 +59,7 @@ func TestExTable(t *testing.T) {
 	for typed, want := range map[string]string{"s": "substitute", "su": "substitute", "d": "delete", "de": "delete",
 		"co": "copy", "t": "t", "m": "move", "mo": "move", "u": "undo", "w": "write", "x": "xit", "exi": "exit",
 		"q": "quit", "e": "edit", "h": "help", "el": "element", "sc": "scene", "g": "global", "v": "vglobal",
-		"move-scene-up": "move-scene-up", "preview": "preview", "outline": "outline", "cards": "cards",
+		"move-up": "move-up", "slurp": "slurp", "promote": "promote", "preview": "preview", "outline": "outline", "cards": "cards",
 		"source": "source", "fold": "fold", "export": "export", "next-source": "next-source-passage", "pre": ""} {
 		got, _ := tab.lookup(typed)
 		if want == "" {
@@ -88,10 +88,10 @@ func TestExNames(t *testing.T) {
 		}
 	}
 	var st exState
-	_, err := st.run("move-scene-up", lines, 0, [2]int{-1, -1})
+	_, err := st.run("move-up", lines, 0, [2]int{-1, -1})
 	var nc *exNotCommand
-	if !errors.As(err, &nc) || nc.name != "move-scene-up" || !errors.Is(err, errNotCommand) {
-		t.Errorf("move-scene-up: %v", err)
+	if !errors.As(err, &nc) || nc.name != "move-up" || !errors.Is(err, errNotCommand) {
+		t.Errorf("move-up: %v", err)
 	}
 	_, err = st.run("5,6scene INT. BARN", lines, 0, [2]int{-1, -1})
 	if !errors.As(err, &nc) || nc.name != "scene" || strings.TrimSpace(nc.rest) != "INT. BARN" {
@@ -127,7 +127,7 @@ func TestExComplete(t *testing.T) {
 		}
 		return ""
 	}
-	if n := got(""); len(n) < 8 || n[0] != "help" || !slices.Contains(n, "scene") || !slices.Contains(n, "move-scene-up") {
+	if n := got(""); len(n) < 8 || n[0] != "help" || !slices.Contains(n, "scene") || !slices.Contains(n, "move-up") {
 		t.Errorf("an empty line: %v", n)
 	}
 	for line, want := range map[string]string{"s": "substitute", "d": "delete", "w": "write", "q": "quit", "pre": "preview",
@@ -139,13 +139,19 @@ func TestExComplete(t *testing.T) {
 	}
 	// :mo lists every move, the prefix's first, the jumps after them
 	mo := got("mo")
-	for _, want := range []string{"move", "move-scene-up", "move-scene-down", "move-line-up", "move-line-down", "move-pane-top",
-		"promote-section", "demote-section", "next-heading", "previous-heading", "go-parent-section", "scene"} {
+	for _, want := range []string{"move", "move-up", "move-down", "move-range", "move-pane-top", "promote", "demote",
+		"into-previous", "into-next", "barf", "slurp", "transpose-speakers", "raise", "lower", "swap-ranges",
+		"next-heading", "previous-heading", "go-parent-section", "scene"} {
 		if !slices.Contains(mo, want) {
 			t.Errorf(":mo has no %s: %v", want, mo)
 		}
 	}
-	if slices.Index(mo, "move-scene-up") > slices.Index(mo, "next-heading") {
+	for _, m := range []string{"move-up", "promote", "slurp", "swap-ranges"} { // the moves together, before the jumps
+		if slices.Index(mo, m) > slices.Index(mo, "next-heading") {
+			t.Errorf(":mo: %s after the jumps: %v", m, mo)
+		}
+	}
+	if slices.Index(mo, "move-up") > slices.Index(mo, "next-heading") {
 		t.Errorf(":mo: the moves after the jumps: %v", mo)
 	}
 	// after a range only what takes one
@@ -243,17 +249,17 @@ func TestExLineKeys(t *testing.T) {
 	}
 	// the arrows choose; Enter runs the chosen
 	l.set("")
-	test.Type(l, "move-scene-d")
-	if len(l.comp.choices) != 1 {
-		t.Fatalf("move-scene-d: %v", names(l.comp.choices))
+	test.Type(l, "move-down")
+	if n := names(l.comp.choices); len(n) == 0 || n[0] != "move-down" {
+		t.Fatalf("move-do: %v", names(l.comp.choices))
 	}
 	key(l, fyne.KeyDown)
-	if l.Text != "move-scene-d" || l.chosen != 0 {
+	if l.Text != "move-down" || l.chosen != 0 {
 		t.Errorf("Down wrote %q", l.Text)
 	}
 	key(l, fyne.KeyReturn)
 	if got := w.textEditor.Text(); got != "EXT. FIELD - NIGHT\n\nWind.\n\nINT. BARN - DAY\n\nRain on the barn.\n" {
-		t.Errorf("move-scene-down: %q", got)
+		t.Errorf("move-down: %q", got)
 	}
 	if c.Focused() != w.textEditor || w.exPop.layer.Visible() {
 		t.Error("the line or its list stayed")
@@ -272,7 +278,7 @@ func TestExLineKeys(t *testing.T) {
 		t.Errorf("Up: %q", l.Text)
 	}
 	key(l, fyne.KeyUp)
-	if l.Text != "move-scene-down" { // what ran
+	if l.Text != "move-down" { // what ran
 		t.Errorf("Up again: %q", l.Text)
 	}
 	key(l, fyne.KeyDown)

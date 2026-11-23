@@ -391,3 +391,24 @@ INT. FERRY - DAWN
 
 Maya alone on a bench, the coffee cup still in her hand.
 `
+
+// On a Mac Option+Left/Right move by word: promote, demote, barf and
+// slurp take Control+Option there, and the help pages say so.
+func TestStructureMacKeys(t *testing.T) {
+	for _, c := range structureCommands() {
+		sideways := len(c.keys) > 0 && (c.keys[0].(*desktop.CustomShortcut).KeyName == fyne.KeyLeft || c.keys[0].(*desktop.CustomShortcut).KeyName == fyne.KeyRight)
+		if !sideways {
+			if c.macKeys != nil {
+				t.Errorf("%s: other keys on a Mac", c.id)
+			}
+			continue
+		}
+		m, ok := c.macKeys[0].(*desktop.CustomShortcut)
+		if !ok || m.Modifier&fyne.KeyModifierControl == 0 || m.Modifier&fyne.KeyModifierAlt == 0 {
+			t.Errorf("%s: on a Mac %v", c.id, c.macKeys)
+		}
+		if n := macNote(c); !strings.HasPrefix(n, "on a Mac Control+") || !strings.Contains(n, "Option+") {
+			t.Errorf("%s: the note %q", c.id, n)
+		}
+	}
+}

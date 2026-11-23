@@ -1633,6 +1633,9 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   cards dragging go through the engine (outline_move.go gone; the last scene no longer drags the end blocks along).
   Tags, Done marks and strips follow their scenes, Undo/Redo too (followEdit generalises the rename's follow; the
   renumber-follow no longer mistakes reordered numbers for renumbered ones). Shots structure-1…4 (before, Swap…,
-  after, phone Move…). Open: no multi-select of cards yet (a range is picked in the dialog); the excomplete branch's
-  hand-made move-scene-up/down, promote-section/demote-section rows still work through org() but should give way
-  to these at the merge (and read command.ex); on a Mac Option+←/→ (word moves) are now promote/demote.
+  after, phone Move…). Rebased on main with the ex completion: the ex table reads command.ex first; the hand-made
+  move-scene-up/down, promote-section/demote-section rows gave way to the structure.* commands (no aliases), which
+  stand together right after :scene, so :mo lists every move before the jumps; descriptions are the commands' tips;
+  docs/help/ex.md made again. On a Mac (coordinator): Option+←/→ stay word moves, so promote/demote and barf/slurp
+  take Control+Option there (command.macKeys; the help pages note it, the cheat sheet has an "On a Mac" list).
+  Open: no multi-select of cards yet (a range is picked in the dialog).
