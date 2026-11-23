@@ -34,27 +34,7 @@ func (w *MainWindow) newScriptText(lang string) string {
 
 // templateIn is the English template in language l's words.
 func templateIn(l rules.Language) string {
-	key := func(std string) string { // the language's own title key, the shortest
-		if l.TitleKeys[std] == std { // written as it is (hi: English first)
-			return std
-		}
-		var own []string
-		for k, v := range l.TitleKeys {
-			if v == std {
-				own = append(own, k)
-			}
-		}
-		if len(own) == 0 {
-			return std
-		}
-		slices.SortFunc(own, func(a, b string) int {
-			if d := len([]rune(a)) - len([]rune(b)); d != 0 {
-				return d
-			}
-			return strings.Compare(a, b)
-		})
-		return own[0]
-	}
+	key := func(std string) string { return titleKeyIn(l, std) }
 	first := func(words []string, or string) string {
 		for _, w := range words {
 			if w != "" {

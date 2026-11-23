@@ -176,8 +176,13 @@ var titleKeys = []string{"Title", "Credit", "Author", "Source", "Draft date", "C
 // titleKeyMore: the key's value is lines of its own under it.
 func titleKeyMore(std string) bool { return std == "Contact" || std == "Notes" }
 
-// titleKeyIn is std's key in language l: its own, the shortest, else std.
+// titleKeyIn is std's key in language l: std itself if l writes it as it
+// is (hi: English first, not a mix of its scripts' words), else its own,
+// the shortest, else std.
 func titleKeyIn(l rules.Language, std string) string {
+	if l.TitleKeys[std] == std {
+		return std
+	}
 	var own []string
 	for k, v := range l.TitleKeys {
 		if v == std {
