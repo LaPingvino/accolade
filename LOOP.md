@@ -1218,7 +1218,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   per scene by that id, never write its files.
 - 2026-11-23 (Joop, with his own "Kredu min, Sinjorino" adaptation — a free adaptation of a 70k-word Esperanto novel,
   21 scenes, 3 [[from:]] links, the Enkonduko and long runs skipped; the file is private: measure on the copy in
-  /tmp/claude-1000/kredu only, never commit it or quote it in fixtures, build synthetic tests of the same shape):
+  ~/.local/share/accolade-bench/kredu only, never commit it or quote it in fixtures, build synthetic tests of the same shape):
   "It doesn't have to be perfect, the tools should just somehow be useful and not overwhelming when you have a
   situation like this." / "when I added this source at first, with the first version of the source tool, it had
   wildly inaccurate suggestions and started breaking the document. That doesn't seem right to me. Useful things
@@ -1321,6 +1321,5 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   stage plays), Renata's locally; for each, labelled lines right/wrong.
   2026-11-23: the full Hope Talks chain is on this machine for local measurement only (copyrighted; never commit,
   upload or quote): the Spanish book (López Luna, 2017 digital edition, text PDF, ~37k words, running header on every
-  page) and the 2026 final Fountain in /tmp/claude-1000/hopetalks/ (RAM disk: copy to ~/drive or ask Joop again if
-  gone), the 2011 screenplay PDF and the earlier conversions in ~/drive/Esperanto/Filmo vivo de Zamenhof/. Benchmarks:
+  page) and the 2026 final Fountain in ~/.local/share/accolade-bench/hopetalks/ (Kredu min, Sinjorino in .../kredu/; mode 700), the 2011 screenplay PDF and the earlier conversions in ~/drive/Esperanto/Filmo vivo de Zamenhof/. Benchmarks:
   2011 PDF → 2026 Fountain (screenplay source, fix-up), book → 2026 Fountain (across languages, stretch).
