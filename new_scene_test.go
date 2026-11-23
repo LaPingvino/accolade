@@ -1,6 +1,8 @@
 package main
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -73,11 +75,11 @@ func TestNewSceneAt(t *testing.T) {
 		cursor int
 		want   string // what is before the new scene
 	}{
-		{script, 2, "Title: X\nAuthor: Y\n\n"},                           // on the title page: after it
+		{script, 2, "Title: X\nAuthor: Y\n\n"},                                                    // on the title page: after it
 		{script, strings.Index(script, "One"), "Title: X\nAuthor: Y\n\nINT. A - DAY\n\nOne.\n\n"}, // in scene A: before the section
-		{script, strings.Index(script, "Two"), script},                    // the last scene, no newline at the end
+		{script, strings.Index(script, "Two"), script},                                            // the last scene, no newline at the end
 		{"", 0, ""},
-		{"# Act\n\nSomething.\n\n", 1, "# Act\n"},                          // a section before any scene: after its paragraph
+		{"# Act\n\nSomething.\n\n", 1, "# Act\n"}, // a section before any scene: after its paragraph
 	} {
 		at := newSceneAt(c.text, r(c.text[:c.cursor]), starts)
 		if got := string([]rune(c.text)[:at]); got != c.want {
@@ -159,5 +161,59 @@ func TestNewSceneForm(t *testing.T) {
 	test.Tap(find(top, func(b *widget.Button) bool { return b.Text == "Insert" }))
 	if got := w.textEditor.Text(); got != "INT. KITCHEN - DAY\n\nRain.\n\nINT. HALL - DAY\n\n" {
 		t.Errorf("text %q", got)
+	}
+}
+
+// A field left empty leaves its slot out with its own text, and the
+// heading still reads (Joop: "keeps working when used partially"): no
+// time, no place, no number, in every language; a sentence is no heading.
+func TestNewScenePartial(t *testing.T) {
+	for _, lang := range newSceneLangs {
+		w := newTestWindow(t, "")
+		w.setLanguage(lang)
+		w.textEditor.SetText("Rain.\n")
+		d, _ := w.newSceneDraft()
+		full := sampleValues(lang, d.l, d.form)
+		for _, drop := range []string{"", rules.SlotTime, rules.SlotPlace, rules.SlotNumber} {
+			d.values = maps.Clone(full)
+			if drop != "" {
+				if !slices.Contains(rules.PatternSlots(d.form), drop) {
+					continue
+				}
+				delete(d.values, drop)
+			}
+			h := d.heading()
+			if !d.reads() {
+				t.Errorf("%s without %q: %q does not read", lang, drop, h)
+			}
+			if strings.HasSuffix(h, "-") || strings.Contains(h, "（）") || strings.Contains(h, "//") || strings.HasSuffix(h, "/") {
+				t.Errorf("%s without %q: %q has text of a slot left out", lang, drop, h)
+			}
+			if !isSceneHeadingIn(h, w.sceneStarts()) {
+				t.Errorf("%s: the outline does not read %q", lang, h)
+			}
+		}
+		for _, action := range []string{"Inside the house it was dark.", "1. Buy milk"} {
+			if isSceneHeadingIn(action, w.sceneStarts()) {
+				t.Errorf("%s: %q read as a heading", lang, action)
+			}
+		}
+	}
+}
+
+// Completion when the writer stops early or skips a slot: a heading
+// left after its place reads, and after "场景2 厨房 " both the time and
+// the inside/outside are offered.
+func TestCompletePartial(t *testing.T) {
+	got := completionsIn("zh", "场景1 客厅 日 内\n\n下雨。\n\n", "场景2 厨房 ")
+	for _, want := range []string{"日", "内"} {
+		if !slices.Contains(got, want) {
+			t.Errorf("zh skipping the time: %v lacks %q", got, want)
+		}
+	}
+	w := flowWindow(t, "INT. KITCHEN - DAY\n\nRain.\n\n")
+	typeKeys(t, w, "EXT. K\t\nSnow.")
+	if e := elements(w.textEditor.Text()); e[len(e)-2] != "scene:EXT. KITCHEN" || e[len(e)-1] != "action:Snow." {
+		t.Errorf("stopped after the place: %q", e)
 	}
 }

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"maps"
 	"slices"
 	"strings"
 
@@ -50,7 +49,7 @@ func (d sceneDraft) heading() string {
 	}
 	hasN := slices.Contains(rules.PatternSlots(d.form), rules.SlotNumber)
 	num := v[rules.SlotNumber]
-	if num == "" && (hasN || d.locked) {
+	if num == "" && d.locked { // a locked script's scenes all have one
 		num = d.suggested
 	}
 	v[rules.SlotNumber] = num
@@ -61,13 +60,12 @@ func (d sceneDraft) heading() string {
 	return h
 }
 
-// reads tells whether the heading reads as one in the language, its
-// place (if the form has one) filled in.
+// reads tells whether the heading reads as one in the language: a slot
+// left empty is left out with its own text (rules.FillPattern), and what
+// is left may still be one (INT. KITCHEN, 场景2 厨房 内, ○台所).
 func (d sceneDraft) reads() bool {
-	if slices.Contains(rules.PatternSlots(d.form), rules.SlotPlace) && strings.TrimSpace(d.values[rules.SlotPlace]) == "" {
-		return false
-	}
-	return readsAsHeading(d.l, d.heading())
+	h := d.heading()
+	return strings.TrimSpace(h) != "" && readsAsHeading(d.l, h)
 }
 
 // newSceneAt is where a new scene goes, in runes: after the scene the
@@ -223,21 +221,14 @@ func (w *MainWindow) newSceneContentWith(hide func(), put func(heading, synopsis
 	insert := widget.NewButtonWithIcon("Insert", theme.ContentAddIcon(), nil)
 	insert.Importance = widget.HighImportance
 	update := func() {
-		h := d.heading()
-		if !d.reads() && strings.TrimSpace(d.values[rules.SlotPlace]) == "" && slices.Contains(rules.PatternSlots(d.form), rules.SlotPlace) {
-			shown := d // the place to come, marked
-			shown.values = maps.Clone(d.values)
-			shown.values[rules.SlotPlace] = "…"
-			h = shown.heading()
-		}
-		preview.SetText(h)
+		preview.SetText(d.heading())
 		if d.reads() {
 			note.Importance = widget.MediumImportance
 			note.SetText("Reads as a scene heading in " + languageLabel(w.language) + ".")
 			insert.Enable()
 		} else {
 			note.Importance = widget.WarningImportance
-			note.SetText("Not a scene heading in " + languageLabel(w.language) + " yet: fill in the place.")
+			note.SetText("Not a scene heading in " + languageLabel(w.language) + " yet: fill in more of it.")
 			insert.Disable()
 		}
 		note.Refresh()
@@ -256,7 +247,10 @@ func (w *MainWindow) newSceneContentWith(hide func(), put func(heading, synopsis
 		switch slot {
 		case rules.SlotIO:
 			words := src.choices(rules.SlotIO, d.form)
-			sel := widget.NewSelect(words, func(v string) { d.values[rules.SlotIO] = v; update() })
+			if !strings.HasPrefix(d.form, "{"+rules.SlotIO+"}") { // not the word that makes it a heading: may be left out
+				words = append(words, noneChoice)
+			}
+			sel := widget.NewSelect(words, func(v string) { d.values[rules.SlotIO] = noneIs(v); update() })
 			if len(words) > 0 {
 				sel.SetSelected(words[0])
 			}
@@ -304,7 +298,7 @@ func (w *MainWindow) newSceneContentWith(hide func(), put func(heading, synopsis
 		case rules.SlotTime:
 			var c fyne.CanvasObject
 			if len(d.l.Times) > 0 {
-				sel := widget.NewSelect(d.l.Times, func(v string) { d.values[rules.SlotTime] = v; update() })
+				sel := widget.NewSelect(append(slices.Clone(d.l.Times), noneChoice), func(v string) { d.values[rules.SlotTime] = noneIs(v); update() })
 				sel.SetSelected(d.values[rules.SlotTime])
 				fyne.SetAccessibleLabel(sel, "Time")
 				c = sel
@@ -361,6 +355,17 @@ func (w *MainWindow) newSceneContentWith(hide func(), put func(heading, synopsis
 	return container.NewBorder(nil, container.NewVBox(result, w.dialogButtons(cancel, insert)), nil, nil, container.NewVScroll(body)), first
 }
 
+// noneChoice is a word slot's choice of nothing: the heading without it.
+const noneChoice = "(none)"
+
+// noneIs is a choice's value: "" for noneChoice.
+func noneIs(v string) string {
+	if v == noneChoice {
+		return ""
+	}
+	return v
+}
+
 // numberField is the Number: the suggested one shown until another is
 // typed.
 func numberField(d *sceneDraft, label func(string) fyne.CanvasObject, update func()) fyne.CanvasObject {
@@ -369,8 +374,8 @@ func numberField(d *sceneDraft, label func(string) fyne.CanvasObject, update fun
 	switch {
 	case d.locked:
 		hint = d.suggested + " (the locked numbers' next)"
-	case slices.Contains(rules.PatternSlots(d.form), rules.SlotNumber) && d.suggested != "":
-		hint = d.suggested
+	case d.suggested != "":
+		hint = "Optional: " + d.suggested + " is next"
 	}
 	en.SetPlaceHolder(hint)
 	en.OnChanged = func(v string) { d.values[rules.SlotNumber] = v; update() }

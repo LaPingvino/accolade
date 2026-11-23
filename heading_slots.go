@@ -162,7 +162,15 @@ type slotAt struct {
 func (s slotSource) slotsAt(line string) []slotAt {
 	var out []slotAt
 	rs := []rune(line)
+	var forms []string // each form, and it with slots left out (the writer skips one)
 	for _, f := range headingForms(s.l) {
+		for _, v := range rules.PatternVariants(f) {
+			if !slices.Contains(forms, v) {
+				forms = append(forms, v)
+			}
+		}
+	}
+	for _, f := range forms {
 		p := &slotParse{rs: rs, m: modelOf(f), form: f, src: s}
 		p.sep(0, 0, true)
 		out = append(out, p.out...)

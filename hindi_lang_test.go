@@ -83,7 +83,13 @@ func TestHindiNewTemplate(t *testing.T) {
 			types[strings.TrimSpace(l.Contents)] = l.Type
 		}
 		heading, end := words[len(words)-2], words[len(words)-1]
-		for row, want := range map[string]string{heading: lex.TypeScene, "JOHN": lex.TypeSpeaker, "JOHN (V.O.)": lex.TypeSpeaker,
+		// The template shows a language's first extension: (वॉयस ओवर) in
+		// Devanagari, (V.O.) in hi-Latn.
+		vo := "JOHN (वॉयस ओवर)"
+		if lang == "hi-Latn" {
+			vo = "JOHN (V.O.)"
+		}
+		for row, want := range map[string]string{heading: lex.TypeScene, "JOHN": lex.TypeSpeaker, vo: lex.TypeSpeaker,
 			"(sighing)": lex.TypeParen, "UNTITLED SCREENPLAY": "Title", "This screenplay isn't writing itself.": lex.TypeDialog, end: lex.TypeTrans} {
 			if got := types[row]; got != want {
 				t.Errorf("%s: %q read as %q, want %q", lang, row, got, want)
