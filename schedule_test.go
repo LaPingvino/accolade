@@ -614,14 +614,15 @@ func TestStripboardNarrow(t *testing.T) {
 	if got := w.fyneWindow.Canvas().Capture().Bounds().Dx(); got != 380 {
 		t.Errorf("the window is %d wide", got)
 	}
-	// a drag scrolls rather than moves
-	sb.strips[0].Dragged(&fyne.DragEvent{Dragged: fyne.Delta{DY: -40}})
+	// a drag scrolls rather than moves (a finger on the strip's body)
+	body := fyne.CurrentApp().Driver().AbsolutePositionForObject(sb.strips[0]).AddXY(20, 10)
+	test.Drag(w.fyneWindow.Canvas(), body, 0, 40)
 	sb.strips[0].DragEnd()
 	if got := days(w)[0]; got != "kitchen" {
 		t.Errorf("moved by a drag on a phone: %q", got)
 	}
-	// the grip moves it: the garden (unscheduled) dragged by it onto the
-	// kitchen's lower half, after it
+	// the grip moves it: the garden (unscheduled) dragged by it, a finger
+	// on the canvas, onto the kitchen's lower half, after it
 	garden := sb.strips[1]
 	if garden.grip == nil || sb.strips[0].grip == nil {
 		t.Fatal("no grip on a phone's strip")
@@ -629,7 +630,8 @@ func TestStripboardNarrow(t *testing.T) {
 	d := fyne.CurrentApp().Driver()
 	from, to := d.AbsolutePositionForObject(garden), d.AbsolutePositionForObject(sb.strips[0])
 	dy := to.Y + sb.strips[0].Size().Height*3/4 - (from.Y + garden.Size().Height/2)
-	garden.grip.Dragged(&fyne.DragEvent{Dragged: fyne.Delta{DY: dy}})
+	g := d.AbsolutePositionForObject(garden.grip).Add(fyne.NewPos(garden.grip.Size().Width/2, garden.grip.Size().Height/2))
+	test.Drag(w.fyneWindow.Canvas(), g, 0, dy)
 	garden.grip.DragEnd()
 	if got := days(w)[0]; got != "kitchen,garden" {
 		t.Errorf("dragged by its grip: %q", got)

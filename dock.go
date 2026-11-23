@@ -793,6 +793,9 @@ func (d *dock) focusTargets() []fyne.Focusable {
 	slots := []int{dockTop, dockBottom}
 	if d.w.narrow {
 		slots = []int{dockSheet}
+		if d.w.sheetDown { // folded down under the board: its pane out of sight (its row's tabs bring it up)
+			slots = nil
+		}
 	}
 	for _, s := range slots {
 		if p := d.pane(d.inFront(s)); p != nil {
