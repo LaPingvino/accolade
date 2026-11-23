@@ -1842,3 +1842,23 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Reviews also stress: keyboard shortcuts that work "while in flow" (bold/italic), speed/stability — the keyboard pass
   and the typing benchmarks; layout visible while typing (Accolade already); subscription fatigue (Highland Pro moved
   to $59.99/yr; Highland 2 no longer sold).
+- 2026-11-23 (Joop: "if you look at the history, the first donor was much less of a match than the later additions..."
+  → "Go for it!"): COURIER BADI REFIT of the 2023 No Name Fixed merge (0.500: Arabic, Greek, extended Latin merged as
+  they were), right after the Devanagari release (1.103), in the courier-badi repo. Put Arabic, Greek (and the
+  extended Latin bits from the same merge, e.g. Vietnamese u) through the same fitting Hebrew got in 1.100: the 1228
+  cell, the Latin's monoline stems (150 vertical / 144 horizontal), Courier's rounded terminals, heights between
+  x-height and caps where it applies; keep Arabic's 1.102 vertical fit; thicken the thin Greek. Before/after proofs
+  at 600 dpi next to Latin and Hebrew; fontbakery no worse; tag 1.104; Lexington/Accolade pick it up after.
+- 2026-11-23 (Joop, on the uneven Devanagari of 1.103 — the aa-matra and half-forms each in a cell of their own with a
+  stretched headline, आ squeezed into one: "I think option 2 with double-width ligatures for anything composed of the
+  half-forms is probably a good idea for Devanagari. That would kinda tick all boxes? That would also document this
+  properly for others and give a way to check how it looks..."): DEVANAGARI CELL MODEL, after the Courier Badi refit
+  (same repo). The terminal model (cells per grapheme cluster; cf. the Monotty fonts, the linux-utf8 double-width
+  proposal, Unicode's Text Terminal WG): a simple cluster (one consonant or independent vowel with its matras and
+  marks, आ, कि, ला) is ONE cell; a cluster with half-forms (a conjunct: क्ष, त्न, स्क्री, र्य) is ONE DOUBLE-WIDTH
+  glyph (two cells), never a stretched headline. (1) A short public spec in courier-badi (docs/DEVANAGARI-CELLS.md):
+  the rule in Unicode terms (extended grapheme clusters with the virama tailoring), examples, what a terminal or
+  another font does to follow it; (2) Courier Badi 1.105 built to it (glyphs drawn to fit 1 or 2 cells,
+  check-devanagari.py checking the rule); (3) one shared width function — Lexington's wrap (pdf/devanagari.go,
+  wrap.JoinsBefore) and Accolade's rungrid/cursor count cells by it; (4) a specimen page (every cluster type with
+  its cell count) as a Courier Badi proof PDF and an Accolade sample/screenshot, so it can be checked by eye.
