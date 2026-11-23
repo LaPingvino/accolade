@@ -170,6 +170,7 @@ func TestOpenPDF(t *testing.T) {
 		t.Fatal(err)
 	}
 	w, _ := newDialogTestWindow(t)
+	holdUI(t) // the PDF is read in the background; the window's own steps run in the UI's turn
 	if err := w.LoadFile(out); err != nil {
 		t.Fatal(err)
 	}
@@ -206,10 +207,19 @@ func TestDropOpens(t *testing.T) {
 // editor.
 func waitForText(t *testing.T, w *MainWindow) string {
 	t.Helper()
-	select {
-	case <-w.imported:
-	case <-time.After(2 * time.Minute):
-		t.Fatal("the import did not finish")
+	// The import hands its text over in the UI's turn: a test holding the
+	// turn (holdUI) gives it up while it waits.
+	deadline := time.Now().Add(2 * time.Minute)
+	for waiting := true; waiting; {
+		select {
+		case <-w.imported:
+			waiting = false
+		default:
+			if time.Now().After(deadline) {
+				t.Fatal("the import did not finish")
+			}
+			uiSleep(5 * time.Millisecond)
+		}
 	}
 	var text string
 	fyne.DoAndWait(func() { text = w.textEditor.Text() })
@@ -222,6 +232,7 @@ func TestOpenScannedPDF(t *testing.T) {
 		t.Skip("OCR takes seconds a page")
 	}
 	w, _ := newDialogTestWindow(t)
+	holdUI(t)
 	if err := w.LoadFile("testdata/scanned-tv-episode.pdf"); err != nil {
 		t.Fatal(err)
 	}
