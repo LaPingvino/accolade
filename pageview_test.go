@@ -41,13 +41,26 @@ func previewAndWait(t *testing.T, w *MainWindow) *pageView {
 	shown := make(chan *pageView, 4)
 	onPagesShown(t, func(v *pageView) { shown <- v })
 	w.previewPDF()
-	select {
-	case v := <-shown:
-		return v
-	case <-time.After(60 * time.Second):
-		t.Fatal("no pages shown")
+	return awaitPages(t, shown)
+}
+
+// awaitPages waits for the pages a background Preview shows, giving up
+// the UI turn meanwhile when the test holds it (holdUI): the preview's
+// callback needs it to show them.
+func awaitPages(t *testing.T, shown chan *pageView) *pageView {
+	t.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		select {
+		case v := <-shown:
+			return v
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("no pages shown")
+		}
+		uiSleep(5 * time.Millisecond)
 	}
-	return nil
 }
 
 // painted waits until page i of the view is painted.

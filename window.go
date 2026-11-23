@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -1432,9 +1433,11 @@ func (w *MainWindow) makePreviewPDF() {
 	w.setStatus("Preparing the PDF...")
 	w.previewGen++
 	gen := w.previewGen
+	previewsMaking.Add(1)
 	go func() {
+		defer previewsMaking.Add(-1)
 		d, note, err := drawScript(content, out, job)
-		fyne.Do(func() {
+		uiDo(func() { // the UI's turn: in the tests this runs beside them
 			if gen != w.previewGen { // made again since
 				os.RemoveAll(dir)
 				return
@@ -1466,6 +1469,10 @@ func (w *MainWindow) makePreviewPDF() {
 
 // printFile prints an HTML file: in the browser's print dialog (the web
 // version), or opened in the system's browser to print from there.
+// previewsMaking counts Preview PDFs being made in the background; tests
+// wait for none before the next test starts.
+var previewsMaking atomic.Int32
+
 var printFile = func(path string) { openFile(path) }
 
 // printScript prints the script as Lexington's HTML lays it out, through

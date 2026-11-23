@@ -828,9 +828,7 @@ func TestRibbonFitsDesktop(t *testing.T) {
 	w.workAs(roleProduction)
 	w.setDocumentType(false)
 	// the Preview tab: a script's pages, a document's Live Preview
-	uiTurn.Unlock() // (previewAndWait's pages come in the UI's turn)
-	previewAndWait(t, w)
-	uiTurn.Lock()
+	previewAndWait(t, w) // gives up the UI's turn while the pages are made
 	check("Preview screenplay")
 	w.hidePages()
 	w.setDocumentType(true)

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
@@ -20,7 +21,10 @@ func newDialogTestWindow(t *testing.T) (*MainWindow, *Application) {
 	app := &Application{fyneApp: a}
 	w := NewMainWindow(app)
 	app.windows = append(app.windows, w)
-	t.Cleanup(func() { // no timer of this test's fires into the next one
+	t.Cleanup(func() { // no timer or Preview of this test's fires into the next one
+		for i := 0; previewsMaking.Load() > 0 && i < 6000; i++ {
+			uiSleep(10 * time.Millisecond)
+		}
 		w.stopTimers()
 		for _, o := range app.windows {
 			o.stopTimers()

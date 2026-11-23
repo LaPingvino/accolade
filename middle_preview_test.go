@@ -2,7 +2,6 @@ package main
 
 import (
 	"testing"
-	"time"
 )
 
 // A preview shown follows the middle tab in front (Joop: the preview "gets
@@ -25,6 +24,7 @@ func TestMiddlePreviewFollowsShownTab(t *testing.T) {
 			}
 			t.Run(name[from]+"→"+name[to], func(t *testing.T) {
 				w, _ := sourceWindow(t, sourceScript+"\n/* Notes\nThe notes.\n*/\n", sourceStory)
+				holdUI(t) // the script's Preview is made in the background
 				for _, id := range []string{"source", "notes", "cards", "outline"} {
 					w.openMiddle(id)
 				}
@@ -76,11 +76,7 @@ func switchTo(t *testing.T, w *MainWindow, id string) {
 	shown := make(chan *pageView, 4)
 	onPagesShown(t, func(v *pageView) { shown <- v })
 	w.showMiddle("")
-	select {
-	case <-shown:
-	case <-time.After(60 * time.Second):
-		t.Fatal("the script's pages never came")
-	}
+	awaitPages(t, shown)
 }
 
 // previewIsOf checks that the preview shown is of tab id, and none of

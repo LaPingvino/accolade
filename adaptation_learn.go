@@ -61,11 +61,11 @@ const maxTaken = 16
 // learner is a window's learning state, for the session.
 type learner struct {
 	taken     []takenCue
-	strikes   map[string]int  // a source name's cue thrown away, by wordsKey
-	forgotten map[string]bool // lessons taken away by the writer
-	known     map[string]bool // headings with their links, cues with their lines, seen already
+	strikes   map[string]int    // a source name's cue thrown away, by wordsKey
+	forgotten map[string]bool   // lessons taken away by the writer
+	known     map[string]bool   // headings with their links, cues with their lines, seen already
 	linkHead  map[string]string // a link's key: the known heading it was last seen under
-	knownFor  string          // the file they are of
+	knownFor  string            // the file they are of
 	knownOK   bool
 	rev       uint64 // looked at last for this revision and line
 	line      int

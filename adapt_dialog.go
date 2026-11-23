@@ -44,9 +44,9 @@ type adaptDialog struct {
 	// linksBack puts the links' own text back for their readable form in
 	// the preview (link_chips.go's readableLinks)
 	linksBack func(string) string
-	edited     bool   // the preview written in by hand
-	setting    bool   // the dialog is setting the preview
-	waits      int    // looks again for the story's reading (a long one, read in the background)
+	edited    bool // the preview written in by hand
+	setting   bool // the dialog is setting the preview
+	waits     int  // looks again for the story's reading (a long one, read in the background)
 }
 
 // adaptCtx is what Adapt… plans passage p from: the script and cursor as
