@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -13,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
 
+	"github.com/LaPingvino/accolade/internal/images"
 	"github.com/LaPingvino/accolade/internal/prose"
 	"github.com/LaPingvino/lexington/pdfin"
 )
@@ -51,6 +54,14 @@ func hasPandoc() bool { return !inBrowser && pandocPath() != "" }
 // toMarkdown reads a document (not a PDF: importProsePDF) as Markdown;
 // dropped counts the images and objects left out, from says what it was.
 func toMarkdown(path string) (md string, dropped int, from string, err error) {
+	return toMarkdownSaving(path, nil)
+}
+
+// toMarkdownSaving is toMarkdown keeping the document's pictures: save
+// (nil: none saved, the Markdown names files not there) puts each where
+// the Markdown links it from. A web page's pictures beside it are
+// copied too; one on the web stays a link, never fetched.
+func toMarkdownSaving(path string, save func(name string, data []byte) (string, error)) (md string, dropped int, from string, err error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return "", 0, "", err
@@ -75,7 +86,59 @@ func toMarkdown(path string) (md string, dropped int, from string, err error) {
 	if err != nil {
 		return "", 0, "", err
 	}
+	if save != nil {
+		dir := images.Dir(filepath.Dir(path))
+		d.EachImage(func(img *prose.Image) {
+			if img.Data == nil && !images.IsRemote(img.Src) && !strings.HasPrefix(strings.ToLower(img.Src), "data:") {
+				if p := images.New(dir).Load(img.Src); p.Data != nil {
+					img.Data, img.Src = p.Data, filepath.Base(filepath.FromSlash(img.Src))
+				}
+			}
+		})
+		if err := d.SaveImages(save); err != nil {
+			return "", 0, "", fmt.Errorf("could not keep its pictures: %v", err)
+		}
+	}
 	return d.Markdown(), d.Dropped, from, nil
+}
+
+// importedPictures saves an imported document's pictures: in a folder
+// named after it beside the file it came from (Name.assets/, as Typora
+// keeps them), linked by that folder's name — the document, saved in
+// that folder, finds them; until then they are read from there. In the
+// browser, with no folder, each is kept in the text as a data: URI.
+func importedPictures(path string) func(name string, data []byte) (string, error) {
+	if inBrowser {
+		return func(_ string, data []byte) (string, error) {
+			return "data:" + mimeOf(data) + ";base64," + base64.StdEncoding.EncodeToString(data), nil
+		}
+	}
+	folder := strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)) + ".assets"
+	dir := filepath.Join(filepath.Dir(path), folder)
+	return func(name string, data []byte) (string, error) {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return "", err
+		}
+		name = uniqueName(dir, name, data)
+		if err := writeFileAtomic(filepath.Join(dir, name), data); err != nil {
+			return "", err
+		}
+		return (&url.URL{Path: folder + "/" + name}).String(), nil
+	}
+}
+
+// uniqueName is name in dir, numbered if a different file has it (the
+// same file there already: its name).
+func uniqueName(dir, name string, data []byte) string {
+	ext := filepath.Ext(name)
+	base := strings.TrimSuffix(name, ext)
+	for i := 1; ; i++ {
+		old, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil || bytes.Equal(old, data) {
+			return name
+		}
+		name = fmt.Sprintf("%s-%d%s", base, i+1, ext)
+	}
 }
 
 // pandocToMarkdown reads a document with pandoc as Markdown (GitHub's,
@@ -186,7 +249,7 @@ func (w *MainWindow) importDocument(path string) {
 	w.setStatus("Reading " + filepath.Base(path) + "…")
 	inBackground(func() read { // converting a novel took seconds in the browser
 		var r read
-		r.md, r.dropped, r.from, r.err = toMarkdown(path)
+		r.md, r.dropped, r.from, r.err = toMarkdownSaving(path, importedPictures(path))
 		return r
 	}, func(r read) {
 		if gen != w.importGen {
@@ -230,10 +293,11 @@ func (w *MainWindow) showImportedMarkdown(path, md, from string, dropped int) {
 	w.setBundle(nil)
 	w.setCarried(nil, "")
 	w.suggestedName = strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)) + ".md"
+	w.unsavedDir = filepath.Dir(path) // its pictures are beside it (importedPictures)
 	w.hasChanges = true
 	status := "Imported from " + from + ". To adapt it: Start a Screenplay, on the toolbar"
 	if dropped > 0 {
-		status += fmt.Sprintf("; %s left out, marked <!-- image left out --> in the text", plural(dropped, "image"))
+		status += fmt.Sprintf("; %s left out, marked <!-- image left out --> in the text", plural(dropped, "object"))
 	}
 	w.setStatus(status)
 }

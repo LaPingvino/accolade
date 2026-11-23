@@ -313,6 +313,7 @@ func (w *MainWindow) forgetUnsavedExtras() {
 	w.dropRenameUndo() // another document: the last rename is not taken back now
 	w.unsavedRole = "" // and an unsaved script's role was its own (role.go)
 	w.revisionGen++    // its issues too (revisions.go)
+	w.unsavedDir = ""  // and its pictures' folder (pictures.go)
 	if d := w.unsavedExtras; d != "" {
 		w.unsavedExtras = ""
 		if isKeptExtras(d) {

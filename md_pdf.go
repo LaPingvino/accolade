@@ -39,6 +39,7 @@ func markdownDoc(text, title string, p mdPageSetup, titlePage []string) *prose.D
 	d.Title = cmp.Or(d.Title, title)
 	d.Paper, d.TitlePage = p.paper, titlePage
 	d.NotesAt, d.NotesPerChapter = p.notesAt, p.notesPerChapter
+	d.Images, d.AltCaptions = p.pics, p.altCaptions
 	return d
 }
 

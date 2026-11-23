@@ -165,7 +165,7 @@ func (h *helpPane) show(p help.Page) {
 	for _, s := range help.Sections(p.Markdown) {
 		rt := widget.NewRichText()
 		rt.Wrapping = fyne.TextWrapWord
-		rt.Segments, _ = markdownSegments(s.Markdown, -1)
+		rt.Segments, _ = markdownSegments(s.Markdown, -1, nil)
 		h.links(rt.Segments)
 		fyne.SetAccessibleLabel(rt, p.Title+": "+orNone(s.Heading, p.Title))
 		if s.Anchor != "" {

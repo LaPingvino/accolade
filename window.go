@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
+	"github.com/LaPingvino/accolade/internal/images"
 	"github.com/LaPingvino/accolade/internal/pace"
 	"github.com/LaPingvino/accolade/internal/tooltip"
 	"github.com/LaPingvino/lexington/fountain"
@@ -154,6 +155,12 @@ type MainWindow struct {
 	// bundle is the TextBundle (.textbundle, .textpack, .highland, .accolade) the
 	// script is the text of, nil for a plain file (bundle.go)
 	bundle *textBundle
+	// pics reads the document's pictures (pictures.go), for picsKey
+	pics    *images.Loader
+	picsKey picturesKey
+	// unsavedDir is where an unsaved document's pictures are read from
+	// (an import's folder: importedPictures)
+	unsavedDir string
 	// plainBundle is a file with a bundle's name holding plain text (a
 	// .highland that is no zip), saved as plain text again
 	plainBundle string

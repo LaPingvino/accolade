@@ -112,6 +112,7 @@ func exportMarkdownWith(text, title, out, id string, p mdPageSetup, titlePage []
 		d := prose.FromMarkdown(body)
 		d.Title = cmp.Or(d.Title, title)
 		d.Paper, d.TitlePage = p.paper, titlePage
+		d.Images, d.AltCaptions = p.pics, p.altCaptions
 		var b bytes.Buffer
 		var err error
 		if id == "docx" {
@@ -167,6 +168,7 @@ func withPage(text, title string, p mdPageSetup, titlePage []string, do func(pag
 	if err != nil {
 		return err
 	}
+	page = inlinePictures(page, p.pics) // (from a temporary folder)
 	path := filepath.Join(dir, "document.html")
 	if err := os.WriteFile(path, page, 0o644); err != nil {
 		return err

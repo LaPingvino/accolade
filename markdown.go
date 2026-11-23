@@ -20,6 +20,7 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
+	"github.com/LaPingvino/accolade/internal/images"
 	"github.com/LaPingvino/accolade/internal/prose"
 )
 
@@ -346,7 +347,11 @@ func (p *previewPanel) update(text string) {
 		}
 		return
 	}
-	p.text.Segments, _ = markdownSegments(markdownBody(text), -1)
+	var pics *images.Loader
+	if p.w != nil {
+		pics = p.w.pictures()
+	}
+	p.text.Segments, _ = markdownSegments(markdownBody(text), -1, pics)
 	if p.w != nil { // with its title page
 		p.text.Segments = append(titleSegments(p.w.markdownPageSetup().titlePageOf(text, p.w.scriptName())), p.text.Segments...)
 		p.line.refresh()
@@ -399,7 +404,7 @@ func markdownHTMLWith(text, title string, p mdPageSetup, titlePage []string) ([]
 	var out bytes.Buffer
 	fmt.Fprintf(&out, `<!doctype html><html><head><meta charset="utf-8"><title>%s</title>`+
 		`<style>body{font:12pt/1.5 Georgia,serif;max-width:40em;margin:2em auto;padding:0 1em}`+
-		`pre,code{font-family:monospace}blockquote{margin-left:1.5em;font-style:italic}%s</style></head><body>`,
+		`img{max-width:100%%}pre,code{font-family:monospace}blockquote{margin-left:1.5em;font-style:italic}%s</style></head><body>`,
 		strings.NewReplacer("&", "&amp;", "<", "&lt;").Replace(title), p.pageCSS())
 	out.WriteString(titlePageHTML(titlePage))
 	out.Write(body.Bytes())
@@ -416,6 +421,7 @@ func (w *MainWindow) printMarkdown() {
 		name := strings.TrimSuffix(w.scriptName(), filepath.Ext(w.scriptName()))
 		text, p := w.textEditor.Text(), w.markdownPageSetup()
 		if page, err = markdownHTMLWith(text, name, p, p.titlePageOf(text, w.scriptName())); err == nil {
+			page = inlinePictures(page, p.pics)
 			out := filepath.Join(dir, "document.html")
 			if err = os.WriteFile(out, page, 0o644); err == nil {
 				w.setStatus("Print: choose a printer, or Save as PDF")

@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
+	"github.com/LaPingvino/accolade/internal/images"
 	"github.com/LaPingvino/accolade/internal/prose"
 )
 
@@ -28,6 +29,8 @@ const (
 	// each chapter, "end" after the text; numbered again in each chapter
 	mdNotesPref           = "markdown-notes"
 	mdNotesPerChapterPref = "markdown-notes-per-chapter"
+	// a picture without a title has its alt text under it as its caption
+	mdAltCaptionsPref = "markdown-alt-captions"
 )
 
 // mdPageSetup is a Markdown document's page setup.
@@ -36,6 +39,8 @@ type mdPageSetup struct {
 	titlePage       bool
 	notesAt         prose.NotesPlace
 	notesPerChapter bool
+	altCaptions     bool           // a picture without a title has its alt text as caption
+	pics            *images.Loader // the document's pictures (not a setting: the window's)
 }
 
 // mdNotesPlaces are the notes' places as kept, in prose.NotesPlace's
@@ -48,10 +53,11 @@ var (
 
 func (w *MainWindow) markdownPageSetup() mdPageSetup {
 	if w.settings == nil {
-		return mdPageSetup{}
+		return mdPageSetup{pics: w.pictures()}
 	}
 	p := mdPageSetup{paper: w.settings.GetString(mdPaperPref), titlePage: w.settings.GetBoolean(mdTitlePagePref),
-		notesPerChapter: w.settings.GetBoolean(mdNotesPerChapterPref)}
+		notesPerChapter: w.settings.GetBoolean(mdNotesPerChapterPref), altCaptions: w.settings.GetBoolean(mdAltCaptionsPref),
+		pics: w.pictures()}
 	if i := slices.Index(mdNotesPlaces, w.settings.GetString(mdNotesPref)); i > 0 {
 		p.notesAt = prose.NotesPlace(i)
 	}
@@ -160,6 +166,7 @@ type mdPageSetupDlg struct {
 	titlePage *widget.Check
 	notes     *widget.Select
 	numbering *widget.Select
+	captions  *widget.Check
 	ok        *widget.Button
 }
 
@@ -189,14 +196,18 @@ func (w *MainWindow) newMarkdownPageSetup(done func()) *mdPageSetupDlg {
 	if s.notesPerChapter {
 		p.numbering.SetSelected(mdNumberings[1])
 	}
+	p.captions = widget.NewCheck("Alt text as caption", nil)
+	p.captions.SetChecked(s.altCaptions)
 	intro := widget.NewLabel("How the document prints: Export (web page, Word, ODT, PDF), Print and Live Preview use these.")
 	intro.Wrapping = fyne.TextWrapWord
 	about := hint("The title page has the title — the front matter's title:, else the first heading — and its author: from the front matter, centred, on a page of its own.")
 	notesAbout := hint("Notes: where the PDF and the pages print the footnotes, and how they are numbered (Word and ODT keep them at the page's foot, numbered through). A chapter starts at a top-level heading; under a single title heading, at the next level's.")
+	captionsAbout := hint("Pictures: one alone in its paragraph prints as wide as the text at most, its title — ![alt](file \"title\") — under it; with Alt text as caption, a picture without a title has its alt text there.")
 	cancel := widget.NewButton("Cancel", func() { p.d.Hide() })
 	p.ok = widget.NewButton("OK", func() {
 		chosen := mdPageSetup{paper: chosenPaper(p.paper.Selected), titlePage: p.titlePage.Checked,
-			notesAt: prose.NotesPlace(max(slices.Index(mdNotesLabels, p.notes.Selected), 0)), notesPerChapter: p.numbering.Selected == mdNumberings[1]}
+			notesAt: prose.NotesPlace(max(slices.Index(mdNotesLabels, p.notes.Selected), 0)), notesPerChapter: p.numbering.Selected == mdNumberings[1],
+			altCaptions: p.captions.Checked}
 		if p.paper.Selected == mdPapers[0] {
 			chosen.paper = ""
 		}
@@ -205,6 +216,7 @@ func (w *MainWindow) newMarkdownPageSetup(done func()) *mdPageSetupDlg {
 			s.SetBoolean(mdTitlePagePref, chosen.titlePage)
 			s.SetString(mdNotesPref, mdNotesPlaces[chosen.notesAt])
 			s.SetBoolean(mdNotesPerChapterPref, chosen.notesPerChapter)
+			s.SetBoolean(mdAltCaptionsPref, chosen.altCaptions)
 		})
 		p.d.Hide()
 		if w.previewVisible && w.previewPane != nil { // the preview shows it at once
@@ -216,7 +228,7 @@ func (w *MainWindow) newMarkdownPageSetup(done func()) *mdPageSetupDlg {
 	})
 	p.ok.Importance = widget.HighImportance
 	body := container.NewVScroll(container.NewVBox(intro, labelled("Paper:", p.paper), p.titlePage, about,
-		labelled("Notes:", p.notes), labelled("Numbering:", p.numbering), notesAbout))
+		labelled("Notes:", p.notes), labelled("Numbering:", p.numbering), notesAbout, p.captions, captionsAbout))
 	p.d = dialog.NewCustomWithoutButtons("Page Setup", container.NewBorder(nil, w.dialogButtons(cancel, p.ok), nil, nil, body), w.fyneWindow)
 	p.d.Resize(fitDialog(w.fyneWindow, 520, 470))
 	p.d.SetOnEscape(p.d.Hide)

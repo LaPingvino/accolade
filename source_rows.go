@@ -7,6 +7,8 @@ import (
 
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/accolade/internal/images"
 )
 
 // What a passage's row (and the Markdown preview) shows of Markdown.
@@ -31,18 +33,43 @@ const tableRowsShort = 3
 
 // markdownSegments is md as rich text, a table as lines (all its rows
 // with maxRows < 0); hidden reports what was left out for maxRows.
-func markdownSegments(md string, maxRows int) (segs []widget.RichTextSegment, hidden bool) {
-	return flatTables(widget.NewRichTextFromMarkdown(md).Segments, maxRows)
+// Pictures are read by pics (nil: none, each a placeholder), never
+// fetched.
+func markdownSegments(md string, maxRows int, pics *images.Loader) (segs []widget.RichTextSegment, hidden bool) {
+	segs = widget.NewRichTextFromMarkdown(md).Segments
+	if imgs := markdownImages(md); len(imgs) > 0 || hasImageSegment(segs) {
+		segs = withPictures(segs, imgs, pics)
+	}
+	return flatTables(segs, maxRows)
+}
+
+// hasImageSegment tells whether Fyne made a picture of something.
+func hasImageSegment(segs []widget.RichTextSegment) bool {
+	for _, s := range segs {
+		switch s := s.(type) {
+		case *widget.ImageSegment:
+			return true
+		case *widget.ParagraphSegment:
+			if hasImageSegment(s.Texts) {
+				return true
+			}
+		case *widget.ListSegment:
+			if hasImageSegment(s.Items) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // rowSegments is what passage md's row shows: all of it, or (short) cut to
 // rowBudget; cut reports whether there is more.
 func rowSegments(md string, short bool) (segs []widget.RichTextSegment, cut bool) {
 	if !short {
-		segs, _ = markdownSegments(md, -1)
+		segs, _ = markdownSegments(md, -1, nil)
 		return segs, false
 	}
-	segs, cut = markdownSegments(md, tableRowsShort)
+	segs, cut = markdownSegments(md, tableRowsShort, nil)
 	budget := rowBudget
 	segs, more := capSegments(segs, &budget)
 	return segs, cut || more
