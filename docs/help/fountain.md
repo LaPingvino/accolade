@@ -219,7 +219,7 @@ A line starting with `=` is a synopsis of the section or scene above it. Not pri
 
 ## Accolade's own markup
 
-Everything below is ordinary Fountain: notes and boneyard. Other Fountain apps (Highland, Beat, Slugline, Fade In) open the file and simply do not print it. Accolade reads more into it.
+Everything below is ordinary Fountain: notes and boneyard. Other Fountain apps (Highland, Beat, Slugline, Fade In, or the Zed editor with its Fountain extension) open the file and simply do not print it. Accolade reads more into it.
 
 ### Scene and section colours
 
@@ -340,3 +340,12 @@ Other apps ignore the blocks, but they travel with the file. To hand the script 
 ### Breakdown tags
 
 Breakdown tags are not written in the script. Accolade keeps them in a file beside it (in a bundle, or in its own data folder), found again by their words. See [Production](production.md#breakdown).
+
+## Editing Fountain elsewhere
+
+A Fountain script is plain text, so any editor can open it, and Accolade reads it back as it was left. Some that know Fountain:
+
+- **Zed** — install the **Fountain** extension from Zed's Extensions panel (it is in Zed's official registry; source at [github.com/LaPingvino/zed-fountain](https://github.com/LaPingvino/zed-fountain)) for highlighting of headings, cues, dialogue, transitions and notes.
+- **Highland**, **Beat**, **Slugline**, **Fade In** — screenplay apps that open .fountain files.
+
+Accolade's own blocks at the end travel with the file and other apps leave them alone. To hand a script on without them, use File > Export Clean Fountain… (see [File Formats](formats.md#clean-fountain)). When a copy edited elsewhere comes back, File > Merge Changes… brings in what changed (see [Merging Changes](merging.md)).
