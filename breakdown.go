@@ -264,7 +264,7 @@ func readBdText(text string, starts []string) *bdText {
 	labels := sceneNumbersFor(heads, o)
 	nth := map[string]int{}
 	for i, h := range heads {
-		k := bdHeadingKey(h.text)
+		k := bdHeadingKey(h.bare(starts))
 		s := bdScene{index: i, line: h.line, label: labels[i], heading: printedHeading(h.text),
 			key: bdSceneKey{Scene: h.num, Heading: k, Nth: nth[k]}, start: t.lineStart[h.line], end: body}
 		s.omitted = strings.HasPrefix(strings.TrimSpace(strings.ToUpper(h.text)), ".OMITTED")

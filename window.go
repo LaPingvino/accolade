@@ -293,6 +293,7 @@ type MainWindow struct {
 	}
 	draftTimer       *uiTimer       // the browser keeping the script, after typing
 	sceneNumberTimer *uiTimer       // a locked script's new scenes numbered, after typing (production.go)
+	keepingInStep    bool           // the numbers in the headings being kept in step (scene_numbers.go)
 	revisionTimer    *uiTimer       // the revision marks updated, after typing (revisions.go)
 	revisions        revisionState  // the script's issues and the marks shown
 	unsavedRole      string         // an unsaved script's own role, "" none (role.go)

@@ -229,9 +229,21 @@ func (p *slotParse) slot(i, at int) {
 			}
 		}
 	case s == rules.SlotNumber:
+		// letters before the digits and after them, as a locked script
+		// gives them (A11, AB11, 10A, 10AA, 10aA: Lexington's numberSlot)
 		k := 0
-		for k < len(rest) && (unicode.IsDigit(rest[k]) || unicode.IsLetter(rest[k]) && k < 1 || k > 0 && unicode.IsLetter(rest[k]) && unicode.IsDigit(rest[k-1])) {
+		for k < len(rest) && k < 4 && unicode.IsLetter(rest[k]) {
 			k++
+		}
+		lead := k
+		for k < len(rest) && unicode.IsDigit(rest[k]) {
+			k++
+		}
+		for tail := 0; k > lead && k < len(rest) && tail < 4 && unicode.IsLetter(rest[k]); tail++ {
+			k++
+		}
+		if k == lead && k < len(rest) { // letters, no digits: a letter being typed at most
+			k = min(lead, 1)
 		}
 		if k == len(rest) {
 			here()

@@ -56,7 +56,12 @@ const sceneLockKey = "scene numbers"
 // sceneLockOf reads the lock from the production block: "scene numbers:
 // locked", with the style after a comma or in brackets, any case.
 func sceneLockOf(text string) sceneLock {
-	inside, ok := productionBlock(text)
+	return sceneLockIn(productionBlock(text))
+}
+
+// sceneLockIn is sceneLockOf for the production block's inside (ok:
+// there is one).
+func sceneLockIn(inside string, ok bool) sceneLock {
 	if !ok {
 		return sceneLock{}
 	}
@@ -117,12 +122,39 @@ func withProductionBlock(text, inside string) (start, end int, block string) {
 // sceneHead is a scene heading of the script: its line, the line as
 // written, and its number ("" none); stray, a number left inside the
 // heading by text typed after it ("INT. HOUSE #1A# - DAY"), which Fountain
-// does not read as its number.
+// does not read as its number, or a number in its words other than its
+// #n# (written anew, the two equal: scene_numbers.go); inWords, its number
+// is in its words ("场景12 厨房 日 内": a pattern's {n}), Fountain's #12# or
+// not.
 type sceneHead struct {
-	line  int
-	text  string
-	num   string
-	stray bool
+	line    int
+	text    string
+	num     string
+	stray   bool
+	inWords bool
+}
+
+// bare is the heading without the number in its words (#12# kept): what
+// it is called whatever its number (bdHeadingKey).
+func (h sceneHead) bare(starts []string) string {
+	if !h.inWords {
+		return h.text
+	}
+	return withoutWordsNumber(h.text, starts)
+}
+
+// withoutWordsNumber is a heading line without the number in its words,
+// a #12# at its end left as it is (lex.SceneNumber takes that).
+func withoutWordsNumber(line string, starts []string) string {
+	d := wordsDialect(starts)
+	if d == nil {
+		return line
+	}
+	_, hash := lex.SceneNumber(line)
+	if out, ok := d.WithHeadingNumber(line, ""); ok {
+		return lex.WithSceneNumber(out, hash)
+	}
+	return line
 }
 
 // strayNumber is a scene number inside a heading, not at its end.
@@ -133,10 +165,22 @@ var strayNumber = regexp.MustCompile(`\s#([^#\s]+)#\s`)
 func sceneHeads(text string, starts []string) []sceneHead {
 	lines := strings.Split(text, "\n")
 	var out []sceneHead
+	d := wordsDialect(starts)
 	for _, it := range outlineOf(text, starts) {
 		if it.Scene {
 			h := sceneHead{line: it.Line, text: lines[it.Line]}
 			_, h.num = lex.SceneNumber(strings.TrimSpace(h.text))
+			if d != nil {
+				if n, ok := d.HeadingNumber(h.text); ok {
+					h.inWords = true
+					switch {
+					case h.num == "":
+						h.num = n
+					case n != h.num: // Fountain's is the one: the lock's, the breakdown's
+						h.stray = true
+					}
+				}
+			}
 			if m := strayNumber.FindStringSubmatchIndex(h.text); h.num == "" && m != nil {
 				// moved to the end: a locked number is not given twice
 				h.num, h.stray = h.text[m[2]:m[3]], true
@@ -162,7 +206,7 @@ type lineEdit struct {
 
 // numberEdits are the edits that give the headings without a number
 // theirs (skip: a line left as it is, the one being typed; -1 none).
-func numberEdits(b *buffer.Buffer, heads []sceneHead, nums []string, skip int) []lineEdit {
+func numberEdits(b *buffer.Buffer, heads []sceneHead, nums []string, skip int, nw numberWriter) []lineEdit {
 	var out []lineEdit
 	for i, h := range heads {
 		if (h.num != "" && !h.stray) || h.line == skip {
@@ -170,7 +214,7 @@ func numberEdits(b *buffer.Buffer, heads []sceneHead, nums []string, skip int) [
 		}
 		start := b.LineStart(h.line)
 		end := b.LineEnd(h.line)
-		out = append(out, lineEdit{start, end, lex.WithSceneNumber(h.text, nums[i])})
+		out = append(out, lineEdit{start, end, nw.write(h, nums[i])})
 	}
 	return out
 }
@@ -218,9 +262,10 @@ func (w *MainWindow) lockSceneNumbers() {
 	// which numbers were there before it: Unlock's Remove leaves them (renumber.go)
 	hand := handNumbersLine(heads)
 	start, end, block := withProductionBlock(text, withBlockLine(withSceneLock(inside, &lock), handNumbersKey, hand))
+	nw := w.numberWriterFor(text)
 	e.Edit(func(b *buffer.Buffer) {
 		line, col := b.Position(b.Cursor())
-		edits := numberEdits(b, heads, nums, -1)
+		edits := numberEdits(b, heads, nums, -1, nw)
 		b.Group(func() {
 			b.Replace(start, end, block) // after the script: the headings' places hold
 			applyBackwards(edits, b.Replace)
@@ -241,10 +286,15 @@ func (w *MainWindow) lockSceneNumbers() {
 // locked script is numbered.
 const sceneNumberPause = 700 * time.Millisecond
 
-// scheduleSceneNumbers numbers a locked script's new scenes once typing
-// pauses (onTextChanged, onCursorChanged): never per key.
+// scheduleSceneNumbers numbers a locked script's new scenes, or keeps a
+// script's numbers in its headings in step (scene_numbers.go), once
+// typing pauses (onTextChanged, onCursorChanged): never per key.
 func (w *MainWindow) scheduleSceneNumbers() {
-	if w.markdown || w.textEditor == nil || !sceneLockOf(w.textEditor.Text()).locked {
+	if w.markdown || w.textEditor == nil {
+		return
+	}
+	inside, ok := productionBlock(w.textEditor.Text())
+	if !sceneLockIn(inside, ok).locked && !w.mayNumberInHeadings(inside, ok) {
 		return
 	}
 	w.debounce(&w.sceneNumberTimer, sceneNumberPause, w.numberNewScenes)
@@ -275,14 +325,21 @@ func (w *MainWindow) numberNewScenes() {
 	}
 	text := e.Text()
 	lock := sceneLockOf(text)
+	line, _ := b.Position(b.Cursor())
+	fresh := !b.CanRedo() && b.CanUndo() // the writer has edited: new scenes are theirs to number
 	if !lock.locked {
+		// unlocked, the numbers in the headings kept in step; shared, by
+		// the moves and New Scene of each peer's own (scene_numbers.go)
+		if fresh && w.shared == nil {
+			if n := w.keepInStep(line); n > 0 {
+				w.setStatus(renumberedNote(n))
+			}
+		}
 		return
 	}
 	heads := sceneHeads(text, w.sceneStarts())
-	line, _ := b.Position(b.Cursor())
-	fresh := !b.CanRedo() && b.CanUndo() // the writer has edited: new scenes are theirs to number
-	var mine []int                       // the headings to number: this writer's (wroteLine)
-	seen := map[string]int{}             // a number's first heading's line
+	var mine []int           // the headings to number: this writer's (wroteLine)
+	seen := map[string]int{} // a number's first heading's line
 	for i, h := range heads {
 		first, had := seen[h.num]
 		twice := h.num != "" && had && w.numberedApart(first, h.line)
@@ -302,10 +359,11 @@ func (w *MainWindow) numberNewScenes() {
 		return
 	}
 	nums := sceneNumbersFor(heads, lex.NumberOptions{Locked: true, Style: lock.style})
+	nw := w.numberWriterFor(text)
 	var edits []lineEdit
 	for _, i := range mine {
 		h := heads[i]
-		edits = append(edits, lineEdit{b.LineStart(h.line), b.LineEnd(h.line), lex.WithSceneNumber(h.text, nums[i])})
+		edits = append(edits, lineEdit{b.LineStart(h.line), b.LineEnd(h.line), nw.write(h, nums[i])})
 	}
 	e.Edit(func(b *buffer.Buffer) { applyBackwards(edits, b.Amend) })
 }

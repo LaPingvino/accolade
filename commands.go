@@ -642,6 +642,11 @@ func newRegistry() *registry {
 				}
 				w.showNewScene()
 			}},
+		// the scene numbers in the headings, kept in step (scene_numbers.go)
+		&command{id: "format.numberScenes", label: "Number Scenes in Headings", icon: res(renumberIcon), when: screenplayOnly,
+			tip:     "The scene numbers in the headings, kept in step with the scenes' order: in the heading's words where its form has a number (场景12, 12.), else as #12#",
+			checked: func(w *MainWindow) bool { return w.textEditor != nil && w.numbersInHeadings(w.textEditor.Text()) },
+			run:     (*MainWindow).toggleNumbersInHeadings},
 		&command{id: "write.place", label: "Inside or Outside…", text: "INT./EXT.", tip: "INT./EXT.", icon: theme.HomeIcon, when: scriptEditing, pick: (*MainWindow).pickPlace},
 		&command{id: "write.character", label: "Character Name…", text: "Character", tip: "Character", icon: theme.AccountIcon, when: scriptEditing, pick: (*MainWindow).pickCharacter},
 		&command{id: "write.elementKind", label: "Elements as a list or as buttons", icon: theme.ViewRestoreIcon, when: scriptEditing,
@@ -887,7 +892,7 @@ func newRegistry() *registry {
 			at("format.rtl"), at("format.color"),
 			sep(), at("format.bold"), at("format.italic"), at("format.underline"), at("md.strike"), at("md.code"),
 			sep()), append(headings,
-			sep(), at("write.newScene"), at("write.storyboardFrame"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
+			sep(), at("write.newScene"), at("format.numberScenes"), at("write.storyboardFrame"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
 			sep(), at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote"),
 			sep(), at("md.codeBlock"), at("md.rule"), at("md.table"),
 		)...)},

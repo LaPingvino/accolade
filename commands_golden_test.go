@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))))) // the moves write Linux keys too
+		want := numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -1006,6 +1006,15 @@ func referencesMoves(name, golden string) string {
 func newSceneMoves(name, golden string) string {
 	if strings.HasPrefix(name, "menu-screenplay") {
 		return strings.Replace(golden, "  ---\n  Storyboard Frame…\n", "  ---\n  New Scene…\n  Storyboard Frame…\n", 1)
+	}
+	return golden
+}
+
+// numberScenesMoves: Format > Number Scenes in Headings after New Scene…
+// (scene_numbers.go).
+func numberScenesMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-screenplay") {
+		return strings.Replace(golden, "  New Scene…\n", "  New Scene…\n  Number Scenes in Headings\n", 1)
 	}
 	return golden
 }

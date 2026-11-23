@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/rules"
 )
@@ -30,31 +31,55 @@ import (
 // there (12A), written with the heading.
 
 // sceneDraft is what the form holds: the slots' values typed and what
-// they make.
+// they make; inWords, the script has its numbers in its headings
+// (scene_numbers.go), read and written by words.
 type sceneDraft struct {
 	l         rules.Language
 	form      string
 	values    map[string]string
 	suggested string // the number a scene there gets: the lock's, or by counting
 	locked    bool
+	inWords   bool
+	words     *fountain.Dialect
+	hash      bool // a locked script whose headings have #12#: this one too
 }
 
-// heading is the heading the draft makes: the form filled in, the
-// number (typed, else the suggested one) in its {n}; in a form without
-// one, or in a locked script, as Fountain's #12# too.
+// heading is the heading the draft makes: the form filled in. With the
+// numbers in the headings, the number (typed, else the suggested one)
+// is in its words: its {n}, or, for a form without one, where the
+// language's pattern with one has it (hi-Deva's "3. रसोई/दिन/अंदर"), else
+// as Fountain's #12#; in a locked script whose headings have #12#, as
+// that too, the two equal. Without, a number typed or a locked script's
+// is Fountain's #12#.
 func (d sceneDraft) heading() string {
 	v := map[string]string{}
 	for k, x := range d.values {
 		v[k] = strings.TrimSpace(x)
 	}
-	hasN := slices.Contains(rules.PatternSlots(d.form), rules.SlotNumber)
 	num := v[rules.SlotNumber]
-	if num == "" && d.locked { // a locked script's scenes all have one
+	if num == "" && (d.locked || d.inWords) { // a locked script's scenes all have one; so do numbered headings
 		num = d.suggested
 	}
-	v[rules.SlotNumber] = num
+	v[rules.SlotNumber] = ""
+	hasN := slices.Contains(rules.PatternSlots(d.form), rules.SlotNumber)
+	if d.inWords && hasN {
+		v[rules.SlotNumber] = num
+	}
 	h := rules.FillPattern(d.form, v)
-	if num != "" && (!hasN || d.locked) {
+	switch {
+	case num == "":
+		return h
+	case v[rules.SlotNumber] != "":
+	case d.inWords && d.words != nil:
+		if out, ok := d.words.WithHeadingNumber(h, num); ok {
+			h = out
+			break
+		}
+		fallthrough
+	default:
+		return lex.WithSceneNumber(h, num)
+	}
+	if d.hash && d.locked {
 		h = lex.WithSceneNumber(h, num)
 	}
 	return h
@@ -175,7 +200,13 @@ func (w *MainWindow) newSceneDraft() (sceneDraft, int) {
 	at := newSceneAt(text, w.textEditor.CursorOffset(), starts)
 	lock := sceneLockOf(text)
 	d := sceneDraft{l: l, form: l.HeadingForm(), values: map[string]string{}, locked: lock.locked,
-		suggested: suggestedNumber(text, starts, at, lock)}
+		suggested: suggestedNumber(text, starts, at, lock), inWords: w.numbersInHeadings(text), words: wordsDialect(starts)}
+	for _, h := range sceneHeads(text[:bodyEndByte(text)], starts) {
+		if _, n := lex.SceneNumber(h.text); n != "" {
+			d.hash = true
+			break
+		}
+	}
 	if io := l.IOWords(d.form); len(io) > 0 {
 		d.values[rules.SlotIO] = io[0]
 	}
@@ -369,6 +400,9 @@ func noneIs(v string) string {
 // numberField is the Number: the suggested one shown until another is
 // typed.
 func numberField(d *sceneDraft, label func(string) fyne.CanvasObject, update func()) fyne.CanvasObject {
+	if d.inWords && !d.locked { // the scene's place gives it: none to type
+		return container.NewVBox(label("Number"), pageNote(d.suggested+": kept in step with the scenes' order (Format › Number Scenes in Headings)."))
+	}
 	en := widget.NewEntry()
 	hint := "Optional"
 	switch {
@@ -397,12 +431,15 @@ func (w *MainWindow) insertScene(at int, heading string) {
 	text := w.textEditor.Text()
 	at = min(at, len([]rune(text)))
 	ins, cur := newSceneText(text, at, heading)
-	w.textEditor.Edit(func(b *buffer.Buffer) {
-		b.Group(func() {
-			b.Replace(at, at, ins)
-			b.SetCursor(at+cur, false)
+	w.holdingStep(func() {
+		w.textEditor.Edit(func(b *buffer.Buffer) {
+			b.Group(func() {
+				b.Replace(at, at, ins)
+				b.SetCursor(at+cur, false)
+			})
 		})
 	})
 	w.fyneWindow.Canvas().Focus(w.textEditor)
 	w.setStatus("New scene: " + heading)
+	w.keepInStepSaying("New scene: " + heading) // the scenes after it, in the same undo step
 }

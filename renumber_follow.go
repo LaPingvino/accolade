@@ -44,7 +44,7 @@ func sceneSignature(text string, starts []string) (heads, nums, omitted []string
 			omitted = append(omitted, h.num)
 			continue
 		}
-		heads = append(heads, bdHeadingKey(h.text))
+		heads = append(heads, bdHeadingKey(h.bare(starts)))
 		nums = append(nums, h.num)
 	}
 	return heads, nums, omitted

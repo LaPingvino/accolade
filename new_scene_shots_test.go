@@ -99,3 +99,42 @@ func headingsOffset(s *container.Scroll) float32 {
 	y, _ := walk(s.Content, 0)
 	return y
 }
+
+// Screenshots (SHOT_DIR=… go test -run TestSceneNumberShots): a Chinese
+// script with its numbers in its headings before and after its last
+// scene moves to the top, and Number Scenes in Headings turned off;
+// desktop and phone.
+func TestSceneNumberShots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	os.MkdirAll(dir, 0o755)
+	save := func(name string, c fyne.Canvas) {
+		t.Helper()
+		f, err := os.Create(filepath.Join(dir, name+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		png.Encode(f, c.Capture())
+	}
+	for _, size := range []struct {
+		name string
+		w, h float32
+	}{{"desktop", 980, 700}, {"phone", 380, 800}} {
+		w := numberedWindow(t, "zh")
+		w.fyneWindow.Resize(fyne.NewSize(size.w, size.h))
+		w.fyneWindow.Content().Refresh()
+		save("numbers-"+size.name+"-before", w.fyneWindow.Canvas())
+		w.moveOutlineItem(2, 0)
+		w.fyneWindow.Content().Refresh()
+		save("numbers-"+size.name+"-moved", w.fyneWindow.Canvas())
+		w.toggleNumbersInHeadings()
+		w.fyneWindow.Content().Refresh()
+		save("numbers-"+size.name+"-off", w.fyneWindow.Canvas())
+		w.toggleNumbersInHeadings()
+		w.fyneWindow.Content().Refresh()
+		save("numbers-"+size.name+"-on", w.fyneWindow.Canvas())
+	}
+}

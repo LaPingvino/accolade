@@ -136,6 +136,8 @@ func (w *MainWindow) structDo(op structure.Op) {
 func (w *MainWindow) applyStruct(text string, res structure.Result, sel bool, cur, col int) {
 	e := w.textEditor
 	after := structure.Text(res.Lines)
+	held := w.keepingInStep // the numbers in step after the move, below, not meanwhile
+	w.keepingInStep = true
 	w.followNumbers(true) // the extras in line with the text before
 	r := &followed{before: text, after: after}
 	r.bd[0], r.sched[0] = w.extrasKept()
@@ -167,7 +169,15 @@ func (w *MainWindow) applyStruct(text string, res structure.Result, sel bool, cu
 		b.SetCursor(b.LineStart(line)+min(col, b.LineEnd(line)-b.LineStart(line)), false)
 	})
 	w.structSel = nil
-	w.setStatus(res.Msg + lockedNote(text, after, w.sceneStarts()))
+	w.keepingInStep = held
+	said := res.Msg + lockedNote(text, after, w.sceneStarts())
+	w.setStatus(said)
+	// the numbers in the headings in step, in the move's undo step: the
+	// move's record is of the text and extras with them
+	if w.keepInStepSaying(said) != said {
+		r.after = e.Text()
+		r.bd[1], r.sched[1] = w.extrasKept()
+	}
 }
 
 // lockedNote says, when the scene numbers are locked and their order

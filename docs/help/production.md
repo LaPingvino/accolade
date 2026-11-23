@@ -61,6 +61,14 @@ Production > Renumber Scenes… numbers the scenes again, with a preview of old 
 
 After an issue, the dialog warns that sides, schedules and pages that went out use the old numbers, and offers "Save a Draft, Then Renumber". The breakdown, the schedule and locked pages follow the scenes to their new numbers. One undo step.
 
+### Numbers in the headings
+
+Some languages write the scene number in the heading itself: Chinese `场景12 厨房 日 内`, Hebrew `12. פנים. משרד – יום.`, Hindi in Devanagari `12. रसोई/दिन/अंदर`, Arabic, German, French, Italian, Russian. That number is the scene's number, the same one Fountain writes as `#12#`: locking, A-numbers, Renumber, the breakdown and the schedule all use it. A heading that has both keeps them equal.
+
+Format › **Number Scenes in Headings** keeps those numbers in step with the scenes. With it on, a scene you insert (New Scene…), move (Move Up/Down, Move…, Swap…, dragging in the outline or the cards) or delete renumbers the scenes 1, 2, 3… in their new order, in the same undo step as the edit, and the status line says "Scenes renumbered (3 changed)". A heading you type is numbered once you leave it. In a locked script the numbers stay with their scenes, and a new scene gets 12A in its words.
+
+It is on by default for languages whose headings have a number, unless the script's headings have none. Turning it off takes the numbers out of the headings (a locked script's move to `#12#`); turning it on puts them back. Each is one undo step, and the choice is kept in the script's `/* Production` block (`numbers in headings: on`). It works for English too, with `#12#`. When it is off, Renumber Scenes… numbers on demand.
+
 ### Omitting and restoring
 
 In a locked script, a cut scene keeps its number. Production > Omit Scene, with the cursor in the scene, turns its heading into `.OMITTED #12#` and keeps the scene in a boneyard under it. Production > Restore Scene brings it back.

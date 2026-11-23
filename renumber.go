@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -144,17 +143,21 @@ const omittedOpenLine = "/* Omitted scene"
 // its "/* Omitted 12" block becoming "/* Omitted scene", the old heading
 // in it without its number (no OMITTED heading, no number: nothing to
 // restore it as).
-func planEdits(b *buffer.Buffer, lines []string, heads []sceneHead, p numberPlan) []lineEdit {
+// The numbers are written by nw (scene_numbers.go): in a heading's words
+// or as #12#.
+func planEdits(b *buffer.Buffer, lines []string, heads []sceneHead, p numberPlan, nw numberWriter) []lineEdit {
 	var out []lineEdit
 	for i, h := range heads {
 		if p.drop[i] {
 			out = append(out, dropOmitted(b, lines, h))
 			continue
 		}
-		if p.nums[i] == h.num && !h.stray {
+		if p.nums[i] == h.num && !h.stray && !nw.move {
 			continue
 		}
-		out = append(out, lineEdit{b.LineStart(h.line), b.LineEnd(h.line), lex.WithSceneNumber(h.text, p.nums[i])})
+		if t := nw.write(h, p.nums[i]); t != lines[h.line] {
+			out = append(out, lineEdit{b.LineStart(h.line), b.LineEnd(h.line), t})
+		}
 	}
 	return out
 }
@@ -243,32 +246,10 @@ func pageLockFollowing(text, inside string, heads []sceneHead, p numberPlan) str
 }
 
 // applyNumberPlan makes a plan and the block's new inside one undo step,
-// the cursor kept on its line.
+// the cursor kept on its line; the numbers written where the script has
+// them (in the headings' words or as #12#).
 func (w *MainWindow) applyNumberPlan(heads []sceneHead, p numberPlan, inside string) {
-	e := w.textEditor
-	text := e.Text()
-	lines := strings.Split(text, "\n")
-	_, _, pb, _ := allTails(text)
-	w.followNumbers(true) // the extras in line with the text before
-	start, end, block := withProductionBlock(text, inside)
-	if strings.TrimSpace(inside) == "" { // the block goes
-		block = ""
-		if end == utf8.RuneCountInString(text) {
-			block = "\n"
-		}
-	}
-	e.Edit(func(b *buffer.Buffer) {
-		line, col := b.Position(b.Cursor())
-		edits := planEdits(b, lines, heads, p)
-		b.Group(func() {
-			if pb.ok || strings.TrimSpace(inside) != "" {
-				b.Replace(start, end, block) // after the script: the headings' places hold
-			}
-			applyBackwards(edits, b.Replace)
-			b.SetCursor(b.Offset(line, col), false)
-		})
-	})
-	w.followSceneNumbers()
+	w.applyNumberPlanWith(heads, p, inside, w.numberWriterFor(w.textEditor.Text()))
 }
 
 // firstIssue tells whether the script has an issue: its numbers went

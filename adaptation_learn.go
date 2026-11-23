@@ -132,8 +132,9 @@ func blocksIn(lines []string, from, to int) []dialogueBlock {
 }
 
 // headingKey is a heading as known: without its scene number, which
-// Lock Scene Numbers and a locked script's new scenes get (production.go)
-// without the writer writing the heading anew.
+// Lock Scene Numbers, a locked script's new scenes and the numbers kept
+// in step in the headings' words (scene_numbers.go: its callers take
+// that one out) give without the writer writing the heading anew.
 func headingKey(heading string) string {
 	return "head\x00" + strings.TrimSpace(lex.WithSceneNumber(heading, ""))
 }
@@ -143,7 +144,7 @@ func (l *learner) knowScript(lines []string, starts []string) {
 	l.known = map[string]bool{}
 	for i := range lines {
 		if headingAt(lines, i, starts) {
-			l.known[headingKey(strings.TrimSpace(lines[i]))] = true
+			l.known[headingKey(strings.TrimSpace(withoutWordsNumber(lines[i], starts)))] = true
 		}
 	}
 	for _, b := range blocksIn(lines, 0, len(lines)) {
@@ -367,7 +368,7 @@ func (l *learner) checkScene(sg *suggester, o *sourceOffers, c *sceneCtx, next *
 	// after it is typed.
 	if c.head >= 0 && c.head < len(lines) && cursor != c.head && c.linked {
 		heading := strings.TrimSpace(lines[c.head])
-		k := headingKey(heading)
+		k := headingKey(strings.TrimSpace(withoutWordsNumber(heading, starts)))
 		first := -1
 		if !l.known[k] {
 			for _, ln := range c.links {

@@ -592,8 +592,11 @@ func (w *MainWindow) askNewScene(at int) {
 	content, first := w.newSceneContentWith(func() { dlg.Hide() }, func(heading, syn string) {
 		old := w.textEditor.Text()
 		nw, line := addScene(old, w.sceneStarts(), at, heading, syn)
-		w.replaceText(old, nw)
-		w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) }) // the current card now
+		w.holdingStep(func() {
+			w.replaceText(old, nw)
+			w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) }) // the current card now
+		})
+		w.keepInStepSaying("New scene: " + heading) // the scenes after it, in the same undo step
 		if w.cards != nil && w.cardsShown() {
 			w.cards.follow()
 		}

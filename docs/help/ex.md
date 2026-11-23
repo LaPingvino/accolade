@@ -161,6 +161,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:underline** — Format > Underline (screenplay)
 - **:storyboard-frame** — Format > Storyboard Frame (screenplay)
 - **:new-scene** — Format > New Scene (screenplay)
+- **:number-scenes-in-headings** — Format > Number Scenes in Headings (screenplay)
 - **:strikethrough** — Format > Strikethrough (Markdown)
 - **:inline-code** — Format > Inline Code (Markdown)
 - **:code-block** — Format > Code Block (Markdown)
