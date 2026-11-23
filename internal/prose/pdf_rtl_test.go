@@ -46,6 +46,10 @@ func readable(s string) string {
 		switch {
 		case r >= 0x202A && r <= 0x202E || r == 0x200C || r == 0x200D:
 			return -1
+		case unicode.Is(unicode.Mn, r):
+			// points and harakat: Windows' pdftotext repeats or moves some
+			// (the renders check where they sit); the letters are compared
+			return -1
 		case unicode.IsPunct(r):
 			return ' '
 		}
