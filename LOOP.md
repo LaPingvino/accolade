@@ -1407,3 +1407,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   character's line), select the unit (expand/shrink selection by unit, like tree-sitter's). Each one undo step, its
   names discoverable in ex completion (:move-scene-down …) and the palette. Joop's half-remembered article on
   intuitive script editing: not found in a first search; ask him for the name if it comes back to him.
+  Joop: "I think that was in a YouTube comment xD" (so: go by the idea) and "We already have the org-mode like
+  folding. I think it fits well there: both add to the menu options and make it easy to use with vim/helix/ex mode" —
+  so the moves live with the org-like folding (editor_folds.go, Shift+Tab cycling) and follow org-mode's keys: Alt+↑/↓
+  moves the unit at the cursor with everything folded under it (a section with its scenes, a scene with its speeches,
+  like org's subtree move), Alt+←/→ promotes/demotes (section levels # / ##, a scene into/out of a section), Alt+Shift
+  for barf/slurp; the same commands in the menu next to Fold/Unfold (a "Structure" group), in vim/helix (z-prefixed
+  or g-prefixed where free, matching the fold keys) and in ex (:move-up, :promote, …, completed).
