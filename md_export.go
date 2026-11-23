@@ -21,9 +21,9 @@ import (
 // Export for a Markdown document (docs/ADAPTATION.md, step 2): a web
 // page, Word, OpenDocument, a PDF and the Markdown as written, made by
 // Accolade itself (internal/prose, goldmark), in the browser too; a PDF
-// of what Accolade's cannot print yet (right to left, CJK) through a
-// browser (headless Chromium on the computer, else the print dialog's
-// Save as PDF); with pandoc on the computer, what pandoc writes too. A
+// of what Accolade's cannot print yet (CJK: letters its fonts have not
+// got) through a browser (headless Chromium on the computer, else the
+// print dialog's Save as PDF); with pandoc on the computer, what pandoc writes too. A
 // screenplay's Export is the other dialog (export_dialog.go), unchanged.
 
 // mdExportFormat is a format a Markdown document is exported to.

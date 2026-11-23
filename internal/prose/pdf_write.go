@@ -3,6 +3,7 @@ package prose
 import (
 	"bytes"
 	"cmp"
+	_ "embed"
 	"fmt"
 	"io"
 	"math"
@@ -14,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	lexfont "github.com/LaPingvino/lexington/font"
+	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/pdf"
 
 	"github.com/LaPingvino/accolade/internal/images"
@@ -48,10 +50,21 @@ import (
 // Devanagari is shaped as Lexington's screenplay PDF shapes it
 // (pdf.Shaper: conjuncts, the i-matra, reph, marks on their letters; the
 // text read back as written), a run in one face, a long word broken
-// between clusters.
+// between clusters. It prints in Noto Sans Devanagari, proportional as
+// the text is, when the text's face has no Devanagari (scriptFaces).
 //
-// Not yet: text read right to left (Hebrew, Arabic: their order on the
-// line), scripts no font here has (CJK…). PDFMissing says what a
+// Text read right to left (Hebrew, Arabic, Persian) is shaped and
+// ordered as Lexington's screenplay PDF does it (pdf.Shaper): Arabic
+// joined and pointed Hebrew composed before the text is wrapped; a
+// paragraph's direction from its first letter, its characters' levels
+// over the whole paragraph (UAX #9), each line wrapped in logical order
+// and then shown in visual order, its right-to-left runs turned around
+// with their marks placed by the font's GPOS. A paragraph read right to
+// left is set from the right: its lines right-aligned, its indents, list
+// marks and note numbers on the right. Hebrew is in Noto Sans Hebrew,
+// Arabic in Courier Badi, unless the text's face has them (scriptFaces).
+//
+// Not yet: scripts no font here has (CJK…). PDFMissing says what a
 // document has of those; the caller prints such a document through a
 // browser instead.
 
@@ -85,6 +98,54 @@ const (
 	faceMono = "mono"
 )
 
+// Script faces: Noto Sans Devanagari and Hebrew (SIL Open Font License
+// 1.1, fonts/OFL-*.txt), the faces for those scripts in proportional
+// text when the text's face has not got them (else they would be in
+// Courier Badi, monospaced, stretched beside the text). Each is subset to
+// its script (its blocks and presentation forms, the joiners, the dotted
+// circle), every layout feature kept, without hinting (pyftsubset
+// --layout-features='*' --no-hinting), to keep the browser build small.
+// They have no italic.
+//
+// Arabic stays in Courier Badi: its shaping prints each letter's form as
+// its presentation form (pdf.Shaper.Compose), which Courier Badi maps;
+// Noto Sans Arabic builds the forms of beh, noon and the like from a
+// dotless letter and its dots, glyphs no character maps to, so they
+// would print unjoined.
+var (
+	//go:embed fonts/NotoSansDevanagari-Regular.ttf
+	devaRegular []byte
+	//go:embed fonts/NotoSansDevanagari-Bold.ttf
+	devaBold []byte
+	//go:embed fonts/NotoSansHebrew-Regular.ttf
+	hebrewRegular []byte
+	//go:embed fonts/NotoSansHebrew-Bold.ttf
+	hebrewBold []byte
+)
+
+// scriptFace is a face for one script: its name in the PDF, its files,
+// the characters it is for.
+type scriptFace struct {
+	name          string
+	regular, bold []byte
+	covers        func(rune) bool
+}
+
+var scriptFaces = []scriptFace{
+	{"deva", devaRegular, devaBold, func(r rune) bool {
+		return r >= 0x0900 && r <= 0x097F || r >= 0x1CD0 && r <= 0x1CFF || r >= 0xA8E0 && r <= 0xA8FF
+	}},
+	{"hebrew", hebrewRegular, hebrewBold, func(r rune) bool { return r >= 0x0590 && r <= 0x05FF || r >= 0xFB1D && r <= 0xFB4F }},
+}
+
+// font is the face's file in a style.
+func (f scriptFace) font(style string) []byte {
+	if strings.Contains(style, "B") {
+		return f.bold
+	}
+	return f.regular
+}
+
 // pdfPapers are gofpdf's names of the papers.
 var pdfPapers = map[string]string{"letter": "Letter", "a4": "A4", "a5": "A5"}
 
@@ -113,36 +174,30 @@ func glyphs(data []byte) func(rune) bool {
 }
 
 // PDFMissing says what of the document its PDF cannot print as written:
-// text read right to left, characters no font of the PDF has ("" if it
-// prints well).
+// characters no font of the PDF has ("" if it prints well).
 func (d *Doc) PDFMissing(f PDFFonts) string {
 	f = f.orGo()
-	text, mono := glyphs(f.Regular), glyphs(lexfont.GetFont(lexfont.CourierBadiName, ""))
+	has := []func(rune) bool{glyphs(f.Regular), glyphs(lexfont.GetFont(lexfont.CourierBadiName, ""))}
+	for _, sf := range scriptFaces {
+		has = append(has, glyphs(sf.regular))
+	}
 	var missing []rune
 	seen := map[rune]bool{}
-	rtl := false
 	for _, r := range d.Plain() + strings.Join(d.TitlePage, "\n") {
-		if p, _ := bidi.LookupRune(r); p.Class() == bidi.R || p.Class() == bidi.AL {
-			rtl = true
-		}
-		if unicode.IsSpace(r) || unicode.IsControl(r) || seen[r] || text(r) || mono(r) {
+		if unicode.IsSpace(r) || unicode.IsControl(r) || seen[r] || slices.ContainsFunc(has, func(h func(rune) bool) bool { return h(r) }) {
 			continue
 		}
 		seen[r] = true
 		missing = append(missing, r)
 	}
-	var why []string
-	if rtl {
-		why = append(why, "text read right to left")
+	if len(missing) == 0 {
+		return ""
 	}
-	if len(missing) > 0 {
-		s := string(missing)
-		if len(missing) > 12 {
-			s = string(missing[:12]) + "…"
-		}
-		why = append(why, "characters its fonts have not got ("+s+")")
+	s := string(missing)
+	if len(missing) > 12 {
+		s = string(missing[:12]) + "…"
 	}
-	return strings.Join(why, "; ")
+	return "characters its fonts have not got (" + s + ")"
 }
 
 // WritePDF writes the document as a PDF in fonts f, and gives its pages
@@ -222,7 +277,8 @@ type pdfWriter struct {
 	collect   *[]footLine
 	collected *[]*note               // the notes a note being laid out refers to
 	gapNext   float64                // the gap before the next line laid out for a note
-	decor     []func(float64)        // drawn with the next line (a list item's mark)
+	decor     []func(float64, bool)  // drawn with the next line (a list item's mark), told its direction
+	lineRTL   bool                   // the lines being emitted read right to left
 	finished  bool                   // the text is all laid out: only notes are left
 	pics      map[string]*pic        // the pictures read, by their Image
 	shapers   map[string]*pdf.Shaper // the faces' shapers, by face and style (made when first needed)
@@ -290,8 +346,14 @@ func (p *pdfWriter) setup() {
 		// these are Fyne's own interface font and the embedded Courier Badi
 		pdf.AddFont(d, faceText, s.style, s.data)
 		pdf.AddFont(d, faceMono, s.style, lexfont.GetFont(lexfont.CourierBadiName, s.style))
+		for _, sf := range scriptFaces {
+			pdf.AddFont(d, sf.name, s.style, sf.font(s.style))
+		}
 	}
 	p.has = map[string]func(rune) bool{faceText: glyphs(p.f.Regular), faceMono: glyphs(lexfont.GetFont(lexfont.CourierBadiName, ""))}
+	for _, sf := range scriptFaces {
+		p.has[sf.name] = glyphs(sf.regular)
+	}
 	d.SetAutoPageBreak(false, 0)
 	d.SetCellMargin(0)
 	p.pageW, p.pageH = d.GetPageSize()
@@ -473,11 +535,11 @@ func (p *pdfWriter) gap(h float64) {
 // at the page's foot first appear here); draw draws it with its top at
 // y. A note being laid out keeps its lines instead (collect).
 func (p *pdfWriter) emit(h float64, refs []*note, draw func(y float64)) {
-	decor := p.decor
+	decor, rtl := p.decor, p.lineRTL
 	p.decor = nil
 	line := func(y float64) {
 		for _, d := range decor {
-			d(y)
+			d(y, rtl)
 		}
 		draw(y)
 	}
@@ -571,7 +633,7 @@ func (p *pdfWriter) noteLines(n *note) *note {
 	var refs []*note
 	saved, savedRefs, savedGap, savedDecor := p.collect, p.collected, p.gapNext, p.decor
 	p.collect, p.collected, p.gapNext = &lines, &refs, noteSize*0.3
-	p.decor = []func(float64){p.noteMark(n)}
+	p.decor = []func(float64, bool){p.noteMark(n)}
 	p.noteBlocks(n.blocks, indentStp)
 	if len(lines) == 0 || len(p.decor) > 0 {
 		p.emit(noteSize*leading, nil, func(float64) {})
@@ -587,15 +649,22 @@ func (p *pdfWriter) noteLines(n *note) *note {
 	return n
 }
 
-// noteMark draws a note's number before its first line, a link back to
-// its reference, and is where the references link to.
-func (p *pdfWriter) noteMark(n *note) func(y float64) {
-	return func(y float64) {
+// noteMark draws a note's number before its first line (on its right,
+// ".1", when it reads right to left), a link back to its reference, and
+// is where the references link to.
+func (p *pdfWriter) noteMark(n *note) func(y float64, rtl bool) {
+	return func(y float64, rtl bool) {
 		st := style{size: noteSize}
 		mark := strconv.Itoa(n.num) + "."
+		if rtl {
+			mark = "." + strconv.Itoa(n.num)
+		}
 		p.setFont(faceText, st)
 		mw := p.d.GetStringWidth(mark)
 		x := p.left + indentStp - 6 - mw
+		if rtl {
+			x = p.right - indentStp + 6
+		}
 		p.draw(piece{text: mark, face: faceText, st: st, w: mw}, x, y, noteSize*leading)
 		p.d.SetLink(n.dest, y, -1)
 		if n.backSet {
@@ -711,6 +780,8 @@ type piece struct {
 	note  *note
 	pic   *pic    // a picture in the line, ph high
 	ph    float64 //
+	off   int     // where its text starts in its paragraph's (in characters: hangingLines)
+	rtl   bool    // printed right to left (a line's run at an odd level)
 }
 
 // pieces are spans as runs: words and spaces, each in the face that has
@@ -789,6 +860,15 @@ func (p *pdfWriter) pieces(spans []Span, base style) []piece {
 		}
 		flush()
 	}
+	// a space between words read right to left in their face (a cell of
+	// Courier Badi's, as wide as its letters' spacing wants)
+	for i := 1; i+1 < len(out); i++ {
+		a, b := out[i-1], out[i+1]
+		if out[i].space && a.face == b.face && a.face != out[i].face && p.has[a.face](' ') &&
+			strings.IndexFunc(a.text, rtlLetter) >= 0 && strings.IndexFunc(b.text, rtlLetter) >= 0 {
+			out[i].face = a.face
+		}
+	}
 	for i := range out {
 		if !out[i].brk && out[i].pic == nil {
 			out[i].w = p.width(out[i])
@@ -815,23 +895,60 @@ func (p *pdfWriter) face(r rune, st style) string {
 	if st.mono {
 		first, other = faceMono, faceText
 	}
-	if p.has[first](r) || !p.has[other](r) {
+	if p.has[first](r) {
 		return first
 	}
-	return other
+	if !st.mono { // a script's face: proportional, as the text is
+		for _, sf := range scriptFaces {
+			if sf.covers(r) && p.has[sf.name](r) {
+				return sf.name
+			}
+		}
+	}
+	if p.has[other](r) {
+		return other
+	}
+	return first
+}
+
+// rtlLetter tells whether a character is a letter read right to left
+// (Hebrew, Arabic, Syriac, Thaana…: bidi class R or AL).
+func rtlLetter(r rune) bool {
+	c, _ := bidi.LookupRune(r)
+	return c.Class() == bidi.R || c.Class() == bidi.AL
+}
+
+// rtlRunEnd is where the run of right-to-left letters starting at rs[i]
+// ends: over its letters, the marks on them and the joiners (a Persian
+// word's ZWNJ), so that it is in one face, composed whole.
+func rtlRunEnd(rs []rune, i int) int {
+	j := i
+	for j < len(rs) && (rtlLetter(rs[j]) || unicode.Is(unicode.Mn, rs[j]) || rs[j] == 0x200C || rs[j] == 0x200D) {
+		j++
+	}
+	return j
 }
 
 // runs is a word in runs of one face each. A Devanagari run (its
 // letters, signs, joiners and marks) is shaped whole, so it is in one
 // face, its first letter's: the text face has the joiners, not the
-// letters, and क्‍ष split there would print unjoined.
+// letters, and क्‍ष split there would print unjoined. So is a run of
+// right-to-left letters (with their marks and joiners), composed
+// (pdf.Shaper.Compose: Arabic joined, pointed Hebrew as its forms); a
+// mark goes with its letter.
 func (p *pdfWriter) runs(word string, st style) []piece {
 	var out []piece
 	rs := []rune(word)
 	for i := 0; i < len(rs); {
 		j := i + 1
-		if pdf.DevanagariRune(rs[i]) {
+		switch {
+		case pdf.DevanagariRune(rs[i]):
 			j = max(pdf.DevanagariRunEnd(rs, i), j)
+		case rtlLetter(rs[i]):
+			j = max(rtlRunEnd(rs, i), j)
+		}
+		for j < len(rs) && unicode.Is(unicode.Mn, rs[j]) {
+			j++
 		}
 		f := p.face(p.letter(rs[i:j]), st)
 		if n := len(out); n > 0 && out[n-1].face == f {
@@ -840,6 +957,35 @@ func (p *pdfWriter) runs(word string, st style) []piece {
 			out = append(out, piece{text: string(rs[i:j]), face: f, st: st})
 		}
 		i = j
+	}
+	// signs at a right-to-left run's ends (its word's period, comma,
+	// brackets) in its face when it has them: one face with the letters,
+	// as a reader takes it for one word, turned around with them
+	for k := range out {
+		if strings.IndexFunc(out[k].text, unicode.IsLetter) >= 0 || strings.IndexFunc(out[k].text, unicode.IsDigit) >= 0 {
+			continue
+		}
+		for _, n := range []int{k - 1, k + 1} {
+			if n < 0 || n >= len(out) || strings.IndexFunc(out[n].text, rtlLetter) < 0 {
+				continue
+			}
+			if !strings.ContainsFunc(out[k].text, func(r rune) bool { return !p.has[out[n].face](r) }) {
+				out[k].face = out[n].face
+				break
+			}
+		}
+	}
+	for k := 1; k < len(out); k++ { // (runs of one face again)
+		if out[k].face == out[k-1].face {
+			out[k-1].text += out[k].text
+			out = slices.Delete(out, k, k+1)
+			k--
+		}
+	}
+	for k := range out {
+		if strings.IndexFunc(out[k].text, rtlLetter) >= 0 {
+			out[k].text = p.shaper(out[k].face, st).Compose(out[k].text)
+		}
 	}
 	return out
 }
@@ -865,8 +1011,14 @@ func (p *pdfWriter) shaper(face string, st style) *pdf.Shaper {
 	switch face {
 	case faceMono:
 		data = lexfont.GetFont(lexfont.CourierBadiName, st.fontStyle())
-	default:
+	case faceText:
 		data = map[string][]byte{"": p.f.Regular, "B": p.f.Bold, "I": p.f.Italic, "BI": p.f.BoldItalic}[st.fontStyle()]
+	default:
+		for _, sf := range scriptFaces {
+			if sf.name == face {
+				data = sf.font(st.fontStyle())
+			}
+		}
 	}
 	if p.shapers == nil {
 		p.shapers = map[string]*pdf.Shaper{}
@@ -880,13 +1032,11 @@ func (p *pdfWriter) setFont(face string, st style) {
 	p.d.SetFont(face, st.fontStyle(), st.size)
 }
 
-// width is a piece's width as draw prints it: its Devanagari shaped.
+// width is a piece's width as draw prints it: its Devanagari shaped,
+// without what takes no room (marks, joiners, direction controls).
 func (p *pdfWriter) width(pc piece) float64 {
 	p.setFont(pc.face, pc.st)
-	if pdf.HasDevanagari(pc.text) {
-		return p.shaper(pc.face, pc.st).Width(p.d, pc.text)
-	}
-	return p.d.GetStringWidth(pc.text)
+	return p.shaper(pc.face, pc.st).Width(p.d, pc.text)
 }
 
 // lines breaks pieces into lines width wide: at spaces, a word longer
@@ -895,8 +1045,15 @@ func (p *pdfWriter) lines(ps []piece, width float64) [][]piece {
 	return p.hangingLines(ps, width, width)
 }
 
-// hangingLines are lines of ps, the first width wide, the others rest.
+// hangingLines are lines of ps, the first width wide, the others rest:
+// wrapped in logical order, each shown in visual order (visual).
 func (p *pdfWriter) hangingLines(ps []piece, first, rest float64) [][]piece {
+	ps = slices.Clone(ps)
+	text := paraText(ps)
+	var lv []pdf.Level
+	if needsBidi(text) {
+		lv = pdf.Levels(text, lex.LineRTL(string(text), false))
+	}
 	var lines [][]piece
 	var line []piece
 	w := 0.0
@@ -904,6 +1061,9 @@ func (p *pdfWriter) hangingLines(ps []piece, first, rest float64) [][]piece {
 	end := func() {
 		for len(line) > 0 && line[len(line)-1].space {
 			line = line[:len(line)-1]
+		}
+		if lv != nil {
+			line = p.visual(line, lv)
 		}
 		lines = append(lines, line)
 		line, w = nil, 0
@@ -951,9 +1111,11 @@ func (p *pdfWriter) hangingLines(ps []piece, first, rest float64) [][]piece {
 				w += pc.w
 				continue
 			}
+			off := pc.off
 			for _, cluster := range clusters(pc.text) {
 				c := pc
-				c.text = cluster
+				c.text, c.off = cluster, off
+				off += utf8.RuneCountInString(cluster)
 				c.w = p.width(c)
 				n := len(line)
 				joins := n > 0 && line[n-1].face == c.face && line[n-1].st == c.st && line[n-1].note == c.note && !line[n-1].space
@@ -980,6 +1142,93 @@ func (p *pdfWriter) hangingLines(ps []piece, first, rest float64) [][]piece {
 		end()
 	}
 	return lines
+}
+
+// paraText is the text of a paragraph's pieces, each piece's offset in
+// it set: a picture is one neutral character, a break a space.
+func paraText(ps []piece) []rune {
+	var text []rune
+	for i := range ps {
+		ps[i].off = len(text)
+		switch {
+		case ps[i].pic != nil:
+			text = append(text, 0xFFFC)
+		case ps[i].brk:
+			text = append(text, ' ')
+		default:
+			text = append(text, []rune(ps[i].text)...)
+		}
+	}
+	return text
+}
+
+// needsBidi tells whether a paragraph has to be ordered: it has letters
+// read right to left, or direction controls.
+func needsBidi(text []rune) bool {
+	return slices.ContainsFunc(text, func(r rune) bool {
+		return rtlLetter(r) || r == 0x200E || r == 0x200F || r == 0x061C || r >= 0x202A && r <= 0x202E || r >= 0x2066 && r <= 0x2069
+	})
+}
+
+// rtlPieces tells whether a paragraph's pieces read right to left: by its
+// first letter (or direction mark).
+func rtlPieces(ps []piece) bool {
+	var b strings.Builder
+	for _, pc := range ps {
+		b.WriteString(pc.text)
+	}
+	return lex.LineRTL(b.String(), false)
+}
+
+// visual is a line of a paragraph (its pieces in logical order) in the
+// order it is shown, left to right, by the paragraph's levels lv
+// (pdf.VisualRuns): a piece split where its levels change, each part of
+// a right-to-left run marked to print so (pdf.Shaper.CellRTL).
+func (p *pdfWriter) visual(line []piece, lv []pdf.Level) []piece {
+	if len(line) == 0 {
+		return line
+	}
+	size := func(pc piece) int {
+		if pc.pic != nil {
+			return 1
+		}
+		return utf8.RuneCountInString(pc.text)
+	}
+	from, last := line[0].off, line[len(line)-1]
+	to := last.off + size(last)
+	var out []piece
+	for _, r := range pdf.VisualRuns(lv, from, to) {
+		var parts []piece
+		for _, pc := range line {
+			n := size(pc)
+			a, b := max(r.Start, pc.off), min(r.End, pc.off+n)
+			if a >= b {
+				continue
+			}
+			part := pc
+			if pc.pic == nil && (a > pc.off || b < pc.off+n) {
+				rs := []rune(pc.text)
+				part.text, part.off = string(rs[a-pc.off:b-pc.off]), a
+				part.w = p.width(part)
+			}
+			part.rtl = r.RTL && pc.pic == nil
+			parts = append(parts, part)
+		}
+		if r.RTL {
+			slices.Reverse(parts)
+		}
+		out = append(out, parts...)
+	}
+	return out
+}
+
+// lineWidth is a line's width.
+func lineWidth(line []piece) float64 {
+	w := 0.0
+	for _, pc := range line {
+		w += pc.w
+	}
+	return w
 }
 
 // clusters are text's clusters: a character with the marks and joiners
@@ -1013,16 +1262,31 @@ func (p *pdfWriter) flow(spans []Span, base style, left, right float64, a align,
 }
 
 // flowHanging is flow with the lines after the first indented by hang.
+// A paragraph read right to left is set from the right: its indents
+// (left of the text column's) on the right, its lines right-aligned.
 func (p *pdfWriter) flowHanging(spans []Span, base style, left, right, hang float64, a align, first func(y float64)) {
 	lh := base.size * leading
-	for i, line := range p.hangingLines(p.pieces(spans, base), right-left, right-left-hang) {
+	ps := p.pieces(spans, base)
+	rtl := rtlPieces(ps)
+	if rtl {
+		left, right = p.left+p.right-right, p.left+p.right-left
+	}
+	defer func(was bool) { p.lineRTL = was }(p.lineRTL)
+	for i, line := range p.hangingLines(ps, right-left, right-left-hang) {
 		x := left
-		if i > 0 {
+		if i > 0 && !rtl {
 			x += hang
 		}
-		if a == alignCenter {
+		switch {
+		case a == alignCenter:
 			x += p.centred(line, right-left)
+		case rtl:
+			x = right - lineWidth(line)
+			if i > 0 {
+				x -= hang
+			}
 		}
+		p.lineRTL = rtl // (set again: a note laid out by the line before sets its own)
 		p.emit(lh, refs(line), func(y float64) {
 			if i == 0 && first != nil {
 				first(y)
@@ -1102,10 +1366,11 @@ func (p *pdfWriter) draw(pc piece, x, y, lh float64) {
 	p.setFont(pc.face, pc.st)
 	d.SetTextColor(pc.st.color[0], pc.st.color[1], pc.st.color[2])
 	d.SetXY(x, y-pc.st.rise)
-	if pdf.HasDevanagari(pc.text) { // shaped, its text read back as written
-		p.shaper(pc.face, pc.st).Cell(d, pc.face, pc.st.fontStyle(), pc.st.size, pc.w, lh, pc.text, "L")
+	// shaped, its text read back as written; right to left turned around
+	if sh := p.shaper(pc.face, pc.st); pc.rtl {
+		sh.CellRTL(d, pc.face, pc.st.fontStyle(), pc.st.size, pc.w, lh, pc.text, "L")
 	} else {
-		d.CellFormat(pc.w, lh, pc.text, "", 0, "L", false, 0, "")
+		sh.Cell(d, pc.face, pc.st.fontStyle(), pc.st.size, pc.w, lh, pc.text, "L")
 	}
 	base := y + lh/2 + 0.3*pc.st.size // gofpdf's baseline in a cell
 	if pc.st.href != "" || pc.st.strike {
@@ -1168,19 +1433,28 @@ func (p *pdfWriter) block(b *Block, indent float64, quoted, first bool) {
 			n = 1
 		}
 		for i, it := range b.Children {
-			mark := "•"
-			if b.Ordered {
-				mark = strconv.Itoa(n+i) + "."
-			}
+			num := strconv.Itoa(n + i)
 			if i > 0 {
 				p.gap(textSize * 0.25)
 			}
 			p.keep(textSize * leading)
-			p.setFont(faceText, body)
-			mw := p.d.GetStringWidth(mark)
-			// the mark with the item's first line, wherever it lands
-			p.decor = append(p.decor, func(y float64) {
-				p.draw(piece{text: mark, face: faceText, st: body, w: mw}, left+indentStp-6-mw, y, textSize*leading)
+			// the mark with the item's first line, wherever it lands: on its
+			// right when it reads right to left (".1")
+			p.decor = append(p.decor, func(y float64, rtl bool) {
+				mark := "•"
+				switch {
+				case b.Ordered && rtl:
+					mark = "." + num
+				case b.Ordered:
+					mark = num + "."
+				}
+				p.setFont(faceText, body)
+				mw := p.d.GetStringWidth(mark)
+				x := left + indentStp - 6 - mw
+				if rtl {
+					x = p.right - (left - p.left) - indentStp + 6
+				}
+				p.draw(piece{text: mark, face: faceText, st: body, w: mw}, x, y, textSize*leading)
 			})
 			if len(it.Children) == 0 {
 				p.emit(textSize*leading, nil, func(float64) {})
@@ -1361,9 +1635,17 @@ func (p *pdfWriter) table(b *Block, left float64) {
 		}
 	}
 	lh := textSize * leading
+	// a table read right to left (its first row's first letter) runs from
+	// the right
+	var first []piece
+	for _, cell := range b.Rows[0] {
+		first = append(first, p.pieces(cell, style{size: textSize, bold: true})...)
+	}
+	rtl := rtlPieces(first)
 	for ri, r := range b.Rows {
 		st := style{size: textSize, bold: ri == 0}
 		cells := make([][][]piece, cols)
+		cellRTL := make([]bool, cols)
 		h := lh
 		var notes []*note
 		for c := 0; c < cols; c++ {
@@ -1371,7 +1653,8 @@ func (p *pdfWriter) table(b *Block, left float64) {
 			if c < len(r) {
 				spans = r[c]
 			}
-			cells[c] = p.lines(p.pieces(spans, st), widths[c]-2*pad)
+			ps := p.pieces(spans, st)
+			cells[c], cellRTL[c] = p.lines(ps, widths[c]-2*pad), rtlPieces(ps)
 			h = max(h, float64(len(cells[c]))*lh)
 			for _, line := range cells[c] {
 				for _, n := range refs(line) {
@@ -1384,9 +1667,15 @@ func (p *pdfWriter) table(b *Block, left float64) {
 		h += 2 * pad
 		p.emit(h, notes, func(top float64) {
 			x := left
+			if rtl { // its first column on the right, from the right edge (mirrored)
+				x = p.left + p.right - left
+			}
 			p.d.SetDrawColor(160, 160, 160)
 			p.d.SetLineWidth(0.5)
 			for c := 0; c < cols; c++ {
+				if rtl {
+					x -= widths[c]
+				}
 				if ri == 0 {
 					p.d.SetFillColor(235, 235, 235)
 					p.d.Rect(x, top, widths[c], h, "FD")
@@ -1395,10 +1684,16 @@ func (p *pdfWriter) table(b *Block, left float64) {
 				}
 				y := top + pad
 				for _, line := range cells[c] {
-					p.drawLine(line, x+pad, y, lh)
+					at := x + pad
+					if cellRTL[c] { // set from the right
+						at = x + widths[c] - pad - lineWidth(line)
+					}
+					p.drawLine(line, at, y, lh)
 					y += lh
 				}
-				x += widths[c]
+				if !rtl {
+					x += widths[c]
+				}
 			}
 		})
 	}

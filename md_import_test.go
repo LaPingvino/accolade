@@ -228,16 +228,16 @@ func TestMarkdownExportDialog(t *testing.T) {
 	}
 }
 
-// A PDF of a document Accolade's own PDF cannot print as written (text
-// read right to left), made by Chromium (when there is one; it cannot run
+// A PDF of a document Accolade's own PDF cannot print as written (CJK,
+// which its fonts have not got), made by Chromium (when there is one; it cannot run
 // in some sandboxes, as for TestBrowserPDF).
 func TestBrowserPDFMarkdown(t *testing.T) {
 	if localBrowser() == "" {
 		t.Skip("no Chromium browser")
 	}
-	text := storyDraft + "\nשלום, עולם.\n"
+	text := storyDraft + "\n日本語の文章。\n"
 	if markdownPDFMissing(text, nil) == "" {
-		t.Fatal("Accolade's PDF prints Hebrew prose now: give this test a document it cannot")
+		t.Fatal("Accolade's PDF prints Japanese prose now: give this test a document it cannot")
 	}
 	out := filepath.Join(t.TempDir(), "story.pdf")
 	if err := exportMarkdown(text, "Story", out, "pdf"); err != nil {

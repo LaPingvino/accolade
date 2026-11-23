@@ -320,8 +320,11 @@ func TestMarkdownPDFNative(t *testing.T) {
 	if len(pages) != 2 || !strings.Contains(pages[0][0].Text, "The Lighthouse Keeper") || !strings.Contains(pages[1][0].Text, "The Lighthouse Keeper") {
 		t.Errorf("%d pages: %+v", len(pages), pages)
 	}
-	if m := markdownPDFMissing("# שלום\n\nעולם\n", nil); !strings.Contains(m, "right to left") {
+	if m := markdownPDFMissing("# שלום\n\nעולם\n", nil); m != "" {
 		t.Errorf("Hebrew prose: %q", m)
+	}
+	if m := markdownPDFMissing("# 日本語\n", nil); m == "" {
+		t.Error("Japanese prose prints")
 	}
 }
 
@@ -393,5 +396,39 @@ func TestPageViewFollowsSettings(t *testing.T) {
 	case <-shown:
 		t.Error("the editor's font size made the pages again")
 	case <-time.After(300 * time.Millisecond):
+	}
+}
+
+// The Live Preview's Pages print Hebrew, Arabic and Hindi prose
+// themselves (Accolade's PDF, no browser), with no note that they cannot.
+func TestMarkdownPagesRightToLeft(t *testing.T) {
+	for _, c := range []struct{ name, text string }{
+		{"hebrew", "# בְּרֵאשִׁית\n\nבְּרֵאשִׁית בָּרָא אֱלֹהִים אֵת הַשָּׁמַיִם וְאֵת הָאָרֶץ. הספר **הזה** נכתב בשנת 2024 עם Accolade.\n\n1. ראשון\n2. שני\n"},
+		{"arabic", "# بِسْمِ اللَّهِ\n\nبِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ. هذا **النص** مكتوب في سنة 2024 مع Accolade.\n\n* می‌خواهم بروم\n"},
+		{"hindi", "# हिन्दी में कहानी\n\nक्षत्रिय किसान ने **धर्म** और श्रद्धा से ज्ञान पाया।\n"},
+	} {
+		w, _ := newDialogTestWindow(t)
+		w.setMarkdown(true)
+		w.textEditor.SetText(c.text)
+		w.fyneWindow.Resize(fyne.NewSize(1200, 800))
+		w.preview()
+		shown := make(chan *pageView, 4)
+		f := func(v *pageView) { shown <- v }
+		old := pagesShownHook.Swap(&f)
+		w.previewPane.mode.SetSelected(previewPages)
+		var v *pageView
+		select {
+		case v = <-shown:
+		case <-time.After(30 * time.Second):
+			t.Fatal("no pages")
+		}
+		if v.note.Visible() {
+			t.Errorf("%s: a note: %q", c.name, v.note.Text)
+		}
+		painted(t, v, 0)
+		capture(t, w.fyneWindow.Canvas(), "pageview-markdown-"+c.name+".png")
+		pagesShownHook.Store(old)
+		w.previewPane.mode.SetSelected(previewText)
+		w.settings.SetBoolean(previewPagesPref, false)
 	}
 }

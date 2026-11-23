@@ -14,7 +14,7 @@ import (
 )
 
 // On the desktop, a script the PDF writer cannot print as written
-// (Hebrew, CJK, right to left) is printed by a browser on the computer
+// (CJK: letters no font of its has) is printed by a browser on the computer
 // from Lexington's HTML: its fonts and layout have every script. Print
 // opens the browser's print dialog; a PDF is made by a Chromium browser
 // (Chrome, Chromium, Edge, Brave) without showing it.

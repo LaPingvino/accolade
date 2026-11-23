@@ -120,22 +120,3 @@ func TestClusters(t *testing.T) {
 		t.Errorf("clusters: %q, want %q", got, want)
 	}
 }
-
-// Right-to-left prose still prints (through the browser when exported,
-// PDFMissing says why), and its letters are in the PDF.
-func TestPDFRightToLeftStillPrints(t *testing.T) {
-	for _, c := range []struct{ name, text, word string }{
-		{"Hebrew", "# שלום\n\nבְּרֵאשִׁית בָּרָא אֱלֹהִים, and English.\n", "שלום"},
-		{"Arabic", "# مرحبا\n\nبِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ, and English.\n", "مرحبا"},
-	} {
-		t.Run(c.name, func(t *testing.T) {
-			if m := FromMarkdown(c.text).PDFMissing(PDFFonts{}); !strings.Contains(m, "right to left") {
-				t.Errorf("PDFMissing: %q", m)
-			}
-			_, b := writeDevaProse(t, c.text, nil)
-			if len(b) == 0 {
-				t.Error("no PDF")
-			}
-		})
-	}
-}

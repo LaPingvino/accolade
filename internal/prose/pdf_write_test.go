@@ -71,14 +71,16 @@ func TestWritePDF(t *testing.T) {
 	}
 }
 
-// What the PDF cannot print yet: text read right to left, characters
-// none of its fonts has.
+// What the PDF cannot print yet: characters none of its fonts has (text
+// read right to left it prints).
 func TestPDFMissing(t *testing.T) {
 	if m := FromMarkdown(story).PDFMissing(PDFFonts{}); m != "" {
 		t.Errorf("the story: %q", m)
 	}
-	if m := FromMarkdown("שָׁלוֹם").PDFMissing(PDFFonts{}); !strings.Contains(m, "right to left") {
-		t.Errorf("Hebrew: %q", m)
+	for _, text := range []string{"שָׁלוֹם", "بِسْمِ اللَّهِ", "می‌خواهم", "हिन्दी।"} {
+		if m := FromMarkdown(text).PDFMissing(PDFFonts{}); m != "" {
+			t.Errorf("%s: %q", text, m)
+		}
 	}
 	if m := FromMarkdown("日本語").PDFMissing(PDFFonts{}); !strings.Contains(m, "日") {
 		t.Errorf("Japanese: %q", m)

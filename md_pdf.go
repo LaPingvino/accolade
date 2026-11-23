@@ -19,9 +19,10 @@ import (
 // A Markdown document's PDF, written by Accolade itself (internal/prose,
 // through Lexington's drawing): no Chromium on the desktop, a real PDF in
 // the browser, its pages in the page view (the Live Preview's Pages).
-// What it cannot print yet as written — text read right to left, scripts
-// its fonts have not got — goes through a browser as before
-// (exportMarkdownWith).
+// Text read right to left it prints too (Hebrew, Arabic: ordered,
+// joined and set from the right, as Lexington's screenplay PDF prints
+// it). What it cannot print yet as written — scripts its fonts have not
+// got (CJK) — goes through a browser as before (exportMarkdownWith).
 
 // proseFonts are the PDF's text face: Noto Sans, Fyne's own (SIL Open
 // Font License 1.1, which lets it be embedded), in its four styles; code
