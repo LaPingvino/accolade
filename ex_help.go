@@ -31,7 +31,7 @@ func exHelpPage() string {
 		"- `/pattern/` the next line that matches, `?pattern?` the one before; each with `+n` or `-n` after it\n" +
 		"- `from,to` the lines between; `:12` alone goes to line 12\n" +
 		"- Patterns are vim's: `\\(` `\\)` groups, `\\|` or, `\\<` `\\>` a word's ends, `\\c` any case; `\\v` takes Go's syntax as it is\n")
-	groups := []string{exGroupLines, exGroupMoves, exGroupFiles, exGroupWriting, exGroupHelp}
+	groups := []string{exGroupLines, exGroupMoves, exGroupProd, exGroupFiles, exGroupWriting, exGroupHelp}
 	for _, g := range groups {
 		fmt.Fprintf(&b, "\n## %s\n\n", g)
 		for _, c := range t.cmds {
@@ -41,6 +41,9 @@ func exHelpPage() string {
 		}
 		if g == exGroupMoves {
 			b.WriteString("\nMoves are named `move-…-up` and `move-…-down`, so `:mo` lists them all; jumps `go-…`, `next-…` and `previous-…`.\n")
+		}
+		if g == exGroupProd {
+			b.WriteString("\nScenes are named by their labels, in the script's order: a scene's number as written (`5`, `12A`, `I-1-A`), or in a script without numbers its place (`1`, `2`, `3`…; `(3)` names the third scene in a numbered one); `#Name` a section by the start of its heading; `.` the cursor's scene, `$` the last. `X..Y` runs from X to Y in the script's order (Y before X is an error, never swapped). Tab completes the labels and the words.\n")
 		}
 		if g == exGroupWriting {
 			var names []string

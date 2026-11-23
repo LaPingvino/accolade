@@ -546,6 +546,8 @@ func (w *MainWindow) exCtx() exCtx {
 	} else if wd, err := os.Getwd(); err == nil {
 		ctx.dir = wd
 	}
+	ctx.refs = w.exRefChoices()
+	ctx.categories = w.tagCategoryNames()
 	ctx.items = func(id string) []string {
 		var out []string
 		for _, it := range w.exItems(id) {
@@ -598,6 +600,12 @@ func (w *MainWindow) runEx(cmd string) {
 	cur, _ := e.Buffer().Position(e.CursorOffset())
 	res, err := st.run(cmd, lines, cur, w.exVisual)
 	var other *exNotCommand
+	if errors.As(err, &other) && other.structural {
+		if err := w.exMoveUnits(other.rest, other.from, other.to, other.given); err != nil {
+			w.setStatus(err.Error())
+		}
+		return
+	}
 	if errors.As(err, &other) {
 		err = w.runExCommand(other.name, strings.TrimSpace(other.rest))
 		if err != nil {

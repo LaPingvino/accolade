@@ -15,6 +15,7 @@ import (
 //	:s/re/to/gi    substitute (& the match, \1 a group; re in vim's style, \v Go's)
 //	:g/re/cmd      run d, s or j on the lines that match; :v or :g! on the others
 //	:d  :y  :j  :m addr  :t addr (:co)  :u  :12 (go to)
+//	:m after|before a scene (the structure's: ex_production.go)
 //	:w [file]  :q  :q!  :wq  :x
 //
 // run works on the lines alone; the window applies what it returns.
@@ -66,6 +67,9 @@ func (st *exState) run(cmd string, lines []string, cur int, visual [2]int) (exRe
 	}
 	if bang && name == "g" {
 		name = "v" // g! is v
+	}
+	if name == "m" && exStructural(rest) { // :move 3..5 after 9, :'<,'>move after 9
+		return res, &exNotCommand{name: word, rest: rest, structural: true, from: min(from, to), to: max(from, to), given: given}
 	}
 	if !given {
 		from, to = cur, cur
@@ -158,6 +162,11 @@ func (st *exState) run(cmd string, lines []string, cur int, visual [2]int) (exRe
 type exNotCommand struct {
 	name, rest string
 	bang       bool
+	// structural: a :move of scenes or sections (after or before one),
+	// with the range of lines given, if given (ex_production.go)
+	structural bool
+	from, to   int
+	given      bool
 }
 
 func (e *exNotCommand) Error() string { return errNotCommand.Error() + ": " + e.name }

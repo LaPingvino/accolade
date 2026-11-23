@@ -31,7 +31,7 @@ Line commands take a range of lines before their name; without one they act on t
 
 ## Moving and going to
 
-- **:m[ove]** `address` — Move the lines to after a line: :m0 to the top, :m$ to the end, :m-2 up one, :m+1 down one
+- **:m[ove]** `address | [X..Y] after|before Z` — Move the lines to after a line: :m0 to the top, :m$ to the end, :m-2 up one, :m+1 down one; with after or before, scenes or sections: :move 3..5 after 9, :'<,'>move before #Act
 - **:t** `address` — Copy the lines to after a line (:t. doubles the line)
 - **:co[py]** `address` — Copy the lines to after a line, as :t
 - **:sc[ene]** `heading or number` — Go to a scene or section: its number, or its heading (Tab lists them)
@@ -61,6 +61,20 @@ Line commands take a range of lines before their name; without one they act on t
 - **:move-strip-down** — Production > Move Strip Down (working as Production; while the stripboard is in front)
 
 Moves are named `move-…-up` and `move-…-down`, so `:mo` lists them all; jumps `go-…`, `next-…` and `previous-…`.
+
+## Production and structure
+
+- **:renumber** `[keep LIST] [only LIST] [from X to Y] [fold|letters] [omitted drop|keep|runs]` — Renumber the scenes as Renumber Scenes… would, its choices typed: keep 5,12A keeps those, only 20-24 renumbers those alone, from X to Y a part; fold or keep letters; what OMITTED scenes do. Without choices, the dialog (screenplay; working as Production)
+- **:lock** — Lock the scene numbers (every scene numbered) (screenplay; working as Production)
+- **:unlock** `[keep|remove]` — Unlock the scene numbers: keep them in the script, or remove the ones the lock wrote; without either, the dialog that asks (screenplay; working as Production)
+- **:omit** `[X..Y]` — Make the scenes OMITTED, their numbers kept (the cursor's without a range): one undo step (screenplay; working as Production)
+- **:restore** `[X..Y]` — Bring OMITTED scenes back (the cursor's without a range): one undo step (screenplay; working as Production)
+- **:swap** `X..Y with Z..W` — Swap two runs of scenes or two sections (#Name): their links, tags and locked numbers go with them (screenplay)
+- **:issue** — Issue a draft: the Issue Draft dialog (screenplay; working as Production)
+- **:tag** `category` — Tag the selection (or the word at the cursor) in a breakdown category: :tag props (screenplay; working as Production)
+- **:draft** `[name]` — Save a draft now, by that name (Draft n without one)
+
+Scenes are named by their labels, in the script's order: a scene's number as written (`5`, `12A`, `I-1-A`), or in a script without numbers its place (`1`, `2`, `3`…; `(3)` names the third scene in a numbered one); `#Name` a section by the start of its heading; `.` the cursor's scene, `$` the last. `X..Y` runs from X to Y in the script's order (Y before X is an error, never swapped). Tab completes the labels and the words.
 
 ## Files and the window
 

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -34,7 +35,19 @@ const (
 	argItems         // a submenu's items (the registry command's)
 	argAddress       // a line address (m, t)
 	argPattern       // /re/… (s, g, v)
+	// the structure's and production's, completed word by word (the last
+	// one typed: ex_production.go)
+	argRefs     // scenes and sections: X..Y
+	argMoveTo   // :move: an address, or X..Y after|before Z
+	argSwap     // X..Y with Z..W
+	argRenumber // :renumber's words and labels
+	argUnlock   // keep or remove
+	argCategory // a breakdown category
 )
+
+// wordByWord reports whether a completes the last word typed, not the
+// whole argument.
+func (a exArg) wordByWord() bool { return a >= argRefs && a <= argUnlock }
 
 // exCmd is one ex command.
 type exCmd struct {
@@ -70,6 +83,7 @@ const (
 	exGroupMoves   = "Moving and going to"
 	exGroupFiles   = "Files and the window"
 	exGroupWriting = "Writing"
+	exGroupProd    = "Production and structure"
 	exGroupHelp    = "Help"
 	exGroupMenus   = "Accolade's commands"
 )
@@ -90,8 +104,8 @@ var exLineCommands = []*exCmd{
 		desc: "Join the lines into one (the cursor's and the next without a range)", group: exGroupLines},
 	{name: "undo", short: "u", canon: "u", id: "edit.undo",
 		desc: "Undo the last change", group: exGroupLines},
-	{name: "move", short: "m", canon: "m", usage: "address", ranged: true, arg: argAddress, argReq: true,
-		desc: "Move the lines to after a line: :m0 to the top, :m$ to the end, :m-2 up one, :m+1 down one", group: exGroupMoves, keywords: "move lines"},
+	{name: "move", short: "m", canon: "m", usage: "address | [X..Y] after|before Z", ranged: true, arg: argMoveTo, argReq: true,
+		desc: "Move the lines to after a line: :m0 to the top, :m$ to the end, :m-2 up one, :m+1 down one; with after or before, scenes or sections: :move 3..5 after 9, :'<,'>move before #Act", group: exGroupMoves, keywords: "move lines scenes sections"},
 	{name: "t", short: "t", canon: "t", usage: "address", ranged: true, arg: argAddress, argReq: true,
 		desc: "Copy the lines to after a line (:t. doubles the line)", group: exGroupMoves, keywords: "copy duplicate move"},
 	{name: "copy", short: "co", canon: "t", usage: "address", ranged: true, arg: argAddress, argReq: true,
@@ -119,6 +133,27 @@ func exWindowCommands() []*exCmd {
 			desc: "Make the cursor's line an element: :element action, :el character…", group: exGroupWriting, keywords: "format"},
 		{name: "heading", usage: "[0-6]", arg: argHeading, run: (*MainWindow).exHeading,
 			desc: "A Markdown line's heading level (0: normal text); without one, the picker", group: exGroupWriting},
+
+		// production and structure (ex_production.go): scenes by their
+		// labels, in the script's order
+		{name: "renumber", usage: "[keep LIST] [only LIST] [from X to Y] [fold|letters] [omitted drop|keep|runs]", arg: argRenumber, run: (*MainWindow).exRenumber, id: "production.renumber",
+			desc: "Renumber the scenes as Renumber Scenes… would, its choices typed: keep 5,12A keeps those, only 20-24 renumbers those alone, from X to Y a part; fold or keep letters; what OMITTED scenes do. Without choices, the dialog", group: exGroupProd},
+		{name: "lock", run: (*MainWindow).exLock, id: "production.lockNumbers",
+			desc: "Lock the scene numbers (every scene numbered)", group: exGroupProd},
+		{name: "unlock", usage: "[keep|remove]", arg: argUnlock, run: (*MainWindow).exUnlock, id: "production.unlockNumbers",
+			desc: "Unlock the scene numbers: keep them in the script, or remove the ones the lock wrote; without either, the dialog that asks", group: exGroupProd},
+		{name: "omit", usage: "[X..Y]", arg: argRefs, run: exOmit(false), id: "production.omit",
+			desc: "Make the scenes OMITTED, their numbers kept (the cursor's without a range): one undo step", group: exGroupProd},
+		{name: "restore", usage: "[X..Y]", arg: argRefs, run: exOmit(true), id: "production.restore",
+			desc: "Bring OMITTED scenes back (the cursor's without a range): one undo step", group: exGroupProd},
+		{name: "swap", usage: "X..Y with Z..W", arg: argSwap, argReq: true, run: (*MainWindow).exSwap, id: "structure.swap",
+			desc: "Swap two runs of scenes or two sections (#Name): their links, tags and locked numbers go with them", group: exGroupProd, keywords: "move scenes sections"},
+		{name: "issue", run: (*MainWindow).exIssue, id: "production.issue",
+			desc: "Issue a draft: the Issue Draft dialog", group: exGroupProd},
+		{name: "tag", usage: "category", arg: argCategory, argReq: true, run: (*MainWindow).exTag, id: "production.tag",
+			desc: "Tag the selection (or the word at the cursor) in a breakdown category: :tag props", group: exGroupProd},
+		{name: "draft", usage: "[name]", run: (*MainWindow).exDraft, id: "file.saveDraft",
+			desc: "Save a draft now, by that name (Draft n without one)", group: exGroupProd, keywords: "save"},
 
 		// Moving and going to. Moves are named move-<what>-up and
 		// move-<what>-down, so that :mo lists them all; jumps go-…,
@@ -429,6 +464,10 @@ type exCtx struct {
 	files    bool          // paths complete (not in the browser)
 	// items are a submenu command's items' labels
 	items func(id string) []string
+	// refs are the script's scenes (labels) and sections (#Name);
+	// categories the breakdown's
+	refs       []exChoice
+	categories []string
 }
 
 // exChoice is one line of the list.
@@ -483,6 +522,14 @@ func (t *exTable) complete(ctx exCtx, line string) exCompletion {
 	argStart := nameEnd
 	for argStart < len(line) && (line[argStart] == ' ' || line[argStart] == '!') {
 		argStart++
+	}
+	if c.arg.wordByWord() { // the last word, or what follows a range's ..
+		rest := line[argStart:]
+		i := strings.LastIndexByte(rest, ' ') + 1
+		if j := strings.LastIndex(rest[i:], ".."); j >= 0 {
+			i += j + 2
+		}
+		return exCompletion{start: argStart + i, choices: t.wordArgs(ctx, c, rest[:i], rest[i:]), arg: true}
 	}
 	return exCompletion{start: argStart, choices: t.args(ctx, c, line[argStart:]), arg: true}
 }
@@ -659,6 +706,10 @@ func (t *exTable) args(ctx exCtx, c *exCmd, arg string) []exChoice {
 				all = append(all, exChoice{text: x.name, label: x.name, desc: x.desc})
 			}
 		}
+	case argCategory:
+		for _, n := range ctx.categories {
+			all = append(all, exChoice{text: n, label: n})
+		}
 	case argItems:
 		if ctx.items != nil {
 			for _, it := range ctx.items(c.id) {
@@ -669,6 +720,52 @@ func (t *exTable) args(ctx exCtx, c *exCmd, arg string) []exChoice {
 		return nil
 	}
 	return exFilter(all, arg)
+}
+
+// wordArgs complete the word typed after before, for c's argument: its
+// words where they may come, and the script's scenes and sections.
+func (t *exTable) wordArgs(ctx exCtx, c *exCmd, before, word string) []exChoice {
+	words := strings.Fields(before)
+	kw := func(ws ...string) []exChoice {
+		var out []exChoice
+		for _, w := range ws {
+			out = append(out, exChoice{text: w + " ", label: w, more: true})
+		}
+		return out
+	}
+	var all []exChoice
+	ranged := strings.HasSuffix(before, "..")
+	switch c.arg {
+	case argUnlock:
+		all = []exChoice{{text: "keep", label: "keep", desc: "the numbers stay in the script"}, {text: "remove", label: "remove", desc: "the numbers the lock wrote go"}}
+	case argRenumber:
+		last := ""
+		if len(words) > 0 {
+			last = strings.ToLower(words[len(words)-1])
+		}
+		if last == "omitted" {
+			all = []exChoice{{text: "drop ", label: "drop", desc: "the gaps close"}, {text: "keep ", label: "keep", desc: "they stay"}, {text: "runs ", label: "runs", desc: "they stay, a run printed as one"}}
+			break
+		}
+		if last != "from" && last != "to" && last != "keep" && last != "only" || ranged {
+			all = kw(renumberWords...)
+		}
+		if last != "" {
+			all = append(all, ctx.refs...)
+		}
+	case argRefs:
+		all = ctx.refs
+	case argMoveTo, argSwap:
+		where := []string{"after", "before"}
+		if c.arg == argSwap {
+			where = []string{"with"}
+		}
+		if len(words) > 0 && !ranged && !slices.ContainsFunc(words, func(w string) bool { return slices.Contains(where, strings.ToLower(w)) }) {
+			all = kw(where...)
+		}
+		all = append(all, ctx.refs...)
+	}
+	return exFilter(all, word)
 }
 
 // exFilter are the choices arg begins (any case) first, then the fuzzy
