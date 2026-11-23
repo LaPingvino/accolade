@@ -136,7 +136,7 @@ the session names no Doc for (one picked before this peer had heard from the oth
 | `commands.go` element commands (`format.element.*`), Underline, `write.place`, `write.character`, `write.elementKind` | `screenplayOnly` means "the editor holds a screenplay" | `scriptEditing`: hidden while the script is away |
 | `commands.go` Markdown commands (`md.*`, `md.headings`) | `markdownOnly` | `markdownEditing`: there for the source or notes in the main editor. Ctrl+1–6 go to the headings then |
 | `commands.go` `do`, `tapped` | an editing command acts only while `w.textEditor` has the focus; afterwards the focus goes back to it | the main editor's focus. With a view in the main area, the status says there is nothing to write in |
-| emphasis, Right to Left Line, Move Line Up/Down, `mdEdit`, Link…, Image…, Table… | wrote into `w.textEditor` | `writeEditor()`; the focus goes back to the main area |
+| emphasis, Right to Left Line, Move Up/Down (a Markdown document's lines), `mdEdit`, Link…, Image…, Table… | wrote into `w.textEditor` | `writeEditor()`; the focus goes back to the main area |
 | `view.preview` (Live Preview), `preview()` | a Markdown file's | the main editor's kind (`byEditor` labels, `editorMarkdown`); the preview shows the main document; back on a screenplay it is hidden again |
 | `header_bar.go` editing row | `setMarkdown` chose the row | `showEditingRow(editorMarkdown())` on every change of the tab in front |
 | `ribbon.go` Write tab: elements, the format's buttons; the build key | `env.markdown` | `scriptEditing(env)`; `away` and `midDoc` in the key |

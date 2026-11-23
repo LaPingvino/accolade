@@ -50,8 +50,21 @@ func newCardsView(w *MainWindow) *cardsView {
 	hint := widget.NewLabel("Tap a card to open its scene; drag it to move it; write its synopsis on it.")
 	hint.Importance = widget.LowImportance
 	hint.Truncation = fyne.TextTruncateEllipsis
-	c.box = container.NewBorder(container.NewBorder(nil, nil, heading, back, hint), nil, nil, nil, container.NewVScroll(c.list))
+	// Swap… and Move… (structure_picker.go): a phone has no right-click
+	swap := widget.NewButton("Swap…", func() { w.showStructPicker(false, c.at()) })
+	move := widget.NewButton("Move…", func() { w.showStructPicker(true, c.at()) })
+	swap.Importance, move.Importance = widget.LowImportance, widget.LowImportance
+	c.box = container.NewBorder(container.NewBorder(nil, nil, heading, container.NewHBox(swap, move, back), hint), nil, nil, nil, container.NewVScroll(c.list))
 	return c
+}
+
+// at is the heading line of the card whose synopsis is being written
+// (-1: none: the one at the editor's cursor), for Swap… and Move….
+func (c *cardsView) at() int {
+	if s, ok := c.w.fyneWindow.Canvas().Focused().(*synopsisEntry); ok && s.i < len(c.items) {
+		return c.items[s.i].Line
+	}
+	return -1
 }
 
 // update shows the script's outline as cards. While a synopsis is being
@@ -255,9 +268,9 @@ func (k *card) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRen
 // Tapped opens the card's scene in the editor.
 func (k *card) Tapped(*fyne.PointEvent) { k.c.open(k.i) }
 
-// TappedSecondary picks the scene's color.
+// TappedSecondary shows the scene's menu: its color, Swap…, Move….
 func (k *card) TappedSecondary(e *fyne.PointEvent) {
-	k.c.w.pickColor(k.c.items[k.i], e.AbsolutePosition, nil)
+	k.c.w.itemMenu(k.c.items[k.i], e.AbsolutePosition)
 }
 
 // card is item i's card, nil if it has none.
@@ -319,9 +332,9 @@ func (h *sectionHeader) CreateRenderer() fyne.WidgetRenderer { return widget.New
 
 func (h *sectionHeader) Tapped(*fyne.PointEvent) { h.c.open(h.i) }
 
-// TappedSecondary picks the section's color.
+// TappedSecondary shows the section's menu: its color, Swap…, Move….
 func (h *sectionHeader) TappedSecondary(e *fyne.PointEvent) {
-	h.c.w.pickColor(h.c.items[h.i], e.AbsolutePosition, nil)
+	h.c.w.itemMenu(h.c.items[h.i], e.AbsolutePosition)
 }
 
 // addCard ends a group of cards: tapped, it asks for a new scene's heading

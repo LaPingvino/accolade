@@ -76,24 +76,24 @@ func TestQuickScoring(t *testing.T) {
 			}
 		}
 	}
-	// use: twenty uses of Move Line Up bring it in, Redo (the last) out
+	// use: twenty uses of Move Up bring it in, Redo (the last) out
 	for range 20 {
-		s.used("format.lineUp")
+		s.used("structure.up")
 	}
 	s.save()
 	s2 := loadQuickStore(s.path)
-	if got := s2.picks(cmdEnv{writer: true}); !slices.Contains(got, "format.lineUp") || slices.Contains(got, "edit.redo") {
+	if got := s2.picks(cmdEnv{writer: true}); !slices.Contains(got, "structure.up") || slices.Contains(got, "edit.redo") {
 		t.Errorf("after twenty uses: %q", got)
 	}
-	if got := s2.frozen["format.lineUp"]; got != 20 {
+	if got := s2.frozen["structure.up"]; got != 20 {
 		t.Errorf("count %v", got)
 	}
 	now = now.Add(quickHalfLife) // two weeks on: half
 	s3 := loadQuickStore(s.path)
-	if got := s3.frozen["format.lineUp"]; got < 9.99 || got > 10.01 {
+	if got := s3.frozen["structure.up"]; got < 9.99 || got > 10.01 {
 		t.Errorf("after two weeks: %v, not 10", got)
 	}
-	if u := s3.data.Uses["format.lineUp"]; u.at(now.Add(quickHalfLife)) > 5.01 {
+	if u := s3.data.Uses["structure.up"]; u.at(now.Add(quickHalfLife)) > 5.01 {
 		t.Errorf("after four weeks: %v", u.at(now.Add(quickHalfLife)))
 	}
 }
@@ -113,7 +113,7 @@ func TestQuickStableInSession(t *testing.T) {
 		t.Fatalf("Quick holds %d: %q", len(first), first)
 	}
 	for range 40 {
-		w.noteUse(cmd("format.lineDown"))
+		w.noteUse(cmd("structure.down"))
 	}
 	r.builtFor = ""
 	r.refresh()
@@ -143,8 +143,8 @@ func TestQuickStableInSession(t *testing.T) {
 	}
 	// started again: the uses count
 	restartQuick(w)
-	if got := quickIDs(r); !slices.Contains(got, "format.lineDown") {
-		t.Errorf("after a restart, Move Line Down (40 uses) is not on Quick: %q", got)
+	if got := quickIDs(r); !slices.Contains(got, "structure.down") {
+		t.Errorf("after a restart, Move Down (40 uses) is not on Quick: %q", got)
 	}
 }
 
@@ -232,13 +232,13 @@ func TestQuickToggle(t *testing.T) {
 	if r.order.icon != lockIcon || !r.order.checked || r.order.Disabled() {
 		t.Error("the lock is not shut in Fixed")
 	}
-	for range 30 { // Edit > Lines, used a lot before the app started
-		w.noteUse(cmd("format.lineUp"))
+	for range 30 { // Edit > Structure, used a lot before the app started
+		w.noteUse(cmd("structure.up"))
 	}
 	restartQuick(w)
 	r.selectTab("Edit")
 	fixed := dumpRibbon(r)
-	if !strings.Contains(fixed, "## Undo") || strings.Index(fixed, "## Undo") > strings.Index(fixed, "## Lines") {
+	if !strings.Contains(fixed, "## Undo") || strings.Index(fixed, "## Undo") > strings.Index(fixed, "## Structure") {
 		t.Errorf("Fixed is not the standard order:\n%s", fixed)
 	}
 	r.order.Tapped(&fyne.PointEvent{})
@@ -246,7 +246,7 @@ func TestQuickToggle(t *testing.T) {
 		t.Fatalf("after the tap: smart=%v, %s chosen", w.cmdEnv().smart, r.selected)
 	}
 	smart := dumpRibbon(r)
-	if strings.Index(smart, "## Lines") > strings.Index(smart, "## Undo") {
+	if strings.Index(smart, "## Structure") > strings.Index(smart, "## Undo") {
 		t.Errorf("Smart does not put the used group first:\n%s", smart)
 	}
 	if r.shownTabs()[0].title != quickTab {
@@ -431,7 +431,7 @@ func TestQuickScreenshots(t *testing.T) {
 	r := ribbonOnFor(t, w)
 	for range 30 { // Edit > Find and Lines used a lot: first in Smart
 		w.noteUse(cmd("edit.findNext"))
-		w.noteUse(cmd("format.lineUp"))
+		w.noteUse(cmd("structure.up"))
 	}
 	restartQuick(w)
 	snap := func(name string) {

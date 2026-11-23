@@ -113,6 +113,12 @@ try {
 		"", false, was.report), 3000));
 } catch {}
 
+// Alt+Left and Alt+Right are the script's structural moves (promote,
+// demote), not the browser's Back and Forward, which would leave the app
+addEventListener("keydown", (e) => {
+	if (e.altKey && (e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.target.closest?.("#trouble, #preview-pane")) e.preventDefault();
+}, true);
+
 // keys pressed that do not reach the app (watchdog_js.go marks those that
 // do) are a freeze too
 let keysWaiting = 0, firstWaiting = 0;

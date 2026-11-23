@@ -122,6 +122,18 @@ func (w *MainWindow) foldHeadings() {
 	}
 }
 
+// outlineExtent is where item i of items runs in the script's lines: from
+// its line to the next item at its level or higher (or the end).
+func outlineExtent(items []outlineItem, i, lines int) (from, to int) {
+	from, to = items[i].Line, lines
+	for _, it := range items[i+1:] {
+		if it.Level <= items[i].Level {
+			return from, it.Line
+		}
+	}
+	return from, to
+}
+
 // ranges are the folded items' hidden lines, and the blocks folded.
 func (f *folds) ranges() []editor.Fold {
 	out := f.blockRanges()

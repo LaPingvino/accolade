@@ -99,9 +99,15 @@ type MainWindow struct {
 	// main cursor (source_passage_lines.go)
 	passageSeen linesSeen
 	cardsDock   *cardsPane // the Cards pane (cards_pane.go)
-	// the Characters pane, and the last rename for Undo (characters_pane.go, characters_rename.go)
-	charsPane   *charactersPane
-	charRenamed *renamed
+	// the Characters pane, and the last rename or structural move the
+	// extras followed, for Undo (characters_pane.go, characters_rename.go,
+	// structure_window.go)
+	charsPane    *charactersPane
+	followedLast *followed
+	// structSel is what Expand Selection grew from, structPick the open
+	// Swap… or Move… (structure_window.go, structure_picker.go)
+	structSel  *structSelection
+	structPick *structPicker
 	// relinking is how many looks at the links are being worked out (relink.go)
 	relinking int
 	// linkGuesses are the links the relinking did not write, by their

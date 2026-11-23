@@ -162,12 +162,23 @@ func (v *vim) shortcut(s fyne.Shortcut) bool {
 		v.e.Redo()
 		return true
 	}
-	// evil-org: Alt+j and Alt+k move the scene or section, Alt+h and Alt+l
-	// promote and demote a section
-	if ok && c.Modifier == fyne.KeyModifierAlt && v.org != nil && !v.visual() {
+	// evil-org: Alt+j and Alt+k move the unit at the cursor, Alt+h and
+	// Alt+l promote and demote it; with Shift (Alt+J …) into the next or
+	// previous scene, barf and slurp (org.go). In visual mode too: the
+	// selected units move.
+	if ok && (c.Modifier == fyne.KeyModifierAlt || c.Modifier == fyne.KeyModifierAlt|fyne.KeyModifierShift) && v.org != nil {
 		switch c.KeyName {
 		case fyne.KeyJ, fyne.KeyK, fyne.KeyH, fyne.KeyL:
-			return v.org("M-" + strings.ToLower(string(c.KeyName)))
+			k := strings.ToLower(string(c.KeyName))
+			if c.Modifier&fyne.KeyModifierShift != 0 {
+				k = strings.ToUpper(k)
+			}
+			done := v.org("M-" + k)
+			if v.visual() { // the selection is what moved, where it is now
+				s, e := v.e.Buffer().Selection()
+				v.anchor, v.vcur = s, max(e-1, s)
+			}
+			return done
 		}
 	}
 	return false

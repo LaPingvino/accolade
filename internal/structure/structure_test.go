@@ -122,7 +122,9 @@ func TestMoves(t *testing.T) {
 		{name: "section in, with its sections", op: Demote, at: "# ACT TWO", want: func(t *testing.T) string {
 			return rep(t, rep(t, rep(t, script, "# ACT TWO", "## ACT TWO"), "## Night", "### Night"), "## Morning", "### Morning")
 		}},
-		{name: "first section in", op: Demote, at: "# ACT ONE", refuse: "No section before"},
+		{name: "first section in: a level down where it is", op: Demote, at: "# ACT ONE", want: func(t *testing.T) string {
+			return rep(t, script, "# ACT ONE", "## ACT ONE")
+		}},
 		{name: "scene out of its section", op: Promote, at: "INT. BARN - DAY", want: func(t *testing.T) string {
 			return rep(t, script, "# ACT ONE\n\nINT. BARN - DAY\n\n"+barn, "INT. BARN - DAY\n\n"+barn+"# ACT ONE\n\n")
 		}},

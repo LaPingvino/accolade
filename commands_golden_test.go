@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))) // the moves write Linux keys too
+		want := structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -447,6 +447,52 @@ func helpMoves(name, golden string) string {
 }
 
 // lineDiff shows the lines only in want (-) and only in got (+), in order.
+// structureMoves: the structural moves (structure_window.go): Edit's
+// Move Line Up/Down are View > Structure's Move Up/Down, with the rest of
+// the moves (a screenplay's) beside them, and their keys.
+func structureMoves(base, golden string) string {
+	md := strings.Contains(base, "markdown")
+	type key struct{ keys, label string }
+	keys := []key{{"Alt+Up", "Move Up"}, {"Alt+Down", "Move Down"}}
+	if !md {
+		keys = append(keys, key{"Alt+Left", "Promote"}, key{"Alt+Right", "Demote"},
+			key{"Shift+Alt+Up", "Into the Scene Before"}, key{"Shift+Alt+Down", "Into the Next Scene"},
+			key{"Shift+Alt+Left", "Pass the Last Speech On"}, key{"Shift+Alt+Right", "Take In the Next Speech"},
+			key{"Alt+T", "Swap Speakers' Lines"}, key{"Alt+O", "Expand Selection"}, key{"Alt+I", "Shrink Selection"})
+	}
+	switch {
+	case strings.HasPrefix(base, "menu-"):
+		golden = strings.Replace(golden, "  ---\n  Move Line Up [Alt+Up]\n  Move Line Down [Alt+Down]\n", "", 1)
+		sub := []string{"  Structure"}
+		item := func(i int) string { return "    " + keys[i].label + " [" + keys[i].keys + "]" }
+		if md {
+			sub = append(sub, item(0), item(1))
+		} else {
+			sub = append(sub, item(0), item(1), item(2), item(3), "    ---", item(4), item(5), item(6), item(7),
+				"    ---", item(8), "    Line to Action", "    Action into the Speech", "    ---", item(9), item(10),
+				"    ---", "    Swap…", "    Move…")
+		}
+		golden = strings.Replace(golden, "  Unfold All\n", "  Unfold All\n"+strings.Join(sub, "\n")+"\n", 1)
+	case strings.HasPrefix(base, "shortcuts-"), strings.HasPrefix(base, "fullscreen-"):
+		var lines []string
+		for _, l := range strings.Split(strings.TrimSuffix(golden, "\n"), "\n") {
+			if !strings.Contains(l, "Alt+Up") && !strings.Contains(l, "Alt+Down") || strings.Contains(l, "Primary") {
+				lines = append(lines, l)
+			}
+		}
+		for _, k := range keys {
+			if strings.HasPrefix(base, "shortcuts-") {
+				lines = append(lines, k.keys+" = "+k.label)
+			} else {
+				lines = append(lines, k.keys)
+			}
+		}
+		slices.Sort(lines)
+		golden = strings.Join(lines, "\n") + "\n"
+	}
+	return golden
+}
+
 func lineDiff(want, got string) string {
 	w, g := strings.Split(want, "\n"), strings.Split(got, "\n")
 	var b strings.Builder

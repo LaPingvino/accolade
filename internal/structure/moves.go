@@ -222,12 +222,15 @@ func crossHint(k Kind, down bool) string {
 	return ""
 }
 
+// InPlace: a move that would leave the text as it is.
+const InPlace = Refusal("It is there already")
+
 // moveTo moves r before line to (after: after it) as a move of units.
 func (t *Tree) moveTo(r run, to int, after bool, msg string) (Result, error) {
 	a0, a1 := r.lines()
 	lines, at, where := t.move(a0, a1, to, after, r.kind() != Line)
 	if slices.Equal(lines, t.S.Lines) {
-		return Result{}, Refusal("It is there already")
+		return Result{}, InPlace
 	}
 	res := t.result(lines, at, where, msg)
 	res.moved, res.kept = t.movedKeys(r.nodes()...), true
@@ -292,8 +295,8 @@ func (t *Tree) promote(r run, a, b int) (Result, error) {
 func (t *Tree) demote(r run, a, b int) (Result, error) {
 	switch r.kind() {
 	case Section:
-		if r.i == 0 || r.parent.Kids[r.i-1].Kind != Section {
-			return Result{}, Refusal("No section before it to go into")
+		if r.i == 0 || r.parent.Kids[r.i-1].Kind != Section { // none before it to go into: a level down, where it is
+			return t.relevel(r, 1, fmt.Sprintf("%s a level down", t.Name(r.first())))
 		}
 		prev := r.parent.Kids[r.i-1]
 		return t.relevel(r, prev.Level+1-r.first().Level, fmt.Sprintf("%s into %s", t.Name(r.first()), t.Name(prev)))
@@ -651,13 +654,13 @@ func (t *Tree) lower(r run) (Result, error) {
 		ls, at, st := t.assemble(pieces, false)
 		at0 = st[1]
 		res := t.result(ls, at, [2]int{at0, at0 + len(lines) - 1}, msg)
-			return res, nil
+		return res, nil
 	case next != nil && !next.Dual:
 		pieces = []piece{span(0, bl.First-1), span(next.First, next.HeadEnd), lit(lines...), span(next.HeadEnd+1, n-1)}
 		ls, at, st := t.assemble(pieces, false)
 		at0 = st[2]
 		res := t.result(ls, at, [2]int{at0, at0 + len(lines) - 1}, "Now the start of "+t.Name(next)+"'s speech")
-			return res, nil
+		return res, nil
 	}
 	return Result{}, Refusal("No speech right beside it to take it in")
 }

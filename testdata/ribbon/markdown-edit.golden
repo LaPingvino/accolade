@@ -12,9 +12,9 @@ tabs: File Write [Edit] Adaptation Collaboration View
   S Next icon=foreground_arrow-forward.svg name=Find Next (Ctrl+G)
   S Previous icon=foreground_arrow-back.svg name=Find Previous (Ctrl+Shift+G)
   S Replace icon=foreground_search-replace.svg name=Replace… (Ctrl+H)
-## Lines
-  S Move Up icon=foreground_arrow-up.svg name=Move Line Up
-  S Move Down icon=foreground_arrow-down.svg name=Move Line Down
+## Structure
+  S Move Up icon=foreground_arrow-up.svg name=Move Up
+  S Move Down icon=foreground_arrow-down.svg name=Move Down
 ## Settings
   S Editor Keys icon=foreground_editor-keys.svg name=Editor Keys
   S Preferences icon=foreground_settings.svg name=Preferences… (Ctrl+,)

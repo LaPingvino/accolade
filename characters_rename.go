@@ -222,17 +222,49 @@ func sameUpper(rs, want []rune) bool {
 	return true
 }
 
-// renamed is the last rename made, for Undo and Redo to take the
-// breakdown and the schedule back and forth with it: as they were kept
-// before and after it (the files as JSON), put back while nothing else
-// changed them; else, for a rename, followed back by its edits.
-type renamed struct {
+// followed is the last change the extras followed (a rename, a
+// structural move), for Undo and Redo to take the breakdown and the
+// schedule back and forth with it: as they were kept before and after it
+// (the files as JSON), put back while nothing else changed them; else
+// followed again by its edits (refollow; nil: they cannot be, as a
+// merge's cast members cannot be told apart again).
+type followed struct {
 	before, after string
-	fwd, back     []lineEdit // the edits from before to after, and back
-	from, to      string     // the cast member's names (capitals)
-	merge         bool
 	atAfter       bool // the extras follow after
 	bd, sched     [2][]byte
+	// refollow follows the text back to before (back) or on to after, for
+	// the tags, the strips or both
+	refollow func(back, tags, strips bool)
+}
+
+// extrasEdit is how the breakdown and the schedule follow an edit of
+// the text: where each offset of the text before went (-1: its words
+// gone or changed), which scene after each scene before is (-1: none);
+// a rename's cast member's names (capitals; "" none); sums: the strips'
+// words taken over where the scene's words did not change (a rename:
+// the change is no change of the scene's).
+type extrasEdit struct {
+	off      func(off int, end bool) int
+	scene    func(i int) int
+	from, to string
+	sums     bool
+	// prepare, if set, is given the texts as read before scene is asked
+	prepare func(before, after *bdText)
+}
+
+// renameEdit is how the extras follow a rename's edits.
+func renameEdit(before, after string, starts []string, edits []lineEdit, from, to string) extrasEdit {
+	same := len(readBdText(before, starts).scenes) == len(readBdText(after, starts).scenes)
+	return extrasEdit{
+		off: func(off int, end bool) int { return mapThrough(edits, off, end) },
+		scene: func(i int) int {
+			if !same { // a rename adds no scene and takes none away
+				return -1
+			}
+			return i
+		},
+		from: from, to: to, sums: true,
+	}
 }
 
 // renameCharacter renames the character with key to name (scope) as one
@@ -292,7 +324,8 @@ func (w *MainWindow) renameCharacter(key, name string, scope renameScope, known 
 		}
 	}
 	slices.SortFunc(fwd, func(a, b lineEdit) int { return a.start - b.start })
-	r := &renamed{before: before, fwd: fwd, from: key, to: newKey, merge: scope == renameCues}
+	merge := scope == renameCues
+	r := &followed{before: before}
 	r.bd[0], r.sched[0] = w.extrasKept()
 	w.shareEditsFirst(fwd)
 	e.Edit(func(b *buffer.Buffer) {
@@ -303,9 +336,19 @@ func (w *MainWindow) renameCharacter(key, name string, scope renameScope, known 
 		})
 	})
 	r.after = e.Text()
-	r.back = invertEdits(before, r.fwd)
-	w.charRenamed = r
-	w.followRename(before, r.after, r.fwd, key, newKey, r.merge)
+	back := invertEdits(before, fwd)
+	if !merge {
+		r.refollow = func(toBefore, tags, strips bool) {
+			starts := w.sceneStarts()
+			if toBefore {
+				w.followEdit(r.after, r.before, renameEdit(r.after, r.before, starts, back, newKey, key), tags, strips)
+			} else {
+				w.followEdit(r.before, r.after, renameEdit(r.before, r.after, starts, fwd, key, newKey), tags, strips)
+			}
+		}
+	}
+	w.followedLast = r
+	w.followRename(before, r.after, fwd, key, newKey, merge)
 	r.bd[1], r.sched[1] = w.extrasKept()
 	r.atAfter = true
 	w.followNumbers(true) // the headings that changed are the ones seen now
@@ -404,13 +447,13 @@ func mapThrough(edits []lineEdit, off int, end bool) int {
 	return off + shift
 }
 
-// followRenamed takes the extras with an Undo or Redo of the last rename:
-// the text back as it was before, or again as after. Each is put back as
-// it was kept then, if nothing changed it since; else a rename is
-// followed by its edits (a merge's cast members cannot be told apart
-// again: left as they are).
+// followRenamed takes the extras with an Undo or Redo of the last rename
+// or move: the text back as it was before, or again as after. Each is put
+// back as it was kept then, if nothing changed it since; else followed
+// by its edits (a merge's cast members cannot be told apart again: left
+// as they are).
 func (w *MainWindow) followRenamed() {
-	r := w.charRenamed
+	r := w.followedLast
 	if r == nil || w.textEditor == nil {
 		return
 	}
@@ -425,6 +468,7 @@ func (w *MainWindow) followRenamed() {
 		return
 	}
 	r.atAfter = to == 1
+	defer w.noteNumbers() // the extras are this change's: no numbers to rename after it
 	bd, sched := w.extrasKept()
 	follow, tagsFollow, stripsFollow := false, false, false
 	if string(bd) == string(r.bd[from]) {
@@ -449,14 +493,10 @@ func (w *MainWindow) followRenamed() {
 	} else {
 		follow, stripsFollow = true, true
 	}
-	if !follow || r.merge {
+	if !follow || r.refollow == nil {
 		return
 	}
-	if to == 0 {
-		w.followRenameIn(r.after, r.before, r.back, r.to, r.from, false, tagsFollow, stripsFollow)
-	} else {
-		w.followRenameIn(r.before, r.after, r.fwd, r.from, r.to, false, tagsFollow, stripsFollow)
-	}
+	r.refollow(to == 0, tagsFollow, stripsFollow)
 }
 
 // followRename brings the breakdown and the schedule from the text before
@@ -464,12 +504,13 @@ func (w *MainWindow) followRenamed() {
 // to's own), the tags are anchored again where their words went, the
 // scenes' keys and the strips' sums follow their headings.
 func (w *MainWindow) followRename(before, after string, edits []lineEdit, from, to string, merge bool) {
-	w.followRenameIn(before, after, edits, from, to, merge, true, true)
+	w.followEdit(before, after, renameEdit(before, after, w.sceneStarts(), edits, from, to), true, true)
 }
 
-// followRenameIn is followRename for the breakdown (tags), the schedule
-// (strips), or both.
-func (w *MainWindow) followRenameIn(before, after string, edits []lineEdit, from, to string, merge, tags, strips bool) {
+// followEdit brings the breakdown (tags), the schedule (strips), or both
+// from the text before to after, as ed says the text went.
+func (w *MainWindow) followEdit(before, after string, ed extrasEdit, tags, strips bool) {
+	from, to := ed.from, ed.to
 	if w.markdown {
 		return
 	}
@@ -482,15 +523,23 @@ func (w *MainWindow) followRenameIn(before, after string, edits []lineEdit, from
 	}
 	starts := w.sceneStarts()
 	oldBt, newBt := readBdText(before, starts), readBdText(after, starts)
-	// the scenes one for one (a rename adds none and takes none away)
-	sameScenes := len(oldBt.scenes) == len(newBt.scenes)
-	keyAfter := func(k bdSceneKey) (bdSceneKey, bool) {
-		if !sameScenes {
-			return k, false
+	if ed.prepare != nil {
+		ed.prepare(oldBt, newBt)
+	}
+	sceneAfter := func(i int) int {
+		if j := ed.scene(i); j >= 0 && j < len(newBt.scenes) {
+			return j
 		}
+		return -1
+	}
+	keyAfter := func(k bdSceneKey) (bdSceneKey, bool) {
 		for i, sc := range oldBt.scenes {
 			if sc.key == k {
-				n := newBt.scenes[i].key
+				j := sceneAfter(i)
+				if j < 0 {
+					return k, false
+				}
+				n := newBt.scenes[j].key
 				if n.Heading == k.Heading && n.Nth == k.Nth {
 					return k, false
 				}
@@ -506,13 +555,13 @@ func (w *MainWindow) followRenameIn(before, after string, edits []lineEdit, from
 		// the cast member of the old name
 		castTo := ""
 		for _, e := range bf.Elements {
-			if c, _ := bf.category(e.Category); c.Name == lex.CastCategory && charKey(e.Name) == to {
+			if c, _ := bf.category(e.Category); from != "" && c.Name == lex.CastCategory && charKey(e.Name) == to {
 				castTo = e.ID
 			}
 		}
 		retarget := map[string]string{}
 		for i, e := range bf.Elements {
-			if c, _ := bf.category(e.Category); c.Name != lex.CastCategory || charKey(e.Name) != from {
+			if c, _ := bf.category(e.Category); from == "" || c.Name != lex.CastCategory || charKey(e.Name) != from {
 				continue
 			}
 			if castTo != "" && castTo != e.ID {
@@ -533,7 +582,13 @@ func (w *MainWindow) followRenameIn(before, after string, edits []lineEdit, from
 				}
 				continue
 			}
-			ns, ne := mapThrough(edits, p.start, false), mapThrough(edits, p.end, true)
+			ns, ne := ed.off(p.start, false), ed.off(p.end, true)
+			if ns < 0 || ne < 0 {
+				if k, ok := keyAfter(t.bdSceneKey); ok {
+					t.bdSceneKey, changed = k, true
+				}
+				continue
+			}
 			wi, wj := newBt.wordRange(ns, ne)
 			if wi >= wj {
 				continue
@@ -568,14 +623,18 @@ func (w *MainWindow) followRenameIn(before, after string, edits []lineEdit, from
 			for k := range f.Days[d].Strips {
 				st := &f.Days[d].Strips[k]
 				sc := p.days[d][k]
-				if sc < 0 || !sameScenes {
+				if sc < 0 {
 					continue
 				}
-				if n := newBt.scenes[sc].key; n.Heading != st.Heading || n.Nth != st.Nth {
+				j := sceneAfter(sc)
+				if j < 0 {
+					continue
+				}
+				if n := newBt.scenes[j].key; n.Heading != st.Heading || n.Nth != st.Nth {
 					st.Heading, st.Nth, changed = n.Heading, n.Nth, true
 				}
-				if st.Sum != "" && st.Sum == oldBt.sceneSum(sc) {
-					if sum := newBt.sceneSum(sc); sum != st.Sum {
+				if ed.sums && st.Sum != "" && st.Sum == oldBt.sceneSum(sc) {
+					if sum := newBt.sceneSum(j); sum != st.Sum {
 						st.Sum, changed = sum, true
 					}
 				}

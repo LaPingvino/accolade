@@ -34,8 +34,6 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **Ctrl+H** Replace
 - **Ctrl+G** Find Next
 - **Ctrl+Shift+G** Find Previous
-- **Alt+Up** Move Line Up
-- **Alt+Down** Move Line Down
 - **Ctrl+Shift+T** Title Page
 - **Ctrl+,** Preferences
 
@@ -77,6 +75,17 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 
 - **Ctrl+Shift+P** Preview PDF
 - **Ctrl+Shift+.** Fold or Unfold Here
+- **Alt+Up** Move Up
+- **Alt+Down** Move Down
+- **Alt+Left** Promote
+- **Alt+Right** Demote
+- **Shift+Alt+Up** Into the Scene Before
+- **Shift+Alt+Down** Into the Next Scene
+- **Shift+Alt+Left** Pass the Last Speech On
+- **Shift+Alt+Right** Take In the Next Speech
+- **Alt+T** Swap Speakers' Lines
+- **Alt+O** Expand Selection
+- **Alt+I** Shrink Selection
 - **Ctrl+Shift+O** Outline
 - **Ctrl+Shift+K** Notes
 - **Ctrl+Shift+D** Cards

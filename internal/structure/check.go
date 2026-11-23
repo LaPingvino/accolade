@@ -35,10 +35,10 @@ func (t *Tree) check(res Result, read Reader) error {
 		if c.Kind == Body {
 			return u.Root
 		}
-		if c.First < 0 || c.First >= len(res.pos) || res.pos[c.First] < 0 {
+		if c.First < 0 || c.First >= len(res.Pos) || res.Pos[c.First] < 0 {
 			return nil
 		}
-		return at[res.pos[c.First]]
+		return at[res.Pos[c.First]]
 	}
 	for _, c := range before {
 		n := where(c)

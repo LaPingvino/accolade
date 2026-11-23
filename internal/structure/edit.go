@@ -16,10 +16,12 @@ type Result struct {
 	// First and Last are the lines of what moved, in the new text
 	First, Last int
 	Msg         string
+	// Pos is where each old line went, its text changed or not (-1:
+	// gone)
+	Pos []int
 	// moved are the units that moved, which may change parent (the
-	// check's); pos is where each old line went, its text changed or not
+	// check's)
 	moved map[*Node]bool
-	pos   []int
 	// kept: the text's lines are the same ones, only in another order
 	kept bool
 }
@@ -31,7 +33,7 @@ type piece struct {
 }
 
 func span(from, to int) piece { return piece{from: from, to: to} }
-func lit(l ...string) piece    { return piece{from: 0, to: -1, lit: l} }
+func lit(l ...string) piece   { return piece{from: 0, to: -1, lit: l} }
 
 // assemble puts pieces together: where two pieces meet with something on
 // both sides and sep says units meet there, a blank line between them.
@@ -135,5 +137,5 @@ func (t *Tree) result(lines []string, at []int, where [2]int, msg string) Result
 			m[i] = -1
 		}
 	}
-	return Result{Lines: lines, Map: m, First: where[0], Last: where[1], Msg: msg, pos: at, moved: map[*Node]bool{}}
+	return Result{Lines: lines, Map: m, First: where[0], Last: where[1], Msg: msg, Pos: at, moved: map[*Node]bool{}}
 }

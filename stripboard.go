@@ -810,7 +810,7 @@ func (s *stripWidget) TypedKey(e *fyne.KeyEvent) {
 }
 
 // TypedShortcut: Alt+Up and Alt+Down move the strip (where no menu has
-// the keys: on a desktop Edit > Move Line Up/Down has them, and gives
+// the keys: on a desktop View > Structure's Move Up/Down has them, and gives
 // them to a strip with the focus, orStrip).
 func (s *stripWidget) TypedShortcut(sc fyne.Shortcut) {
 	if c, ok := sc.(*desktop.CustomShortcut); ok && c.Modifier == fyne.KeyModifierAlt {

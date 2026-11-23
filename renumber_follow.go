@@ -84,6 +84,24 @@ func (w *MainWindow) followSceneNumbers() {
 	w.followNumbers(false)
 }
 
+// noteNumbers takes the text's numbers as seen, renaming nothing: a
+// change that brought the extras along itself (a structural move, its
+// Undo and Redo), where numbers in another order are scenes that moved,
+// not numbers that changed.
+func (w *MainWindow) noteNumbers() {
+	if w.markdown || w.textEditor == nil {
+		return
+	}
+	w.noteNumbersOf(w.textEditor.Text())
+}
+
+// noteNumbersOf is noteNumbers for the text about to be (a move's, so the
+// change itself renames nothing).
+func (w *MainWindow) noteNumbersOf(text string) {
+	heads, nums, omitted := sceneSignature(text, w.sceneStarts())
+	w.numbers = numbersSeen{key: w.breakdownKey(), text: text, heads: heads, nums: nums, omitted: omitted}
+}
+
 // followNumbers is followSceneNumbers; anyway: take the text as seen even
 // with a number twice (before Renumber or Remove, which end that), though
 // nothing is renamed into it.

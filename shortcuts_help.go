@@ -108,7 +108,7 @@ func menuShortcuts(env cmdEnv, both bool) (titles []string, lists [][]*command) 
 	seen := map[string]bool{}
 	for _, m := range commands().menuBar {
 		var list []*command
-		for _, h := range m.homes {
+		for _, h := range flatHomes(m.homes) {
 			if h.id == "" || seen[h.id] {
 				continue
 			}
@@ -131,7 +131,7 @@ func menuShortcuts(env cmdEnv, both bool) (titles []string, lists [][]*command) 
 	// keys of commands no menu has (F6 for the panes)
 	homed := map[string]bool{}
 	for _, m := range commands().menuBar {
-		for _, h := range m.homes {
+		for _, h := range flatHomes(m.homes) {
 			homed[h.id] = true
 		}
 	}

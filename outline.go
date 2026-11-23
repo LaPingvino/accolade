@@ -399,10 +399,11 @@ func (r *dragRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimple
 // a secondary tap is what Fyne gives the tap to.
 func (r *dragRow) Tapped(*fyne.PointEvent) { r.o.tapRow(r.id) }
 
-// TappedSecondary picks the row's scene or section's color.
+// TappedSecondary shows the row's scene or section's menu: its color,
+// Swap…, Move….
 func (r *dragRow) TappedSecondary(e *fyne.PointEvent) {
 	if items := r.o.rowItems(); r.o.colours() && r.id >= 0 && r.id < len(items) {
-		r.o.listWindow().pickColor(items[r.id], e.AbsolutePosition, nil)
+		r.o.listWindow().itemMenu(items[r.id], e.AbsolutePosition)
 	}
 }
 

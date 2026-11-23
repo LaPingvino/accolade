@@ -32,6 +32,21 @@ func (t *Tree) runOf(r Range) (run, error) {
 	return run{a.Parent, index(a), index(b)}, nil
 }
 
+// Kin are the headings of the units r's last can run on to (its kind,
+// side by side with it, after it: a range's possible ends), with r's own.
+func (t *Tree) Kin(first int) []int {
+	x, err := t.runOf(Range{first, first})
+	if err != nil {
+		return nil
+	}
+	_, hi := x.sibs()
+	var out []int
+	for _, n := range x.parent.Kids[x.i : hi+1] {
+		out = append(out, n.First)
+	}
+	return out
+}
+
 // Units are the headings of r's units (for a preview).
 func (t *Tree) Units(r Range) ([]int, error) {
 	x, err := t.runOf(r)
@@ -65,7 +80,7 @@ func (t *Tree) Swap(x, y Range, read Reader) (Result, error) {
 		return Result{}, Refusal("The two overlap: one is in the other")
 	}
 	lines, at, _, where := t.swap(x0, x1, y0, y1, true)
-	res := t.result(lines, at, where, fmt.Sprintf("Swapped %s and %s", t.runName(rx), t.runName(ry)))
+	res := t.result(lines, at, where, fmt.Sprintf("%s and %s change places", t.runName(rx), t.runName(ry)))
 	res.moved, res.kept = t.movedKeys(append(rx.nodes(), ry.nodes()...)...), true
 	if err := t.check(res, read); err != nil {
 		return Result{}, err
@@ -97,7 +112,7 @@ func (t *Tree) Move(x Range, to int, after bool, read Reader) (Result, error) {
 	if after {
 		line, where = target.Last, "after"
 	}
-	res, err := t.moveTo(rx, line, after, fmt.Sprintf("Moved %s %s %s", t.runName(rx), where, t.Name(target)))
+	res, err := t.moveTo(rx, line, after, fmt.Sprintf("%s goes %s %s", t.runName(rx), where, t.Name(target)))
 	if err != nil {
 		return Result{}, err
 	}
@@ -105,6 +120,63 @@ func (t *Tree) Move(x Range, to int, after bool, read Reader) (Result, error) {
 		return Result{}, err
 	}
 	return res, nil
+}
+
+// Unit is a section or scene as a picker lists it.
+type Unit struct {
+	Line  int
+	Scene bool
+	Depth int // how many sections it is in
+	Name  string
+}
+
+// Outline is the sections and scenes in the text's order.
+func (t *Tree) Outline() []Unit {
+	var out []Unit
+	for _, c := range t.containers() {
+		d := 0
+		for p := c.Parent; p.Kind != Body; p = p.Parent {
+			d++
+		}
+		out = append(out, Unit{Line: c.First, Scene: c.Kind == Scene, Depth: d, Name: t.Name(c)})
+	}
+	return out
+}
+
+// At is the innermost section or scene holding line i (-1: none).
+func (t *Tree) At(i int) int {
+	at := -1
+	for _, n := range t.path(i) {
+		if n.container() {
+			at = n.First
+		}
+	}
+	return at
+}
+
+// InSpeech tells whether line i is in a block (ok), and whether that is
+// a speech's line under its cue (speech).
+func (t *Tree) InSpeech(i int) (speech, ok bool) {
+	p := t.path(i)
+	n := p[len(p)-1]
+	if n.Kind == Line {
+		n = n.Parent
+	}
+	if n.Kind != Block {
+		return false, false
+	}
+	return n.Speech && !n.Dual && i > n.HeadEnd, true
+}
+
+// LastTop is the heading line of the last section or scene at the top
+// (-1: none): what "to the end" goes after.
+func (t *Tree) LastTop() int {
+	for i := len(t.Root.Kids) - 1; i >= 0; i-- {
+		if t.Root.Kids[i].container() {
+			return t.Root.Kids[i].First
+		}
+	}
+	return -1
 }
 
 // runName names units side by side: the one, or the first to the last.

@@ -170,6 +170,9 @@ type command struct {
 	iconFor func(w *MainWindow) fyne.Resource
 	// submenu, if set, is made when the menu is (Open Recent)
 	submenu func(w *MainWindow) *fyne.Menu
+	// ex is its name on vim's command line where the label's would not
+	// do (:slurp; the ex completion takes it before the label's)
+	ex string
 	// role: who it is for (role.go); production's are put away in Writer,
 	// from menus, the ribbon, the header and their keys alike (the
 	// palette still finds them: palette.go)
@@ -321,6 +324,9 @@ type home struct {
 	label string
 	sep   bool
 	items func(w *MainWindow) []*fyne.MenuItem
+	// sub, if set, is a submenu of these homes, labelled label (View >
+	// Structure); their keys are on its items
+	sub   []home
 	large bool // on the ribbon: a large button (a common action)
 	// compact: on the ribbon an icon alone, beside the other compact ones
 	// in one row (B I U: their tooltips and names say the rest)
@@ -530,11 +536,6 @@ func newRegistry() *registry {
 	emphasis := func(marker string) func(w *MainWindow) {
 		return func(w *MainWindow) { toggleEmphasis(w.writeEditor(), marker) }
 	}
-	moveLine := func(dir int) func(w *MainWindow) {
-		return func(w *MainWindow) { // a strip with the focus moves instead (stripboard.go)
-			w.orStrip(dir, w.do(&command{editing: true, run: func(w *MainWindow) { moveLines(w.writeEditor(), dir) }}))()
-		}
-	}
 	add(
 		&command{id: "format.rtl", label: "Right to Left Line", icon: func() fyne.Resource { return rtlIcon }, editing: true, run: func(w *MainWindow) { toggleDirection(w.writeEditor()) }},
 		&command{id: "format.language", label: "Script Language…", icon: func() fyne.Resource { return languageIcon }, when: screenplayOnly, run: (*MainWindow).pickLanguage},
@@ -545,8 +546,6 @@ func newRegistry() *registry {
 		// Markdown's _ is italic, not underline
 		&command{id: "format.underline", label: "Underline", keys: []fyne.Shortcut{shortcut(fyne.KeyU, 0)}, icon: func() fyne.Resource { return underlineIcon }, editing: true,
 			when: scriptEditing, run: emphasis("_")},
-		&command{id: "format.lineUp", label: "Move Line Up", keys: []fyne.Shortcut{altKey(fyne.KeyUp)}, icon: theme.MoveUpIcon, run: moveLine(-1)},
-		&command{id: "format.lineDown", label: "Move Line Down", keys: []fyne.Shortcut{altKey(fyne.KeyDown)}, icon: theme.MoveDownIcon, run: moveLine(1)},
 		// the editing row's pickers and its switch
 		&command{id: "write.place", label: "Inside or Outside…", text: "INT./EXT.", tip: "INT./EXT.", icon: theme.HomeIcon, when: scriptEditing, pick: (*MainWindow).pickPlace},
 		&command{id: "write.character", label: "Character Name…", text: "Character", tip: "Character", icon: theme.AccountIcon, when: scriptEditing, pick: (*MainWindow).pickCharacter},
@@ -743,11 +742,12 @@ func newRegistry() *registry {
 	add(&command{id: "app.palette", label: "Command Palette…", tip: "Command palette: find any command", icon: func() fyne.Resource { return paletteIcon },
 		keys: []fyne.Shortcut{shortcut(fyne.KeyK, 0), plainKey(fyne.KeyF1, 0)}, run: (*MainWindow).showPalette})
 	add(&command{id: "help.about", label: "About Accolade", icon: theme.InfoIcon, run: func(w *MainWindow) { w.app.showAbout() }})
-	add(dockCommands()...)    // the side dock's panes and its own (dock.go)
-	add(helpCommands()...)    // help_pane.go
-	add(settingCommands()...) // ribbon_settings.go
-	add(previewCommands()...) // the Preview tab's (previewtab.go)
-	add(quickCommands()...)   // the ribbon's order and the Quick row (quick.go)
+	add(structureCommands()...) // the structural moves (structure_window.go)
+	add(dockCommands()...)      // the side dock's panes and its own (dock.go)
+	add(helpCommands()...)      // help_pane.go
+	add(settingCommands()...)   // ribbon_settings.go
+	add(previewCommands()...)   // the Preview tab's (previewtab.go)
+	add(quickCommands()...)     // the ribbon's order and the Quick row (quick.go)
 
 	elements := make([]home, len(toolbarElements))
 	for i, el := range toolbarElements {
@@ -771,7 +771,6 @@ func newRegistry() *registry {
 			sep(), at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll"),
 			sep(), at("edit.find"), at("edit.replace"), at("edit.findNext"), at("edit.findPrevious"),
 			at("edit.fixLines"),
-			sep(), at("format.lineUp"), at("format.lineDown"),
 			// the script's own: its title page and its language
 			sep(), at("file.titlePage"), at("format.language"),
 			sep(), at("app.preferences"),
@@ -804,7 +803,7 @@ func newRegistry() *registry {
 		}},
 		{title: "View", homes: append(append([]home{
 			at("view.preview"), at("view.foldHere"), at("view.foldSections"),
-			at("view.headingsOnly"), at("view.unfoldAll"), sep()},
+			at("view.headingsOnly"), at("view.unfoldAll"), {label: "Structure", sub: structureMenu()}, sep()},
 			dockHomes()...), // the side dock's panes together, and its own (dock.go)
 			sep(), at("view.statistics"), at("view.fullscreen"), at("set.toolbar"), at("view.ribbonLock"), at("set.quickRow"),
 			sep(), at("view.documentType"), at("view.role"),
@@ -865,6 +864,12 @@ func (w *MainWindow) menuItems(homes []home, env cmdEnv) []*fyne.MenuItem {
 				continue
 			}
 			got = h.items(w)
+		case h.sub != nil:
+			if sub := w.menuItems(h.sub, env); len(sub) > 0 {
+				item := fyne.NewMenuItem(h.label, nil)
+				item.ChildMenu = fyne.NewMenu(h.label, sub...)
+				got = []*fyne.MenuItem{item}
+			}
 		default:
 			c := cmd(h.id)
 			if !c.applies(env) {
@@ -936,7 +941,7 @@ func (w *MainWindow) previewKey(name fyne.KeyName, mod fyne.KeyModifier) bool {
 func previewKeysOf(r *registry) []previewKey {
 	inMenu := map[string]bool{}
 	for _, m := range r.menuBar {
-		for _, h := range m.homes {
+		for _, h := range flatHomes(m.homes) {
 			inMenu[h.id] = true
 		}
 	}
@@ -955,6 +960,16 @@ func previewKeysOf(r *registry) []previewKey {
 	return out
 }
 
+// flatHomes are homes with their submenus' in their place.
+func flatHomes(homes []home) []home {
+	var out []home
+	for _, h := range homes {
+		out = append(out, h)
+		out = append(out, h.sub...)
+	}
+	return out
+}
+
 // previewKey is a key keyPreview gives a command.
 type previewKey struct {
 	key fyne.KeyboardShortcut
@@ -968,10 +983,16 @@ func homesOf(id string) []string {
 	var out []string
 	for _, m := range commands().menuBar {
 		for _, h := range m.homes {
-			if h.id == id {
-				label := h.label
+			for _, sh := range append([]home{h}, h.sub...) {
+				if sh.id != id {
+					continue
+				}
+				label := sh.label
 				if label == "" {
 					label = cmd(id).label
+				}
+				if sh.id != h.id {
+					label = h.label + " > " + label
 				}
 				out = append(out, m.title+" > "+label)
 			}
@@ -1029,7 +1050,7 @@ var ribbonLabels = map[string]string{
 	"format.rtl": "Right to Left", "md.rule": "Rule", "md.bullets": "Bullets", "md.numbers": "Numbered", "md.tasks": "Tasks",
 	"md.code": "Code", "md.strike": "Strike",
 	// Edit
-	"edit.findNext": "Next", "edit.findPrevious": "Previous", "format.lineUp": "Move Up", "format.lineDown": "Move Down",
+	"edit.findNext": "Next", "edit.findPrevious": "Previous",
 	"format.language": "Language",
 	// Adaptation
 	"source.saveAs": "Save As", "source.keepInside": "Keep in Script", "source.next": "Next", "source.previous": "Previous",
@@ -1098,7 +1119,8 @@ func ribbonLayout() []ribbonTab {
 			// verb + variants (as File's New, Open, Save): the big verb, the
 			// small ones named by what differs
 			{title: "Find", homes: []home{big("edit.find"), at("edit.findNext"), at("edit.findPrevious"), at("edit.replace")}},
-			{title: "Lines", homes: []home{at("format.lineUp"), at("format.lineDown")}},
+			{title: "Structure", homes: []home{at("structure.up"), at("structure.down"), at("structure.promote"), at("structure.demote"),
+				at("structure.swap"), at("structure.move")}},
 			// an imported script's lines set right, many at once (fixup.go)
 			{title: "Fix-Up", homes: []home{big("edit.fixLines")}},
 			{title: "Script", mdTitle: "Document", homes: []home{at("file.titlePage"), at("format.language")}},

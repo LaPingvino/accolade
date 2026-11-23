@@ -43,8 +43,6 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Replace** — Ctrl+H
 - **Find Next** — Ctrl+G
 - **Find Previous** — Ctrl+Shift+G
-- **Move Line Up** — Alt+Up
-- **Move Line Down** — Alt+Down
 - **Title Page** — Ctrl+Shift+T (screenplay)
 - **Preferences** — Ctrl+,
 
@@ -86,6 +84,17 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 
 - **Preview PDF** — Ctrl+Shift+P (“Live Preview” in Markdown)
 - **Fold or Unfold Here** — Ctrl+Shift+.
+- **Move Up** — Alt+Up
+- **Move Down** — Alt+Down
+- **Promote** — Alt+Left (screenplay)
+- **Demote** — Alt+Right (screenplay)
+- **Into the Scene Before** — Shift+Alt+Up (screenplay)
+- **Into the Next Scene** — Shift+Alt+Down (screenplay)
+- **Pass the Last Speech On** — Shift+Alt+Left (screenplay)
+- **Take In the Next Speech** — Shift+Alt+Right (screenplay)
+- **Swap Speakers' Lines** — Alt+T (screenplay)
+- **Expand Selection** — Alt+O (screenplay)
+- **Shrink Selection** — Alt+I (screenplay)
 - **Outline** — Ctrl+Shift+O
 - **Notes** — Ctrl+Shift+K
 - **Cards** — Ctrl+Shift+D (screenplay)
