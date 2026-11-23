@@ -32,6 +32,9 @@ const (
 	framesPref      = "export-storyboard-frames"
 	headerPref      = "page-header" // Highland's {{HEADER: …}} for a script without one
 	footerPref      = "page-footer"
+	// titleTemplatePref is the title page template (Lexington's
+	// [TitlePages], or a preset: standard, bold, poster); "" standard
+	titleTemplatePref = "title-page-template"
 )
 
 // pageSetup is what the printed page looks like, as the settings have
@@ -55,6 +58,9 @@ type pageSetup struct {
 	// header and footer, as Highland writes them ("Title | %p."), for a
 	// script without its own {{HEADER}} or {{FOOTER}} (highland_directives.go)
 	header, footer string
+	// titleTemplate is the title page's template ("" Fountain's, the
+	// standard one): titlepage_template.go
+	titleTemplate string
 }
 
 // pageSetupOf is the page setup the settings s have.
@@ -77,6 +83,7 @@ func pageSetupOf(s *Settings) pageSetup {
 		frames:        s.GetBoolean(framesPref),
 		header:        s.GetString(headerPref),
 		footer:        s.GetString(footerPref),
+		titleTemplate: s.GetString(titleTemplatePref),
 	}
 }
 
@@ -99,6 +106,7 @@ func (p pageSetup) writeTo(s *Settings) {
 	s.SetBoolean(framesPref, p.frames)
 	s.SetString(headerPref, strings.TrimSpace(p.header))
 	s.SetString(footerPref, strings.TrimSpace(p.footer))
+	s.SetString(titleTemplatePref, strings.TrimSpace(p.titleTemplate))
 }
 
 // pageSetupPref is the key changeSetting is given for a page setup's
@@ -139,6 +147,7 @@ func (w *MainWindow) layoutJobOf(p pageSetup) exportJob {
 		header:        p.header,
 		footer:        p.footer,
 		includeFrom:   w.currentFile,
+		titleTemplate: w.validTitleTemplate(p.titleTemplate),
 	}
 }
 
@@ -185,6 +194,9 @@ func (w *MainWindow) layersJob(p pageSetup, format, text string, part func(*expo
 	}
 	if format == "pdf" && p.frames {
 		j.pictures = w.framePictures(text)
+	}
+	if p.titlePage {
+		j.titlePictures = w.titlePictures(text, j)
 	}
 	return j
 }
@@ -293,7 +305,11 @@ func (w *MainWindow) pageSummary(p pageSetup, format string) string {
 	}
 	if a.script {
 		if p.titlePage {
-			parts = append(parts, "title page")
+			if k := w.validTitleTemplate(p.titleTemplate); k != "" {
+				parts = append(parts, "title page: "+strings.ToLower(w.lex().TitlePageName(k)))
+			} else {
+				parts = append(parts, "title page")
+			}
 		} else {
 			parts = append(parts, "no title page")
 		}
@@ -423,6 +439,7 @@ type pageSetupDlg struct {
 	templateEntry      *widget.Entry
 
 	includeTitlePageCheck *widget.Check
+	titleTemplateSelect   *widget.Select // the title page's template
 	sceneNumbersCheck     *widget.Check
 	continuedsCheck       *widget.Check
 	framesCheck           *widget.Check
@@ -481,7 +498,8 @@ func (w *MainWindow) newPageSetup(format string, done func()) *pageSetupDlg {
 	p.templateEntry.SetPlaceHolder("Lexington's own")
 	fyne.SetAccessibleLabel(p.templateEntry, "Template")
 
-	p.includeTitlePageCheck = widget.NewCheck("Title page", nil)
+	p.includeTitlePageCheck = widget.NewCheck("Title page", func(bool) { p.enable() })
+	p.titleTemplateSelect = w.newTitleTemplateSelect(nil)
 	p.sceneNumbersCheck = widget.NewCheck("Number the scenes not numbered", nil)
 	p.continuedsCheck = widget.NewCheck("CONTINUED where a scene breaks", nil)
 	p.framesCheck = widget.NewCheck("Print storyboard frames ([[board: …]]) under their lines", nil)
@@ -544,7 +562,7 @@ func (p *pageSetupDlg) show() {
 		objs = append(objs, labelled("Paper:", p.paperSelect))
 	}
 	if a.script {
-		objs = append(objs, p.includeTitlePageCheck, p.sceneNumbersCheck)
+		objs = append(objs, p.includeTitlePageCheck, labelled("Title page:", p.titleTemplateSelect), p.sceneNumbersCheck)
 	}
 	if a.continueds && p.w.role() == roleProduction {
 		objs = append(objs, p.continuedsCheck)
@@ -601,6 +619,7 @@ func (p *pageSetupDlg) enable() {
 	for _, o := range []fyne.Disableable{p.paginationKeep, p.paginationWidows, p.paginationMore} {
 		on(o, some)
 	}
+	on(p.titleTemplateSelect, p.includeTitlePageCheck.Checked)
 	on(p.revisedOnlyCheck, p.revisionsCheck.Checked)
 	on(p.pageColoursCheck, p.revisionsCheck.Checked)
 }
@@ -609,6 +628,7 @@ func (p *pageSetupDlg) enable() {
 func (p *pageSetupDlg) load(s pageSetup) {
 	p.paperSelect.SetSelected(documentPageLabel(s.paper))
 	p.includeTitlePageCheck.SetChecked(s.titlePage)
+	p.w.selectTitleTemplate(p.titleTemplateSelect, s.titleTemplate)
 	p.sceneNumbersCheck.SetChecked(s.numberScenes)
 	p.continuedsCheck.SetChecked(s.continueds)
 	p.colorsCheck.SetChecked(s.colors)
@@ -646,6 +666,7 @@ func (p *pageSetupDlg) chosen() pageSetup {
 		frames:        p.framesCheck.Checked,
 		header:        p.settingText(p.headerEntry, p.headerOwn, headerPref),
 		footer:        p.settingText(p.footerEntry, p.footerOwn, footerPref),
+		titleTemplate: p.w.chosenTitleTemplate(p.titleTemplateSelect),
 	}
 }
 

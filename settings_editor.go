@@ -31,6 +31,7 @@ func openSettingsEditor(app *Application, parent fyne.Window, doc *tomlDoc) *tom
 	e.page("General", e.generalPage)
 	e.page("Languages", e.languagesPage)
 	e.page("Element Sets", e.setsPage)
+	e.page("Title Pages", e.titlePagesPage)
 	e.show(parent)
 	return e
 }

@@ -107,7 +107,7 @@ func TestOpenTOMLRoutes(t *testing.T) {
 		kind  tomlKind
 		pages []string
 	}{
-		{conf, tomlSettings, []string{"General", "Languages", "Element Sets", "TOML", "Help"}},
+		{conf, tomlSettings, []string{"General", "Languages", "Element Sets", "Title Pages", "TOML", "Help"}},
 		{format, tomlFormat, []string{"Format", "Elements", "Buttons", "TOML", "Help"}},
 		{other, tomlPlain, []string{"TOML"}},
 	} {
@@ -318,7 +318,9 @@ func TestTOMLEditorScreenshots(t *testing.T) {
 	w := tomlTestApp(t)
 	conf := "# my settings\nStandard = \"en\"\n\n[Extensions]\nesp = \"eo\"\n\n[Languages.eo]\n# Esperanto, mine\nScenes = [\"EN\", \"EKST\", \"EN/EKST\"]\nDirection = \"ltr\"\n\n" +
 		"[Elements.mine.scene]\nLeft = 1.5\nRight = 1.0\nStyle = \"bu\"\n\n[Elements.mine.action]\nLeft = 1.5\nRight = 1.0\n\n[Elements.mine.speaker]\nLeft = 3.7\nRight = 1.5\n\n" +
-		"[Elements.mine.dialog]\nLeft = 2.5\nRight = 1.5\n\n[Elements.mine.paren]\nLeft = 3.1\nRight = 1.5\n\n[Elements.mine.trans]\nLeft = 1.5\nRight = 1.0\nAlign = \"R\"\n"
+		"[Elements.mine.dialog]\nLeft = 2.5\nRight = 1.5\n\n[Elements.mine.paren]\nLeft = 3.1\nRight = 1.5\n\n[Elements.mine.trans]\nLeft = 1.5\nRight = 1.0\nAlign = \"R\"\n\n" +
+		"[TitlePages.festival]\nName = \"Festival\"\nCentre = 3.5\n\n[[TitlePages.festival.Keys]]\nKey = \"Title\"\nPlace = \"centre\"\nSize = 28.0\nStyle = \"b\"\nCaps = true\n\n" +
+		"[[TitlePages.festival.Keys]]\nKey = \"Logline\"\nPlace = \"centre\"\nStyle = \"i\"\nBefore = 1.5\n\n[[TitlePages.festival.Keys]]\nKey = \"Draft date\"\nPlace = \"foot-right\"\n"
 	format := "# my comic\nName = \"My Comic\"\nBase = \"comic\"\n\n[Elements.speaker]\nLeft = 3.0\nRight = 1.0\nStyle = \"b\"\nPostfix = \":\"\n\n" +
 		"# pages first\n[[Accolade.Buttons]]\nLabel = \"Page\"\nInsert = \"===\\n\\n.PAGE {n}\"\n\n[[Accolade.Buttons]]\nLabel = \"Panel\"\nInsert = \"Panel {n}. \"\nRestart = \".PAGE\"\n"
 	cdir := t.TempDir()
@@ -338,6 +340,8 @@ func TestTOMLEditorScreenshots(t *testing.T) {
 			{cpath, "Languages", "language", "eo", "settings-1-language"},
 			{cpath, "Element Sets", "set", "mine", "settings-2-set"},
 			{cpath, "TOML", "", "", "settings-3-toml"},
+			{cpath, "Title Pages", "titlepage", "festival", "settings-4-titlepages"},
+			{cpath, "Title Pages", "titlepage", "poster", "settings-5-titlepages-preset"},
 			{fpath, "Format", "", "", "format-0-format"},
 			{fpath, "Elements", "format-element", "speaker", "format-1-element"},
 			{fpath, "Elements", "format-element", "dialog", "format-2-element-base"},

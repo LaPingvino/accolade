@@ -1870,3 +1870,17 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   clear as other scripts, and the approach of old typewriters gave us a nice middle ground to give an acceptable font
   that follows the spirit and is allowed to look nice." After 1.105: offer Joop a short note for Unicode's Text
   Terminal WG / Monotty (outward: his to post).
+- 2026-11-23: title page templates (branch titletpl, not merged; Lexington 1.49.0, its docs/TITLEPAGE.md). A title
+  page is placed by key, never by the order the keys are written in (Contact: above Title: no longer drags the title
+  to the foot); a template places each key (centred, top, foot left/right, free X/Y), its size, font, style, capitals,
+  space before, a picture slot (a Markdown picture, or a key marked Picture). Presets standard (Fountain's, as
+  before), bold, poster; one's own are [TitlePages.name] in lexington.toml. A key no template names: the language's
+  TitleCentred (Fountain's when empty). The choice is a Page Setup setting ("title-page-template", global as the
+  other print settings; Page Setup's "Title page:" row): the Title Page tab (while the cursor is in the title page)
+  has the choice, Preview (the pages follow the choice), and an Add button for each key the template names that the
+  tab has none for (Logline, Picture: a picture chosen and copied in as a storyboard frame's). The Title Page
+  dialog chooses it too and its Preview draws the page as the PDF does. The settings editor has a Title Pages page
+  (fields, keys as cards, a sample page beside them; presets to Override) and TitleCentred on the Languages page.
+  Title page pictures come from Accolade's loader (bundle, beside the script, the browser's files). Rough: one's own
+  templates do not travel in a bundle (carryFor gives Part no titles yet); Word/ODT with a picture checked by
+  structure only (no LibreOffice/Word here). Shots: TestTitleTemplateScreenshots, TestTOMLEditorScreenshots.

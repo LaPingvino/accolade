@@ -190,6 +190,7 @@ type ribbonBar struct {
 	buttons  []*ribbonButton            // the groups' buttons, in order
 	elements map[string]*ribbonButton   // the element buttons, by element
 	format   *widget.Select             // the script format, on the Write tab
+	titleTpl *widget.Select             // the title page's template, on the Title Page tab
 	showing  bool                       // the format select shows, not chooses
 	byID     map[string][]*ribbonButton // the buttons by command id
 
@@ -476,7 +477,7 @@ func (r *ribbonBar) refresh() {
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
 		boolKey(env.away), boolKey(env.midDoc), boolKey(env.strips), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), boolKey(env.cards), boolKey(env.timeline),
 		boolKey(env.fixup), boolKey(env.fixupPDF), boolKey(env.titlePage), boolKey(env.characters), boolKey(env.shared), boolKey(env.compare), w.hereKey(), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
-		boolKey(env.smart), strconv.Itoa(w.quick().gen), boolKey(r.quickRowShown())}, "\x00")
+		boolKey(env.smart), strconv.Itoa(w.quick().gen), boolKey(r.quickRowShown()), r.titleTemplateKey(env)}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
 		r.phone = phone
@@ -675,6 +676,15 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 			conf.selectFormat(r.format, r.w.scriptFormatKey())
 			r.showing = false
 			addSmall(r.format)
+			continue
+		case titleTemplateHome: // the Title Page tab's template (titlepage_template.go)
+			addSmall(r.titleTemplateSelect())
+			continue
+		case titleTemplateKeysHome:
+			for _, b := range r.titleTemplateKeyButtons() {
+				r.add(b)
+				addSmall(b)
+			}
 			continue
 		case "pageCount": // the Preview tab's "Page n of N"
 			if r.pageCount == nil {

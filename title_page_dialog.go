@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
@@ -36,6 +37,7 @@ type TitlePageDialog struct {
 	includeTitlePage *widget.Check
 	includeContact   *widget.Check
 	includeDate      *widget.Check
+	template         *widget.Select // the title page's template (titlepage_template.go)
 
 	// Buttons
 	insertButton  *widget.Button
@@ -106,6 +108,9 @@ func (tpd *TitlePageDialog) createWidgets() {
 	tpd.includeDate = widget.NewCheck("Include draft date", nil)
 	tpd.includeDate.SetChecked(true)
 
+	tpd.template = tpd.window.newTitleTemplateSelect(nil)
+	tpd.window.selectTitleTemplate(tpd.template, tpd.window.titleTemplate())
+
 	// Buttons
 	tpd.insertButton = widget.NewButton("Insert Title Page", tpd.insertTitlePage)
 	tpd.previewButton = widget.NewButton("Preview", tpd.previewTitlePage)
@@ -161,6 +166,7 @@ func (tpd *TitlePageDialog) createContent() fyne.CanvasObject {
 	// Options section
 	optionsSection := widget.NewCard("Options", "",
 		container.NewVBox(
+			labelled("Template:", tpd.template),
 			tpd.includeTitlePage,
 			tpd.includeContact,
 			tpd.includeDate,
@@ -185,16 +191,10 @@ func (tpd *TitlePageDialog) insertTitlePage() {
 		return
 	}
 
-	titlePageText := tpd.generateTitlePageText()
+	titlePageText := tpd.fullTitlePageText()
 	currentText := tpd.window.textEditor.Text()
 	lines := strings.Split(currentText, "\n")
 	end := titlePageEnd(lines)
-	// fields the dialog does not edit (Copyright, Notes, ...) stay
-	for _, f := range titleFields(lines[:end], tpd.window.dialect()) {
-		if !dialogField[strings.ToLower(f.std)] {
-			titlePageText += "\n" + strings.Join(f.raw, "\n")
-		}
-	}
 	// the old title page (and the blank lines after it) replaced, as
 	// one step that undo takes back
 	oldEnd := len([]rune(strings.Join(lines[:end], "\n")))
@@ -213,6 +213,7 @@ func (tpd *TitlePageDialog) insertTitlePage() {
 
 	// Save settings
 	tpd.saveSettings()
+	tpd.window.setTitleTemplate(tpd.window.chosenTitleTemplate(tpd.template))
 
 	// Mark as changed
 	tpd.window.hasChanges = true
@@ -221,26 +222,35 @@ func (tpd *TitlePageDialog) insertTitlePage() {
 	tpd.dialog.Hide()
 }
 
+// previewTitlePage shows the title page as it prints, with the template
+// chosen: drawn as the PDF draws it.
 func (tpd *TitlePageDialog) previewTitlePage() {
-	titlePageText := tpd.generateTitlePageText()
-
-	// Create preview dialog
-	previewEntry := widget.NewMultiLineEntry()
-	previewEntry.SetText(titlePageText)
-	previewEntry.Disable() // Read-only
-
-	previewContent := container.NewScroll(previewEntry)
-	previewContent.Resize(fyne.NewSize(500, 400))
-
-	previewDialog := dialog.NewCustom(
-		"Title Page Preview",
-		"Close",
-		previewContent,
-		tpd.window.fyneWindow,
-	)
-
-	previewDialog.Resize(fitDialog(tpd.window.fyneWindow, 550, 450))
+	w := tpd.window
+	img, err := w.titlePageImage(tpd.fullTitlePageText(), w.chosenTitleTemplate(tpd.template), 1.0)
+	if err != nil {
+		dialog.ShowError(err, w.fyneWindow)
+		return
+	}
+	pic := canvas.NewImageFromImage(img)
+	pic.FillMode = canvas.ImageFillContain
+	pic.SetMinSize(fyne.NewSize(306, 396))
+	previewDialog := dialog.NewCustom("Title Page Preview", "Close", container.NewPadded(pic), w.fyneWindow)
+	previewDialog.Resize(fitDialog(w.fyneWindow, 420, 560))
 	previewDialog.Show()
+}
+
+// fullTitlePageText is the title page the dialog writes: its fields,
+// then the script's fields it does not edit (Copyright, Logline, ...),
+// as they are.
+func (tpd *TitlePageDialog) fullTitlePageText() string {
+	text := tpd.generateTitlePageText()
+	lines := strings.Split(tpd.window.textEditor.Text(), "\n")
+	for _, f := range titleFields(lines[:titlePageEnd(lines)], tpd.window.dialect()) {
+		if !dialogField[strings.ToLower(f.std)] {
+			text += "\n" + strings.Join(f.raw, "\n")
+		}
+	}
+	return text
 }
 
 func (tpd *TitlePageDialog) generateTitlePageText() string {

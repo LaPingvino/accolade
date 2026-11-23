@@ -84,6 +84,10 @@ type exportJob struct {
 	// pictures are the storyboard frames' files, by their notes' names,
 	// for a PDF that prints them (nil: none printed; storyboard.go)
 	pictures map[string][]byte
+	// titleTemplate is the title page's template ("" the standard one),
+	// titlePictures the files its pictures name (titlepage_template.go)
+	titleTemplate string
+	titlePictures map[string][]byte
 
 	// Highland's header and footer for a script without its own (Page
 	// Setup's), and the file its {{INCLUDE}}s are relative to (the
@@ -120,6 +124,13 @@ func (j exportJob) options(to, output string) cli.Options {
 		Header:       j.header,
 		Footer:       j.footer,
 		IncludeFrom:  j.includeFrom,
+		TitlePage:    j.titleTemplate,
+		// (never read by Lexington from beside the script: Accolade's
+		// pictures come from where it keeps them, the browser's too)
+		TitlePictures: j.titlePictures,
+	}
+	if o.TitlePictures == nil {
+		o.TitlePictures = map[string][]byte{}
 	}
 	if o.IncludeFrom == "" || inBrowser {
 		o.IncludeFrom = noIncludeFolder // (nothing found there: a line in print says so)

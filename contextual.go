@@ -334,7 +334,9 @@ func titlePageTab() ribbonTab {
 	for _, k := range titleKeys {
 		keys = append(keys, at(titleKeyID(k)))
 	}
+	keys = append(keys, at(titleTemplateKeysHome))
 	return ribbonTab{title: "Title Page", contextual: true, when: inTitlePage, groups: []ribbonGroup{
+		{title: "Template", homes: []home{at(titleTemplateHome), at("view.preview")}},
 		{title: "Add", homes: keys},
 		{title: "Page", homes: []home{big("file.titlePage"), at("titlepage.toScript")}},
 	}}
