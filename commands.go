@@ -638,7 +638,7 @@ func newRegistry() *registry {
 		&command{id: "source.cut", label: "Mark Source Passage as Cut", icon: theme.ContentCutIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).toggleCutHere},
 		&command{id: "source.linkUp", label: "Link Up the Script…", icon: func() fyne.Resource { return suggestIcon }, when: screenplayOnly, enabled: withSource,
 			tip: "The scenes' links as the source's words and their order suggest them, and the parts skipped, in one list to check: nothing is written until Link Up", run: (*MainWindow).linkUpScript},
-		&command{id: "source.linkGuess", label: "Link Guess for This Scene…", keys: []fyne.Shortcut{shortcut(fyne.KeyL, fyne.KeyModifierAlt)}, icon: func() fyne.Resource { return linkIcon }, when: screenplayOnly, enabled: withSource,
+		&command{id: "source.linkGuess", label: "Link Guess for This Scene…", keys: []fyne.Shortcut{shortcut(fyne.KeyG, fyne.KeyModifierAlt)}, icon: func() fyne.Resource { return linkIcon }, when: screenplayOnly, enabled: withSource,
 			tip: "The cursor's scene's guessed link (its ↗ link? tag): Accept, Adjust or Not This", run: (*MainWindow).linkGuessHere},
 		&command{id: "source.update", label: "Update Source Links", icon: theme.ViewRefreshIcon, when: screenplayOnly, enabled: withSource, run: (*MainWindow).updateSourceLinks},
 		&command{id: "source.sections", label: "Source Headings as Sections", icon: res(tocIcon), when: screenplayOnly, enabled: withSource, run: (*MainWindow).sectionsFromSourceHere},

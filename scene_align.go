@@ -3,6 +3,7 @@ package main
 import (
 	"math"
 	"slices"
+	"sync"
 
 	"github.com/LaPingvino/accolade/internal/pace"
 )
@@ -44,6 +45,7 @@ type sceneGuess struct {
 	Z           float64 // its own evidence
 	Sure        float64 // its margin over the next best placing
 	Linked      bool    // placed by its links, not guessed
+	Gap         bool    // placed in the gap between two placed scenes (the second look)
 }
 
 func (g sceneGuess) guessed() bool { return g.First >= 0 && !g.Linked }
@@ -89,49 +91,13 @@ func alignScenes(scenes []sceneBody, ps []passage, anchors map[int][2]int) []sce
 	for k, sc := range scenes {
 		out[k] = sceneGuess{Scene: k, Heading: sc.Heading, Line: sc.Line, First: -1, Last: -1}
 	}
-	var at []int // the counted passages: the places a scene can start
-	for i, p := range ps {
-		if p.counted() {
-			at = append(at, i)
-		}
-	}
+	src := alignSourceFor(ps)
+	at, df, where, cum, place := src.at, src.df, src.where, src.cum, src.place
 	n := len(at)
 	if n == 0 || len(scenes) == 0 {
 		return out
 	}
-	// how many passages each word is in, and where
-	df := map[string]int{}
-	where := map[string][]int{} // in at's terms
-	for u, i := range at {
-		seen := map[string]bool{}
-		for _, w := range ps[i].Words {
-			if len([]rune(w)) > 2 && !seen[w] {
-				seen[w] = true
-				df[w]++
-				where[w] = append(where[w], u)
-			}
-		}
-	}
 	common := func(w string) bool { return n >= commonFrom && df[w] > n/4 }
-	// each passage's size: its words against the average
-	cum := make([]float64, n+1)
-	for u, i := range at {
-		cum[u+1] = cum[u] + float64(len(ps[i].Words))
-	}
-	avg := max(cum[n]/float64(n), 1)
-	for u := range cum {
-		cum[u] /= avg
-	}
-	// where each passage is among the counted ones
-	place := make([]int, len(ps))
-	for u, i := range at {
-		place[i] = u
-	}
-	for i := range ps { // a heading: the passage after it
-		if !ps[i].counted() {
-			place[i] = sort0(at, i)
-		}
-	}
 	scores := make([]sceneScores, len(scenes))
 	for k, sc := range scenes {
 		var ws []string
@@ -221,7 +187,7 @@ func alignScenes(scenes []sceneBody, ps []passage, anchors map[int][2]int) []sce
 				continue
 			}
 			setGuess(&out[k], scores[k], bu, at, ps, scenes[k].Words)
-			out[k].Sure = best - max(second, 0)
+			out[k].Sure, out[k].Gap = best-max(second, 0), true
 			changed = true
 		}
 	}
@@ -231,6 +197,69 @@ func alignScenes(scenes []sceneBody, ps []passage, anchors map[int][2]int) []sce
 		}
 	}
 	return out
+}
+
+// alignSource is what the aligner reads off the source alone, kept
+// while the passages stay (the script changes as it is typed, the
+// source seldom).
+type alignSource struct {
+	ps    []passage
+	at    []int            // the counted passages: the places a scene can start
+	df    map[string]int   // how many of them each word is in
+	where map[string][]int // and which (in at's terms)
+	cum   []float64        // their sizes summed (words against the average)
+	place []int            // where each passage is among the counted ones
+}
+
+var lastAlignSource struct {
+	sync.Mutex
+	src *alignSource
+}
+
+func alignSourceFor(ps []passage) *alignSource {
+	lastAlignSource.Lock()
+	defer lastAlignSource.Unlock()
+	if s := lastAlignSource.src; s != nil && samePassages(s.ps, ps) {
+		return s
+	}
+	s := &alignSource{ps: ps, df: map[string]int{}, where: map[string][]int{}}
+	for i, p := range ps {
+		if p.counted() {
+			s.at = append(s.at, i)
+		}
+	}
+	n := len(s.at)
+	seen := map[string]int{}
+	for u, i := range s.at {
+		for _, w := range ps[i].Words {
+			if len([]rune(w)) > 2 && seen[w] != u+1 {
+				seen[w] = u + 1
+				s.df[w]++
+				s.where[w] = append(s.where[w], u)
+			}
+		}
+	}
+	s.cum = make([]float64, n+1)
+	for u, i := range s.at {
+		s.cum[u+1] = s.cum[u] + float64(len(ps[i].Words))
+	}
+	if n > 0 {
+		avg := max(s.cum[n]/float64(n), 1)
+		for u := range s.cum {
+			s.cum[u] /= avg
+		}
+	}
+	s.place = make([]int, len(ps))
+	for u, i := range s.at {
+		s.place[i] = u
+	}
+	for i := range ps { // a heading: the passage after it
+		if !ps[i].counted() && n > 0 {
+			s.place[i] = sort0(s.at, i)
+		}
+	}
+	lastAlignSource.src = s
+	return s
 }
 
 // sort0 is the first of at (sorted) at or after i, as an index into at
@@ -282,12 +311,12 @@ func scoreScene(ws []string, df map[string]int, where map[string][]int, n int, c
 	for u := range s.z {
 		s.z[u], s.len[u] = math.Inf(-1), 1
 	}
-	type wordOdds struct{ idf, q float64 } // q: the chance a passage of average size misses it
+	type wordOdds struct{ idf, lq float64 } // lq: log of the chance a passage of average size misses it
 	var odds []wordOdds
 	for _, w := range ws {
 		d := float64(df[w])
 		if idf := math.Log(float64(n) / d); idf > 0 {
-			odds = append(odds, wordOdds{idf, 1 - d/float64(n)})
+			odds = append(odds, wordOdds{idf, math.Log1p(-d / float64(n))})
 		}
 	}
 	if len(odds) == 0 {
@@ -306,7 +335,7 @@ func scoreScene(ws []string, df map[string]int, where map[string][]int, n int, c
 		e := 0.01 * math.Exp2(float64(j)/steps)
 		var mean, v float64
 		for _, o := range odds {
-			p := 1 - math.Pow(o.q, e)
+			p := -math.Expm1(o.lq * e)
 			mean += o.idf * p
 			v += o.idf * o.idf * p * (1 - p)
 		}

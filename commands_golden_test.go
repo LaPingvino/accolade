@@ -864,15 +864,15 @@ func fixLinesMoves(name, golden string) string {
 }
 
 // linkUpMoves: Suggest Links to the Source became Link Guess for This
-// Scene… (Alt+L) and Link Up the Script… (linkup.go).
+// Scene… (Ctrl+Alt+G: Ctrl+Alt+L locks many Linux desktops) and Link Up the Script… (linkup.go).
 func linkUpMoves(name, golden string) string {
 	switch {
 	case strings.HasPrefix(name, "menu-screenplay"):
-		return strings.Replace(golden, "  Suggest Links to the Source\n", "  Link Guess for This Scene… [Primary+Alt+L]\n  Link Up the Script…\n", 1)
+		return strings.Replace(golden, "  Suggest Links to the Source\n", "  Link Guess for This Scene… [Primary+Alt+G]\n  Link Up the Script…\n", 1)
 	case strings.HasPrefix(name, "shortcuts-screenplay"):
-		return strings.Replace(golden, "Primary+Alt+K = Previous Source Passage\n", "Primary+Alt+K = Previous Source Passage\nPrimary+Alt+L = Link Guess for This Scene…\n", 1)
+		return strings.Replace(golden, "Primary+Alt+J = Next Source Passage\n", "Primary+Alt+G = Link Guess for This Scene…\nPrimary+Alt+J = Next Source Passage\n", 1)
 	case strings.HasPrefix(name, "fullscreen-screenplay"):
-		return strings.Replace(golden, "Primary+Alt+K\n", "Primary+Alt+K\nPrimary+Alt+L\n", 1)
+		return strings.Replace(golden, "Primary+Alt+J\n", "Primary+Alt+G\nPrimary+Alt+J\n", 1)
 	}
 	return golden
 }

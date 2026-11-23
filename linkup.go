@@ -152,7 +152,27 @@ func sectionsOf(ps []passage, st []passageStatus, gs []sceneGuess) []sourceSecti
 		case k > adapted:
 			sec.notYet = adapted >= 0
 		case len(sec.scenes) == 0:
-			sec.skipped = sec.toDo > 0
+			// skipped: only when no scene of the script can be from it, a
+			// scene with no place between the ones around it (silent: it
+			// may well come from here)
+			before, after := 0, len(gs)+1 // the scene numbers around it
+			for j := k - 1; j >= 0; j-- {
+				if n := len(out[j].scenes); n > 0 {
+					before = slices.Max(out[j].scenes)
+					break
+				}
+			}
+			for j := k + 1; j < len(out); j++ {
+				if len(out[j].scenes) > 0 {
+					after = slices.Min(out[j].scenes)
+					break
+				}
+			}
+			unplaced := false
+			for n := before + 1; n < after && n <= len(gs); n++ {
+				unplaced = unplaced || gs[n-1].First < 0
+			}
+			sec.skipped = sec.toDo > 0 && !unplaced
 		}
 	}
 	return out
@@ -373,8 +393,8 @@ func (w *MainWindow) guessTagTapped(line int, t editor.Tag, at fyne.Position, ce
 	w.showEditorTip(t.Tip, at, cell)
 }
 
-// linkGuessHere is Adaptation > Link Guess for This Scene… (and vim's
-// gs): the tag's menu of the cursor's scene, from the keyboard.
+// linkGuessHere is Adaptation > Link Guess for This Scene… (Ctrl+Alt+G;
+// vim's gs): the tag's menu of the cursor's scene, from the keyboard.
 func (w *MainWindow) linkGuessHere() {
 	if w.markdown || w.source == nil {
 		w.setStatus("No guess here: the source pane guesses once it has the source")

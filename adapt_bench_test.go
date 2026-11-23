@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/LaPingvino/accolade/internal/prose"
 )
@@ -191,6 +193,33 @@ func adaptBenchPair(t *testing.T, dir string) {
 		t.Logf("scenes  %-60s %-28s guess %d–%d (%d wide, z %.1f, sure %.1f): %s", r.heading, rangesString(r.ranges),
 			g.First, g.Last, g.Last-g.First+1, g.Z, g.Sure, sa.add(r, guess))
 	}
+	// cuts: the sections the pane would offer as cut; one the mapping
+	// says a scene adapts is wrong
+	allToDo := newSourceModel(ps, script, starts).status
+	var cutRight, cutWrong int
+	for _, sec := range sectionsOf(ps, allToDo, guesses) {
+		if !sec.skipped {
+			continue
+		}
+		wrong := false
+		for _, r := range rows {
+			for _, rg := range r.ranges {
+				wrong = wrong || rg[0] <= sec.last && rg[1] >= sec.first
+			}
+		}
+		if wrong {
+			cutWrong++
+		} else {
+			cutRight++
+		}
+		t.Logf("cut?    %-60s %d–%d: wrong %v", sec.name, sec.first, sec.last, wrong)
+	}
+	t.Logf("%s cuts offered: %d right, %d wrong (adapted by the mapping)", filepath.Base(dir), cutRight, cutWrong)
+	start := time.Now()
+	for range 5 {
+		alignScenes(scenes, ps, nil)
+	}
+	t.Logf("%s alignScenes: %v a look (%d scenes, %d passages)", filepath.Base(dir), time.Since(start)/5, len(scenes), len(ps))
 	report := func(name string, s benchScore) {
 		t.Logf("%s %s: %d scenes mapped: %d right, %d wrong, %d silent; %d invented: %d silent (right), %d guessed (wrong)",
 			filepath.Base(dir), name, s.right+s.wrong+s.silent, s.right, s.wrong, s.silent,
@@ -354,17 +383,73 @@ func TestAdaptBenchPrivate(t *testing.T) {
 		}
 		t.Logf("private %d (%d scenes, %d passages, %d linked): links out: linked ones %d right, %d wrong, %d silent; the other %d: %d guessed",
 			k, len(scenes), len(ps), len(truth), right, wrong, silent, others, guessed)
+		found, holding := 0, map[int]bool{}
+		for i, l := range m.links {
+			if m.matches[i].found() {
+				found++
+			}
+			for s, sc := range scenes {
+				if l.Line >= sc.Line && (s+1 == len(scenes) || l.Line < scenes[s+1].Line) {
+					holding[s] = true
+				}
+			}
+		}
+		t.Logf("private %d: %d links, %d found in the source, in %d scenes", k, len(m.links), found, len(holding))
 		gs = alignScenes(scenes, ps, truth)
-		guessed, last, order := 0, -1, true
+		guessed, gap, last, order := 0, 0, -1, true
+		at := map[int]int{}
 		for _, g := range gs {
 			if g.guessed() {
 				guessed++
+				at[g.First]++
+				if g.Gap {
+					gap++
+				}
 			}
 			if g.First >= 0 {
 				order = order && g.First >= last
 				last = g.First
 			}
 		}
-		t.Logf("private %d: links in as anchors: %d of the other %d guessed; in the source's order: %v", k, guessed, others, order)
+		shared := 0
+		for _, c := range at {
+			if c > 1 {
+				shared += c
+			}
+		}
+		t.Logf("private %d: links in as anchors: %d of the other %d guessed (%d by the order, %d in a gap between; %d share a first passage); in the source's order: %v",
+			k, guessed, others, guessed-gap, gap, shared, order)
+	}
+}
+
+// An invented scene between two the aligner is sure of, close together
+// in the source: still no guess (the gap's second look needs evidence of
+// its own), and the others as they were.
+func TestAlignInventedBetween(t *testing.T) {
+	dir := filepath.Join("testdata", "adapt-bench", "christmas-carol")
+	src, _ := os.ReadFile(filepath.Join(dir, "source.md"))
+	b, _ := os.ReadFile(filepath.Join(dir, "script.fountain"))
+	script := string(b)
+	invented := ".ACT II SCENE IVB - A TAVERN\n\nA darts match, loud and long. Nobody here has read the story.\n\nPUBLICAN\nAnother round for the table by the window, and mind the dog.\n\n"
+	i := strings.Index(script, ".ACT II SCENE V - A CHAMBER")
+	if i < 0 {
+		t.Fatal("no ACT II SCENE V")
+	}
+	ps := passagesOf(string(src))
+	starts := []string{"INT.", "EXT.", "INT./EXT.", "I/E"}
+	before := alignScenes(scenesOf(script, starts), ps, nil)
+	after := alignScenes(scenesOf(script[:i]+invented+script[i:], starts), ps, nil)
+	k := slices.IndexFunc(after, func(g sceneGuess) bool { return strings.Contains(g.Heading, "IVB") })
+	if k < 0 || after[k].guessed() {
+		t.Fatalf("the invented scene: %+v", after[max(k, 0)])
+	}
+	for j, g := range before {
+		h := after[j]
+		if j >= k {
+			h = after[j+1]
+		}
+		if g.First != h.First || g.Last != h.Last {
+			t.Errorf("%s: %d–%d, was %d–%d", g.Heading, h.First, h.Last, g.First, g.Last)
+		}
 	}
 }

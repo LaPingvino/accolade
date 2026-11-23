@@ -351,7 +351,7 @@ func TestComboNoLinks(t *testing.T) {
 		t.Errorf("Next went to %d", s.selected)
 	}
 	comboShot(t, w, "beside-nolinks")
-	if os.Getenv("SHOT_DIR") != "" { // the tag's menu, from the keyboard (Alt+L)
+	if os.Getenv("SHOT_DIR") != "" { // the tag's menu, from the keyboard (Ctrl+Alt+G)
 		w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(lineWith(t, w, "INT. LAMP ROOM")))
 		w.linkGuessHere()
 		comboShot(t, w, "linkup-menu")

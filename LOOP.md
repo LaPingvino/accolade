@@ -1247,10 +1247,15 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   silent below 2. Scenes left out between two placed ones are looked for in the gap alone (a lower floor for fewer
   places). Links are fixed anchors. Bench, before → after (right/wrong/silent; invented silent): Christmas Carol
   12/0/0, invented guessed → 12/0/0, invented silent; Jane Eyre 0/11/0 (deterministic), both invented guessed →
-  7/0/4, both silent. Joop's Kredu (21 scenes, 1 linked, local only): its links taken out, found again; with them
-  in, 18 of the other 20 guessed, all in the source's order (rightness unknown). UI: the editor's Tags (a faint
+  7/0/4, both silent; an invented scene put between two close sure ones stays silent (TestAlignInventedBetween).
+  Cuts offered (the bench's cuts row): Christmas Carol none; Jane Eyre 12, 9 right, 3 wrong (XVII: I.II is out of
+  the novel's order; XIX and XXXV: parts of merged scenes whose guess is the other part) — a gap with a silent scene
+  between its neighbours is not offered. A look: 28 ms (Carol), 67 ms (Jane Eyre, 4087 passages; the source's side
+  kept while the passages stay, Pow → Expm1: was 318 ms). Joop's Kredu (21 scenes; its 3 links all found, all in
+  one scene; local only): its links taken out, that scene found again; with them in, 18 of the other 20 guessed
+  (13 by the order, 5 in gaps; 6 share a first passage), all in the source's order (rightness unknown). UI: the editor's Tags (a faint
   label after a line, not text: the cursor passes it; Short "↗?" where "↗ link?" has no room), tap/long press →
-  Accept (one undo step) / Adjust… / Not This (skipped links:); Alt+L and vim gs open it from the keyboard. Source
+  Accept (one undo step) / Adjust… / Not This (skipped links:); Ctrl+Alt+G (Ctrl+Alt+L locks many Linux desktops) and vim gs open it from the keyboard. Source
   pane: chapter (else run) labels "adapted (scenes 3–9)", "adapted? (…)" when only guessed, "not adapted yet";
   Next/Adapt… go on after a guessed scene (anchor "(by its words)"); a skipped section offered as cut one at a
   time; Adaptation › Link Up the Script… (replaces Suggest Links and its "1 of N" prompts) lists guesses (checked)
@@ -1261,7 +1266,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   TestLinkUpOffersCut$' (combo-linkup-{sections,menu,cut}, combo-beside-nolinks). Open: the guess range is the
   dense core of the window (often one passage), so Accept links less than the scene adapts; the last scene is
   often silent (nothing after it to hold it); Jane Eyre's non-monotone scenes (I.II after II.II in the novel)
-  stay silent; storyread's dialogue lines are not used yet; guesses live for the session (Not This persists).
+  stay silent; storyread's dialogue lines are not used yet; guesses live for the session (Not This persists); a
+  heading read right to left gets no tag (Link Up and Ctrl+Alt+G still reach it); vim gs has no test.
 - 2026-11-23: shortest unique links (branch shortlinks, not merged; Joop 2026-11-22: "checking shortest unique
   for start and finish … auto-fix … when impossible signal this with a warning"). fragmentFor writes the fewest
   first words and fewest last words that find the passage(s) alone (read off the word index, confirmed by
