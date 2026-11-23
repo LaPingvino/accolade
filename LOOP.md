@@ -1216,3 +1216,26 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (b) Storyboarder (wonderunit, its successor; not OSI) keeps boards in JSON `storyboards/Scene-<n>-…/*.storyboarder`
   beside the script and rewrites scene numbers to `#<n>-<id>#` (docs/PRODUCTION.md §Storyboards): read its boards
   per scene by that id, never write its files.
+- 2026-11-23 (Joop, with his own "Kredu min, Sinjorino" adaptation — a free adaptation of a 70k-word Esperanto novel,
+  21 scenes, 3 [[from:]] links, the Enkonduko and long runs skipped; the file is private: measure on the copy in
+  /tmp/claude-1000/kredu only, never commit it or quote it in fixtures, build synthetic tests of the same shape):
+  "It doesn't have to be perfect, the tools should just somehow be useful and not overwhelming when you have a
+  situation like this." / "when I added this source at first, with the first version of the source tool, it had
+  wildly inaccurate suggestions and started breaking the document. That doesn't seem right to me. Useful things
+  would be something like 'figure out existing sections, mark them as sections and add the rest beyond it', and a
+  rough match guess that's added unintrusively..."
+  LINK UP A FREE ADAPTATION, after shortlinks (it builds on the position alignment). Rules first:
+  (R1) NOTHING is written into the script from a guess. Guesses live beside it (chips, the source pane) until the
+  writer accepts one; accepting is one undo step. Adding a source to a script never changes the script.
+  (R2) Quiet: only confident guesses show; one cut suggestion at a time; no dialog full of suggestions.
+  What it does: (1) SECTIONS FIRST: align the script's scenes to the source in order (rarer words + order, the
+  monotone alignment; a scene-level quick test on Joop's file already lands most scenes: ch.1–5, para 11→130, with
+  a few short scenes jumping far off that the order constraint pulls back) and show which source sections
+  (chapters/## headings, else runs of passages) are already adapted: the source pane marks them "adapted (scenes
+  3–9)" as whole sections, not per passage; (2) THE REST BEYOND: everything after the last adapted section is
+  "not adapted yet" and is where Next / Adapt… continue — the writer goes on from where the script ends, never from
+  the top; (3) a rough match guess per scene, unintrusive: a faint "↗ link?" chip on the scene heading; tap → the
+  guessed range with Accept / Adjust / Not This; (4) skipped runs inside the adapted stretch (the Enkonduko before
+  the first adapted section, gaps between) offered one at a time as a quiet line "Enkonduko (9 paragraphs) isn't in
+  the script — Mark as Cut?"; (5) Adaptation › Link Up the Script… does it all at once in a review list for when the
+  writer wants that. Measure on Joop's copy: scenes guessed right / wrong / silent, and report.
