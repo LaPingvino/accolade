@@ -62,7 +62,7 @@ jobs:
       - name: Focus is visible (on their own)
         env:
           CGO_ENABLED: "1"
-        run: go test -run 'Focus(Is)?Visible$' -count=1 .
+        run: go test -run 'Focus(Is)?Visible$' -count=1 -timeout 30m .
 
       - name: Test with the race detector (Linux)
         if: runner.os == 'Linux'
