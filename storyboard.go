@@ -113,6 +113,7 @@ func findFrames(body string) []frameLine {
 type frameCache struct {
 	text   string
 	pics   *images.Loader
+	gen    int // the loader's, when made
 	sb     *sbProject
 	chips  []editor.Chip
 	merged []editor.Chip // with the links' (linkChips)
@@ -129,10 +130,10 @@ func (w *MainWindow) frameChips(text string) []editor.Chip {
 	}
 	c := &w.frames
 	pics, sb := w.pictures(), w.storyboarder()
-	if c.pics == pics && c.sb == sb && sameString(c.text, text) {
+	if c.pics == pics && c.gen == pics.Gen() && c.sb == sb && sameString(c.text, text) {
 		return c.chips
 	}
-	c.text, c.pics, c.sb, c.chips = text, pics, sb, nil
+	c.text, c.pics, c.gen, c.sb, c.chips = text, pics, pics.Gen(), sb, nil
 	body := text[:bodyEndByte(text)]
 	dataPath := boardDataPath(text)
 	for _, f := range findFrames(body) {
@@ -206,7 +207,7 @@ func (w *MainWindow) frameTapped(c editor.Chip, _ fyne.Position, _ fyne.Size) {
 	body := text[:bodyEndByte(text)]
 	for _, f := range findFrames(body) {
 		if f.start == c.Start {
-			w.showFrame(f.board, boardSrc(f.board, boardDataPath(text)))
+			w.showFrame(f.board, boardSrc(f.board, boardDataPath(text)), f.start)
 			return
 		}
 	}
@@ -226,8 +227,9 @@ func (w *MainWindow) frameTapped(c editor.Chip, _ fyne.Position, _ fyne.Size) {
 }
 
 // showFrame shows a frame's picture as large as the window has room for,
-// with its note's details.
-func (w *MainWindow) showFrame(b lex.Board, src string) {
+// with its note's details; Edit Note puts the cursor in the note (at
+// at: a phone's way in, where a tap shows the picture).
+func (w *MainWindow) showFrame(b lex.Board, src string, at int) {
 	p := w.pictures().Load(src)
 	var body fyne.CanvasObject
 	if p.OK() {
@@ -253,7 +255,16 @@ func (w *MainWindow) showFrame(b lex.Board, src string) {
 	}
 	info := widget.NewLabel(about)
 	info.Wrapping = fyne.TextWrapWord
-	d := dialog.NewCustom("Storyboard Frame", "Close", container.NewBorder(nil, info, nil, nil, body), w.fyneWindow)
+	var d *dialog.CustomDialog
+	edit := widget.NewButton("Edit Note", func() {
+		d.Hide()
+		w.textEditor.SetCursorOffset(at + 2)
+		w.focusMain()
+	})
+	closeB := widget.NewButton("Close", func() { d.Hide() })
+	closeB.Importance = widget.HighImportance
+	d = dialog.NewCustomWithoutButtons("Storyboard Frame", container.NewBorder(nil, container.NewVBox(info, w.dialogButtons(edit, closeB)), nil, nil, body), w.fyneWindow)
+	d.SetOnEscape(d.Hide)
 	d.Show()
 }
 

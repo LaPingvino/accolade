@@ -154,6 +154,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:bold** — Format > Bold
 - **:italic** — Format > Italic
 - **:underline** — Format > Underline (screenplay)
+- **:storyboard-frame** — Format > Storyboard Frame (screenplay)
 - **:strikethrough** — Format > Strikethrough (Markdown)
 - **:inline-code** — Format > Inline Code (Markdown)
 - **:code-block** — Format > Code Block (Markdown)

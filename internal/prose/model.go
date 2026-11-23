@@ -296,6 +296,9 @@ func (m *mdWriter) inline(spans []Span, indent string) string {
 		case s.Comment != "":
 			b.WriteString("<!-- " + strings.ReplaceAll(s.Comment, "--", "–") + " -->")
 			continue
+		case s.Image != nil && s.Image.Data != nil: // an import's, not saved: no file to link
+			b.WriteString("<!-- image left out: " + strings.ReplaceAll(collapse(s.Image.Alt), "--", "–") + " -->")
+			continue
 		case s.Image != nil:
 			pic := imageMarkdown(s.Image)
 			if s.Link != "" {

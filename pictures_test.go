@@ -163,3 +163,36 @@ func TestImportKeepsPictures(t *testing.T) {
 		t.Errorf("the unsaved import's picture not read: %v", p.Err)
 	}
 }
+
+// A linked picture and another after it: each segment its own picture.
+func TestPreviewPicturesMatched(t *testing.T) {
+	segs := richMarkdown("[![a](a.png)](https://example.com)\n\nText.\n\n![b](b.png)\n\n| x |\n| --- |\n| ![c](c.png) |\n", nil)
+	var srcs []string
+	var walk func([]widget.RichTextSegment)
+	walk = func(ss []widget.RichTextSegment) {
+		for _, s := range ss {
+			switch s := s.(type) {
+			case *pictureSegment:
+				srcs = append(srcs, s.img.src)
+			case *widget.ParagraphSegment:
+				walk(s.Texts)
+			case *widget.TableSegment:
+				for _, r := range s.Rows {
+					for _, c := range r {
+						walk(c)
+					}
+				}
+			case *widget.ImageSegment:
+				t.Errorf("a Fyne image segment left: %v", s.Source)
+			}
+		}
+	}
+	walk(segs)
+	// (Fyne makes a linked picture its link)
+	for i, want := range []string{"b.png", "c.png"} {
+		if i >= len(srcs) || srcs[i] != want {
+			t.Errorf("pictures %v", srcs)
+			break
+		}
+	}
+}

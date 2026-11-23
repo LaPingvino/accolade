@@ -1187,8 +1187,8 @@ func ribbonLayout() []ribbonTab {
 				keyed("md.heading4"), keyed("md.heading5"), keyed("md.heading6"), keyed("md.heading0"),
 				{id: "md.headings", large: true, phoneOnly: true}}},
 			{title: "Emphasis", homes: []home{tool("format.bold"), tool("format.italic"), tool("format.underline"), tool("md.strike"), tool("md.code"),
-				sep(), tool("format.rtl")}}, // a row of its own, under them
-			{title: "Insert", homes: []home{big("md.link"), at("md.image"), at("md.footnote"), at("md.table"), at("md.rule"), at("md.codeBlock"), at("write.storyboardFrame")}},
+				sep(), tool("format.rtl"), tool("write.storyboardFrame")}}, // a row of their own, under them
+			{title: "Insert", homes: []home{big("md.link"), at("md.image"), at("md.footnote"), at("md.table"), at("md.rule"), at("md.codeBlock")}},
 			{title: "Notes", homes: []home{at("md.noteJump"), at("md.renumberNotes")}},
 			{title: "Lists", homes: []home{at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote")}},
 			// the script's format, its title page, the format's own blocks

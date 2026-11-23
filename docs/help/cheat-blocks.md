@@ -19,7 +19,7 @@ Notes is always last; Accolade reads the others in any order. In the editor each
 - **Revision** — `revision: Blue, 2026-11-20`
 - **Page lock** — `pages: locked, letter, …` and a line per page
 - **OMITTED runs** — `omitted runs: print as one`
-- **Character** — `ANNA: the lead` then `  age: 34`, `  look:`, `  arc:`, `  actor:` indented
+- **Character** — `ANNA: the lead` then `  age: 34`, `  look:`, `  arc:`, `  actor:`, `  photo:` indented
 - **Listed only** — `ben` alone on a line: in the list, nothing written yet
 - **Alias** — `characters: ANNA = Anna, Annie`
 - **Not a name** — `not characters: Monday, Lord`

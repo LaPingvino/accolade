@@ -420,6 +420,7 @@ type charRow struct {
 	texts       *fyne.Container
 	cast        *widget.Label
 	photo       *canvas.Image // the cast photo, small (hidden: none)
+	body        *fyne.Container
 	bg          *canvas.Rectangle
 	open        *widget.Button
 	key         string
@@ -471,12 +472,17 @@ func (r *charRow) show(p *charactersPane, i int) {
 	} else {
 		r.cast.Hide()
 	}
-	if img := p.photoOf(c, 80); img != nil {
+	img := p.photoOf(c, 80)
+	had := r.photo.Visible()
+	if img != nil {
 		r.photo.Image = img
 		r.photo.Show()
 		r.photo.Refresh()
 	} else {
 		r.photo.Hide()
+	}
+	if had != (img != nil) && r.body != nil {
+		r.body.Refresh() // laid out again: the photo in or out
 	}
 	if c.Not {
 		r.name.Importance = widget.LowImportance
@@ -496,7 +502,8 @@ func (r *charRow) CreateRenderer() fyne.WidgetRenderer {
 	top := container.NewBorder(nil, nil, nil, r.cast, r.name)
 	texts := container.New(layout.NewCustomPaddedVBoxLayout(-2*theme.Padding()), top, r.stats, r.aliases)
 	r.texts = texts
-	return widget.NewSimpleRenderer(container.NewStack(r.bg, container.NewBorder(nil, nil, r.photo, r.open, texts)))
+	r.body = container.NewBorder(nil, nil, r.photo, r.open, texts)
+	return widget.NewSimpleRenderer(container.NewStack(r.bg, r.body))
 }
 
 // The character opened: back to the list, the next and previous cue, the

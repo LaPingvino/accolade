@@ -9,6 +9,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -49,10 +50,11 @@ func TestLoad(t *testing.T) {
 		{"in%20assets.png", 3, nil},
 		{"assets/in%20assets.png", 3, nil},
 		{filepath.Join(dir, "beside.png"), 4, nil},
-		{"file://" + filepath.ToSlash(filepath.Join(dir, "beside.png")), 4, nil},
+		{"file:///" + strings.TrimPrefix(filepath.ToSlash(filepath.Join(dir, "beside.png")), "/"), 4, nil},
 		{data, 5, nil},
 		{"https://example.com/a.png", 0, ErrRemote},
 		{"//example.com/a.png", 0, ErrRemote},
+		{`\\server\share\a.png`, 0, ErrRemote},
 		{"x.svg", 0, ErrSVG},
 		{"text.png", 0, ErrFormat},
 		{"gone.png", 0, fs.ErrNotExist},
@@ -78,6 +80,14 @@ func TestLoad(t *testing.T) {
 	l.Load("beside.png")
 	if asked == before {
 		t.Error("kept after Forget")
+	}
+	// a missing picture, there later: shown
+	if l.Load("later.png").OK() {
+		t.Fatal("there before it is")
+	}
+	os.WriteFile(filepath.Join(dir, "later.png"), pngOf(t, 2, 2), 0o644)
+	if !l.Load("later.png").OK() {
+		t.Error("a picture put there later not read")
 	}
 	if th := l.Thumbnail("beside.png", 2, 2); th == nil || th.Bounds().Dx() != 2 || th.Bounds().Dy() != 1 {
 		t.Errorf("thumbnail %v", th)

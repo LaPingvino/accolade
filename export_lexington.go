@@ -112,7 +112,9 @@ func (j exportJob) options(to, output string) cli.Options {
 		SceneLengths: j.sceneLengths,
 		MergeOmitted: j.mergeOmitted,
 		SceneIn:      j.language, // the HTML's direction for a line with none of its own
-		Pictures:     j.pictures,
+	}
+	if j.lock == nil { // (frames print in a free layout: a locked one keeps its pages)
+		o.Pictures = j.pictures
 	}
 	if j.conf.Languages != nil { // the script's own, with what it brought
 		conf := j.conf.TOMLConf

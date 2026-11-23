@@ -196,6 +196,18 @@ func (d *Doc) EachImage(f func(*Image)) {
 	blocks(d.Blocks)
 }
 
+// Unsaved is how many of the document's pictures are an import's not
+// saved (Markdown leaves them out, a comment in their place).
+func (d *Doc) Unsaved() int {
+	n := 0
+	d.EachImage(func(img *Image) {
+		if img.Data != nil {
+			n++
+		}
+	})
+	return n
+}
+
 // SaveImages saves the pictures an import brought (their Data): save
 // puts a file named as the picture's Src suggests and gives the name
 // the Markdown names it by (assets/image1.png), and the picture then

@@ -444,7 +444,7 @@ func (e *tomlEditor) closed() {
 // descriptions).
 func (e *tomlEditor) helpPage() fyne.CanvasObject {
 	p, _ := help.Get("settings")
-	text := widget.NewRichTextFromMarkdown(p.Markdown)
+	text := widget.NewRichText(richMarkdown(p.Markdown, nil)...)
 	text.Wrapping = fyne.TextWrapWord
 	return container.NewVScroll(container.NewPadded(text))
 }

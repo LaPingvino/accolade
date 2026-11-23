@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))) // the moves write Linux keys too
+		want := frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -934,6 +934,15 @@ func fixLinesMoves(name, golden string) string {
 		return strings.Replace(golden, "  What Accolade Learned…\n", "  What Accolade Learned…\n  "+item, 1)
 	case strings.HasPrefix(name, "context-screenplay"):
 		return strings.TrimSuffix(golden, "\n") + "\n---\n" + item
+	}
+	return golden
+}
+
+// frameMoves: Format › Storyboard Frame… at a screenplay's Format menu's
+// end (storyboard.go).
+func frameMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-screenplay") {
+		return strings.Replace(golden, "# Adaptation\n", "  ---\n  Storyboard Frame…\n# Adaptation\n", 1)
 	}
 	return golden
 }

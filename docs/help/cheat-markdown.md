@@ -30,7 +30,7 @@ Each writes plain Markdown on the selection or the cursor's lines; again takes i
 
 - **Heading 1** … **Heading 6** — Ctrl+1 … Ctrl+6; **Normal Text** — Ctrl+0
 - **Bold** — Ctrl+B; **Italic** — Ctrl+I; **Strikethrough**; **Inline Code**
-- **Link…** — Ctrl+L: asks the address, the selection is its text; **Image…** — the same, `![…](…)`
+- **Link…** — Ctrl+L: asks the address, the selection is its text; **Image…** — the same, `![…](…)`, or **Choose a Picture…**: copied into the bundle's `assets/` (or a `Name.assets/` folder beside the document) and linked from there
 - **Footnote** — the next `[^n]` at the cursor, its note at the end
 - **Go to Note or Reference** — from a `[^n]` to its note, from a note back to its mark; the pointer over a mark shows its note
 - **Renumber Notes** — 1, 2, 3… in the order the text refers to them, the notes at the end put in that order
@@ -55,3 +55,13 @@ Each writes plain Markdown on the selection or the cursor's lines; again takes i
 - **Breaks** — `* * *` starts a new scene when Accolade reads the story; it is no passage
 
 More: [Adapting a Story](adapting.md).
+
+## Pictures
+
+`![alt text](assets/harbour.png "Caption")` — a path beside the document or in its bundle's `assets/` (a name not found is looked for in `assets/` too), or a `data:` URI. PNG, JPEG, GIF and WebP show; an SVG shows as its alt text for now. A picture on the web is never fetched — not in the preview, not in an export: its alt text and link stand in its place.
+
+- Alone in its paragraph: a picture of its own, as wide as the text at most (never larger than it is), its title under it as a caption (Page Setup: **Alt text as caption** for those without a title); in a line of text: as high as the line.
+- The Live Preview (Text and Pages), the PDF, Word and ODT show it; the exported web page keeps the tag; Print puts the pictures in the page it prints.
+- A picture that cannot be shown is a quiet box with its alt text and where it was.
+- Importing a Word, ODT or web page keeps its pictures: copied into `Name.assets/` beside the file, linked from the Markdown.
+

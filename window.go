@@ -160,6 +160,7 @@ type MainWindow struct {
 	// pics reads the document's pictures (pictures.go), for picsKey
 	pics    *images.Loader
 	picsKey picturesKey
+	picsOf  *textBundle // the bundle it reads
 	// unsavedDir is where an unsaved document's pictures are read from
 	// (an import's folder: importedPictures)
 	unsavedDir string

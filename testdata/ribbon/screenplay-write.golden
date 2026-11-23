@@ -17,6 +17,7 @@ tabs: File [Write] Edit Production Collaboration View
   T Italic icon=foreground_italic.svg name=Italic (Ctrl+I)
   T Underline icon=foreground_underline.svg name=Underline (Ctrl+U)
   T Right to Left icon=foreground_rtl.svg name=Right to Left Line
+  T Frame icon=foreground_image.svg name=Storyboard Frame…
 ## Script
   select Script format
   S Title Page icon=foreground_document.svg name=Title Page… (Ctrl+Shift+T)

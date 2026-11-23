@@ -36,11 +36,7 @@ const tableRowsShort = 3
 // Pictures are read by pics (nil: none, each a placeholder), never
 // fetched.
 func markdownSegments(md string, maxRows int, pics *images.Loader) (segs []widget.RichTextSegment, hidden bool) {
-	segs = widget.NewRichTextFromMarkdown(md).Segments
-	if imgs := markdownImages(md); len(imgs) > 0 || hasImageSegment(segs) {
-		segs = withPictures(segs, imgs, pics)
-	}
-	return flatTables(segs, maxRows)
+	return flatTables(richMarkdown(md, pics), maxRows)
 }
 
 // hasImageSegment tells whether Fyne made a picture of something.
@@ -56,6 +52,19 @@ func hasImageSegment(segs []widget.RichTextSegment) bool {
 		case *widget.ListSegment:
 			if hasImageSegment(s.Items) {
 				return true
+			}
+		case *widget.TableSegment:
+			for _, c := range s.Headers {
+				if hasImageSegment(c) {
+					return true
+				}
+			}
+			for _, r := range s.Rows {
+				for _, c := range r {
+					if hasImageSegment(c) {
+						return true
+					}
+				}
 			}
 		}
 	}

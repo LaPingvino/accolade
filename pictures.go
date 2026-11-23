@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/base64"
 	"errors"
 	"fmt"
 	"html"
 	"image/color"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -51,21 +53,41 @@ func (w *MainWindow) picturesFiles() images.Files {
 // pictures is the window's picture loader, for the document as it is
 // now: made again when the document (or its bundle, written) changes.
 func (w *MainWindow) pictures() *images.Loader {
-	key := picturesKey{w.bundle, w.currentFile, w.unsavedDir}
-	if w.pics == nil || w.picsKey != key {
-		w.pics, w.picsKey = images.New(w.picturesFiles()), key
+	key := picturesKey{file: w.currentFile, dir: w.unsavedDir}
+	if w.bundle != nil {
+		key.b = w.bundle.path
+	}
+	switch {
+	case w.pics == nil || w.picsKey != key:
+		w.pics, w.picsKey, w.picsOf = images.New(w.picturesFiles()), key, w.bundle
+	case w.picsOf != w.bundle: // the same bundle, saved: what was read is kept
+		w.pics.Reading(w.picturesFiles())
+		w.picsOf = w.bundle
 	}
 	return w.pics
 }
 
 // picturesKey is what the loader reads from.
 type picturesKey struct {
-	b         *textBundle
-	file, dir string
+	b, file, dir string // the bundle's path, the plain file's, an import's folder
 }
 
 // mdImage is a picture as the Markdown names it.
-type mdImage struct{ src, alt, title string }
+type mdImage struct {
+	src, alt, title string
+	inline          bool // in a line of text, not alone in its paragraph
+}
+
+// richMarkdown is Markdown as Fyne's rich text, its pictures read by
+// pics (nil: none, placeholders) — never by Fyne, which would read a
+// path from the working folder or fetch an address.
+func richMarkdown(md string, pics *images.Loader) []widget.RichTextSegment {
+	segs := widget.NewRichTextFromMarkdown(md).Segments
+	if imgs := markdownImages(md); len(imgs) > 0 || hasImageSegment(segs) {
+		segs = withPictures(segs, imgs, pics)
+	}
+	return segs
+}
 
 // markdownImages are the pictures in Markdown, in the order Fyne's rich
 // text has them (the document's).
@@ -84,7 +106,15 @@ func markdownImages(md string) []mdImage {
 					alt.Write(t.Segment.Value(src))
 				}
 			}
-			out = append(out, mdImage{string(img.Destination), alt.String(), string(img.Title)})
+			inline := false
+			for c := img.Parent().FirstChild(); c != nil; c = c.NextSibling() {
+				if t, ok := c.(*ast.Text); ok && strings.TrimSpace(string(t.Segment.Value(src))) != "" {
+					inline = true
+				} else if c != img && c.Kind() != ast.KindText {
+					inline = true
+				}
+			}
+			out = append(out, mdImage{string(img.Destination), alt.String(), string(img.Title), inline})
 		}
 		return ast.WalkContinue, nil
 	})
@@ -95,50 +125,95 @@ func markdownImages(md string) []mdImage {
 // from the working folder, or fetch an address) by the document's
 // pictures, read by l (nil: none read, each a placeholder).
 func withPictures(segs []widget.RichTextSegment, imgs []mdImage, l *images.Loader) []widget.RichTextSegment {
-	n := 0
-	var walk func([]widget.RichTextSegment) []widget.RichTextSegment
-	walk = func(segs []widget.RichTextSegment) []widget.RichTextSegment {
+	n := 0 // the next picture in order
+	used := make([]bool, len(imgs))
+	var walk func(segs []widget.RichTextSegment, inPara bool) []widget.RichTextSegment
+	walk = func(segs []widget.RichTextSegment, inPara bool) []widget.RichTextSegment {
 		out := segs[:0:0]
+		texts := 0 // the paragraph's text besides its pictures: a picture in a line
+		for _, seg := range segs {
+			if t, ok := seg.(*widget.TextSegment); ok && strings.TrimSpace(t.Text) != "" {
+				texts++
+			}
+		}
 		for _, seg := range segs {
 			switch s := seg.(type) {
 			case *widget.ImageSegment:
 				img := mdImage{src: s.Source.String(), title: s.Title}
-				if n < len(imgs) {
-					img = imgs[n]
+				if k := matchImage(imgs, used, s.Source.String(), n); k >= 0 {
+					img, used[k] = imgs[k], true
+					n = k + 1
 				}
-				n++
-				out = append(out, &pictureSegment{img: img, pic: l.Load(img.src)})
+				out = append(out, &pictureSegment{img: img, pic: l.Load(img.src), inline: img.inline || (inPara && texts > 0)})
 				continue
 			case *widget.ParagraphSegment:
 				p := *s
-				p.Texts = walk(s.Texts)
+				p.Texts = walk(s.Texts, true)
 				seg = &p
 			case *widget.ListSegment:
 				ls := *s
-				ls.Items = walk(s.Items)
+				ls.Items = walk(s.Items, false)
 				seg = &ls
+			case *widget.TableSegment:
+				tb := *s
+				tb.Headers = make([][]widget.RichTextSegment, len(s.Headers))
+				for i, c := range s.Headers {
+					tb.Headers[i] = walk(c, true)
+				}
+				tb.Rows = make([][][]widget.RichTextSegment, len(s.Rows))
+				for i, r := range s.Rows {
+					tb.Rows[i] = make([][]widget.RichTextSegment, len(r))
+					for j, c := range r {
+						tb.Rows[i][j] = walk(c, true)
+					}
+				}
+				seg = &tb
 			}
 			out = append(out, seg)
 		}
 		return out
 	}
-	return walk(segs)
+	return walk(segs, false)
+}
+
+// matchImage is the picture of imgs a Fyne image segment of uri is: the
+// next not used whose address the uri ends with, else the next in order
+// (-1: none left).
+func matchImage(imgs []mdImage, used []bool, uri string, next int) int {
+	u, _ := url.PathUnescape(uri)
+	for k := next; k < len(imgs); k++ {
+		if !used[k] && imgs[k].src != "" && (strings.HasSuffix(uri, imgs[k].src) || strings.HasSuffix(u, imgs[k].src)) {
+			return k
+		}
+	}
+	for k := range imgs {
+		if !used[k] && imgs[k].src != "" && (strings.HasSuffix(uri, imgs[k].src) || strings.HasSuffix(u, imgs[k].src)) {
+			return k
+		}
+	}
+	for k := next; k < len(imgs); k++ {
+		if !used[k] {
+			return k
+		}
+	}
+	return -1
 }
 
 // previewPictureWidth is the most a picture in the preview takes of its
 // width at first (its pane may be narrow).
-const previewPictureWidth = 300
+const previewPictureWidth = 240
 
 // pictureSegment is a picture in the Live Preview: its image at its
 // size (a smaller one at most previewPictureWidth wide), its caption
 // under it; a quiet placeholder with the alt text and where it is when
 // it cannot be shown.
 type pictureSegment struct {
-	img mdImage
-	pic *images.Picture
+	img    mdImage
+	pic    *images.Picture
+	inline bool // in a line of text: as high as the line
 }
 
-func (p *pictureSegment) Inline() bool               { return false }
+func (p *pictureSegment) Inline() bool               { return p.inline }
 func (p *pictureSegment) Textual() string            { return p.img.alt }
 func (p *pictureSegment) Select(_, _ fyne.Position)  {}
 func (p *pictureSegment) SelectedText() string       { return "" }
@@ -147,9 +222,22 @@ func (p *pictureSegment) Update(o fyne.CanvasObject) {}
 
 func (p *pictureSegment) Visual() fyne.CanvasObject {
 	if !p.pic.OK() {
+		if p.inline {
+			l := widget.NewLabel("[" + cmp.Or(p.img.alt, "picture") + "]")
+			l.Importance = widget.LowImportance
+			return l
+		}
 		return picturePlaceholder(p.img.alt, p.img.src, p.pic.Err)
 	}
 	pw, ph := p.pic.Size()
+	if p.inline {
+		h := theme.TextSize() * 1.3
+		img := canvas.NewImageFromImage(images.Fit(p.pic.Image, int(h*4*float32(pw)/float32(ph)), int(h*4)))
+		img.FillMode = canvas.ImageFillContain
+		img.SetMinSize(fyne.NewSize(h*float32(pw)/float32(ph), h))
+		fyne.SetAccessibleLabel(img, p.img.alt)
+		return img
+	}
 	w := min(float32(pw), previewPictureWidth)
 	img := canvas.NewImageFromImage(p.pic.Image)
 	img.FillMode = canvas.ImageFillContain
@@ -175,7 +263,7 @@ func picturePlaceholder(alt, src string, err error) fyne.CanvasObject {
 	} else if len([]rune(where)) > 80 {
 		where = string([]rune(where)[:77]) + "…"
 	}
-	label := widget.NewLabel(strings.TrimSpace("🖼 " + strings.TrimSpace(alt) + "\n" + where + " (" + images.Why(err) + ")"))
+	label := widget.NewLabel(strings.TrimSpace("▨ " + strings.TrimSpace(alt) + "\n" + where + " (" + images.Why(err) + ")"))
 	label.Wrapping = fyne.TextWrapWord
 	label.Importance = widget.LowImportance
 	label.SizeName = theme.SizeNameCaptionText
@@ -274,7 +362,10 @@ func (w *MainWindow) keepPicture(src, folder string, done func(rel string, err e
 				return nil, errors.New("the script's bundle is gone")
 			}
 			return saveBundleFiles(b, files, false)
-		}, done: func(err error) { done(rel, err) }})
+		}, done: func(err error) {
+			w.pictures().Forget()
+			done(rel, err)
+		}})
 		return
 	}
 	if w.currentFile == "" || inBrowser {

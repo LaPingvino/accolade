@@ -255,6 +255,19 @@ A link may name a file in front, `[[from: story.md#:~:text=…]]`, and words jus
 
 Adaptation > Update Source Links rewrites old links in the new form. More in [Adapting a Story](adapting.md#links).
 
+### Storyboard frames
+
+A storyboard frame is a note alone on its line, under the line it shows, in Storyboard Fountain's notation (so other programs keep it):
+
+```
+The boats come in, one by one.
+[[board: assets/boats.png, duration: 2.50, continued: true]]
+```
+
+The picture's file is beside the script or in its bundle (in the folder a `[[dataPath: boards]]` note names, if the script has one); `duration` is in seconds; `continued` says the frame carries on from the one before. In the editor a frame is a chip — its thumbnail and name; the cursor goes into it to show the note, a tap shows the picture large, a missing picture's chip is in the warning colour. **Format > Storyboard Frame…** (Write tab, the picture button) picks a picture, copies it into the bundle's `assets/` (or a `Name.assets/` folder beside the script) and writes the note under the cursor's line. **Page Setup > Print storyboard frames** (PDF, off at first) prints them under their lines, two inches high, never split over pages.
+
+Storyboarder's boards are read too, never written: it numbers each heading `#3-x2k9q#` and keeps a scene's boards in `storyboards/Scene-3-…-x2k9q/` beside the script. A heading with boards has a chip on its number — the first board and how many; a tap shows them all with their shots, times and text.
+
 ### Scene numbers and locks
 
 Once you lock the scene numbers (Production > Lock Scene Numbers), every heading carries its number, and a scene written later between 10 and 11 gets 10A (or A11, as Preferences > Script > Production says). Numbers are labels: Accolade only counts on from numbers like 10, 10A or A11, and leaves any other label (`#I-1-A#`, `#PROLOGUE#`) exactly as it is.
@@ -297,6 +310,7 @@ ANNA: the lead, thirty-four
   look: a red coat, always
   arc: from fear to trust
   actor: Jane Doe
+  photo: assets/anna.jpg
   She keeps the letters she never sends.
 ben
 */
@@ -314,7 +328,7 @@ Ask Tom about the ending.
 
 - **Production** holds the scene number lock, the current revision, the page lock and the OMITTED print setting.
 - **Adaptation** holds the passages you cut on purpose and what Accolade learned while you adapted: names, places, skipped links.
-- **Characters** is the character list (View > Characters): a name at the start of a line, its note after a colon, and under it, indented, the fields `age:`, `look:`, `arc:` and `actor:` and more lines of the note. A name alone is a character with nothing written yet. Names keep the case they are written in, so a list of names in small letters works too; a cue matches its entry in any case.
+- **Characters** is the character list (View > Characters): a name at the start of a line, its note after a colon, and under it, indented, the fields `age:`, `look:`, `arc:`, `actor:` and `photo:` (the cast photo: **Choose Photo…** in the character's page keeps the picture with the script, and the Characters list shows it beside the name) and more lines of the note. A name alone is a character with nothing written yet. Names keep the case they are written in, so a list of names in small letters works too; a cue matches its entry in any case.
 - **Fix-Up** holds the rules Edit > Fix Lines Like This… applied to an imported script, one a line (`heading: Scene <number> - <text> → <text> #<number>#`), to apply again after a re-import ([Fixing an Imported Script](fixing-imports.md)).
 - **Source** holds the story itself, when you choose Adaptation > Keep Source in the Script. Otherwise the source lives beside the script or in the bundle.
 - **Notes** is the notepad (View > Notes, Ctrl+Shift+K).

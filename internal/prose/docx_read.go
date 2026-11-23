@@ -80,7 +80,7 @@ type docxReader struct {
 	styles map[string]*docxStyle
 	lists  map[string]map[int]bool // numId: the levels that are numbered (not bullets)
 	links  map[string]string
-	notes  map[string]*node // "footnote:3", "endnote:1"
+	notes  map[string]*node  // "footnote:3", "endnote:1"
 	media  map[string]string // the pictures' files in the zip, by their relation
 	z      *zip.Reader
 }

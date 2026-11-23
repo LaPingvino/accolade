@@ -129,7 +129,8 @@ func (s *sourcePane) showReading(picked bool) {
 	if !ok {
 		in, out, either = "INT.", "EXT.", "INT./EXT."
 	}
-	v.text.ParseMarkdown(readingMarkdown(s.currentReading(), s.selected, in, out, either))
+	v.text.Segments = richMarkdown(readingMarkdown(s.currentReading(), s.selected, in, out, either), nil) // (pictures.go)
+	v.text.Refresh()
 	v.box.Show()
 	v.box.Refresh()
 }

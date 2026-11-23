@@ -95,11 +95,9 @@ func toMarkdownSaving(path string, save func(name string, data []byte) (string, 
 				}
 			}
 		})
-		if err := d.SaveImages(save); err != nil {
-			return "", 0, "", fmt.Errorf("could not keep its pictures: %v", err)
-		}
+		_ = d.SaveImages(save) // one that could not be saved is left out (a comment), as before
 	}
-	return d.Markdown(), d.Dropped, from, nil
+	return d.Markdown(), d.Dropped + d.Unsaved(), from, nil
 }
 
 // importedPictures saves an imported document's pictures: in a folder

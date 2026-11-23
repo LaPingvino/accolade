@@ -92,7 +92,7 @@ func (p *Picture) Size() (w, h int) {
 // a scheme other than file: and data:, or a host.
 func IsRemote(src string) bool {
 	src = strings.TrimSpace(src)
-	if strings.HasPrefix(src, "//") {
+	if strings.HasPrefix(src, "//") || strings.HasPrefix(src, `\\`) { // (a UNC path: the network)
 		return true
 	}
 	u, err := url.Parse(src)
@@ -137,6 +137,14 @@ func (l *Loader) SetFiles(files Files) {
 	l.forget()
 }
 
+// Reading makes the loader read from files from now on, keeping what it
+// read (the same document's files, written again: a bundle saved).
+func (l *Loader) Reading(files Files) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.files = files
+}
+
 // Forget forgets what was read: the files are read again when asked.
 func (l *Loader) Forget() {
 	l.mu.Lock()
@@ -170,9 +178,11 @@ func (l *Loader) Load(src string) *Picture {
 	files := l.files
 	l.mu.Unlock()
 	p := read(files, src)
-	l.mu.Lock()
-	l.cache[src] = p
-	l.mu.Unlock()
+	if !errors.Is(p.Err, fs.ErrNotExist) { // (one not there yet is looked for again)
+		l.mu.Lock()
+		l.cache[src] = p
+		l.mu.Unlock()
+	}
 	return p
 }
 
