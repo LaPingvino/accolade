@@ -110,7 +110,9 @@ func exHelpLine(c *exCmd) string {
 		line += " `" + c.usage + "`"
 	}
 	line += " — " + c.desc
-	if rc := commands().byID[c.id]; rc != nil && !c.line() {
+	if rc := commands().byID[c.id]; rc != nil && !c.line() && contextualHome(c.id) != "" {
+		line += " (while the " + contextualHome(c.id) + " tab is there)" // its rules look at that context alone
+	} else if rc != nil && !c.line() {
 		var notes []string
 		// a contextual tab's: in the view's env (else every command of it
 		// read as "not in the browser")
@@ -148,4 +150,18 @@ func exHelpLine(c *exCmd) string {
 		}
 	}
 	return line + "\n"
+}
+
+// contextualHome is the contextual ribbon tab id lives on first (Preview,
+// Fix-Up, Title Page: contextual.go), "" if none.
+func contextualHome(id string) string {
+	hs := homesOf(id)
+	if len(hs) == 0 {
+		return ""
+	}
+	m, _, _ := strings.Cut(hs[0], " > ")
+	if t, ok := tabOf(m); ok && t.contextual {
+		return m
+	}
+	return ""
 }

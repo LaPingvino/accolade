@@ -168,7 +168,7 @@ func quickCounts(id string) bool {
 	case "app.palette", "view.menu", "view.ribbonLock", "view.keyTips", "view.nextPane", "view.previousPane", "set.quickRow":
 		return false
 	}
-	return !strings.HasPrefix(id, "preview.")
+	return !strings.HasPrefix(id, "preview.") && !strings.HasPrefix(id, "fixup.") && !strings.HasPrefix(id, "titlepage.")
 }
 
 // quickPriority is the built-in priority of the commands for the Quick
@@ -584,7 +584,7 @@ func (w *MainWindow) quickChanged() {
 
 // showQuickMenu shows b's menu at pos (or under it).
 func (r *ribbonBar) showQuickMenu(b *ribbonButton, pos fyne.Position) bool {
-	m := r.quickMenu(b)
+	m := r.buttonMenu(b)
 	if m == nil {
 		return false
 	}

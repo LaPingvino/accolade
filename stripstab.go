@@ -126,7 +126,7 @@ func stripsCommands() []*command {
 
 // stripsTab is the Stripboard tab's layout.
 func stripsTab() ribbonTab {
-	return ribbonTab{title: "Stripboard", when: stripsInFront, role: productionRole, contextual: true, groups: []ribbonGroup{
+	return ribbonTab{title: "Stripboard", when: stripsInFront, role: productionRole, contextual: true, forward: true, groups: []ribbonGroup{
 		{title: "Move", homes: []home{big("strips.moveTo"), at("strips.up"), at("strips.down"), at("strips.unschedule"), at("strips.undo")}},
 		{title: "Day", homes: []home{big("production.addDay"), at("strips.editDay"), at("strips.fold"), at("strips.unfold")}},
 		{title: "Group", homes: []home{at("strips.byLocation"), at("strips.byCast")}},

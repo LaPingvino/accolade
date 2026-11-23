@@ -512,12 +512,18 @@ func (m *middle) center(script fyne.CanvasObject) fyne.CanvasObject {
 
 // The middle as a tabHost (dock.go's tabs).
 
-func (m *middle) pick(id string) { m.show(id) }
+func (m *middle) pick(id string) {
+	if id == "" && m.shown == "" && !m.w.titleInSight() { // the script's name has no room on the top row: its editor (toprow.go)
+		m.w.renameScript()
+		return
+	}
+	m.show(id)
+}
 
 func (m *middle) menu(id string) *fyne.Menu {
 	w := m.w
-	if id == "" {
-		return nil // the script stays in the middle
+	if id == "" { // the script stays in the middle; its name's editor
+		return fyne.NewMenu("Script", w.renameItem())
 	}
 	title := m.title(id)
 	if middleView(id) != nil { // no place in the side panes

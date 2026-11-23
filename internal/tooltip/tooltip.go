@@ -199,7 +199,16 @@ type Button struct {
 	Tip   string
 	layer *Layer
 	hover Hover
+	// Secondary, if set, is a right-click's, or a press held for
+	// LongPress (a finger in a browser comes as the mouse): its menu, at
+	// pos
+	Secondary func(pos fyne.Position)
+	press     *time.Timer
+	pressed   bool // the press was a long one: the tap after it is not a tap
 }
+
+// LongPress is how long a press is held to be a long one.
+var LongPress = 500 * time.Millisecond
 
 // NewButton creates an icon button with a tip shown on layer.
 func NewButton(icon fyne.Resource, tip string, tapped func(), layer *Layer) *Button {
@@ -216,8 +225,9 @@ func (b *Button) MouseIn(e *desktop.MouseEvent) {
 	b.hover.In(b.layer, b, func() string { return b.Tip })
 }
 
-// MouseOut hides the tip.
+// MouseOut hides the tip (and a press dragged away is no long one).
 func (b *Button) MouseOut() {
+	b.stopPress()
 	b.Button.MouseOut()
 	b.hover.Out(b.layer, b.Tip)
 }
@@ -235,10 +245,51 @@ func (b *Button) FocusLost() {
 	b.hover.Out(b.layer, b.Tip)
 }
 
-// Tapped hides the tip and taps the button.
+// Tapped hides the tip and taps the button (not after a long press:
+// its menu showed).
 func (b *Button) Tapped(e *fyne.PointEvent) {
 	b.hover.Out(b.layer, b.Tip)
+	if b.pressed {
+		b.pressed = false
+		return
+	}
 	b.Button.Tapped(e)
+}
+
+// TappedSecondary is a right-click: Secondary, if set.
+func (b *Button) TappedSecondary(e *fyne.PointEvent) {
+	if b.Secondary != nil {
+		b.hover.Out(b.layer, b.Tip)
+		b.Secondary(e.AbsolutePosition)
+	}
+}
+
+// MouseDown starts a long press, if the button has a Secondary.
+func (b *Button) MouseDown(e *desktop.MouseEvent) {
+	b.pressed = false
+	b.stopPress()
+	if b.Secondary == nil || e.Button != desktop.MouseButtonPrimary || b.Disabled() {
+		return
+	}
+	pos := e.AbsolutePosition
+	b.press = afterFunc(LongPress, func() {
+		if b.press == nil {
+			return
+		}
+		b.press, b.pressed = nil, true
+		b.hover.Out(b.layer, b.Tip)
+		b.Secondary(pos)
+	})
+}
+
+// MouseUp ends a press: short, it is a tap.
+func (b *Button) MouseUp(*desktop.MouseEvent) { b.stopPress() }
+
+func (b *Button) stopPress() {
+	if b.press != nil {
+		b.press.Stop()
+		b.press = nil
+	}
 }
 
 // AccessibilityLabel is the tip: the button shows only an icon, and a

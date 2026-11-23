@@ -121,7 +121,7 @@ func previewCommands() []*command {
 
 // previewTab is the Preview tab's layout.
 func previewTab() ribbonTab {
-	return ribbonTab{title: "Preview", when: previewShown, contextual: true, groups: []ribbonGroup{
+	return ribbonTab{title: "Preview", contextual: true, forward: true, when: previewShown, groups: []ribbonGroup{
 		{title: "Zoom", homes: []home{big("preview.fit"), at("preview.actual"), at("preview.zoomIn"), at("preview.zoomOut")}},
 		{title: "Pages", homes: []home{{id: "pageCount"}, at("preview.previousPage"), at("preview.nextPage")}},
 		{title: "Output", homes: []home{big("preview.savePDF"), at("preview.openViewer")}},

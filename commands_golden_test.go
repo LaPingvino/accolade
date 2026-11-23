@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))) // the moves write Linux keys too
+		want := topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -457,6 +457,19 @@ func stripMoves(base, golden string) string {
 		return golden
 	}
 	return strings.Replace(golden, "    Swap…\n    Move…\n", "    Swap…\n    Move…\n  Timeline Strip\n", 1)
+}
+
+// topRowMoves applies the top row's own (toprow.go): the palette's
+// button inside the search field, View's Add to the Top Row… and Reset.
+func topRowMoves(base, golden string) string {
+	switch {
+	case strings.HasPrefix(base, "header-"):
+		const b = "button foreground_palette.svg tip=Command palette: find any command (Ctrl+K)"
+		return strings.Replace(golden, "  "+b+"\n", "  box[*widget.Entry; "+b+"]\n", 1)
+	case strings.HasPrefix(base, "menu-"):
+		return strings.Replace(golden, "  Toolbar (checked)\n", "  Toolbar (checked)\n  Add to the Top Row…\n  Reset the Top Row\n", 1)
+	}
+	return golden
 }
 
 func structureMoves(base, golden string) string {

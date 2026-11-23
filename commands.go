@@ -69,6 +69,13 @@ type cmdEnv struct {
 	// timeline: as their timeline; grouped: their grid grouped by other
 	// than section (cards_tab.go)
 	cards, timeline, grouped bool
+	// topEdited: the top row is not the standard one (toprow.go)
+	topEdited bool
+	// fixup: an imported script not saved yet, its Fix-Up tab there;
+	// fixupPDF: read from a PDF (OCR again); titlePage: the cursor in
+	// the title page (contextual.go)
+	fixup, fixupPDF, titlePage bool
+	fixupRules                 bool // the script keeps fix-up rules
 }
 
 // cmdEnv is the window's.
@@ -98,6 +105,8 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	e.ribbon = w.ribbonOn()
 	e.smart = e.ribbon && w.ribbonSmart()
 	e.phone = w.narrow
+	e.topEdited = w.topRowEdited()
+	w.contextEnv(&e)
 	return e
 }
 
@@ -797,6 +806,8 @@ func newRegistry() *registry {
 	add(previewCommands()...)   // the Preview tab's (previewtab.go)
 	add(stripsCommands()...)    // the Stripboard tab's (stripstab.go)
 	add(cardsCommands()...)     // the Cards tab's (cards_tab.go)
+	add(topRowCommands()...)    // the top row's own (toprow.go)
+	add(contextCommands()...)   // the Fix-Up and Title Page tabs' (contextual.go)
 	add(quickCommands()...)     // the ribbon's order and the Quick row (quick.go)
 
 	elements := make([]home, len(toolbarElements))
@@ -857,6 +868,7 @@ func newRegistry() *registry {
 			at("view.headingsOnly"), at("view.unfoldAll"), {label: "Structure", sub: structureMenu()}, at("view.timelineStrip"), sep()},
 			dockHomes()...), // the side dock's panes together, and its own (dock.go)
 			sep(), at("view.statistics"), at("view.fullscreen"), at("set.toolbar"), at("view.ribbonLock"), at("set.quickRow"),
+			at("view.topRowAdd"), at("view.topRowReset"),
 			sep(), at("view.documentType"), at("view.role"),
 		)},
 		{title: "Cards", when: cardsInFront, homes: cardsMenu()}, // while the cards are in front (cards_tab.go)
@@ -1080,10 +1092,12 @@ type ribbonTab struct {
 	when   func(cmdEnv) bool
 	role   cmdRole
 	groups []ribbonGroup
-	// contextual: a view's own (Preview, Stripboard), there while it is
-	// shown and brought forward as it comes; not counted for Quick, its
-	// order its own in Smart (quick.go)
-	contextual bool
+	// contextual: a view's or a moment's own (Preview, Stripboard,
+	// Cards, Fix-Up, Title Page), there while its context is; not
+	// counted for Quick, its order its own in Smart (quick.go).
+	// forward: it comes to the front as it comes, the tab before chosen
+	// again as it goes (ribbon.go: followContext)
+	contextual, forward bool
 }
 
 // ribbonGroup is a group of a ribbon tab: its title under its buttons;
@@ -1231,8 +1245,10 @@ func ribbonLayout() []ribbonTab {
 			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),
 				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")}},
 		}},
-		previewTab(), // while a preview is shown, last (the others' key tips stay)
-		stripsTab(),  // while the stripboard is in front (stripstab.go)
-		cardsTab(),   // while the cards are in front (cards_tab.go)
+		fixUpTab(),     // after an import until saved (contextual.go)
+		titlePageTab(), // while the cursor is in the title page
+		previewTab(),   // while a preview is shown, last (the others' key tips stay)
+		stripsTab(),    // while the stripboard is in front (stripstab.go)
+		cardsTab(),     // while the cards are in front (cards_tab.go)
 	}
 }

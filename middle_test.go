@@ -493,7 +493,8 @@ func TestMiddlePhone(t *testing.T) {
 		t.Errorf("the source's editor did not scroll to its cursor (%v)", ok)
 	}
 	m := w.mid.menu("source")
-	if m.Items[0].Label != "Back to the Side" || m.Items[1].Label != "Close Source" || w.mid.menu("") != nil {
+	if m.Items[0].Label != "Back to the Side" || m.Items[1].Label != "Close Source" ||
+		len(w.mid.menu("").Items) != 1 || !strings.HasPrefix(w.mid.menu("").Items[0].Label, "Rename ") { // the script's: its name's editor (toprow.go)
 		t.Errorf("menu %q, %q", m.Items[0].Label, m.Items[1].Label)
 	}
 	m.Items[0].Action()

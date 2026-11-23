@@ -33,6 +33,7 @@ import (
 // paletteEntry is one line of the palette.
 type paletteEntry struct {
 	c      *command
+	ex     string // its ex name (:fix-lines), matched too
 	label  string // with its menu's for a submenu's item
 	home   string
 	keys   string
@@ -69,7 +70,8 @@ func (w *MainWindow) paletteEntries(env cmdEnv) []paletteEntry {
 		}
 		e := env
 		e.writer = false
-		out = append(out, paletteEntry{c: c, label: label, home: home, keys: keys, off: !c.canRun(e), away: away})
+		ex := commandExName(c)
+		out = append(out, paletteEntry{c: c, label: label, home: home, keys: keys, off: !c.canRun(e), away: away, ex: ex})
 	}
 	return out
 }
@@ -144,6 +146,14 @@ func paletteMatches(entries []paletteEntry, query string) []paletteEntry {
 		if h := fuzzyScore(query, e.home); h > s {
 			s = h
 		}
+		if e.ex != "" { // its name on the ':' line, as the ex completion has it
+			q := strings.TrimPrefix(strings.TrimSpace(query), ":")
+			if x := fuzzyScore(q, e.ex); strings.Contains(q, "-") || strings.HasPrefix(strings.TrimSpace(query), ":") {
+				s = max(s, x*2)
+			} else if x/2 > s {
+				s = x / 2
+			}
+		}
 		if s > 0 {
 			ss = append(ss, scored{e, s, i})
 		}
@@ -172,6 +182,10 @@ type palette struct {
 	chosen  int
 	from    fyne.Focusable // the focus before it opened
 	running bool
+	hint    *widget.Label
+	// pick, if set, takes the entry chosen instead of running it (Add
+	// to the Top Row…: toprow.go)
+	pick func(c *command)
 }
 
 // showPalette opens the palette (or, open, gives it the keyboard).
@@ -198,11 +212,13 @@ func (w *MainWindow) showPalette() {
 			home.Truncation = fyne.TextTruncateEllipsis
 			keys := widget.NewLabel("")
 			keys.Importance = widget.LowImportance
-			return container.NewBorder(nil, nil, nil, keys, container.NewVBox(label, home))
+			return newPaletteRow(p, container.NewBorder(nil, nil, nil, keys, container.NewVBox(label, home)))
 		},
 		func(id widget.ListItemID, o fyne.CanvasObject) {
 			e := p.shown[id]
-			box := o.(*fyne.Container)
+			row := o.(*paletteRow)
+			row.id = id
+			box := row.box
 			texts := box.Objects[0].(*fyne.Container)
 			label, home := texts.Objects[0].(*widget.Label), texts.Objects[1].(*widget.Label)
 			label.SetText(e.label)
@@ -221,7 +237,7 @@ func (w *MainWindow) showPalette() {
 			if e.home != "" {
 				name += ", in " + e.home
 			}
-			fyne.SetAccessibleLabel(o, name)
+			fyne.SetAccessibleLabel(row.box, name)
 		})
 	p.list.OnSelected = func(id widget.ListItemID) {
 		p.chosen = id
@@ -238,7 +254,8 @@ func (w *MainWindow) showPalette() {
 	if w.narrow {
 		width, height = size.Width-2*theme.Padding(), size.Height*0.55
 	}
-	hint := widget.NewLabel("Enter runs it · ↑↓ choose · Esc closes")
+	hint := widget.NewLabel("Enter runs it · ↑↓ choose · Esc closes · right-click: the top row")
+	p.hint = hint
 	hint.SizeName = theme.SizeNameCaptionText
 	hint.Importance = widget.LowImportance
 	content := container.NewBorder(p.entry, hint, nil, nil, p.list)
@@ -302,6 +319,11 @@ func (p *palette) run() {
 	}
 	e := p.shown[p.chosen]
 	p.pop.Hide()
+	if p.pick != nil {
+		p.w.focusMain()
+		p.pick(e.c)
+		return
+	}
 	p.w.runByName(e.c, e.action, e.away)
 }
 
@@ -355,4 +377,50 @@ func (f *paletteField) TypedKey(k *fyne.KeyEvent) {
 	default:
 		f.Entry.TypedKey(k)
 	}
+}
+
+// paletteRow is a line of the palette: a right-click (or a long press)
+// on it puts its command on the top row, or takes it off (toprow.go).
+type paletteRow struct {
+	widget.BaseWidget
+	p   *palette
+	box *fyne.Container
+	id  int
+}
+
+func newPaletteRow(p *palette, box *fyne.Container) *paletteRow {
+	r := &paletteRow{p: p, box: box}
+	r.ExtendBaseWidget(r)
+	return r
+}
+
+func (r *paletteRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(r.box) }
+
+func (r *paletteRow) TappedSecondary(e *fyne.PointEvent) {
+	if r.id < 0 || r.id >= len(r.p.shown) || r.p.pick != nil {
+		return
+	}
+	en := r.p.shown[r.id]
+	if en.action != nil { // a submenu's item: its command is no button
+		return
+	}
+	item := r.p.w.topRowItem(en.c.id)
+	if item == nil {
+		return
+	}
+	act := item.Action
+	item.Action = func() { r.p.close(); act() }
+	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", item), r.p.w.fyneWindow.Canvas(), e.AbsolutePosition)
+}
+
+// commandExName is c's name on the ':' line ("" if none): the palette
+// matches it as the ex completion does.
+func commandExName(c *command) string {
+	if by, ok := exByCommand(c); ok {
+		return by
+	}
+	if ec := exRegistryCmd(c); ec != nil {
+		return ec.name
+	}
+	return ""
 }

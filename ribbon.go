@@ -152,13 +152,19 @@ type ribbonBar struct {
 	w   *MainWindow
 	box *fyne.Container
 
-	tabBox   *fyne.Container // the tabs
-	tabs     []*ribbonTabButton
-	title    *scriptTitle
-	palette  *ribbonButton // the command palette's, at the tab row's end
-	order    *ribbonButton // the lock: Smart or Fixed (quick.go)
-	menus    *ribbonButton // ☰: the menus, beside it
-	tabRow   *fyne.Container
+	tabBox  *fyne.Container // the tabs
+	tabs    []*ribbonTabButton
+	title   *scriptTitle
+	palette *ribbonButton // the command palette's, at the tab row's end
+	order   *ribbonButton // the lock: Smart or Fixed (quick.go)
+	menus   *ribbonButton // ☰: the menus, beside it
+	tabRow  *fyne.Container
+	// the tab row's end (toprow.go): the name, what was added, the
+	// search field (the palette's button on a phone), the lock, ☰;
+	// those without room in its … menu
+	end      *overflowRow
+	pinned   []*ribbonButton // added to the top row
+	search   *topSearch
 	groupBox *fyne.Container // the groups of the tab chosen
 	groups   *container.Scroll
 	// the desktop's Quick row, under the groups (quick.go)
@@ -169,20 +175,17 @@ type ribbonBar struct {
 	selected string  // the tab chosen
 	height   float32 // the ribbon's height as last built
 	picked   bool    // chosen by the user (a phone's Quick does not take its place)
-	// previewing: the Preview tab is there; boarding: the Stripboard tab
-	// (the board the middle tab in front): each comes forward as it comes
-	// (contextual tabs); beforeContext: the tab chosen before the first
-	// came, chosen again when the last goes
-	beforeContext        string
-	previewing, boarding bool
-	// carding: the cards are the middle tab in front (their Cards tab:
-	// cards_tab.go)
-	carding   bool
-	pageCount *widget.Label // the Preview tab's "Page n of N"
-	env       cmdEnv
-	stage     int    // the Production stage shown (stageLock …)
-	builtFor  string // what the groups were made for
-	phone     bool
+	// the contextual tabs (Preview, Stripboard, Cards, Fix-Up, Title
+	// Page) shown as last refreshed; beforeContext: the tab chosen before
+	// the first came forward (or was chosen), chosen again when the last
+	// goes (followContext)
+	ctxShown      map[string]bool
+	beforeContext string
+	pageCount     *widget.Label // the Preview tab's "Page n of N"
+	env           cmdEnv
+	stage         int    // the Production stage shown (stageLock …)
+	builtFor      string // what the groups were made for
+	phone         bool
 
 	buttons  []*ribbonButton            // the groups' buttons, in order
 	elements map[string]*ribbonButton   // the element buttons, by element
@@ -199,7 +202,7 @@ type ribbonBar struct {
 
 func newRibbon(w *MainWindow) *ribbonBar {
 	// no tab chosen yet: the order's first (Quick in Smart, else Write)
-	r := &ribbonBar{w: w, stage: -1, byID: map[string][]*ribbonButton{}}
+	r := &ribbonBar{w: w, stage: -1, byID: map[string][]*ribbonButton{}, ctxShown: map[string]bool{}}
 	r.tabBox = container.NewHBox()
 	for _, t := range commands().ribbon {
 		title := t.title
@@ -235,33 +238,122 @@ func newRibbon(w *MainWindow) *ribbonBar {
 	r.quickRow = container.NewHBox()
 	r.quickRowBox = container.NewVBox(widget.NewSeparator(), container.NewHScroll(r.quickRow))
 	r.quickRowBox.Hide()
-	r.tabRow = container.New(&tabRowLayout{tabs: r.tabBox}, container.NewHScroll(r.tabBox), r.title, container.NewHBox(r.palette, r.order, r.menus))
+	r.phone = w.narrow
+	r.buildEnd()
+	r.tabRow = container.New(&tabRowLayout{r: r}, container.NewHScroll(r.tabBox), r.end.Container)
 	r.box = container.NewVBox(r.tabRow, widget.NewSeparator(), r.groups, r.quickRowBox)
 	return r
 }
 
 // tabRowLayout puts the tabs at the left (scrolling sideways where the
-// row is too narrow for them: a phone), the palette's button at the
-// right, the script's name between them if there is room.
-type tabRowLayout struct{ tabs *fyne.Container }
+// row is too narrow for them: a phone), the row's end at the right: the
+// script's name, then the icons; where there is too little room the tabs
+// scroll in less than half the row and the end keeps the name before
+// its less used icons (toprow.go).
+type tabRowLayout struct{ r *ribbonBar }
 
 func (l *tabRowLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
-	h := max(objects[0].MinSize().Height, l.tabs.MinSize().Height, objects[2].MinSize().Height)
-	return fyne.NewSize(objects[2].MinSize().Width+2*ribbonPhoneHeight, h)
+	h := max(objects[0].MinSize().Height, l.r.tabBox.MinSize().Height, objects[1].MinSize().Height)
+	return fyne.NewSize(objects[1].MinSize().Width+2*ribbonPhoneHeight, h)
 }
 
 func (l *tabRowLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	tabs, title, pal := objects[0], objects[1], objects[2]
-	pw := pal.MinSize().Width
-	pal.Move(fyne.NewPos(size.Width-pw, 0))
-	pal.Resize(fyne.NewSize(pw, size.Height))
-	tw := min(l.tabs.MinSize().Width, size.Width-pw)
+	tabs, end := objects[0], objects[1]
+	tabsWant := l.r.tabBox.MinSize().Width
+	endWant := l.r.end.natural()
+	tw := tabsWant
+	if tabsWant+endWant > size.Width {
+		tw = max(size.Width-endWant, min(tabsWant, size.Width*0.4))
+	}
+	tw = max(min(tw, size.Width-end.MinSize().Width), 0)
 	tabs.Move(fyne.NewPos(0, 0))
 	tabs.Resize(fyne.NewSize(tw, size.Height))
-	room := size.Width - pw - tw
-	setVisible(title, room >= 80)
-	title.Move(fyne.NewPos(tw, (size.Height-title.MinSize().Height)/2))
-	title.Resize(fyne.NewSize(max(room, 0), title.MinSize().Height))
+	end.Move(fyne.NewPos(tw, 0))
+	end.Resize(fyne.NewSize(size.Width-tw, size.Height))
+}
+
+// buildEnd makes the tab row's end again, as the top row's changes have
+// it (toprow.go).
+func (r *ribbonBar) buildEnd() {
+	w := r.w
+	for _, b := range r.pinned {
+		b.stopPress()
+		b.hover.Out(w.tooltips, b.hoverTip())
+	}
+	r.pinned, r.search = nil, nil
+	homes := w.ribbonEndHomes()
+	env := r.env
+	if w.textEditor != nil {
+		env = w.cmdEnv()
+	}
+	var items []overflowItem
+	var ranks []float64
+	for i, h := range homes {
+		if h.sep {
+			continue
+		}
+		var b *ribbonButton
+		switch h.id {
+		case "app.palette":
+			b = r.palette
+		case "view.ribbonLock":
+			b = r.order
+		case "view.menu":
+			b = r.menus
+		default:
+			c := cmd(h.id)
+			b = newRibbonButton(r, c, false)
+			b.compact, b.top = true, true
+			if el, ok := strings.CutPrefix(h.id, "format.element."); ok {
+				b.label, b.mark = el, elementMarks[el]
+			}
+			r.pinned = append(r.pinned, b)
+		}
+		it := r.endItem(b)
+		if h.id == "app.palette" {
+			r.search = w.newTopSearch(b, w.narrow)
+			it.obj = r.search.Container
+		}
+		items = append(items, it)
+		ranks = append(ranks, w.topRank(h.id, env)+float64(len(homes)-i)/100)
+	}
+	end := newOverflowRow(w.tooltips, items, r.title, 0)
+	end.more.Tip = "More"
+	end.keepFill = topTitleRoom
+	end.fillMenu = func() []*fyne.MenuItem { return []*fyne.MenuItem{w.renameItem()} }
+	end.rank = func(i int) float64 { return ranks[i] }
+	r.end = end
+	if r.tabRow != nil {
+		r.tabRow.Objects[1] = end.Container
+		r.tabRow.Refresh()
+	}
+}
+
+// endItem is b on the tab row's end: in its … menu, its command (☰'s
+// menus as a submenu).
+func (r *ribbonBar) endItem(b *ribbonButton) overflowItem {
+	return overflowItem{obj: b, menu: func(fyne.CanvasObject) []*fyne.MenuItem {
+		if b == r.menus {
+			item := fyne.NewMenuItem("Menus", nil)
+			item.Icon = theme.MenuIcon()
+			item.ChildMenu = r.w.menusMenu()
+			return []*fyne.MenuItem{item}
+		}
+		item := fyne.NewMenuItem(b.c.labelIn(r.env), b.press)
+		item.Icon = b.icon
+		item.Disabled = b.disabled
+		return []*fyne.MenuItem{item}
+	}}
+}
+
+// onEnd reports whether b is on the tab row's end now (not taken off).
+func (r *ribbonBar) onEnd(b *ribbonButton) bool {
+	for _, it := range r.end.items {
+		if it.obj == fyne.CanvasObject(b) || r.search != nil && b == r.palette && it.obj == fyne.CanvasObject(r.search.Container) {
+			return true
+		}
+	}
+	return false
 }
 
 // tabShown reports whether the tab titled t applies in env.
@@ -269,6 +361,11 @@ func tabShown(t ribbonTab, env cmdEnv) bool { return (t.when == nil || t.when(en
 
 // selectTab shows a tab's groups.
 func (r *ribbonBar) selectTab(title string) {
+	if t, ok := tabOf(title); ok && t.contextual && !t.forward && r.selected != title { // chosen by hand (Title Page): gone, it goes back there
+		if c, ok := tabOf(r.selected); !ok || !c.contextual {
+			r.beforeContext = r.selected
+		}
+	}
 	r.selected, r.picked = title, true
 	r.refresh()
 }
@@ -283,33 +380,52 @@ func tabOf(title string) (ribbonTab, bool) {
 	return ribbonTab{}, false
 }
 
-// contextFollow brings a contextual tab forward as its view comes (on:
-// shown now; *was: as last seen), the tab chosen before kept; as it goes,
-// the other contextual tab still there, else that one, comes back.
-func (r *ribbonBar) contextFollow(was *bool, on bool, title string) {
-	if on == *was {
-		return
-	}
-	*was = on
-	if on {
-		if t, ok := tabOf(r.selected); !ok || !t.contextual {
-			r.beforeContext = r.selected
+// followContext follows the contextual tabs (Preview, Stripboard,
+// Cards, Fix-Up, Title Page) as their contexts come and go: one coming
+// forward is chosen, the tab chosen before kept (a contextual one keeps
+// the one before it); one chosen going, another forward one still there
+// is chosen (the first in the ribbon's order), else that tab before.
+func (r *ribbonBar) followContext(env cmdEnv) {
+	var gone bool
+	for _, t := range commands().ribbon {
+		if !t.contextual {
+			continue
 		}
-		r.selected = title
-		return
+		shown := tabShown(t, env)
+		if shown == r.ctxShown[t.title] {
+			continue
+		}
+		r.ctxShown[t.title] = shown
+		switch {
+		case shown && t.forward:
+			if c, ok := tabOf(r.selected); !ok || !c.contextual {
+				r.beforeContext = r.selected
+			}
+			r.selected = t.title
+		case !shown && r.selected == t.title:
+			gone = true
+		}
 	}
-	if r.selected != title {
+	if !gone {
 		return
 	}
 	r.selected = r.beforeContext
-	switch {
-	case r.boarding:
-		r.selected = "Stripboard"
-	case r.previewing:
-		r.selected = "Preview"
-	case r.carding:
-		r.selected = "Cards"
+	for _, t := range commands().ribbon {
+		if t.contextual && t.forward && r.ctxShown[t.title] {
+			r.selected = t.title
+			return
+		}
 	}
+}
+
+// inContext reports whether a contextual tab that comes forward is there.
+func (r *ribbonBar) inContext() bool {
+	for _, t := range commands().ribbon {
+		if t.contextual && t.forward && r.ctxShown[t.title] {
+			return true
+		}
+	}
+	return false
 }
 
 // productionStage is the stage the Production pane shows (the one looked
@@ -341,9 +457,7 @@ func (r *ribbonBar) refresh() {
 	}
 	r.menus.follow(env)
 	r.order.follow(env)
-	r.contextFollow(&r.boarding, env.strips, "Stripboard") // the stripboard came to the front or left it
-	r.contextFollow(&r.previewing, env.preview, "Preview") // a preview opened or closed
-	r.contextFollow(&r.carding, env.cards, "Cards")        // the cards came to the front or left it
+	r.followContext(env) // a contextual tab came or went
 	if t, ok := tabOf(r.selected); !ok || !tabShown(t, env) {
 		r.selected = "Write" // the tab gone (Fixed has no Quick tab), or none chosen yet
 		if env.smart {
@@ -360,7 +474,8 @@ func (r *ribbonBar) refresh() {
 	}
 	r.stage = stage
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
-		boolKey(env.away), boolKey(env.midDoc), boolKey(env.strips), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), boolKey(env.cards), boolKey(env.timeline), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
+		boolKey(env.away), boolKey(env.midDoc), boolKey(env.strips), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), boolKey(env.cards), boolKey(env.timeline),
+		boolKey(env.fixup), boolKey(env.fixupPDF), boolKey(env.titlePage), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
 		boolKey(env.smart), strconv.Itoa(w.quick().gen), boolKey(r.quickRowShown())}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
@@ -375,6 +490,9 @@ func (r *ribbonBar) refresh() {
 		b.follow(env)
 	}
 	r.palette.follow(env)
+	for _, b := range r.pinned {
+		b.follow(env)
+	}
 	r.tabRow.Refresh()
 	if r.tipsOn && r.tipLevel == 2 {
 		r.assignTips(2) // other buttons now
@@ -816,7 +934,16 @@ func (r *ribbonBar) assignTips(level int) {
 		for _, t := range tabs {
 			labels = append(labels, t.title)
 		}
-		labels = append(labels, r.palette.label, "Menus", r.order.label)
+		ends := r.tipEnds()
+		for _, b := range ends {
+			labels = append(labels, b.c.labelIn(r.env))
+			if b == r.palette || b == r.order {
+				labels[len(labels)-1] = b.label
+			}
+			if b == r.menus {
+				labels[len(labels)-1] = "Menus"
+			}
+		}
 		for _, b := range r.rowButtons { // the desktop's Quick row
 			labels = append(labels, b.label)
 		}
@@ -825,11 +952,11 @@ func (r *ribbonBar) assignTips(level int) {
 			t.setTip(tips[i])
 		}
 		n := len(tabs)
-		r.palette.setTip(tips[n])
-		r.menus.setTip(tips[n+1])
-		r.order.setTip(tips[n+2])
+		for i, b := range ends {
+			b.setTip(tips[n+i])
+		}
 		for i, b := range r.rowButtons {
-			b.setTip(tips[n+3+i])
+			b.setTip(tips[n+len(ends)+i])
 		}
 		return
 	}
@@ -852,7 +979,7 @@ func (r *ribbonBar) clearTips() {
 	for _, t := range r.tabs {
 		t.setTip("")
 	}
-	for _, b := range append(append([]*ribbonButton{r.palette, r.menus, r.order}, r.buttons...), r.rowButtons...) {
+	for _, b := range append(append(append([]*ribbonButton{r.palette, r.menus, r.order}, r.pinned...), r.buttons...), r.rowButtons...) {
 		b.setTip("")
 	}
 }
@@ -908,10 +1035,14 @@ func (r *ribbonBar) keyTipTyped(ch rune) bool {
 		if r.menus.tip == typed {
 			match = func() {
 				r.leaveKeyTips(true)
-				r.w.showMenusAt(r.menus)
+				var at fyne.CanvasObject = r.menus
+				if !r.menus.Visible() { // in the … menu: by it
+					at = r.end.more
+				}
+				r.w.showMenusAt(at)
 			}
 		}
-		for _, b := range append([]*ribbonButton{r.order}, r.rowButtons...) { // the lock, the Quick row
+		for _, b := range append(append([]*ribbonButton{r.order}, r.pinned...), r.rowButtons...) { // the lock, those added, the Quick row
 			if b.tip == typed {
 				b := b
 				match = func() {
@@ -1083,7 +1214,20 @@ func (t *ribbonTabButton) KeyUp(k *fyne.KeyEvent) { t.r.w.altUp(k.Name) }
 func (b *ribbonButton) KeyDown(*fyne.KeyEvent)    {}
 func (b *ribbonButton) KeyUp(k *fyne.KeyEvent)    { b.r.w.altUp(k.Name) }
 func (b *ribbonButton) onTabRow() bool {
-	return b == b.r.palette || b == b.r.menus || b == b.r.order
+	return b == b.r.palette || b == b.r.menus || b == b.r.order || b.top
+}
+
+// tipEnds are the tab row's end's buttons with key tips: the palette's,
+// ☰, the lock (the order they always had), then those added; not those
+// taken off the row.
+func (r *ribbonBar) tipEnds() []*ribbonButton {
+	var out []*ribbonButton
+	for _, b := range append([]*ribbonButton{r.palette, r.menus, r.order}, r.pinned...) {
+		if r.onEnd(b) {
+			out = append(out, b)
+		}
+	}
+	return out
 }
 func (t *ribbonTabButton) TypedRune(ch rune) {
 	if ch == ' ' && !t.r.tipsOn {
@@ -1194,6 +1338,7 @@ type ribbonButton struct {
 	// homeLabel is its place's own label, if any (Source Pane)
 	homeLabel string
 	iconOnly  bool // no label on a phone (the palette's: the tabs have the row)
+	top       bool // added to the top row (toprow.go)
 	compact   bool // an icon alone, always (B I U)
 	large     bool
 	onTap     func()
@@ -1344,13 +1489,35 @@ func (b *ribbonButton) TappedSecondary(e *fyne.PointEvent) {
 	b.r.showQuickMenu(b, e.AbsolutePosition)
 }
 
+// buttonMenu is a ribbon button's menu: the Quick tab's (quick.go), and
+// the top row's (toprow.go); nil if it has neither.
+func (r *ribbonBar) buttonMenu(b *ribbonButton) *fyne.Menu {
+	var items []*fyne.MenuItem
+	if m := r.quickMenu(b); m != nil {
+		items = m.Items
+	}
+	if b.c != nil {
+		if it := r.w.topRowItem(b.c.id); it != nil {
+			if len(items) > 0 {
+				items = append([]*fyne.MenuItem{items[0], it}, items[1:]...)
+			} else {
+				items = []*fyne.MenuItem{it}
+			}
+		}
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return fyne.NewMenu("", items...)
+}
+
 // MouseDown and MouseUp: a press held half a second is a long one, its
 // menu (the browser on a phone sends a finger as the mouse); not if the
 // groups scrolled meanwhile (the finger swiped them).
 func (b *ribbonButton) MouseDown(e *desktop.MouseEvent) {
 	b.pressed = false
 	b.stopPress()
-	if e.Button != desktop.MouseButtonPrimary || b.r.quickMenu(b) == nil {
+	if e.Button != desktop.MouseButtonPrimary || b.r.buttonMenu(b) == nil {
 		return
 	}
 	pos := e.AbsolutePosition

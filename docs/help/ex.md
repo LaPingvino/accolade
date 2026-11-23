@@ -268,6 +268,8 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:ribbon** — View > Window > Ribbon
 - **:font** `item` — View > Window > Font
 - **:toolbar** — View > Toolbar
+- **:add-to-top-row** — View > Add to the Top Row
+- **:reset-top-row** — View > Reset the Top Row
 - **:lock-ribbon-order** — View > Lock Ribbon Order (not in the browser)
 - **:quick-row** — View > Quick Row (not in the browser)
 
@@ -281,35 +283,54 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 
 ### Preview
 
-- **:fit-width** — Preview > Zoom > Fit Width (while a preview is shown)
-- **:actual-size** — Preview > Zoom > Actual Size (while a preview is shown)
-- **:zoom-in** — Preview > Zoom > Zoom In (while a preview is shown)
-- **:zoom-out** — Preview > Zoom > Zoom Out (while a preview is shown)
-- **:previous-page** — Preview > Pages > Previous Page (while a preview is shown)
-- **:next-page** — Preview > Pages > Next Page (while a preview is shown)
-- **:save-pdf** — Preview > Output > Save PDF (while a preview is shown)
-- **:open-in-viewer** — Preview > Output > Open in Viewer (while a preview is shown; not in the browser)
-- **:preview-page-setup** — Preview > Setup > Page Setup (while a preview is shown)
-- **:preview-text** — Preview > Show > Text (while a Live Preview is shown)
-- **:preview-pages** — Preview > Show > Pages (while a Live Preview is shown)
-- **:preview-refresh** — Preview > Refresh > Refresh (while a preview is shown)
-- **:preview-follow-edits** — Preview > Refresh > Follow Edits (while a preview is shown)
-- **:close-preview** — Preview > Close > Close Preview (while a preview is shown)
+- **:fit-width** — Preview > Zoom > Fit Width (while the Preview tab is there)
+- **:actual-size** — Preview > Zoom > Actual Size (while the Preview tab is there)
+- **:zoom-in** — Preview > Zoom > Zoom In (while the Preview tab is there)
+- **:zoom-out** — Preview > Zoom > Zoom Out (while the Preview tab is there)
+- **:previous-page** — Preview > Pages > Previous Page (while the Preview tab is there)
+- **:next-page** — Preview > Pages > Next Page (while the Preview tab is there)
+- **:save-pdf** — Preview > Output > Save PDF (while the Preview tab is there)
+- **:open-in-viewer** — Preview > Output > Open in Viewer (while the Preview tab is there)
+- **:preview-page-setup** — Preview > Setup > Page Setup (while the Preview tab is there)
+- **:preview-text** — Preview > Show > Text (while the Preview tab is there)
+- **:preview-pages** — Preview > Show > Pages (while the Preview tab is there)
+- **:preview-refresh** — Preview > Refresh > Refresh (while the Preview tab is there)
+- **:preview-follow-edits** — Preview > Refresh > Follow Edits (while the Preview tab is there)
+- **:close-preview** — Preview > Close > Close Preview (while the Preview tab is there)
 
 ### Cards
 
-- **:cards-grid** — The cards in rows, grouped (Cards > Grid) (not in the browser)
-- **:cards-timeline** — The scenes in story order, as long as they are, under their acts (Cards > Timeline) (not in the browser)
-- **:lanes-characters** — A lane for each who speaks: where they are, and where they are gone (Cards > Lanes by Character) (not in the browser)
-- **:lanes-tags** — A lane for each tag on the headings ([[London]]): a storyline's scenes (Cards > Lanes by Tag) (not in the browser)
-- **:timeline-zoom-in** — Cards > Zoom In on the Timeline (not in the browser)
-- **:timeline-zoom-out** — Cards > Zoom Out on the Timeline (not in the browser)
-- **:make-it-the-order** — Put the scenes in the order the groups show, inside each section, as one undo step (Cards > Make It the Order) (not in the browser)
-- **:new-scene** — A new scene after the current card's (Cards > New Scene) (not in the browser)
-- **:fold-synopses** — The cards as their headings and how they start, without their synopses (Cards > Fold Synopses) (not in the browser)
-- **:open-card** — The current card's scene in the script (Cards > Open in the Script) (not in the browser)
-- **:back-to-script** — Cards > Back to the Script (not in the browser)
-- **:group-section** — Cards > Group By Section (not in the browser)
-- **:group-color** — Cards > Group By Color (not in the browser)
-- **:group-character** — Cards > Group By Character (not in the browser)
-- **:group-tag** — Cards > Group By Tag (not in the browser)
+- **:cards-grid** — The cards in rows, grouped (Cards > Grid) (while the Cards tab is there)
+- **:cards-timeline** — The scenes in story order, as long as they are, under their acts (Cards > Timeline) (while the Cards tab is there)
+- **:lanes-characters** — A lane for each who speaks: where they are, and where they are gone (Cards > Lanes by Character) (while the Cards tab is there)
+- **:lanes-tags** — A lane for each tag on the headings ([[London]]): a storyline's scenes (Cards > Lanes by Tag) (while the Cards tab is there)
+- **:timeline-zoom-in** — Cards > Zoom In on the Timeline (while the Cards tab is there)
+- **:timeline-zoom-out** — Cards > Zoom Out on the Timeline (while the Cards tab is there)
+- **:make-it-the-order** — Put the scenes in the order the groups show, inside each section, as one undo step (Cards > Make It the Order) (while the Cards tab is there)
+- **:new-scene** — A new scene after the current card's (Cards > New Scene) (while the Cards tab is there)
+- **:fold-synopses** — The cards as their headings and how they start, without their synopses (Cards > Fold Synopses) (while the Cards tab is there)
+- **:open-card** — The current card's scene in the script (Cards > Open in the Script) (while the Cards tab is there)
+- **:back-to-script** — Cards > Back to the Script (while the Cards tab is there)
+- **:group-section** — Cards > Group By Section (while the Cards tab is there)
+- **:group-color** — Cards > Group By Color (while the Cards tab is there)
+- **:group-character** — Cards > Group By Character (while the Cards tab is there)
+- **:group-tag** — Cards > Group By Tag (while the Cards tab is there)
+
+### Fix-Up
+
+- **:apply-kept-rules-again** — Fix-Up > Fix > Apply the Kept Rules Again (while the Fix-Up tab is there)
+- **:read-with-ocr-again** — Fix-Up > PDF > Read with OCR Again (while the Fix-Up tab is there)
+- **:check-for-garbled-text** — Fix-Up > PDF > Check for Garbled Text (while the Fix-Up tab is there)
+- **:done-fixing** — Fix-Up > Done > Done Fixing (while the Fix-Up tab is there)
+
+### Title Page
+
+- **:to-script** — Title Page > Page > To the Script (while the Title Page tab is there)
+- **:add-title** — Title Page > Add > Add Title (while the Title Page tab is there)
+- **:add-credit** — Title Page > Add > Add Credit (while the Title Page tab is there)
+- **:add-author** — Title Page > Add > Add Author (while the Title Page tab is there)
+- **:add-source** — Title Page > Add > Add Source (while the Title Page tab is there)
+- **:add-draft-date** — Title Page > Add > Add Draft Date (while the Title Page tab is there)
+- **:add-contact** — Title Page > Add > Add Contact (while the Title Page tab is there)
+- **:add-notes** — Title Page > Add > Add Notes (while the Title Page tab is there)
+- **:add-copyright** — Title Page > Add > Add Copyright (while the Title Page tab is there)

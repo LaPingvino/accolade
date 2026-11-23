@@ -339,7 +339,7 @@ const foldSynopsesPref = "cards-fold-synopses"
 
 // cardsTab is the Cards tab's layout.
 func cardsTab() ribbonTab {
-	return ribbonTab{title: "Cards", when: cardsInFront, contextual: true, groups: []ribbonGroup{
+	return ribbonTab{title: "Cards", when: cardsInFront, contextual: true, forward: true, groups: []ribbonGroup{
 		{title: "Rearrange", homes: []home{big("structure.move"), big("structure.swap"), at("structure.up"), at("structure.down"),
 			at("structure.promote"), at("structure.demote")}},
 		{title: "Arrange", homes: []home{big("cards.grid"), big("cards.timeline"), at("cards.lanesCharacters"), at("cards.lanesTags"),

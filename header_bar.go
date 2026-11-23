@@ -2,6 +2,7 @@ package main
 
 import (
 	"runtime"
+	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -119,8 +120,7 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 
 	// the rows from the registry (commands.go); both put what does not fit
 	// in a menu
-	top := newOverflowRow(tips, hb.rowItems(commands().topRow, env, true), hb.titleLabel, 6)
-	hb.top = top
+	top := hb.newTop(env)
 	editing := newOverflowRow(tips, hb.rowItems(commands().screenplayRow, env, false), nil, 0)
 	hb.screenplayRow = container.NewBorder(nil, nil, nil, hb.format, editing.Container)
 	hb.markdownRow = newOverflowRow(tips, hb.rowItems(commands().markdownRow, cmdEnv{markdown: true, browser: inBrowser}, false), nil, 0).Container
@@ -138,6 +138,55 @@ func NewHeaderBar(window *MainWindow) *HeaderBar {
 	hb.docRow = newOverflowRow(tips, hb.rowItems(docHomes, cmdEnv{markdown: true, browser: inBrowser}, false), nil, 0).Container
 	hb.container = container.NewVBox(top.Container, hb.screenplayRow)
 	return hb
+}
+
+// newTop makes the top row (toprow.go: as the window's changes have it),
+// the name keeping its room before the less used icons.
+func (hb *HeaderBar) newTop(env cmdEnv) *overflowRow {
+	w := hb.window
+	hb.buttons = map[string]*tooltip.Button{}
+	homes := w.toolbarHomes()
+	at := 6 // the name after the file's and undo's buttons
+	if i := slices.IndexFunc(homes, func(h home) bool { return h.id == "edit.redo" }); i >= 0 {
+		at = i + 1
+	}
+	items := hb.rowItems(homes, env, true)
+	top := newOverflowRow(w.tooltips, items, hb.titleLabel, min(at, len(items)))
+	top.keepFill = topTitleRoom
+	top.fillMenu = func() []*fyne.MenuItem { return []*fyne.MenuItem{w.renameItem()} }
+	ids := make([]string, len(items))
+	for i, h := range homes {
+		if i < len(ids) && !h.sep {
+			ids[i] = h.id
+		}
+	}
+	rankEnv := env
+	if w.textEditor != nil {
+		rankEnv = w.cmdEnv()
+	}
+	ranks := make([]float64, len(ids))
+	for i, id := range ids {
+		ranks[i] = w.topRank(id, rankEnv) + float64(len(ids)-i)/100 // the later first among equals
+	}
+	top.rank = func(i int) float64 { return ranks[i] }
+	hb.top = top
+	return top
+}
+
+// rebuildTop makes the top row again (its icons changed, or the window
+// turned narrow or wide), as the document and the role have it.
+func (hb *HeaderBar) rebuildTop() {
+	w := hb.window
+	env := cmdEnv{markdown: w.markdown, browser: inBrowser}
+	top := hb.newTop(env)
+	hb.followTop(env)
+	if w.textEditor != nil {
+		hb.showRole(w.cmdEnv())
+	}
+	if hb.container != nil {
+		hb.container.Objects[0] = top.Container
+		hb.container.Refresh()
+	}
 }
 
 // rowItems are a header row's items for homes: a command with an icon
@@ -182,12 +231,24 @@ func (hb *HeaderBar) rowItems(homes []home, env cmdEnv, tracked bool) []overflow
 		if c.icon != nil {
 			icon = c.icon()
 		}
-		if c.text == "" { // an icon button
+		if c.text == "" || tracked { // an icon button (a mark's on the top row: an element added there)
 			b := tooltip.NewButton(icon, c.tipIn(env), nil, w.tooltips)
 			b.OnTapped = w.tapped(c, b)
 			b.Importance = widget.LowImportance
+			if c.text != "" {
+				b.Text = c.text
+			}
 			if tracked {
 				hb.buttons[c.id] = b
+				id := c.id
+				b.Secondary = func(pos fyne.Position) { w.showTopRowMenu(id, b, pos) }
+				if c.id == "app.palette" { // the search field, wide (toprow.go)
+					s := w.newTopSearch(b, w.narrow)
+					it := buttonItem(b)
+					it.obj = s.Container
+					items = append(items, it)
+					continue
+				}
 			}
 			if c.id == "view.source" {
 				items = append(items, keptItem(b))
@@ -226,7 +287,13 @@ func (hb *HeaderBar) button(id string) *tooltip.Button { return hb.buttons[id] }
 // setMarkdown shows the bar for a Markdown document or a screenplay: the
 // editing row, the preview's tip; the export is a screenplay's.
 func (hb *HeaderBar) setMarkdown(on bool) {
-	env := cmdEnv{markdown: on, browser: inBrowser}
+	hb.followTop(cmdEnv{markdown: on, browser: inBrowser})
+	hb.showEditingRow(on, false)
+}
+
+// followTop enables the top row's buttons for the document's kind, with
+// its tips.
+func (hb *HeaderBar) followTop(env cmdEnv) {
 	for id, b := range hb.buttons { // a screenplay's disabled, the tips its own
 		c := cmd(id)
 		if c.applies(env) {
@@ -236,7 +303,6 @@ func (hb *HeaderBar) setMarkdown(on bool) {
 		}
 		b.Tip = c.tipIn(env)
 	}
-	hb.showEditingRow(on, false)
 }
 
 // showEditingRow shows the editing row for what the main editor holds:

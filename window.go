@@ -33,6 +33,11 @@ import (
 type MainWindow struct {
 	fyneWindow fyne.Window
 	app        *Application
+	// fixupFrom: the file the script was imported from, until saved or
+	// done fixing (the Fix-Up tab); inTitlePage: the cursor is in the
+	// title page (the Title Page tab): contextual.go
+	fixupFrom   string
+	inTitlePage bool
 
 	// Core components
 	textEditor *editor.ScriptEditor
@@ -714,6 +719,7 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.setCarried(nil, "")
 	w.suggestedName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)) + ".fountain"
 	w.hasChanges = true
+	w.startFixUp(filePath) // its Fix-Up tab, until saved (contextual.go)
 	if pageLockOf(text) != nil {
 		w.setStatus("Imported from " + from + ", its locked pages kept: where Accolade prints a page longer, it goes on to an A-page")
 	} else {
@@ -850,6 +856,7 @@ func (w *MainWindow) saveToFile(filePath string) error {
 
 	w.cancelAutoSave()
 	w.hasChanges = false
+	w.endFixUp() // saved: the Fix-Up tab goes (contextual.go)
 	w.updateTitle()
 	return nil
 }
@@ -1463,6 +1470,7 @@ func (w *MainWindow) updateCurrentElement() {
 	if w.cueHere() { // Tab made it a cue (keyflow.go)
 		w.currentElement = elementNames[syntax.Character]
 	}
+	w.followTitlePage(line) // the Title Page tab (contextual.go)
 	if w.headerBar != nil {
 		w.headerBar.showElement(w.currentElement)
 		if w.ribbon != nil {
@@ -1736,7 +1744,7 @@ const narrowWidth = 600
 func (w *MainWindow) onWindowWidth(width float32) {
 	if narrow := width < narrowWidth; narrow != w.narrow {
 		w.narrow = narrow
-		if r := w.ribbon; narrow && r != nil && w.ribbonOrder == "" && !r.picked && !r.previewing && !r.boarding && !r.carding {
+		if r := w.ribbon; narrow && r != nil && w.ribbonOrder == "" && !r.picked && !r.inContext() {
 			r.selected = "" // a phone's ribbon: the order's first tab in front (Quick in Smart: quick.go)
 		}
 		c := w.fyneWindow.Canvas()
@@ -1744,6 +1752,7 @@ func (w *MainWindow) onWindowWidth(width float32) {
 		w.pagesTabFollow(true) // the pages a tab of their own on a phone, beside the script on a desktop
 		w.relayout()
 		w.productionFollow() // its buttons go where the room is
+		w.rebuildTopRow()    // a phone's top row, or the desktop's (toprow.go)
 		w.ribbonRefresh()    // one row of tabs, one of buttons, on a phone
 		if w.stripsShown() {
 			w.stripboard.update() // strips of two lines on a phone

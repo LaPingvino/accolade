@@ -4,7 +4,7 @@ A script read from a PDF, a scan or another app's file comes out as well as Acco
 
 ## Fix Lines Like This
 
-Put the cursor on one line of the kind and choose **Edit > Fix Lines Like This…** (also in the editor's right-click menu, the Adaptation menu, and on the ribbon under Edit > Fix-Up).
+Put the cursor on one line of the kind and choose **Edit > Fix Lines Like This…** (also in the editor's right-click menu, the Adaptation menu, and on the ribbon under Edit > Fix-Up). Right after an import from a PDF or Final Draft, the ribbon has a **Fix-Up** tab in front, until the script is saved or you choose Done Fixing: Fix Lines Like This…, Apply the Kept Rules Again…, and for a PDF Read with OCR Again… and Check for Garbled Text, which says how many pages are scans and how many have text that looks garbled.
 
 1. **Line like this** is the cursor's line. Change it to start from another.
 2. **Pattern** is the shape Accolade proposes for it, in plain words: `Scene <number> - <text>` for "Scene 6 - int. day -". It is matched against each whole line, its marks (`!`, `.`, `@`, `>`) taken off, words in any case, any dash for a dash. Edit it: the count under it and the lines lit in the script follow as you type.
