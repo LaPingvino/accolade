@@ -43,13 +43,14 @@ func (c lexConf) titleTemplateNames() (keys, names []string) {
 }
 
 // titleTemplate is the key of the template the window's script prints
-// its title page with: the page setup's, the standard one ("") if the
-// configuration has none of that name (one's own, deleted since).
+// its title page with: its own, else the default (titlepage_choice.go);
+// the standard one ("") if the configuration has none of that name (one's
+// own, deleted since).
 func (w *MainWindow) titleTemplate() string {
 	if w.settings == nil {
 		return ""
 	}
-	return w.validTitleTemplate(w.pageSetup().titleTemplate)
+	return w.validTitleTemplate(w.scriptTitleTemplate())
 }
 
 // validTitleTemplate is key if the script's configuration has a template
@@ -97,8 +98,9 @@ func (w *MainWindow) chosenTitleTemplate(s *widget.Select) string {
 	return ""
 }
 
-// setTitleTemplate makes key the title page's template: the page setup's,
-// so Export, Print and Preview follow (a preview shown is made again).
+// setTitleTemplate makes key the title page's template: the script's, and
+// the default for new scripts (setPageSetup); Export, Print and Preview
+// follow (a preview shown is made again).
 func (w *MainWindow) setTitleTemplate(key string) {
 	p := w.pageSetup()
 	if key == rules.StandardTitlePage {

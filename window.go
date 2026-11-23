@@ -163,6 +163,11 @@ type MainWindow struct {
 	// ownFormat is the script's format when its .accolade names one
 	// (else the settings' "script-format"), scriptFormatKey
 	ownFormat string
+	// titleChoice is the script's title page template, chosen for it or
+	// come with its .accolade ("" none); titleKept the one kept for its
+	// file on this machine ("" none yet: it prints with the default),
+	// titlepage_choice.go
+	titleChoice, titleKept string
 	// adoptAsked is the Add to My Settings dialog shown last (for tests)
 	adoptAsked *adoptDialog
 	// languageSaid: the script's language was said (by its file, or chosen
@@ -615,6 +620,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	} else {
 		w.setCarried(nil, "")
 	}
+	w.openTitleChoice(filePath, bundle)
 
 	// as stored: Windows-1252, a byte order mark, CR LF are kept for saving
 	text, format := decodeScript(content)
@@ -883,6 +889,7 @@ func (w *MainWindow) saveToFile(filePath string) error {
 		nativeData, also = encodeScript(native, w.format)
 		utf8Instead = utf8Instead || also
 	}
+	w.pinTitleChoice(filePath) // the template it prints with is its own from now on
 	if err := w.writeScript(filePath, data, nativeData); err != nil {
 		return fmt.Errorf("failed to write file: %v", err)
 	}
@@ -910,8 +917,8 @@ func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
 			return fmt.Errorf("a bundle folder cannot be saved in the browser: use .accolade or .textpack")
 		}
 		markdown, gen, lang, noCopy := w.markdown, w.bundleGen, w.language, !w.keepsFountainCopy(filePath)
-		conf, format := w.lex(), w.scriptFormatKey()
-		carry := carryFor(conf, lang, format)
+		conf, format, titlePage := w.lex(), w.scriptFormatKey(), w.bundleTitlePage()
+		carry := carryFor(conf, lang, format, w.titleTemplate())
 		var extra []bundleFile
 		if w.bundle == nil { // a plain script made a bundle: its extras carried in
 			var err error
@@ -930,7 +937,7 @@ func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {
 				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra, source: source,
-					highlandWarned: warn, native: native, lang: lang, noCopy: noCopy, conf: conf, carry: carry, format: format, form: form})
+					highlandWarned: warn, native: native, lang: lang, noCopy: noCopy, conf: conf, carry: carry, format: format, titlePage: titlePage, form: form})
 			},
 			done: func(err error) {
 				if err == nil && warn {

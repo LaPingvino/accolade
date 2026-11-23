@@ -113,12 +113,29 @@ func (p pageSetup) writeTo(s *Settings) {
 // change (every key above at once): Preferences shows its line again.
 const pageSetupPref = "page-setup"
 
-// pageSetup is the window's page setup.
-func (w *MainWindow) pageSetup() pageSetup { return pageSetupOf(w.settings) }
+// pageSetup is the window's page setup: the settings', with the script's
+// own title page template (titlepage_choice.go).
+func (w *MainWindow) pageSetup() pageSetup {
+	p := pageSetupOf(w.settings)
+	p.titleTemplate = w.scriptTitleTemplate()
+	return p
+}
 
 // setPageSetup saves p and shows it everywhere: the ribbon's Scene
 // Numbers and CONTINUEDs, Preferences, the other windows.
+//
+// The title page template is the script's (titlepage_choice.go): a new
+// one chosen here becomes the script's, and the settings' default for
+// new scripts unless only the script has that template.
 func (w *MainWindow) setPageSetup(p pageSetup) {
+	if key := strings.TrimSpace(p.titleTemplate); key != w.titleTemplate() { // (one not here shows as the standard one)
+		w.chooseTitleTemplate(key)
+		if _, mine := machineLex().TitlePage(key); !mine {
+			p.titleTemplate = w.defaultTitleTemplate()
+		}
+	} else {
+		p.titleTemplate = w.defaultTitleTemplate()
+	}
 	w.changeSetting(pageSetupPref, p.writeTo)
 }
 

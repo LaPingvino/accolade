@@ -57,6 +57,8 @@ func bothName(it carriedItem) string {
 			taken = lexSettings.Knows(n)
 		case "elements", "format":
 			taken = machineLex().hasFormat(n)
+		case rules.ItemTitlePage:
+			_, taken = lexSettings.TitlePage(n)
 		}
 		if !taken {
 			return n
@@ -95,7 +97,11 @@ func adopt(choices []adoptChoice) (renamed map[string]string, err error) {
 				continue // one standard only
 			}
 			name := strings.TrimSpace(c.name)
-			if _, taken := lexSettings.Of(rules.Item{Kind: it.kind, Key: name}); taken || (it.kind == "elements" && machineLex().hasFormat(name)) {
+			_, taken := lexSettings.Of(rules.Item{Kind: it.kind, Key: name})
+			if it.kind == rules.ItemTitlePage {
+				_, taken = lexSettings.TitlePage(name) // a preset's name too
+			}
+			if taken || (it.kind == "elements" && machineLex().hasFormat(name)) {
 				return nil, fmt.Errorf("you have %q already: give theirs another name", name)
 			}
 			if theirs, err = rules.Renamed(theirs, item, name); err != nil {
@@ -226,6 +232,13 @@ func setConfItem(text string, item rules.Item, key string, conf rules.TOMLConf) 
 		return appendTables(text, stripTable(string(block), "Elements")), nil
 	case "standard":
 		return setRootKey(text, "Standard", tomlValue(conf.Standard)), nil
+	case rules.ItemTitlePage:
+		block, err := (rules.TOMLConf{TitlePages: conf.TitlePages}).Encode()
+		if err != nil {
+			return "", err
+		}
+		text = dropTables(text, "TitlePages."+key)
+		return appendTables(text, stripTable(string(block), "TitlePages")), nil
 	}
 	return "", errors.New("nothing to add for " + item.Kind)
 }
@@ -424,6 +437,10 @@ func (a *adoptDialog) apply() {
 	} else {
 		w.setLanguage(w.language) // the words as now
 	}
+	if n := renamed[rules.ItemTitlePage+":"+w.titleTemplate()]; n != "" {
+		w.chooseTitleTemplate(n) // keep both: theirs under its new name
+		w.hasChanges = true
+	}
 	if n := cmp2(renamed["format:"+w.scriptFormatKey()], renamed["elements:"+w.scriptFormatKey()]); n != "" {
 		w.ownFormat = n
 		w.applyScriptFormat()
@@ -489,6 +506,9 @@ func itemDetail(kind, key string, conf rules.TOMLConf, file []byte) string {
 		return "." + key + " files: " + languageLabel(conf.Extensions[key])
 	case "standard":
 		return languageLabel(conf.Standard)
+	case rules.ItemTitlePage:
+		t := conf.TitlePages[key]
+		return conf.TitlePageName(key) + ", " + plural(len(t.Keys), "key") + " placed"
 	case "format":
 		var spec formatSpec
 		_, _ = toml.Decode(string(file), &spec)

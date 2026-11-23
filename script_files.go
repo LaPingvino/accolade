@@ -355,7 +355,7 @@ func (w *MainWindow) reforms(r relocation) bool {
 		return true // a zip unzipped, a folder zipped
 	}
 	if toKind == bundleZip && carriesConf(r.from) != carriesConf(r.to) && !w.markdown &&
-		(carryFor(w.lex(), lang, w.scriptFormatKey()) != nil || (w.bundle != nil && len(w.bundle.carriedNames) > 0)) {
+		(carryFor(w.lex(), lang, w.scriptFormatKey(), w.titleTemplate()) != nil || (w.bundle != nil && len(w.bundle.carriedNames) > 0)) {
 		return true // only an .accolade carries the settings it uses (lexington_carried.go)
 	}
 	return w.diskForm(r.from, w.language, w.noFountainCopy, w.languageSaid, fromKind) !=
@@ -643,7 +643,7 @@ func (w *MainWindow) planRows(r relocation) []planRow {
 
 	// the Lexington settings the script uses that are not the defaults:
 	// only an .accolade carries them (lexington_carried.go)
-	if lang, _ := w.langAfter(r); !w.markdown && carryFor(w.lex(), lang, w.scriptFormatKey()) != nil {
+	if lang, _ := w.langAfter(r); !w.markdown && carryFor(w.lex(), lang, w.scriptFormatKey(), w.titleTemplate()) != nil {
 		row := planRow{what: "Lexington settings it uses (" + bundleLexDir + ")", now: "your settings"}
 		if w.bundle != nil && len(w.bundle.carriedNames) > 0 && carriesConf(r.from) {
 			row.now = inside(old)

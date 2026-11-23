@@ -118,11 +118,15 @@ type accoladeInfo struct {
 	// assets/lexington/formats/ if it is one of one's own
 	// (lexington_carried.go).
 	Format string `json:"format,omitempty"`
+	// TitlePage is an .accolade's title page template (titlepage_choice.go):
+	// rules.StandardTitlePage for Fountain's; one of one's own is carried
+	// in an .accolade (lexington_carried.go).
+	TitlePage string `json:"titlePage,omitempty"`
 }
 
 func (a accoladeInfo) empty() bool {
 	return a.DocumentType == "" && a.Source == "" && a.Drafts == "" && !a.HighlandWarned &&
-		a.Language == "" && a.FountainHash == "" && !a.NoFountainCopy && a.Format == ""
+		a.Language == "" && a.FountainHash == "" && !a.NoFountainCopy && a.Format == "" && a.TitlePage == ""
 }
 
 // textBundle is a bundle as read (Lexington's: where it is, its form and
@@ -355,6 +359,8 @@ type bundleSave struct {
 	conf   lexConf
 	carry  *carriedConf
 	format string
+	// titlePage is the script's title page template (titlepage_choice.go)
+	titlePage string
 	// form is the form asked for (Save As's Accolade folder; notBundle:
 	// the bundle's own for its file, else as the name has it)
 	form bundleKind
@@ -370,12 +376,13 @@ func (s bundleSave) lex() lexConf {
 
 // carried are the configuration's files a save to dst writes, and the
 // old ones gone (all of them for another kind of bundle); ours names the
-// format.
+// format and the title page template.
 func (s bundleSave) carried(ours *accoladeInfo, dst string, old []string) (files []bundleFile, gone []string) {
-	ours.Format = ""
+	ours.Format, ours.TitlePage = "", ""
 	if !carriesConf(dst) || s.markdown {
 		return nil, old
 	}
+	ours.TitlePage = s.titlePage
 	if s.format != rules.ScreenplayPreset {
 		ours.Format = s.format
 	}

@@ -1888,3 +1888,18 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   changed, so a picture that came in an edit (a title page's, a storyboard frame's) was not painted; fixed
   (pageview.go, sameImages). Lexington's -titlepage is not passed yet on its external-program paths (the HTML
   and LaTeX made for pandoc/Chromium/LaTeX PDFs, cli.go): those print the standard title page.
+- 2026-11-23: title page templates, the follow-ups (branch tplfollow from titletpl, not merged; Lexington 1.53.0).
+  (1) The template is the script's own (titlepage_choice.go; Joop: "a title page is part of a script's look"): an
+  .accolade names the one it prints with in info.json (Accolade's key, "titlePage"), as it names its format (the
+  standard one only when chosen, so a bundle saved with only its text changed keeps its info.json); for every
+  script with a file it is kept in the settings' "title-page-templates" ("key\t/path", as the cards' looks; works
+  in the browser; follows a rename; .highland and .textbundle keep it there only). Page Setup's
+  "title-page-template" is the default: a script with none of its own prints with it and keeps it from its next
+  save; choosing one (the Title Page tab, Page Setup) makes it the script's and the default for new scripts,
+  unless only the script has that template. w.pageSetup() shows the script's; setPageSetup keeps a changed one.
+  (2) Templates travel: carryFor takes the template and passes it to Part when it is one's own (a preset goes by
+  name); the status says "brought the title page template “Loud”"; Add to My Settings adds one (keep both: a new
+  name, the script then uses it). Lexington 1.53's CLI prints an .accolade with its template. (3) Lexington's
+  external-program formats (htmlpdf, latexpdf, Calibre's) now print the template. Tests: TestTitleTemplatePerScript,
+  TestTitleTemplateTravels (with Lexington's cli.Convert on the bundle), TestTitleTemplateTravelsLater,
+  TestAddTitleTemplateToMySettings; shots TestTitleChoiceScreenshots (tplchoice-*.png). Rough: a plain script opened and never saved keeps following the default.

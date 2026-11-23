@@ -139,11 +139,13 @@ func (w *MainWindow) lex() lexConf {
 // sceneHeaders are the script's language's scene heading words.
 func (w *MainWindow) sceneHeaders() []string { return w.lex().headers(w.language) }
 
-// carryFor is what of c a script in lang, laid out with format, carries:
-// its language and the Standard in full, an element set of lexington.toml
-// if it differs from Lexington's defaults, and its format's files if they
-// are one's own (or came with it); nil for nothing.
-func carryFor(c lexConf, lang, format string) *carriedConf {
+// carryFor is what of c a script in lang, laid out with format, with the
+// title page template titlePage, carries: its language and the Standard
+// in full, an element set of lexington.toml if it differs from
+// Lexington's defaults, its format's files if they are one's own (or came
+// with it), and its title page template if it is one's own (a preset
+// goes by its name alone, in info.json); nil for nothing.
+func carryFor(c lexConf, lang, format, titlePage string) *carriedConf {
 	langs := []string{c.standard()}
 	if lang != "" && lang != c.standard() {
 		langs = append([]string{lang}, langs...)
@@ -152,7 +154,11 @@ func carryFor(c lexConf, lang, format string) *carriedConf {
 	if _, preset := rules.GetPreset(format); !preset && format != "" && c.formatFile(format) == nil {
 		sets = []string{format} // an element set of lexington.toml
 	}
-	part := c.Part(langs, sets)
+	var titles []string
+	if _, own := c.TitlePages[titlePage]; own {
+		titles = []string{titlePage}
+	}
+	part := c.Part(langs, sets, titles...)
 	defaults := rules.DefaultConf()
 	keep := rules.TOMLConf{}
 	for _, it := range part.Items() {
@@ -205,7 +211,7 @@ func (c lexConf) formatFile(key string) []byte {
 
 // carriedItem is one thing a script brought, as the machine has it.
 type carriedItem struct {
-	kind  string // "language", "elements", "standard" or "format"
+	kind  string // "language", "elements", "extension", "titlepage", "standard" or "format"
 	key   string // the language, element set or format ("" the standard)
 	state itemState
 	// theirs is the item as the script brought it: a configuration of
@@ -274,6 +280,8 @@ func (it carriedItem) label() string {
 		return fmt.Sprintf("the format %q (in lexington.toml)", it.key)
 	case "standard":
 		return "standard Fountain's language: " + languageLabel(it.theirs.Standard)
+	case rules.ItemTitlePage:
+		return fmt.Sprintf("the title page template “%s”", it.theirs.TitlePageName(it.key))
 	case "format":
 		var spec formatSpec
 		_, _ = toml.Decode(string(it.theirsFile), &spec)

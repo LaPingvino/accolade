@@ -323,9 +323,10 @@ func (w *MainWindow) leaveSharing() {
 // New, an import, a restore): a shared script stays with the peers, not
 // replaced for them by this one.
 func (w *MainWindow) newDocument() {
-	w.fixupFrom = "" // another document: no import to fix up (contextual.go)
-	w.leaveDocs()    // the script back in the main editor, its documents written (document.go)
-	w.closeCompare() // its drafts are the script's going
+	w.fixupFrom = ""                    // another document: no import to fix up (contextual.go)
+	w.titleChoice, w.titleKept = "", "" // its title page template: the default until it has its own
+	w.leaveDocs()                       // the script back in the main editor, its documents written (document.go)
+	w.closeCompare()                    // its drafts are the script's going
 	if w.shared != nil {
 		w.leaveSharing()
 		w.setStatus("Left the shared script: it goes on with the others")
