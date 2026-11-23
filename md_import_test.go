@@ -153,7 +153,7 @@ func TestImportProsePDF(t *testing.T) {
 	if err := f.OutputFileAndClose(path); err != nil {
 		t.Fatal(err)
 	}
-	md, _, err := importProsePDF(context.Background(), path, "", nil)
+	md, _, err := importProsePDF(context.Background(), path, "", false, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

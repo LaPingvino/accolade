@@ -1545,7 +1545,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   numbers and an English name inside a Hebrew line (bidi), Hebrew scene words (פנים/חוץ, יום/לילה …) from Lexington's
   config (add a [Languages.he] if it lacks one, tagged), rtl. Screenshots: editor, page view and the exported PDF
   page (rendered), so Joop can open it and print it.
-- 2026-11-23 (pattern fixer merged): Three Comrades did not improve because its PDF carries the scanner's own poor
+- 2026-11-23 (pattern fixer merged): DONE (branch ocrcheck, not merged; Lexington 1.32.0; see the tick log below).
+  Three Comrades did not improve because its PDF carries the scanner's own poor
   text layer, so Accolade never offers OCR. Add a text-layer quality check on import (share of dictionary/real words,
   odd character runs, words broken by stray spaces): below a bar, offer "This PDF's text looks garbled — read it with
   OCR instead?" (the existing ocr_ask.go flow), never automatically.
@@ -1565,3 +1566,30 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   starts from the stripboard and a phone's Script/Pages too (5 fronts × 34 steps), new TestMiddleStripboard and
   TestMiddlePhonePages, TestMiddleScreenshots shots 9–11 (looked at: desktop board with the Cards pane beside,
   phone Script/Pages/Stripboard row). docs/MIDDLE.md, STATE.md updated; the commands golden's View menu move.
+- 2026-11-23: the garbled-text-layer offer (branch ocrcheck, not merged; Lexington 1.32.0 tagged and pushed). Lexington:
+  pdfin.TextLayers/TextQuality per page — odd tokens (stray marks alone or at a line's ends, punctuation glued inside a
+  word, case or script changing inside a word, letters and digits mixed, letters spread by spaces) plus lines split
+  in two (a skewed scan's words at two heights, closer than 0.35 of the page's usual line gap); a page is a scan if
+  its largest image has the page's shape, ≥100 dpi, and can be decoded. GarbledBar 0.97: a page below it counts, but
+  only when the scans' layers pooled score below it too (CountGarbled/GarbledPages). Options.OCRText: OCR reads those
+  scans in place of the layer; a page OCR cannot read keeps its layer. Layered (MRC) scans as the Internet Archive
+  makes them — JPEG 2000 foreground + 1-bit JBIG2 mask — read through the mask (Lexington still cannot decode
+  JPX: without this Three Comrades could not be OCRed by Accolade at all; the mask equals poppler's pixel for pixel,
+  but the MRC encoder put some small words in the background, so they come out as blobs). Word lists and letter
+  trigrams were measured (public-domain English from testdata/adapt-bench as the lexicon): the layer's out-of-lexicon
+  share (median 0.075) sits inside clean scripts' range (0.01–0.10), so they are not used. Bar by measurement: every
+  Lexington-printed page (examples/, a multi-script Fountain — Cyrillic, Greek, Hebrew, French spacing, German,
+  Esperanto) scores exactly 1.000; synthetic garbled scan triggers, the same scan with clean lines does not.
+  Accolade: readPDFAsking (screenplay and prose import alike) counts scans and garbled pages once (pdfPagesOf);
+  garbled only → "This PDF's text looks garbled — read it with OCR instead?" with the language pick, Read with OCR /
+  Keep the Text (reads the layer); scans and garbled → the scan dialog with a "read the N garbled pages too" tick;
+  no OCR (wasm) → no offer. Tests on synthetic PDFs only (TestGarbledTextOffersOCR, TestGarbledAskReads; Lexington
+  TestTextQualityWords, TestCleanLayersScoreOne, TestGarbledScan, TestSplitLines).
+  Three Comrades (local, counts only): 199 of 266 pages flagged, pooled layer score 0.942 (so the offer appears).
+  Pages 40/60/100, 67 elements counted by hand against the page images (right = own element, right type, ≤1 wrong
+  word): text layer 4, OCR 4 — the classifier, not the text, is the bottleneck on these pages (cues and speeches
+  come out as action either way); OCR's lines are whole (layer 10 split lines on p60, OCR 0) and its text scores
+  higher on all three (0.924→0.947, 0.890→0.937, 0.955→0.961), still under the bar itself. OCR took minutes a page
+  under the machine's load (load average ~21). Next: lines() grouping glyphs along a skewed baseline would mend the
+  layer's split lines without OCR; the classifier on Fitzgerald's layout (cue + parenthetical in mixed case) is
+  the pattern fixer's or the layout-learning item's.

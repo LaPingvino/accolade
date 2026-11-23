@@ -28,7 +28,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/lexington/lex"
-	"github.com/LaPingvino/lexington/pdfin"
 )
 
 type MainWindow struct {
@@ -712,26 +711,21 @@ func (w *MainWindow) importPDFAsync(filePath string) {
 	// the one its headings are in (read with every language's, not the
 	// replaced script's)
 	lang := languageOf(filePath)
-	if scanned, pages, err := pdfin.ScannedPages(filePath); err == nil && scanned > 0 {
-		if langs, tesseract := ocrLanguages(); len(langs) > 0 {
-			w.askOCRLanguage(filePath, scanned, pages, w.guessOCRLanguage(lang, langs), langs, tesseract, func(chosen string) {
-				w.readPDF(filePath, chosen, chosen)
-			})
-			return
-		}
-	}
-	w.readPDF(filePath, lang, "")
+	w.readPDFAsking(filePath, lang, func(chosen string, ocrText bool) {
+		w.readPDF(filePath, chosen, chosen, ocrText)
+	}, func() { w.readPDF(filePath, lang, "", false) })
 }
 
 // readPDF reads a PDF in the background, its scene headings in lang ("":
-// whichever they are in), scanned pages read in ocrLang.
-func (w *MainWindow) readPDF(filePath, lang, ocrLang string) {
+// whichever they are in), scanned pages read in ocrLang (and the pages
+// whose text looks garbled too if ocrText).
+func (w *MainWindow) readPDF(filePath, lang, ocrLang string, ocrText bool) {
 	scenes := sceneHeaders(lang)
 	if lang == "" {
 		scenes = allSceneHeaders()
 	}
 	read := func(ctx context.Context, progress func(done, pages int)) (string, []string, error) {
-		return importPDF(ctx, filePath, scenes, ocrLang, progress)
+		return importPDF(ctx, filePath, scenes, ocrLang, ocrText, progress)
 	}
 	w.readPDFInBackground(filePath, "the screenplay", read, func(text string) {
 		named := lang != "" // the file name says it (script.ru.pdf): that first

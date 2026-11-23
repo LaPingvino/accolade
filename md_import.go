@@ -99,14 +99,15 @@ func pandocToMarkdown(path string) (string, error) {
 }
 
 // importProsePDF reads a PDF as prose, as Markdown; scanned pages are read
-// with OCR in ocrLang. skipped are the pages that could not be read.
-func importProsePDF(ctx context.Context, path, ocrLang string, progress func(done, pages int)) (md string, skipped []string, err error) {
+// with OCR in ocrLang, and the scans whose text looks garbled too if
+// ocrText. skipped are the pages that could not be read.
+func importProsePDF(ctx context.Context, path, ocrLang string, ocrText bool, progress func(done, pages int)) (md string, skipped []string, err error) {
 	opts := pdfin.Options{Context: ctx, Progress: progress, Skipped: func(page int, err error) {
 		skipped = append(skipped, fmt.Sprintf("page %d: %v", page, err))
 	}}
 	if ocr, done := pdfOCR(ocrLang); ocr != nil {
 		defer done()
-		opts.OCR = ocr
+		opts.OCR, opts.OCRText = ocr, ocrText
 	}
 	p, err := pdfin.ReadProseFile(path, opts)
 	if err != nil {
@@ -202,20 +203,14 @@ func (w *MainWindow) importDocument(path string) {
 // importProsePDFAsync reads a PDF as prose in the background, asking
 // first what language scanned pages are in.
 func (w *MainWindow) importProsePDFAsync(path string) {
-	read := func(lang string) {
+	read := func(lang string, ocrText bool) {
 		w.readPDFInBackground(path, "the text", func(ctx context.Context, progress func(done, pages int)) (string, []string, error) {
-			return importProsePDF(ctx, path, lang, progress)
+			return importProsePDF(ctx, path, lang, ocrText, progress)
 		}, func(md string) {
 			w.showImportedMarkdown(path, md, "a PDF: check the result, a PDF only shows how the text looked", 0)
 		})
 	}
-	if scanned, pages, err := pdfin.ScannedPages(path); err == nil && scanned > 0 {
-		if langs, tesseract := ocrLanguages(); len(langs) > 0 {
-			w.askOCRLanguage(path, scanned, pages, w.guessOCRLanguage(languageOf(path), langs), langs, tesseract, read)
-			return
-		}
-	}
-	read("")
+	w.readPDFAsking(path, languageOf(path), read, func() { read("", false) })
 }
 
 // showImportedMarkdown puts an imported document in the window as a new

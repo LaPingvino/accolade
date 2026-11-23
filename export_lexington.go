@@ -296,10 +296,11 @@ func marksOnText(s lex.Screenplay, text string) []importedMark {
 
 // importPDF reads a screenplay from a PDF as Fountain text. Scanned
 // pages are read with OCR in ocrLang (Lexington's code, "" English):
-// tesseract if it is installed, else the built-in one (slower, English).
+// tesseract if it is installed, else the built-in one (slower, English);
+// with ocrText, the scans whose own text layer looks garbled too.
 // progress (may be nil) is told the pages read; skipped are the pages that
 // could not be read.
-func importPDF(ctx context.Context, path string, scenes []string, ocrLang string, progress func(done, pages int)) (text string, skipped []string, err error) {
+func importPDF(ctx context.Context, path string, scenes []string, ocrLang string, ocrText bool, progress func(done, pages int)) (text string, skipped []string, err error) {
 	if scenes == nil {
 		scenes = englishScenes
 	}
@@ -308,7 +309,7 @@ func importPDF(ctx context.Context, path string, scenes []string, ocrLang string
 	}}
 	if ocr, done := pdfOCR(ocrLang); ocr != nil {
 		defer done()
-		opts.OCR = ocr
+		opts.OCR, opts.OCRText = ocr, ocrText
 	}
 	screenplay, err := pdfin.ReadFileWith(path, opts)
 	if err != nil {
