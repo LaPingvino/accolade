@@ -783,6 +783,7 @@ func (s *sourcePane) follow() {
 		s.setInfo("Reading the source…")
 		return
 	}
+	s.relinkAgain() // a look at the links dropped (relink.go)
 	if s.ref.Origin == sourceNone {
 		s.setInfo("")
 		s.count.SetText("")

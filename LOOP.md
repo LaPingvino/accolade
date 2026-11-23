@@ -1255,7 +1255,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   that would find another passage is written so it doesn't (alike: their shared words + context; gone: up to 8+8
   old words + context, found again if they come back). New on-disk store: <data>/accolade/links/<hash of script
   path>.md, the source as the script's links were last looked at, written on open (first time) and on Save; tests
-  get a temp XDG_DATA_HOME in TestMain. Tests: TestRelinkProperty (30 seeds × 40 steps of add/delete/edit/copy/
+  get a temp XDG_DATA_HOME in TestMain. A look dropped (the script changed while it was worked out) is
+  tried again on the pane's next follow. Tests: TestRelinkProperty (30 seeds × 40 steps of add/delete/edit/copy/
   move on a 32-word vocabulary; 400 seeds pass), Reanchors, Lengthens, Impossible, InWindow, AlignPassages,
   minimality in TestShortLinksUnique. Bench (BenchmarkScriptKey/sample, -count 5, load ~7): 3.39 → 3.12 ms median,
   allocs 5809 → 5783. Shots: SHOT_DIR=… go test -run TestRelinkScreenshots. Open: near links are re-anchored on any

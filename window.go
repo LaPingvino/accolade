@@ -89,6 +89,8 @@ type MainWindow struct {
 	// the Characters pane, and the last rename for Undo (characters_pane.go, characters_rename.go)
 	charsPane   *charactersPane
 	charRenamed *renamed
+	// relinking is how many looks at the links are being worked out (relink.go)
+	relinking int
 	// the others' changes to a shared script (changes.go)
 	changes      []change
 	changesPanel *changesPanel

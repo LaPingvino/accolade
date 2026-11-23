@@ -70,7 +70,7 @@ Pick the passage in the pane, put the cursor in the scene, and choose Adaptation
 
 When the same words are in the story more than once, Accolade quotes more of the passage, or the words just before or after it (`text=said Anna.-,Yes.`). If two passages and their neighbours are exactly alike, the link cannot tell them apart and the status bar says so.
 
-Old links keep reading as they were; only new ones are written this short.
+Links written before read as they are; one is written again only when the source changes under it, as below.
 
 ### When the source changes
 

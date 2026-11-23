@@ -147,7 +147,7 @@ func relinkFixes(script string, old, nw []passage) (edits []linkEdit, c relinkCo
 			if t.first < 0 && nowMt.Kind == linkNear && now.first >= 0 {
 				t = relinkAt{how: relinkFix, i: now.first, j: now.last}
 			}
-			d, how := t.dir(old, after, r.Dir, now.first >= 0, len(r.words())+len(normWords(r.Dir.End)))
+			d, how := t.dir(before, after, r.Dir, now.first >= 0, len(r.words())+len(normWords(r.Dir.End)))
 			if how == relinkNone {
 				return e, false
 			}
@@ -218,10 +218,10 @@ func targetOf(first, last int, to []int, found bool, ni, nj int) relinkAt {
 // the others alike (ambiguous: a few more, and the context); for
 // passages gone, found again elsewhere by their words (moved, nearly
 // as they were), the shortest for them there; else their words as they
-// were (in old, wholeDir): not found, and found again if they come back,
+// were (in before's, wholeDir): not found, and found again if they come back,
 // where its few words could later fit a passage added. relinkNone: it
 // stays.
-func (t relinkAt) dir(old []passage, after *linkMatcher, cur textDirective, found bool, words int) (textDirective, relinkHow) {
+func (t relinkAt) dir(before, after *linkMatcher, cur textDirective, found bool, words int) (textDirective, relinkHow) {
 	var d textDirective
 	how := relinkWarn
 	switch {
@@ -230,8 +230,8 @@ func (t relinkAt) dir(old []passage, after *linkMatcher, cur textDirective, foun
 		if d, unique = fragmentFor(after, t.i, t.j); unique {
 			how = relinkFix
 		}
-	case t.how == relinkWarn && old != nil:
-		d = wholeDir(old, t.first, t.last)
+	case t.how == relinkWarn && before != nil:
+		d = wholeDir(before, t.first, t.last)
 		// moved (and edited): their words, many enough, found elsewhere
 		if probe := (textDirective{Start: d.Start, End: d.End}); len(normWords(probe.Start)) >= 4 {
 			if mt := after.matchRef(linkRef{Dir: probe}); mt.found() {
@@ -252,13 +252,14 @@ func (t relinkAt) dir(old []passage, after *linkMatcher, cur textDirective, foun
 	return d, how
 }
 
-// wholeDir is a link to passages [i, j] of ps in many of their words:
+// wholeDir is a link to passages [i, j] of lm's in many of their words:
 // the first one's first wholeWords words as textStart, the last one's
 // last as textEnd (one short block: all of it, textStart), and the words
 // before them (else after): a short passage's words alone may be inside
 // another one.
-func wholeDir(ps []passage, i, j int) textDirective {
+func wholeDir(lm *linkMatcher, i, j int) textDirective {
 	const wholeWords = 8
+	ps := lm.ps
 	bi, bj := blockFields(ps[i].shown()), blockFields(ps[j].shown())
 	if len(bi) == 0 || len(bj) == 0 {
 		return textDirective{Start: ps[i].Plain}
@@ -273,7 +274,6 @@ func wholeDir(ps []passage, i, j int) textDirective {
 	default:
 		d = textDirective{Start: strings.Join(fi[:ns], " "), End: strings.Join(fj[len(fj)-ne:], " ")}
 	}
-	lm := newLinkMatcher(ps)
 	const context = 3
 	if q := lm.index().prev[i]; q >= 0 {
 		if b := blockFields(ps[q].shown()); len(b) > 0 {
@@ -315,11 +315,7 @@ func relinkDir(r linkRef, now linkMatch, before, after *linkMatcher, to []int) (
 	if t.first < 0 && now.Kind == linkNear {
 		t = relinkAt{how: relinkFix, i: now.Passages[0], j: now.last()}
 	}
-	var old []passage
-	if before != nil {
-		old = before.ps
-	}
-	return t.dir(old, after, r.Dir, now.found(), len(r.words())+len(normWords(r.Dir.End)))
+	return t.dir(before, after, r.Dir, now.found(), len(r.words())+len(normWords(r.Dir.End)))
 }
 
 // alignPassages is where each passage of old is in nw (-1: gone): the
@@ -548,6 +544,7 @@ func (w *MainWindow) relinkInBackground(ref sourceRef, old, nw string, ps []pass
 		c     relinkCount
 		moved map[string]string
 	}
+	w.relinking++
 	inBackground(func() found {
 		if ps == nil {
 			ps = passagesOf(nw)
@@ -555,6 +552,7 @@ func (w *MainWindow) relinkInBackground(ref sourceRef, old, nw string, ps []pass
 		e, c, m := relinkFixes(script, passagesOf(old), ps)
 		return found{e, c, m}
 	}, func(f found) {
+		w.relinking--
 		ok := w.relink(script, f.edits, f.c, f.moved)
 		if s := w.source; ok && s != nil && s.ref == ref {
 			s.linkedSrc, s.linkedRef = nw, ref
@@ -617,6 +615,22 @@ func (s *sourcePane) relinkRead(r *sourceRead, was sourceRef, wasSrc string, ps 
 		}
 	case r.disk && s.linkedRef == r.ref && !sameString(s.linkedSrc, r.src):
 		w.relinkInBackground(r.ref, s.linkedSrc, r.src, ps, nil)
+	}
+}
+
+// relinkAgain is the pane following: the links not looked at against
+// the source as the pane read it (the last look dropped, the script
+// having changed meanwhile), and none being looked at, they are now.
+// Not for a source in the script, or one being edited (relinkAfterEdit
+// does, as its cursor leaves a passage).
+func (s *sourcePane) relinkAgain() {
+	w := s.w
+	switch {
+	case w.relinking > 0 || w.markdown || s.err != nil || s.linkedRef != s.ref || sameString(s.linkedSrc, s.src):
+	case s.ref.Origin == sourceNone || s.ref.Origin == sourceInside:
+	case w.srcDoc != nil && w.srcDoc.ref == s.ref:
+	default:
+		w.relinkInBackground(s.ref, s.linkedSrc, s.src, s.passages, nil)
 	}
 }
 

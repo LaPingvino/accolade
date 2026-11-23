@@ -423,3 +423,29 @@ func TestRelinkScreenshots(t *testing.T) {
 		shotTo(t, w, "relink-chip-"+at.name)
 	}
 }
+
+// A look at the links dropped (the script changed while it was worked
+// out, on the desktop in the background): the pane's next follow looks
+// again, from the source the links were last looked at against.
+func TestRelinkDroppedLookAgain(t *testing.T) {
+	changed := strings.Replace(sourceStory, "The next morning the garden", "Next day the garden", 1)
+	w, _ := sourceWindow(t, sourceScript, changed)
+	s := w.sourcePane()
+	if !strings.Contains(w.textEditor.Text(), "The next morning the garden") {
+		t.Fatal("written again on opening the first time")
+	}
+	// as a dropped look leaves it: the links last looked at against the story before the change
+	s.linkedSrc = sourceStory
+	if w.relink(w.textEditor.Text()+"x", []linkEdit{{0, 0, "y"}}, relinkCount{}, nil) {
+		t.Fatal("a look for another script applied")
+	}
+	s.follow()
+	if strings.Contains(w.textEditor.Text(), "The next morning the garden") || !sameString(s.linkedSrc, s.src) {
+		t.Errorf("not looked at again:\n%s", w.textEditor.Text())
+	}
+	before := w.textEditor.Text()
+	s.follow()
+	if w.textEditor.Text() != before {
+		t.Error("looked at again and again")
+	}
+}
