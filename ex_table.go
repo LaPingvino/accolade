@@ -590,14 +590,13 @@ func (t *exTable) args(ctx exCtx, c *exCmd, arg string) []exChoice {
 	case argScene:
 		n := 0
 		for _, h := range ctx.headings {
-			label := h.Text
-			if h.Scene {
+			text, label := h.Text, strings.Repeat("#", max(h.Level, 1))+" "+h.Text
+			if h.Scene { // its number first: two scenes may have one heading
 				n++
-				label = strconv.Itoa(n) + "  " + h.Text
-			} else {
-				label = strings.Repeat("#", max(h.Level, 1)) + " " + h.Text
+				text = strconv.Itoa(n) + " " + h.Text
+				label = text
 			}
-			all = append(all, exChoice{text: h.Text, label: label, desc: h.Synopsis})
+			all = append(all, exChoice{text: text, label: label, desc: h.Synopsis})
 		}
 		if num, err := strconv.Atoi(strings.TrimSpace(arg)); err == nil { // a number: that scene
 			n = 0
@@ -605,7 +604,7 @@ func (t *exTable) args(ctx exCtx, c *exCmd, arg string) []exChoice {
 				if h.Scene {
 					n++
 					if n == num {
-						return []exChoice{{text: arg, label: strconv.Itoa(n) + "  " + h.Text}}
+						return []exChoice{{text: arg, label: strconv.Itoa(n) + " " + h.Text}}
 					}
 				}
 			}

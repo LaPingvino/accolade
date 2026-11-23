@@ -156,10 +156,10 @@ func TestExComplete(t *testing.T) {
 	}
 	// arguments
 	for line, want := range map[string][]string{
-		"scene ":        {"Act One", "INT. BARN - DAY", "EXT. FIELD - NIGHT"},
-		"scene ext":     {"EXT. FIELD - NIGHT"},
+		"scene ":        {"Act One", "1 INT. BARN - DAY", "2 EXT. FIELD - NIGHT"},
+		"scene ext":     {"2 EXT. FIELD - NIGHT"},
 		"scene 2":       {"2"},
-		"sc fi":         {"EXT. FIELD - NIGHT"},
+		"sc fi":         {"2 EXT. FIELD - NIGHT"},
 		"element ac":    {"action"},
 		"el sc":         {"scene-heading"},
 		"export pd":     {"pdf"},
@@ -284,7 +284,51 @@ func TestExLineKeys(t *testing.T) {
 	if l.chosen != 0 || !w.exPop.layer.Visible() {
 		t.Errorf("Down on an empty line: chosen %d", l.chosen)
 	}
+	// a recalled command: Tab and Enter leave it as it is
 	key(l, fyne.KeyEscape)
+	w.textEditor.TypedRune(':')
+	key(l, fyne.KeyUp)
+	if l.Text != "1d" {
+		t.Fatalf("Up back: %q", l.Text)
+	}
+	key(l, fyne.KeyTab)
+	key(l, fyne.KeyPageDown)
+	if l.Text != "1d" || len(l.comp.choices) != 0 {
+		t.Errorf("Tab on a recalled line: %q", l.Text)
+	}
+	key(l, fyne.KeyEscape)
+	// a name that names nothing: Enter takes the list's first
+	if !exUnresolved("otln") || exUnresolved("d") || exUnresolved("outline") || exUnresolved("scene 2") {
+		t.Error("exUnresolved")
+	}
+	w.textEditor.TypedRune(':')
+	test.Type(l, "otln")
+	if f := l.comp.choices[0].cmd.name; f != "outline" {
+		t.Fatalf("otln: first %s", f)
+	}
+	key(l, fyne.KeyReturn)
+	if !w.paneInSight("outline") {
+		t.Error(":otln did not run :outline")
+	}
+}
+
+// Two scenes with one heading: each is reached from the list; a tap
+// after the arrows runs the row tapped.
+func TestExLineScenes(t *testing.T) {
+	w, c := exTestWindow(t)
+	w.textEditor.SetText("INT. KITCHEN - DAY\n\nTea.\n\nEXT. GARDEN - DAY\n\nRain.\n\nINT. KITCHEN - DAY\n\nMore tea.\n")
+	c.Focus(w.textEditor)
+	w.textEditor.TypedRune(':')
+	l := w.exEntry
+	test.Type(l, "scene kitchen")
+	if got := names(l.comp.choices); !slices.Equal(got, []string{"1 INT. KITCHEN - DAY", "3 INT. KITCHEN - DAY"}) {
+		t.Fatalf("scene kitchen: %v", got)
+	}
+	key(l, fyne.KeyDown)                        // the first chosen…
+	w.exPop.shown[1].Tapped(&fyne.PointEvent{}) // …the second tapped
+	if line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset()); line != 8 {
+		t.Errorf("the second kitchen: line %d", line)
+	}
 }
 
 // :scene with Enter alone lists the scenes; a tap on a row completes it
@@ -396,4 +440,8 @@ func TestExScreenshots(t *testing.T) {
 	w.exEntry.set("")
 	test.Type(w.exEntry, "pre")
 	snap(w, "ex-4-phone")
+	w.runEx("theme light")
+	w.textEditor.TypedRune(':')
+	test.Type(w.exEntry, "sc")
+	snap(w, "ex-5-phone-light")
 }

@@ -129,8 +129,9 @@ func (l *exLine) history(up bool) {
 		text = h[len(h)-l.back]
 	}
 	l.set(text)
-	if l.back > 0 {
-		l.w.exPopup().hide() // the history's line, not a list's
+	if l.back > 0 { // the history's line, not a list's: Tab and Enter leave it be
+		l.stem, l.comp, l.chosen, l.moved = text, exCompletion{}, -1, false
+		l.w.exPopup().hide()
 	} else {
 		l.typed(text)
 	}
@@ -225,6 +226,9 @@ func (l *exLine) submit() {
 		return
 	}
 	text := l.Text
+	if !l.moved && !l.comp.arg && len(l.comp.choices) > 0 && exUnresolved(text) {
+		l.chosen, l.moved = 0, true // :nsp⏎ is the list's first, as it shows
+	}
 	if l.moved && l.chosen >= 0 && l.chosen < len(l.comp.choices) {
 		ch := l.comp.choices[l.chosen]
 		text = l.choiceText(l.chosen)
@@ -250,6 +254,7 @@ func (l *exLine) tapped(i int) {
 		return
 	}
 	l.w.fyneWindow.Canvas().Focus(l) // the tap took it away
+	l.chosen, l.moved = i, false     // this row's, not the arrows'
 	text := l.choiceText(i)
 	if l.comp.choices[i].more || exWantsMore(text) {
 		l.take(i)
@@ -257,6 +262,21 @@ func (l *exLine) tapped(i int) {
 	}
 	l.set(text)
 	l.submit()
+}
+
+// exUnresolved reports whether line's name names no command (none, or
+// more than one): Enter takes the list's first instead.
+func exUnresolved(line string) bool {
+	end, _, ok := exSkipRange(line)
+	if !ok {
+		return false
+	}
+	name, nameEnd := exNameOf(line, end)
+	if name == "" || nameEnd != len(strings.TrimRight(line, " ")) {
+		return false
+	}
+	c, _ := exCommands().lookup(name)
+	return c == nil
 }
 
 // exWantsMore reports whether line names a command that does nothing
@@ -291,6 +311,7 @@ type exPop struct {
 	shown  []*exRow
 	narrow bool    // the rows made for a phone
 	col    float32 // the names' column: the widest name shown
+	bg     *canvas.Rectangle
 }
 
 const exRowsShown = 8
@@ -301,11 +322,10 @@ func newExPop(w *MainWindow) *exPop {
 	p.hint = widget.NewLabel("")
 	p.hint.SizeName = theme.SizeNameCaptionText
 	p.hint.Truncation = fyne.TextTruncateEllipsis
-	bg := canvas.NewRectangle(theme.Color(theme.ColorNameMenuBackground))
-	bg.StrokeColor = theme.Color(theme.ColorNameSeparator)
-	bg.StrokeWidth = 1
-	bg.CornerRadius = theme.InputRadiusSize()
-	p.panel = container.NewStack(bg, container.NewBorder(nil, p.hint, nil, nil, p.rows))
+	p.bg = canvas.NewRectangle(theme.Color(theme.ColorNameMenuBackground))
+	p.bg.StrokeWidth = 1
+	p.bg.CornerRadius = theme.InputRadiusSize()
+	p.panel = container.NewStack(p.bg, container.NewBorder(nil, p.hint, nil, nil, p.rows))
 	p.layer = container.New(&exPopLayout{p: p}, p.panel)
 	p.layer.Hide()
 	return p
@@ -359,6 +379,9 @@ func (p *exPop) show(l *exLine) {
 		hint += " · Tab completes · ↑↓ choose · Enter runs · Esc closes · :help lists them all"
 	}
 	p.hint.SetText(hint)
+	p.bg.FillColor = theme.Color(theme.ColorNameMenuBackground) // the theme now (:theme light)
+	p.bg.StrokeColor = theme.Color(theme.ColorNameSeparator)
+	p.bg.Refresh()
 	p.rows.Refresh()
 	p.layer.Show()
 	p.layer.Refresh()
@@ -428,6 +451,7 @@ func (r *exRow) set(c exChoice, chosen bool, tap func()) {
 	r.name.TextStyle.Bold = chosen
 	r.name.Refresh()
 	r.tap = tap
+	r.bg.FillColor = theme.Color(theme.ColorNameSelection)
 	if chosen {
 		r.bg.Show()
 	} else {
@@ -704,7 +728,8 @@ func (w *MainWindow) exScene(arg string) error {
 	e := w.textEditor
 	items := w.outlineItems(e.Text())
 	line := -1
-	if n, err := strconv.Atoi(arg); err == nil {
+	num, _, _ := strings.Cut(arg, " ") // "2" or "2 EXT. FIELD": the second scene
+	if n, err := strconv.Atoi(num); err == nil {
 		k := 0
 		for _, it := range items {
 			if it.Scene {
@@ -816,7 +841,7 @@ func (w *MainWindow) exHelp(arg string) error {
 		}
 		return fmt.Errorf("No help for %q", arg)
 	}
-	w.showHelp("ex", help.Anchor(c.group))
+	w.showHelp("ex", help.Anchor(exHelpSection(c)))
 	w.setStatus(":" + c.name + " — " + c.desc)
 	return nil
 }

@@ -1479,3 +1479,9 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the STRUCTURAL MOVES slot (move-speech-…) is a comment in exWindowCommands — no such entry is in this LOOP.md
   yet. Fixed on the way: :m to an address outside the script (:m-9 on line 3) panicked; it says "invalid address".
   palette.run's role switch is runByName now, shared with the ':' line.
+  Review fixes: a tap after the arrows ran the arrows' row; two scenes with one heading both went to the first
+  (:scene completes to "3 INT. KITCHEN - DAY", read by its number); the list's colours follow :theme; a recalled
+  command (Up) is not overwritten by Tab; Enter on a name naming nothing (:otln) takes the list's first, as shown;
+  :h <menu command> goes to its menu's part of the page. Unverified: row taps on the real drivers (the tests call
+  Tapped; the press unfocuses the line, the tap gives it back), a click elsewhere leaves the list up while the line
+  stays open, the browser build only compiled.

@@ -64,10 +64,7 @@ func exHelpPage() string {
 		if c.group != exGroupMenus {
 			continue
 		}
-		m := "Elsewhere"
-		if hs := homesOf(c.id); len(hs) > 0 {
-			m, _, _ = strings.Cut(hs[0], " > ")
-		}
+		m := exHelpSection(c)
 		if _, ok := byMenu[m]; !ok {
 			menus = append(menus, m)
 		}
@@ -80,6 +77,19 @@ func exHelpPage() string {
 		}
 	}
 	return b.String()
+}
+
+// exHelpSection is the heading c is under: its group, or for a registry
+// command its menu.
+func exHelpSection(c *exCmd) string {
+	if c.group != exGroupMenus {
+		return c.group
+	}
+	if hs := homesOf(c.id); len(hs) > 0 {
+		m, _, _ := strings.Cut(hs[0], " > ")
+		return m
+	}
+	return "Elsewhere"
 }
 
 // exHelpLine is a command's line: its name (with its abbreviation), what
