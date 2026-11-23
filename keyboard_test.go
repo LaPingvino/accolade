@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -132,5 +134,26 @@ func TestEveryCommandByKeyboard(t *testing.T) {
 		if !found && c.id != "app.palette" {
 			t.Errorf("%s (%s): no state of the window has it in the palette", c.id, c.label)
 		}
+	}
+}
+
+// docs/help/keyboard.md is what the registry makes, and every key it
+// names is a command's:
+//
+//	UPDATE_HELP=1 go test -run TestKeyboardOnlyPage .
+func TestKeyboardOnlyPage(t *testing.T) {
+	want := keyboardOnlyPage()
+	path := filepath.Join("docs", "help", "keyboard.md")
+	if os.Getenv("UPDATE_HELP") != "" {
+		if err := os.WriteFile(path, []byte(want), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	if got, err := os.ReadFile(path); err != nil || string(got) != want {
+		t.Errorf("%s is not what the registry makes: UPDATE_HELP=1 go test -run TestKeyboardOnlyPage .", path)
+	}
+	if strings.Contains(want, "****") {
+		t.Error("a key looked up is empty")
 	}
 }

@@ -220,7 +220,7 @@ func shortcutsPage(env cmdEnv, both bool) string {
 	default:
 		b.WriteString("; these are a screenplay's")
 	}
-	b.WriteString(". See also the [cheat sheet](cheat-shortcuts.md), and for a Final Draft writer's habits [Coming from Final Draft](final-draft.md).\n\n")
+	b.WriteString(". See also the [cheat sheet](cheat-shortcuts.md), [Keyboard Only](keyboard.md) for working without a mouse, and for a Final Draft writer's habits [Coming from Final Draft](final-draft.md).\n\n")
 	b.WriteString("## While writing\n\n")
 	b.WriteString(strings.Join(writingKeys(env, both), "\n") + "\n")
 	titles, lists := menuShortcuts(env, both)
@@ -231,8 +231,7 @@ func shortcutsPage(env cmdEnv, both bool) string {
 		}
 	}
 	b.WriteString("\n## The command palette and the ribbon\n\n" + strings.Join(paletteRibbonKeys(), "\n") + "\n")
-	b.WriteString("\n## Vim and helix\n\nPreferences > Editor gives the editor vim's or helix's keys; the menus' shortcuts stay. " +
-		"Their own keys are not documented yet: [Vim and Helix Modes](vim.md); the `:` line's commands, which it completes as you type: [Ex Commands](ex.md).\n")
+	b.WriteString(modesSection(env, both))
 	return b.String()
 }
 
@@ -274,6 +273,7 @@ func shortcutsSheet(env cmdEnv, both bool) string {
 			mac = append(mac, "- **"+strings.TrimPrefix(n, "on a Mac ")+"** "+strings.TrimSuffix(c.labelIn(env), "…"))
 		}
 	}
+	b.WriteString(modesSheet(env, both))
 	if len(mac) > 0 {
 		b.WriteString("\n## On a Mac\n\nOption+Left and Option+Right move by word there, so these take Control+Option, and Cmd+H hides the app:\n\n" + strings.Join(mac, "\n") + "\n")
 	}

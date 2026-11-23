@@ -105,6 +105,29 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **Shift+F6** Previous Pane
 - **F10** Ribbon Key Tips
 
+## Vim mode
+
+- Modes: **Esc** · **i a** · **I A** · **o O** · **v V**
+- Moving: **h j k l** · **w b e** · **0 ^ $** · **gg G** · **Enter, Backspace** · **1 … 9**
+- Changing: **d c y + a motion** · **dd cc yy** · **D C Y** · **x X** · **p P** · **J** · **r + a character** · **u, Ctrl+R**
+- Text objects and the structure: **]] [[** · **]s [s** · **as is** · **aS iS** · **m + an object** · **Alt+j Alt+k** · **Alt+h Alt+l** · **Alt+J Alt+K** · **Alt+H Alt+L**
+- Selecting: **a motion in visual mode** · **vas viS …**
+- Search and commands: **/** · **:**
+- Folds and the outline: **za zc zo** · **zR zM** · **Tab, Shift+Tab** · **gj gk** · **gh gl** · **gs**
+
+## Helix mode
+
+- Modes: **Esc** · **i a** · **I A** · **o O** · **v**
+- Moving: **h j k l** · **w b e** · **0 ^ $** · **gg G** · **1 … 9**
+- Changing: **d c y** · **p P** · **r + a character** · **u U, Ctrl+R**
+- Text objects and the structure: **]] [[** · **]s [s** · **mas mis maS miS**
+- Selecting: **x** · **%** · **;**
+- Several selections: **s** · **S** · **Alt+s** · **C** · **,** · **Alt+,** · **d c i a with several**
+- Search and commands: **/** · **:**
+- Folds and the outline: **za zc zo** · **zR zM** · **gj gk** · **gh gl** · **gs**
+
+`:renumber` `:lock` `:unlock` `:omit` `:restore` `:move 3..5 after 9` `:swap 3 with #Act` `:issue` `:tag props` `:draft name` — [Ex Commands](ex.md)
+
 ## On a Mac
 
 Option+Left and Option+Right move by word there, so these take Control+Option, and Cmd+H hides the app:

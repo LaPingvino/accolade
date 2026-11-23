@@ -32,10 +32,11 @@ Accolade is a screenplay editor that writes plain Fountain. These pages are in t
 - [Drafts, Compare and Merging](merging.md) — earlier versions kept, compared, and a copy edited elsewhere merged back, change by change
 - [The Table Read](table-read.md) — the script read aloud on a TV or projector, a scene at a time, a phone driving it
 - [Writing Together](together.md) — sharing a script, what is shared, seeing each other, Undo and leaving
-- [Keyboard Shortcuts](shortcuts.md) — every shortcut, for a screenplay and a Markdown document
+- [Keyboard Shortcuts](shortcuts.md) — every shortcut, for a screenplay and a Markdown document, and vim's and helix's keys
+- [Keyboard Only](keyboard.md) — writing, adapting and production without a mouse
 - [File Formats](formats.md) — what Accolade opens, saves, imports and exports
 - [Lexington on the Command Line](lexington.md) — converting scripts without the editor
-- [Vim and Helix Modes](vim.md) — not documented yet
+- [Vim and Helix Modes](vim.md) — every key of both modes, the screenplay's scenes and sections as motions and text objects, and what differs from vim and helix
 - [Ex Commands](ex.md) — every command of the `:` line, which completes them as you type
 
 ## Cheat sheets

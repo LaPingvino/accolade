@@ -1,6 +1,6 @@
 # Keyboard Shortcuts
 
-Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so no shortcut is missing; the app shows the ones for the document open. See also the [cheat sheet](cheat-shortcuts.md), and for a Final Draft writer's habits [Coming from Final Draft](final-draft.md).
+Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so no shortcut is missing; the app shows the ones for the document open. See also the [cheat sheet](cheat-shortcuts.md), [Keyboard Only](keyboard.md) for working without a mouse, and for a Final Draft writer's habits [Coming from Final Draft](final-draft.md).
 
 ## While writing
 
@@ -123,4 +123,137 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 
 ## Vim and helix
 
-Preferences > Editor gives the editor vim's or helix's keys; the menus' shortcuts stay. Their own keys are not documented yet: [Vim and Helix Modes](vim.md); the `:` line's commands, which it completes as you type: [Ex Commands](ex.md).
+Preferences > Editor > Keys gives the editor vim's or helix's keys; the menus' shortcuts above stay, and come first. All of them, with what differs from vim and helix: [Vim and Helix Modes](vim.md); the `:` line's commands, which it completes as you type: [Ex Commands](ex.md).
+
+### Vim
+
+#### Modes
+
+- **Esc** — back to normal mode (in vim onto the character typed last)
+- **i a** — insert before / after the cursor (helix: the selection's start / end)
+- **I A** — insert at the line's first character / its end
+- **o O** — a new line below / above, inserting
+- **v V** — visual mode by characters / by lines; again: back to normal
+
+#### Moving
+
+- **h j k l** — left, down, up, right (helix: the selection dropped)
+- **w b e** — the next word's start, the word's start before, the word's end (helix: selecting the word)
+- **0 ^ $** — the line's start, its first character, its end
+- **gg G** — the first line / the last
+- **Enter, Backspace** — down a line to its start; left
+- **1 … 9** — a count before a motion or command: 3w, 2dd, 2]]
+
+#### Changing
+
+- **d c y + a motion** — delete, change (then insert), copy what the motion passes: dw, c$, y3j
+- **dd cc yy** — the line (a count: lines)
+- **D C Y** — to the line's end; Y the line
+- **x X** — delete the character under / before the cursor
+- **p P** — put after / before (lines after or before the line; a scene or section after or before the cursor's)
+- **J** — join the line below onto this one
+- **r + a character** — replace the character under the cursor
+- **u, Ctrl+R** — undo, redo (each command is one step)
+
+#### Text objects and the structure
+
+- **]] [[** — the next / previous scene heading (helix: select that scene)
+- **]s [s** — the next / previous section heading (helix: select that section)
+- **as is** — a text object: a scene with the blank lines after it / its inside: das, cis, yas, vis, 2das
+- **aS iS** — a section with all it holds / its inside: daS, yiS, vaS
+- **m + an object** — move it through the structure engine: mas opens :'<,'>move , then after 12 or before #Act Two
+- **Alt+j Alt+k** — move the unit at the cursor (a scene or section with all it holds, a speech, a paragraph) down / up past the next
+- **Alt+h Alt+l** — promote / demote it (a scene out of its section, into the one before)
+- **Alt+J Alt+K** — into the next / previous scene
+- **Alt+H Alt+L** — pass the last speech on / take in the next (barf, slurp)
+
+#### Selecting
+
+- **a motion in visual mode** — extends the selection; then d x y c act on it
+- **vas viS …** — the scene or section as the selection, line by line
+
+#### Search and commands
+
+- **/** — the search bar (Find)
+- **:** — the command line, completing as you type (in visual or with a selection: '<,'> the lines): [Ex Commands](ex.md)
+
+#### Folds and the outline
+
+- **za zc zo** — fold or unfold the heading at the cursor, fold it, unfold it
+- **zR zM** — unfold all, fold all
+- **Tab, Shift+Tab** — on a heading: cycle its fold; all of them
+- **gj gk** — the next scene or section heading / this one's or the one before
+- **gh gl** — the section the heading is in / the first heading inside it
+- **gs** — the scene's guessed link to the source (Link Guess for This Scene…)
+
+### Helix
+
+#### Modes
+
+- **Esc** — back to normal mode (in vim onto the character typed last)
+- **i a** — insert before / after the cursor (helix: the selection's start / end)
+- **I A** — insert at the line's first character / its end
+- **o O** — a new line below / above, inserting
+- **v** — select mode: motions extend the selection; again: back
+
+#### Moving
+
+- **h j k l** — left, down, up, right (helix: the selection dropped)
+- **w b e** — the next word's start, the word's start before, the word's end (helix: selecting the word)
+- **0 ^ $** — the line's start, its first character, its end
+- **gg G** — the first line / the last
+- **1 … 9** — a count before a motion or command: 3w, 2dd, 2]]
+
+#### Changing
+
+- **d c y** — delete, change, copy the selection (none: the character under the cursor)
+- **p P** — put after / before (lines after or before the line; a scene or section after or before the cursor's)
+- **r + a character** — replace the character under the cursor
+- **u U, Ctrl+R** — undo, redo
+
+#### Text objects and the structure
+
+- **]] [[** — the next / previous scene heading (helix: select that scene)
+- **]s [s** — the next / previous section heading (helix: select that section)
+- **mas mis maS miS** — select a scene, its inside, a section, its inside; then d c y p, or : to move it
+
+#### Selecting
+
+- **x** — the line; again: the next one too
+- **%** — everything
+- **;** — the selection down to the cursor
+
+#### Several selections
+
+- **s** — select what a pattern matches inside the selections (asked on the command line)
+- **S** — split the selections where a pattern matches
+- **Alt+s** — split the selections into lines
+- **C** — a selection like the last one on the next line
+- **,** — keep the primary selection only
+- **Alt+,** — drop the primary selection
+- **d c i a with several** — act at every selection; typing goes to all of them
+
+#### Search and commands
+
+- **/** — the search bar (Find)
+- **:** — the command line, completing as you type (in visual or with a selection: '<,'> the lines): [Ex Commands](ex.md)
+
+#### Folds and the outline
+
+- **za zc zo** — fold or unfold the heading at the cursor, fold it, unfold it
+- **zR zM** — unfold all, fold all
+- **gj gk** — the next scene or section heading / this one's or the one before
+- **gh gl** — the section the heading is in / the first heading inside it
+- **gs** — the scene's guessed link to the source (Link Guess for This Scene…)
+
+### The `:` line for production and structure
+
+- `:renumber [keep LIST] [only LIST] [from X to Y] [fold|letters] [omitted drop|keep|runs]` — Renumber the scenes as Renumber Scenes… would, its choices typed: keep 5,12A keeps those, only 20-24 renumbers those alone, from X to Y a part; fold or keep letters; what OMITTED scenes do. Without choices, the dialog
+- `:lock ` — Lock the scene numbers (every scene numbered)
+- `:unlock [keep|remove]` — Unlock the scene numbers: keep them in the script, or remove the ones the lock wrote; without either, the dialog that asks
+- `:omit [X..Y]` — Make the scenes OMITTED, their numbers kept (the cursor's without a range): one undo step
+- `:restore [X..Y]` — Bring OMITTED scenes back (the cursor's without a range): one undo step
+- `:swap X..Y with Z..W` — Swap two runs of scenes or two sections (#Name): their links, tags and locked numbers go with them
+- `:issue ` — Issue a draft: the Issue Draft dialog
+- `:tag category` — Tag the selection (or the word at the cursor) in a breakdown category: :tag props
+- `:draft [name]` — Save a draft now, by that name (Draft n without one)

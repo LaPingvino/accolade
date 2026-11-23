@@ -94,6 +94,9 @@ type cmdEnv struct {
 	// tableRead: the Table Read is the middle tab in front (its tab);
 	// tableReadOpen: it is open, there or in its window (tableread_tab.go)
 	tableRead, tableReadOpen bool
+	// editorKeys: the editor's keys (standard, vim, helix) for the help
+	// pages made for the window (helpPage); "" elsewhere
+	editorKeys string
 }
 
 // cmdEnv is the window's.

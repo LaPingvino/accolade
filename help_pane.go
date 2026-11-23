@@ -43,7 +43,7 @@ func (w *MainWindow) helpPage(slug string) (help.Page, bool) {
 	if !ok {
 		return p, false
 	}
-	env := cmdEnv{markdown: w.editorMarkdown(), browser: inBrowser} // the keys of what the main editor holds
+	env := cmdEnv{markdown: w.editorMarkdown(), browser: inBrowser, editorKeys: w.editorKeys()} // the keys of what the main editor holds
 	switch slug {
 	case "shortcuts":
 		p.Markdown = shortcutsPage(env, false)
@@ -51,6 +51,10 @@ func (w *MainWindow) helpPage(slug string) (help.Page, bool) {
 		p.Markdown = shortcutsSheet(env, false)
 	case "ex":
 		p.Markdown = exHelpPage()
+	case "vim":
+		p.Markdown = vimHelpPage()
+	case "keyboard":
+		p.Markdown = keyboardOnlyPage()
 	}
 	return p, true
 }
