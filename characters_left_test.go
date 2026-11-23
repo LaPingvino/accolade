@@ -111,7 +111,7 @@ func TestCharactersLeftScreenshots(t *testing.T) {
 	for _, size := range []struct {
 		name string
 		w, h float32
-	}{{"desktop", 1100, 700}, {"phone", 380, 800}} {
+	}{{"desktop", 1100, 560}, {"phone", 380, 800}} {
 		w, _ := scriptWindow(t, charsScript)
 		w.fyneWindow.Resize(fyne.NewSize(size.w, size.h))
 		w.onWindowWidth(size.w)
@@ -231,8 +231,12 @@ func TestRenameAlsoBlocks(t *testing.T) {
 		t.Fatal("Undo left it renamed")
 	}
 	p.read()
+	src, notesDoc := w.sourceDoc(), w.notesDocument() // open as documents: they follow
 	p.renameIn("ANNA", "Hanna", renameEverywhere, renameAlso{notes: true, source: true})
 	got = w.textEditor.Text()
+	if !strings.Contains(src.Text(), "Hanna opened the door.") || !strings.Contains(notesDoc.Text(), "Hanna should be older") {
+		t.Errorf("the open documents did not follow: %q, %q", src.Text(), notesDoc.Text())
+	}
 	for _, want := range []string{"Hanna reads.", "text=Hanna opened the door]]", "text=Hanna sat down", "\nHanna opened the door.", "Hanna sat down and wept", "Hanna should be older"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("no %q in\n%s", want, got)
@@ -268,18 +272,18 @@ func TestMergeUndoSays(t *testing.T) {
 	w.showPane("characters", false)
 	w.charactersPane().rename("BEN", "ANNA", renameCues)
 	w.undo()
-	if s := w.statusLabel.Text; strings.Contains(s, "stays merged") {
+	if s := w.statusLabel.Text; strings.Contains(s, "left as it is") {
 		t.Errorf("nothing changed since, yet: %q", s)
 	}
 	w.redo()
 	tagNow(t, w, "window", 0, "Props") // the breakdown changed since the merge
 	w.undo()
-	if s := w.statusLabel.Text; !strings.Contains(s, "Merge undone") || !strings.Contains(s, "the breakdown") || !strings.Contains(s, "stays merged") {
+	if s := w.statusLabel.Text; !strings.Contains(s, "Merge undone in the script only") || !strings.Contains(s, "the breakdown changed since") {
 		t.Errorf("status %q", s)
 	}
 	tagNow(t, w, "reads", 0, "Props")
 	w.redo()
-	if s := w.statusLabel.Text; !strings.Contains(s, "Merge redone") {
+	if s := w.statusLabel.Text; !strings.Contains(s, "Merge redone in the script only") {
 		t.Errorf("status after Redo %q", s)
 	}
 }
@@ -362,5 +366,33 @@ func TestMarkdownCharacterNotes(t *testing.T) {
 	w.setDocumentType(true)
 	if l := markdownList.list(e.Text()); len(l.entries) != 2 {
 		t.Errorf("back to Markdown:\n%s", e.Text())
+	}
+}
+
+// A Markdown document's character has their cast photo, kept beside it.
+func TestMarkdownCastPhoto(t *testing.T) {
+	dir := t.TempDir()
+	pic := filepath.Join(dir, "anna.png")
+	os.WriteFile(pic, testPicture(t, 200, 200), 0o644)
+	doc := filepath.Join(dir, "visit.md")
+	os.WriteFile(doc, []byte(mdDoc), 0o644)
+	w := newTestWindow(t, "")
+	if err := w.LoadFile(doc); err != nil {
+		t.Fatal(err)
+	}
+	w.showPane("characters", false)
+	p := w.charactersPane()
+	old := chooseFileIn
+	t.Cleanup(func() { chooseFileIn = old })
+	chooseFileIn = func(_ fyne.Window, _ []string, then func(string)) { then(pic) }
+	p.choosePhoto("ANNA")
+	inside, ok := markdownList.inside(w.textEditor.Text())
+	if !ok || !strings.Contains(inside, "photo: visit.assets/anna.png") {
+		t.Fatalf("the list: %q", inside)
+	}
+	p.read()
+	c, _ := p.charOf("ANNA")
+	if p.photoOf(c, 80) == nil {
+		t.Error("the photo is not shown")
 	}
 }

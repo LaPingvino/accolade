@@ -677,10 +677,10 @@ func (w *MainWindow) followRenamed() {
 	r.refollow(to == 0, tagsFollow, stripsFollow)
 }
 
-// keptAsIs says that an Undo (back) or Redo of a merge left the breakdown
-// (bd), the schedule (sched) or both as they are: the merge changed them,
-// and they changed since, so its cast members cannot be told apart again
-// ("": neither; nothing to say).
+// keptAsIs says that an Undo (back) or Redo of a merge was the script's
+// only: the breakdown (bd), the schedule (sched) or both changed since,
+// so they were left as they are, a merge's cast members not to be told
+// apart again ("": neither; nothing to say).
 func keptAsIs(back, bd, sched bool) string {
 	var what string
 	switch {
@@ -693,10 +693,11 @@ func keptAsIs(back, bd, sched bool) string {
 	default:
 		return ""
 	}
+	done := "redone"
 	if back {
-		return "Merge undone in the script; " + what + " changed since, so its cast stays merged there"
+		done = "undone"
 	}
-	return "Merge redone in the script; " + what + " changed since, so its cast was not merged again there"
+	return "Merge " + done + " in the script only: " + what + " changed since, so it was left as it is (its cast as you see it there)"
 }
 
 // followRename brings the breakdown and the schedule from the text before
