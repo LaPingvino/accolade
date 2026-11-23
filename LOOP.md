@@ -1593,3 +1593,24 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   under the machine's load (load average ~21). Next: lines() grouping glyphs along a skewed baseline would mend the
   layer's split lines without OCR; the classifier on Fitzgerald's layout (cue + parenthetical in mixed case) is
   the pattern fixer's or the layout-learning item's.
+- 2026-11-23 (Joop, on the stripboard tab: "That should also make the stripboard a joy to use on phone"): the
+  screenshot (middle-phone-9-stripboard) says not yet — on a phone the board's own toolbar (Move Up/Down, Move to…,
+  Unschedule, Open Scene, Checked, Add Day, Undo, two Group buttons: 9 controls in 5 rows) takes most of the tab, the
+  strips get one header line, and the dock's sheet takes the lower half. PHONE STRIPBOARD: the toolbar goes into the
+  ribbon's Production › Schedule stage (already shown while the board is in front) or a single overflow row, strips
+  get the tab's height, a strip's actions on long-press, drag to reorder with the finger (the structural-moves engine
+  where it applies), days as collapsible bands; the dock sheet collapsed by default while the board is in front.
+  Screenshot before/after.
+  Joop: "so same as preview ribbon" — the pattern to copy is the Preview tab's: the pane's own toolbar moved into a
+  contextual ribbon tab that shows while the view is in front (previewtab.go). So: a contextual "Stripboard" ribbon
+  tab with the board's commands (grouped: Move, Day, Group, Check), shown while the board is in front on every
+  screen size, and the in-pane toolbar removed (not only on phones).
+- 2026-11-23 (Hebrew/Arabic samples merged; left wrong, from its report): (1) PDF title page: rtl lines sit ~0.5 in
+  left of the Latin ones (centred on mirrored margins); (2) editor: a Hebrew run inside a left-to-right line (title
+  page values) shows letter-reversed — only whole rtl lines are mirrored, runs inside ltr lines need bidi reordering;
+  (3) the cursor/selection inside joined runs ("23:40", Latin names in rtl lines) still maps cell by cell — check on
+  screen; (4) Arabic PDF: the font's GPOS mark positioning is not applied, so vowel marks sit at default positions
+  (fatha on hamza reads like damma; shadda+fatha crowded) — Lexington/the PDF writer; (5) Courier Badi's tall Arabic
+  glyphs make single-spaced dialogue lines touch — the font (Courier Badi repo: Arabic glyph heights/vertical metrics);
+  (6) Hebrew dagesh in yod/lamed hard to see — the font. (1)–(4) Accolade/Lexington, (5)–(6) Courier Badi. The Arabic
+  sample's vowelling is the agent's own, to be checked by a native reader.
