@@ -1639,3 +1639,24 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   docs/help/ex.md made again. On a Mac (coordinator): Option+←/→ stay word moves, so promote/demote and barf/slurp
   take Control+Option there (command.macKeys; the help pages note it, the cheat sheet has an "On a Mac" list).
   Open: no multi-select of cards yet (a range is picked in the dialog).
+- 2026-11-23 (Joop: "Any obvious contextual ribbons we're missing?" / "Maybe a cards reorg one?"): CONTEXTUAL RIBBON TABS,
+  each like the Preview tab (shown while its context is in front, the view's own toolbar moved into it). (1) CARDS,
+  together with the TIMELINE item (after the structural moves merge): Rearrange (Swap…, Move…, Move Up/Down,
+  Promote/Demote — the structure engine), Arrange (Grid / Timeline), Group & sort (by act/section, colour, character,
+  tag — a view, not the script order, unless "Make It the Order", one undo step), Card (New Scene, Colour, Fold
+  Synopses, Open in the Script). Then: (2) FIX-UP after importing a PDF/DOCX/FDX until saved or dismissed (Fix Lines
+  Like This…, the kept rules, OCR again, the garbled-text check); (3) TITLE PAGE while the cursor is in it (keys to
+  add; later custom keys); (4) SHARED SESSION while in one (who's here, follow, leave); (5) CHARACTERS with its tab/pane
+  in front (rename everywhere, merge names, notes, later the cast photo); (6) COMPARE while comparing drafts/revisions
+  (next/previous change, accept/keep).
+  Joop: "I think Word has some options always visible, too, on their ribbon?" — Word's Quick Access Toolbar (always
+  visible, customizable by right-click "Add to Quick Access Toolbar") and its "Tell me" search box. Accolade's top
+  icon row is the fixed equivalent; add: (7) right-click any ribbon button / menu item → "Add to the Top Row" (and
+  remove), kept per phone/desktop like the Quick tab's lock, overflowing into the row's … menu on a phone; (8) a search
+  field in the top row that opens the palette as you type (the palette + ex completion's matching). With the
+  contextual tabs above.
+  Joop: "we might want to enable the inverse as well: on Mobile the clickable name part drops, and that's still very
+  useful..." — (9) the top row's items can also be removed (right-click/long-press → "Remove from the Top Row", into
+  the … menu or the ribbon), and on a phone the clickable script name keeps its place before the icons: less-used icons
+  overflow into … first (ribbon.go now hides the title below 80 px of room). Where even that's too narrow, the name
+  stays reachable by tapping the Script middle tab's label / the title in the … menu (the same name editor).
