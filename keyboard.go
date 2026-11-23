@@ -1,9 +1,17 @@
 package main
 
 import (
+	"cmp"
+	"image/color"
+	"reflect"
+	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 )
 
 // The keyboard pass (LOOP.md 2026-11-20, docs/KEYBOARD.md): every
@@ -175,4 +183,149 @@ func keptKeysOn(p keyPlatform) []keptKey {
 var modeShortcuts = map[string][]string{
 	"vim":   {"Ctrl+R", "Alt+J", "Alt+K", "Alt+H", "Alt+L", "Shift+Alt+J", "Shift+Alt+K", "Shift+Alt+H", "Shift+Alt+L"},
 	"helix": {"Ctrl+R", "Alt+J", "Alt+K", "Alt+H", "Alt+L", "Shift+Alt+J", "Shift+Alt+K", "Shift+Alt+H", "Shift+Alt+L", "Alt+S", "Alt+,"},
+}
+
+// scrollToFocus scrolls every scroll holding c's focused control so that
+// the control is in sight: Tab onto a dialog's control below its fold
+// shows it (Fyne's scrolls do not follow the focus). Called after Tab
+// and Shift+Tab move the focus (keyPreview). It looks through containers,
+// scrolls, splits, pop-ups (a dialog), cards and tabs, and any other
+// widget's exported fields holding objects: a widget's renderer is not
+// public.
+func scrollToFocus(c fyne.Canvas) {
+	f, ok := c.Focused().(fyne.CanvasObject)
+	if !ok || f == nil {
+		return
+	}
+	root := c.Content()
+	if top := c.Overlays().Top(); top != nil {
+		root = top
+	}
+	// the scrolls in sight; a control inside a widget (a radio group's
+	// item) is found by where it is: in the scroll's content
+	var scrolls []*container.Scroll
+	var walk func(o fyne.CanvasObject)
+	walk = func(o fyne.CanvasObject) {
+		if o == nil || !o.Visible() {
+			return
+		}
+		var kids []fyne.CanvasObject
+		switch x := o.(type) {
+		case *fyne.Container:
+			kids = x.Objects
+		case *container.Scroll:
+			scrolls = append(scrolls, x)
+			kids = []fyne.CanvasObject{x.Content}
+		case *container.Split:
+			kids = []fyne.CanvasObject{x.Leading, x.Trailing}
+		case *widget.PopUp:
+			kids = []fyne.CanvasObject{x.Content}
+		case *widget.Card:
+			kids = []fyne.CanvasObject{x.Content}
+		case *container.AppTabs:
+			if it := x.Selected(); it != nil {
+				kids = []fyne.CanvasObject{it.Content}
+			}
+		default: // another widget: what it holds, by its exported fields (a dialog's overlay: Content)
+			kids = heldObjects(o)
+		}
+		for _, k := range kids {
+			walk(k)
+		}
+	}
+	walk(root)
+	d := fyne.CurrentApp().Driver()
+	fp, fs := d.AbsolutePositionForObject(f), f.Size()
+	inside := func(s *container.Scroll) bool {
+		if s.Content == nil {
+			return false
+		}
+		p, z := d.AbsolutePositionForObject(s.Content), s.Content.Size()
+		return fp.X >= p.X && fp.Y >= p.Y && fp.X+fs.Width <= p.X+z.Width+1 && fp.Y+fs.Height <= p.Y+z.Height+1
+	}
+	var holding []*container.Scroll
+	for _, s := range scrolls {
+		if inside(s) {
+			holding = append(holding, s)
+		}
+	}
+	slices.SortFunc(holding, func(a, b *container.Scroll) int { // the innermost (smallest) first
+		sa, sb := a.Content.Size(), b.Content.Size()
+		return cmp.Compare(sa.Width*sa.Height, sb.Width*sb.Height)
+	})
+	for _, s := range holding {
+		at := d.AbsolutePositionForObject(f).Subtract(d.AbsolutePositionForObject(s.Content))
+		off, size := s.Offset, s.Size()
+		switch {
+		case at.Y < off.Y:
+			off.Y = at.Y
+		case at.Y+fs.Height > off.Y+size.Height:
+			off.Y = min(at.Y, at.Y+fs.Height-size.Height)
+		}
+		switch {
+		case at.X < off.X:
+			off.X = at.X
+		case at.X+fs.Width > off.X+size.Width:
+			off.X = min(at.X, at.X+fs.Width-size.Width)
+		}
+		if off != s.Offset {
+			s.ScrollToOffset(off)
+		}
+	}
+}
+
+// heldObjects are the objects o's exported fields hold (Content,
+// Objects …): how a widget whose renderer is not public is looked into.
+func heldObjects(o fyne.CanvasObject) []fyne.CanvasObject {
+	v := reflect.ValueOf(o)
+	if v.Kind() != reflect.Pointer || v.Elem().Kind() != reflect.Struct {
+		return nil
+	}
+	v = v.Elem()
+	obj := reflect.TypeFor[fyne.CanvasObject]()
+	var out []fyne.CanvasObject
+	for i := 0; i < v.NumField(); i++ {
+		f := v.Type().Field(i)
+		if !f.IsExported() || f.Anonymous {
+			continue
+		}
+		switch fv := v.Field(i); {
+		case f.Type == obj:
+			if c, ok := fv.Interface().(fyne.CanvasObject); ok && c != nil {
+				out = append(out, c)
+			}
+		case f.Type.Kind() == reflect.Slice && f.Type.Elem() == obj:
+			out = append(out, fv.Interface().([]fyne.CanvasObject)...)
+		}
+	}
+	return out
+}
+
+// ringList is a list that shows it has the focus by a line round it: a
+// Fyne list marks the focused row only, which a selected row hides (the
+// Drafts dialog's first draft, chosen as it opens).
+type ringList struct {
+	widget.List
+	ring *canvas.Rectangle
+}
+
+func newRingList(length func() int, create func() fyne.CanvasObject, update func(widget.ListItemID, fyne.CanvasObject)) *ringList {
+	l := &ringList{ring: canvas.NewRectangle(color.Transparent)}
+	l.Length, l.CreateItem, l.UpdateItem = length, create, update
+	l.ring.StrokeWidth = 2
+	l.ring.Hide()
+	l.ExtendBaseWidget(l)
+	return l
+}
+
+// view is the list with its ring, to put where the list goes.
+func (l *ringList) view() fyne.CanvasObject { return container.NewStack(l, l.ring) }
+
+func (l *ringList) FocusGained() { l.List.FocusGained(); l.showRing(true) }
+func (l *ringList) FocusLost()   { l.List.FocusLost(); l.showRing(false) }
+
+func (l *ringList) showRing(on bool) {
+	l.ring.StrokeColor = theme.Color(theme.ColorNameFocus)
+	l.ring.Hidden = !on
+	l.ring.Refresh()
 }

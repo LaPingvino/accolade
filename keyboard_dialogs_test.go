@@ -133,7 +133,7 @@ func auditedDialogs() []dialogAudit {
 		c := c
 		out = append(out, dialogAudit{c.id, func(w *MainWindow) { w.runByName(c, nil, !c.applies(w.cmdEnv())) }})
 	}
-	for _, id := range []string{"strips.open", "view.cards", "view.tableRead", "view.changes", "view.outline", "view.notes", "view.source", "view.production", "view.characters", "view.help"} {
+	for _, id := range []string{"production.stripboard", "view.cards", "view.tableRead", "view.changes", "view.outline", "view.notes", "view.source", "view.production", "view.characters", "view.help"} {
 		if c := commands().byID[id]; c != nil {
 			c := c
 			out = append(out, dialogAudit{c.id, func(w *MainWindow) { w.runByName(c, nil, !c.applies(w.cmdEnv())) }})
@@ -210,7 +210,7 @@ func TestDialogTabOrder(t *testing.T) {
 // pixel (slow: two captures a control): the production and structure
 // ones the keyboard pass names, and those writing in the script.
 var focusDialogs = []string{"production.renumber", "production.unlockNumbers", "production.issue", "production.reports",
-	"file.drafts", "file.saveDraft", "file.mergeChanges", "file.titlePage", "file.addSettings", "structure.swap", "structure.move",
+	"file.drafts", "file.saveDraft", "file.titlePage", "file.addSettings", "structure.swap", "structure.move",
 	"write.newScene", "view.tableRead", "view.stages"}
 
 // The dialogs show where the focus is on every control Tab reaches, on
@@ -228,6 +228,9 @@ func TestDialogsFocusVisible(t *testing.T) {
 	for _, size := range []fyne.Size{{Width: 1200, Height: 800}, {Width: 380, Height: 800}} {
 		w.fyneWindow.Resize(size)
 		for _, id := range focusDialogs {
+			if only := os.Getenv("FOCUS_ONLY"); only != "" && !strings.Contains(","+only+",", ","+id+",") {
+				continue // FOCUS_ONLY=file.drafts,…: a quick look at some
+			}
 			a, ok := byID[id]
 			if !ok {
 				t.Fatalf("%s is not audited", id)

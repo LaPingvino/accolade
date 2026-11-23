@@ -450,6 +450,10 @@ func (w *MainWindow) keyPreview(key fyne.KeyName, mod fyne.KeyModifier) bool {
 		return true
 	}
 	w.altKey(key) // Alt alone shows the ribbon's key tips
+	if key == fyne.KeyTab { // the focus moves: a dialog's scroll follows it (keyboard.go)
+		c := w.fyneWindow.Canvas()
+		w.after(0, func() { scrollToFocus(c) })
+	}
 	return w.previewKey(key, mod)
 }
 

@@ -766,6 +766,10 @@ func (v *vim) helixKey(r rune) {
 			}
 			v.ex(lines)
 		}
+	case '/': // the search bar, as vim's
+		if v.search != nil {
+			v.search()
+		}
 	case ';':
 		v.e.Navigate(func(bf *buffer.Buffer) { bf.SetCursor(bf.Cursor(), false) })
 	case 'v':

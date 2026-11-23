@@ -857,19 +857,32 @@ type trArea struct {
 	v       *tableReadView
 	content fyne.CanvasObject
 	focused bool
+	ring    *canvas.Rectangle // the focus seen: a line round the area (keyboard audit)
 }
 
 func newTRArea(v *tableReadView, content fyne.CanvasObject) *trArea {
 	a := &trArea{v: v, content: content}
+	a.ring = canvas.NewRectangle(color.Transparent)
+	a.ring.StrokeWidth = 2
+	a.ring.Hide()
 	a.ExtendBaseWidget(a)
 	return a
 }
 
-func (a *trArea) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(a.content) }
-func (a *trArea) FocusGained()                        { a.focused = true }
-func (a *trArea) FocusLost()                          { a.focused = false }
-func (a *trArea) TypedRune(rune)                      {}
-func (a *trArea) TypedKey(e *fyne.KeyEvent)           { a.v.key(e) }
+func (a *trArea) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(container.NewStack(a.content, a.ring))
+}
+func (a *trArea) FocusGained() { a.focused = true; a.showRing(true) }
+func (a *trArea) FocusLost()   { a.focused = false; a.showRing(false) }
+
+// showRing shows or hides the focus line.
+func (a *trArea) showRing(on bool) {
+	a.ring.StrokeColor = theme.Color(theme.ColorNameFocus)
+	a.ring.Hidden = !on
+	a.ring.Refresh()
+}
+func (a *trArea) TypedRune(rune)            {}
+func (a *trArea) TypedKey(e *fyne.KeyEvent) { a.v.key(e) }
 func (a *trArea) Tapped(*fyne.PointEvent) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(a); c != nil {
 		c.Focus(a)

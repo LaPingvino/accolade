@@ -72,7 +72,7 @@ func draftsWhere(w *MainWindow) string {
 type draftsDialog struct {
 	w        *MainWindow
 	drafts   []savedDraft // newest first
-	list     *widget.List
+	list     *ringList
 	selected int
 	dialog   *dialog.CustomDialog
 	compare  *widget.Button
@@ -104,7 +104,7 @@ func newDraftsDialog(w *MainWindow) (*draftsDialog, error) {
 	where := widget.NewLabel(draftsWhere(w))
 	where.Wrapping = fyne.TextWrapWord
 	where.Importance = widget.LowImportance
-	dd.list = widget.NewList(func() int { return len(dd.drafts) },
+	dd.list = newRingList(func() int { return len(dd.drafts) },
 		func() fyne.CanvasObject {
 			name := widget.NewLabel("")
 			name.TextStyle.Bold = true
@@ -145,7 +145,7 @@ func newDraftsDialog(w *MainWindow) (*draftsDialog, error) {
 	closeButton := widget.NewButtonWithIcon("Close", theme.CancelIcon(), func() { dd.dialog.Hide() })
 	closeButton.Importance = widget.HighImportance
 
-	var body fyne.CanvasObject = dd.list
+	var body fyne.CanvasObject = dd.list.view()
 	if len(ds) == 0 {
 		none := widget.NewLabel("No drafts yet. Save Draft… keeps the script as it is now, under a name, to come back to or compare with later.")
 		none.Wrapping = fyne.TextWrapWord
