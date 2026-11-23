@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"image/png"
 	"os"
 	"os/exec"
@@ -57,23 +58,33 @@ func TestHindiNames(t *testing.T) {
 	}
 }
 
-// TestHindiNewTemplate: New in each Hindi gives a script in its words
-// that reads back as a screenplay in it: the heading a heading, the cues
-// cues, the closing transition a transition; a window in hi-Latn reads
-// with hi-Latn's own rules, not English's with the same scene words.
+// TestHindiNewTemplate: New in each Hindi opens its sample (hi the
+// Latin one), and the template a Hindi without one would get is in its
+// words that reads back as a screenplay in it: the title keys, the
+// heading a heading, the cues cues (the one with Hindi's extension too),
+// the closing transition a transition; a window in hi-Latn reads with
+// hi-Latn's own rules, not English's with the same scene words.
 func TestHindiNewTemplate(t *testing.T) {
-	for lang, words := range map[string][]string{
-		"hi-Latn": {"INT. LIVING ROOM - DAY", "FADE OUT."},
-		"hi-Deva": {"शीर्षक: UNTITLED SCREENPLAY", "अंदर. LIVING ROOM - दिन", "फ़ेड आउट"},
-		"hi":      {"शीर्षक: UNTITLED SCREENPLAY", "INT. LIVING ROOM - DAY", "फ़ेड आउट"},
+	for lang, c := range map[string]struct {
+		words     []string
+		ext       string
+		head, end string
+	}{
+		"hi-Latn": {[]string{"Sheershak: UNTITLED SCREENPLAY", "Shrey: Written by", "Masaude ki tithi: "}, "V.O.", "INT. LIVING ROOM - DAY", "FADE OUT."},
+		"hi-Deva": {[]string{"शीर्षक: UNTITLED SCREENPLAY", "श्रेय: Written by", "लेखक: Your Name", "मसौदे की तिथि: ", "संपर्क:"}, "वॉयस ओवर", "अंदर. LIVING ROOM - दिन", "फ़ेड आउट"},
+		"hi":      {[]string{"शीर्षक: UNTITLED SCREENPLAY", "मसौदे की तिथि: "}, "वॉयस ओवर", "INT. LIVING ROOM - DAY", "फ़ेड आउट"},
 	} {
 		w := newTestWindow(t, "")
 		w.setLanguage(lang)
 		if w.language != lang {
 			t.Fatalf("%s: the window's language is %q", lang, w.language)
 		}
-		text := w.newScriptText(lang)
-		for _, word := range words {
+		if got, want := w.newScriptText(lang), languageSample(cmp.Or(sampleOf[lang], lang)); want == "" || got != want {
+			t.Errorf("%s: New is not its sample: %.40q", lang, got)
+		}
+		text := templateIn(w.lex().Language(lang))
+		cue := "JOHN (" + c.ext + ")"
+		for _, word := range append(c.words, c.head, cue, c.end) {
 			if !strings.Contains(text, word) {
 				t.Errorf("%s: no %q in\n%s", lang, word, text)
 			}
@@ -82,21 +93,15 @@ func TestHindiNewTemplate(t *testing.T) {
 		for _, l := range fountain.ParseIn(w.dialect().Lang, strings.NewReader(text)) {
 			types[strings.TrimSpace(l.Contents)] = l.Type
 		}
-		heading, end := words[len(words)-2], words[len(words)-1]
-		// The template shows a language's first extension: (वॉयस ओवर) in
-		// Devanagari, (V.O.) in hi-Latn.
-		vo := "JOHN (वॉयस ओवर)"
-		if lang == "hi-Latn" {
-			vo = "JOHN (V.O.)"
-		}
-		for row, want := range map[string]string{heading: lex.TypeScene, "JOHN": lex.TypeSpeaker, vo: lex.TypeSpeaker,
-			"(sighing)": lex.TypeParen, "UNTITLED SCREENPLAY": "Title", "This screenplay isn't writing itself.": lex.TypeDialog, end: lex.TypeTrans} {
+		for row, want := range map[string]string{c.head: lex.TypeScene, "JOHN": lex.TypeSpeaker, cue: lex.TypeSpeaker,
+			"(sighing)": lex.TypeParen, "UNTITLED SCREENPLAY": "Title", "Written by": "Credit",
+			"This screenplay isn't writing itself.": lex.TypeDialog, c.end: lex.TypeTrans} {
 			if got := types[row]; got != want {
 				t.Errorf("%s: %q read as %q, want %q", lang, row, got, want)
 			}
 		}
-		if !isSceneHeadingIn(heading, sceneStarts(lang)) {
-			t.Errorf("%s: the editor does not see %q as a heading", lang, heading)
+		if !isSceneHeadingIn(c.head, sceneStarts(lang)) {
+			t.Errorf("%s: the editor does not see %q as a heading", lang, c.head)
 		}
 		if lang == "hi-Latn" && !slices.Contains(w.dialect().Lang.Times, "DIN") {
 			t.Errorf("hi-Latn's window reads with %v's times", w.dialect().Lang.Times)

@@ -96,6 +96,8 @@ func (w *MainWindow) openSample() {
 // tower of Babel, as pointed by Mechon Mamre, without cantillation), the
 // Arabic one vowelled (Ali Baba and the Forty Thieves), to try Hebrew's
 // points and Arabic's joining in the editor, the page view and the PDF.
+// Hindi has two, one per script (hi-Deva, hi-Latn: the monkey and the
+// crocodile); hi, both scripts, starts from the Latin one (sampleOf).
 //
 //go:embed examples/sample.*.fountain
 var langSampleFiles embed.FS

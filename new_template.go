@@ -16,12 +16,20 @@ import (
 // prose stays English, a placeholder; the direction and the cue rules
 // are the language's own, as the editor reads it.
 
+// sampleOf is the sample a language with none of its own starts from:
+// Hindi in either script (hi) from Hindi in Latin letters, what most
+// Hindi scripts are written in (Lexington's docs/LANGUAGES.md).
+var sampleOf = map[string]string{"hi": "hi-Latn"}
+
 // newScriptText is what New starts a script in lang with.
 func (w *MainWindow) newScriptText(lang string) string {
 	if s := languageSample(lang); s != "" {
 		return s
 	}
-	if base, _, ok := strings.Cut(lang, "-"); ok { // hi-Deva: Hindi's
+	if s := languageSample(sampleOf[lang]); s != "" {
+		return s
+	}
+	if base, _, ok := strings.Cut(lang, "-"); ok { // zh-Hant: Chinese's
 		if s := languageSample(base); s != "" {
 			return s
 		}
@@ -71,7 +79,7 @@ func templateIn(l rules.Language) string {
 	}
 	lines := []string{
 		key("Title") + ": UNTITLED SCREENPLAY",
-		"Credit: Written by",
+		key("Credit") + ": Written by",
 		key("Author") + ": Your Name",
 		key("Draft date") + ": " + time.Now().Format("January 2, 2006"),
 		key("Contact") + ":",

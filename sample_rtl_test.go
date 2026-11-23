@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"image/png"
 	"os"
 	"os/exec"
@@ -74,6 +75,20 @@ var langSampleWants = map[string]struct{ scenes, cues, transitions []string }{
 		cues:        []string{"农夫", "邻居（画外音）", "农夫", "邻居", "农夫", "邻居"},
 		transitions: []string{"淡入：", "淡出"},
 	},
+	"hi-Deva": {
+		scenes: []string{"1. नदी किनारे जामुन का पेड़/दिन/बाहर", "2. नदी के बीच मगरमच्छ का घर/शाम/बाहर",
+			"3. नदी के बीच/दिन/बाहर", "4. नदी किनारे जामुन का पेड़/दिन/बाहर"},
+		cues: []string{"बंदर", "मगरमच्छ", "बंदर", "पत्नी (ऑफ़ स्क्रीन)", "पत्नी", "मगरमच्छ", "पत्नी", "मगरमच्छ",
+			"बंदर", "बंदर", "बंदर (जारी)", "कथावाचक (वॉयस ओवर)"},
+		transitions: []string{"फ़ेड इन", "कट टू", "कट टू", "कट टू", "फ़ेड आउट"},
+	},
+	"hi-Latn": {
+		scenes: []string{"EXT. NADI KINARA, JAAMUN KA PED - DIN", "EXT. NADI KE BEECH, MAGARMACHH KA GHAR - SHAAM",
+			"EXT. NADI KE BEECH - DIN", "EXT. NADI KINARA, JAAMUN KA PED - DIN"},
+		cues: []string{"BANDAR", "MAGARMACHH", "BANDAR", "PATNI (O.S.)", "PATNI", "MAGARMACHH", "PATNI", "MAGARMACHH",
+			"BANDAR", "BANDAR", "BANDAR (CONT'D)", "KATHAVAACHAK (V.O.)"},
+		transitions: []string{"CUT TO:", "CUT TO:", "CUT TO:", "> FADE OUT."},
+	},
 	"ja": {
 		scenes:      []string{"○川辺（朝）", "○おじいさんとおばあさんの家・囲炉裏端（夕）"},
 		cues:        []string{"おばあさん", "おじいさん", "おばあさん", "おじいさん", "おばあさん", "語り手（N）"},
@@ -83,7 +98,7 @@ var langSampleWants = map[string]struct{ scenes, cues, transitions []string }{
 
 // noPDFFont are the samples whose letters Lexington's PDF font (Courier
 // Badi) lacks: the PDF says so, and HTML prints them.
-var noPDFFont = map[string]bool{"zh": true, "ja": true}
+var noPDFFont = map[string]bool{"zh": true, "ja": true, "hi-Deva": true}
 
 // langSampleWindow is a window with lang's sample opened by its File
 // menu item.
@@ -207,7 +222,7 @@ func TestNewInEveryLanguage(t *testing.T) {
 			continue
 		}
 		scenes, cues, transitions := readBack(t, w)
-		if s, ok := langSampleWants[lang]; ok {
+		if s, ok := langSampleWants[cmp.Or(sampleOf[lang], lang)]; ok {
 			if !slices.Equal(scenes, s.scenes) || !slices.Equal(cues, s.cues) || !slices.Equal(transitions, s.transitions) {
 				t.Errorf("New in %s: not its sample", lang)
 			}
@@ -381,11 +396,11 @@ func TestLanguageSamplesMarks(t *testing.T) {
 // New starts from the sample in the language for new scripts.
 func TestNewInLanguageSample(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
-	for _, lang := range []string{"he", "ar", "en"} {
+	for _, lang := range []string{"he", "ar", "hi-Deva", "hi-Latn", "hi", "en"} {
 		w.settings.SetString("script-language", lang)
 		w.newLanguage = lang // New in:
 		w.NewFile()
-		want := orTemplate(languageSample(lang))
+		want := orTemplate(languageSample(cmp.Or(sampleOf[lang], lang)))
 		if w.language != lang || w.textEditor.Text() != want {
 			t.Errorf("New in %s: language %q, text %.40q", lang, w.language, w.textEditor.Text())
 		}
@@ -424,7 +439,7 @@ func TestLanguageSampleScreenshots(t *testing.T) {
 		}
 	}
 	// the others in the editor
-	for _, lang := range []string{"eo", "zh", "de", "ru", "ja"} {
+	for _, lang := range []string{"eo", "zh", "de", "ru", "ja", "hi-Latn", "hi-Deva"} {
 		w := langSampleWindow(t, lang)
 		w.fyneWindow.Resize(fyne.NewSize(1100, 750))
 		shot(w, "sample-"+lang+"-editor")
