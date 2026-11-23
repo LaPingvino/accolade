@@ -25,7 +25,7 @@ func (t *LightTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) 
 	case theme.ColorNamePressed:
 		return color.RGBA{R: 220, G: 220, B: 220, A: 255} // Darker gray
 	case theme.ColorNameSelection:
-		return color.RGBA{R: 52, G: 96, B: 140, A: 60} // Semi-transparent ink blue
+		return color.NRGBA{R: 52, G: 96, B: 140, A: 60} // Semi-transparent ink blue
 	case theme.ColorNameSeparator:
 		return color.RGBA{R: 200, G: 200, B: 200, A: 255} // Light gray
 	case theme.ColorNameError:
@@ -86,7 +86,7 @@ func (t *DarkTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) c
 	case theme.ColorNamePressed:
 		return color.RGBA{R: 80, G: 80, B: 80, A: 255} // Lighter dark gray
 	case theme.ColorNameSelection:
-		return color.RGBA{R: 140, G: 176, B: 214, A: 70} // Semi-transparent soft blue
+		return color.NRGBA{R: 140, G: 176, B: 214, A: 70} // Semi-transparent soft blue
 	case theme.ColorNameSeparator:
 		return color.RGBA{R: 80, G: 80, B: 80, A: 255} // Dark gray
 	case theme.ColorNameError:
@@ -147,7 +147,7 @@ func (t *SepiaTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) 
 	case theme.ColorNamePressed:
 		return color.RGBA{R: 235, G: 225, B: 195, A: 255} // Darker sepia
 	case theme.ColorNameSelection:
-		return color.RGBA{R: 184, G: 134, B: 11, A: 80} // Semi-transparent golden brown
+		return color.NRGBA{R: 184, G: 134, B: 11, A: 80} // Semi-transparent golden brown
 	case theme.ColorNameSeparator:
 		return color.RGBA{R: 220, G: 200, B: 160, A: 255} // Light brown
 	case theme.ColorNameError:
@@ -165,7 +165,7 @@ func (t *SepiaTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) 
 	case theme.ColorNameScrollBar:
 		return color.RGBA{R: 220, G: 200, B: 160, A: 255} // Light brown
 	case theme.ColorNameShadow:
-		return color.RGBA{R: 92, G: 80, B: 65, A: 50} // Semi-transparent dark brown
+		return color.NRGBA{R: 92, G: 80, B: 65, A: 50} // Semi-transparent dark brown
 	case theme.ColorNameInputBackground:
 		return color.RGBA{R: 255, G: 252, B: 235, A: 255} // Very light sepia
 	case theme.ColorNameInputBorder:
@@ -173,7 +173,7 @@ func (t *SepiaTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) 
 	case theme.ColorNameMenuBackground:
 		return color.RGBA{R: 250, G: 245, B: 225, A: 255} // Light sepia
 	case theme.ColorNameOverlayBackground:
-		return color.RGBA{R: 92, G: 80, B: 65, A: 128} // Semi-transparent dark brown
+		return color.NRGBA{R: 92, G: 80, B: 65, A: 128} // Semi-transparent dark brown
 	}
 	return theme.DefaultTheme().Color(name, variant)
 }
