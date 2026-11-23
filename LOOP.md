@@ -1485,3 +1485,34 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   :h <menu command> goes to its menu's part of the page. Unverified: row taps on the real drivers (the tests call
   Tapped; the press unfocuses the line, the tap gives it back), a click elsewhere leaves the list up while the line
   stays open, the browser build only compiled.
+- 2026-11-23 (Joop: "we might want to add hi-Latn for the common Fountain format most seem to use, and hi-Deva for
+  Devanagari. And maybe just hi for supporting both at once..."): the Hindi preset as three language codes in
+  Lexington's config: hi-Latn (Hindi in Latin letters, what most Hindi Fountain scripts use), hi-Deva (Devanagari),
+  and hi = both at once (scene words, transitions and cue rules of either script recognized; the writer writes in
+  either or mixes). BCP 47 script subtags, so a file named x.hi-Latn.fountain / a bundle's language "hi-Deva" picks
+  them; the language picker shows "Hindi (Latin)", "Hindi (Devanagari)", "Hindi (both)". If Lexington's language
+  lookup only knows bare codes, teach it script subtags generally (fallback hi-Deva → hi → default), tested.
+- 2026-11-23 (Joop: "You can put the post-reset things to until Wednesday, because we have a heavier package until that
+  reset now."): the items that waited for Wed 2026-11-25 (Markdown images + storyboard frames + cast photos, Table
+  Read / cast, citations) no longer wait: they join the queue now, after the Hindi preset and the timeline.
+- 2026-11-23 (Joop: "How hard would it be to add a sample screenplay per language and format? … if you start, you
+  always get an English one, which misfit for the other languages is partly why we added the empty option. I think
+  clicking new with a different language set should show an appropriate sample or maybe an automatically generated
+  template based on the settings for that language, e.g. just the English one with INT/EXT swapped etc as a
+  fallback..."): NEW BY LANGUAGE AND FORMAT, right after the Hindi preset (the same language data). File › New's
+  starting text = (1) a hand-written template for that language + format if one exists (assets, per BCP 47 tag with
+  fallback hi-Deva → hi), else (2) generated from the English template for that format with everything
+  language-bound taken from Lexington's config for that language: scene words (INT./EXT. and their combos, DAY/NIGHT
+  and the time words), transitions, extensions (V.O., O.S., CONT'D), title page keys, the direction (rtl), the
+  script's case rules (no capitals for languages without them) — the prose staying English as placeholder text, or
+  short neutral placeholders ("Scene description.") if the language is chosen as such. Per format: screenplay, stage
+  play, the comic/other formats Lexington has. Empty stays an option. A test generates the template for every
+  language × format in the config and checks it reads back as that format with that language's rules (headings are
+  headings, cues are cues). Screenshots: Esperanto, Arabic, Hindi (Devanagari), Chinese.
+  Joop: "I specifically want to be able to test the Hebrew font/PDF support..." — so Hebrew is the FIRST language of
+  this item (before the Hindi preset if that's quicker): New with Hebrew gives a Hebrew screenplay whose prose is
+  real Hebrew, not English placeholders — with niqqud that exercises Courier Badi's points (shin/sin dots, holam,
+  dagesh: e.g. Genesis 1:1–5, public domain, as action and dialogue) plus plain unpointed lines, a parenthetical,
+  numbers and an English name inside a Hebrew line (bidi), Hebrew scene words (פנים/חוץ, יום/לילה …) from Lexington's
+  config (add a [Languages.he] if it lacks one, tagged), rtl. Screenshots: editor, page view and the exported PDF
+  page (rendered), so Joop can open it and print it.
