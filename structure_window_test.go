@@ -1,6 +1,7 @@
 package main
 
 import (
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -136,6 +137,9 @@ func TestStructureKeys(t *testing.T) {
 				e.TypedKey(escape())
 			}
 			at(c.at)
+			if runtime.GOOS == "darwin" && (c.key == fyne.KeyLeft || c.key == fyne.KeyRight) && c.mod&fyne.KeyModifierAlt != 0 {
+				c.mod |= fyne.KeyModifierControl // a Mac keeps Option+←/→ for words: Control+Option (command.macKeys)
+			}
 			if !pressKey(w, c.key, c.mod) {
 				t.Fatalf("%s: %s+%v went nowhere", mode, c.key, c.mod)
 			}
