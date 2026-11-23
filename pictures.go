@@ -55,7 +55,7 @@ func (w *MainWindow) picturesFiles() images.Files {
 func (w *MainWindow) pictures() *images.Loader {
 	key := picturesKey{file: w.currentFile, dir: w.unsavedDir}
 	if w.bundle != nil {
-		key.b = w.bundle.path
+		key.b = w.bundle.Path
 	}
 	switch {
 	case w.pics == nil || w.picsKey != key:

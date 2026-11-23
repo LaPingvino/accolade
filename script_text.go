@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 
 	"github.com/LaPingvino/lexington/fountain"
@@ -83,7 +84,8 @@ func (c lexConf) plainFileForm(path, text, lang string) string {
 // writesBundle tells whether saving to path writes a bundle (a plain
 // .highland stays plain).
 func (w *MainWindow) writesBundle(path string) bool {
-	return bundleKindOf(path) != notBundle && (w.bundle != nil || !w.isPlainBundle(path))
+	inBundle := bundleKindOf(path) != notBundle || w.bundle != nil && sameFile(path, w.bundle.Path) // a folder opened as one
+	return inBundle && (w.bundle != nil || !w.isPlainBundle(path))
 }
 
 // scriptTexts are the texts saving to path writes for the editor's
@@ -108,5 +110,5 @@ func (w *MainWindow) scriptTexts(path, text string) (main, native string, hasNat
 // keepsFountainCopy tells whether a bundle at path keeps text.fountain
 // beside its language's text: always, but an .accolade as chosen.
 func (w *MainWindow) keepsFountainCopy(path string) bool {
-	return !w.noFountainCopy || !strings.EqualFold(typeOfName(path, false).id, typeAccolade.id)
+	return !w.noFountainCopy || !strings.EqualFold(filepath.Ext(strings.TrimRight(path, `/\`)), typeAccolade.ext)
 }

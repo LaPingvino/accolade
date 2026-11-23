@@ -4,6 +4,8 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"fmt"
+	lb "github.com/LaPingvino/lexington/bundle"
 	"io"
 	"os"
 	"path/filepath"
@@ -175,7 +177,7 @@ func TestBundleZipRoundTrip(t *testing.T) {
 			if err := w.LoadFile(p); err != nil {
 				t.Fatal(err)
 			}
-			if w.textEditor.Text() != bundleScript || w.markdown || w.bundle == nil || w.bundle.prefix != tc.prefix {
+			if w.textEditor.Text() != bundleScript || w.markdown || w.bundle == nil || w.bundle.Prefix != tc.prefix {
 				t.Fatalf("opened %q, markdown %v, bundle %+v", w.textEditor.Text(), w.markdown, w.bundle)
 			}
 			if r := w.settings.GetStringSlice("recent-files"); len(r) == 0 || r[0] != p {
@@ -256,7 +258,7 @@ func TestBundleSaveAsAnother(t *testing.T) {
 		if png, _ := zipFile(t, data, want+"assets/cover.png"); png != bundleItems("")[4].data {
 			t.Errorf("asset %q", png)
 		}
-		if w.bundle == nil || w.bundle.path != to {
+		if w.bundle == nil || w.bundle.Path != to {
 			t.Errorf("the window's bundle: %+v", w.bundle)
 		}
 	}
@@ -292,9 +294,9 @@ func TestBundleFromPlain(t *testing.T) {
 			t.Fatalf("%s: %v", tc.name, err)
 		}
 		textName := "text.fountain"
-		wantType := fountainUTI
+		wantType := lb.FountainUTI
 		if tc.markdown {
-			textName, wantType = "text.md", markdownUTI
+			textName, wantType = "text.md", lb.MarkdownUTI
 		}
 		var info, got string
 		if bundleKindOf(to) == bundleFolder {
@@ -472,30 +474,6 @@ func TestBundleDocumentType(t *testing.T) {
 	}
 }
 
-// info.json is edited as text: only Accolade's member changes.
-func TestSetInfoValue(t *testing.T) {
-	for _, tc := range []struct{ in, val, want string }{
-		{`{}`, `1`, "{\n  \"k\": 1\n}"},
-		{`{"a":1}`, `2`, `{"a":1, "k": 2}`},
-		{"{\n    \"a\":\"x\\/y\",\n}", `2`, "{\n    \"a\":\"x\\/y\",\n    \"k\": 2,\n}"},
-		{"{\n  \"a\": 1,\n  \"k\": {\"old\": [1, \"}\"]},\n  \"b\": 2\n}", `3`, "{\n  \"a\": 1,\n  \"k\": 3,\n  \"b\": 2\n}"},
-		{"{\n  \"a\": 1,\n  \"k\": 0\n}", ``, "{\n  \"a\": 1\n}"},
-		{"{\n  \"k\": 0,\n  \"a\": 1\n}", ``, "{\n  \"a\": 1\n}"},
-	} {
-		var val []byte
-		if tc.val != "" {
-			val = []byte(tc.val)
-		}
-		got, ok := setInfoValue([]byte(tc.in), "k", val)
-		if !ok || string(got) != tc.want {
-			t.Errorf("%q with %q: %q (%v), want %q", tc.in, tc.val, got, ok, tc.want)
-		}
-	}
-	if _, ok := setInfoValue([]byte(`not json`), "k", []byte("1")); ok {
-		t.Error("not JSON, edited")
-	}
-}
-
 // The source kept in the bundle (layer 2, source_file.go): found there,
 // written there by Choose Source and by the pane, the text in the bundle
 // untouched by it; carried by Save As.
@@ -580,7 +558,7 @@ func TestTextBundleSamples(t *testing.T) {
 	if err := w.LoadFile(p); err != nil {
 		t.Fatal(err)
 	}
-	if !w.markdown || !strings.HasPrefix(w.textEditor.Text(), "# Textbundle Example") || w.bundle.prefix != "Textbundle Example.textbundle/" {
+	if !w.markdown || !strings.HasPrefix(w.textEditor.Text(), "# Textbundle Example") || w.bundle.Prefix != "Textbundle Example.textbundle/" {
 		t.Fatalf("opened: markdown %v, %q", w.markdown, w.textEditor.Text())
 	}
 	w.textEditor.SetText(w.textEditor.Text() + "\nOne more line.\n")
@@ -633,13 +611,13 @@ func TestHighlandFiles(t *testing.T) {
 				t.Logf("plain text, %d bytes", len(orig))
 				return
 			}
-			t.Logf("%s: layout %q, %s, markdown %v, source %q", e.Name(), w.bundle.prefix, w.bundle.textName, w.markdown, w.bundle.source)
+			t.Logf("%s: layout %q, %s, markdown %v, source %q", e.Name(), w.bundle.Prefix, w.bundle.textName, w.markdown, w.bundle.source)
 			w.textEditor.SetText(w.textEditor.Text() + "\n")
 			if err := w.SaveFile(); err != nil {
 				t.Fatal(err)
 			}
 			after, _ := os.ReadFile(p)
-			sameExceptText(t, orig, after, w.bundle.prefix+w.bundle.textName, false)
+			sameExceptText(t, orig, after, w.bundle.Prefix+w.bundle.textName, false)
 		})
 	}
 	if n == 0 {
@@ -659,8 +637,8 @@ func TestBundleRename(t *testing.T) {
 	if err := w.renameTo("Script.textpack"); err != nil {
 		t.Fatal(err)
 	}
-	if w.bundle.path != filepath.Join(dir, "Script.textpack") {
-		t.Errorf("bundle at %s", w.bundle.path)
+	if w.bundle.Path != filepath.Join(dir, "Script.textpack") {
+		t.Errorf("bundle at %s", w.bundle.Path)
 	}
 	// to a plain name: converted (relocate.go), never refused
 	if err := w.renameTo("Script.fountain"); err != nil {
@@ -754,5 +732,155 @@ func TestTextBundleSampleWithImage(t *testing.T) {
 	w2, _ := newDialogTestWindow(t)
 	if err := w2.LoadFile(pack); err != nil || !strings.HasSuffix(w2.textEditor.Text(), "More.\n") {
 		t.Errorf("the .textpack reopened: %v", err)
+	}
+}
+
+// relContents are a bundle's files by their name in it, macOS's junk and
+// the carried settings left out: the same for its zip and its folder.
+func relContents(t *testing.T, p string) (map[string]string, bool) {
+	t.Helper()
+	b, err := lb.Read(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := map[string]string{}
+	for _, n := range b.Files {
+		if lb.IsJunk(n) || isCarriedEntry(n) { // the settings an .accolade carries: as the machine's are
+			continue
+		}
+		data, _ := b.ReadFile(n)
+		m[n] = string(data)
+	}
+	return m, b.Zipped
+}
+
+// An .accolade unzipped (the Accolade folder) and zipped again: Save As
+// chooses the form, Save keeps it, Open reads the folder (itself or its
+// text), the rename editor changes the form in place; every file kept.
+func TestBundleFolderForms(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	dir := t.TempDir()
+	p := filepath.Join(dir, "Script.accolade")
+	os.WriteFile(p, makeZip(t, bundleItems("Script.textbundle/")), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	want, _ := relContents(t, p)
+	folder := filepath.Join(dir, "Folder.accolade")
+	w.saveAsWith(folder, &relocation{form: bundleFolder})
+	got, zipped := relContents(t, folder)
+	if zipped || w.bundle == nil || w.bundle.Zipped || w.currentFile != folder {
+		t.Fatalf("not a folder: zipped %v, file %s", zipped, w.currentFile)
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("folder:\n%v\nwant\n%v", got, want)
+	}
+	if got := typeOfName(folder, false); got.id != typeAccoladeFolder.id {
+		t.Errorf("type of the folder: %s", got.id)
+	}
+	// Save keeps the folder
+	w.textEditor.SetText(bundleScript + "\nBram eats.\n")
+	if err := w.SaveFile(); err != nil {
+		t.Fatal(err)
+	}
+	got, zipped = relContents(t, folder)
+	if zipped || got["text.fountain"] != bundleScript+"\nBram eats.\n" {
+		t.Errorf("saved: zipped %v, %q", zipped, got["text.fountain"])
+	}
+	want["text.fountain"] = got["text.fountain"]
+	// opened as the folder, and by its text
+	for _, open := range []string{folder, filepath.Join(folder, "text.fountain")} {
+		w2, _ := newDialogTestWindow(t)
+		if err := w2.LoadFile(open); err != nil || w2.bundle == nil || w2.currentFile != folder || !strings.Contains(w2.textEditor.Text(), "Bram eats.") {
+			t.Errorf("opened %s: %v, %s", open, err, w2.currentFile)
+		}
+	}
+	// zipped again by Save As
+	again := filepath.Join(dir, "Again.accolade")
+	w.saveAsWith(again, &relocation{form: bundleZip})
+	if got, zipped := relContents(t, again); !zipped || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("zipped again (%v):\n%v", zipped, got)
+	}
+	// the rename editor's choice, in place: unzipped where it is
+	err := w.relocate(relocation{rename: true, from: again, to: again, form: bundleFolder}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, zipped := relContents(t, again); zipped || fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Errorf("unzipped in place (%v):\n%v", zipped, got)
+	}
+	// Save As offers the folder on the desktop only
+	ts := scriptTypes(w.lex(), false, false, "x.fountain", "")
+	if !slices.ContainsFunc(ts, func(t fileType) bool { return t.id == typeAccoladeFolder.id }) {
+		t.Error("no Accolade folder in Save As")
+	}
+	if slices.ContainsFunc(scriptTypes(w.lex(), false, true, "x.fountain", ""), func(t fileType) bool { return t.kind == bundleFolder }) {
+		t.Error("a folder type in the browser")
+	}
+}
+
+// A folder of any name holding a text.fountain opens as a bundle (Open
+// Bundle Folder…) and saves back into itself.
+func TestBundleAnyFolder(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "My Script")
+	os.Mkdir(dir, 0o755)
+	os.WriteFile(filepath.Join(dir, "text.fountain"), []byte(bundleScript), 0o644)
+	os.WriteFile(filepath.Join(dir, "notes.txt"), []byte("mine"), 0o644)
+	w, _ := newDialogTestWindow(t)
+	if err := w.LoadFile(dir); err != nil || w.bundle == nil || w.textEditor.Text() != bundleScript {
+		t.Fatalf("opened: %v %q", err, w.textEditor.Text())
+	}
+	w.textEditor.SetText(bundleScript + "\nMore.\n")
+	if err := w.SaveFile(); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(filepath.Join(dir, "text.fountain")); string(data) != bundleScript+"\nMore.\n" {
+		t.Errorf("saved %q", data)
+	}
+	if data, _ := os.ReadFile(filepath.Join(dir, "notes.txt")); string(data) != "mine" {
+		t.Error("notes.txt lost")
+	}
+}
+
+// A bundle keeps its form when no other type is chosen: renamed by name,
+// or confirmed unchanged in the rename editor (a folder .highland, a
+// zipped .textbundle).
+func TestBundleKeepsItsForm(t *testing.T) {
+	dir := t.TempDir()
+	// an Accolade folder renamed: still a folder
+	w, _ := newDialogTestWindow(t)
+	a := filepath.Join(dir, "A.accolade")
+	if _, err := lb.Write(nil, a, lb.Dir, lb.New([]byte(bundleScript), false, ""), nil); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.LoadFile(a); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.renameTo("B.accolade"); err != nil {
+		t.Fatal(err)
+	}
+	if _, zipped := relContents(t, filepath.Join(dir, "B.accolade")); zipped || exists(a) {
+		t.Errorf("renamed: zipped %v, the old one there %v", zipped, exists(a))
+	}
+	// the rename editor confirmed as it opened, in another language
+	for _, tc := range []struct {
+		name string
+		form lb.Form
+	}{{"H.highland", lb.Dir}, {"T.textbundle", lb.Zip}} {
+		w, _ := newDialogTestWindow(t)
+		p := filepath.Join(dir, tc.name)
+		if _, err := lb.Write(nil, p, tc.form, lb.New([]byte(bundleScript), false, ""), nil); err != nil {
+			t.Fatal(err)
+		}
+		if err := w.LoadFile(p); err != nil {
+			t.Fatal(err)
+		}
+		r := relocation{rename: true, from: p, to: p, lang: "eo"}
+		if err := w.relocate(r, nil); err != nil {
+			t.Fatal(err)
+		}
+		if b, err := lb.Read(p); err != nil || b.Form() != tc.form {
+			t.Errorf("%s: %v, %v", tc.name, err, b)
+		}
 	}
 }

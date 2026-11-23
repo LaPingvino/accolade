@@ -93,7 +93,7 @@ func (w *MainWindow) saveAsWith(filePath string, chosen *relocation) {
 			}
 			dialog.ShowConfirm("Leave the Drafts Out?",
 				filepath.Base(filePath)+" will be saved without its drafts and production files. "+
-					filepath.Base(w.bundle.path)+" keeps them, as it is on disk now.", ask.confirmDrop, w.fyneWindow)
+					filepath.Base(w.bundle.Path)+" keeps them, as it is on disk now.", ask.confirmDrop, w.fyneWindow)
 			return
 		}
 		w.finishSaveAs(filePath, r)
@@ -150,7 +150,7 @@ type flattenAsk struct {
 // askFlatten asks where the bundle's drafts go as it is saved as the plain
 // file p, then calls then with the answer (not if cancelled).
 func (w *MainWindow) askFlatten(p string, then func(flattenChoice)) {
-	bundle := filepath.Base(w.bundle.path)
+	bundle := filepath.Base(w.bundle.Path)
 	what := "drafts"
 	if n, err := readDrafts(w.extrasHome()); err == nil && len(n) == 1 {
 		what = "draft"
@@ -237,7 +237,7 @@ func (w *MainWindow) warnsHighland(p string, extra []bundleFile) bool {
 	if b != nil {
 		entry, _ := w.bundleSource()
 		ours = ours || len(b.extras) > 0 || entry != ""
-		if b.ours.HighlandWarned && strings.EqualFold(filepath.Ext(b.path), ".highland") {
+		if b.ours.HighlandWarned && strings.EqualFold(filepath.Ext(b.Path), ".highland") {
 			return false // said for this file (or the one it is a copy of)
 		}
 	}

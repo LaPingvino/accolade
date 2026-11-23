@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	lb "github.com/LaPingvino/lexington/bundle"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,7 +19,7 @@ const (
 // ours is Accolade's key in a bundle's info.json.
 func oursIn(t *testing.T, info string) accoladeInfo {
 	t.Helper()
-	raw, ok := infoValue([]byte(info), accoladeInfoKey)
+	raw, ok := lb.InfoValue([]byte(info), accoladeInfoKey)
 	var a accoladeInfo
 	if ok {
 		if err := json.Unmarshal(raw, &a); err != nil {

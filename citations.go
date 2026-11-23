@@ -70,7 +70,7 @@ func (w *MainWindow) citeInputsFor(text string) citeInputs {
 	}
 	file := w.currentFile
 	if b := w.bundle; b != nil {
-		file = b.path
+		file = b.Path
 	}
 	if file != "" && !inBrowser {
 		in.place.Dir = filepath.Dir(file)
@@ -97,8 +97,8 @@ func (in citeInputs) read(s cite.Source) ([]byte, error) {
 // bundle's entry is the bundle's, as read.
 func (in citeInputs) stampOf(s cite.Source) string {
 	if s.Bundle {
-		if b := in.bundle; b != nil && !b.zipped {
-			if st, err := os.Stat(filepath.Join(b.path, filepath.FromSlash(s.Name))); err == nil {
+		if b := in.bundle; b != nil && !b.Zipped {
+			if st, err := os.Stat(filepath.Join(b.Path, filepath.FromSlash(s.Name))); err == nil {
 				return st.ModTime().String() + "/" + fmt.Sprint(st.Size())
 			}
 		}
@@ -123,9 +123,9 @@ func (in *citeInputs) listed() {
 	}
 	if b := in.bundle; b != nil {
 		in.place.Bundle = []string{}
-		if es, err := b.entries(); err == nil {
+		if es, err := b.Entries(); err == nil {
 			for _, e := range es {
-				in.place.Bundle = append(in.place.Bundle, strings.TrimPrefix(e.name, b.prefix))
+				in.place.Bundle = append(in.place.Bundle, strings.TrimPrefix(e.Name, b.Prefix))
 			}
 		}
 	}

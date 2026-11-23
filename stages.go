@@ -278,7 +278,7 @@ func (w *MainWindow) lockSource(auto bool, done func(bool)) {
 		finish(false)
 		return
 	}
-	if auto && w.bundle != nil && w.warnsHighland(w.bundle.path, []bundleFile{{draftsIndexName, nil}}) {
+	if auto && w.bundle != nil && w.warnsHighland(w.bundle.Path, []bundleFile{{draftsIndexName, nil}}) {
 		w.setStatus("The source is not locked: Highland may drop Accolade's files from a .highland. " +
 			"Adaptation > Lock Source keeps it (or save as .accolade first)")
 		finish(false)

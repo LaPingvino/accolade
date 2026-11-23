@@ -412,7 +412,7 @@ func (w *MainWindow) revisionKey() string {
 	h := w.extrasHome()
 	p := string(h.dir)
 	if h.b != nil {
-		p = h.b.path
+		p = h.b.Path
 	}
 	return fmt.Sprintf("%d|%s|%s|%d", h.kind, p, w.currentFile, w.revisionGen)
 }

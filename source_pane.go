@@ -1318,7 +1318,7 @@ func (w *MainWindow) chooseSourceFile(path string) {
 		if w.takeChosenSource(gen, script, bundle, path, r.md, r.err) {
 			w.showSource()
 			if w.bundle != nil {
-				w.setStatus("Source: " + filepath.Base(path) + ", put in " + filepath.Base(w.bundle.path))
+				w.setStatus("Source: " + filepath.Base(path) + ", put in " + filepath.Base(w.bundle.Path))
 			} else {
 				w.setStatus("Source: " + filepath.Base(path) + ", kept by Accolade")
 			}

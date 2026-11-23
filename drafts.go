@@ -277,7 +277,7 @@ func (w *MainWindow) addDraftLike(like savedDraft, skipSame bool, done func(d sa
 	if w.bundle != nil {
 		var d savedDraft
 		var ok bool
-		p := w.bundle.path
+		p := w.bundle.Path
 		warn := w.warnsHighland(p, []bundleFile{{draftsIndexName, nil}})
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {

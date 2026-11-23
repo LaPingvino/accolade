@@ -71,7 +71,7 @@ func (w *MainWindow) typeOf(path string) bool {
 // or for the window's bundle what the bundle says (its text file's name,
 // info.json's "type", Accolade's key).
 func (w *MainWindow) naturalType(path string) bool {
-	if b := w.bundle; b != nil && path != "" && absPath(b.path) == absPath(path) {
+	if b := w.bundle; b != nil && path != "" && absPath(b.Path) == absPath(path) {
 		return b.markdown()
 	}
 	return isMarkdownFile(path)

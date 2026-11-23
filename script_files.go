@@ -3,7 +3,6 @@ package main
 import (
 	"cmp"
 	"fmt"
-	"github.com/LaPingvino/lexington/rules"
 	"maps"
 	"os"
 	"path"
@@ -11,6 +10,10 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+
+	lb "github.com/LaPingvino/lexington/bundle"
+
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // The script's files: the types it can be saved as, its name's parts, and
@@ -32,7 +35,10 @@ var (
 	typeAccolade   = fileType{id: "accolade", label: "Accolade", ext: ".accolade", kind: bundleZip}
 	typeHighland   = fileType{id: "highland", label: "Highland", ext: ".highland", kind: bundleZip}
 	typeTextPack   = fileType{id: "textpack", label: "TextPack", ext: ".textpack", kind: bundleZip}
-	typeTextBundle = fileType{id: "textbundle", label: "TextBundle", ext: ".textbundle", kind: bundleFolder, desktopOnly: true}
+	typeTextBundle = fileType{id: "textbundle", label: "TextBundle folder", ext: ".textbundle", kind: bundleFolder, desktopOnly: true}
+	// typeAccoladeFolder is an .accolade unzipped: the same files in a
+	// folder named Name.accolade
+	typeAccoladeFolder = fileType{id: "accoladefolder", label: "Accolade folder", ext: ".accolade", kind: bundleFolder, desktopOnly: true}
 )
 
 // asItIs is the type of a plain file named otherwise (.txt, .spmd,
@@ -108,6 +114,9 @@ func typeOfName(name string, markdown bool) fileType {
 	}
 	for _, t := range knownTypes() {
 		if t.ext == ext {
+			if t.id == typeAccolade.id && bundleKindOf(name) == bundleFolder { // there, unzipped
+				return typeAccoladeFolder
+			}
 			return t
 		}
 	}
@@ -154,7 +163,11 @@ func scriptTypes(c lexConf, markdown, browser bool, current, lang string) []file
 			}
 		}
 	}
-	ts = append(ts, typeAccolade, typeHighland, typeTextPack)
+	ts = append(ts, typeAccolade)
+	if !browser {
+		ts = append(ts, typeAccoladeFolder)
+	}
+	ts = append(ts, typeHighland, typeTextPack)
 	if !browser {
 		ts = append(ts, typeTextBundle)
 	}
@@ -199,6 +212,8 @@ func (t fileType) keeps(c lexConf, markdown, browser bool, lang string) string {
 		return "For Highland 2: one file Highland opens. Highland may drop Accolade's drafts and source when it saves." + inside(c, markdown, lang)
 	case "textpack":
 		return "A zipped TextBundle, for other TextBundle apps: " + doc + ", with Accolade's files under assets/." + inside(c, markdown, lang)
+	case "accoladefolder":
+		return "An .accolade unzipped (desktop only): the same files in a folder named " + t.ext + ", to read, recover or keep in version control. Accolade and Lexington open it as the zip."
 	case "textbundle":
 		return "A TextBundle folder (desktop only): the same as a TextPack, unzipped, for version control."
 	case "langext":
@@ -297,6 +312,9 @@ type relocation struct {
 	// .accolade leaves text.fountain out (nil as now)
 	lang   string
 	noCopy *bool
+	// form is the bundle form chosen (Accolade folder, TextPack…),
+	// notBundle for the name's: as it is on disk, else its type's
+	form bundleKind
 }
 
 // langAfter are r's language and Fountain copy choice, those now filled in.
@@ -333,6 +351,9 @@ func (w *MainWindow) diskForm(path, lang string, noCopy, said bool, kind bundleK
 func (w *MainWindow) reforms(r relocation) bool {
 	fromKind, toKind := w.kinds(r)
 	lang, noCopy := w.langAfter(r)
+	if fromKind != notBundle && toKind != notBundle && fromKind != toKind {
+		return true // a zip unzipped, a folder zipped
+	}
 	if toKind == bundleZip && carriesConf(r.from) != carriesConf(r.to) && !w.markdown &&
 		(carryFor(w.lex(), lang, w.scriptFormatKey()) != nil || (w.bundle != nil && len(w.bundle.carriedNames) > 0)) {
 		return true // only an .accolade carries the settings it uses (lexington_carried.go)
@@ -362,6 +383,13 @@ func (w *MainWindow) kinds(r relocation) (from, to bundleKind) {
 		from = bundleKindOf(r.from)
 	}
 	to = bundleKindOf(r.to)
+	switch {
+	case to == notBundle:
+	case r.form != notBundle: // chosen
+		to = r.form
+	case from != notBundle && strings.EqualFold(filepath.Ext(r.from), filepath.Ext(r.to)) && !exists(r.to):
+		to = from // a bundle renamed or saved as another of its type keeps its form
+	}
 	if r.rename && from == notBundle && w.isPlainBundle(r.from) && strings.EqualFold(filepath.Ext(r.to), ".highland") {
 		to = notBundle
 	}
@@ -434,17 +462,9 @@ func (b *textBundle) otherFiles() []string {
 	if b == nil {
 		return nil
 	}
-	es, _ := b.entries()
 	var out []string
-	for _, e := range es {
-		rel := e.name
-		if b.zipped {
-			var ok bool
-			if rel, ok = strings.CutPrefix(e.name, b.prefix); !ok {
-				continue
-			}
-		}
-		if rel == "" || strings.HasSuffix(rel, "/") || junkEntry(e.name) || rel == b.textName || rel == b.native ||
+	for _, rel := range b.Files {
+		if lb.IsJunk(rel) || rel == b.textName || rel == b.native ||
 			strings.EqualFold(rel, "info.json") || rel == b.source || isExtra(rel) || isCarriedEntry(rel) {
 			continue
 		}

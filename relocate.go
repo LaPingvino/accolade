@@ -195,7 +195,7 @@ func (w *MainWindow) rollback(j *fileJournal) error {
 		if nb, _, rerr := readBundle(s.currentFile); rerr == nil {
 			b = nb
 		} else {
-			b.path = s.currentFile
+			b.Path = s.currentFile
 		}
 	}
 	w.setBundle(b)
@@ -363,7 +363,10 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 		w.setLanguage(lang)
 		w.noFountainCopy, w.languageSaid = noCopy, said
 		w.hasChanges = true
-		if err := w.saveToFile(r.from); err != nil {
+		_, w.bundleForm = w.kinds(r)
+		err := w.saveToFile(r.from)
+		w.bundleForm = notBundle
+		if err != nil {
 			return err
 		}
 		w.afterBundleWrites(func() { done(nil) })
@@ -439,7 +442,7 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 			return fail(fmt.Errorf("could not rename the file: %v", err))
 		}
 		if w.bundle != nil {
-			w.bundle.path = r.to
+			w.bundle.Path = r.to
 		}
 		if wasPlain {
 			w.plainBundle = ""
@@ -474,8 +477,9 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 		if fromKind != notBundle && toKind == notBundle {
 			w.sourceBeside = sourceOutBeside(r)
 		}
+		w.bundleForm = toKind
 		err := w.saveToFile(r.to)
-		w.carrySource, w.sourceBeside = nil, ""
+		w.carrySource, w.sourceBeside, w.bundleForm = nil, "", notBundle
 		if !same { // a bundle may be written yet (in the background): its name noted now
 			j.created = append(j.created, r.to)
 		}

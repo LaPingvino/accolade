@@ -5,6 +5,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+	"sync/atomic"
+	"time"
+
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/layout"
 	"github.com/LaPingvino/accolade/internal/editor"
@@ -13,13 +21,6 @@ import (
 	"github.com/LaPingvino/accolade/internal/pace"
 	"github.com/LaPingvino/accolade/internal/tooltip"
 	"github.com/LaPingvino/lexington/fountain"
-	"net/url"
-	"os"
-	"path/filepath"
-	"slices"
-	"strings"
-	"sync/atomic"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -208,7 +209,10 @@ type MainWindow struct {
 	unsavedExtras string // the kept extras of a script not saved yet (extras.go)
 	// flattenTo is where a bundle's extras go when it is saved as a plain
 	// file, as asked (flatten.go); then back to the kept copy
-	flattenTo    flattenChoice
+	flattenTo flattenChoice
+	// bundleForm is the bundle form the save under way writes (Save As,
+	// Rename: a zip or a folder), notBundle for the file's own
+	bundleForm   bundleKind
 	flattenAsked *flattenAsk // the question last asked (saveas.go)
 	// a rename or Save As under way, and the last rename, to take back
 	// (relocate.go); the source carried into a new bundle, or put beside
@@ -579,7 +583,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	plain := ""
 	var content []byte
 	var err error
-	if bundleKindOf(filePath) != notBundle {
+	if isBundlePath(filePath) {
 		bundle, content, err = readBundle(filePath)
 		if errors.Is(err, errNotZip) && strings.EqualFold(filepath.Ext(filePath), ".highland") {
 			bundle, plain = nil, filePath // Fountain with Highland's name
@@ -891,8 +895,9 @@ func (w *MainWindow) saveToFile(filePath string) error {
 // kept by Accolade).
 func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
 	if w.writesBundle(filePath) {
-		if inBrowser && bundleKindOf(filePath) == bundleFolder {
-			return fmt.Errorf("a .textbundle is a folder, which the browser cannot save: use .textpack")
+		form := w.bundleForm // as Save As or Rename chose it, else as the file is
+		if inBrowser && (form == bundleFolder || form == notBundle && bundleKindOf(filePath) == bundleFolder) {
+			return fmt.Errorf("a bundle folder cannot be saved in the browser: use .accolade or .textpack")
 		}
 		markdown, gen, lang, noCopy := w.markdown, w.bundleGen, w.language, !w.keepsFountainCopy(filePath)
 		conf, format := w.lex(), w.scriptFormatKey()
@@ -915,7 +920,7 @@ func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {
 				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra, source: source,
-					highlandWarned: warn, native: native, lang: lang, noCopy: noCopy, conf: conf, carry: carry, format: format})
+					highlandWarned: warn, native: native, lang: lang, noCopy: noCopy, conf: conf, carry: carry, format: format, form: form})
 			},
 			done: func(err error) {
 				if err == nil && warn {
@@ -978,6 +983,24 @@ func (w *MainWindow) OpenFile() {
 	fileDialog.SetFilter(storage.NewExtensionFileFilter(openExtensions()))
 
 	fileDialog.Show()
+}
+
+// OpenBundleFolder opens a bundle in its folder form: an .accolade or
+// .highland unzipped, a .textbundle, or any folder holding a text.fountain
+// or text.md (docs/FORMAT.md). Open… opens one too, by its text file.
+func (w *MainWindow) OpenBundleFolder() {
+	d := dialog.NewFolderOpen(func(u fyne.ListableURI, err error) {
+		if err != nil || u == nil {
+			return
+		}
+		w.openPath(u.Path())
+	}, w.fyneWindow)
+	if w.currentFile != "" {
+		if l, err := storage.ListerForURI(storage.NewFileURI(filepath.Dir(w.currentFile))); err == nil {
+			d.SetLocation(l)
+		}
+	}
+	d.Show()
 }
 
 // openPath opens a file (a script, a Final Draft document, a PDF): in

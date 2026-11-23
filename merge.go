@@ -79,7 +79,7 @@ func (w *MainWindow) readOutside(path string) (*outsideCopy, error) {
 			return nil, fmt.Errorf("could not read %s: %v", oc.name, err)
 		}
 		oc.lossy = true
-	case bundleKindOf(path) != notBundle:
+	case isBundlePath(path):
 		b, content, err := readBundle(path)
 		if errors.Is(err, errNotZip) && ext == ".highland" { // Fountain with Highland's name
 			content, err = os.ReadFile(path)

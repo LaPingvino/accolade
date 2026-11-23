@@ -537,6 +537,9 @@ func newRegistry() *registry {
 			run: func(w *MainWindow) { w.app.newScriptWindow(true) }},
 		&command{id: "file.newMarkdown", label: "New Markdown Document", icon: theme.FileTextIcon, run: (*MainWindow).NewMarkdownFile},
 		&command{id: "file.open", label: openLabel, tip: "Open", keys: []fyne.Shortcut{shortcut(fyne.KeyO, 0)}, icon: theme.FolderOpenIcon, run: (*MainWindow).OpenFile},
+		// a bundle as a folder (Name.accolade/, a .textbundle): Open's
+		// dialog picks files only
+		&command{id: "file.openFolder", label: "Open Bundle Folder…", icon: theme.FolderOpenIcon, when: desktopOnly, run: (*MainWindow).OpenBundleFolder},
 		&command{id: "file.recent", label: "Open Recent", icon: theme.HistoryIcon, submenu: func(w *MainWindow) *fyne.Menu { return w.recentMenu().ChildMenu }},
 		// a script to try everything on (sample.go)
 		&command{id: "file.openSample", label: "Open Sample", icon: theme.DocumentIcon, submenu: (*MainWindow).sampleMenu},
@@ -866,7 +869,7 @@ func newRegistry() *registry {
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
-			at("file.open"), at("file.recent"), at("file.openSample"), at("file.mergeChanges"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
+			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.mergeChanges"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
 			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.

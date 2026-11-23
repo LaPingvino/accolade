@@ -187,7 +187,7 @@ func TestBrowserMenus(t *testing.T) {
 	if !slices.Equal(menuTitles(browserBar), []string{"File", "Edit", "Format", "Adaptation", "Production", "Collaboration", "View", "Help"}) {
 		t.Errorf("browser menus %q", menuTitles(browserBar))
 	}
-	gone := []string{"New Window", "New Empty Window", "Import with pandoc…"}
+	gone := []string{"New Window", "New Empty Window", "Open Bundle Folder…", "Import with pandoc…"}
 	file := labelsOf(desktopBar, "File")
 	for _, l := range gone {
 		if !slices.Contains(file, l) {

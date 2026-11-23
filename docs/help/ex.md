@@ -96,6 +96,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:new-empty-window** — File > New Empty Window (not in the browser)
 - **:new-markdown-document** — File > New Markdown Document
 - **:open** — File > Open
+- **:open-bundle-folder** — File > Open Bundle Folder (not in the browser)
 - **:recent** `item` — File > Open Recent
 - **:open-sample** `item` — File > Open Sample
 - **:import-as-markdown** — File > Import as Markdown

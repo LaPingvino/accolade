@@ -171,7 +171,7 @@ func (p *planPanel) show(r relocation) {
 func (w *MainWindow) renameScript() {
 	old := cmp.Or(w.scriptName(), w.untitledName())
 	parts := splitScriptName(old)
-	current := typeOfName(old, w.markdown)
+	current := typeOfName(cmp.Or(w.currentFile, old), w.markdown) // the file itself: a folder is the Accolade folder
 	if w.bundle == nil && w.isPlainBundle(w.currentFile) {
 		current = typeFountain
 	}
@@ -246,6 +246,9 @@ func (w *MainWindow) renameScript() {
 		r := relocation{rename: true, from: w.currentFile, to: n}
 		if l, t := picked(); l != w.language || t.id == "dialect" { // said only by a choice
 			r.lang = l
+		}
+		if _, t := picked(); t.id != current.id && t.kind != notBundle && bundleKindOf(n) != notBundle {
+			r.form = t.kind // another type chosen: its form (the same type keeps the file's)
 		}
 		if w.currentFile != "" && n != "" {
 			r.to = filepath.Join(filepath.Dir(w.currentFile), n)

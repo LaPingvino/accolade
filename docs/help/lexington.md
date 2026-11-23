@@ -30,8 +30,8 @@ Made from Lexington's own list, so none is missing. `-i` and `-o` default to sta
 
 ### Input and output
 
-- `-i string` — Input from provided filename. - means standard input. (default "-")
-- `-o string` — Output to provided filename. - means standard output. (default "-")
+- `-i string` — Input from provided filename. - means standard input. A bundle (.accolade, .highland, .textbundle, .textpack, zipped or a folder) is read for its text. (default "-")
+- `-o string` — Output to provided filename. - means standard output. A bundle (.accolade, .highland, .textbundle, .textpack) gets the script as Fountain, all else in it kept. (default "-")
 - `-from string` — Input file type. Choose from fountain, lex, fdx, pdf.
 - `-to string` — Output file type. Choose from pdf, html, docx, odt, fdx, fountain, latex, lex, or external formats requiring other programs: htmlpdf, latexpdf, epub, azw3, mobi, prc, fb2, pdb, lrf, lit, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc.
 - `-template string` — Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).
@@ -79,6 +79,7 @@ Made from Lexington's own list, so none is missing. `-i` and `-o` default to sta
 - `-lint` — Run the Fountain linter on the input file
 - `-help` — Show this help message
 - `-version` — Show version information
+- `-form string` — The form of a bundle written: zip or folder (default: the bundle's own when rewritten, else zip, a .textbundle a folder).
 - `-keeploose` — Write the Fountain input so that it reads under the spec as Lexington before 1.19 read it (blank lines and force marks added), instead of converting it; says how many places changed.
 - `-loose` — Read Fountain as Lexington before 1.19 did: a scene word starts a heading anywhere, capitals after action are a name, any line ending in " TO:" is a transition, a line of spaces ends a speech.
 

@@ -1,10 +1,7 @@
 package main
 
 import (
-	"archive/zip"
-	"bytes"
 	"errors"
-	"io"
 	"io/fs"
 	"os"
 	"path"
@@ -13,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	lb "github.com/LaPingvino/lexington/bundle"
 )
 
 // Accolade's extra files: the drafts (drafts.go) and, from production's
@@ -57,24 +56,7 @@ func (b *textBundle) readExtra(rel string) ([]byte, error) {
 	if b == nil || !fs.ValidPath(rel) {
 		return nil, fs.ErrNotExist
 	}
-	if !b.zipped {
-		return os.ReadFile(filepath.Join(b.path, filepath.FromSlash(rel)))
-	}
-	zr, err := zip.NewReader(bytes.NewReader(b.raw), int64(len(b.raw)))
-	if err != nil {
-		return nil, err
-	}
-	for _, f := range zr.File {
-		if f.Name == b.prefix+rel {
-			r, err := f.Open()
-			if err != nil {
-				return nil, err
-			}
-			defer r.Close()
-			return io.ReadAll(r)
-		}
-	}
-	return nil, fs.ErrNotExist
+	return b.ReadFile(rel)
 }
 
 // extrasFolder is a folder holding extras as a bundle holds them (a kept
@@ -102,7 +84,7 @@ func (d extrasFolder) write(files []bundleFile) error {
 		return err
 	}
 	for _, f := range files {
-		if err := writeBundleFile(string(d), f); err != nil {
+		if err := lb.WriteFile(string(d), lb.File{Name: f.name, Data: f.data}); err != nil {
 			return err
 		}
 	}
@@ -191,7 +173,7 @@ func (h extrasHome) all() ([]bundleFile, error) {
 func (h extrasHome) describe() string {
 	switch h.kind {
 	case extrasBundle:
-		return "in " + filepath.Base(h.b.path)
+		return "in " + filepath.Base(h.b.Path)
 	case extrasKept:
 		return "kept by Accolade"
 	case extrasBeside:
@@ -350,7 +332,7 @@ func (w *MainWindow) extrasAfterRename(oldPath, newPath string) {
 			w.rememberExtras(oldPath, "")
 			dir := string(old.dir)
 			w.afterBundleWrites(func() {
-				if w.bundle != nil && sameFile(w.bundle.path, newPath) {
+				if w.bundle != nil && sameFile(w.bundle.Path, newPath) {
 					w.discard(dir) // parked while a rename can be taken back
 				}
 			})

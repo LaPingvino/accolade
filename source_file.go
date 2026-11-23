@@ -382,7 +382,7 @@ func (w *MainWindow) saveBundleSource(md string) error {
 	entry, _ := w.bundleSource()
 	p := &pendingSource{entry: cmp.Or(entry, bundleSourceName), raw: []byte(md)}
 	w.srcPending = p
-	name := filepath.Base(w.bundle.path)
+	name := filepath.Base(w.bundle.Path)
 	w.queueBundle(bundleJob{
 		run: func(b *textBundle) (*textBundle, error) {
 			if b == nil {

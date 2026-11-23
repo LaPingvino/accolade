@@ -61,7 +61,7 @@ func TestScriptTypes(t *testing.T) {
 		}
 		return strings.Join(s, " ")
 	}
-	if got := ids(scriptTypes(machineLex(), false, false, "a.fountain", "en")); got != "fountain accolade highland textpack textbundle markdown" {
+	if got := ids(scriptTypes(machineLex(), false, false, "a.fountain", "en")); got != "fountain accolade accoladefolder highland textpack textbundle markdown" {
 		t.Errorf("screenplay: %s", got)
 	}
 	if got := ids(scriptTypes(machineLex(), true, true, "a.md", "eo")); got != "markdown accolade highland textpack fountain" {
@@ -83,7 +83,7 @@ func TestScriptTypes(t *testing.T) {
 	}
 	// a script in Esperanto: standard Fountain and its dialect, each named
 	eo := scriptTypes(machineLex(), false, false, "film.eo.fountain", "eo")
-	if got := ids(eo); got != "fountain dialect accolade highland textpack textbundle markdown" {
+	if got := ids(eo); got != "fountain dialect accolade accoladefolder highland textpack textbundle markdown" {
 		t.Errorf("Esperanto: %s", got)
 	}
 	if eo[1].label != "Esperanto Fountain" || eo[1].shownExt() != ".eo.fountain" || typeOfName("film.eo.fountain", false) != eo[1] {

@@ -119,10 +119,14 @@ These come from the teardown and are worth knowing for Lexington:
 - **A new bundle** from a plain script (Save As, or a rename to `.highland`/`.textpack`) holds
   `info.json` (`version` 2, `type` com.quoteunquoteapps.fountain or net.daringfireball.markdown, `transient`
   false, `creatorIdentifier`), `text.fountain` or `text.md`, and `assets/`.
-- **.textbundle** is a folder, so it works on the desktop only. Open goes into the folder and opens its text
-  file (or opens the folder's path from a drop, the command line or Open Recent). Save As writes a new folder
-  whole and then moves it into place. Fyne's save dialog refuses an existing folder's name ("Files cannot
-  replace a directory"), so a .textbundle can't be overwritten by Save As. Save it in place, or pick a new name. The browser's picker offers `.highland`, `.accolade` and `.textpack` only.
+- **Zip or folder** (2026-11-23): reading and writing live in Lexington's `bundle` package, shared with its command
+  line. Every type comes in both forms, the same files zipped or in a plain folder (`.textpack` ⇄ `.textbundle`,
+  `Name.accolade` ⇄ the folder `Name.accolade/`, `.highland` likewise). The form is told by what is on disk, and a
+  bundle is written back in the form it was read in. Save As (Accolade folder, TextBundle folder) and Rename switch
+  it, in place too. A new folder is written whole and then moved into place, over an empty file a save dialog left,
+  or over a bundle of either form, never over anything else. Open goes into a folder bundle and opens its text
+  file; File > Open Bundle Folder… opens the folder itself. The browser saves zips only. docs/FORMAT.md describes
+  the bundle roughly.
 - **.accolade** (PRODUCTION step 3) is a `.highland` by another name: the same zipped TextBundle, a screenplay by
   default, never opened as plain text, plus Accolade's extras under `assets/drafts/` (and later
   `assets/production/`). Accolade's key gains `drafts` (the index, `assets/drafts/drafts.json`) and

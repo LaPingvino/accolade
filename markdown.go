@@ -50,9 +50,10 @@ func kindOfName(name string) (markdown, known bool) {
 }
 
 // baseOpenExtensions are the files Open offers (the browser's file picker
-// too). A .textbundle is a folder: Open goes into it and opens its text
-// (bundleOf), so it is not among them.
-var baseOpenExtensions = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", ".highland", ".accolade", ".textpack", ".fdx", ".pdf", ".toml"}
+// too). A bundle folder is a folder: Open goes into it and opens its text
+// (bundleOf), or Open Bundle Folder… opens it; a .textbundle that is a
+// zip is a file like a .textpack.
+var baseOpenExtensions = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", ".highland", ".accolade", ".textpack", ".textbundle", ".fdx", ".pdf", ".toml"}
 
 // openExtensions are baseOpenExtensions and the languages' own
 // ([Extensions]: .hekaya).
