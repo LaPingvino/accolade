@@ -341,7 +341,7 @@ func gap() fyne.CanvasObject {
 // keys formats a shortcut for a tooltip: " (Ctrl+S)", or " (⌘S)" on macOS.
 func keys(k string) string {
 	if runtime.GOOS == "darwin" {
-		return " (" + strings.ReplaceAll("⌘"+k, "Shift+", "⇧") + ")"
+		return " (" + strings.NewReplacer("Shift+", "⇧", "Alt+", "⌥").Replace("⌘"+k) + ")"
 	}
 	return " (Ctrl+" + k + ")"
 }

@@ -59,7 +59,7 @@ func TestKeyboardAudit(t *testing.T) {
 		}
 		return
 	}
-	if b, err := os.ReadFile(path); err != nil || string(b) != got {
+	if b, err := os.ReadFile(path); err != nil || strings.ReplaceAll(string(b), "\r\n", "\n") != got { // a Windows checkout may give CRLF
 		t.Errorf("%s is not what the registry makes: UPDATE_KEYBOARD=1 go test -run TestKeyboardAudit .", path)
 	}
 }

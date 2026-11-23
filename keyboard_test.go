@@ -101,11 +101,13 @@ func TestNoKeyClashes(t *testing.T) {
 
 // The clash check finds clashes: two keys alike, a kept key, a mode's.
 func TestKeyClashesFound(t *testing.T) {
-	c := cmd("edit.replace")
-	was := c.keys
-	defer func() { c.keys = was }()
+	// a command with no keys of its own per platform (no macKeys, no
+	// webKeys): what is set here is what every platform has
+	c := cmd("edit.findPrevious")
+	wasKeys, wasMac := c.keys, c.macKeys
+	defer func() { c.keys, c.macKeys = wasKeys, wasMac }()
 	c.keys = cmd("edit.find").keys
-	if got := strings.Join(keyClashes(cmdEnv{}, platDesktop), "\n"); !strings.Contains(got, "edit.find and edit.replace") {
+	if got := strings.Join(keyClashes(cmdEnv{}, platDesktop), "\n"); !strings.Contains(got, "edit.find and edit.findPrevious") {
 		t.Errorf("a shared key not found: %q", got)
 	}
 	c.keys = []fyne.Shortcut{shortcut(fyne.KeyW, 0)}
@@ -116,8 +118,6 @@ func TestKeyClashesFound(t *testing.T) {
 	if got := strings.Join(keyClashes(cmdEnv{}, platDesktop), "\n"); !strings.Contains(got, "vim's normal mode") {
 		t.Errorf("a mode's key not found: %q", got)
 	}
-	wasMac := c.macKeys
-	defer func() { c.macKeys = wasMac }()
 	c.macKeys = []fyne.Shortcut{plainKey(fyne.KeyJ, fyne.KeyModifierAlt)} // Option+J on a Mac
 	if got := strings.Join(keyClashes(cmdEnv{}, platMac), "\n"); !strings.Contains(got, "vim's normal mode") {
 		t.Errorf("a mode's key on a Mac not found: %q", got)

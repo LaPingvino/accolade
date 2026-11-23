@@ -322,6 +322,9 @@ func onThisSystem(s string) string {
 	if runtime.GOOS != "darwin" {
 		return s
 	}
+	// a Mac's own keys where they are others (macKeys): Replace's Cmd+H
+	// hides the app there
+	s = strings.ReplaceAll(s, "Replace… (Ctrl+H)", "Replace… (Ctrl+Alt+F)")
 	return keysRe.ReplaceAllStringFunc(s, func(m string) string {
 		return keys(keysRe.FindStringSubmatch(m)[1])
 	})
