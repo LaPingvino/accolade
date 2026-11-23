@@ -135,6 +135,8 @@ func (w *MainWindow) typeAfterRename(oldPath, oldName, newPath, newName string) 
 // clean-up runs); a notes block in the other type's form is carried over
 // to this one's. The choice is remembered for the file.
 func (w *MainWindow) setDocumentType(markdown bool) {
+	// the views follow at the end (state.go)
+	defer w.scriptChange()()
 	if w.markdown == markdown {
 		return
 	}

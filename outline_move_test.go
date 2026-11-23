@@ -42,7 +42,7 @@ func TestOutlineDrag(t *testing.T) {
 		w.togglePane("outline")
 	}
 	o := w.outline
-	o.update(w.textEditor.Text())
+	o.refresh()
 	if o.dropIndex(1, -o.oneLine) != 0 || o.dropIndex(0, o.oneLine*1.5) != 2 || o.dropIndex(0, 2) != -1 {
 		t.Fatalf("drop places: %d %d %d", o.dropIndex(1, -o.oneLine), o.dropIndex(0, o.oneLine*1.5), o.dropIndex(0, 2))
 	}

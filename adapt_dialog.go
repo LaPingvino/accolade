@@ -24,6 +24,7 @@ import (
 
 type adaptDialog struct {
 	s    *sourcePane
+	of   docKey // the script it plans in (state.go)
 	p    int
 	ctx  adaptCtx
 	plan adaptPlan
@@ -102,7 +103,7 @@ func (s *sourcePane) adaptPassage(p int) {
 	if s.adapting != nil {
 		s.adapting.close()
 	}
-	d := &adaptDialog{s: s, p: p}
+	d := &adaptDialog{s: s, p: p, of: s.w.scriptKey()}
 	d.ctx = s.adaptCtx(p)
 	d.plan = planAdapt(d.ctx, p)
 	d.build()

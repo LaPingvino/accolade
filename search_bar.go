@@ -42,6 +42,10 @@ type SearchBar struct {
 	currentMatch int
 	totalMatches int
 	searchText   string
+	// of is the document its matches are in (state.go), lit the editor
+	// they are highlighted in
+	of  docKey
+	lit interface{ SetHighlights([][2]int) }
 }
 
 func NewSearchBar(window *MainWindow) *SearchBar {
@@ -179,14 +183,26 @@ func (sb *SearchBar) highlight(matches []searchMatch) {
 	for i, m := range matches {
 		ranges[i] = [2]int{m.start, m.end}
 	}
-	sb.window.writeEditor().SetHighlights(ranges)
+	e := sb.window.writeEditor()
+	e.SetHighlights(ranges)
+	sb.lit = e
+}
+
+// unlight takes the highlights away from the editor they are in (another
+// document's, when another middle tab came to the front).
+func (sb *SearchBar) unlight() {
+	if sb.lit != nil {
+		sb.lit.SetHighlights(nil)
+		sb.lit = nil
+	}
+	sb.window.writeEditor().SetHighlights(nil)
 }
 
 func (sb *SearchBar) Hide() {
 	sb.container.Hide()
 	sb.isVisible = false
 	sb.relayout()
-	sb.window.writeEditor().SetHighlights(nil)
+	sb.unlight()
 	sb.window.focusMain()
 }
 
@@ -212,7 +228,8 @@ func (sb *SearchBar) IsVisible() bool {
 }
 
 func (sb *SearchBar) updateSearch() {
-	sb.window.writeEditor().SetHighlights(nil)
+	sb.of = sb.window.frontKey()
+	sb.unlight()
 	if sb.searchText == "" {
 		sb.totalMatches = 0
 		sb.currentMatch = 0

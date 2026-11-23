@@ -46,7 +46,8 @@ rename (`leaveDocs` → `closeMiddleDocs`), a document type change (`middlePrune
 - the link offer when the source's tab is left (`offerLinkUpdate`), the find bar's highlights;
 - the menus, the ribbon's contextual tabs and build key, the editing row, the title, the status, the focus.
 
-The next item (the state-change audit, LOOP.md) can hang its `mainDocChanged` on `show`.
+`show` ends in `mainDocChanged` (state.go, docs/STATE.md): each view derived from a document records which one it
+shows, and those in sight that describe another than the one in front follow it there — the outline among them.
 
 ## The document abstraction (document.go)
 

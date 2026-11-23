@@ -208,7 +208,7 @@ func (w *MainWindow) newMarkdownPageSetup(done func()) *mdPageSetupDlg {
 		})
 		p.d.Hide()
 		if w.previewVisible && w.previewPane != nil { // the preview shows it at once
-			w.previewPane.update(w.writeEditor().Text())
+			w.updateLivePreview()
 		}
 		if done != nil {
 			done()

@@ -336,6 +336,8 @@ func (w *MainWindow) relocate(r relocation, done func(error)) error {
 // what failed at once (then nothing changed); a bundle written in the
 // background that fails puts everything back and says so (done).
 func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
+	// the views follow at the end (state.go)
+	defer w.scriptChange()()
 	oldName := cmp.Or(r.from, w.suggestedName, w.untitledName())
 	if r.rename && r.how == flattenDrop { // the bundle goes: nothing would keep them
 		r.how = flattenKept

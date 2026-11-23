@@ -279,6 +279,9 @@ func (e *ScriptEditor) SetHighlights(ranges [][2]int) {
 	e.relayout()
 }
 
+// Highlights are the ranges SetHighlights marked.
+func (e *ScriptEditor) Highlights() [][2]int { return e.highlights }
+
 // SetFlash lights [start, end) (rune offsets) apart from the search's
 // highlights, until it is set again (an empty range: none). The caller
 // takes it away after a moment.

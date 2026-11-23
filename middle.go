@@ -191,9 +191,7 @@ func (m *middle) show(id string) {
 		d.ed.SetOffstage(true)
 	}
 	if w.searchBar != nil {
-		if e := w.mainEditor(); e != nil {
-			e.SetHighlights(nil)
-		}
+		w.searchBar.of = docKey{} // its matches are found again in the tab coming in (state.go)
 	}
 	w.previewGen++ // a script's PDF still being made is not shown over another tab
 	w.hidePages()
@@ -226,6 +224,7 @@ func (m *middle) show(id string) {
 	} else {
 		w.setStatus(m.status())
 	}
+	w.mainDocChanged() // the views of the document in front (state.go)
 }
 
 // previewFollowsMain shows the preview of the document now in the main
@@ -241,7 +240,7 @@ func (w *MainWindow) previewFollowsMain(had bool) {
 			w.previewPane.withPageSetup(w)
 		}
 		w.previewVisible = true
-		w.previewPane.update(w.writeEditor().Text())
+		w.updateLivePreview()
 		w.relayout()
 		w.refreshMenu()
 		w.ribbonRefresh()
@@ -482,6 +481,7 @@ func (w *MainWindow) sourceInMiddle() {
 // commands or the screenplay's), the editing row, the ribbon, the status
 // bar.
 func (w *MainWindow) editorKindChanged() {
+	w.commandsOf = w.frontKey()
 	if w.headerBar != nil {
 		w.headerBar.showEditingRow(w.editorMarkdown(), w.midDoc() != nil && !w.markdown)
 	}
@@ -494,16 +494,18 @@ func (w *MainWindow) editorKindChanged() {
 	w.updateCurrentElement()
 	w.updateStatusBar()
 	if w.previewVisible && w.previewPane != nil {
-		w.previewPane.update(w.writeEditor().Text())
+		w.updateLivePreview()
 	}
 }
 
 // mainChanged is the text in the main editor changing, when it is not
 // the script (whose changes onTextChanged follows).
 func (w *MainWindow) mainChanged() {
-	text := w.mainEditor().Text()
+	if w.outline != nil && w.outlineInSight() {
+		w.outline.edited() // its structure (outline.go)
+	}
 	if w.previewVisible && w.previewPane != nil {
-		w.previewPane.update(text)
+		w.updateLivePreview()
 	}
 	if w.searchBar != nil && w.searchBar.IsVisible() {
 		w.searchBar.updateSearch()
@@ -548,4 +550,11 @@ func (w *MainWindow) scriptAway(what string) bool {
 	}
 	w.setStatus(what + " works in the script: its middle tab first (tap Script)")
 	return true
+}
+
+// updateLivePreview shows the main editor's document in the Live Preview
+// (the script's while a view is in front), and records which (state.go).
+func (w *MainWindow) updateLivePreview() {
+	w.previewPane.of = w.frontKey()
+	w.previewPane.update(w.writeEditor().Text())
 }

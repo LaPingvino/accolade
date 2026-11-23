@@ -87,6 +87,8 @@ func (w *MainWindow) untitledName() string {
 // document: the editor's colours and layout, the toolbar, the menu, the
 // outline and the status bar.
 func (w *MainWindow) setMarkdown(on bool) {
+	// the views follow at the end (state.go)
+	defer w.scriptChange()()
 	if w.markdown == on {
 		return
 	}
@@ -110,8 +112,6 @@ func (w *MainWindow) setMarkdown(on bool) {
 	if w.help != nil {
 		w.help.fillPicker() // the cheat sheets in the mode's order
 	}
-	w.updateCurrentElement()
-	w.updateStatusBar()
 	w.relayout()
 	w.shareMeta("markdown", strconv.FormatBool(on))
 }
@@ -120,6 +120,7 @@ func (w *MainWindow) setMarkdown(on bool) {
 // open has unsaved changes.
 func (w *MainWindow) NewMarkdownFile() {
 	create := func() {
+		defer w.scriptChange()()
 		w.newDocument()
 		w.cancelAutoSave()
 		w.forgetUnsavedSource()
@@ -132,8 +133,6 @@ func (w *MainWindow) NewMarkdownFile() {
 		w.setBundle(nil)
 		w.setCarried(nil, "")
 		w.hasChanges = false
-		w.updateTitle()
-		w.updateStatusBar()
 	}
 	if !w.hasChanges {
 		create()
@@ -258,6 +257,7 @@ type previewPanel struct {
 	mode  *widget.RadioGroup
 	pages *mdPages // the Pages' view, made when first shown
 	last  string   // the text shown
+	of    docKey   // the document it is of (state.go)
 }
 
 // previewPagesPref keeps whether the Live Preview shows the pages.
@@ -357,6 +357,10 @@ func (p *previewPanel) update(text string) {
 // preview shows the document as it will look: a screenplay as a PDF, a
 // Markdown document in the preview beside the editor (or hides it).
 func (w *MainWindow) preview() {
+	if w.main() == nil { // a view in front (the cards): the script's preview, with its tab
+		w.mid.keepPreview = false
+		w.showMiddle("")
+	}
 	if !w.editorMarkdown() { // the main editor's: the source in the middle is Markdown
 		w.previewPDF()
 		return
@@ -367,7 +371,7 @@ func (w *MainWindow) preview() {
 	}
 	w.previewVisible = !w.previewVisible
 	if w.previewVisible {
-		w.previewPane.update(w.writeEditor().Text())
+		w.updateLivePreview()
 	}
 	w.relayout()
 	w.refreshMenu()   // Live Preview checked, or not, in the menu and on the ribbon

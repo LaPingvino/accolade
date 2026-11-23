@@ -22,6 +22,7 @@ import (
 
 type cardsPane struct {
 	w     *MainWindow
+	of    docKey // the script it shows (state.go)
 	items []outlineItem
 	lit   map[int]bool
 	seen  linesSeen
@@ -127,6 +128,7 @@ func (c *cardsPane) show(r *dragRow, id int) {
 
 // update reads the cards from the script's text again.
 func (c *cardsPane) update(text string) {
+	c.of = c.w.scriptKey()
 	c.items = c.w.outlineItems(text)
 	if c.row == 0 {
 		c.row = c.list.CreateItem().MinSize().Height
@@ -168,6 +170,7 @@ func (c *cardsPane) setSynopsis(id int, s string) {
 
 // The pane as a dragList (outline.go).
 func (c *cardsPane) rowItems() []outlineItem { return c.items }
+func (c *cardsPane) colours() bool           { return true }
 func (c *cardsPane) rowHeight(int) float32   { return c.row }
 func (c *cardsPane) listWindow() *MainWindow { return c.w }
 func (c *cardsPane) moveRow(from, to int)    { c.w.moveOutlineItem(from, to) }

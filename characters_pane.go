@@ -37,6 +37,7 @@ import (
 
 type charactersPane struct {
 	w      *MainWindow
+	of     docKey // the script it reads (state.go)
 	box    fyne.CanvasObject
 	filter *widget.Entry
 	list   *widget.List
@@ -151,6 +152,7 @@ func (p *charactersPane) update(text string) {
 // as a story) and shows it.
 func (p *charactersPane) read() {
 	w := p.w
+	p.of = w.scriptKey()
 	text := w.textEditor.Text()
 	if p.model != nil && sameString(p.modelOf, text) && p.model.markdown == w.markdown {
 		p.refresh()

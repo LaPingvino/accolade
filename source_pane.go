@@ -42,7 +42,8 @@ import (
 const sourceWidth = 320
 
 type sourcePane struct {
-	w *MainWindow
+	w  *MainWindow
+	of docKey // the script it follows (state.go)
 
 	ref      sourceRef // where the source is
 	modTime  time.Time
@@ -773,6 +774,7 @@ func (s *sourcePane) shown() bool {
 // them if none is in sight, and says what of the scene's links was not
 // found.
 func (s *sourcePane) follow() {
+	s.of = s.w.scriptKey()
 	cancel(&s.w.followTimer) // done now
 	s.w.learnFromWriting()
 	if !s.shown() {
@@ -1278,7 +1280,27 @@ func (w *MainWindow) takeChosenSource(gen int, script string, bundle *textBundle
 		return false
 	}
 	if err == nil {
-		err = w.useSourceText(path, md)
+		defer w.scriptChange()() // the views follow the new source (state.go)
+		// the source open as a document is the one replaced: written to
+		// its home first, and its middle tab opened again on the new one
+		// (in a bundle the home stays the same: the old text would stay
+		// in the tab and go back in on the next save)
+		tab, was := w.mid.has("source"), w.mid.shown
+		if tab {
+			w.closeMiddle("source")
+		}
+		if err = w.closeDoc(w.srcDoc); err == nil {
+			err = w.useSourceText(path, md)
+		}
+		if err == nil && tab {
+			if w.source != nil {
+				w.source.ref = sourceRef{Origin: -1} // read again
+			}
+			w.openMiddle("source")
+			if was != "source" {
+				w.showMiddle(was) // the tab that was in front stays there
+			}
+		}
 	}
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("could not use %s as the source: %v", filepath.Base(path), err), w.fyneWindow)

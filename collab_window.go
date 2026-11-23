@@ -99,6 +99,8 @@ func newReplica() string {
 // joining, the script comes from them (the window's text is replaced), or
 // from the state kept when this window or page was in it before.
 func (w *MainWindow) startSharing(key collab.Key, joining bool) {
+	// the views follow at the end (state.go)
+	defer w.scriptChange()()
 	if joining { // the script is replaced: its documents first (document.go)
 		w.leaveDocs()
 	}
@@ -244,6 +246,8 @@ func (w *MainWindow) stopSharing() {
 // document in the window): the kept state goes too, and the script
 // stays with the others.
 func (w *MainWindow) leaveSharing() {
+	// the views follow at the end (state.go)
+	defer w.scriptChange()()
 	if s := w.shared; s != nil {
 		w.stopSharing()
 		_ = os.Remove(keptSharedPath(s.key))

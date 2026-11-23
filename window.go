@@ -79,6 +79,16 @@ type MainWindow struct {
 	// the middle tabs: the script, the cards' full view, the panes put
 	// there (middle.go)
 	mid middle
+	// epoch counts the script's changes (scriptChange); changing is the
+	// depth of the transitions under way (state.go)
+	epoch    uint64
+	changing int
+	// what the page view, the status bar, the title and the commands
+	// were last made for (state.go)
+	pagesWant, statusOf, titleOf, commandsOf docKey
+	// pagesComing is the Preview being made whose pages will be shown
+	// (its previewGen; 0 none)
+	pagesComing int
 	// the window's documents (document.go): the script as one, the
 	// source and the notes once opened
 	script, srcDoc, notesDoc *document
@@ -499,6 +509,8 @@ func (w *MainWindow) applyFontSettings() {
 
 // File operations
 func (w *MainWindow) LoadFile(filePath string) error {
+	// the views follow at the end (state.go)
+	defer w.scriptChange()()
 	switch strings.ToLower(filepath.Ext(filePath)) {
 	case ".fdx", ".pdf":
 		return w.importFile(filePath)
@@ -575,8 +587,6 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	w.suggestedName = ""
 	w.rememberRecent(filePath)
 	w.hasChanges = before != "" // both texts the same again on the next save
-	w.updateTitle()
-	w.updateStatusBar()
 	w.readBeatTags()
 	w.roleChanged(false) // its own role, if it keeps one (role.go)
 	if before != "" {
@@ -659,6 +669,8 @@ func (w *MainWindow) importFile(filePath string) error {
 
 // showImported puts an imported script in the window, unsaved.
 func (w *MainWindow) showImported(filePath, text, from string) {
+	// the views follow at the end (state.go)
+	defer w.scriptChange()()
 	w.newDocument()
 	w.cancelAutoSave()
 	w.forgetUnsavedSource()
@@ -673,8 +685,6 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.setCarried(nil, "")
 	w.suggestedName = strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath)) + ".fountain"
 	w.hasChanges = true
-	w.updateTitle()
-	w.updateStatusBar()
 	if pageLockOf(text) != nil {
 		w.setStatus("Imported from " + from + ", its locked pages kept: where Accolade prints a page longer, it goes on to an A-page")
 	} else {
@@ -1084,6 +1094,8 @@ func newScriptTemplate() string {
 }
 
 func (w *MainWindow) createNewFile(empty bool) {
+	// the views follow at the end (state.go)
+	defer w.scriptChange()()
 	w.newDocument()
 	w.forgetUnsavedSource()
 	w.setMarkdown(false)
@@ -1099,8 +1111,6 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.setBundle(nil)
 	w.setCarried(nil, "")
 	w.hasChanges = false
-	w.updateTitle()
-	w.updateStatusBar()
 	w.roleChanged(false) // the preferences' role again (role.go)
 }
 
@@ -1216,6 +1226,8 @@ func (w *MainWindow) draft() kept {
 // restore puts a kept script back: its file again, if it still has it,
 // with the changes not saved.
 func (w *MainWindow) restore(d kept) {
+	// the views follow at the end (state.go)
+	defer w.scriptChange()()
 	w.newDocument()
 	if d.File != "" && w.LoadFile(d.File) == nil {
 		if d.Text != w.textEditor.Text() {
@@ -1274,7 +1286,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.docsFollowScript() // the notes or source kept in it, open as documents (document.go)
 	if w.scriptInMain() {
 		if w.previewVisible && w.previewPane != nil {
-			w.previewPane.update(text)
+			w.updateLivePreview()
 		}
 		if w.searchBar != nil && w.searchBar.IsVisible() {
 			w.searchBar.updateSearch() // the matches move with the text
@@ -1287,6 +1299,7 @@ func (w *MainWindow) onTextChanged(text string) {
 }
 
 func (w *MainWindow) updateTitle() {
+	w.titleOf = w.frontKey()
 	title := "Accolade"
 
 	if w.currentFile != "" {
@@ -1329,6 +1342,7 @@ func (w *MainWindow) updateStatusBar() {
 	if w.statsLabel == nil {
 		return // called while the window is being built
 	}
+	w.statusOf = w.frontKey()
 	var text string
 	if d := w.main(); d != nil && d.kind != docScript { // the document in the main editor (middle.go)
 		text = w.markdownStats(d.Text()) + " · " + d.kind.String() + ", " + d.where()
@@ -1440,6 +1454,7 @@ func (w *MainWindow) makePreviewPDF() {
 	w.setStatus("Preparing the PDF...")
 	w.previewGen++
 	gen := w.previewGen
+	w.pagesWant, w.pagesComing = w.scriptKey(), gen // the pages describe the script (state.go)
 	previewsMaking.Add(1)
 	go func() {
 		defer previewsMaking.Add(-1)
@@ -1449,6 +1464,7 @@ func (w *MainWindow) makePreviewPDF() {
 				os.RemoveAll(dir)
 				return
 			}
+			w.pagesComing = 0
 			if err != nil {
 				os.RemoveAll(dir)
 				w.setStatus("")

@@ -13,10 +13,19 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/lexington/lex"
+
+	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/prose"
 )
 
-// The outline (View > Outline) lists the script's sections and scenes,
-// with their synopses, beside the editor; clicking one goes there.
+// The outline (View > Outline) lists the structure of the document in
+// front in the middle (Joop, 2026-11-23: "Outline might also need to
+// refresh on context? (depending on Source or Screenplay active in the
+// middle?)"): the script's sections and scenes with their synopses (a
+// Markdown script's headings), the source's chapters and passages, the
+// notes' headings; with a view in front (the cards), the script's.
+// Clicking one goes there. Dragging a row moves a scene or section, and
+// its menu colours it: the script's only.
 
 // outlineItem is a section or scene of the script.
 type outlineItem struct {
@@ -117,14 +126,21 @@ func unfolded(items []outlineItem, folded map[string]bool) []outlineItem {
 
 // outlinePanel is the outline beside the editor.
 type outlinePanel struct {
-	w      *MainWindow
-	all    []outlineItem // the script's
-	items  []outlineItem // shown: those the filter lets through
-	filter *widget.Entry
-	cards  *widget.Button
-	folded map[string]bool // sections shown without what is in them
-	list   *widget.List
-	box    fyne.CanvasObject
+	w *MainWindow
+	// of is the document it shows (state.go), doc that document
+	of    docKey
+	doc   *document
+	timer *uiTimer // a document's edits, refreshed after a pause
+	// srcOf and srcItems are a source's outline as made last
+	srcOf    string
+	srcItems []outlineItem
+	all      []outlineItem // the document's
+	items    []outlineItem // shown: those the filter lets through
+	filter   *widget.Entry
+	cards    *widget.Button
+	folded   map[string]bool // sections shown without what is in them
+	list     *widget.List
+	box      fyne.CanvasObject
 
 	oneLine, twoLines float32 // row heights without and with a synopsis
 }
@@ -198,18 +214,93 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 	return o
 }
 
-// update reads the outline from the script again.
-func (o *outlinePanel) update(text string) {
-	o.all = o.w.outlineItems(text)
-	if o.w.markdown { // headings only: no scenes, no cards
+// refresh reads the outline again from the document in front.
+func (o *outlinePanel) refresh() {
+	cancel(&o.timer)
+	w := o.w
+	d := w.frontDoc()
+	o.of, o.doc = w.frontKey(), d
+	o.all = o.itemsOf(d)
+	switch {
+	case d.kind == docSource:
+		o.filter.SetPlaceHolder("Filter chapters and passages")
+		o.cards.Hide()
+	case d.kind == docNotes || w.markdown: // headings only: no scenes, no cards
 		o.filter.SetPlaceHolder("Filter headings")
 		o.cards.Hide()
-	} else {
+	default:
 		o.filter.SetPlaceHolder("Filter scenes and sections")
 		o.cards.Show()
 	}
 	o.show()
 }
+
+// itemsOf is document d's outline: the script's (a screenplay's sections
+// and scenes, a Markdown script's headings), a source's chapters and
+// passages, the notes' headings.
+func (o *outlinePanel) itemsOf(d *document) []outlineItem {
+	switch d.kind {
+	case docSource:
+		return o.sourceItems(d.Text())
+	case docNotes:
+		return markdownOutline(d.Text())
+	}
+	return o.w.outlineItems(d.Text())
+}
+
+// edited is a change in the script or the document in front: the
+// script's outline at once (as it always was), a document's after a
+// pause (a source can be a novel).
+func (o *outlinePanel) edited() {
+	if o.w.frontDoc().kind == docScript {
+		o.refresh()
+		return
+	}
+	o.w.debounce(&o.timer, followPause, func() {
+		if o.w.outlineInSight() {
+			o.refresh()
+		}
+	})
+}
+
+// sourceItems are a source's outline: its headings (the chapters) as
+// sections, its passages under them by their first words.
+func (o *outlinePanel) sourceItems(text string) []outlineItem {
+	if o.srcItems != nil && sameString(o.srcOf, text) {
+		return o.srcItems
+	}
+	ps := passagesOf(text)
+	lines := passageLines(text, ps)
+	var items []outlineItem
+	section := 0
+	for i, p := range ps {
+		if lines[i] < 0 {
+			continue // not found in the text as it is (being typed)
+		}
+		if p.Kind == prose.Heading {
+			section = p.Level
+			items = append(items, outlineItem{Line: lines[i], Text: p.Plain, Level: p.Level})
+			continue
+		}
+		if !p.linkable() {
+			continue
+		}
+		items = append(items, outlineItem{Line: lines[i], Text: shortQuote(p.Plain), Level: section + 1, Scene: true})
+	}
+	o.srcOf, o.srcItems = text, items
+	return items
+}
+
+// outlineInSight reports whether the outline is where it can be seen: in
+// the dock, or in front in the middle (dock.edited's test).
+func (w *MainWindow) outlineInSight() bool {
+	p := w.dock.pane("outline")
+	return p != nil && (w.dock.shown("outline") || w.mid.boxShown(p))
+}
+
+// ofScript reports whether the outline shows the script (its rows move
+// and colour scenes).
+func (o *outlinePanel) ofScript() bool { return o.doc == nil || o.doc.kind == docScript }
 
 // show shows the items the filter lets through.
 func (o *outlinePanel) show() {
@@ -259,14 +350,27 @@ func (o *outlinePanel) showFold(b *widget.Button, id int) {
 	}
 }
 
-// goTo puts the cursor at the start of a line and the focus in the editor.
-// Another middle tab in front, the script's comes forward (goToScript).
-func (o *outlinePanel) goTo(line int) { o.w.goToScript(line) }
+// goTo puts the cursor at the start of a line of the document shown and
+// the focus in its editor. For the script with another middle tab in
+// front, the script's comes forward (goToScript).
+func (o *outlinePanel) goTo(line int) {
+	d := o.doc
+	if o.ofScript() || o.w.main() != d {
+		o.w.goToScript(line)
+		return
+	}
+	d.ed.Navigate(func(b *buffer.Buffer) {
+		n, _ := b.Position(b.Len())
+		b.SetCursor(b.LineStart(max(0, min(line, n))), false)
+	})
+	o.w.fyneWindow.Canvas().Focus(d.ed)
+}
 
 // dragList is a list of the script's items whose rows can be dragged
 // to move them (the outline, the Cards pane).
 type dragList interface {
 	rowItems() []outlineItem  // the items shown
+	colours() bool            // its rows are the script's: a secondary tap colours one
 	rowHeight(id int) float32 // a shown row's height
 	tapRow(id int)            // a tap on a row
 	moveRow(from, to int)     // a row dropped before row to (len: the end)
@@ -297,7 +401,7 @@ func (r *dragRow) Tapped(*fyne.PointEvent) { r.o.tapRow(r.id) }
 
 // TappedSecondary picks the row's scene or section's color.
 func (r *dragRow) TappedSecondary(e *fyne.PointEvent) {
-	if items := r.o.rowItems(); r.id >= 0 && r.id < len(items) {
+	if items := r.o.rowItems(); r.o.colours() && r.id >= 0 && r.id < len(items) {
 		r.o.listWindow().pickColor(items[r.id], e.AbsolutePosition, nil)
 	}
 }
@@ -363,8 +467,15 @@ func (o *outlinePanel) rowHeight(id int) float32 {
 	}
 	return o.twoLines
 }
-func (o *outlinePanel) tapRow(id int)           { o.list.Select(id) }
-func (o *outlinePanel) moveRow(from, to int)    { o.move(from, to) }
+func (o *outlinePanel) tapRow(id int) { o.list.Select(id) }
+func (o *outlinePanel) moveRow(from, to int) {
+	if !o.ofScript() {
+		o.w.setStatus("Rows move in the script's outline only")
+		return
+	}
+	o.move(from, to)
+}
+func (o *outlinePanel) colours() bool           { return o.ofScript() }
 func (o *outlinePanel) listWindow() *MainWindow { return o.w }
 
 // dropIndex is dropIndex in the outline (its tests').

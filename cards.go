@@ -27,6 +27,7 @@ var cardSize = fyne.NewSize(240, 170)
 // sections; each group ends with a card that adds a scene to it.
 type cardsView struct {
 	w       *MainWindow
+	of      docKey // the script it shows (state.go)
 	items   []outlineItem
 	list    *fyne.Container // the groups, one under the other
 	targets []dropTarget    // where a dragged card or section can go
@@ -56,6 +57,7 @@ func newCardsView(w *MainWindow) *cardsView {
 // update shows the script's outline as cards. While a synopsis is being
 // written on a card, the cards stay (they would lose the typing).
 func (c *cardsView) update(text string) {
+	c.of = c.w.scriptKey()
 	c.items = c.w.outlineItems(text)
 	if _, typing := c.w.fyneWindow.Canvas().Focused().(*synopsisEntry); typing {
 		return
