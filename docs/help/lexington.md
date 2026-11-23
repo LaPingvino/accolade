@@ -79,7 +79,9 @@ Made from Lexington's own list, so none is missing. `-i` and `-o` default to sta
 - `-lint` — Run the Fountain linter on the input file
 - `-help` — Show this help message
 - `-version` — Show version information
+- `-footer string` — The page's footer for a script with no {{FOOTER: …}} of its own, as -header.
 - `-form string` — The form of a bundle written: zip or folder (default: the bundle's own when rewritten, else zip, a .textbundle a folder).
+- `-header string` — The page's header for a script with no {{HEADER: …}} of its own, as Highland writes one: "Title | %p." (%p the page, %pp the last page, %# the section; left | centre | right).
 - `-keeploose` — Write the Fountain input so that it reads under the spec as Lexington before 1.19 read it (blank lines and force marks added), instead of converting it; says how many places changed.
 - `-loose` — Read Fountain as Lexington before 1.19 did: a scene word starts a heading anywhere, capitals after action are a name, any line ending in " TO:" is a transition, a line of spaces ends a speech.
 

@@ -54,7 +54,7 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		w.scriptFolds.blocks = true // Accolade's own blocks fold away (block_folds.go)
 		e.Chips = w.editorChips     // and its links and storyboard frames are chips (link_chips.go, storyboard.go)
 		e.OnChipPressed = w.chipPressed
-		e.OnChipTapped = w.frameTapped
+		e.OnChipTapped = w.chipTapped
 		e.Tags = w.guessTags // a scene's guessed link beside its heading (linkup.go)
 		e.OnTagTapped = w.guessTagTapped
 		e.Marks = w.revisionMarksShown

@@ -85,6 +85,11 @@ type exportJob struct {
 	// for a PDF that prints them (nil: none printed; storyboard.go)
 	pictures map[string][]byte
 
+	// Highland's header and footer for a script without its own (Page
+	// Setup's), and the file its {{INCLUDE}}s are relative to (the
+	// script's; "" none): highland_directives.go
+	header, footer, includeFrom string
+
 	// conf is the script's Lexington configuration (MainWindow.lex), its
 	// formats among the element sets; unset: the machine's files
 	conf lexConf
@@ -112,6 +117,12 @@ func (j exportJob) options(to, output string) cli.Options {
 		SceneLengths: j.sceneLengths,
 		MergeOmitted: j.mergeOmitted,
 		SceneIn:      j.language, // the HTML's direction for a line with none of its own
+		Header:       j.header,
+		Footer:       j.footer,
+		IncludeFrom:  j.includeFrom,
+	}
+	if o.IncludeFrom == "" || inBrowser {
+		o.IncludeFrom = noIncludeFolder // (nothing found there: a line in print says so)
 	}
 	if j.lock == nil { // (frames print in a free layout: a locked one keeps its pages)
 		o.Pictures = j.pictures

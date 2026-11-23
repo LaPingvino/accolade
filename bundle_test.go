@@ -553,7 +553,9 @@ func TestTextBundleSamples(t *testing.T) {
 		t.Fatal(err)
 	}
 	w, _ := newDialogTestWindow(t)
-	p := filepath.Join(t.TempDir(), "sample.textpack")
+	// named as its folder: saved, a zip's folder takes the file's name
+	// (Lexington 1.46, as Highland names it)
+	p := filepath.Join(t.TempDir(), "Textbundle Example.textpack")
 	os.WriteFile(p, orig, 0o644)
 	if err := w.LoadFile(p); err != nil {
 		t.Fatal(err)

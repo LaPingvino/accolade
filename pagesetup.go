@@ -30,6 +30,8 @@ const (
 	revisedOnlyPref = "export-revised-only" // revised pages only (PDF)
 	templatePref    = "export-template"     // FDX's and LaTeX's template, "" Lexington's
 	framesPref      = "export-storyboard-frames"
+	headerPref      = "page-header" // Highland's {{HEADER: …}} for a script without one
+	footerPref      = "page-footer"
 )
 
 // pageSetup is what the printed page looks like, as the settings have
@@ -50,6 +52,9 @@ type pageSetup struct {
 	pageColours   bool // the changed pages on their colour's paper
 	template      string
 	frames        bool // the storyboard frames under their lines (PDF; storyboard.go)
+	// header and footer, as Highland writes them ("Title | %p."), for a
+	// script without its own {{HEADER}} or {{FOOTER}} (highland_directives.go)
+	header, footer string
 }
 
 // pageSetupOf is the page setup the settings s have.
@@ -70,6 +75,8 @@ func pageSetupOf(s *Settings) pageSetup {
 		pageColours:   s.GetBoolean("export-page-colours"),
 		template:      s.GetString(templatePref),
 		frames:        s.GetBoolean(framesPref),
+		header:        s.GetString(headerPref),
+		footer:        s.GetString(footerPref),
 	}
 }
 
@@ -90,6 +97,8 @@ func (p pageSetup) writeTo(s *Settings) {
 	s.SetBoolean("export-page-colours", p.pageColours)
 	s.SetString(templatePref, strings.TrimSpace(p.template))
 	s.SetBoolean(framesPref, p.frames)
+	s.SetString(headerPref, strings.TrimSpace(p.header))
+	s.SetString(footerPref, strings.TrimSpace(p.footer))
 }
 
 // pageSetupPref is the key changeSetting is given for a page setup's
@@ -127,6 +136,9 @@ func (w *MainWindow) layoutJobOf(p pageSetup) exportJob {
 		scenes:        w.sceneHeaders(),
 		language:      w.language,
 		continueds:    p.continueds,
+		header:        p.header,
+		footer:        p.footer,
+		includeFrom:   w.currentFile,
 	}
 }
 
@@ -294,6 +306,9 @@ func (w *MainWindow) pageSummary(p pageSetup, format string) string {
 		if p.pagination != "" {
 			parts = append(parts, "page breaks: "+strings.ToLower(strings.TrimSuffix(paginationLabel(p.pagination), ":")))
 		}
+		if h, f := w.pageTexts(p); h != "" || f != "" {
+			parts = append(parts, "header and footer")
+		}
 	}
 	if a.continueds && p.continueds {
 		parts = append(parts, "CONTINUEDs")
@@ -423,6 +438,13 @@ type pageSetupDlg struct {
 	paginationBox                                    fyne.CanvasObject
 
 	revisionsCheck, revisedOnlyCheck, pageColoursCheck *widget.Check
+
+	// the header and footer (Highland's {{HEADER: …}}, {{FOOTER: …}}): the
+	// script's own when it has them (headerOwn), else the settings'
+	headerEntry, footerEntry *widget.Entry
+	headerOwn, footerOwn     bool
+	headerBox                fyne.CanvasObject
+	pageTextNote             *widget.Label
 }
 
 // showPageSetup opens Page Setup with format's settings (an export
@@ -479,6 +501,12 @@ func (w *MainWindow) newPageSetup(format string, done func()) *pageSetupDlg {
 	p.revisedOnlyCheck = widget.NewCheck("Only the pages with a change", nil)
 	p.pageColoursCheck = widget.NewCheck("Changed pages on their colour's paper", nil)
 
+	p.headerEntry, p.footerEntry = widget.NewEntry(), widget.NewEntry()
+	p.headerEntry.SetPlaceHolder("The page number, top right")
+	p.footerEntry.SetPlaceHolder("None")
+	fyne.SetAccessibleLabel(p.headerEntry, "Header")
+	fyne.SetAccessibleLabel(p.footerEntry, "Footer")
+	p.headerBox = p.pageTextWidgets()
 	p.load(w.pageSetup())
 	w.lex().selectFormat(p.scriptFormatSelect, w.scriptFormatKey())
 	p.box = container.NewVBox()
@@ -525,7 +553,7 @@ func (p *pageSetupDlg) show() {
 		objs = append(objs, p.framesCheck)
 	}
 	if a.script {
-		objs = append(objs, p.colorsCheck, p.colorOptions, p.paginationBox)
+		objs = append(objs, p.colorsCheck, p.colorOptions, p.paginationBox, p.headerBox)
 	}
 	if a.revisions {
 		objs = append(objs, p.revisionsCheck)
@@ -594,6 +622,7 @@ func (p *pageSetupDlg) load(s pageSetup) {
 	p.pageColoursCheck.SetChecked(s.pageColours)
 	p.templateEntry.SetText(s.template)
 	p.framesCheck.SetChecked(s.frames)
+	p.loadPageTexts(s)
 	p.enable()
 }
 
@@ -615,6 +644,8 @@ func (p *pageSetupDlg) chosen() pageSetup {
 		pageColours:   p.pageColoursCheck.Checked,
 		template:      strings.TrimSpace(p.templateEntry.Text),
 		frames:        p.framesCheck.Checked,
+		header:        p.settingText(p.headerEntry, p.headerOwn, headerPref),
+		footer:        p.settingText(p.footerEntry, p.footerOwn, footerPref),
 	}
 }
 
@@ -632,6 +663,7 @@ func (p *pageSetupDlg) ok() {
 		w.setScriptFormat(key)
 	}
 	w.setPageSetup(p.chosen())
+	p.savePageTexts()
 	p.d.Hide()
 	if p.done != nil {
 		p.done()

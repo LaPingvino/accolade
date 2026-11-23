@@ -175,6 +175,10 @@ func (f *folds) cursorItem(items []outlineItem) int {
 // scene the cursor is in.
 func (f *folds) fold(open, toggle bool) {
 	line, _ := f.ed.Buffer().Position(f.ed.CursorOffset())
+	if inc, ok := f.w.includeOnLine(line); ok && (open || toggle) { // an include: its file shown (zo, za; highland_directives.go)
+		f.w.showInclude(inc)
+		return
+	}
 	if b := f.blockAt(line); b != nil { // in a block: it is shown, the cursor in it
 		f.openBlock(b, open && !toggle)
 		return

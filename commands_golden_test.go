@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))))) // the moves write Linux keys too
+		want := highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -943,6 +943,16 @@ func fixLinesMoves(name, golden string) string {
 func frameMoves(name, golden string) string {
 	if strings.HasPrefix(name, "menu-screenplay") {
 		return strings.Replace(golden, "# Adaptation\n", "  ---\n  Storyboard Frame…\n# Adaptation\n", 1)
+	}
+	return golden
+}
+
+// highlandMoves: Format's Include File…, Marker…, Next Marker and
+// Previous Marker after Storyboard Frame… (Highland's directives,
+// highland_directives.go), in a screenplay's menu bar.
+func highlandMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-screenplay") {
+		return strings.Replace(golden, "  Storyboard Frame…\n", "  Storyboard Frame…\n  Include File…\n  Marker…\n  Next Marker\n  Previous Marker\n", 1)
 	}
 	return golden
 }

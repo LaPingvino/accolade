@@ -49,9 +49,11 @@ type MainWindow struct {
 	// noteTipShown is the note's text shown over its mark in the editor
 	// ("" none: markdown_notes.go)
 	noteTipShown string
-	chips        chipCache  // the script's links as chips, as found last (link_chips.go)
-	frames       frameCache // and its storyboard frames (storyboard.go)
-	sbBoards     *sbProject // Storyboarder's boards beside the script, as read last (storyboarder.go)
+	chips        chipCache            // the script's links as chips, as found last (link_chips.go)
+	frames       frameCache           // and its storyboard frames (storyboard.go)
+	hlChips      highlandCache        // and its includes and markers (highland_directives.go)
+	includeShown *dialog.CustomDialog // an included file shown (showInclude), for the tests
+	sbBoards     *sbProject           // Storyboarder's boards beside the script, as read last (storyboarder.go)
 	searchBar    *SearchBar
 
 	// UI layout

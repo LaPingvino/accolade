@@ -160,6 +160,10 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:italic** — Format > Italic
 - **:underline** — Format > Underline (screenplay)
 - **:storyboard-frame** — Format > Storyboard Frame (screenplay)
+- **:include** — Another file printed where this line is: Highland's {{INCLUDE: file}}, relative to the script's folder (Format > Include File) (screenplay)
+- **:marker** — A place to come back to, not printed: Highland's {{%m: label}} (Format > Marker) (screenplay)
+- **:next-marker** — To the next {{%m: …}} marker (Format > Next Marker) (screenplay)
+- **:previous-marker** — To the {{%m: …}} marker before (Format > Previous Marker) (screenplay)
 - **:new-scene** — Format > New Scene (screenplay)
 - **:number-scenes-in-headings** — Format > Number Scenes in Headings (screenplay)
 - **:strikethrough** — Format > Strikethrough (Markdown)

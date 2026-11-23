@@ -182,6 +182,13 @@ func frameChip(f frameLine, dataPath string, pics *images.Loader) editor.Chip {
 // storyboard frames, in order (the same slice for the same text).
 func (w *MainWindow) editorChips(text string) []editor.Chip {
 	links := w.linkChips(text)
+	if inc := w.highlandChips(text); len(inc) > 0 { // Highland's includes and markers (highland_directives.go)
+		c := &w.hlChips
+		if c.merged == nil || !sameChips(c.links, links) || !sameChips(c.of, inc) {
+			c.merged, c.links, c.of = mergeChips(links, inc), links, inc
+		}
+		links = c.merged
+	}
 	frames := w.frameChips(text)
 	if len(frames) == 0 {
 		return links

@@ -95,8 +95,8 @@ type ScriptEditor struct {
 	// OnChipPressed is told of a right click or a long press on a chip,
 	// with its cell's place and size in the editor (to show its Tip).
 	OnChipPressed func(c Chip, at fyne.Position, cell fyne.Size)
-	// OnChipTapped is told of a tap on a chip with an Image (one without
-	// is tapped into: its text shown).
+	// OnChipTapped is told of a tap on a chip with an Image or Tap (one
+	// without is tapped into: its text shown).
 	OnChipTapped func(c Chip, at fyne.Position, cell fyne.Size)
 	// Headings, when set, are the lines that can fold: a gutter column
 	// shows ▾ on them (▸ folded), and a tap there goes to OnFoldTapped.
@@ -205,6 +205,9 @@ type Chip struct {
 	// thumbnail. A tap on such a chip goes to OnChipTapped.
 	Image     image.Image
 	ImageCols int
+	// Tap sends a tap on the chip to OnChipTapped, as an Image's does
+	// (an included file's, shown).
+	Tap bool
 }
 
 // Tag is a label after a line (Tags); Short is drawn instead where Label
@@ -1302,7 +1305,7 @@ func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
 		e.OnTagTapped(line, t, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
 		return
 	}
-	if c, at, ok := e.chipUnder(ev.Position); ok && !e.shift && c.Image != nil && e.OnChipTapped != nil {
+	if c, at, ok := e.chipUnder(ev.Position); ok && !e.shift && (c.Image != nil || c.Tap) && e.OnChipTapped != nil {
 		e.OnChipTapped(c, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
 		return
 	}

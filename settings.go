@@ -94,6 +94,10 @@ func (s *Settings) loadDefaults() {
 		// a page lock keeps its own)
 		"export-continueds":        false,
 		"export-storyboard-frames": false,
+		// the page's header and footer for a script without its own,
+		// Highland's way ({{HEADER: …}}: pagesetup.go); "" none
+		"page-header": "",
+		"page-footer": "",
 		// the report Production > Reports… shows first (reports.go)
 		"report-kind": "scenes",
 

@@ -80,6 +80,12 @@ These come from the teardown and are worth knowing for Lexington:
 - lyrics, `~`;
 - the page-break line, `===`.
 
+Since Lexington 1.47 the directives are done, as Highland 2 does them (per highwater-too's parser, MIT, checked
+against Highland's PDFs): includes, header and footer, page numbers, series, timestamp, TOC in print; markers
+never printed. In Accolade an include is a chip (tap or `zo` shows the file, Open edits it), Page Setup's Header
+and Footer are `{{HEADER}}`/`{{FOOTER}}` (the script's own wins and is edited in place), and markers stay
+markers (chips, Next/Previous Marker): see highland_directives.go and docs/help/formats.md.
+
 ## What the samples taught
 
 - **Invalid JSON:** the three folder samples' info.json end their object with a trailing comma
