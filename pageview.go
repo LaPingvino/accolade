@@ -253,6 +253,12 @@ func (v *pageView) setDrawing(d pdf.Drawing, dimFrom int) {
 	if v.r == nil || old == nil || !sameFonts(old.Fonts, d.Fonts) {
 		v.r = pdf.NewRasterizer(&d)
 		old = nil // painted with other fonts
+	} else if !sameImages(old.Images, d.Images) {
+		// the rasterizer paints its drawing's pictures: one that came (a
+		// title page's, a storyboard frame's) or changed needs the new
+		// drawing's, and the pages showing it painted again
+		v.r = pdf.NewRasterizer(&d)
+		old = nil
 	}
 	v.d = &d
 	for i, p := range d.Pages {
@@ -294,6 +300,20 @@ func (v *pageView) setDrawing(d pdf.Drawing, dimFrom int) {
 }
 
 // sameFonts reports whether two drawings' fonts are the same files.
+// sameImages tells whether two drawings hold the same pictures (the
+// same images, by name).
+func sameImages(a, b map[string]image.Image) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, x := range a {
+		if y, ok := b[k]; !ok || x != y {
+			return false
+		}
+	}
+	return true
+}
+
 func sameFonts(a, b map[string][]byte) bool {
 	if len(a) != len(b) {
 		return false

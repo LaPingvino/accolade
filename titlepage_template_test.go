@@ -1,6 +1,8 @@
 package main
 
 import (
+	"image"
+	"image/color"
 	"image/png"
 	"os"
 	"path/filepath"
@@ -8,6 +10,9 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+
+	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/lexington/pdf"
 )
 
 const templateScript = "Contact:\n    Ann Writer\nTitle: Rain\nAuthor: Ann\n\nINT. HOUSE - DAY\n\nRain.\n"
@@ -96,6 +101,82 @@ func TestTitlePageImage(t *testing.T) {
 	}
 }
 
+// artPNG is a small picture to print: a blue field with a gold sun.
+func artPNG(t *testing.T, path string) {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 160, 100))
+	for y := 0; y < 100; y++ {
+		for x := 0; x < 160; x++ {
+			c := color.RGBA{30, 60, 110, 255}
+			if (x-80)*(x-80)+(y-50)*(y-50) < 600 {
+				c = color.RGBA{240, 200, 90, 255}
+			}
+			img.Set(x, y, c)
+		}
+	}
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, img); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// A title page picture beside the script reaches the page: read by the
+// window's picture loader, printed by the template, and painted when it
+// comes in an edit while the pages are shown (the page view's painter
+// takes the new drawing's pictures).
+func TestTitlePagePicture(t *testing.T) {
+	holdUI(t)
+	w, p := scriptWindow(t, templateScript)
+	artPNG(t, filepath.Join(filepath.Dir(p), "art.png"))
+	w.pictures().Forget()
+	t.Cleanup(func() { w.setTitleTemplate("") })
+	w.setTitleTemplate("poster")
+	v := previewAndWait(t, w)
+	if hasBlue(painted(t, v, 0)) {
+		t.Fatal("a picture before there is one")
+	}
+	shown := make(chan *pageView, 4)
+	onPagesShown(t, func(v *pageView) { shown <- v })
+	w.textEditor.Edit(func(b *buffer.Buffer) { b.Replace(0, 0, "Picture: ![Art](art.png)\n") })
+	j := w.outputJob(w.pageSetup(), "pdf", w.textEditor.Text(), nil)
+	if len(j.titlePictures["art.png"]) == 0 {
+		t.Fatalf("the picture is not given to Lexington: %v", j.titlePictures)
+	}
+	w.previewPDF()
+	v = awaitPages(t, shown)
+	found := false
+	for _, m := range v.d.Pages[0].Marks {
+		if _, ok := m.(pdf.Image); ok {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("no picture on the title page")
+	}
+	if !hasBlue(painted(t, v, 0)) {
+		t.Errorf("the picture is not painted on the page (images %d)", len(v.d.Images))
+	}
+}
+
+// hasBlue tells whether a page shows artPNG's blue.
+func hasBlue(img image.Image) bool {
+	if img == nil {
+		return false
+	}
+	for y := img.Bounds().Min.Y; y < img.Bounds().Max.Y; y += 2 {
+		for x := img.Bounds().Min.X; x < img.Bounds().Max.X; x += 2 {
+			if r, g, b, _ := img.At(x, y).RGBA(); b>>8 > 90 && r>>8 < 60 && g>>8 < 80 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // TestTitleTemplateScreenshots renders, with SHOT_DIR set (as
 // TestScreenshots): the Title Page tab with the bold template chosen and
 // the pages previewed from it (the title page first), the same with the
@@ -145,6 +226,22 @@ func TestTitleTemplateScreenshots(t *testing.T) {
 	w.ribbonRefresh()
 	r.selectTab("Title Page")
 	shot("titletpl-2-tab-poster-preview.png")
+
+	// a picture beside the script, above the poster's title
+	artPNG(t, filepath.Join(filepath.Dir(w.currentFile), "art.png"))
+	w.pictures().Forget()
+	shown = make(chan *pageView, 4)
+	onPagesShown(t, func(v *pageView) { shown <- v })
+	w.textEditor.Edit(func(b *buffer.Buffer) { b.Replace(0, 0, "Picture: ![Key art](art.png)\n") })
+	w.previewPDF()
+	v = awaitPages(t, shown)
+	if pi := painted(t, v, 0); !hasBlue(pi) {
+		t.Error("the picture added is not painted on the page shown")
+	}
+	w.textEditor.SetCursorOffset(3)
+	w.ribbonRefresh()
+	r.selectTab("Title Page")
+	shot("titletpl-6-poster-picture.png")
 
 	d := NewTitlePageDialog(w)
 	d.Show()

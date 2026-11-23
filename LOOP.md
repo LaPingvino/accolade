@@ -1884,3 +1884,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Title page pictures come from Accolade's loader (bundle, beside the script, the browser's files). Rough: one's own
   templates do not travel in a bundle (carryFor gives Part no titles yet); Word/ODT with a picture checked by
   structure only (no LibreOffice/Word here). Shots: TestTitleTemplateScreenshots, TestTOMLEditorScreenshots.
+  Found on the way: the page view kept its painter (and so the old drawing's pictures) when only the pictures
+  changed, so a picture that came in an edit (a title page's, a storyboard frame's) was not painted; fixed
+  (pageview.go, sameImages). Lexington's -titlepage is not passed yet on its external-program paths (the HTML
+  and LaTeX made for pandoc/Chromium/LaTeX PDFs, cli.go): those print the standard title page.

@@ -341,6 +341,7 @@ func TestTOMLEditorScreenshots(t *testing.T) {
 			{cpath, "Element Sets", "set", "mine", "settings-2-set"},
 			{cpath, "TOML", "", "", "settings-3-toml"},
 			{cpath, "Title Pages", "titlepage", "festival", "settings-4-titlepages"},
+			{cpath, "Title Pages", "titlepage", "festival", "settings-4-titlepages-keys"},
 			{cpath, "Title Pages", "titlepage", "poster", "settings-5-titlepages-preset"},
 			{fpath, "Format", "", "", "format-0-format"},
 			{fpath, "Elements", "format-element", "speaker", "format-1-element"},
@@ -364,6 +365,14 @@ func TestTOMLEditorScreenshots(t *testing.T) {
 						done = strings.HasPrefix(e.sample.note.Text, "As Lexington") || strings.HasPrefix(e.sample.note.Text, "No sample")
 					})
 					return done
+				})
+			}
+			if s.tab == "Title Pages" && strings.HasSuffix(s.name, "-keys") { // down to the keys' cards
+				collect(e.tabs.Selected().Content, func(sc *container.Scroll) {
+					if sc.Direction == container.ScrollVerticalOnly {
+						sc.Offset = fyne.NewPos(0, 520)
+						sc.Refresh()
+					}
 				})
 			}
 			e.win.Content().Refresh()

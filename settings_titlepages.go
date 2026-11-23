@@ -135,7 +135,8 @@ func (e *tomlEditor) titlePagesPage() fyne.CanvasObject {
 	remove := widget.NewButtonWithIcon("Remove", theme.DeleteIcon(), func() {
 		dialog.ShowConfirm("Remove "+cur+"?", "Take the title page template "+cur+" out of this file?", func(ok bool) {
 			if ok {
-				e.doAndRedraw(drop("TitlePages", cur))
+				e.changed(e.removeTitleTemplate(cur))
+				e.redraw()
 			}
 		}, e.host)
 	})
@@ -194,6 +195,27 @@ func (e *tomlEditor) titlePagesPage() fyne.CanvasObject {
 		fieldBox("Centre", docOf(fields, "Centre"), centre),
 		fieldBox("Keys", docOf(fields, "Keys"), container.NewVBox(keysBox, container.NewHBox(addKey))))
 	return container.NewBorder(container.NewPadded(top), nil, nil, nil, beside(form))
+}
+
+// removeTitleTemplate takes the template name out of the file: its keys'
+// [[blocks]] one by one, then its table (a path's drop leaves blocks).
+func (e *tomlEditor) removeTitleTemplate(name string) error {
+	path := keysPath(name)
+	for n := len(blocksAt(e.doc.raw(), path)); n > 0; n-- {
+		i := n - 1
+		err := e.doc.editText(func(s string) (string, error) { return dropBlock(s, path, i) },
+			func(m map[string]any) map[string]any { return withBlocksAt(m, path, slices.Delete(blocksAt(m, path), i, i+1)) })
+		if err != nil {
+			return err
+		}
+	}
+	if !e.doc.has("TitlePages", name) {
+		return nil
+	}
+	if all, _ := e.doc.raw()["TitlePages"].(map[string]any); len(all) == 1 { // the last: [TitlePages] goes too
+		return e.doc.edit(drop("TitlePages"))
+	}
+	return e.doc.edit(drop("TitlePages", name))
 }
 
 // keysPath is the [[TitlePages.name.Keys]] blocks' path.

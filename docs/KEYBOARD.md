@@ -283,7 +283,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Add Draft Date | `titlepage.add.draftdate` |  |  |  | T D | :add-draft-date |
 | Add Contact | `titlepage.add.contact` |  |  |  | T O | :add-contact |
 | Add Notes | `titlepage.add.notes` |  |  |  | T N | :add-notes |
-| Add Copyright | `titlepage.add.copyright` |  |  |  | T P | :add-copyright |
+| Add Copyright | `titlepage.add.copyright` |  |  |  | T Y | :add-copyright |
 | Rename Everywhere… | `chars.rename` |  |  |  |  | :rename-character |
 | Merge Into… | `chars.merge` |  |  |  |  | :merge-character |
 | Add Alias… | `chars.alias` |  |  |  |  | :add-alias |
