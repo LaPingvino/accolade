@@ -116,7 +116,7 @@ func bdFromEntries(m map[string]string) breakdownFile {
 // one sharing the script, as it starts.
 func (w *MainWindow) shareBreakdownAnew() {
 	s := w.shared
-	if s == nil || w.markdown {
+	if s == nil || w.markdown || s.followOnly { // a viewer shares nothing (tableread_follow.go)
 		return
 	}
 	f := w.breakdownNow()
@@ -154,7 +154,7 @@ func (w *MainWindow) joinExtras() {
 // window's breakdown changed (saveBreakdown).
 func (w *MainWindow) shareBreakdownChange(f *breakdownFile) {
 	s := w.shared
-	if s == nil || w.markdown {
+	if s == nil || w.markdown || s.followOnly { // a viewer shares nothing (tableread_follow.go)
 		return
 	}
 	was := s.session.MapOf(breakdownMap)
@@ -357,7 +357,7 @@ func schedFromEntries(m map[string]string) scheduleFile {
 // sharing the script, as it starts.
 func (w *MainWindow) shareScheduleAnew() {
 	s := w.shared
-	if s == nil || w.markdown {
+	if s == nil || w.markdown || s.followOnly { // a viewer shares nothing (tableread_follow.go)
 		return
 	}
 	f := w.scheduleNow()
@@ -373,7 +373,7 @@ func (w *MainWindow) shareScheduleAnew() {
 // schedule changed (writeSchedule).
 func (w *MainWindow) shareScheduleChange(f *scheduleFile) {
 	s := w.shared
-	if s == nil || w.markdown {
+	if s == nil || w.markdown || s.followOnly { // a viewer shares nothing (tableread_follow.go)
 		return
 	}
 	was := s.session.MapOf(scheduleMap)

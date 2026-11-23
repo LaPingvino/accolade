@@ -124,7 +124,7 @@ func (w *MainWindow) sayPlace(always bool) {
 	cursor := b.Cursor()
 	from, to := b.Selection()
 	now := hereSaid{line: w.hereLine()} // the Table Read's, while it leads (tableread_follow.go)
-	if from != to { // a cursor alone is said by its line, not at each step along it
+	if from != to {                     // a cursor alone is said by its line, not at each step along it
 		now.from, now.to = from, to
 	}
 	if !always && s.saidHere && now == s.said {
