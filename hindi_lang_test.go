@@ -39,6 +39,16 @@ func TestHindiNames(t *testing.T) {
 			t.Errorf("languageOf(%s) = %q, want %q", path, got, want)
 		}
 	}
+	if p := splitScriptName("film.hi-latn.fountain"); p.lang != "hi-Latn" || p.String() != "film.hi-Latn.fountain" {
+		t.Errorf("splitScriptName: %+v %s", p, p)
+	}
+	if p := splitScriptName("film.EO.fountain"); p.lang != "eo" {
+		t.Errorf("splitScriptName EO: %+v", p)
+	}
+	w := newTestWindow(t, "")
+	if w.setLanguage("hi-deva"); w.language != "hi-Deva" {
+		t.Errorf("setLanguage(hi-deva): %q", w.language)
+	}
 	if got := withLanguageName("/s/film.hi-Deva.fountain", "hi-Latn"); got != "/s/film.hi-Latn.fountain" {
 		t.Errorf("withLanguageName: %s", got)
 	}

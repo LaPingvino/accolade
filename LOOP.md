@@ -1685,9 +1685,12 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   and TestNewInEveryLanguage covers them). DEVANAGARI CHECK (TestDevanagariScreenshots, SHOT_DIR): the editor draws
   every letter in its own cell, unshaped — matras apart with dotted circles (कि as क + ि, not reordered), conjuncts
   as halant forms (क्ष्, ज्ञ broken), no reph (धर्म) — from a system Devanagari fallback (Courier Badi has none); the
-  ribbon's Fyne labels (अंदर/बाहर.) shape right. Lexington's own PDF (and so the page view): Courier Prime has no
+  ribbon's Fyne labels (अंदर/बाहर.) shape right. Oddly the eyelash ra र्‍य does come out joined (ऱ्य) in the editor
+  while द्ध stays द् + ध. The editor's Devanagari font is Fyne's fontscan fallback over the system's fonts (here
+  Noto Sans/Serif Devanagari [UI]; which one not pinned down); the shots are the test driver's, not a real display. Lexington's own PDF (and so the page view): Courier Prime has no
   Devanagari — boxes in the PDF, nothing in the page view; PDFWarning says so, and with Chromium on the computer
-  export goes through it: Chromium's PDF (Noto Sans Devanagari) shapes right (क्षत्रिय, कि, की, धर्म, श्रद्धा, ज्ञान),
+  export goes through it: Chromium's PDF (Noto Sans Devanagari; its Latin in Liberation Mono, not Courier Badi)
+  shapes right (क्षत्रिय, कि, की, धर्म, श्रद्धा, ज्ञान, र्‍य as ऱ्य, द्ध stacked; Lexington's own prints the ZWJ as a box),
   but its bold (the heading, a synthetic Type 3 bold) loses the hook of ि/ी, and a parenthetical's taller line touches
   the dialogue under it. Chromium only runs here outside the sandbox. For the rest of Hindi (end of the queue): a
   Devanagari companion font for Courier Badi with shaping in Lexington's PDF (as pdf/arabic.go does Arabic: HarfBuzz-

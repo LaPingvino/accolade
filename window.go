@@ -1050,6 +1050,8 @@ func (w *MainWindow) setLanguage(lang string) {
 	conf := w.lex()
 	if !conf.knows(lang) {
 		lang = "en"
+	} else if k, ok := conf.Lookup(lang); ok {
+		lang = k // hi-deva: hi-Deva, as the configuration names it
 	}
 	w.language, w.newLanguage = lang, ""
 	if w.headerBar != nil && w.headerBar.place != nil {

@@ -250,8 +250,8 @@ func splitScriptName(name string) nameParts {
 		ext, rest = "", name
 	}
 	p := nameParts{base: rest, ext: ext}
-	if l := filepath.Ext(rest); len(l) > 1 && sceneConf(strings.ToLower(l[1:])) != nil {
-		p.lang = strings.ToLower(l[1:])
+	if l := filepath.Ext(rest); len(l) > 1 && languageKey(l[1:]) != "" {
+		p.lang = cmp.Or(rules.Tag(l[1:]), strings.ToLower(l[1:])) // as written, as BCP 47 writes it: hi-Latn
 		p.base = strings.TrimSuffix(rest, l)
 	}
 	return p
