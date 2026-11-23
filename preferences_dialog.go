@@ -372,8 +372,13 @@ func (pd *PreferencesDialog) saveSettings() {
 	}
 
 	s.SetString("script-format", machineLex().selectedFormat(pd.scriptFormatSelect))
-	if pd.languageSelect.Selected != "" {
-		s.SetString("script-language", pd.languageSelect.Selected)
+	if l := pd.languageSelect.Selected; l != "" {
+		if l != s.GetString("script-language") && pd.app != nil {
+			for _, w := range pd.app.windows {
+				w.newLanguage = l // New's next, as New in: (window.go)
+			}
+		}
+		s.SetString("script-language", l)
 	}
 	s.SetString("export-format", exportFormatLabel(pd.exportFormatSelect.Selected))
 	s.SetString("export-directory", pd.exportDirEntry.Text)

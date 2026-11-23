@@ -1123,8 +1123,7 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.format = fileFormat{} // a new script is UTF-8
 	// the language picked last: New in:'s, else the script's (Script
 	// Language), else the preferences'
-	lang := cmp.Or(w.newLanguage, w.language)
-	w.setLanguage(lang)
+	w.setLanguage(w.newFileLanguage())
 	text := w.newScriptText(w.language) // its own sample, or the template in it (new_template.go)
 	if empty {
 		text = ""
@@ -1133,7 +1132,7 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.currentFile, w.plainBundle = "", ""
 	// saved, a script in another language than the preferences' says so
 	w.suggestedName = ""
-	w.languageSaid = w.language != w.preferredLanguage()
+	w.languageSaid = w.language != w.preferredLanguage() || w.language != w.lex().standard()
 	if w.languageSaid {
 		w.nameLanguage(w.language)
 	}

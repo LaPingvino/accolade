@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"path/filepath"
 	"reflect"
 	"slices"
@@ -247,12 +248,18 @@ func (w *MainWindow) newScriptLanguage() string {
 	return w.settings.GetString("script-language")
 }
 
+// newFileLanguage is the language New starts a script in here: the one
+// picked last (New in:, else the script's), as the ribbon shows it.
+func (w *MainWindow) newFileLanguage() string {
+	return cmp.Or(w.newLanguage, w.language, w.newScriptLanguage())
+}
+
 // newLanguageCommand chooses the language of new scripts, on the File
 // tab's New group as "New in: English".
 func newLanguageCommand() *command {
 	return &command{id: "set.newLanguage", label: "Language for New Scripts", icon: res(languageIcon),
 		ribbonLabelFor: func(w *MainWindow) string {
-			name := []rune(languageName(w.newScriptLanguage()))
+			name := []rune(languageName(w.newFileLanguage()))
 			if len(name) > 14 { // a language of one's own with a long name: the File tab still fits
 				name = append(name[:13], '…')
 			}
@@ -262,10 +269,10 @@ func newLanguageCommand() *command {
 			var items []*fyne.MenuItem
 			for _, l := range scriptLanguages() {
 				it := fyne.NewMenuItem(languageLabel(l), func() {
+					w.newLanguage = l // New's next, here (window.go); before the ribbon shows it
 					w.changeSetting("script-language", func(s *Settings) { s.SetString("script-language", l) })
-					w.newLanguage = l // New's next, here (window.go)
 				})
-				it.Checked = w.newScriptLanguage() == l
+				it.Checked = w.newFileLanguage() == l
 				items = append(items, it)
 			}
 			return fyne.NewMenu("Language for New Scripts", items...)

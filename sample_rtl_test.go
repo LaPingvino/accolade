@@ -115,17 +115,115 @@ func TestNewInEveryLanguage(t *testing.T) {
 		t.Fatalf("languages: %v", langs)
 	}
 	for _, lang := range langs {
-		w.changeSetting("script-language", func(s *Settings) { s.SetString("script-language", lang) })
-		w.newLanguage = lang
+		pickNewIn(t, w, lang)
 		w.NewFile()
 		if w.language != lang {
 			t.Errorf("New in %s: the script is in %s", lang, w.language)
 			continue
 		}
 		scenes, cues, transitions := readBack(t, w)
-		if len(scenes) < 1 || len(cues) < 1 || len(transitions) < 1 {
-			t.Errorf("New in %s: headings %q, cues %q, transitions %q\n%s", lang, scenes, cues, transitions, w.textEditor.Text())
+		if s, ok := langSampleWants[lang]; ok {
+			if !slices.Equal(scenes, s.scenes) || !slices.Equal(cues, s.cues) || !slices.Equal(transitions, s.transitions) {
+				t.Errorf("New in %s: not its sample", lang)
+			}
+			continue
 		}
+		// every line written as a heading, cue or transition reads as one
+		lines := strings.Split(w.textEditor.Text(), "\n")
+		var wantCues []string
+		for i, l := range lines {
+			if (l == "JOHN" || strings.HasPrefix(l, "JOHN (")) && i > 0 && lines[i-1] == "" {
+				wantCues = append(wantCues, l)
+			}
+		}
+		last := lines[len(lines)-2]
+		if len(scenes) != 1 || !strings.Contains(scenes[0], "LIVING ROOM") || !slices.Equal(cues, wantCues) || len(wantCues) < 1 ||
+			!slices.Equal(transitions, []string{last}) {
+			t.Errorf("New in %s: headings %q, cues %q (want %q), transitions %q (want %q)\n%s", lang, scenes, cues, wantCues, transitions, last, w.textEditor.Text())
+		}
+	}
+}
+
+// pickNewIn picks lang on File > New in:, as the menu does.
+func pickNewIn(t *testing.T, w *MainWindow, lang string) {
+	t.Helper()
+	for _, it := range newLanguageCommand().submenu(w).Items {
+		if it.Label == languageLabel(lang) {
+			it.Action()
+			return
+		}
+	}
+	t.Fatalf("New in: has no %s", lang)
+}
+
+// newInShown checks that everything showing New's or the script's
+// language shows lang: the script, the ribbon's New in:, its check, the
+// place button, the title.
+func newInShown(t *testing.T, w *MainWindow, lang, what string) {
+	t.Helper()
+	label := newLanguageCommand().ribbonLabelFor(w)
+	checked := ""
+	for _, it := range newLanguageCommand().submenu(w).Items {
+		if it.Checked {
+			checked += it.Label
+		}
+	}
+	_, _, place, _ := placeWords(w.lex().headers(lang))
+	title := w.fyneWindow.Title()
+	if w.language != lang || !strings.HasSuffix(label, languageName(lang)) || checked != languageLabel(lang) ||
+		w.headerBar.place.Text != place {
+		t.Errorf("%s: script %s, ribbon %q, checked %q, place %q (want %s, %q)", what, w.language, label, checked, w.headerBar.place.Text, lang, place)
+	}
+	for _, other := range []string{"eo", "he", "ar"} {
+		if other != lang && strings.Contains(title, "."+other+".") {
+			t.Errorf("%s: title %q", what, title)
+		}
+	}
+}
+
+// New in: Hebrew, New, New in: English, New, with the preferences in
+// Esperanto too (Joop: "it showed Esperanto"): English everywhere.
+func TestNewInPickedShown(t *testing.T) {
+	for _, pref := range []string{"en", "eo"} {
+		w, _ := newDialogTestWindow(t)
+		w.settings.SetString("script-language", pref)
+		w.setLanguage("")
+		pickNewIn(t, w, "he")
+		w.NewFile()
+		newInShown(t, w, "he", pref+": New in Hebrew")
+		if w.textEditor.Text() != languageSample("he") {
+			t.Errorf("%s: New in Hebrew is not its sample", pref)
+		}
+		pickNewIn(t, w, "en")
+		w.hasChanges = false
+		w.NewFile()
+		newInShown(t, w, "en", pref+": New in English")
+		if w.textEditor.Text() != newScriptTemplate() {
+			t.Errorf("%s: New in English is not the template", pref)
+		}
+		w.settings.SetString("script-language", "en")
+	}
+}
+
+// A script New made in Hebrew, saved, opens in Hebrew again whatever the
+// language for new scripts is by then.
+func TestNewLanguageKeptOnSave(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Cleanup(func() { w.settings.SetString("script-language", "en") })
+	pickNewIn(t, w, "he")
+	w.NewFile()
+	p := filepath.Join(t.TempDir(), "script.fountain")
+	if err := w.saveToFile(p); err != nil {
+		t.Fatal(err)
+	}
+	pickNewIn(t, w, "ar")
+	w.hasChanges = false
+	w.NewFile()
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	if w.language != "he" {
+		t.Errorf("reopened in %s", w.language)
 	}
 }
 
@@ -153,6 +251,7 @@ func TestNewKeepsLanguagePicked(t *testing.T) {
 		if w.languageSaid != (pref != "en") {
 			t.Errorf("pref %s: English said %v, title %q", pref, w.languageSaid, title)
 		}
+		newInShown(t, w, "en", pref+": Script Language English, New")
 		w.settings.SetString("script-language", "en")
 	}
 }
