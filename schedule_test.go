@@ -739,7 +739,7 @@ func TestStripboardPoolCastKeys(t *testing.T) {
 	sb.selectScene(1, false)
 	sb.moveSelected(0, 1)
 	w.fyneWindow.Canvas().Focus(sb.strips[1])
-	menuItemByLabel(t, w, "Move Line Up").Action()
+	menuItemByLabel(t, w, "Move Up").Action()
 	if got := days(w)[0]; got != "garden,kitchen" {
 		t.Errorf("Alt+Up through the menu: %q", got)
 	}

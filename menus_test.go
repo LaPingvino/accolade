@@ -9,11 +9,23 @@ import (
 
 func menuItemByLabel(t *testing.T, w *MainWindow, label string) *fyne.MenuItem {
 	t.Helper()
-	for _, m := range w.fyneWindow.MainMenu().Items {
-		for _, it := range m.Items {
+	var find func(items []*fyne.MenuItem) *fyne.MenuItem
+	find = func(items []*fyne.MenuItem) *fyne.MenuItem { // in submenus too
+		for _, it := range items {
 			if it.Label == label {
 				return it
 			}
+			if it.ChildMenu != nil {
+				if f := find(it.ChildMenu.Items); f != nil {
+					return f
+				}
+			}
+		}
+		return nil
+	}
+	for _, m := range w.fyneWindow.MainMenu().Items {
+		if it := find(m.Items); it != nil {
+			return it
 		}
 	}
 	t.Fatalf("no menu item %q", label)

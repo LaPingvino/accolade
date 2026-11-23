@@ -1614,3 +1614,25 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   glyphs make single-spaced dialogue lines touch — the font (Courier Badi repo: Arabic glyph heights/vertical metrics);
   (6) Hebrew dagesh in yod/lamed hard to see — the font. (1)–(4) Accolade/Lexington, (5)–(6) Courier Badi. The Arabic
   sample's vowelling is the agent's own, to be checked by a native reader.
+- 2026-11-23: STRUCTURAL MOVES + Swap…/Move… as one engine (branch structmoves, not merged). internal/structure:
+  the body read as a tree (sections > scenes > blocks: a speech is one, side-by-side ones too, a boneyard is one >
+  lines), title page and end blocks never touched; every move a reorder of line spans, then checked by reading the
+  text again (same headings, each in its parent unless it moved, same lines, whole speeches) or refused with why.
+  Keys, every mode: Alt+↑/↓ the unit at the cursor (or the selected ones; lines inside a speech), Alt+←/→ promote/
+  demote (a section's level, Workflowy-style: promoted it goes after its parent; a scene out of its section / into
+  the next; a speech's line out into action, splitting the speech with (CONT'D), and action back in, joining it),
+  Alt+Shift+↑/↓ a speech or paragraph into the scene before/after, Alt+Shift+←/→ barf/slurp, Alt+T the two speakers'
+  lines (the cues' names change places), Alt+O/Alt+I expand/shrink the selection by unit (helix's keys); vim/helix
+  also evil-org's Alt+j/k/h/l, with Shift into-scene and barf/slurp. View > Structure has them all (registry homes
+  can now hold a submenu), Edit's Move Line Up/Down became it (Markdown keeps line moves), the ribbon's Edit >
+  Structure. Commands carry ex names (move-up, move-down, promote, demote, into-previous, into-next, barf, slurp,
+  transpose-speakers, raise, lower, expand-selection, shrink-selection, swap-ranges, move-range) for the ex
+  completion branch. Swap…/Move… (menu, the outline's and cards' right-click menu, the Cards header): range A (from/to
+  among the units side by side), with range B or before/after a target, preview = the outline after with what moved
+  marked, or why not; locked numbers stay with their scenes and the preview and status say how they read. Outline and
+  cards dragging go through the engine (outline_move.go gone; the last scene no longer drags the end blocks along).
+  Tags, Done marks and strips follow their scenes, Undo/Redo too (followEdit generalises the rename's follow; the
+  renumber-follow no longer mistakes reordered numbers for renumbered ones). Shots structure-1…4 (before, Swap…,
+  after, phone Move…). Open: no multi-select of cards yet (a range is picked in the dialog); the excomplete branch's
+  hand-made move-scene-up/down, promote-section/demote-section rows still work through org() but should give way
+  to these at the merge (and read command.ex); on a Mac Option+←/→ (word moves) are now promote/demote.

@@ -56,7 +56,7 @@ func TestRegistryIsWhole(t *testing.T) {
 		}
 	}
 	for _, m := range r.menuBar {
-		note(m.homes)
+		note(flatHomes(m.homes))
 	}
 	note(r.topRow)
 	note(r.screenplayRow)
