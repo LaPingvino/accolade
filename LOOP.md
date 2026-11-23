@@ -1824,3 +1824,21 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Format › Number Scenes in Headings toggles it per script (default on for pattern languages with {n}); off drops the
   {n} slot from every heading (partial headings), on fills them in — one undo step each; Renumber Scenes on demand when
   automatic numbering is off. Tests per pattern language; screenshots.
+- 2026-11-23 (bundles merged, from its report): follow-ups — (1) Lexington's `check` note "Highland itself opens the zip,
+  not this folder form" claims more than is verified (only the developer's page; inner layout from a third-party
+  teardown; no real Highland sample) — soften it in the next Lexington release; get a real .highland from Joop to test;
+  (2) the CLI doesn't apply an .accolade's carried Lexington format (uses the machine's settings); (3) Rename's "Accolade
+  folder" for an unsaved script isn't remembered (first save is a zip); (4) check whether `lexington -i x.accolade -o
+  x.fountain` keeps Accolade's own blocks (FORMAT.md currently advises copying text.fountain out instead).
+  Highland samples (2026-11-23): GitHub code search finds real .highland files only as PLAIN TEXT (intrusive-memory's
+  Swift repos, MIT, used as test fixtures: e.g. "The Tempest.highland", 5 KB, plain Fountain/Markdown-ish text; a Big
+  Fish one is Columbia's copyright — not used). So the plain-text form (Highland 1 / plain .highland) is confirmed;
+  Lexington already reads it as Fountain. The ZIPPED TextBundle form (Highland 2) is still unverified: code search can't
+  index binaries. Ways: Highland 2 is free on the Mac App Store (needs a Mac to save one), or ask a Highland user for any
+  small .highland; then test bundle read/write and soften/confirm the `check` note.
+- 2026-11-23 (from Highland Pro's App Store reviews, Joop's link): a reviewer reports Highland ⇄ Final Draft conversion
+  turning "John's" into "John**s". Add FDX round-trip tests in Lexington for apostrophes, smart quotes and emphasis next
+  to * and _ (e.g. John's, *John*'s, it's _not_, O'Brien's **"word"**), both directions, and fix whatever they find.
+  Reviews also stress: keyboard shortcuts that work "while in flow" (bold/italic), speed/stability — the keyboard pass
+  and the typing benchmarks; layout visible while typing (Accolade already); subscription fatigue (Highland Pro moved
+  to $59.99/yr; Highland 2 no longer sold).
