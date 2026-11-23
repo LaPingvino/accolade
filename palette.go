@@ -55,7 +55,7 @@ func (w *MainWindow) paletteEntries(env cmdEnv) []paletteEntry {
 			home = hs[0]
 		}
 		if c.submenu != nil {
-			for _, it := range c.submenu(w).Items {
+			for _, it := range flatItems(c.submenu(w).Items) {
 				if it.IsSeparator || it.Action == nil {
 					continue
 				}

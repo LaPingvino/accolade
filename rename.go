@@ -226,7 +226,7 @@ func (w *MainWindow) renameScript() {
 
 	picked := func() (string, fileType) {
 		l, t := w.language, current
-		if i := lang.SelectedIndex(); i >= 0 && !w.markdown {
+		if i := indexOf(langLabels, lang.Selected); i >= 0 && !w.markdown {
 			l = langs[i]
 		}
 		if i := kind.SelectedIndex(); i >= 0 && i < len(types) {
@@ -264,7 +264,7 @@ func (w *MainWindow) renameScript() {
 			l, _ := picked()
 			if p.lang != "" {
 				l = p.lang
-				lang.SetSelectedIndex(max(0, indexOf(langs, l)))
+				selectOption(lang, languageLabel(l), langLabels)
 			}
 			setTypes(l, typeOfName(typed, w.markdown))
 			setting = false
@@ -299,6 +299,12 @@ func (w *MainWindow) renameScript() {
 		update()
 	}
 	kind.OnChanged = func(string) { update() }
+	shown, _ := shownLanguages(langs, w.language) // hi-Latn, hi-Deva behind More variants… (language_variants.go)
+	shownLabels := make([]string, len(shown))
+	for i, l := range shown {
+		shownLabels[i] = languageLabel(l)
+	}
+	offerVariants(lang, shownLabels, langLabels)
 
 	form := widget.NewForm(widget.NewFormItem("Name", base))
 	if !w.markdown { // a document has no script language
@@ -325,7 +331,7 @@ func (w *MainWindow) renameScript() {
 		w.doRename(r)
 	}, w.fyneWindow)
 	setting = true
-	lang.SetSelectedIndex(max(0, indexOf(langs, w.language)))
+	selectOption(lang, languageLabel(w.language), langLabels)
 	setTypes(w.language, current)
 	setting = false
 	update()

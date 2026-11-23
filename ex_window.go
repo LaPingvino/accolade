@@ -558,7 +558,7 @@ func (w *MainWindow) exItems(id string) []*fyne.MenuItem {
 		return nil
 	}
 	var out []*fyne.MenuItem
-	for _, it := range c.submenu(w).Items {
+	for _, it := range flatItems(c.submenu(w).Items) {
 		if !it.IsSeparator && it.Action != nil {
 			out = append(out, it)
 		}

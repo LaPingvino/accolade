@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"image/png"
 	"os"
 	"os/exec"
@@ -12,6 +11,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
@@ -20,11 +20,15 @@ import (
 // Hindi per script (Lexington's hi-Latn, hi-Deva, hi): named so in the
 // pickers, found in a file's name in any case and by its fallback.
 func TestHindiNames(t *testing.T) {
-	for code, want := range map[string]string{"hi-Latn": "Hindi (Latin)", "hi-Deva": "Hindi (Devanagari)", "hi": "Hindi (both)"} {
+	for code, want := range map[string]string{"hi-Latn": "Hindi (Latin)", "hi-Deva": "Hindi (Devanagari)", "hi": "Hindi"} {
 		if got := languageName(code); got != want {
 			t.Errorf("languageName(%s) = %q, want %q", code, got, want)
 		}
-		if got, want := languageLabel(code), strings.TrimSuffix(want, ")")+", "+code+")"; got != want {
+		label := strings.TrimSuffix(want, ")") + ", " + code + ")"
+		if code == "hi" {
+			label = "Hindi (hi)"
+		}
+		if got, want := languageLabel(code), label; got != want {
 			t.Errorf("languageLabel(%s) = %q, want %q", code, got, want)
 		}
 		if !slices.Contains(scriptLanguages(), code) {
@@ -58,8 +62,7 @@ func TestHindiNames(t *testing.T) {
 	}
 }
 
-// TestHindiNewTemplate: New in each Hindi opens its sample (hi the
-// Latin one), and the template a Hindi without one would get is in its
+// TestHindiNewTemplate: New in each Hindi opens its sample, and the template a Hindi without one would get is in its
 // words that reads back as a screenplay in it: the title keys, the
 // heading a heading, the cues cues (the one with Hindi's extension too),
 // the closing transition a transition; a window in hi-Latn reads with
@@ -70,16 +73,16 @@ func TestHindiNewTemplate(t *testing.T) {
 		ext       string
 		head, end string
 	}{
-		"hi-Latn": {[]string{"Sheershak: UNTITLED SCREENPLAY", "Shrey: Written by", "Masaude ki tithi: "}, "V.O.", "INT. LIVING ROOM - DAY", "FADE OUT."},
+		"hi-Latn": {[]string{"Sheershak: UNTITLED SCREENPLAY", "Shrey: Written by", "Masaude ki tithi: "}, "V.O.", "INT. LIVING ROOM - DIN", "FADE OUT."},
 		"hi-Deva": {[]string{"शीर्षक: UNTITLED SCREENPLAY", "श्रेय: Written by", "लेखक: Your Name", "मसौदे की तिथि: ", "संपर्क:"}, "वॉयस ओवर", "अंदर. LIVING ROOM - दिन", "फ़ेड आउट"},
-		"hi":      {[]string{"शीर्षक: UNTITLED SCREENPLAY", "मसौदे की तिथि: "}, "वॉयस ओवर", "INT. LIVING ROOM - DAY", "फ़ेड आउट"},
+		"hi":      {[]string{"Title: UNTITLED SCREENPLAY", "Credit: Written by", "Author: Your Name", "Draft date: ", "Contact:"}, "V.O.", "INT. LIVING ROOM - DAY", "FADE OUT."},
 	} {
 		w := newTestWindow(t, "")
 		w.setLanguage(lang)
 		if w.language != lang {
 			t.Fatalf("%s: the window's language is %q", lang, w.language)
 		}
-		if got, want := w.newScriptText(lang), languageSample(cmp.Or(sampleOf[lang], lang)); want == "" || got != want {
+		if got, want := w.newScriptText(lang), languageSample(lang); want == "" || got != want {
 			t.Errorf("%s: New is not its sample: %.40q", lang, got)
 		}
 		text := templateIn(w.lex().Language(lang))
@@ -156,4 +159,57 @@ func TestDevanagariScreenshots(t *testing.T) {
 	v.toAnchor(1, 0) // the script's first page
 	uiSleep(100 * time.Millisecond)
 	shot(w, "hi-deva-pages")
+}
+
+// The pickers show Hindi, its variants (hi-Latn, hi-Deva) behind More
+// variants…, a variant picked shown too; every other language as before.
+func TestLanguageVariantsHidden(t *testing.T) {
+	all := scriptLanguages()
+	shown, hidden := shownLanguages(all, "")
+	if !slices.Contains(shown, "hi") || slices.Contains(shown, "hi-Latn") || slices.Contains(shown, "hi-Deva") ||
+		!slices.Equal(hidden, []string{"hi-Deva", "hi-Latn"}) && !slices.Equal(hidden, []string{"hi-Latn", "hi-Deva"}) ||
+		len(shown)+len(hidden) != len(all) {
+		t.Errorf("shown %v, hidden %v", shown, hidden)
+	}
+	if shown, _ := shownLanguages(all, "hi-Deva"); !slices.Contains(shown, "hi-Deva") || slices.Contains(shown, "hi-Latn") {
+		t.Errorf("hi-Deva picked: shown %v", shown)
+	}
+	w := newTestWindow(t, "")
+	t.Cleanup(func() { w.settings.SetString("script-language", "en") })
+	menu := newLanguageCommand().submenu(w)
+	var top []string
+	var more *fyne.Menu
+	for _, it := range menu.Items {
+		top = append(top, it.Label)
+		if it.Label == moreVariants {
+			more = it.ChildMenu
+		}
+	}
+	if !slices.Contains(top, "Hindi (hi)") || slices.Contains(top, languageLabel("hi-Deva")) || more == nil || len(more.Items) != 2 {
+		t.Fatalf("New in: %q, more %v", top, more)
+	}
+	pickNewIn(t, w, "hi-Deva")
+	if w.newFileLanguage() != "hi-Deva" {
+		t.Errorf("More variants > Hindi (Devanagari): new in %s", w.newFileLanguage())
+	}
+	// a Select: More variants… shows them all, the others pick as before
+	got := ""
+	sel := widget.NewSelect(nil, func(v string) { got = v })
+	offerVariants(sel, shown, all)
+	if slices.Contains(sel.Options, "hi-Latn") || sel.Options[len(sel.Options)-1] != moreVariants {
+		t.Fatalf("options %v", sel.Options)
+	}
+	sel.SetSelected(moreVariants)
+	if got != "" || !slices.Equal(sel.Options, all) || sel.Selected != "" {
+		t.Errorf("More variants…: got %q, options %v, selected %q", got, sel.Options, sel.Selected)
+	}
+	sel.SetSelected("hi-Latn")
+	if got != "hi-Latn" {
+		t.Errorf("picked %q", got)
+	}
+	sel2 := widget.NewSelect(nil, nil)
+	offerVariants(sel2, shown, all)
+	if selectOption(sel2, "hi-Deva", all); sel2.Selected != "hi-Deva" {
+		t.Errorf("selectOption: %q in %v", sel2.Selected, sel2.Options)
+	}
 }

@@ -96,8 +96,7 @@ has one, written in that language: its own scene words, cues, an extension, a pa
 page keys, each as Lexington's rules for the language have them, so it reads back as written
 (`TestLanguageSamplesRead` in `sample_rtl_test.go` checks every one: headings, cues, transitions and the title page).
 They are embedded in the app (`sample.go`, every `sample.*.fountain` here); New in that language starts from it, and
-File > Open Sample lists them all. Hindi in both scripts (`hi`) starts from the Latin-letter one, what most Hindi
-scripts are written in. A language without one gets the English template in its words.
+File > Open Sample lists them all. A language without one gets the English template in its words.
 
 Each is original writing on a public-domain story or a historical setting of the language's culture. **All are
 machine-written, to be checked by a native reader** (Esperanto: Joop).
@@ -115,8 +114,9 @@ machine-written, to be checked by a native reader** (Esperanto: Joop).
 | `sample.ja.fountain` | Japanese | 桃太郎: the peach on the river, the boy born from it |
 | `sample.he.fountain` | Hebrew | a mother reads the tower of Babel to her son (Genesis 11:1–4, pointed as by Mechon Mamre, no cantillation) |
 | `sample.ar.fountain` | Arabic | Ali Baba and the Forty Thieves: "Open Sesame" (افتح يا سمسم, vowelled) |
+| `sample.hi.fountain` | Hindi | the monkey and the crocodile, English first as most Hindi scripts are written: English Fountain's words (`EXT. RIVERBANK, JAMUN TREE - DAY`, `Title:`, `(V.O.)`, `CUT TO:`), the action and dialogue in Hindi in Latin letters |
 | `sample.hi-Deva.fountain` | Hindi in Devanagari | the monkey and the crocodile (Panchatantra, book 4): the crocodile's wife wants the monkey's heart; in mid-river the monkey says he left it in the jamun tree |
-| `sample.hi-Latn.fountain` | Hindi in Latin letters | the same scenes as Hindi Fountain scripts in Latin letters write them: English headings, cues, extensions and transitions (`EXT. … - DIN`, `CUT TO:`, `(V.O.)`), the action and dialogue in Hindi |
+| `sample.hi-Latn.fountain` | Hindi in Latin letters | the same in Hindi's words in Latin letters where it has them (the time `DIN`, the title keys `Sheershak:`…), English Fountain's for the rest (`EXT.`, `CUT TO:`, `(V.O.)`) |
 
 Where a language's rules have no word of their own, the sample uses what the rules give it: Esperanto and toki pona
 have English's extensions (`O.S.`), and Esperanto, toki pona, Dutch and Russian end on a forced transition

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"cmp"
 	"image/png"
 	"os"
 	"os/exec"
@@ -80,6 +79,12 @@ var langSampleWants = map[string]struct{ scenes, cues, transitions []string }{
 		cues: []string{"पत्नी (ऑफ़ स्क्रीन)", "मगरमच्छ", "पत्नी", "मगरमच्छ", "पत्नी", "मगरमच्छ",
 			"बंदर", "बंदर", "बंदर (जारी)", "कथावाचक (वॉयस ओवर)"},
 		transitions: []string{"फ़ेड इन", "कट टू", "कट टू", "फ़ेड आउट"},
+	},
+	"hi": {
+		scenes: []string{"EXT. MIDDLE OF THE RIVER, THE CROCODILE'S HOME - EVENING", "EXT. MIDDLE OF THE RIVER - DAY", "EXT. RIVERBANK, JAMUN TREE - DAY"},
+		cues: []string{"PATNI (O.S.)", "MAGARMACHH", "PATNI", "MAGARMACHH", "PATNI", "MAGARMACHH",
+			"BANDAR", "BANDAR", "BANDAR (CONT'D)", "KATHAVAACHAK (V.O.)"},
+		transitions: []string{"CUT TO:", "CUT TO:", "> FADE OUT."},
 	},
 	"hi-Latn": {
 		scenes: []string{"EXT. NADI KE BEECH, MAGARMACHH KA GHAR - SHAAM", "EXT. NADI KE BEECH - DIN", "EXT. NADI KINAARA, JAAMUN KA PED - DIN"},
@@ -220,7 +225,7 @@ func TestNewInEveryLanguage(t *testing.T) {
 			continue
 		}
 		scenes, cues, transitions := readBack(t, w)
-		if s, ok := langSampleWants[cmp.Or(sampleOf[lang], lang)]; ok {
+		if s, ok := langSampleWants[lang]; ok {
 			if !slices.Equal(scenes, s.scenes) || !slices.Equal(cues, s.cues) || !slices.Equal(transitions, s.transitions) {
 				t.Errorf("New in %s: not its sample", lang)
 			}
@@ -245,7 +250,7 @@ func TestNewInEveryLanguage(t *testing.T) {
 // pickNewIn picks lang on File > New in:, as the menu does.
 func pickNewIn(t *testing.T, w *MainWindow, lang string) {
 	t.Helper()
-	for _, it := range newLanguageCommand().submenu(w).Items {
+	for _, it := range flatItems(newLanguageCommand().submenu(w).Items) { // a variant's under More variants…
 		if it.Label == languageLabel(lang) {
 			it.Action()
 			return
@@ -261,7 +266,7 @@ func newInShown(t *testing.T, w *MainWindow, lang, what string) {
 	t.Helper()
 	label := newLanguageCommand().ribbonLabelFor(w)
 	checked := ""
-	for _, it := range newLanguageCommand().submenu(w).Items {
+	for _, it := range flatItems(newLanguageCommand().submenu(w).Items) {
 		if it.Checked {
 			checked += it.Label
 		}
@@ -398,7 +403,7 @@ func TestNewInLanguageSample(t *testing.T) {
 		w.settings.SetString("script-language", lang)
 		w.newLanguage = lang // New in:
 		w.NewFile()
-		want := orTemplate(languageSample(cmp.Or(sampleOf[lang], lang)))
+		want := orTemplate(languageSample(lang))
 		if w.language != lang || w.textEditor.Text() != want {
 			t.Errorf("New in %s: language %q, text %.40q", lang, w.language, w.textEditor.Text())
 		}

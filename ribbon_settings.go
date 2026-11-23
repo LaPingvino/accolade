@@ -266,14 +266,27 @@ func newLanguageCommand() *command {
 			return "New in: " + string(name)
 		},
 		submenu: func(w *MainWindow) *fyne.Menu {
-			var items []*fyne.MenuItem
-			for _, l := range scriptLanguages() {
+			item := func(l string) *fyne.MenuItem {
 				it := fyne.NewMenuItem(languageLabel(l), func() {
 					w.newLanguage = l // New's next, here (window.go); before the ribbon shows it
 					w.changeSetting("script-language", func(s *Settings) { s.SetString("script-language", l) })
 				})
 				it.Checked = w.newFileLanguage() == l
-				items = append(items, it)
+				return it
+			}
+			shown, hidden := shownLanguages(scriptLanguages(), w.newFileLanguage())
+			var items []*fyne.MenuItem
+			for _, l := range shown {
+				items = append(items, item(l))
+			}
+			if len(hidden) > 0 { // hi-Latn, hi-Deva (language_variants.go)
+				var more []*fyne.MenuItem
+				for _, l := range hidden {
+					more = append(more, item(l))
+				}
+				it := fyne.NewMenuItem(moreVariants, nil)
+				it.ChildMenu = fyne.NewMenu(moreVariants, more...)
+				items = append(items, fyne.NewMenuItemSeparator(), it)
 			}
 			return fyne.NewMenu("Language for New Scripts", items...)
 		}}

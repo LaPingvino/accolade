@@ -123,7 +123,8 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.autoCloseBracketsCheck = widget.NewCheck("Close brackets as you type them: ( and [", nil)
 	pd.keysSelect = widget.NewSelect([]string{"standard", "vim", "helix"}, nil)
 
-	pd.languageSelect = widget.NewSelect(scriptLanguages(), nil)
+	pd.languageSelect = widget.NewSelect(nil, nil)
+	pd.offerLanguages()
 	pd.scriptFormatDesc = widget.NewLabel("")
 	pd.scriptFormatDesc.Wrapping = fyne.TextWrapWord
 	pd.scriptFormatSelect = newScriptFormatSelect(machineLex, pd.scriptFormatDesc, func(string) { pd.showFormatButtons() })
@@ -338,7 +339,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.keysSelect.SetSelected((&MainWindow{settings: s}).editorKeys())
 
 	machineLex().selectFormat(pd.scriptFormatSelect, s.GetString("script-format"))
-	pd.languageSelect.SetSelected(s.GetString("script-language"))
+	selectOption(pd.languageSelect, s.GetString("script-language"), scriptLanguages())
 	pd.exportFormatSelect.SetSelected(exportFormatLabel(s.GetString("export-format")))
 	pd.exportDirEntry.SetText(s.GetString("export-directory"))
 	pd.libraryEntry.SetText(s.GetString(citeLibraryPref))
@@ -565,8 +566,8 @@ func (pd *PreferencesDialog) settingsFilesChanged() {
 	format, lang := machineLex().selectedFormat(pd.scriptFormatSelect), pd.languageSelect.Selected
 	pd.scriptFormatSelect.SetOptions(scriptFormatNames())
 	machineLex().selectFormat(pd.scriptFormatSelect, format)
-	pd.languageSelect.SetOptions(scriptLanguages())
-	pd.languageSelect.SetSelected(lang)
+	pd.offerLanguages()
+	selectOption(pd.languageSelect, lang, scriptLanguages())
 	pd.showFormatButtons()
 }
 
@@ -706,4 +707,12 @@ func letteringStyle(choice string) lex.NumberStyle {
 		return lex.NumberBefore
 	}
 	return lex.NumberAfter
+}
+
+// offerLanguages gives the language for new scripts its options: the
+// languages, their variants behind More variants… (language_variants.go).
+func (pd *PreferencesDialog) offerLanguages() {
+	all := scriptLanguages()
+	shown, _ := shownLanguages(all, "")
+	offerVariants(pd.languageSelect, shown, all)
 }

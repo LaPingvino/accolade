@@ -16,17 +16,9 @@ import (
 // prose stays English, a placeholder; the direction and the cue rules
 // are the language's own, as the editor reads it.
 
-// sampleOf is the sample a language with none of its own starts from:
-// Hindi in either script (hi) from Hindi in Latin letters, what most
-// Hindi scripts are written in (Lexington's docs/LANGUAGES.md).
-var sampleOf = map[string]string{"hi": "hi-Latn"}
-
 // newScriptText is what New starts a script in lang with.
 func (w *MainWindow) newScriptText(lang string) string {
 	if s := languageSample(lang); s != "" {
-		return s
-	}
-	if s := languageSample(sampleOf[lang]); s != "" {
 		return s
 	}
 	if base, _, ok := strings.Cut(lang, "-"); ok { // zh-Hant: Chinese's
@@ -43,6 +35,9 @@ func (w *MainWindow) newScriptText(lang string) string {
 // templateIn is the English template in language l's words.
 func templateIn(l rules.Language) string {
 	key := func(std string) string { // the language's own title key, the shortest
+		if l.TitleKeys[std] == std { // written as it is (hi: English first)
+			return std
+		}
 		var own []string
 		for k, v := range l.TitleKeys {
 			if v == std {

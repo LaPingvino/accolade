@@ -326,6 +326,12 @@ func (w *MainWindow) pickLanguage() {
 			fmt.Sprintf("Keep words: %d headings get or lose a dot so they stay headings (EN. KUIRO in English is .EN. KUIRO).", f) + bangs(a) + "\n" +
 			"Translate: choose what each heading word becomes, from a proposal; action lines get or lose a ! as needed.")
 	}
+	shown, _ := shownLanguages(langs, w.language) // hi-Latn, hi-Deva behind More variants… (language_variants.go)
+	shownLabels := make([]string, len(shown))
+	for i, l := range shown {
+		shownLabels[i] = languageLabel(l)
+	}
+	offerVariants(choose, shownLabels, labels)
 	var d dialog.Dialog
 	do := func(how languageChange) func() { return func() { d.Hide(); w.changeLanguage(chosen(), how, nil) } }
 	mark.OnTapped, form.OnTapped = do(markLanguage), do(fountainForm)
