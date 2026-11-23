@@ -179,23 +179,18 @@ func dockCommands() []*command {
 		&command{id: "view.paneSide", label: "Middle Tab Back to the Side", tip: "The middle tab in front back in the side panes", icon: res(dockIcon),
 			run: func(w *MainWindow) { w.backToSide(w.mid.shown) }, enabled: func(e cmdEnv) bool { return e.midSide }},
 		&command{id: "view.midNext", label: "Next Middle Tab", tip: "The middle tab after the one in front: the script, the cards, a pane put there",
-			keys: middleKeys(fyne.KeyPageDown), icon: theme.NavigateNextIcon,
+			keys: middleKeys(fyne.KeyPageDown), webKeys: []fyne.Shortcut{altKey(fyne.KeyPageDown)}, icon: theme.NavigateNextIcon,
 			run: func(w *MainWindow) { w.mid.step(1) }, enabled: func(e cmdEnv) bool { return e.midTabs }},
 		&command{id: "view.midPrev", label: "Previous Middle Tab", tip: "The middle tab before the one in front",
-			keys: middleKeys(fyne.KeyPageUp), icon: theme.NavigateBackIcon,
+			keys: middleKeys(fyne.KeyPageUp), webKeys: []fyne.Shortcut{altKey(fyne.KeyPageUp)}, icon: theme.NavigateBackIcon,
 			run: func(w *MainWindow) { w.mid.step(-1) }, enabled: func(e cmdEnv) bool { return e.midTabs }},
 	)
 }
 
-// middleKeys are Ctrl+PgDn and Ctrl+PgUp, the middle tabs' keys; not in
-// the browser, which keeps them for its own tabs (the menu, the palette
-// and the arrow keys on the row there).
-func middleKeys(k fyne.KeyName) []fyne.Shortcut {
-	if inBrowser {
-		return nil
-	}
-	return []fyne.Shortcut{shortcut(k, 0)}
-}
+// middleKeys are Ctrl+PgDn and Ctrl+PgUp, the middle tabs' keys; the
+// browser keeps those for its own tabs, so there they are Alt+PgDn and
+// Alt+PgUp (webKeys).
+func middleKeys(k fyne.KeyName) []fyne.Shortcut { return []fyne.Shortcut{shortcut(k, 0)} }
 
 // dockHomes are the panes' toggles and the dock's commands, where a menu
 // or a ribbon group lists them.

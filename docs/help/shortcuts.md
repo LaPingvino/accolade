@@ -16,13 +16,13 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Tab** at a heading's start — fold or unfold it; **Shift+Tab** — all
 - **Ctrl+Z** — undo; **Ctrl+Y** — redo
 - **Ctrl+A** — select all; **Ctrl+C**, **Ctrl+X**, **Ctrl+V** — copy, cut, paste
-- **Ctrl+Tab**, **Ctrl+Shift+Tab** — out of the editor to the next or previous field
+- **Ctrl+Tab**, **Ctrl+Shift+Tab** — out of the editor to the next or previous field (the browser keeps these for its tabs: there **F6** goes to the panes)
 - **Ctrl+Q** — quit (not in the browser)
 
 ## File menu
 
-- **New** — Ctrl+N (“New Screenplay” in Markdown)
-- **New Empty** — Ctrl+Alt+N (“New Empty Screenplay” in Markdown)
+- **New** — Ctrl+N (“New Screenplay” in Markdown; in the browser Ctrl+Alt+N)
+- **New Empty** — Ctrl+Alt+N (“New Empty Screenplay” in Markdown; in the browser Ctrl+Shift+Alt+N)
 - **New Window** — Ctrl+Shift+N (not in the browser)
 - **New Empty Window** — Ctrl+Shift+Alt+N (not in the browser)
 - **Open** — Ctrl+O
@@ -40,10 +40,10 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Paste** — Ctrl+V
 - **Select All** — Ctrl+A
 - **Find** — Ctrl+F
-- **Replace** — Ctrl+H
+- **Replace** — Ctrl+H (on a Mac Cmd+Option+F)
 - **Find Next** — Ctrl+G
 - **Find Previous** — Ctrl+Shift+G
-- **Title Page** — Ctrl+Shift+T (screenplay)
+- **Title Page** — Ctrl+Shift+T (screenplay; in the browser Ctrl+Shift+Alt+T)
 - **Preferences** — Ctrl+,
 
 ## Format menu
@@ -99,8 +99,8 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Notes** — Ctrl+Shift+K
 - **Cards** — Ctrl+Shift+D (screenplay)
 - **Changes** — Ctrl+Shift+H
-- **Next Middle Tab** — Ctrl+Next
-- **Previous Middle Tab** — Ctrl+Prior
+- **Next Middle Tab** — Ctrl+PgDn (in the browser Alt+PgDn)
+- **Previous Middle Tab** — Ctrl+PgUp (in the browser Alt+PgUp)
 - **Fullscreen** — Ctrl+Shift+F, Alt+Enter
 
 ## Help menu

@@ -90,8 +90,8 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **Ctrl+Shift+K** Notes
 - **Ctrl+Shift+D** Cards
 - **Ctrl+Shift+H** Changes
-- **Ctrl+Next** Next Middle Tab
-- **Ctrl+Prior** Previous Middle Tab
+- **Ctrl+PgDn** Next Middle Tab
+- **Ctrl+PgUp** Previous Middle Tab
 - **Ctrl+Shift+F, Alt+Enter** Fullscreen
 
 ## Help
@@ -107,9 +107,20 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 
 ## On a Mac
 
-Option+Left and Option+Right move by word there, so these take Control+Option:
+Option+Left and Option+Right move by word there, so these take Control+Option, and Cmd+H hides the app:
 
+- **Cmd+Option+F** Replace
 - **Control+Option+Left** Promote
 - **Control+Option+Right** Demote
 - **Control+Shift+Option+Left** Pass the Last Speech On
 - **Control+Shift+Option+Right** Take In the Next Speech
+
+## In the browser
+
+The browser keeps Ctrl+N, Ctrl+T, Ctrl+W, Ctrl+Tab and Ctrl+PgUp/PgDn for its own windows and tabs, so these are others there:
+
+- **Ctrl+Alt+N** New
+- **Ctrl+Shift+Alt+N** New Empty
+- **Ctrl+Shift+Alt+T** Title Page
+- **Alt+PgDn** Next Middle Tab
+- **Alt+PgUp** Previous Middle Tab

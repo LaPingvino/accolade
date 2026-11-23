@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
@@ -61,8 +62,21 @@ func (w *MainWindow) pickPlace(at fyne.CanvasObject) {
 		items = append(items, fyne.NewMenuItemSeparator())
 	}
 	items = append(items, fyne.NewMenuItem("Script language: "+languageLabel(w.language)+"…", w.pickLanguage))
-	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(at).Add(fyne.NewPos(0, at.Size().Height))
-	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", items...), w.fyneWindow.Canvas(), pos)
+	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", items...), w.fyneWindow.Canvas(), w.menuBelow(at))
+}
+
+// menuBelow is where a picker's menu opens: under its button, or given
+// from a menu, a key, the palette or the ':' line (no button: at nil)
+// under the editor's cursor.
+func (w *MainWindow) menuBelow(at fyne.CanvasObject) fyne.Position {
+	d := fyne.CurrentApp().Driver()
+	if at != nil {
+		return d.AbsolutePositionForObject(at).Add(fyne.NewPos(0, at.Size().Height))
+	}
+	if e := w.mainEditor(); e != nil {
+		return d.AbsolutePositionForObject(e).Add(e.CursorPosition()).Add(fyne.NewPos(0, theme.TextSize()*1.5))
+	}
+	return fyne.NewPos(w.fyneWindow.Canvas().Size().Width/3, w.fyneWindow.Canvas().Size().Height/3)
 }
 
 // setPlace starts the cursor's line with word, the cursor at its end.

@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))))))) // the moves write Linux keys too
+		want := keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -369,6 +369,29 @@ func TestCommandsGolden(t *testing.T) {
 			t.Errorf("%s differs from the golden (with the Adaptation, Help and regrouping moves):\n%s", name, lineDiff(want, s))
 		}
 	}
+}
+
+// keyboardMoves: the keyboard pass (keyboard.go, docs/KEYBOARD.md): on a
+// Mac, Replace… is Cmd+Option+F (Cmd+H hides the app there).
+func keyboardMoves(name, golden string) string {
+	if runtime.GOOS != "darwin" {
+		return golden
+	}
+	golden = strings.Replace(golden, "  Replace… [Primary+H]\n", "  Replace… [Primary+Alt+F]\n", 1)
+	if !strings.HasPrefix(name, "shortcuts-") && !strings.HasPrefix(name, "fullscreen-") {
+		return golden
+	}
+	lines := strings.Split(strings.TrimSuffix(golden, "\n"), "\n")
+	for i, l := range lines {
+		switch l {
+		case "Primary+H = Replace…":
+			lines[i] = "Primary+Alt+F = Replace…"
+		case "Primary+H":
+			lines[i] = "Primary+Alt+F"
+		}
+	}
+	slices.Sort(lines)
+	return strings.Join(lines, "\n") + "\n"
 }
 
 // adaptationMenu is the Adaptation menu as the golden files would have

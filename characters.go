@@ -80,8 +80,7 @@ func (w *MainWindow) pickCharacter(at fyne.CanvasObject) {
 		items = append(items, fyne.NewMenuItem(n, func() { w.insertCue(n) }))
 	}
 	c := w.fyneWindow.Canvas()
-	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(at).Add(fyne.NewPos(0, at.Size().Height))
-	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", items...), c, pos)
+	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", items...), c, w.menuBelow(at))
 }
 
 // insertCue puts a character cue in as a paragraph of its own, the cursor

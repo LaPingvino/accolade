@@ -44,6 +44,12 @@ func keyLabel(k fyne.KeyName) string {
 		return ","
 	case fyne.KeyPeriod:
 		return "."
+	case fyne.KeyPageDown:
+		return "PgDn"
+	case fyne.KeyPageUp:
+		return "PgUp"
+	case fyne.KeyEscape:
+		return "Esc"
 	}
 	return string(k)
 }
@@ -101,6 +107,9 @@ func shortcutLine(c *command, env cmdEnv, both bool) string {
 		notes = append(notes, "not in the browser")
 	}
 	if n := macNote(c); n != "" {
+		notes = append(notes, n)
+	}
+	if n := webNote(c); n != "" && (env.browser || both) {
 		notes = append(notes, n)
 	}
 	if len(notes) > 0 {
@@ -189,7 +198,7 @@ func writingKeys(env cmdEnv, both bool) []string {
 		"- **Tab** at a heading's start — fold or unfold it; **Shift+Tab** — all",
 		"- **Ctrl+Z** — undo; **Ctrl+Y** — redo",
 		"- **Ctrl+A** — select all; **Ctrl+C**, **Ctrl+X**, **Ctrl+V** — copy, cut, paste",
-		"- **Ctrl+Tab**, **Ctrl+Shift+Tab** — out of the editor to the next or previous field",
+		"- **Ctrl+Tab**, **Ctrl+Shift+Tab** — out of the editor to the next or previous field (the browser keeps these for its tabs: there **F6** goes to the panes)",
 	)
 	if !env.browser {
 		out = append(out, "- **Ctrl+Q** — quit (not in the browser)")
@@ -266,9 +275,40 @@ func shortcutsSheet(env cmdEnv, both bool) string {
 		}
 	}
 	if len(mac) > 0 {
-		b.WriteString("\n## On a Mac\n\nOption+Left and Option+Right move by word there, so these take Control+Option:\n\n" + strings.Join(mac, "\n") + "\n")
+		b.WriteString("\n## On a Mac\n\nOption+Left and Option+Right move by word there, so these take Control+Option, and Cmd+H hides the app:\n\n" + strings.Join(mac, "\n") + "\n")
+	}
+	var web []string // the keys the browser leaves the page instead
+	for _, c := range commands().commands {
+		if n := webNote(c); n != "" && (c.applies(withBrowser(env)) || both) {
+			web = append(web, "- **"+strings.TrimPrefix(n, "in the browser ")+"** "+strings.TrimSuffix(c.labelIn(env), "…"))
+		}
+	}
+	if len(web) > 0 && (env.browser || both) {
+		b.WriteString("\n## In the browser\n\nThe browser keeps Ctrl+N, Ctrl+T, Ctrl+W, Ctrl+Tab and Ctrl+PgUp/PgDn for its own windows and tabs, so these are others there:\n\n" + strings.Join(web, "\n") + "\n")
 	}
 	return b.String()
+}
+
+// withBrowser is e in the browser.
+func withBrowser(e cmdEnv) cmdEnv {
+	e.browser = true
+	return e
+}
+
+// webNote says a command's keys in the browser where they are others (""
+// none): the browser keeps some for itself (browserKeptKeys).
+func webNote(c *command) string {
+	if c.webKeys == nil {
+		return ""
+	}
+	if len(c.webKeys) == 0 {
+		return "no key in the browser"
+	}
+	var ks []string
+	for _, k := range c.webKeys {
+		ks = append(ks, keyName(k))
+	}
+	return "in the browser " + strings.Join(ks, ", ")
 }
 
 // macNote says a command's keys on a Mac where they are others ("" none).
@@ -278,8 +318,7 @@ func macNote(c *command) string {
 	}
 	var ks []string
 	for _, k := range c.macKeys {
-		n := strings.Replace(keyName(k), "Ctrl+", "Control+", 1)
-		ks = append(ks, strings.Replace(n, "Alt+", "Option+", 1))
+		ks = append(ks, macKeyName(k))
 	}
 	return "on a Mac " + strings.Join(ks, ", ")
 }

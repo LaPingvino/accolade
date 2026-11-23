@@ -187,6 +187,11 @@ type command struct {
 	// word there: too ingrained to take); pcKeys keep the others' there,
 	// for the help pages, which are one for all
 	macKeys, pcKeys []fyne.Shortcut
+	// webKeys, if set, are its keys in the browser instead: the browser
+	// keeps some for itself (browserKeptKeys, keyboard.go: Ctrl+N, Ctrl+T,
+	// Ctrl+PgUp …), which never reach the page; an empty, non-nil list is
+	// no key there
+	webKeys []fyne.Shortcut
 	// editing commands act on the script being written in: from a menu
 	// (or its shortcut) only while the editor has the focus, from a
 	// button with the focus given back to the editor
@@ -507,11 +512,16 @@ func newRegistry() *registry {
 	// File
 	add(
 		&command{id: "file.new", label: "New", mdLabel: "New Screenplay", keys: []fyne.Shortcut{shortcut(fyne.KeyN, 0)}, icon: theme.DocumentCreateIcon,
-			run: (*MainWindow).NewFile,
+			webKeys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierAlt)}, // Ctrl+N is the browser's new window
+			run:     (*MainWindow).NewFile,
 			tipFor: func(e cmdEnv) string {
-				tip := "New" + keys("N") + "; with Alt, empty" + keys("Alt+N")
+				n, empty := "N", "Alt+N"
+				if e.browser {
+					n, empty = "Alt+N", "Shift+Alt+N"
+				}
+				tip := "New" + keys(n) + "; with Alt, empty" + keys(empty)
 				if e.markdown { // a screenplay, not another Markdown document
-					tip = "New screenplay" + keys("N") + "; with Alt, empty" + keys("Alt+N")
+					tip = "New screenplay" + keys(n) + "; with Alt, empty" + keys(empty)
 				}
 				if !e.browser {
 					tip += "; with Shift, a new window" + keys("Shift+N")
@@ -530,7 +540,8 @@ func newRegistry() *registry {
 					w.NewFile()
 				}
 			}},
-		&command{id: "file.newEmpty", label: "New Empty", mdLabel: "New Empty Screenplay", icon: theme.FileIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierAlt)}, run: (*MainWindow).NewEmptyFile},
+		&command{id: "file.newEmpty", label: "New Empty", mdLabel: "New Empty Screenplay", icon: theme.FileIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierAlt)},
+			webKeys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierShift|fyne.KeyModifierAlt)}, run: (*MainWindow).NewEmptyFile},
 		&command{id: "file.newWindow", label: "New Window", icon: theme.ComputerIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierShift)}, when: desktopOnly, // the browser has one window
 			run: func(w *MainWindow) { w.app.newScriptWindow(false) }},
 		&command{id: "file.newEmptyWindow", label: "New Empty Window", icon: theme.DesktopIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyN, fyne.KeyModifierShift|fyne.KeyModifierAlt)}, when: desktopOnly,
@@ -564,7 +575,8 @@ func newRegistry() *registry {
 		&command{id: "file.share", label: "Edit Together…", icon: res(togetherIcon), run: (*MainWindow).shareDialog},
 		&command{id: "file.join", label: "Join a Shared Script…", icon: theme.LoginIcon, run: (*MainWindow).joinDialog},
 		&command{id: "file.titlePage", label: "Title Page…", icon: theme.DocumentIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyT, fyne.KeyModifierShift)}, when: screenplayOnly,
-			run: (*MainWindow).showTitlePageDialog},
+			webKeys: []fyne.Shortcut{shortcut(fyne.KeyT, fyne.KeyModifierShift|fyne.KeyModifierAlt)}, // Ctrl+Shift+T is the browser's reopen tab
+			run:     (*MainWindow).showTitlePageDialog},
 		&command{id: "file.export", label: "Export…", tip: "Export to PDF, HTML, FDX…", mdTip: "Export to Word, ODT, HTML, PDF…",
 			keys: []fyne.Shortcut{shortcut(fyne.KeyE, 0)}, icon: theme.DownloadIcon, run: (*MainWindow).showExportDialog},
 		// a copy without Accolade's data, for other apps (clean_fountain.go)
@@ -592,7 +604,9 @@ func newRegistry() *registry {
 		&command{id: "edit.undo", label: "Undo", shownKeys: "Z", icon: theme.ContentUndoIcon, run: (*MainWindow).undo},
 		&command{id: "edit.redo", label: "Redo", keys: []fyne.Shortcut{shortcut(fyne.KeyZ, fyne.KeyModifierShift)}, icon: theme.ContentRedoIcon, run: (*MainWindow).redo},
 		&command{id: "edit.find", label: "Find…", keys: []fyne.Shortcut{shortcut(fyne.KeyF, 0)}, icon: theme.SearchIcon, run: (*MainWindow).showFind},
-		&command{id: "edit.replace", label: "Replace…", keys: []fyne.Shortcut{shortcut(fyne.KeyH, 0)}, icon: theme.SearchReplaceIcon, run: (*MainWindow).showFindReplace},
+		&command{id: "edit.replace", label: "Replace…", keys: []fyne.Shortcut{shortcut(fyne.KeyH, 0)},
+			macKeys: []fyne.Shortcut{plainKey(fyne.KeyF, fyne.KeyModifierSuper|fyne.KeyModifierAlt)}, // Cmd+H hides the app on a Mac; Cmd+Option+F is its Replace
+			icon:    theme.SearchReplaceIcon, run: (*MainWindow).showFindReplace},
 		// the header bar's search: the bar with its replace row
 		&command{id: "edit.findReplace", label: "Find and replace", shownKeys: "F", icon: theme.SearchIcon, run: (*MainWindow).showFindReplace},
 		&command{id: "edit.findNext", label: "Find Next", keys: []fyne.Shortcut{shortcut(fyne.KeyG, 0)}, icon: theme.NavigateNextIcon, run: (*MainWindow).findNext},
@@ -977,6 +991,13 @@ func newRegistry() *registry {
 		for _, c := range r.commands {
 			if c.macKeys != nil {
 				c.pcKeys, c.keys = c.keys, c.macKeys
+			}
+		}
+	}
+	if inBrowser { // the keys the browser leaves the page instead
+		for _, c := range r.commands {
+			if c.webKeys != nil {
+				c.pcKeys, c.keys = c.keys, c.webKeys
 			}
 		}
 	}

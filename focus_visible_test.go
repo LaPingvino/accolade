@@ -5,12 +5,22 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"fyne.io/fyne/v2"
 )
+
+// focusTries is how many times a capture is tried before a focus is
+// called invisible (FOCUS_TRIES=2 for a quick look at what fails).
+var focusTries = func() int {
+	if n, err := strconv.Atoi(os.Getenv("FOCUS_TRIES")); err == nil && n > 0 {
+		return n
+	}
+	return 25
+}()
 
 // invisibleFocus lists the objects of a canvas that Tab reaches but that
 // look the same with the focus as without it: a keyboard user cannot see
@@ -43,7 +53,7 @@ func invisibleFocus(c fyne.Canvas) []string {
 		changed := 0
 		// Up to ~5 s in all: CI's race run on a shared runner has been seen to
 		// lag more than half a second (2026-11-20); a passing check never waits.
-		for try := 0; try < 25 && changed == 0; try++ {
+		for try := 0; try < focusTries && changed == 0; try++ {
 			if try > 0 {
 				time.Sleep(time.Duration(try) * 15 * time.Millisecond)
 				c.Focus(f)
