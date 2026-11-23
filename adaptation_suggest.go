@@ -158,8 +158,8 @@ func suggestLinks(text string, starts []string, ps []passage, status []passageSt
 	}
 	weight := func(w string) float64 { return math.Log(1 + float64(n)/float64(max(df[w], 1))) }
 	total := make([]float64, len(ps))
-	for i, ws := range words {
-		for w := range ws {
+	for i, ws := range words { // summed in the words' order: the same input, the same sums
+		for _, w := range sortedKeys(ws) {
 			total[i] += weight(w)
 		}
 	}
@@ -176,7 +176,7 @@ func suggestLinks(text string, starts []string, ps []passage, status []passageSt
 		}
 		skip := skipped[wordsKey(sc.Heading)]
 		touched = touched[:0]
-		for w := range sc.Words {
+		for _, w := range sortedKeys(sc.Words) {
 			wt := weight(w)
 			for _, i := range index[w] {
 				if shared[i] == 0 {
@@ -240,6 +240,17 @@ func suggestLinks(text string, starts []string, ps []passage, status []passageSt
 		slices.Sort(sg.Passages) // in the story's order
 		out = append(out, sg)
 	}
+	return out
+}
+
+// sortedKeys is a set's words in order: sums over them come out the
+// same each time (a map's order differs from run to run).
+func sortedKeys(set map[string]bool) []string {
+	out := make([]string, 0, len(set))
+	for w := range set {
+		out = append(out, w)
+	}
+	slices.Sort(out)
 	return out
 }
 

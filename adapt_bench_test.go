@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -34,10 +35,7 @@ import (
 // the files disagree with each other (a scene count, a heading, or a
 // passage index whose words moved).
 //
-// The suggest numbers on a loose pair can differ from run to run:
-// suggestLinks itself answers differently for the same input (two calls
-// with one reading differ), most likely because it sums a scene's word
-// weights in map order, so near-ties between passages fall either way.
+// The numbers are the same from run to run (TestSuggestLinksSameEachTime).
 func TestAdaptBench(t *testing.T) {
 	if testing.Short() {
 		t.Skip("adaptation benchmark: not with -short")
@@ -266,4 +264,28 @@ func scriptPassages(script string, starts []string) ([]passage, []int) {
 		flush()
 	}
 	return ps, sceneOf
+}
+
+// TestSuggestLinksSameEachTime: the same script and source give the same
+// guesses each time (the sums once ran in a map's order, so near-ties fell
+// either way from one call to the next).
+func TestSuggestLinksSameEachTime(t *testing.T) {
+	dir := filepath.Join("testdata", "adapt-bench", "jane-eyre")
+	src, err := os.ReadFile(filepath.Join(dir, "source.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	script, err := os.ReadFile(filepath.Join(dir, "script.fountain"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ps := passagesOf(string(src))
+	starts := []string{"INT.", "EXT.", "INT./EXT.", "I/E"}
+	m := newSourceModel(ps, string(script), starts)
+	first := fmt.Sprint(suggestLinks(string(script), starts, ps, m.status, nil, nil))
+	for range 6 {
+		if again := fmt.Sprint(suggestLinks(string(script), starts, ps, m.status, nil, nil)); again != first {
+			t.Fatalf("another answer for the same input:\n%s\n%s", first, again)
+		}
+	}
 }
