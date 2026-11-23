@@ -34,7 +34,8 @@ The transitions the test drives: show the source / the notes / the cards / the s
 document in front, Preview, the cards then Preview, the outline to the middle, the outline there and back to the side
 (Open in the Middle / Back to the Side), closing the source's and the notes' tab, closing a pane, Open, New, Open
 Sample, New Markdown Document, the document type to Markdown and back, a rename, sharing, joining, sharing and
-leaving, Production, Writer, Choose Source… with the Source tab open: 27 transitions × 2 fronts = 54 runs.
+leaving, Production, Writer, Choose Source… with the Source tab open: 26 transitions × 2 fronts = 52 runs.
+`TestReportPagesAreNotFollowed` checks that a report's PDF in the page view is left alone (row 28).
 
 ## The views
 
@@ -88,13 +89,15 @@ it reads the script's notes block on each edit).
 | 20 | Source pane caption, lights | Open, New, a rename, the source changing | followed by `followSource` on edits | recorded, followed at the end |
 | 21 | Adapt… | the script replaced while it is open (a peer's type change, a join by a pasted link) | planned on the old script, its Insert into the new one | **fixed**: closed, with a status line |
 | 22 | Page Setup line | role, type | the page view's line is made with each Preview; the Live Preview's refreshes with it | follows with 11, 12, 16 |
-| 23 | Source tab's document | **Choose Source…** with the Source tab open (left open by the middle tabs) | the tab kept the old source; in a bundle (the same home) its text was what the pane read, and a later save could write it back over the new one | **fixed**: the old document is written to its home and let go first, the tab opened again on the new source, the tab that was in front kept there |
+| 23 | Source tab's document | **Choose Source…** with the Source tab open (left open by the middle tabs) | the tab kept the old source; in a bundle (the same home) its text was what the pane read, and an edit in the tab would have been saved over the new one (read from the code; the test uses a source beside the script, not a bundle) | **fixed**: the old document is written to its home and let go first, the tab opened again on the new source, in front (Choose Source shows the source it chose) |
 | 24 | stripboard | any tab change (left open: "the stripboard is not a tab") | — | by design: one view in the middle; a tab change closes it, its command puts the script's tab in front; it follows the text on edits. Not a view of the hook |
 | 25 | Undo | a tab change | — | no state: the focused editor's, else the main one's |
 | 26 | collab presence | join, leave | — | the status bar's; follows with 17 |
 | 27 | everything | **Revert** | — | there is no Revert command; Restore Draft is one edit (`Replace`), which every view follows as an edit (pages with Follow Edits) |
 
-27 pairs; 15 fixed (1, 2, 4–13, 21, 23 and the outline's rows), the rest checked or by design.
+| 28 | page view showing Export's preview or a report's PDF | a change of the preferences, any script transition | — | not followed: only the script's Preview is the "pages" view (`pagesPreview`); the others keep their own Back button |
+
+28 pairs; 14 fixed (1, 2, 4–13, 21, 23), the rest checked or by design.
 
 ## Background → UI hand-overs (background.go)
 
@@ -122,5 +125,8 @@ package's default runner (Accolade sets `uiDo`).
 - The outline's passages carry no status (adapted / cut / to do); the source pane has it. A synopsis line with it
   would make the outline a second source list — wait for Joop.
 - The Adapt dialog is closed rather than planned again when the script changes under it.
+- The source's outline is made on the UI goroutine when its tab comes to the front: 93 ms once for Joop's novel
+  (420 kB, 1 650 rows; one run, not a benchmark). Edits wait for a pause; the tab change does not. Background it if
+  it is felt.
 - The test drives each transition once from two fronts; it does not drive two transitions racing (a Preview from
   one finishing inside the next one's bracket is handled by `pagesComing`, not tested apart).

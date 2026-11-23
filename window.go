@@ -89,6 +89,9 @@ type MainWindow struct {
 	// pagesComing is the Preview being made whose pages will be shown
 	// (its previewGen; 0 none)
 	pagesComing int
+	// pagesPreview: the page view shows the script's Preview (not
+	// Export's preview or a report's PDF, which are not followed)
+	pagesPreview bool
 	// the window's documents (document.go): the script as one, the
 	// source and the notes once opened
 	script, srcDoc, notesDoc *document
@@ -1473,6 +1476,7 @@ func (w *MainWindow) makePreviewPDF() {
 			}
 			w.setStatus("PDF preview shown")
 			v := w.showPages(d, "Preview: "+name, out, name, line.box)
+			w.pagesPreview = true
 			v.remake = func() {
 				line.refresh()
 				w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)

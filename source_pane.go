@@ -1283,9 +1283,9 @@ func (w *MainWindow) takeChosenSource(gen int, script string, bundle *textBundle
 		defer w.scriptChange()() // the views follow the new source (state.go)
 		// the source open as a document is the one replaced: written to
 		// its home first, and its middle tab opened again on the new one
-		// (in a bundle the home stays the same: the old text would stay
-		// in the tab and go back in on the next save)
-		tab, was := w.mid.has("source"), w.mid.shown
+		// (in a bundle the home stays the same: the tab kept the old text,
+		// which the pane read, and an edit there was saved over the new)
+		tab := w.mid.has("source")
 		if tab {
 			w.closeMiddle("source")
 		}
@@ -1296,10 +1296,7 @@ func (w *MainWindow) takeChosenSource(gen int, script string, bundle *textBundle
 			if w.source != nil {
 				w.source.ref = sourceRef{Origin: -1} // read again
 			}
-			w.openMiddle("source")
-			if was != "source" {
-				w.showMiddle(was) // the tab that was in front stays there
-			}
+			w.openMiddle("source") // in front: showSource shows the new source
 		}
 	}
 	if err != nil {

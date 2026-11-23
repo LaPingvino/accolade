@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"cmp"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -108,16 +109,23 @@ func (m *mdPages) updateAfter(text string, delay time.Duration) {
 		if gen != m.gen {
 			return
 		}
+		// written beside it first: a making finishing late, made stale by
+		// a newer one, does not replace the newer one's PDF
+		tmp := fmt.Sprintf("%s.%d.tmp", out, gen)
 		inBackground(func() made {
 			data, d, err := markdownPDF(text, title, page, titlePage)
-			r := made{d: d, missing: markdownPDFMissing(text), out: out, err: err}
-			if err == nil && os.WriteFile(out, data, 0o644) != nil {
+			r := made{d: d, missing: markdownPDFMissing(text), out: tmp, err: err}
+			if err == nil && os.WriteFile(tmp, data, 0o644) != nil {
 				r.out = ""
 			}
 			return r
 		}, func(r made) {
 			if gen != m.gen || r.err != nil {
+				os.Remove(tmp)
 				return
+			}
+			if r.out != "" && os.Rename(tmp, out) == nil {
+				r.out = out
 			}
 			note := ""
 			if r.missing != "" {

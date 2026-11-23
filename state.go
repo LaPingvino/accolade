@@ -101,10 +101,11 @@ func (w *MainWindow) scriptChange() func() {
 // follow (the commands last: they look at what the others show).
 func (w *MainWindow) docViews() []docView {
 	return []docView{
-		// the script's pages: shown, or being made to be shown
+		// the script's Preview: shown, or being made to be shown (Export's
+		// preview and a report's PDF in the page view are not followed)
 		{name: "pages", shows: func() (docKey, bool) {
 			coming := w.pagesComing != 0 && w.pagesComing == w.previewGen
-			return w.pagesWant, w.pagesVisible && w.pages != nil || coming
+			return w.pagesWant, w.pagesVisible && w.pages != nil && w.pagesPreview || coming
 		}, follow: func() {
 			if w.scriptInMain() && !w.markdown {
 				w.previewPDF() // made again, the pages there until then

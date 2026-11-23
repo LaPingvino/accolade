@@ -11,6 +11,7 @@ import (
 
 	"github.com/LaPingvino/accolade/internal/collab"
 	"github.com/LaPingvino/accolade/internal/editor"
+	lexreport "github.com/LaPingvino/lexington/report"
 )
 
 // The state invariant (docs/STATE.md): after every transition of what the
@@ -74,12 +75,12 @@ func TestViewsFollowTheFront(t *testing.T) {
 				t.Fatal(err)
 			}
 		}},
-		{"share", func(_ *testing.T, w *MainWindow, _ string) {
+		{"share", func(t *testing.T, w *MainWindow, _ string) {
 			key, _ := collab.NewKey()
 			w.startSharing(key, false)
 			t.Cleanup(w.stopSharing)
 		}},
-		{"join", func(_ *testing.T, w *MainWindow, _ string) {
+		{"join", func(t *testing.T, w *MainWindow, _ string) {
 			key, _ := collab.NewKey()
 			w.startSharing(key, true)
 			t.Cleanup(w.stopSharing)
@@ -95,6 +96,9 @@ func TestViewsFollowTheFront(t *testing.T) {
 			q := filepath.Join(filepath.Dir(p), "another.md")
 			os.WriteFile(q, []byte("# Another Story\n\nA new beginning in the snow.\n\nAnd its end.\n"), 0o644)
 			w.chooseSourceFile(q)
+			if d := w.midDoc(); d == nil || d.kind != docSource || !strings.Contains(d.Text(), "A new beginning") {
+				t.Error("the Source tab is not the new source, in front")
+			}
 		}},
 	}
 	for _, from := range []string{"", "source"} {
@@ -231,5 +235,21 @@ func TestOutlineGoesIntoTheSource(t *testing.T) {
 	o.moveRow(at, 0)
 	if w.textEditor.Text() != script || d.Text() != sourceStory {
 		t.Error("a source row moved something")
+	}
+}
+
+// A report's PDF (and Export's preview) in the page view is no Preview of
+// the script: a change of the preferences or of the script leaves it.
+func TestReportPagesAreNotFollowed(t *testing.T) {
+	w, rd := reportsWindow(t, fyne.NewSize(1100, 760))
+	rd.showReportPDF(lexreport.KindSheets)
+	if !w.pagesVisible || w.pages == nil {
+		t.Fatal("the sheets are not shown")
+	}
+	d := w.pages.d
+	w.changeSetting("font-size", func(s *Settings) { s.SetFloat("font-size", 17) })
+	w.scriptChange()() // as at the end of Open, a rename…
+	if !w.pagesVisible || w.pages.d.Pages == nil || len(w.pages.d.Pages) != len(d.Pages) || w.pagesComing != 0 {
+		t.Errorf("the report's pages were replaced (visible %v, a Preview coming %v)", w.pagesVisible, w.pagesComing != 0)
 	}
 }

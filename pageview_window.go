@@ -25,6 +25,7 @@ import (
 // the PDF it is of (name its file's name, for saving), extra over the
 // pages (a page setup line, a way back to a dialog).
 func (w *MainWindow) showPages(d pdf.Drawing, title, pdfPath, name string, extra ...fyne.CanvasObject) *pageView {
+	w.pagesPreview = false // the script's Preview says so after (state.go)
 	rebuilt := false
 	if w.pages == nil || w.pages.narrow != w.narrow { // (a phone's bar, or a desktop's)
 		v := newPageView(w)
