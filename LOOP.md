@@ -1323,3 +1323,12 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   upload or quote): the Spanish book (López Luna, 2017 digital edition, text PDF, ~37k words, running header on every
   page) and the 2026 final Fountain in ~/.local/share/accolade-bench/hopetalks/ (Kredu min, Sinjorino in .../kredu/; mode 700), the 2011 screenplay PDF and the earlier conversions in ~/drive/Esperanto/Filmo vivo de Zamenhof/. Benchmarks:
   2011 PDF → 2026 Fountain (screenplay source, fix-up), book → 2026 Fountain (across languages, stretch).
+- 2026-11-23: relinking, never write from a guess (coordinator, from the wrong-guess measurement). The one passage
+  between two anchors is certain only if it still shares ≥ 0.4 of its words in order (minSure; 0.3 measured one
+  wrong write on 400 seeds, 0.4 none); below that it is a guess. An identical pair scores above any likeness in
+  the stretch pairing, so a twin claims its own place. TestRelinkProperty fails on any written move of a link
+  that was on its own passage onto another (0 on 400 seeds; RELINK_SEEDS=400 to run them). 400 seeds × 40 steps,
+  position on: 5,803 identical, 1,048 certain by position (0 wrong; 3 right ones became guesses, 34 wrong ones
+  too), guesses 439 right / 174 wrong; position off: 0 by position, guesses 1,361 / 249, 12,297 more not found.
+  Another source (14, wholly rewritten passages): 0 by position, 6 guesses all right (was 3 written + 3 guessed).
+  Long source, stretch reworded (300): 0 by position, 79 / 7 guesses, 2 not found (off: 88 not found).

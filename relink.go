@@ -425,12 +425,18 @@ func alignPassagesSure(old, nw []passage) ([]int, []bool) {
 			}
 		}
 	}
-	// one alone in its place but nothing like what is there now, while
+	// one alone in its place sharing too little with what is there now,
+	// or nothing much like it while
 	// another passage reads like it (it moved and was edited, or a copy
 	// of it stayed), or what is there now reads like another one: not
 	// sure
 	for _, x := range lone {
-		if alike(o[x].Words, nw[to[p+x]].Words) >= 0.6 {
+		like := alike(o[x].Words, nw[to[p+x]].Words)
+		if like < minSure { // its place alone: no words to go on (a passage taken out and another put there)
+			sure[p+x] = false
+			continue
+		}
+		if like >= 0.6 {
 			continue
 		}
 		for z := range nw {
@@ -448,6 +454,12 @@ func alignPassagesSure(old, nw []passage) ([]int, []bool) {
 	}
 	return to, sure
 }
+
+// minSure is how alike (alike) a passage alone between two anchors must
+// be to what is there now for the pairing to be certain: below it, its
+// place is all there is to go on, and a passage taken out with another
+// put in its place reads the same (Joop: never write from a guess).
+var minSure = 0.4
 
 // pairStretch pairs the old passages xs with the new ones ys, in order
 // (a Needleman–Wunsch alignment, a gap costing nothing): a pair scores
@@ -486,6 +498,9 @@ func pairStretch(o, n []passage, xs, ys []int) []int {
 			like = bagAlike(x.Words, y.Words)
 		} else {
 			like = alike(x.Words, y.Words)
+		}
+		if x.Plain == y.Plain {
+			return 2 // word for word: above any likeness, a twin claims its own place
 		}
 		if x.Kind != y.Kind {
 			return like - 0.5

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"fmt"
 	"maps"
 	"math/rand"
@@ -253,7 +254,7 @@ func TestRelinkAnotherSource(t *testing.T) {
 	for k, p := range ps {
 		switch {
 		case k == 13: // taken out
-		case k%2 == 1 || k == 8: // rewritten: alone between two as they were (7, 8 and 9 together: guesses)
+		case k%2 == 1 || k == 8: // rewritten wholly, nothing of the old words: guesses, alone in their place or not
 			re = append(re, fmt.Sprintf("Rewritten %d, nothing of the old words.", k))
 		default:
 			re = append(re, p)
@@ -299,10 +300,10 @@ func TestRelinkAnotherSource(t *testing.T) {
 			t.Errorf("link %d: %+v, guess %+v", k, mt, g)
 		}
 	}
-	if moved != 7 || check != 3 { // 7, 8 and 9 rewritten together: guesses
+	if moved != 4 || check != 6 { // rewritten wholly: by their place alone, guesses (never written from a guess)
 		t.Errorf("%d moved, %d to check", moved, check)
 	}
-	if !strings.Contains(st, "7 links moved, 3 to check") {
+	if !strings.Contains(st, "4 links moved, 6 to check") {
 		t.Errorf("%d moved, %d to check", moved, check)
 	}
 	w.textEditor.Undo()
@@ -440,10 +441,13 @@ func TestRelinkProperty(t *testing.T) {
 	vocab := strings.Fields("rain door sea wind she he opened walked the a garden light night stone river boat " +
 		"kettle stairs lamp bread salt road hill field bell cold warm late early old new red grey")
 	seeds := 30
+	if os.Getenv("RELINK_SEEDS") != "" {
+		seeds, _ = strconv.Atoi(os.Getenv("RELINK_SEEDS"))
+	}
 	if testing.Short() {
 		seeds = 5
 	}
-	fixed, warned, warnedThere, checked, toCheck, withTarget, rightGuess := 0, 0, 0, 0, 0, 0, 0
+	fixed, warned, warnedThere, checked, toCheck, withTarget, rightGuess, wrongWritten := 0, 0, 0, 0, 0, 0, 0, 0
 	for seed := int64(1); seed <= int64(seeds); seed++ {
 		rng := rand.New(rand.NewSource(seed))
 		para := func() string {
@@ -488,6 +492,10 @@ func TestRelinkProperty(t *testing.T) {
 		guesses := map[string]linkGuess{}  // as the window keeps them
 		alikeIDs := map[int]map[int]bool{} // a link's passages alike when it was ambiguous, by the link
 		for step := range 40 {
+			idsBefore := make([]int, len(paras)) // the passages' ids before the step, by index
+			for q, pp := range paras {
+				idsBefore[q] = pp.id
+			}
 			for range 1 + rng.Intn(2) {
 				switch op := rng.Intn(5); {
 				case op == 0 || len(paras) < 4: // a passage added
@@ -516,10 +524,17 @@ func TestRelinkProperty(t *testing.T) {
 			}
 			old := ps
 			before := maps.Clone(lastText)
+			prevIDs := idsBefore
 			src = source()
 			ps = passagesOf(src)
 			if len(ps) != len(paras) {
 				t.Fatalf("seed %d step %d: %d passages of %d paragraphs", seed, step, len(ps), len(paras))
+			}
+			onOwn := map[int]bool{} // the links on their own passage before the step
+			for k, l := range parseLinks(text) {
+				if mt := newLinkMatcher(old).matchRef(l.Ref); mt.found() && mt.last() == mt.Passages[0] && prevIDs[mt.Passages[0]] == linkIDs[k] {
+					onOwn[k] = true
+				}
 			}
 			edits, c, mv, g := relinkFixes(text, old, ps)
 			for k, l := range parseLinks(text) { // the guesses made now: right?
@@ -532,9 +547,25 @@ func TestRelinkProperty(t *testing.T) {
 			}
 			guesses = carryGuesses(guesses, mv, g)
 			fixed += c.lengthened + c.reanchored
+			was := parseLinks(text)
 			text = withEdits(text, edits)
 			lm := newLinkMatcher(ps)
 			links := parseLinks(text)
+			for k, l := range links { // a link on its own passage written now: onto it, or one word for word it (a copy)
+				if k >= len(was) || l.Key == was[k].Key || !onOwn[k] {
+					continue
+				}
+				mt := lm.matchRef(l.Ref)
+				if !mt.found() {
+					continue
+				}
+				q := mt.Passages[0]
+				if paras[q].id != linkIDs[k] && paras[q].text != before[linkIDs[k]] {
+					wrongWritten++
+					t.Errorf("seed %d step %d: the link %q to %d (%q) written as %q, onto %d (%q)", seed, step,
+						was[k].Ref.Dir.String(false), linkIDs[k], before[linkIDs[k]], l.Ref.Dir.String(false), paras[q].id, paras[q].text)
+				}
+			}
 			if len(links) != len(linkIDs) {
 				t.Fatalf("seed %d step %d: %d links, %d made", seed, step, len(links), len(linkIDs))
 			}
@@ -596,9 +627,9 @@ func TestRelinkProperty(t *testing.T) {
 		}
 	}
 	t.Logf("%d links looked at, %d written again, %d not found or ambiguous (%.1f%%), %d of them with their passage still there (%.1f%%); "+
-		"%d finding another passage and warned (%.1f%%); %d guesses to check made, %d of them right",
+		"%d finding another passage and warned (%.1f%%); %d guesses to check made, %d of them right; %d written wrong",
 		checked, fixed, warned, 100*float64(warned)/float64(checked), warnedThere, 100*float64(warnedThere)/float64(checked),
-		toCheck, 100*float64(toCheck)/float64(checked), withTarget, rightGuess)
+		toCheck, 100*float64(toCheck)/float64(checked), withTarget, rightGuess, wrongWritten)
 	if fixed == 0 {
 		t.Error("nothing was written again: the edits do not test it")
 	}

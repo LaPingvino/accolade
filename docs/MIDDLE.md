@@ -180,7 +180,7 @@ Kept as they are, and why:
   When the source's text changed and the writer then leaves the passage in the source's middle tab, leaves that tab, presses the Source
   pane's Done, or saves, `relinkFixes` compares the passages before and after (`alignPassagesSure`: a monotone
   alignment, the same ones at both ends and the unique same-words anchors certain, between them a
-  Needleman–Wunsch pairing by likeness and place, certain only for the one passage left between two anchors). A
+  Needleman–Wunsch pairing by likeness and place, certain only for the one passage left between two anchors that still shares ≥ 40 % of its words in order, an identical pair always first). A
   link that found its passages before and no longer finds exactly them is written again at once only when its
   pairing is certain (`fragmentFor`: lengthened or re-anchored), one undo step of the script's, the status line
   saying how many; otherwise it is left byte for byte, its chip "↗ check?" with the guess and Move It There / Keep
