@@ -27,6 +27,7 @@ type saveAsAsk struct {
 	types   []fileType
 	choose  func(i int)
 	chosen  func() fileType
+	target  func() relocation // what the chosen type and name save as
 	name    *widget.Entry
 	plan    *planPanel
 	radios  []*widget.RadioGroup
@@ -40,8 +41,8 @@ func (w *MainWindow) showSaveAs() {
 	now := cmp.Or(w.scriptName(), offered)
 	types := scriptTypes(w.lex(), w.markdown, inBrowser, now, w.language)
 	rec := recommendedType(w.markdown, w.hasProductionData())
-	current := typeOfName(cmp.Or(w.currentFile, now), w.markdown) // the file itself: a folder is the Accolade folder
-	if w.currentFile == "" && w.suggestedName == "" {             // nothing yet: the recommended one
+	current := w.nowType(now)
+	if w.currentFile == "" && w.suggestedName == "" { // nothing yet: the recommended one
 		current = rec
 	}
 	if w.bundle == nil && w.isPlainBundle(w.currentFile) {
@@ -80,8 +81,8 @@ func (w *MainWindow) showSaveAs() {
 			n = composedName(base.base, t)
 		}
 		r := relocation{from: w.currentFile, to: filepath.Join(dir, filepath.Base(n)), lang: w.language} // said by the type chosen
-		if t.id != current.id {
-			r.form = t.kind // another type: its form (the file's own type keeps the file's)
+		if t.id != current.id || w.currentFile == "" {
+			r.form = t.kind // another type, or a first save: its form (the file's own type keeps the file's)
 		}
 		if dir == "" {
 			r.to = filepath.Base(n)
@@ -142,6 +143,7 @@ func (w *MainWindow) showSaveAs() {
 		update()
 	}
 	ask.chosen = func() fileType { return types[sel] }
+	ask.target = target
 	name.OnChanged = func(string) { update() }
 
 	heading := widget.NewLabel("Save as type")

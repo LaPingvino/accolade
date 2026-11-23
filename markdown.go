@@ -131,7 +131,7 @@ func (w *MainWindow) NewMarkdownFile() {
 		w.format = fileFormat{}
 		w.textEditor.SetText("# Untitled\n\n")
 		w.textEditor.SetCursorOffset(len([]rune(w.textEditor.Text())))
-		w.currentFile, w.suggestedName = "", ""
+		w.currentFile, w.suggestedName, w.suggestedForm = "", "", notBundle
 		w.plainBundle = ""
 		w.setBundle(nil)
 		w.setCarried(nil, "")

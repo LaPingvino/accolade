@@ -278,6 +278,9 @@ type MainWindow struct {
 
 	// Name offered by Save As for an imported (converted) document
 	suggestedName string
+	// suggestedForm is the form Rename chose for a script not saved yet
+	// (the Accolade folder), notBundle for its name's own (nowType)
+	suggestedForm bundleKind
 
 	// Auto-save (autosave.go)
 	autoSaveTimer *uiTimer
@@ -648,7 +651,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	}
 	w.textEditor.SetText(text)
 	w.currentFile = filePath
-	w.suggestedName = ""
+	w.suggestedName, w.suggestedForm = "", notBundle
 	w.rememberRecent(filePath)
 	w.hasChanges = before != "" // both texts the same again on the next save
 	w.readBeatTags()
@@ -1206,7 +1209,7 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.textEditor.SetText(text)
 	w.currentFile, w.plainBundle = "", ""
 	// saved, a script in another language than the preferences' says so
-	w.suggestedName = ""
+	w.suggestedName, w.suggestedForm = "", notBundle
 	w.languageSaid = w.language != w.preferredLanguage() || w.language != w.lex().standard()
 	if w.languageSaid {
 		w.nameLanguage(w.language)

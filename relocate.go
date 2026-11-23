@@ -48,6 +48,7 @@ var journalKeys = []string{"source-files", "production-files", "document-types",
 // windowState is the window's part in a rename.
 type windowState struct {
 	currentFile, suggestedName, plainBundle, language  string
+	suggestedForm                                      bundleKind
 	unsavedSource, unsavedExtras                       string
 	bundle                                             *textBundle
 	markdown, hasChanges, noFountainCopy, languageSaid bool
@@ -62,7 +63,7 @@ func (w *MainWindow) beginJournal(from, to string) *fileJournal {
 		}
 	}
 	j.state = windowState{
-		currentFile: w.currentFile, suggestedName: w.suggestedName, plainBundle: w.plainBundle, language: w.language,
+		currentFile: w.currentFile, suggestedName: w.suggestedName, suggestedForm: w.suggestedForm, plainBundle: w.plainBundle, language: w.language,
 		unsavedSource: w.unsavedSource, unsavedExtras: w.unsavedExtras,
 		bundle: w.bundle, markdown: w.markdown, hasChanges: w.hasChanges, noFountainCopy: w.noFountainCopy,
 		languageSaid: w.languageSaid,
@@ -188,7 +189,7 @@ func (w *MainWindow) rollback(j *fileJournal) error {
 		_ = w.settings.Save()
 	}
 	s := j.state
-	w.currentFile, w.suggestedName, w.plainBundle = s.currentFile, s.suggestedName, s.plainBundle
+	w.currentFile, w.suggestedName, w.suggestedForm, w.plainBundle = s.currentFile, s.suggestedName, s.suggestedForm, s.plainBundle
 	w.unsavedSource, w.unsavedExtras = s.unsavedSource, s.unsavedExtras
 	b := s.bundle
 	if b != nil { // as it is on disk again (a rename moved the one in hand)
@@ -345,7 +346,7 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	lang, noCopy := w.langAfter(r)
 	said := w.languageSaid || r.lang != ""
 	if r.rename && r.from == "" { // not saved yet: only the name it will be saved by
-		w.suggestedName = filepath.Base(r.to)
+		w.suggestedName, w.suggestedForm = filepath.Base(r.to), r.form // the form chosen, for the first save
 		w.setLanguage(lang)
 		w.noFountainCopy, w.languageSaid = noCopy, said
 		w.afterNewName(oldName, "", filepath.Base(r.to))
@@ -505,7 +506,7 @@ func (w *MainWindow) relocateNow(r relocation, done func(error)) error {
 	// the window follows: its file, its source's and drafts' memories, its
 	// type and language
 	w.currentFile = r.to
-	w.suggestedName = ""
+	w.suggestedName, w.suggestedForm = "", notBundle
 	w.rememberRecent(r.to)
 	w.afterNewName(oldName, r.from, r.to)
 	noteMade()

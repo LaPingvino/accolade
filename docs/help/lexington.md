@@ -38,7 +38,7 @@ Made from Lexington's own list, so none is missing. `-i` and `-o` default to sta
 
 ### Format, paper and pagination
 
-- `-e string` — Element settings to use: a preset (see -presets) or a set from the settings file. (default "default")
+- `-e string` — Element settings to use: a preset (see -presets) or a set from the settings file (default: an .accolade's own format, else default).
 - `-presets` — List the presets for -e (stage play, radio, ...).
 - `-formats string` — Folders of format files of your own (name.toml, as Lexington's presets), as a path list, to use with -e.
 - `-page string` — Paper size for pdf, docx and odt: letter, a4 or a5 (default: the preset's suggestion, else letter).

@@ -50,3 +50,43 @@ func TestMarkLanguageRetitles(t *testing.T) {
 		t.Errorf("title after marking: %q", got)
 	}
 }
+
+// A script not saved yet renamed to an Accolade folder is one: Rename and
+// Save As show it so, and its first save writes the folder, not a zip.
+func TestRenameUnsavedToFolder(t *testing.T) {
+	w := newTestWindow(t, "INT. BARN - DAY\n\nRain falls.\n")
+	w.renameScript()
+	a := w.renameAsked
+	a.base.SetText("film")
+	a.kind.SetSelected(typeAccoladeFolder.label + " (" + typeAccoladeFolder.shownExt() + ")")
+	a.confirm()
+	if w.suggestedName != "film.accolade" || w.suggestedForm != bundleFolder {
+		t.Fatalf("renamed: %q, form %v", w.suggestedName, w.suggestedForm)
+	}
+	w.renameScript()
+	if got := w.renameAsked.kind.Selected; got != typeAccoladeFolder.label+" (.accolade)" {
+		t.Errorf("Rename again shows %q", got)
+	}
+	w.renameAsked.confirm() // the same again: still the folder
+	if w.suggestedForm != bundleFolder {
+		t.Errorf("renamed again: form %v", w.suggestedForm)
+	}
+	w.showSaveAs()
+	s := w.saveAsAsked
+	if s.chosen().id != typeAccoladeFolder.id {
+		t.Errorf("Save As has %q chosen", s.chosen().id)
+	}
+	p := filepath.Join(t.TempDir(), "film.accolade")
+	r := s.target()
+	w.saveAsWith(p, &r)
+	waitFor(t, "the first save", func() bool { return w.currentFile == p && !w.bundleBusy() })
+	if st, err := os.Stat(p); err != nil || !st.IsDir() {
+		t.Fatalf("first save: %v, a folder: %v", err, err == nil && st.IsDir())
+	}
+	if _, err := os.Stat(filepath.Join(p, "text.fountain")); err != nil {
+		t.Error(err)
+	}
+	if w.currentFile != p || w.suggestedForm != notBundle {
+		t.Errorf("after: %q, form %v", w.currentFile, w.suggestedForm)
+	}
+}

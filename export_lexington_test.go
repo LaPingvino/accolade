@@ -50,7 +50,7 @@ func TestParseForExportElementTypes(t *testing.T) {
 		}
 	}
 	want := []string{
-		"titlepage=", "Title=The Barn", "Author=Jane Smith",
+		"titlepage=", "Title=The Barn", "Author=Jane Smith", // no metasection row since Lexington 1.49
 		"Contact=Jane Smith", "Contact=1 Writer's Lane", "newpage=",
 		"action=FADE IN:", "scene=INT. BARN - DAY", "action=Rain hammers the roof.",
 		"speaker=JOHN", "paren=(beat)", "dialog=It's coming.", "trans=CUT TO:",

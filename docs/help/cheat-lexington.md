@@ -14,7 +14,7 @@
 
 ### Format, paper and pagination
 
-- `-e` — Element settings to use: a preset (see -presets) or a set from the settings file.
+- `-e` — Element settings to use …
 - `-presets` — List the presets for -e (stage play, radio, ...).
 - `-formats` — Folders of format files of your own (name.toml, as Lexington's presets), as a path list, to use with -e.
 - `-page` — Paper size for pdf, docx and odt: letter, a4 or a5 (default: the preset's suggestion, else letter).

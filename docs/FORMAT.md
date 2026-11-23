@@ -24,8 +24,9 @@ more than having a fixed spec.
    - the pictures the script uses (storyboard frames, cast photos, a document's images) are ordinary image files
      under `assets/`.
 
-To take out only the script, copy `text.fountain` (`unzip -p Film.accolade '*text.fountain' > Film.fountain`
-does it in one step). It is the file as Accolade wrote it, Accolade's own blocks included.
+To take out only the script, `lexington -i Film.accolade -o Film.fountain` writes it, or copy `text.fountain`
+(`unzip -p Film.accolade '*text.fountain' > Film.fountain` does it in one step). Both give the file as Accolade
+wrote it, Accolade's own blocks included.
 `lexington check Film.accolade` tells you whether a bundle is whole and readable.
 
 ## How stable it is
@@ -42,13 +43,14 @@ the same files:
 | Type | Zip form | Folder form |
 |---|---|---|
 | Accolade | `Name.accolade` (the default) | `Name.accolade/` |
-| Highland 2 | `Name.highland` (the default, and the form Highland writes) | `Name.highland/` (whether Highland opens it is untested) |
+| Highland 2 | `Name.highland` (the default, and the form Highland 2 is described as writing) | `Name.highland/` (whether Highland opens it is untested) |
 | TextBundle | `Name.textpack` | `Name.textbundle/` (the default) |
 
 - **Reading:** Lexington and Accolade tell the forms apart by what is on disk, a file or a folder, never by the
   name alone.
 - **Layout in a zip:** the files sit inside one top-level `Name.textbundle/` folder, as TextBundle's own writer
-  and Highland do. Files at the zip's root are read too.
+  does, and as Highland 2 is described to (no file saved by Highland 2 has been tried yet; plain-text `.highland`
+  files, which exist too, read as Fountain). Files at the zip's root are read too.
 - **Writing:** a bundle keeps the form and layout it was read in. Save As (Accolade folder, TextBundle folder),
   Rename and `lexington -form zip|folder` switch it.
 - **Why the folder keeps the `.accolade` name:** the folder form keeps the bundle's own name, `Name.accolade/`,
@@ -71,7 +73,7 @@ the same files:
 | `assets/drafts/drafts.json` | The drafts' index | Accolade's |
 | `assets/drafts/01-first-draft/text.fountain` | One saved draft, with `source.md` beside it when the source changed | Accolade's |
 | `assets/production/breakdown.json`, `schedule.json`, `revisions.json` | Production data: tags, the shooting schedule, the revisions | Accolade's |
-| `assets/lexington/lexington.toml`, `assets/lexington/formats/<key>.toml` | The part of Lexington's settings the script uses (its language's words, its format), so it prints the same on any machine. Only an `.accolade` carries these | Accolade's and Lexington's |
+| `assets/lexington/lexington.toml`, `assets/lexington/formats/<key>.toml` | The part of Lexington's settings the script uses (its language's words, its format), so it prints the same on any machine, in Accolade and with `lexington -i Name.accolade` (laid over that machine's settings; `-e` still picks another format). Only an `.accolade` carries these | Accolade's and Lexington's |
 | `characters.json`, `sprints.json`, … | Highland's sidecars | Highland's, kept as is |
 | anything else | Another app's files | Kept as is |
 

@@ -162,6 +162,18 @@ func (p *planPanel) show(r relocation) {
 	p.content.Refresh()
 }
 
+// nowType is the type the script is now, by name: its file's (a folder
+// is the Accolade folder); not saved yet, the one its name says, in the
+// form Rename chose for it (an unsaved script renamed to an Accolade
+// folder is saved first as one).
+func (w *MainWindow) nowType(name string) fileType {
+	t := typeOfName(cmp.Or(w.currentFile, name), w.markdown)
+	if w.currentFile == "" && t.id == typeAccolade.id && w.suggestedForm == bundleFolder {
+		t = typeAccoladeFolder
+	}
+	return t
+}
+
 // renameScript opens the rename editor: the base name, the script's
 // language and type, the resulting name live, and every file that
 // belongs to the script with where it goes. A full name typed with its
@@ -171,7 +183,7 @@ func (p *planPanel) show(r relocation) {
 func (w *MainWindow) renameScript() {
 	old := cmp.Or(w.scriptName(), w.untitledName())
 	parts := splitScriptName(old)
-	current := typeOfName(cmp.Or(w.currentFile, old), w.markdown) // the file itself: a folder is the Accolade folder
+	current := w.nowType(old)
 	if w.bundle == nil && w.isPlainBundle(w.currentFile) {
 		current = typeFountain
 	}
@@ -247,8 +259,8 @@ func (w *MainWindow) renameScript() {
 		if l, t := picked(); l != w.language || t.id == "dialect" { // said only by a choice
 			r.lang = l
 		}
-		if _, t := picked(); t.id != current.id && t.kind != notBundle && bundleKindOf(n) != notBundle {
-			r.form = t.kind // another type chosen: its form (the same type keeps the file's)
+		if _, t := picked(); (t.id != current.id || w.currentFile == "") && t.kind != notBundle && bundleKindOf(n) != notBundle {
+			r.form = t.kind // another type chosen, or none saved yet: its form (the same type keeps the file's)
 		}
 		if w.currentFile != "" && n != "" {
 			r.to = filepath.Join(filepath.Dir(w.currentFile), n)
