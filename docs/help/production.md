@@ -95,6 +95,14 @@ The header text is set in Preferences > Script > Production ("Revised page heade
 
 In the pane's Revise stage, Revised Pages PDF… sets this up, and Compare with the Last Issue shows what changed.
 
+### Stages and the two versions
+
+Each stage locks what came before and adds on top of it: the source (locked when you start adapting: [Adapting a Story](adapting.md#the-source-locked)), the **writer's draft** (locked by the White issue), and the **shooting script**, the writer's draft with production's layers: scene numbers, OMITTED scenes, the later issues, the breakdown and the schedule. The window's title says where the script is: **Source**, **Writing**, **Locked** (White issued, nothing changed since) or **Shooting** (a revision after it). A script without a source and with nothing issued shows none.
+
+View > Stages… lists what is locked, oldest first, each with **Compare** (with the script now), and what can be done next.
+
+One script exports both versions. File > Export Writer's Version… is the writer's draft as White locked it (before any issue, the script now), without scene numbers, OMITTED scenes, revision marks, locked pages or Accolade's data; the file's name ends in "- writer". File > Export Shooting Version… is the script now with all of it, as Export… always made. The Export dialog has the same choice (Version), and says what each one is.
+
 ### Taking an issue back
 
 - **Undo** right after Issue Draft… takes the whole issue back in one step: its entry in the drafts, the revision line, the page lock it wrote, and the scene lock the White issue made. **Redo** issues it again, as it was.

@@ -240,6 +240,7 @@ func (w *MainWindow) productionFollow() {
 		w.production.refresh()
 	}
 	w.ribbonFollow() // an issue, a tag, a day: the ribbon's stage
+	w.refreshStage() // and the title's (stages.go)
 }
 
 // refresh shows the script's stage and the stage looked at.

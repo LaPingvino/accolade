@@ -624,20 +624,6 @@ func (w *MainWindow) relink(script string, edits []linkEdit, c relinkCount, move
 	if len(edits) == 0 && !c.swap && c.check == 0 {
 		return true
 	}
-	if s := w.source; s != nil && len(moved) > 0 && s.linkedWords != nil {
-		// what the passages read when first seen linked goes with the
-		// link: still "changed since linked" (before the edit, which reads
-		// the links again)
-		for key, seen := range s.linkedWords {
-			base, rest, _ := strings.Cut(key, "\x03")
-			if nu, ok := moved[base]; ok {
-				if rest != "" {
-					nu += "\x03" + rest
-				}
-				s.linkedWords[nu] = seen
-			}
-		}
-	}
 	if len(edits) > 0 {
 		w.applyLinkEdits(edits)
 	}

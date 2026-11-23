@@ -234,6 +234,7 @@ type MainWindow struct {
 	filledWith string
 	// shared: the script edited together with peers (collab_window.go)
 	shared       *shared
+	stages       stagesState // the locked stages as last read, the title's (stages.go)
 	isFullscreen bool
 	// menuShortcuts are the menu's shortcuts in full screen, without the
 	// menu bar: on the canvas, and for the editor (menuShortcut)
@@ -1371,18 +1372,26 @@ func (w *MainWindow) onTextChanged(text string) {
 func (w *MainWindow) updateTitle() {
 	w.titleOf = w.frontKey()
 	title := "Accolade"
+	// the script's stage after its name, as refreshStage found it last
+	// (stages.go: not on every keystroke)
+	stage := ""
+	if w.stages.shown != stageNone && !w.markdown {
+		stage = " · " + w.stages.shown.String()
+	}
 
 	if w.currentFile != "" {
-		filename := filepath.Base(w.currentFile)
+		filename := filepath.Base(w.currentFile) + stage
 		if w.hasChanges {
 			title = "• " + filename + " - Accolade"
 		} else {
 			title = filename + " - Accolade"
 		}
 	} else if w.suggestedName != "" {
-		title = "• " + w.suggestedName + " (not saved yet) - Accolade"
+		title = "• " + w.suggestedName + " (not saved yet)" + stage + " - Accolade"
 	} else if w.hasChanges {
-		title = "• Untitled - Accolade"
+		title = "• Untitled" + stage + " - Accolade"
+	} else if stage != "" {
+		title = "Untitled" + stage + " - Accolade"
 	}
 	if d := w.midDoc(); d != nil { // the document in the main editor first (middle.go)
 		mark := ""
@@ -1400,6 +1409,13 @@ func (w *MainWindow) updateTitle() {
 		name := strings.TrimSuffix(title, " - Accolade")
 		if name == "Accolade" {
 			name = "Untitled"
+		}
+		if stage != "" && w.narrow { // the stage first: a phone's bar cuts the name short
+			mark, rest := "", strings.Replace(name, stage, "", 1)
+			if r, ok := strings.CutPrefix(rest, "• "); ok {
+				mark, rest = "• ", r
+			}
+			name = mark + w.stages.shown.String() + " · " + rest
 		}
 		w.headerBar.SetTitle(name)
 		if w.ribbon != nil {
@@ -1771,6 +1787,7 @@ func (w *MainWindow) onWindowWidth(width float32) {
 		w.pagesTabFollow(true) // the pages a tab of their own on a phone, beside the script on a desktop
 		w.relayout()
 		w.productionFollow() // its buttons go where the room is
+		w.updateTitle()      // the stage before the name on a phone (stages.go)
 		w.rebuildTopRow()    // a phone's top row, or the desktop's (toprow.go)
 		w.ribbonRefresh()    // one row of tabs, one of buttons, on a phone
 		if w.stripsShown() {

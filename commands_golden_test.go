@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))) // the moves write Linux keys too
+		want := stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -955,6 +955,18 @@ func tableReadMoves(name, golden string) string {
 		golden = strings.Replace(golden, "  Preview PDF [Primary+Shift+P]\n", "  Preview PDF [Primary+Shift+P]\n  Table Read\n", 1)
 	}
 	return golden
+}
+
+// stagesMoves: File's Export Writer's Version… and Export Shooting
+// Version…, Adaptation's Lock Source, Unlock Source and Relink From
+// Here…, View's Stages… (stages.go), in a screenplay's menu bar.
+func stagesMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-screenplay") {
+		return golden
+	}
+	golden = strings.Replace(golden, "  Export… [Primary+E]\n", "  Export… [Primary+E]\n  Export Writer's Version…\n  Export Shooting Version…\n", 1)
+	golden = strings.Replace(golden, "  ---\n  What Accolade Learned…\n", "  ---\n  Lock Source\n  Unlock Source\n  Relink From Here…\n  ---\n  What Accolade Learned…\n", 1)
+	return strings.Replace(golden, "  Statistics…\n", "  Statistics…\n  Stages…\n", 1)
 }
 
 // linkUpMoves: Suggest Links to the Source became Link Guess for This

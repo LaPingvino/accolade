@@ -84,7 +84,13 @@ Some links cannot be fixed. When two passages and the words around them are exac
 
 Choose a new version of the story with Adaptation > Choose Source… (a new draft, a heavily edited copy, a translation), and Accolade lines the whole old version up with the new one, passage by passage in order. Links whose passage it is sure of move at once, in one undo step; the rest get **↗ check?** as above. The status bar says, for example, "7 links moved, 3 to check, 1 not found".
 
-Within a session, the pane still shows a passage whose words changed after it was linked in the warning colour, and the count says how many are "changed since linked": check those scenes against the story.
+### The source, locked
+
+When you link the first passage, Accolade locks the source as you adapted it: a copy is kept in the drafts as **Source 1**, and the status bar says so. Editing the story after that does not touch the lock; the story as it is now is the next version in the making. Adaptation > Unlock Source takes the lock out again (Lock Source puts it back), and Adaptation > Lock Source locks a script that was linked before locks were kept.
+
+A linked passage whose words differ from the locked source shows **Changed since the script was linked** over its text, in the warning colour, and the count says how many are "changed since linked": check those scenes against the story. Without a lock, the story as the pane first read it in this session is what it is measured from.
+
+**Relink From Here** (on the picked changed passage, and in the Adaptation menu) asks first, then looks at the links again from the locked source to the story as it is now, and locks the story as it is now as the next source (Source 2). The notices go; the earlier lock stays in the drafts, to compare. View > Stages… lists the locks.
 
 ### Old links
 

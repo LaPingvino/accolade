@@ -429,7 +429,7 @@ var sampleFeatures = []struct {
 		t := w.textEditor.Text()
 		return want(strings.Contains(t, "EXT. GENERAL ZHIGALOV'S YARD - DAY #1A#"), "no 1A")
 	}},
-	{"drafts: a writer's, White and Blue issued", func(w *MainWindow) error {
+	{"drafts: the source locked, a writer's, White and Blue issued", func(w *MainWindow) error {
 		ds, err := readDrafts(w.extrasHome())
 		if err != nil {
 			return err
@@ -438,7 +438,7 @@ var sampleFeatures = []struct {
 		for _, d := range ds {
 			got = append(got, d.Kind+":"+cmpOr(d.Colour, d.Name))
 		}
-		return want(slices.Equal(got, []string{"draft:First draft", "issue:White", "issue:Blue"}), "%v", got)
+		return want(slices.Equal(got, []string{"source:Source 1", "draft:First draft", "issue:White", "issue:Blue"}), "%v", got)
 	}},
 	{"Blue's revision marks", func(w *MainWindow) error {
 		w.updateRevisionMarks()

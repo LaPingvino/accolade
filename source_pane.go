@@ -65,15 +65,17 @@ type sourcePane struct {
 	linkedBy   map[int][]int  // the spans (first lines) linking each passage, as the rows show them
 	labels     map[int]string // the spans' names (spanLabels), for the script text labelsFor
 	labelsFor  string
-	acts       []bool       // the rows' heights were made with the line under the text (rowActs)
+	acts       []rowShape   // the rows' heights were made with the line under the text, the notice over it (rowActs)
 	adapting   *adaptDialog // Adapt… open
 	lit        map[int]bool // linked from the cursor's scene
 	doubt      map[int]bool // an ambiguous link of the scene's fits them
 	jumping    bool         // the cursor is moving because of a tap here
 
-	statuses    []passageStatus     // as the rows show them (adaptation.go)
-	changed     map[int]bool        // adapted passages changed since they were linked
-	linkedWords map[string][]string // each link's passage's words as first seen linked (by the link's words)
+	statuses []passageStatus // as the rows show them (adaptation.go)
+	changed  map[int]bool    // adapted passages changed since they were linked
+	base     sourceBase      // what "changed since the script was linked" is measured from (source_base.go)
+	linksOf  docKey          // the script hadLinks is of: whether it linked a passage when last looked (linksSeen)
+	hadLinks bool
 	// linkedSrc is the source's text the script's links were last looked
 	// at against (relink.go), for linkedRef; snapWritten the one last kept
 	// for the script's next opening
@@ -218,7 +220,8 @@ func newPassageRow() *fyne.Container {
 	section.SizeName = theme.SizeNameCaptionText
 	section.Importance = widget.LowImportance
 	section.Hide()
-	line := container.NewHBox(section, more, scenes, adapt, cut)
+	relink := newRowButton("Relink From Here", theme.ViewRefreshIcon())
+	line := container.NewHBox(section, more, scenes, adapt, cut, relink)
 	line.Hide()
 	left := container.NewHBox(bar, newStatusMark()) // clear of the list's scroll bar on the right
 	return container.NewStack(bg, container.NewBorder(nil, nil, left, nil, container.NewVBox(text, line)))
@@ -244,6 +247,7 @@ type passageRow struct {
 	scenes  *widget.Button // → Scene 4
 	adapt   *widget.Button
 	cut     *widget.Button
+	relink  *widget.Button // Relink From Here
 }
 
 func rowParts(row *fyne.Container) passageRow {
@@ -255,6 +259,7 @@ func rowParts(row *fyne.Container) passageRow {
 		mark: left.Objects[1].(*statusMark), body: body,
 		text: body.Objects[0].(*widget.RichText), line: line, section: line.Objects[0].(*widget.Label), more: line.Objects[1].(*widget.Button),
 		scenes: line.Objects[2].(*widget.Button), adapt: line.Objects[3].(*widget.Button), cut: line.Objects[4].(*widget.Button),
+		relink: line.Objects[5].(*widget.Button),
 	}
 }
 
@@ -267,9 +272,12 @@ type rowActs struct {
 	adapt, cut bool
 	cutLabel   string
 	section    string // the section's label, on its heading's row (linkup.go)
+	// changed: the notice over the text, "Changed since the script was
+	// linked"; relink: Relink From Here, on the picked one (source_base.go)
+	changed, relink bool
 }
 
-func (a rowActs) any() bool { return a.scenes != "" || a.adapt || a.cut || a.section != "" }
+func (a rowActs) any() bool { return a.scenes != "" || a.adapt || a.cut || a.section != "" || a.relink }
 
 // fill puts md in a row, shown in full or short, with its line's acts;
 // it reports whether it was cut. The row is laid out again: the list may
@@ -277,6 +285,9 @@ func (a rowActs) any() bool { return a.scenes != "" || a.adapt || a.cut || a.sec
 // in it), and showing or hiding a button does not move it.
 func fill(r passageRow, md string, full bool, acts rowActs) bool {
 	segs, cut := rowSegments(md, !full)
+	if acts.changed {
+		segs = append([]widget.RichTextSegment{changedNotice()}, segs...)
+	}
 	r.text.Segments = segs
 	r.text.Refresh()
 	switch {
@@ -313,6 +324,7 @@ func fill(r passageRow, md string, full bool, acts rowActs) bool {
 		cutName = "Unmark the picked passage: not cut"
 	}
 	setLabel(r.cut, acts.cut, acts.cutLabel, cutName)
+	setLabel(r.relink, acts.relink, "Relink From Here", "Relink From Here: link the script to the source as it is now, and lock that")
 	if on := r.more.Visible() || acts.any(); on != r.line.Visible() {
 		setVisible(r.line, on)
 	} else if on {
@@ -338,7 +350,7 @@ func (s *sourcePane) toggleFull(id int) {
 	}
 	s.full[id] = !s.full[id]
 	if id < len(s.heights) && s.width > 0 {
-		s.heights[id] = s.measured(s.passages[id].Markdown, s.full[id], lineActs(s.hasActs(id)), s.width)
+		s.heights[id] = s.measured(s.passages[id].Markdown, s.full[id], lineActs(s.shapeOf(id)), s.width)
 		s.exact[id] = true
 		s.list.SetItemHeight(id, s.heights[id])
 	}
@@ -364,6 +376,11 @@ func (s *sourcePane) rowActs(id int) rowActs {
 		a.scenes, a.scenesName = plural(len(sc), "scene"), fmt.Sprintf("Choose one of the %d scenes adapting this passage", len(sc))
 	}
 	a.section = s.up.labelAt[id]
+	a.changed = s.noticed(id)
+	a.relink = a.changed && id == s.selected
+	if a.relink { // its room on the line (a pane is narrow): the notice says what changed
+		a.section = ""
+	}
 	if id == s.selected {
 		switch s.statusOf(id) {
 		case statusToDo:
@@ -390,6 +407,10 @@ func (s *sourcePane) show(row *fyne.Container, id int) {
 	r.cut.OnTapped = func() {
 		s.setPicked(id)
 		s.toggleCut()
+	}
+	r.relink.OnTapped = func() {
+		s.setPicked(id)
+		s.w.relinkFromHere()
 	}
 	switch {
 	case s.lit[id]:
@@ -486,13 +507,16 @@ func (s *sourcePane) estimateFor(width float32) rowEstimate {
 
 // estimate is a passage's row's height, by its length (in full or
 // short, Show All or the acts' line under it).
-func (e rowEstimate) estimate(p passage, full, line bool) float32 {
+func (e rowEstimate) estimate(p passage, full bool, shape rowShape) float32 {
 	n := utf8.RuneCountInString(p.Plain)
 	more := float32(0)
 	if !full && n > rowBudget {
 		n, more = shortRunes(p), e.one
-	} else if line {
+	} else if shape.line {
 		more = e.one
+	}
+	if shape.note {
+		more += e.step
 	}
 	lines := max(1, int(math.Ceil(float64(float32(n)/e.perLine))))
 	return e.one + float32(lines-1)*e.step + more
@@ -510,9 +534,9 @@ func (s *sourcePane) measure(width float32) {
 	s.est = s.estimateFor(width)
 	s.heights = make([]float32, len(s.passages))
 	s.exact = make([]bool, len(s.passages))
-	s.acts = make([]bool, len(s.passages))
+	s.acts = make([]rowShape, len(s.passages))
 	for id, p := range s.passages {
-		s.acts[id] = s.hasActs(id)
+		s.acts[id] = s.shapeOf(id)
 		s.heights[id] = s.est.estimate(p, s.full[id], s.acts[id])
 	}
 	s.setHeights(0, len(s.passages))
@@ -666,7 +690,7 @@ func (s *sourcePane) use(r *sourceRead, ps []passage) {
 	if r.ref != s.ref { // another source: its offers are new, the last one's question gone
 		s.up, s.seedAsked = linkUp{}, false
 		s.prompt.hide()
-		s.linkedWords = nil
+		s.base.session = sessionRead{}
 	}
 	s.ref, s.modTime, s.size, s.src, s.err = r.ref, r.modTime, r.size, r.src, r.err
 	s.fresh = true
@@ -1099,18 +1123,15 @@ func (s *sourcePane) syncActs() {
 	}
 	var flipped []int
 	for id := range s.passages {
-		if s.hasActs(id) != s.acts[id] {
+		if s.shapeOf(id) != s.acts[id] {
 			flipped = append(flipped, id)
 		}
 	}
 	if len(flipped) > 8 && s.width > 0 { // a line more or less, measured later
 		for _, id := range flipped {
-			s.acts[id] = !s.acts[id]
-			if s.acts[id] {
-				s.heights[id] += s.est.one
-			} else {
-				s.heights[id] = max(s.heights[id]-s.est.one, s.est.one)
-			}
+			was := s.acts[id]
+			s.acts[id] = s.shapeOf(id)
+			s.heights[id] = max(s.heights[id]+s.acts[id].extra(s.est)-was.extra(s.est), s.est.one)
 			s.exact[id] = false
 		}
 		s.setHeights(0, len(s.passages))
@@ -1122,7 +1143,7 @@ func (s *sourcePane) syncActs() {
 		return
 	}
 	for _, id := range flipped {
-		s.acts[id] = !s.acts[id]
+		s.acts[id] = s.shapeOf(id)
 		if s.width > 0 {
 			s.heights[id], s.exact[id] = s.measured(s.passages[id].Markdown, s.full[id], lineActs(s.acts[id]), s.width), true
 		} else {
@@ -1130,6 +1151,27 @@ func (s *sourcePane) syncActs() {
 		}
 		s.list.SetItemHeight(id, s.heights[id])
 	}
+}
+
+// rowShape is what a row has besides its text: the line of acts under
+// it, the notice over it (changed since linked).
+type rowShape struct{ line, note bool }
+
+// extra is how much taller a row of the shape is, estimated.
+func (r rowShape) extra(e rowEstimate) float32 {
+	var h float32
+	if r.line {
+		h += e.one
+	}
+	if r.note {
+		h += e.step
+	}
+	return h
+}
+
+// shapeOf is row id's shape as the pane is now.
+func (s *sourcePane) shapeOf(id int) rowShape {
+	return rowShape{line: s.hasActs(id), note: s.noticed(id)}
 }
 
 // hasActs reports whether row id has a line of acts (rowActs) under its
@@ -1143,11 +1185,12 @@ func (s *sourcePane) hasActs(id int) bool {
 
 // lineActs are acts that make the line show, or none: for a row's height
 // (the line's buttons are one row high, whatever they say).
-func lineActs(on bool) rowActs {
-	if on {
-		return rowActs{scenes: "→"}
+func lineActs(shape rowShape) rowActs {
+	a := rowActs{changed: shape.note}
+	if shape.line {
+		a.scenes = "→"
 	}
-	return rowActs{}
+	return a
 }
 
 // spanLabelsFor are the script's spans' names (spanLabels), made again

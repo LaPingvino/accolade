@@ -19,6 +19,7 @@ tabs: File Write Edit Production Collaboration [View]
   S Headings Only icon=foreground_heading.svg name=Headings Only
   S Unfold All icon=foreground_unfold.svg name=Unfold All
   S Strip icon=foreground_story-strip.svg name=Timeline Strip
+  S Stages icon=foreground_history.svg name=Stages…
 ## Window
   S Fullscreen icon=foreground_view-fullscreen.svg name=Fullscreen (Ctrl+Shift+F)
   S Document Type icon=foreground_file.svg name=Document Type

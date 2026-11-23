@@ -112,6 +112,8 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:page-setup** — File > Page Setup
 - **:print** — File > Print
 - **:language-for-new-scripts** `item` — File > New > Language for New Scripts
+- **:export-writer** — The writer's draft as locked, without production's layers (File > Export Writer's Version) (screenplay)
+- **:export-shooting** — The shooting script: scene numbers, OMITTED, revisions (File > Export Shooting Version) (screenplay)
 
 ### Collaboration
 
@@ -196,6 +198,9 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:what-accolade-learned** — Adaptation > What Accolade Learned (screenplay)
 - **:source** — Source — Adaptation > Source Pane (screenplay)
 - **:suggest-from-source-while-writing** — Adaptation > Options > Suggest from the Source While Writing (screenplay)
+- **:lock-source** — Keep the source as it is now as a locked source draft (Adaptation > Lock Source) (screenplay)
+- **:unlock-source** — Take the newest source lock out of the drafts store (Adaptation > Unlock Source) (screenplay)
+- **:relink-from-here** — Link the script to the source as it is now, and lock that (Adaptation > Relink From Here) (screenplay)
 
 ### Production
 
@@ -273,6 +278,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:toolbar** — View > Toolbar
 - **:add-to-top-row** — View > Add to the Top Row
 - **:reset-top-row** — View > Reset the Top Row
+- **:stages** — The script's locked stages: the source, the writer's draft, the issues (View > Stages) (screenplay)
 - **:table-read** — The script read aloud: large type on dark, a scene at a time, each actor's lines in a tint of their own (a window for a TV or projector; in the browser, a page to cast) (View > Table Read) (screenplay)
 - **:lock-ribbon-order** — View > Lock Ribbon Order (not in the browser)
 - **:quick-row** — View > Quick Row (not in the browser)

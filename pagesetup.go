@@ -135,6 +135,20 @@ func (w *MainWindow) layoutJobOf(p pageSetup) exportJob {
 // PDF all make theirs here. part sets the part of the script (Export's
 // filters) before the pages are matched to an issue's; nil for all of it.
 func (w *MainWindow) outputJob(p pageSetup, format, text string, part func(*exportJob)) exportJob {
+	return w.layersJob(p, format, text, part, true)
+}
+
+// writerJob is outputJob for the writer's version (stages_export.go):
+// none of production's layers, which are the script's now, not the
+// writer's draft's: no revision marks, locked pages, breakdown, nor
+// scene numbers made for scenes without.
+func (w *MainWindow) writerJob(p pageSetup, format, text string, part func(*exportJob)) exportJob {
+	p.revisions, p.revisedOnly, p.numberScenes = false, false, false
+	return w.layersJob(p, format, text, part, false)
+}
+
+// layersJob is outputJob, with production's layers or without.
+func (w *MainWindow) layersJob(p pageSetup, format, text string, part func(*exportJob), layers bool) exportJob {
 	j := w.layoutJobOf(p)
 	j.page = w.paperOf(p.paper)
 	a := pageSetupApplies(format, w.scriptIssued())
@@ -145,15 +159,16 @@ func (w *MainWindow) outputJob(p pageSetup, format, text string, part func(*expo
 		part(&j)
 	}
 	switch {
+	case !layers:
 	case format == "pdf" && a.revisions && p.revisions:
 		j = w.withRevisions(j, text, p.revisedOnly, p.pageColours)
 	case format == "fdx" && a.revisions && p.revisions:
 		j = w.withAllRevisions(j, text)
 	}
-	if format == "fdx" { // the scenes' lengths, and the breakdown's tags
+	if format == "fdx" && layers { // the scenes' lengths, and the breakdown's tags
 		j = w.withBreakdown(j, text)
 	}
-	if format == "pdf" { // in the pages its revision prints against
+	if format == "pdf" && layers { // in the pages its revision prints against
 		j = w.withIssuedPages(j, text)
 	}
 	if format == "pdf" && p.frames {

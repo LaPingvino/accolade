@@ -39,6 +39,9 @@ type cmdEnv struct {
 	renamed  bool // the last rename can be taken back (relocate.go)
 	brought  bool // the script brought Lexington settings of its own (lexington_carried.go)
 	issued   bool // the script has an issue (revisions.go)
+	// sourceLocked: a source lock is in the drafts store; sourceChanged:
+	// linked passages changed since (stages.go)
+	sourceLocked, sourceChanged bool
 	// writer: production is put away (role.go); the zero value shows
 	// everything, so an env made for a document's kind alone hides nothing
 	writer bool
@@ -126,6 +129,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	w.sessionEnv(&e)
 	w.compareEnv(&e)
 	w.tableReadEnv(&e)
+	w.stagesEnv(&e)
 	return e
 }
 
@@ -836,6 +840,7 @@ func newRegistry() *registry {
 	add(charactersCommands()...) // the Characters tab's (characters_tab.go)
 	add(sessionCommands()...)    // the Session tab's (session_tab.go)
 	add(compareCommands()...)    // the Compare tab's (compare_tab.go)
+	add(stageCommands()...)      // the locked stages, the two versions (stages.go)
 	add(tableReadCommands()...)  // the Table Read's (tableread_tab.go)
 	add(quickCommands()...)      // the ribbon's order and the Quick row (quick.go)
 
@@ -853,7 +858,7 @@ func newRegistry() *registry {
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
 			at("file.open"), at("file.recent"), at("file.openSample"), at("file.mergeChanges"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
-			sep(), at("file.export"), at("file.exportClean"), at("file.pageSetup"), at("file.print"),
+			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 		}},
 		{title: "Edit", homes: []home{
@@ -877,6 +882,7 @@ func newRegistry() *registry {
 			at("source.choose"), at("source.saveAs"), at("source.keepInside"), as("view.source", "Source Pane"), at("source.middle"),
 			sep(), at("source.next"), at("source.previous"), at("source.adapt"), at("source.cut"), at("source.goScene"),
 			sep(), at("source.link"), at("source.linkGuess"), at("source.linkUp"), at("source.update"), at("source.sections"),
+			sep(), at("source.lock"), at("source.unlock"), at("source.relinkFromHere"),
 			sep(), at("source.learned"), at("edit.fixLines"),
 		}},
 		{title: "Production", when: screenplayOnly, role: productionRole, homes: append([]home{
@@ -896,7 +902,7 @@ func newRegistry() *registry {
 			at("view.preview"), at("view.tableRead"), at("view.foldHere"), at("view.foldSections"),
 			at("view.headingsOnly"), at("view.unfoldAll"), {label: "Structure", sub: structureMenu()}, at("view.timelineStrip"), sep()},
 			dockHomes()...), // the side dock's panes together, and its own (dock.go)
-			sep(), at("view.statistics"), at("view.fullscreen"), at("set.toolbar"), at("view.ribbonLock"), at("set.quickRow"),
+			sep(), at("view.statistics"), at("view.stages"), at("view.fullscreen"), at("set.toolbar"), at("view.ribbonLock"), at("set.quickRow"),
 			at("view.topRowAdd"), at("view.topRowReset"),
 			sep(), at("view.documentType"), at("view.role"),
 		)},
@@ -1154,7 +1160,7 @@ var ribbonLabels = map[string]string{
 	"file.open": "Open", "file.save": "Save",
 	"file.newEmpty": "Empty", "file.newMarkdown": "Markdown", "file.newWindow": "Window", "file.newEmptyWindow": "Empty Window",
 	"file.recent": "Recent", "file.openSample": "Sample", "file.import": "Import", "file.importPandoc": "With pandoc",
-	"file.exportClean": "Clean Fountain", "file.pageSetup": "Page Setup",
+	"file.exportClean": "Clean Fountain", "file.exportWriter": "Writer's Version", "file.exportShooting": "Shooting", "file.pageSetup": "Page Setup",
 	"source.choose": "Choose Source", "file.startScreenplay": "Start Screenplay",
 	// Write
 	"format.rtl": "Right to Left", "md.rule": "Rule", "md.bullets": "Bullets", "md.numbers": "Numbered", "md.tasks": "Tasks",
@@ -1200,7 +1206,7 @@ func ribbonLayout() []ribbonTab {
 				at("set.newLanguage"), at("file.openSample")}}, // "New in: English": the language they are in; the sample to try things on
 			{title: "Open", homes: []home{big("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc")}},
 			{title: "Save", homes: []home{big("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename")}},
-			{title: "Output", when: noMarkdown, homes: []home{big("file.export"), big("file.print"), at("file.exportClean"), at("file.pageSetup")}},
+			{title: "Output", when: noMarkdown, homes: []home{big("file.export"), big("file.print"), at("file.exportWriter"), at("file.exportClean"), at("file.pageSetup")}},
 			// a document's, without Clean Fountain: Print small over Page Setup, so the tab fits
 			{title: "Output", when: markdownEnv, homes: []home{big("file.export"), at("file.print"), at("file.pageSetup")}},
 			// a source to adapt: the Adaptation tab once there is one
@@ -1275,7 +1281,7 @@ func ribbonLayout() []ribbonTab {
 			// what the window shows; its look (the preferences changed while working: ribbon_settings.go)
 			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")}},
 			// the story's shape: its folds, and the timeline strip over the script
-			{title: "Story", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll"), at("view.timelineStrip")}},
+			{title: "Story", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll"), at("view.timelineStrip"), at("view.stages")}},
 			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),
 				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")}},
 		}},

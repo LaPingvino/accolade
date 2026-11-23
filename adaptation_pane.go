@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"image/color"
 	"slices"
-	"strconv"
-	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -204,33 +202,22 @@ func (s *sourcePane) statusOf(id int) passageStatus {
 // rows again if a status changed, the count line, the Cut button.
 func (s *sourcePane) showStatuses(m *sourceModel) {
 	// changed since linked: linked nearly (the quoted words changed), or
-	// the passage's words other than when this session first saw it linked
+	// the passage's words other than the base's (source_base.go)
 	changed := map[int]bool{}
-	if s.linkedWords == nil {
-		s.linkedWords = map[string][]string{}
-	}
-	for i, mt := range m.matches {
+	diff := s.baseDiff()
+	found := false
+	for _, mt := range m.matches {
 		if !mt.found() {
 			continue
 		}
+		found = true
 		for p := mt.Passages[0]; p <= mt.last(); p++ {
-			key := m.links[i].Key
-			if m.links[i].Ref.Old {
-				key = strings.Join(m.links[i].Words, " ")
-			}
-			if p > mt.Passages[0] {
-				key += "\x03" + strconv.Itoa(p-mt.Passages[0])
-			}
-			if seen, ok := s.linkedWords[key]; !ok {
-				s.linkedWords[key] = s.passages[p].Words
-			} else if !slices.Equal(seen, s.passages[p].Words) {
-				changed[p] = true
-			}
-			if mt.Kind == linkNear {
+			if diff[p] || mt.Kind == linkNear {
 				changed[p] = true
 			}
 		}
 	}
+	s.linksSeen(found)
 	linkedBy := map[int][]int{}
 	for i, mt := range m.matches {
 		if !mt.found() {

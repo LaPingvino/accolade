@@ -24,6 +24,11 @@ type ExportDialog struct {
 	// Format selection
 	formatSelect *widget.Select
 
+	// the version (stages_export.go): the writer's or the shooting
+	// script, and what it is
+	versionRadio *widget.RadioGroup
+	versionNote  *widget.Label
+
 	// Output settings
 	outputDirEntry *widget.Entry
 	filenameEntry  *widget.Entry
@@ -87,6 +92,16 @@ func (ed *ExportDialog) createWidgets() {
 	ed.formatSelect = widget.NewSelect(exportFormats, ed.onFormatChanged)
 	// Don't set selected yet - wait until after containers are created
 
+	ed.versionNote = widget.NewLabel("")
+	ed.versionNote.Wrapping = fyne.TextWrapWord
+	ed.versionNote.SizeName = theme.SizeNameCaptionText
+	ed.versionNote.Importance = widget.LowImportance
+	ed.versionRadio = widget.NewRadioGroup([]string{versionLabels[versionWriter], versionLabels[versionShooting]}, func(string) {
+		ed.versionChanged()
+	})
+	ed.versionRadio.Required = true
+	ed.versionRadio.Horizontal = !ed.window.narrow
+
 	// Output settings
 	ed.outputDirEntry = widget.NewEntry()
 	ed.outputDirEntry.SetText(ed.getDefaultOutputDir())
@@ -120,6 +135,8 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 	outputSection := widget.NewCard("Output", "",
 		container.NewVBox(
 			labelled("Format:", ed.formatSelect),
+			labelled("Version:", ed.versionRadio),
+			ed.versionNote,
 			labelledWith("Directory:", ed.outputDirEntry, browseButton),
 			labelled("Filename:", ed.filenameEntry),
 		),
@@ -233,6 +250,40 @@ func (ed *ExportDialog) loadSettings() {
 	if dir := ed.settings.GetString("export-directory"); dir != "" {
 		ed.outputDirEntry.SetText(dir)
 	}
+	ed.setVersion(versionShooting) // what Export… makes: File > Export Writer's Version… chooses the other
+}
+
+// version is the version to export: versionWriter or versionShooting
+// (revised pages are the shooting script's).
+func (ed *ExportDialog) version() string {
+	if ed.revisedPages || ed.versionRadio == nil {
+		return versionShooting
+	}
+	return versionOf(ed.versionRadio.Selected)
+}
+
+// setVersion chooses version v.
+func (ed *ExportDialog) setVersion(v string) {
+	ed.versionRadio.SetSelected(versionLabels[v])
+	ed.versionChanged()
+}
+
+// versionChanged says what the version is, and names the file for it.
+func (ed *ExportDialog) versionChanged() {
+	ed.versionNote.SetText(ed.window.versionAbout(ed.version()))
+	if ed.filenameEntry != nil {
+		ed.updateDefaultFilename()
+	}
+}
+
+// content is the text to export: the writer's version's, or the script
+// now.
+func (ed *ExportDialog) content() string {
+	if ed.version() == versionWriter {
+		text, _ := ed.window.writerVersion()
+		return text
+	}
+	return ed.window.textEditor.Text()
 }
 
 func (ed *ExportDialog) saveSettings() {
@@ -271,6 +322,9 @@ func (ed *ExportDialog) updateDefaultFilename() {
 	base := ed.getDefaultFilename()
 	if ed.characterSelect != nil { // (not yet while the widgets are made)
 		base += filterSuffix(ed.chosenTags(), ed.chosenCharacter())
+	}
+	if ed.versionRadio != nil && ed.version() == versionWriter {
+		base += " - writer"
 	}
 	ext := "." + exportFormatByLabel(ed.formatSelect.Selected).ext
 	ed.filenameEntry.SetText(base + ext)
@@ -311,9 +365,9 @@ func (ed *ExportDialog) previewExport() {
 		name = "preview"
 	}
 	out := filepath.Join(dir, name+"."+f.ext)
-	content := w.textEditor.Text()
+	content := ed.content()
 	ed.statusLabel.SetText("Preparing the preview...")
-	job := ed.job() // read on the UI thread
+	job := ed.jobFor(content) // read on the UI thread
 	type made struct {
 		d    pdf.Drawing
 		note string
@@ -415,7 +469,7 @@ func (ed *ExportDialog) validateInputs() error {
 // script (pdfOrPrint).
 func (ed *ExportDialog) startExport() {
 	if exportFormatByLabel(ed.formatSelect.Selected).id == "pdf" {
-		ed.window.pdfOrPrint(ed.window.textEditor.Text(), ed.runExport)
+		ed.window.pdfOrPrint(ed.content(), ed.runExport)
 		return
 	}
 	ed.runExport()
@@ -433,10 +487,10 @@ func (ed *ExportDialog) runExport() {
 	// Get export parameters
 	outputPath := filepath.Join(ed.outputDirEntry.Text, ed.filenameEntry.Text)
 	format := exportFormatByLabel(ed.formatSelect.Selected).id
-	content := ed.window.textEditor.Text()
+	content := ed.content()
 
 	// Perform export in goroutine
-	job := ed.job() // the options, read here on the UI thread
+	job := ed.jobFor(content) // the options, read here on the UI thread
 	inBackground(func() error { return ed.performExportJob(content, outputPath, format, job) },
 		func(err error) { ed.finishExport(err, outputPath) })
 }
@@ -456,13 +510,22 @@ func (ed *ExportDialog) pageSetup() pageSetup {
 
 // job is the export as the dialog sets it up: the page setup's, of the
 // part of the script chosen.
-func (ed *ExportDialog) job() exportJob {
-	return ed.window.outputJob(ed.pageSetup(), ed.format(), ed.window.textEditor.Text(), func(j *exportJob) {
+func (ed *ExportDialog) job() exportJob { return ed.jobFor(ed.content()) }
+
+// jobFor is job for the content to export: the writer's version's is
+// laid out without production's layers (revision marks, locked pages,
+// the breakdown, scene numbers), which belong to the script now.
+func (ed *ExportDialog) jobFor(content string) exportJob {
+	part := func(j *exportJob) {
 		j.tags = ed.chosenTags()
 		j.character = ed.chosenCharacter()
 		j.sides = ed.chosenSides()
 		j.cueWords = ed.chosenCueWords()
-	})
+	}
+	if ed.version() == versionWriter {
+		return ed.window.writerJob(ed.pageSetup(), ed.format(), content, part)
+	}
+	return ed.window.outputJob(ed.pageSetup(), ed.format(), content, part)
 }
 
 func (ed *ExportDialog) performExport(content, outputPath, format string) error {
