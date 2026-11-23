@@ -71,6 +71,6 @@ require (
 	golang.org/x/time v0.14.0 // indirect
 )
 
-replace fyne.io/fyne/v2 => ../fyne-nestedclip // nested-clip bd9edc8a (linux-a11y 7ea7b487 + a clip inside another cut to it): until it is pushed and pinned
+replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261123113214-bd9edc8a9607 // linux-a11y bd9edc8a: a clip inside another is cut to it
 
 replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4
