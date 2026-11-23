@@ -35,37 +35,15 @@ func builtinFormat(key string) bool {
 }
 
 // formatText is a format's file to edit: one's own, else Accolade's, else
-// one on Lexington's preset; with the elements it starts from, as
-// comments, if it changes none.
+// one on Lexington's preset (the format editor shows what it starts
+// from).
 func formatText(key string) string {
-	text := fmt.Sprintf("Base = %q # Lexington's preset, as it is\n", key)
 	if p := formatFile(key); p != "" {
 		if b, err := os.ReadFile(p); err == nil {
-			text = string(b)
+			return string(b)
 		}
 	}
-	var spec formatSpec
-	if _, err := toml.Decode(text, &spec); err != nil || len(spec.Elements) > 0 {
-		return text
-	}
-	base := spec.Base
-	if base == "" {
-		base = rules.ScreenplayPreset
-	}
-	src, ok := rules.PresetSource(base)
-	if !ok {
-		return text
-	}
-	var b strings.Builder
-	b.WriteString(text)
-	fmt.Fprintf(&b, "\n# The elements it starts from (%s), to copy here, without the #, and change:\n", base)
-	for _, l := range strings.Split(strings.TrimRight(src, "\n"), "\n") {
-		if strings.HasPrefix(l, "Name") || strings.HasPrefix(l, "Description") || strings.HasPrefix(l, "Page") {
-			continue
-		}
-		b.WriteString("# " + l + "\n")
-	}
-	return b.String()
+	return fmt.Sprintf("Base = %q # Lexington's preset, as it is\n", key)
 }
 
 // saveFormat checks a format's file and keeps it in one's own folder.

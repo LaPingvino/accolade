@@ -28,7 +28,7 @@ func TestFormatFiles(t *testing.T) {
 	}
 
 	text := formatText("comic")
-	if !strings.Contains(text, `Base = "comic"`) || !strings.Contains(text, "# [Elements.") || !strings.Contains(text, "Panel") {
+	if !strings.Contains(text, `Base = "comic"`) || !strings.Contains(text, "Panel") {
 		t.Errorf("comic to edit:\n%s", text)
 	}
 	if err := saveFormat("comic", "Name = \"Comics\"\nBase = \"comic\"\n"); err != nil {

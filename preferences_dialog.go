@@ -3,6 +3,7 @@ package main
 import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -439,13 +440,15 @@ func (pd *PreferencesDialog) showFormatButtons() {
 	}
 }
 
-// editFormat edits the chosen format's file (a built-in one: a changed
-// copy of one's own).
+// editFormat edits the chosen format's file in the format editor (a
+// built-in one: a changed copy goes into one's own folder).
 func (pd *PreferencesDialog) editFormat() {
 	key := machineLex().selectedFormat(pd.scriptFormatSelect)
-	editTOML(pd.host, "Format: "+scriptFormat(key).Name, formatText(key),
-		"Written as Lexington's presets are: a Name, the format it starts from (Base) and the [Elements.…] that differ, with Accolade's toolbar buttons ([[Accolade.Buttons]]), which Lexington skips. Saved as "+key+".toml in your formats folder.",
-		nil, func(text string) error { return saveFormat(key, text) }, func() { pd.formatsChanged(key) })
+	path := formatFile(key)
+	if path == "" || !userFormat(key) {
+		path = filepath.Join(userFormatDir(), key+".toml")
+	}
+	openTOMLFile(pd.app, pd.host, path, formatText(key))
 }
 
 // newFormat makes a format of one's own from the chosen one.
@@ -526,14 +529,18 @@ func (pd *PreferencesDialog) addSettingsButton() *widget.Button {
 // editLexington edits Lexington's settings: formats and languages of
 // one's own show here and in the windows after saving.
 func (pd *PreferencesDialog) editLexington() {
-	editLexingtonSettings(pd.host, func() {
-		format, lang := machineLex().selectedFormat(pd.scriptFormatSelect), pd.languageSelect.Selected
-		pd.scriptFormatSelect.SetOptions(scriptFormatNames())
-		machineLex().selectFormat(pd.scriptFormatSelect, format)
-		pd.languageSelect.SetOptions(scriptLanguages())
-		pd.languageSelect.SetSelected(lang)
-		pd.app.scriptFormatsChanged()
-	})
+	openTOMLFile(pd.app, pd.host, lexingtonConfig(), lexingtonSettingsText())
+}
+
+// settingsFilesChanged shows the formats and languages again after the
+// settings or a format file was saved.
+func (pd *PreferencesDialog) settingsFilesChanged() {
+	format, lang := machineLex().selectedFormat(pd.scriptFormatSelect), pd.languageSelect.Selected
+	pd.scriptFormatSelect.SetOptions(scriptFormatNames())
+	machineLex().selectFormat(pd.scriptFormatSelect, format)
+	pd.languageSelect.SetOptions(scriptLanguages())
+	pd.languageSelect.SetSelected(lang)
+	pd.showFormatButtons()
 }
 
 // pageWindow is the window whose page setup Preferences shows: the

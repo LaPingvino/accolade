@@ -917,6 +917,10 @@ func (w *MainWindow) OpenFile() {
 // script, an import not edited since), else in a new one, so that
 // nothing unsaved is replaced.
 func (w *MainWindow) openPath(path string) {
+	if isTOMLFile(path) { // its editor (toml_open.go); the script stays
+		w.openTOMLFrom(path)
+		return
+	}
 	w.withTarget(func(target *MainWindow) {
 		if err := target.LoadFile(path); err != nil {
 			dialog.ShowError(fmt.Errorf("failed to open %s: %v", filepath.Base(path), err), target.fyneWindow)

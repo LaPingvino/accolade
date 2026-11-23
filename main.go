@@ -41,6 +41,8 @@ type Application struct {
 	// schemeSet once there is one)
 	scheme    string
 	schemeSet bool
+	// tomlEditors are the .toml files open in their editors (toml_editor.go)
+	tomlEditors []*tomlEditor
 }
 
 func NewApplication() *Application {
@@ -156,6 +158,22 @@ func (app *Application) openFiles(filePaths []string) {
 	// Open files
 	for i, filePath := range filePaths {
 		var window *MainWindow
+		if isTOMLFile(filePath) { // its editor, no script window (toml_open.go)
+			var parent fyne.Window
+			if len(app.windows) > 0 {
+				parent = app.windows[0].fyneWindow
+			}
+			if err := openTOMLPath(app, parent, filePath); err != nil {
+				log.Printf("failed to open %s: %v", filePath, err)
+				if parent != nil {
+					dialog.ShowError(fmt.Errorf("failed to open file %s: %v", filePath, err), parent)
+				} else {
+					app.newWindow()
+					dialog.ShowError(fmt.Errorf("failed to open file %s: %v", filePath, err), app.windows[0].fyneWindow)
+				}
+			}
+			continue
+		}
 		if strings.Contains(filePath, "#k=") { // a shared script's link
 			if i < len(emptyWindows) {
 				window = emptyWindows[i]
@@ -231,8 +249,8 @@ func (app *Application) onWindowClosed(window *MainWindow) {
 		}
 	}
 
-	// If no windows left, quit
-	if len(app.windows) == 0 {
+	// If no windows left (no .toml editor either), quit
+	if len(app.windows) == 0 && len(app.tomlEditors) == 0 {
 		app.fyneApp.Quit()
 	}
 }

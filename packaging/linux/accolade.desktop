@@ -7,5 +7,5 @@ Exec=accolade %F
 Icon=accolade
 Terminal=false
 Categories=Office;WordProcessor;
-MimeType=text/x-fountain;
+MimeType=text/x-fountain;application/toml;
 Keywords=screenplay;fountain;script;writing;

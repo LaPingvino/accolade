@@ -230,159 +230,41 @@ func setConfItem(text string, item rules.Item, key string, conf rules.TOMLConf) 
 	return "", errors.New("nothing to add for " + item.Kind)
 }
 
-// tomlValue is v written as a TOML value.
-func tomlValue(v any) string {
-	var b strings.Builder
-	_ = toml.NewEncoder(&b).Encode(struct{ V any }{v})
-	return strings.TrimSpace(strings.TrimPrefix(b.String(), "V = "))
-}
+// The text edits of adopt, on toml_text.go's: a key set in [table], one
+// taken out, a root key set, tables taken out or added. One that cannot
+// be made (a dotted key, a value written inline) leaves the text as it
+// was, which adopt then refuses (it reads the result back).
 
-// The editing below is by lines, as people write TOML: [Table] headers
-// on lines of their own, a key's value starting on its line; a value over
-// several lines (an array) goes on until its brackets close. adopt reads
-// the result back before writing it.
-
-// tomlHeader is the table a header line opens ("Elements.mine" for
-// [Elements.mine]), ok false for another line.
-func tomlHeader(line string) (string, bool) {
-	t := strings.TrimSpace(line)
-	if !strings.HasPrefix(t, "[") || strings.HasPrefix(t, "[[") {
-		return "", false
-	}
-	end := strings.Index(t, "]")
-	if end < 0 {
-		return "", false
-	}
-	var parts []string
-	for _, p := range strings.Split(t[1:end], ".") {
-		parts = append(parts, strings.Trim(strings.TrimSpace(p), `"'`))
-	}
-	return strings.Join(parts, "."), true
-}
-
-// tomlKeyOf is the key a line sets ("eo" for eo = [...]), "" for none.
-func tomlKeyOf(line string) string {
-	t := strings.TrimSpace(line)
-	if t == "" || strings.HasPrefix(t, "#") || strings.HasPrefix(t, "[") {
-		return ""
-	}
-	k, _, ok := strings.Cut(t, "=")
-	if !ok {
-		return ""
-	}
-	return strings.Trim(strings.TrimSpace(k), `"'`)
-}
-
-// valueEnd is the line after the value started on lines[i] ends.
-func valueEnd(lines []string, i int) int {
-	depth := 0
-	for j := i; j < len(lines); j++ {
-		inStr := byte(0)
-		for k := 0; k < len(lines[j]); k++ {
-			ch := lines[j][k]
-			switch {
-			case inStr != 0:
-				if ch == '\\' && inStr == '"' {
-					k++
-				} else if ch == inStr {
-					inStr = 0
-				}
-			case ch == '"' || ch == '\'':
-				inStr = ch
-			case ch == '#':
-				k = len(lines[j])
-			case ch == '[' || ch == '{':
-				depth++
-			case ch == ']' || ch == '}':
-				depth--
-			}
-		}
-		if depth <= 0 {
-			return j + 1
-		}
-	}
-	return len(lines)
-}
-
-// setTableKey sets key = value in [table]: its line(s) replaced, else
-// added under the header, else the table added at the end.
 func setTableKey(text, table, key, value string) string {
-	lines := strings.Split(text, "\n")
-	in := false
-	for i := 0; i < len(lines); i++ {
-		if h, ok := tomlHeader(lines[i]); ok {
-			if in { // the table ends: add the key at its end
-				return strings.Join(slices.Insert(lines, lastFilled(lines, i), key+" = "+value), "\n")
-			}
-			in = h == table
-			continue
-		}
-		if in && tomlKeyOf(lines[i]) == key {
-			end := valueEnd(lines, i)
-			return strings.Join(slices.Replace(lines, i, end, key+" = "+value), "\n")
-		}
+	out, err := setKey(text, append(splitTOMLKey(table), key), value)
+	if err != nil {
+		return text
 	}
-	if in {
-		return strings.Join(slices.Insert(lines, lastFilled(lines, len(lines)), key+" = "+value), "\n")
-	}
-	return appendTables(text, "["+table+"]\n"+key+" = "+value+"\n")
+	return out
 }
 
-// dropTableKey takes key's line(s) out of [table].
 func dropTableKey(text, table, key string) string {
 	lines := strings.Split(text, "\n")
-	in := false
-	for i := 0; i < len(lines); i++ {
-		if h, ok := tomlHeader(lines[i]); ok {
-			in = h == table
-			continue
-		}
-		if in && tomlKeyOf(lines[i]) == key {
-			return strings.Join(slices.Delete(lines, i, valueEnd(lines, i)), "\n")
-		}
+	s, ok := tomlTable(tomlSections(lines), splitTOMLKey(table))
+	if !ok {
+		return text
+	}
+	if i := keyLine(lines, s, key); i >= 0 {
+		return strings.Join(slices.Delete(lines, i, valueEnd(lines, i)), "\n")
 	}
 	return text
 }
 
-// lastFilled is where a line goes at the end of a table ending before
-// line end: after its last line that is not blank.
-func lastFilled(lines []string, end int) int {
-	for end > 0 && strings.TrimSpace(lines[end-1]) == "" {
-		end--
-	}
-	return end
-}
-
-// setRootKey sets key = value before the first table: its line(s)
-// replaced, else added at the top.
 func setRootKey(text, key, value string) string {
-	lines := strings.Split(text, "\n")
-	for i := 0; i < len(lines); i++ {
-		if _, ok := tomlHeader(lines[i]); ok {
-			break
-		}
-		if tomlKeyOf(lines[i]) == key {
-			return strings.Join(slices.Replace(lines, i, valueEnd(lines, i), key+" = "+value), "\n")
-		}
+	out, err := setKey(text, []string{key}, value)
+	if err != nil {
+		return text
 	}
-	return key + " = " + value + "\n" + text
+	return out
 }
 
 // dropTables takes out [name] and every [name.…] table.
-func dropTables(text, name string) string {
-	lines := strings.Split(text, "\n")
-	var out []string
-	drop := false
-	for _, l := range lines {
-		if h, ok := tomlHeader(l); ok {
-			drop = h == name || strings.HasPrefix(h, name+".")
-		}
-		if !drop {
-			out = append(out, l)
-		}
-	}
-	return strings.Join(out, "\n")
-}
+func dropTables(text, name string) string { return dropTablesAt(text, splitTOMLKey(name)) }
 
 // stripTable takes an encoded block's bare [name] header out (its
 // subtables say their whole name), so it can follow a file that has one.

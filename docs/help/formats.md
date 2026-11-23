@@ -64,7 +64,7 @@ On save, Accolade changes only the text, its own entry in `info.json` and its ow
 
 ### Settings that travel with an .accolade
 
-A language or a script format of your own (Preferences > Script: Edit Lexington Settings…, New Format from This…) lives in your settings, so another machine would not know it. An .accolade takes along what its script uses, so it reads and prints the same anywhere:
+A language or a script format of your own (Preferences > Script: Edit Lexington Settings…, New Format from This…; see [Settings Files](settings.md)) lives in your settings, so another machine would not know it. An .accolade takes along what its script uses, so it reads and prints the same anywhere:
 
 - `assets/lexington/lexington.toml` — the script's language's scene words and matchup, which language is standard Fountain's (`Standard`) and its words, in full — even when they are Lexington's own, so the script reads the same on a machine whose words for that language were changed — and a format kept in your Lexington settings if it differs from Lexington's defaults;
 - `assets/lexington/formats/name.toml` — the script's format, if it is one of your own, and any of your own it starts from (`Base`);

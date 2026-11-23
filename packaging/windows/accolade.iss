@@ -47,6 +47,10 @@ Root: HKA; Subkey: "Software\Classes\.fountain\OpenWithProgids"; ValueType: stri
 Root: HKA; Subkey: "Software\Classes\Accolade.Fountain"; ValueType: string; ValueName: ""; ValueData: "Fountain screenplay"; Flags: uninsdeletekey; Tasks: fountainassoc
 Root: HKA; Subkey: "Software\Classes\Accolade.Fountain\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\Accolade.exe,0"; Tasks: fountainassoc
 Root: HKA; Subkey: "Software\Classes\Accolade.Fountain\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Accolade.exe"" ""%1"""; Tasks: fountainassoc
+; Open With for Lexington's settings and format files (.toml), never the default
+Root: HKA; Subkey: "Software\Classes\.toml\OpenWithProgids"; ValueType: string; ValueName: "Accolade.TOML"; ValueData: ""; Flags: uninsdeletevalue
+Root: HKA; Subkey: "Software\Classes\Accolade.TOML"; ValueType: string; ValueName: ""; ValueData: "Lexington settings or format"; Flags: uninsdeletekey
+Root: HKA; Subkey: "Software\Classes\Accolade.TOML\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Accolade.exe"" ""%1"""
 
 [Run]
 Filename: "{app}\Accolade.exe"; Description: "{cm:LaunchProgram,Accolade}"; Flags: nowait postinstall skipifsilent

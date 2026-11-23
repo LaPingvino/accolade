@@ -1140,6 +1140,44 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   margins/indent/case/spacing/font with a live sample, the toolbar buttons as a reorderable list; same TOML tab and
   round-trip rule. A .toml that is neither opens as text with a note. Saving a format file inside the formats folder
   makes it pickable at once (presetsIn already reloads by content).
+  Done 2026-11-23 (branch tomleditor): Lexington v1.28.0 first (rules/describe.go: ConfFields, LanguageFields,
+  ShapeFields, CueRuleFields, FormatFields, ElementKeys, FormatFileFields, Describe; a reflection test that every
+  field/key/cue rule is described; tagged and pushed with master). Accolade: the TEXT is the only state — every
+  control is one path edit of the TOML text (toml_text.go: sections incl. [[blocks]] and their comments, multi-line
+  strings, inline tables rewritten whole, quoted keys; dotted keys refused), and toml_doc.go keeps an edit only if the
+  text reads back as the same map but for that path and checks out for its kind (margins, align, style, pagination,
+  color scheme, direction, cue rules, Base). The old line helpers of lexington_adopt.go now sit on it (a [[block]]
+  ends a table; the old ones let a key fall into the last button). classifyTOML: lexington.toml or a formats folder by
+  place, else by a key only that kind has AND a typed decode (Base/Accolade/Elements.<element>.<field> → format;
+  Languages/Standard/Elements.<set>.<element> → settings; a root Name or an Extensions list alone, FyneApp.toml,
+  empty, other → text). A comment at the end of an edited key's line stays. Editors (toml_editor.go): a WINDOW of its
+  own on the desktop, a dialog over the window in the browser (as Preferences) — not a middle tab: the file is no part
+  of a script, it opens from Preferences and from `accolade x.toml` with no script window, and saving changes every
+  window; app.tomlEditors keeps Accolade running while one is open (the real binary, `accolade comic.toml` under
+  xvfb-run, stays up with only the editor). Title: kind, path, and for a lexington.toml that the lexington command
+  reads it (checked: the CLI reads x.de.fountain with German rules from a file without [Languages.de]). Settings editor (settings_editor.go): General
+  (Standard, Extensions with Lexington's .hekaya greyed), Languages (one at a time; each field Lexington's default
+  greyed with Override / Use the Default; lists add/remove; Matchup by role, Cues as checks, Shape, TitleKeys; a
+  language in the older [Scenes]/[Matchups]/[Directions] moves out on its first edit, as they are read over
+  [Languages]), Element Sets (one set, one element; Lexington's presets read-only with Override = copy whole).
+  Format editor (format_editor.go): Format (Name/Description with Base's as placeholder, Page, Base), Elements (Base's
+  greyed; Change It Here copies Base's element whole, since an element replaces Base's whole), Buttons (↑ ↓ ✕, Add;
+  blocks moved whole with their comments). Live sample (toml_sample.go): Lexington's own PDF drawing (cli.Write →
+  Drawing → raster) of a short script, one at a time (no app-wide draw guard exists to share), dropped when its page
+  or editor goes, redrawn 250 ms after a change, beside the form (under it on a phone). TOML tab
+  = the same text; wrong TOML disables the pages, the status says the line, Save refuses. Help tab and Help >
+  Settings Files (docs/help/settings.go, generated from rules.Describe; Accolade vs the CLI: the CLI reads
+  ./lexington.toml or -config, adds presets; Accolade layers over the defaults). Opening: openPath (File > Open,
+  drop, Open Recent) and openFiles (command line) branch on .toml before any window is picked; .toml in the open
+  filter and the browser's picker; desktop file MimeType application/toml; Windows Open With (Accolade.TOML).
+  Saving lexington.toml in the settings folder reloads the settings; a format in the formats folder (or Add to My
+  Formats from elsewhere; Accolade's built-in copy saves into one's own folder) is a script format at once
+  (scriptFormatsChanged + Preferences' lists). Browser: File > Open of a .toml copies it to /files and opens the
+  dialog; Save writes it there and offers it as a download; the settings and formats live in the kept settings
+  folder. Removed: editTOML, editLexingtonSettings, defaultLexingtonSettings, formatText's commented copy of the
+  base. Not done: Format has no case or spacing fields in Lexington (margins, font, size, style, align, prefix,
+  postfix, hide are what there is); the sample does not highlight the chosen element; macOS has no document-type
+  entry for .toml. Shots (TestTOMLEditorScreenshots, tomleditor-{desktop,phone}-{settings-0..3,format-0..4}) looked at.
 - 2026-11-22 (Joop, on the folding agent's 4-first + 3-last words: "What about checking shortest unique for start and
   finish instead? You could auto-fix that when new text breaks this, and when impossible signal this with a
   warning."): SHORTEST UNIQUE LINKS, right after foldchips merges (second agent slot; touches textfrag/link code,
