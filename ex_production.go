@@ -91,6 +91,11 @@ func (r exRefs) scene(ref string) (int, error) {
 		}
 		return len(r.heads) - 1, nil
 	}
+	for i := range r.heads { // a label as written first (10a and 10A are two), then any case
+		if r.label(i) == ref {
+			return i, nil
+		}
+	}
 	for i := range r.heads {
 		if strings.EqualFold(r.label(i), ref) {
 			return i, nil
@@ -461,6 +466,12 @@ func (w *MainWindow) exMoveUnits(arg string, from, to int, given bool) error {
 			return err
 		}
 	} else if given {
+		for from < to && strings.TrimSpace(r.lines[from]) == "" { // the blank lines a scene object takes (mas) are no unit's
+			from++
+		}
+		for to > from && strings.TrimSpace(r.lines[to]) == "" {
+			to--
+		}
 		x, y = tr.At(from), tr.At(to)
 		if x < 0 || y < 0 {
 			return errors.New("The lines are in no scene or section")
@@ -600,10 +611,7 @@ func (w *MainWindow) exRefChoices() []exChoice {
 			scene++
 			continue
 		}
-		name := "#" + strings.ReplaceAll(it.Text, " ", "")
-		if f := strings.Fields(it.Text); len(f) > 0 {
-			name = "#" + f[0]
-		}
+		name := "#" + it.Text // whole: #Act Two, not the first #Act
 		out = append(out, exChoice{text: name, label: name, desc: strings.Repeat("#", max(it.Level, 1)) + " " + it.Text})
 	}
 	return out

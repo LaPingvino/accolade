@@ -205,6 +205,7 @@ Preferences > Editor > Keys gives the editor vim's or helix's keys; the menus' s
 - **w b e** — the next word's start, the word's start before, the word's end (helix: selecting the word)
 - **0 ^ $** — the line's start, its first character, its end
 - **gg G** — the first line / the last
+- **Enter, Backspace** — down a line to its start; left
 - **1 … 9** — a count before a motion or command: 3w, 2dd, 2]]
 
 #### Changing
@@ -219,6 +220,10 @@ Preferences > Editor > Keys gives the editor vim's or helix's keys; the menus' s
 - **]] [[** — the next / previous scene heading (helix: select that scene)
 - **]s [s** — the next / previous section heading (helix: select that section)
 - **mas mis maS miS** — select a scene, its inside, a section, its inside; then d c y p, or : to move it
+- **Alt+j Alt+k** — move the unit at the cursor (a scene or section with all it holds, a speech, a paragraph) down / up past the next
+- **Alt+h Alt+l** — promote / demote it (a scene out of its section, into the one before)
+- **Alt+J Alt+K** — into the next / previous scene
+- **Alt+H Alt+L** — pass the last speech on / take in the next (barf, slurp)
 
 #### Selecting
 
@@ -245,6 +250,7 @@ Preferences > Editor > Keys gives the editor vim's or helix's keys; the menus' s
 
 - **za zc zo** — fold or unfold the heading at the cursor, fold it, unfold it
 - **zR zM** — unfold all, fold all
+- **Tab, Shift+Tab** — on a heading: cycle its fold; all of them
 - **gj gk** — the next scene or section heading / this one's or the one before
 - **gh gl** — the section the heading is in / the first heading inside it
 - **gs** — the scene's guessed link to the source (Link Guess for This Scene…)

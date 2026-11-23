@@ -4,7 +4,7 @@ Made by `UPDATE_KEYBOARD=1 go test -run TestKeyboardAudit .` from the command re
 
 ## How every command is reached
 
-Every command of the registry is in the command palette (Ctrl+K, F1) in some state of the window (TestEveryCommandByKeyboard), and on the `:` line by its ex name (vim's and helix's keys). Fyne's menus have no mnemonics (no Alt+letter into a menu, no underlined letters): the keyboard's way into the ribbon is its **key tips** instead — F10, or Alt pressed and let go (not on a Mac), then the tab's letter, then the button's (the column below; a disabled button has none at that moment, and the letters are given again when the buttons change). In the Menus look, the ribbon's ☰ and the palette are the way. The key tips below are the sample's (a script in production at the Schedule stage): the Production tab shows the stage the script is at first, so another stage's buttons have their tips when the script is at it.
+Every command of the registry is in the command palette (Ctrl+K, F1) in some state of the window (TestEveryCommandByKeyboard), and on the `:` line by its ex name (vim's and helix's keys). Fyne's menus have no mnemonics (no Alt+letter into a menu, no underlined letters; the word is nowhere in the Fyne fork's source): the keyboard's way into the ribbon is its **key tips** instead — F10, or Alt pressed and let go (not on a Mac), then the tab's letter, then the button's (the column below; a disabled button has none at that moment, and the letters are given again when the buttons change). In the Menus look, the ribbon's ☰ and the palette are the way. The key tips below are the sample's (a script in production at the Schedule stage): the Production tab shows the stage the script is at first, so another stage's buttons have their tips when the script is at it.
 
 Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys where set (Ctrl is Cmd there otherwise), the browser its webKeys where set (the browser keeps some for itself). Contextual commands (the Stripboard's, the Cards', the Table Read's …) are there while their view is.
 
@@ -332,7 +332,7 @@ A command never has one of these (TestNoKeyClashes).
 - **macOS:** Cmd+H (hides the app); Cmd+Option+H (hides the other apps); Cmd+M (minimizes the window); Cmd+Tab (the app switcher); Cmd+` (the app's next window); Cmd+Space (Spotlight); Cmd+Shift+3 (a screenshot); Cmd+Shift+4 (a screenshot of a part); Cmd+Shift+5 (the screenshot tools); Cmd+Option+D (shows or hides the Dock); Control+Up (Mission Control); Control+Down (the app's windows); Control+Left (the Space before); Control+Right (the next Space)
 - **browser:** Ctrl+N (a new browser window); Ctrl+Shift+N (a new private window); Ctrl+T (a new tab); Ctrl+Shift+T (the tab closed last, again); Ctrl+W (closes the tab); Ctrl+F4 (closes the tab); Ctrl+Shift+W (closes the browser window); Alt+F4 (closes the browser window); Ctrl+Tab (the next tab); Ctrl+Shift+Tab (the tab before); Ctrl+PgDn (the next tab); Ctrl+PgUp (the tab before)
 
-The browser's are Chromium's reserved commands (chrome/browser/ui/accelerator_table.cc, kReservedCommandIds, as its accelerator table maps them; read 2026-11-23), which a page can never take; Firefox keeps the same.
+The browser's are Chromium's reserved commands (chrome/browser/ui/accelerator_table.cc, kReservedCommandIds, as its accelerator table maps them; read 2026-11-23), which a page can never take. Firefox's list was not read: it is believed to be like it, unchecked.
 
 ## Clashes, per mode and platform
 
@@ -345,7 +345,9 @@ Found and fixed by this audit:
 - Inside or Outside… and Character Name… panicked when given from a menu, the palette or the `:` line (no button to open under): their menu opens under the cursor now.
 - The markers (Highland's directives) had no keys: they have Highland's, Control+M (Marker…) and Control+Option+M (Next Marker) on a Mac, and Control+Shift+Option+M for Previous Marker beside them; elsewhere the same with Ctrl (Ctrl+M, Ctrl+Alt+M, Ctrl+Shift+Alt+M), none of which clashed.
 - The help wrote Ctrl+Next and Ctrl+Prior for Ctrl+PgDn and Ctrl+PgUp.
-- A dialog's scroll did not follow the focus (Tab onto a control below the fold left it out of sight): Tab now scrolls every scroll holding the control to it (scrollToFocus, keyboard.go).
+- A dialog's scroll did not follow the focus (Tab onto a control below the fold left it out of sight): Tab now scrolls every scroll holding the control to it (scrollToFocus, keyboard.go; not when the focused widget keeps Tab, as the editor does).
+- The Drafts list hid its focus under the selected draft: a line round it now.
+- vim's Ctrl+Shift+R was redo too; it is Ctrl+R alone. The modes' keys with a modifier (modeShortcuts) are checked against what the modes take (TestModeShortcutsListed), on a Mac as Control and Option.
 - The Table Read's reading area took the focus and did not show it: a line round it now.
 - helix's `/` did nothing (vim's opened the search bar): it opens the search bar.
 
@@ -353,7 +355,31 @@ Left as they are: Ctrl+Alt+J/K/A/G (Adaptation) are AltGr+J/K/A/G on Windows wit
 
 ## Tab order and focus in the dialogs, views and panes
 
-TestDialogTabOrder opens every dialog of Accolade's own (every command whose label ends in …), the views and the panes on the sample, and fails when Tab does not reach one of their shown, enabled controls (a row of tabs is one stop: its tab in front, the arrow keys along it). TestDialogsFocusVisible checks pixel by pixel, on a desktop and a phone, that the focus shows on every control Tab reaches in: production.renumber, production.unlockNumbers, production.issue, production.reports, file.drafts, file.saveDraft, file.titlePage, file.addSettings, structure.swap, structure.move, write.newScene, view.tableRead, view.stages. The views and panes are TestFocusIsVisible's, TestDockFocusVisible's, TestStripboardFocusVisible's, TestRibbonFocusVisible's, TestPageViewFocusVisible's and the Characters', Adapt and Save As tests'.
+TestDialogTabOrder opens on the sample every command whose label ends in … (Accolade's own dialogs), the views (stripboard, cards, Table Read, Compare, the merge view), the side panes and the settings editor, and fails when Tab does not reach one of its shown, enabled controls (a row of tabs is one stop: its tab in front, the arrow keys along it). These must open, or it fails: production.renumber, production.unlockNumbers, production.issue, production.reports, file.drafts, file.saveDraft, file.titlePage, structure.swap, structure.move, write.newScene, view.stages, app.preferences, settings editor, merge view, collab.compare, production.stripboard, view.tableRead, view.cards and the panes (changes, characters, help, notes, outline, production, source).
+
+These open nothing over the window on the sample as it opens, so their Tab order is not audited there (the test fails when this list is not what happened):
+
+- Find (`edit.find`): it needs the search bar (TestFocusIsVisible checks it)
+- Replace (`edit.replace`): it needs the search bar (TestFocusIsVisible checks it)
+- Adapt Source Passage (`source.adapt`): it needs a passage picked in the Source pane
+- Link Up the Script (`source.linkUp`): it needs unlinked scenes that read like the source
+- Link Guess for This Scene (`source.linkGuess`): it needs a guess for the cursor's scene
+- What Accolade Learned (`source.learned`): it needs the Source pane's list (the panes are audited)
+- Tag Selection (`production.tag`): it needs words selected
+- Break Down (`production.breakdown`): it needs the Production pane's Break Down stage (the panes are audited)
+- Schedule (`production.schedule`): it needs the Production pane's Schedule stage (the panes are audited)
+- Page Setup (`preview.pageSetup`): it needs the pages in front (File > Page Setup… is audited)
+- Move Strip To (`strips.moveTo`): it needs a strip chosen on the stripboard
+- Edit Day (`strips.editDay`): it needs a day chosen on the stripboard
+- Add to the Top Row (`view.topRowAdd`): it needs the palette's picker, a layer of the window (TestPalette)
+- Apply the Kept Rules Again (`fixup.applyRules`): it needs an imported script with fix-up rules
+- Read with OCR Again (`fixup.ocrAgain`): it needs a script read from a PDF
+- Rename Everywhere (`chars.rename`): it needs a character opened in the Characters pane
+- Merge Into (`chars.merge`): it needs a character opened in the Characters pane
+- Add Alias (`chars.alias`): it needs a character opened in the Characters pane
+- Relink From Here (`source.relinkFromHere`): it needs a source changed since its lock
+
+TestDialogsFocusVisible checks pixel by pixel that the focus shows on every control Tab reaches in production.renumber, production.unlockNumbers, production.issue, production.reports, file.drafts, file.titlePage, structure.swap, write.newScene, view.tableRead, view.stages on a desktop, and in production.renumber, file.drafts, structure.swap, file.titlePage, view.tableRead on a phone too (Tab scrolls as the window does: TestTabScrollsToFocus goes through the window's key preview). The views and panes are TestFocusIsVisible's, TestDockFocusVisible's, TestStripboardFocusVisible's, TestRibbonFocusVisible's, TestPageViewFocusVisible's and the Characters', Adapt and Save As tests'.
 
 Not opened by the audit:
 
@@ -363,6 +389,7 @@ Not opened by the audit:
 - Import as Markdown (`file.import`): Fyne's file dialog
 - Import with pandoc (`file.importPandoc`): Fyne's file dialog (pandoc)
 - Join a Shared Script (`file.join`): joins over the network
+- Merge Changes (`file.mergeChanges`): Fyne's file dialog first; the merge itself is audited as "merge view"
 - Open (`file.open`): Fyne's file dialog
 - Open Bundle Folder (`file.openFolder`): Fyne's folder dialog
 - Print (`file.print`): the system's print dialog

@@ -88,6 +88,10 @@ func TestVimStructureObjects(t *testing.T) {
 		// the last scene: the end block stays where it is
 		{"Gamma", "das", strings.Replace(vimStructScript, "EXT. C - NIGHT\n\nGamma.\n\n", "", 1)},
 		{"Title", "das", vimStructScript}, // not in a scene
+		// the last scene deleted, then put: before the end block, not in it
+		{"Gamma", "dasp", vimStructScript},
+		// a scene selected as one (vas), deleted, put: as das p
+		{"Alpha", "vasdp", strings.Replace(vimStructScript, "INT. A - DAY\n\nAlpha.\n\nINT. B - DAY\n\nBeta.\n\n", "INT. B - DAY\n\nBeta.\n\nINT. A - DAY\n\nAlpha.\n\n", 1)},
 	} {
 		e, _ := vimAt(t, vimStructScript, c.from)
 		vimKeys(e, c.keys)

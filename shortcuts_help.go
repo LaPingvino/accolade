@@ -50,6 +50,8 @@ func keyLabel(k fyne.KeyName) string {
 		return "PgUp"
 	case fyne.KeyEscape:
 		return "Esc"
+	case fyne.KeyBackspace:
+		return "Backspace"
 	}
 	return string(k)
 }

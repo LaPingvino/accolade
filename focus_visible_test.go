@@ -37,7 +37,9 @@ func invisibleFocus(c fyne.Canvas) []string {
 	seen := map[fyne.Focusable]bool{}
 	for i := 0; i < 80; i++ {
 		c.FocusNext()
-		scrollToFocus(c) // as Tab does (keyPreview)
+		if followsFocus(c) { // as Tab does there (keyPreview)
+			scrollToFocus(c)
+		}
 		f := c.Focused()
 		if f == nil || seen[f] {
 			break
@@ -58,7 +60,9 @@ func invisibleFocus(c fyne.Canvas) []string {
 			if try > 0 {
 				time.Sleep(time.Duration(try) * 15 * time.Millisecond)
 				c.Focus(f)
-				scrollToFocus(c)
+				if followsFocus(c) {
+					scrollToFocus(c)
+				}
 			}
 			focused = c.Capture()
 			c.Unfocus()

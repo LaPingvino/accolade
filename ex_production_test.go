@@ -4,6 +4,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/test"
 )
 
 // exScript has two sections and four scenes, numbered by hand (1A after
@@ -220,5 +223,39 @@ func TestExProductionComplete(t *testing.T) {
 		if c, _ := exCommands().lookup(n); c == nil || c.name != n {
 			t.Errorf(":%s names %v", n, c)
 		}
+	}
+}
+
+// mas opens the command line with the scene's lines; after 2 and Enter
+// move it there, in vim's keys and helix's (mas, then :).
+func TestVimMoveObjectByLine(t *testing.T) {
+	for _, mode := range []string{"vim", "helix"} {
+		w, _ := exWin(t, exScript)
+		w.settings.SetString("editor-keys", mode)
+		w.applyEditorSettings()
+		c := w.fyneWindow.Canvas()
+		c.Focus(w.textEditor)
+		at := len([]rune(exScript[:strings.Index(exScript, "Beta.")]))
+		w.textEditor.SetCursorOffset(at)
+		for _, r := range "mas" {
+			w.textEditor.TypedRune(r)
+		}
+		if mode == "helix" {
+			w.textEditor.TypedRune(':')
+			test.Type(w.exEntry, "move ")
+		}
+		if w.exEntry == nil || w.exEntry.Text != "'<,'>move " {
+			t.Fatalf("%s: the command line has %q", mode, w.exEntry.Text)
+		}
+		if got := exCommands().complete(w.exEntry.ctx, w.exEntry.Text).choices; len(got) == 0 || got[0].text != "after " {
+			t.Errorf("%s: after a range of lines, :move offers %v first", mode, got)
+		}
+		test.Type(w.exEntry, "after 2")
+		w.exEntry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+		if got := sceneOrder(w); got != "A C B D" {
+			t.Errorf("%s: mas, after 2: %s (%s)", mode, got, w.statusLabel.Text)
+		}
+		w.settings.SetString("editor-keys", "standard")
+		w.applyEditorSettings()
 	}
 }

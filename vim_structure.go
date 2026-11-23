@@ -181,6 +181,10 @@ func (v *vim) objectKey(ia, f, r rune) {
 		v.exWith([2]int{first, last}, "move ")
 	case 'v':
 		v.anchor, v.vcur = from, b.LineStart(last)
+		v.visualUnit = [3]int{0, 0, 0}
+		if ia == 'a' {
+			v.visualUnit = [3]int{int(r), v.anchor, v.vcur}
+		}
 		v.mode = vimVisualLine
 		v.select_()
 		v.say(v.mode.String())
@@ -244,14 +248,35 @@ func (v *vim) putUnit(before bool, n int) bool {
 	}
 	k, _ := unitKindOf(v.unitKind)
 	tr := v.unitTree()
-	first, last, ok := tr.Span(v.curLine(), k)
+	cur := v.curLine()
+	first, last, ok := tr.Span(cur, k)
+	place := -1 // not in a unit: a line to put it at
 	if !ok {
-		return false
+		// in the blocks at the end (das on the last scene): before them;
+		// before the first unit (the title page): before it
+		if end := min(tr.S.End, len(tr.S.Lines)); cur >= end {
+			place = end
+			for place < len(tr.S.Lines) && strings.TrimSpace(tr.S.Lines[place]) == "" {
+				place++ // the end block's own line: the blank ones before it stay before the scene
+			}
+		} else if h, found := tr.HeadAfter(cur, k, 1, false); found {
+			place = h
+		} else {
+			place = end
+		}
 	}
 	text := strings.Repeat(strings.TrimRight(v.reg, "\n")+"\n\n", max(n, 1))
 	v.edit(func(b *buffer.Buffer, t []rune, _ int) {
-		at := b.LineStart(first)
-		if !before {
+		at := 0
+		switch {
+		case place >= b.LineCount():
+			at = b.Len()
+		case place >= 0:
+			at = b.LineStart(place)
+		default:
+			at = b.LineStart(first)
+		}
+		if place < 0 && !before {
 			if tl := tr.Trail(last); tl+1 < b.LineCount() {
 				at = b.LineStart(tl + 1)
 			} else {

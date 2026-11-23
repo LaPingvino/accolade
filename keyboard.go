@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -111,7 +112,7 @@ type keptKey struct{ key, by string }
 // reserved commands (chrome/browser/ui/accelerator_table.cc,
 // kReservedCommandIds: close tab and window, new window, incognito, new
 // tab, restore tab, next and previous tab, exit) as its accelerator table
-// maps them, read 2026-11-23; Firefox keeps the same ones.
+// maps them, read 2026-11-23 (Firefox's own list was not read).
 var browserKeptKeys = []keptKey{
 	{"Ctrl+N", "a new browser window"},
 	{"Ctrl+Shift+N", "a new private window"},
@@ -185,6 +186,24 @@ var modeShortcuts = map[string][]string{
 	"helix": {"Ctrl+R", "Alt+J", "Alt+K", "Alt+H", "Alt+L", "Shift+Alt+J", "Shift+Alt+K", "Shift+Alt+H", "Shift+Alt+L", "Alt+S", "Alt+,"},
 }
 
+// focusFollowers are the canvases whose Tab calls scrollToFocus (the
+// main windows': keyPreview).
+var focusFollowers sync.Map
+
+// followsFocus reports whether c's Tab scrolls to the focus.
+func followsFocus(c fyne.Canvas) bool { _, ok := focusFollowers.Load(c); return ok }
+
+// tabScrolls is keyPreview's part for Tab: unless the focused widget
+// keeps Tab (the editor: a cue, a parenthetical), the scrolls follow the
+// focus once it has moved.
+func (w *MainWindow) tabScrolls() {
+	c := w.fyneWindow.Canvas()
+	if t, ok := c.Focused().(interface{ AcceptsTab() bool }); ok && t.AcceptsTab() {
+		return
+	}
+	w.after(0, func() { scrollToFocus(c) })
+}
+
 // scrollToFocus scrolls every scroll holding c's focused control so that
 // the control is in sight: Tab onto a dialog's control below its fold
 // shows it (Fyne's scrolls do not follow the focus). Called after Tab
@@ -204,10 +223,17 @@ func scrollToFocus(c fyne.Canvas) {
 	// the scrolls in sight; a control inside a widget (a radio group's
 	// item) is found by where it is: in the scroll's content
 	var scrolls []*container.Scroll
+	seen := map[uintptr]bool{} // a widget's fields may point back up
 	var walk func(o fyne.CanvasObject)
 	walk = func(o fyne.CanvasObject) {
 		if o == nil || !o.Visible() {
 			return
+		}
+		if v := reflect.ValueOf(o); v.Kind() == reflect.Pointer {
+			if seen[v.Pointer()] {
+				return
+			}
+			seen[v.Pointer()] = true
 		}
 		var kids []fyne.CanvasObject
 		switch x := o.(type) {

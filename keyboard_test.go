@@ -57,6 +57,9 @@ func keyClashes(env cmdEnv, p keyPlatform) []string {
 	modeKeys := map[string][]string{}
 	for mode, ks := range modeShortcuts {
 		for _, k := range ks {
+			if p == platMac { // the modes' Ctrl and Alt are Control and Option there
+				k = strings.NewReplacer("Ctrl+", "Control+", "Alt+", "Option+").Replace(k)
+			}
 			modeKeys[k] = append(modeKeys[k], mode)
 		}
 	}
@@ -64,9 +67,7 @@ func keyClashes(env cmdEnv, p keyPlatform) []string {
 		if !c.applies(env) {
 			continue
 		}
-		names := keyNamesOn(c, p)
-		for i, s := range keysOn(c, p) {
-			k := names[i]
+		for _, k := range keyNamesOn(c, p) {
 			if prev, dup := seen[k]; dup && prev != c.id {
 				out = append(out, fmt.Sprintf("%s: %s and %s", k, prev, c.id))
 			}
@@ -74,10 +75,8 @@ func keyClashes(env cmdEnv, p keyPlatform) []string {
 			if by, ok := kept[k]; ok {
 				out = append(out, fmt.Sprintf("%s: %s, but %s keeps it (%s)", k, c.id, p, by))
 			}
-			if p != platMac { // a Mac's are Cmd: never the modes' Control or Option
-				for _, mode := range modeKeys[keyName(s)] {
-					out = append(out, fmt.Sprintf("%s: %s takes it from %s's normal mode", k, c.id, mode))
-				}
+			for _, mode := range modeKeys[k] { // a Mac's named its way (macModeKey)
+				out = append(out, fmt.Sprintf("%s: %s takes it from %s's normal mode", k, c.id, mode))
 			}
 		}
 	}
@@ -116,6 +115,12 @@ func TestKeyClashesFound(t *testing.T) {
 	c.keys = []fyne.Shortcut{altKey(fyne.KeyJ)}
 	if got := strings.Join(keyClashes(cmdEnv{}, platDesktop), "\n"); !strings.Contains(got, "vim's normal mode") {
 		t.Errorf("a mode's key not found: %q", got)
+	}
+	wasMac := c.macKeys
+	defer func() { c.macKeys = wasMac }()
+	c.macKeys = []fyne.Shortcut{plainKey(fyne.KeyJ, fyne.KeyModifierAlt)} // Option+J on a Mac
+	if got := strings.Join(keyClashes(cmdEnv{}, platMac), "\n"); !strings.Contains(got, "vim's normal mode") {
+		t.Errorf("a mode's key on a Mac not found: %q", got)
 	}
 }
 

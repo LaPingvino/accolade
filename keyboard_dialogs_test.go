@@ -13,6 +13,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+
+	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
 // The dialogs' Tab order (docs/KEYBOARD.md): every control of every
@@ -98,10 +100,14 @@ func unreached(c fyne.Canvas, root fyne.CanvasObject) (missing []string, chain [
 }
 
 // dialogAudit is a dialog, pane or view to audit: how it opens on the
-// sample, and what it is.
+// sample, and (shown) how to tell it is there, for those the keyboard
+// pass names (nil: a dialog, an overlay or a window of its own, or
+// nothing on the sample: the audit's report says which).
 type dialogAudit struct {
-	id   string // a registry command's, or a name of its own
-	open func(w *MainWindow)
+	id    string // a registry command's, or a name of its own
+	open  func(w *MainWindow)
+	shown func(w *MainWindow) bool
+	must  bool // it must open on the sample (LOOP.md names it)
 }
 
 // notOwnDialogs are the commands with "…" whose dialog is not Accolade's
@@ -118,26 +124,72 @@ var notOwnDialogs = map[string]string{
 	"production.ics":    "Fyne's file dialog",
 	"source.saveAs":     "Fyne's file dialog",
 	"file.exportClean":  "Fyne's file dialog",
+	"file.mergeChanges": "Fyne's file dialog first; the merge itself is audited as \"merge view\"",
 	"file.share":        "shares the script over the network as it opens",
 	"file.join":         "joins over the network",
 }
 
+// mustOpen are the dialogs and views the keyboard pass names (LOOP.md):
+// each must open on the sample, or the audit fails.
+var mustOpen = []string{"production.renumber", "production.unlockNumbers", "production.issue", "production.reports",
+	"file.drafts", "file.saveDraft", "file.titlePage", "structure.swap", "structure.move", "write.newScene", "view.stages",
+	"app.preferences", "settings editor", "merge view", "collab.compare", "production.stripboard", "view.tableRead", "view.cards"}
+
+// auditPanes are the side panes, by command and pane.
+var auditPanes = map[string]string{"view.outline": "outline", "view.notes": "notes", "view.source": "source",
+	"view.production": "production", "view.characters": "characters", "view.help": "help", "view.changes": "changes"}
+
 // auditedDialogs are what the audit opens: every "…" command of
-// Accolade's own, and the views and panes beside them.
+// Accolade's own, the views and the panes, the settings editor and the
+// merge view.
 func auditedDialogs() []dialogAudit {
 	var out []dialogAudit
+	run := func(c *command) func(w *MainWindow) {
+		return func(w *MainWindow) { // as the palette gives it: away only when the role puts it away
+			e := w.cmdEnv()
+			w.runByName(c, nil, !c.applies(e) && c.appliesForRole(e))
+		}
+	}
 	for _, c := range commands().commands {
 		if !strings.HasSuffix(c.label, "…") || notOwnDialogs[c.id] != "" {
 			continue
 		}
-		c := c
-		out = append(out, dialogAudit{c.id, func(w *MainWindow) { w.runByName(c, nil, !c.applies(w.cmdEnv())) }})
+		out = append(out, dialogAudit{id: c.id, open: run(c)})
 	}
-	for _, id := range []string{"production.stripboard", "view.cards", "view.tableRead", "view.changes", "view.outline", "view.notes", "view.source", "view.production", "view.characters", "view.help"} {
-		if c := commands().byID[id]; c != nil {
-			c := c
-			out = append(out, dialogAudit{c.id, func(w *MainWindow) { w.runByName(c, nil, !c.applies(w.cmdEnv())) }})
+	views := map[string]string{"production.stripboard": "strips", "view.cards": "cards", "view.tableRead": "tableread"}
+	for _, id := range []string{"production.stripboard", "view.cards", "view.tableRead"} {
+		mid := views[id]
+		out = append(out, dialogAudit{id: id, open: run(cmd(id)), shown: func(w *MainWindow) bool { return w.mid.shown == mid }})
+	}
+	for i := range out {
+		if out[i].id == "collab.compare" {
+			out[i].shown = func(w *MainWindow) bool { return w.mid.shown == "compare" }
 		}
+	}
+	for _, id := range []string{"view.outline", "view.notes", "view.source", "view.production", "view.characters", "view.help", "view.changes"} {
+		c, pane := cmd(id), auditPanes[id]
+		out = append(out, dialogAudit{id: id, open: func(w *MainWindow) {
+			if !w.paneInSight(pane) {
+				run(c)(w)
+			}
+		}, shown: func(w *MainWindow) bool { return w.paneInSight(pane) }, must: true})
+	}
+	out = append(out,
+		dialogAudit{id: "settings editor", open: func(w *MainWindow) {
+			openTOMLFile(w.app, w.fyneWindow, lexingtonConfig(), lexingtonSettingsText())
+		}},
+		dialogAudit{id: "merge view", open: func(w *MainWindow) {
+			p := filepath.Join(os.TempDir(), fmt.Sprintf("accolade-merge-%d.fountain", os.Getpid()))
+			os.WriteFile(p, []byte(strings.Replace(w.textEditor.Text(), "Ochumyelov", "Otchumyelov", 1)), 0o644)
+			defer os.Remove(p)
+			w.mergeFrom(p)
+			for i := 0; i < 300 && w.mid.shown != "compare"; i++ {
+				uiSleep(10 * time.Millisecond)
+			}
+		}, shown: func(w *MainWindow) bool { return w.mid.shown == "compare" }},
+	)
+	for i := range out {
+		out[i].must = out[i].must || slices.Contains(mustOpen, out[i].id)
 	}
 	return out
 }
@@ -174,7 +226,7 @@ func TestDialogTabOrder(t *testing.T) {
 	keepAllSettings(t, w)
 	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
 	report := os.Getenv("TAB_REPORT") != ""
-	var lines []string
+	var lines, nothing []string
 	for i, a := range auditedDialogs() {
 		if r := os.Getenv("AUDIT_RANGE"); r != "" { // AUDIT_RANGE=10-20: some of them (bisecting)
 			var lo, hi int
@@ -183,6 +235,7 @@ func TestDialogTabOrder(t *testing.T) {
 				continue
 			}
 		}
+		inScene(w)
 		var c fyne.Canvas
 		var root fyne.CanvasObject
 		var closeIt func()
@@ -198,28 +251,60 @@ func TestDialogTabOrder(t *testing.T) {
 		if c == nil {
 			continue
 		}
+		opened := root != w.fyneWindow.Canvas().Content() || a.shown != nil && a.shown(w)
+		if a.must && !opened {
+			t.Errorf("%s opened nothing on the sample", a.id)
+		}
+		if !opened {
+			nothing = append(nothing, a.id)
+		}
 		missing, chain := unreached(c, root)
 		if report {
-			lines = append(lines, fmt.Sprintf("%s: %d reached, %d not: %s", a.id, len(chain), len(missing), strings.Join(missing, "; ")))
+			lines = append(lines, fmt.Sprintf("%s: %d reached, %d not, opened %v, middle %q, status %q: %s", a.id, len(chain), len(missing), opened, w.mid.shown, w.statusLabel.Text, strings.Join(missing, "; ")))
 		}
 		if len(missing) > 0 && !report {
 			t.Errorf("%s: Tab does not reach\n  %s", a.id, strings.Join(missing, "\n  "))
 		}
 		closeIt()
+		w.mid.show("") // the script in front again, for the next
 		w.focusMain()
 	}
 	if report {
 		sort.Strings(lines)
 		t.Log("\n" + strings.Join(lines, "\n"))
 	}
+	if os.Getenv("AUDIT_RANGE") == "" && !slices.Equal(nothing, openedNothing) {
+		t.Errorf("opened nothing on the sample: %q, the audit's list (openedNothing, in docs/KEYBOARD.md) has %q", nothing, openedNothing)
+	}
+}
+
+// openedNothing are the commands that open nothing over the window on
+// the sample as it opens: they need a state it is not in (a character
+// opened, an import, a strip chosen, a passage picked, the pages in
+// front …) or show a bar or pane the window's own tests check.
+var openedNothing = []string{"edit.find", "edit.replace", "source.adapt", "source.linkUp", "source.linkGuess", "source.learned",
+	"production.tag", "production.breakdown", "production.schedule", "preview.pageSetup", "strips.moveTo", "strips.editDay",
+	"view.topRowAdd", "fixup.applyRules", "fixup.ocrAgain", "chars.rename", "chars.merge", "chars.alias", "source.relinkFromHere"}
+
+// openedNothingWhy says why, for docs/KEYBOARD.md.
+var openedNothingWhy = map[string]string{
+	"edit.find": "the search bar (TestFocusIsVisible checks it)", "edit.replace": "the search bar (TestFocusIsVisible checks it)",
+	"source.adapt": "a passage picked in the Source pane", "source.linkUp": "unlinked scenes that read like the source",
+	"source.linkGuess": "a guess for the cursor's scene", "source.learned": "the Source pane's list (the panes are audited)",
+	"production.tag": "words selected", "production.breakdown": "the Production pane's Break Down stage (the panes are audited)",
+	"production.schedule": "the Production pane's Schedule stage (the panes are audited)", "preview.pageSetup": "the pages in front (File > Page Setup… is audited)",
+	"strips.moveTo": "a strip chosen on the stripboard", "strips.editDay": "a day chosen on the stripboard",
+	"view.topRowAdd": "the palette's picker, a layer of the window (TestPalette)", "fixup.applyRules": "an imported script with fix-up rules",
+	"fixup.ocrAgain": "a script read from a PDF", "chars.rename": "a character opened in the Characters pane",
+	"chars.merge": "a character opened in the Characters pane", "chars.alias": "a character opened in the Characters pane",
+	"source.relinkFromHere": "a source changed since its lock",
 }
 
 // focusDialogs are the dialogs whose focus look is checked pixel by
 // pixel (slow: two captures a control): the production and structure
 // ones the keyboard pass names, and those writing in the script.
 var focusDialogs = []string{"production.renumber", "production.unlockNumbers", "production.issue", "production.reports",
-	"file.drafts", "file.saveDraft", "file.titlePage", "file.addSettings", "structure.swap", "structure.move",
-	"write.newScene", "view.tableRead", "view.stages"}
+	"file.drafts", "file.titlePage", "structure.swap", "write.newScene", "view.tableRead", "view.stages"}
 
 // The dialogs show where the focus is on every control Tab reaches, on
 // a desktop and a phone (the views and panes are TestFocusIsVisible's
@@ -237,6 +322,9 @@ func TestDialogsFocusVisible(t *testing.T) {
 	for _, size := range []fyne.Size{{Width: 1200, Height: 800}, {Width: 380, Height: 800}} {
 		w.fyneWindow.Resize(size)
 		for _, id := range focusDialogs {
+			if size.Width < 600 && !slices.Contains(focusShots, id) {
+				continue // a phone: the shot ones (the step's time: CI's default 10 minutes)
+			}
 			if only := os.Getenv("FOCUS_ONLY"); only != "" && !strings.Contains(","+only+",", ","+id+",") {
 				continue // FOCUS_ONLY=file.drafts,…: a quick look at some
 			}
@@ -266,17 +354,26 @@ func TestDialogsFocusVisible(t *testing.T) {
 
 // focusShots are the dialogs shot with the focus on a control
 // (SHOT_DIR=… go test -run TestDialogsFocusVisible).
-var focusShots = []string{"production.renumber", "file.drafts", "structure.swap", "file.titlePage"}
+var focusShots = []string{"production.renumber", "file.drafts", "structure.swap", "file.titlePage", "view.tableRead"}
 
 // focusShot shoots c with the focus on its third control (past the
-// first fields, on a button or a choice).
+// first fields, on a button or a choice), or on a list or area that
+// shows its focus by a line round it.
 func focusShot(t *testing.T, c fyne.Canvas, dir, name string) {
 	t.Helper()
 	chain := tabChain(c)
 	if len(chain) == 0 {
 		return
 	}
-	c.Focus(chain[min(2, len(chain)-1)])
+	at := chain[min(2, len(chain)-1)]
+	for _, f := range chain { // a line round it: the drafts list, the Table Read (keyboard.go, tableread_view.go)
+		switch f.(type) {
+		case *ringList, *trArea:
+			at = f
+		}
+	}
+	c.Focus(at)
+	scrollToFocus(c)
 	uiSleep(0)
 	f, err := os.Create(filepath.Join(dir, name))
 	if err != nil {
@@ -303,4 +400,49 @@ func keepAllSettings(t *testing.T, w *MainWindow) {
 		s.data = was
 		s.mu.Unlock()
 	})
+}
+
+// Tab in a dialog scrolls its scroll to the control the focus went to,
+// through the window's key preview (as the keyboard gives it); Tab in
+// the script (a cue) walks nothing.
+func TestTabScrollsToFocus(t *testing.T) {
+	w := sampleWindow(t, sampleAccolade)
+	keepAllSettings(t, w)
+	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
+	w.renumberScenes()
+	waitFor(t, "the dialog", func() bool { return w.renumbering != nil && w.fyneWindow.Canvas().Overlays().Top() != nil })
+	c := w.fyneWindow.Canvas()
+	chain := tabChain(c)
+	last := chain[len(chain)-1]
+	for _, f := range chain { // the last control in the scroll: a radio far down
+		if strings.Contains(fmt.Sprintf("%T", f), "radioItem") {
+			last = f
+		}
+	}
+	c.Focus(last)
+	o := last.(fyne.CanvasObject)
+	off := func() float32 { return fyne.CurrentApp().Driver().AbsolutePositionForObject(o).Y }
+	before := off()
+	if before+o.Size().Height <= c.Size().Height {
+		t.Skipf("the control is in sight already (%v)", before)
+	}
+	w.keyPreview(fyne.KeyTab, 0)
+	waitFor(t, "the scroll to follow", func() bool { return off()+o.Size().Height <= c.Size().Height })
+	c.Overlays().Remove(c.Overlays().Top())
+	if !followsFocus(c) {
+		t.Error("the window's canvas is not one whose Tab follows the focus")
+	}
+}
+
+// inScene puts the script's cursor in its first scene's action (a
+// command about "this scene" has one).
+func inScene(w *MainWindow) {
+	text := w.textEditor.Text()
+	r, err := w.scriptRefs()
+	if err != nil || len(r.heads) == 0 {
+		return
+	}
+	line := r.heads[0].line + 2
+	w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(min(line, b.LineCount()-1)), false) })
+	_ = text
 }

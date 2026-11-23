@@ -433,6 +433,7 @@ func (w *MainWindow) setupShortcuts() {
 	if c, ok := w.fyneWindow.Canvas().(desktop.KeyPreviewCanvas); ok {
 		c.SetOnKeyPreview(w.keyPreview)
 	}
+	focusFollowers.Store(w.fyneWindow.Canvas(), true) // its Tab scrolls to the focus (keyPreview)
 	// Alt let go alone: the ribbon's key tips (ribbon.go), seen where the
 	// keyboard is: an editor (attachVim), the ribbon, or nothing focused
 	if c, ok := w.fyneWindow.Canvas().(desktop.Canvas); ok {
@@ -449,10 +450,9 @@ func (w *MainWindow) keyPreview(key fyne.KeyName, mod fyne.KeyModifier) bool {
 		t.showMenu(fyne.Position{}) // a dock tab's menu (dock.go)
 		return true
 	}
-	w.altKey(key) // Alt alone shows the ribbon's key tips
+	w.altKey(key)           // Alt alone shows the ribbon's key tips
 	if key == fyne.KeyTab { // the focus moves: a dialog's scroll follows it (keyboard.go)
-		c := w.fyneWindow.Canvas()
-		w.after(0, func() { scrollToFocus(c) })
+		w.tabScrolls()
 	}
 	return w.previewKey(key, mod)
 }

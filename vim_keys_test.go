@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
+
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
@@ -98,7 +101,9 @@ func TestModeKeysDocumented(t *testing.T) {
 				if strings.ContainsRune("123456789", r) || now == mid || dropped {
 					continue
 				}
-				if !slices.ContainsFunc(docs, func(d string) bool { return d == seq || len(d) > 1 && strings.HasPrefix(seq, d) || strings.HasPrefix(d, seq) }) && !genericSecond(p, r) {
+				if !slices.ContainsFunc(docs, func(d string) bool {
+					return d == seq || len(d) > 1 && strings.HasPrefix(seq, d) || strings.HasPrefix(d, seq)
+				}) && !genericSecond(p, r) {
 					t.Errorf("%s: %q does something, and the help has no line for it", mode, seq)
 				}
 			}
@@ -160,5 +165,82 @@ func TestVimHelpPage(t *testing.T) {
 	}
 	if got, err := os.ReadFile(path); err != nil || string(got) != want {
 		t.Errorf("%s is not what the table makes: UPDATE_HELP=1 go test -run TestVimHelpPage .", path)
+	}
+}
+
+// modeTokens are the keys a mode's table names, one by one ("Alt+j",
+// "Tab", "Ctrl+R").
+func modeTokens(mode string) map[string]bool {
+	out := map[string]bool{}
+	for _, k := range keysOfMode(mode) {
+		for _, f := range strings.FieldsFunc(k.keys, func(r rune) bool { return r == ' ' }) {
+			if strings.HasSuffix(f, ",") && !strings.HasSuffix(f, "+,") {
+				f = strings.TrimSuffix(f, ",")
+			}
+			out[f] = true
+		}
+	}
+	return out
+}
+
+// tableToken is a shortcut as the modes' table writes it: Alt+j, and
+// with Shift the capital, Alt+J.
+func tableToken(s *desktop.CustomShortcut) string {
+	k := string(s.KeyName)
+	if s.Modifier&fyne.KeyModifierShift == 0 && len(k) == 1 {
+		k = strings.ToLower(k)
+	}
+	switch {
+	case s.Modifier&fyne.KeyModifierControl != 0:
+		return "Ctrl+" + string(s.KeyName)
+	case s.Modifier&fyne.KeyModifierAlt != 0:
+		return "Alt+" + k
+	}
+	return k
+}
+
+// Every key with a modifier a mode takes, and Tab, Enter and Backspace,
+// are in its table and in modeShortcuts (what the clash test looks at);
+// and every key modeShortcuts names, the mode takes.
+func TestModeShortcutsListed(t *testing.T) {
+	for _, mode := range []string{"vim", "helix"} {
+		tokens := modeTokens(mode)
+		listed := map[string]bool{}
+		for _, k := range modeShortcuts[mode] {
+			listed[k] = true
+		}
+		took := map[string]bool{}
+		var keys []fyne.KeyName
+		for r := 'A'; r <= 'Z'; r++ {
+			keys = append(keys, fyne.KeyName(string(r)))
+		}
+		keys = append(keys, fyne.KeyComma, fyne.KeyPeriod, fyne.KeySlash)
+		for _, k := range keys {
+			for _, mod := range []fyne.KeyModifier{fyne.KeyModifierAlt, fyne.KeyModifierAlt | fyne.KeyModifierShift, fyne.KeyModifierControl, fyne.KeyModifierControl | fyne.KeyModifierShift} {
+				_, v, _ := modeEditor(mode)
+				s := &desktop.CustomShortcut{KeyName: k, Modifier: mod}
+				if !v.shortcut(s) {
+					continue
+				}
+				took[keyName(s)] = true
+				if !listed[keyName(s)] {
+					t.Errorf("%s takes %s: modeShortcuts has no %s (the clash test would not see it)", mode, keyName(s), keyName(s))
+				}
+				if !tokens[tableToken(s)] {
+					t.Errorf("%s takes %s: its table has no %s", mode, keyName(s), tableToken(s))
+				}
+			}
+		}
+		for k := range listed {
+			if !took[k] {
+				t.Errorf("modeShortcuts lists %s for %s, which does not take it", k, mode)
+			}
+		}
+		for _, k := range []fyne.KeyName{fyne.KeyTab, fyne.KeyReturn, fyne.KeyBackspace} {
+			_, v, _ := modeEditor(mode)
+			if v.key(&fyne.KeyEvent{Name: k}) && !tokens[keyLabel(k)] {
+				t.Errorf("%s takes %s: its table has no %s", mode, k, keyLabel(k))
+			}
+		}
 	}
 }

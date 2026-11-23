@@ -528,8 +528,10 @@ func (t *exTable) complete(ctx exCtx, line string) exCompletion {
 		i := strings.LastIndexByte(rest, ' ') + 1
 		if j := strings.LastIndex(rest[i:], ".."); j >= 0 {
 			i += j + 2
+		} else if h := strings.LastIndexByte(rest, '#'); h >= 0 && h < i && exSectionTyped(rest[h:]) {
+			i = h // a section's heading has spaces: #Act Two is one word
 		}
-		return exCompletion{start: argStart + i, choices: t.wordArgs(ctx, c, rest[:i], rest[i:]), arg: true}
+		return exCompletion{start: argStart + i, choices: t.wordArgs(ctx, c, rest[:i], rest[i:], ranged), arg: true}
 	}
 	return exCompletion{start: argStart, choices: t.args(ctx, c, line[argStart:]), arg: true}
 }
@@ -724,7 +726,7 @@ func (t *exTable) args(ctx exCtx, c *exCmd, arg string) []exChoice {
 
 // wordArgs complete the word typed after before, for c's argument: its
 // words where they may come, and the script's scenes and sections.
-func (t *exTable) wordArgs(ctx exCtx, c *exCmd, before, word string) []exChoice {
+func (t *exTable) wordArgs(ctx exCtx, c *exCmd, before, word string, lineRange bool) []exChoice {
 	words := strings.Fields(before)
 	kw := func(ws ...string) []exChoice {
 		var out []exChoice
@@ -760,12 +762,24 @@ func (t *exTable) wordArgs(ctx exCtx, c *exCmd, before, word string) []exChoice 
 		if c.arg == argSwap {
 			where = []string{"with"}
 		}
-		if len(words) > 0 && !ranged && !slices.ContainsFunc(words, func(w string) bool { return slices.Contains(where, strings.ToLower(w)) }) {
+		if (len(words) > 0 || lineRange) && !ranged && !slices.ContainsFunc(words, func(w string) bool { return slices.Contains(where, strings.ToLower(w)) }) {
 			all = kw(where...)
 		}
 		all = append(all, ctx.refs...)
 	}
 	return exFilter(all, word)
+}
+
+// exSectionTyped reports whether s (from a #) is a section's heading
+// still being typed: no word after it that ends it (after, with …).
+func exSectionTyped(s string) bool {
+	for _, f := range strings.Fields(s)[1:] {
+		switch strings.ToLower(f) {
+		case "after", "before", "with", "keep", "only", "from", "to", "fold", "letters", "omitted":
+			return false
+		}
+	}
+	return !strings.Contains(s, "..")
 }
 
 // exFilter are the choices arg begins (any case) first, then the fuzzy

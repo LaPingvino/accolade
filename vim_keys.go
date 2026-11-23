@@ -40,7 +40,7 @@ var modeKeys = []modeKey{
 	{"both", "Moving", "w b e", "the next word's start, the word's start before, the word's end (helix: selecting the word)", []string{"w", "b", "e"}},
 	{"both", "Moving", "0 ^ $", "the line's start, its first character, its end", []string{"0", "^", "$"}},
 	{"both", "Moving", "gg G", "the first line / the last", []string{"gg", "G"}},
-	{"vim", "Moving", "Enter, Backspace", "down a line to its start; left", nil},
+	{"both", "Moving", "Enter, Backspace", "down a line to its start; left", nil},
 	{"both", "Moving", "1 … 9", "a count before a motion or command: 3w, 2dd, 2]]", []string{"1", "2", "3", "4", "5", "6", "7", "8", "9"}},
 
 	// Changing
@@ -62,10 +62,10 @@ var modeKeys = []modeKey{
 	{"vim", "Text objects and the structure", "aS iS", "a section with all it holds / its inside: daS, yiS, vaS", []string{"daS", "diS", "vaS", "viS"}},
 	{"vim", "Text objects and the structure", "m + an object", "move it through the structure engine: mas opens :'<,'>move , then after 12 or before #Act Two", []string{"m", "mas", "maS", "mis", "miS"}},
 	{"helix", "Text objects and the structure", "mas mis maS miS", "select a scene, its inside, a section, its inside; then d c y p, or : to move it", []string{"m", "mas", "mis", "maS", "miS"}},
-	{"vim", "Text objects and the structure", "Alt+j Alt+k", "move the unit at the cursor (a scene or section with all it holds, a speech, a paragraph) down / up past the next", nil},
-	{"vim", "Text objects and the structure", "Alt+h Alt+l", "promote / demote it (a scene out of its section, into the one before)", nil},
-	{"vim", "Text objects and the structure", "Alt+J Alt+K", "into the next / previous scene", nil},
-	{"vim", "Text objects and the structure", "Alt+H Alt+L", "pass the last speech on / take in the next (barf, slurp)", nil},
+	{"both", "Text objects and the structure", "Alt+j Alt+k", "move the unit at the cursor (a scene or section with all it holds, a speech, a paragraph) down / up past the next", nil},
+	{"both", "Text objects and the structure", "Alt+h Alt+l", "promote / demote it (a scene out of its section, into the one before)", nil},
+	{"both", "Text objects and the structure", "Alt+J Alt+K", "into the next / previous scene", nil},
+	{"both", "Text objects and the structure", "Alt+H Alt+L", "pass the last speech on / take in the next (barf, slurp)", nil},
 
 	// Selecting
 	{"vim", "Selecting", "a motion in visual mode", "extends the selection; then d x y c act on it", []string{"vj"}},
@@ -90,7 +90,7 @@ var modeKeys = []modeKey{
 	// Folds and the outline
 	{"both", "Folds and the outline", "za zc zo", "fold or unfold the heading at the cursor, fold it, unfold it", []string{"za", "zc", "zo"}},
 	{"both", "Folds and the outline", "zR zM", "unfold all, fold all", []string{"zR", "zM"}},
-	{"vim", "Folds and the outline", "Tab, Shift+Tab", "on a heading: cycle its fold; all of them", nil},
+	{"both", "Folds and the outline", "Tab, Shift+Tab", "on a heading: cycle its fold; all of them", nil},
 	{"both", "Folds and the outline", "gj gk", "the next scene or section heading / this one's or the one before", []string{"gj", "gk"}},
 	{"both", "Folds and the outline", "gh gl", "the section the heading is in / the first heading inside it", []string{"gh", "gl"}},
 	{"both", "Folds and the outline", "gs", "the scene's guessed link to the source (Link Guess for This Scene…)", []string{"gs"}},

@@ -77,6 +77,7 @@ type vim struct {
 	unitKind             rune
 	unitText             string
 	helixUnit            [3]int // helix: the unit last selected (kind, from, to)
+	visualUnit           [3]int // vim: the unit vas selected (kind, anchor, visual cursor)
 	// tree reads the text as its units, the window's way (its language);
 	// nil: plainly (structure.Plain)
 	tree func() *structure.Tree
@@ -177,7 +178,7 @@ func (v *vim) shortcut(s fyne.Shortcut) bool {
 		return true
 	}
 	c, ok := s.(*desktop.CustomShortcut)
-	if ok && c.KeyName == fyne.KeyR && c.Modifier&fyne.KeyModifierControl != 0 {
+	if ok && c.KeyName == fyne.KeyR && c.Modifier == fyne.KeyModifierControl {
 		v.e.Redo()
 		return true
 	}
@@ -644,7 +645,11 @@ func (v *vim) visualKey(r rune) {
 		if op == 'x' {
 			op = 'd'
 		}
+		unit := v.visualUnit[0] != 0 && v.visualUnit[1] == v.anchor && v.visualUnit[2] == v.vcur // vas, untouched
 		v.apply(op, t, from, to, v.mode == vimVisualLine)
+		if unit && op != 'c' {
+			v.unitKind, v.unitText = rune(v.visualUnit[0]), v.reg
+		}
 	case 'v', 'V':
 		v.setMode(vimNormal)
 	case ':': // the selected lines as '<,'>
