@@ -1423,3 +1423,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (one undo step, same rules), keyboard ←/→ between scenes, Alt+←/→ to move one. Reuse the stripboard's drawing where
   it fits (stripboard.go draws production strips; this is story order, not shooting order). Screenshots desktop and
   phone (phone: vertical timeline). After the structural moves, since dragging needs them.
+  Joop, same day: "in all these programs, they work like bolted on views. Accolade is very much a Fountain/writing
+  first program, so even if you can call it a bit bolted on as well, it goes from a strong philosophy of making the
+  writing work itself easier. Just having cards doesn't do that." — so the timeline is judged by what it does for
+  the writing, not by being there: it follows the cursor while you write (a thin strip above the editor, the scene
+  you are in lit, collapsible) as much as it is a place to go; it answers writing questions — where am I, what is the
+  rhythm (scene lengths side by side), who has been gone too long (lanes), which scenes are still empty or only a
+  synopsis — and every edit in it is an edit of the Fountain text (no state of its own, one undo step). Same test
+  for every view (cards, outline, characters, timeline): what does it make easier while writing?
