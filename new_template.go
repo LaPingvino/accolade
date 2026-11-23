@@ -9,7 +9,7 @@ import (
 )
 
 // New's text by language (LOOP.md, NEW BY LANGUAGE AND FORMAT, part 2):
-// the language's own sample if it has one (sample.go: Hebrew, Arabic),
+// the language's own sample if it has one (sample.go, examples/),
 // else the English template with every word bound to the language taken
 // from Lexington's rules for it: the title page keys, the scene word and
 // time of the heading, the cue's extension, the closing transition. The

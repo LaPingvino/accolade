@@ -10,6 +10,8 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/LaPingvino/lexington/fountain"
 )
 
 type TitlePageDialog struct {
@@ -188,8 +190,8 @@ func (tpd *TitlePageDialog) insertTitlePage() {
 	lines := strings.Split(currentText, "\n")
 	end := titlePageEnd(lines)
 	// fields the dialog does not edit (Copyright, Notes, ...) stay
-	for _, f := range titleFields(lines[:end]) {
-		if !dialogField[strings.ToLower(f.key)] {
+	for _, f := range titleFields(lines[:end], tpd.window.dialect()) {
+		if !dialogField[strings.ToLower(f.std)] {
 			titlePageText += "\n" + strings.Join(f.raw, "\n")
 		}
 	}
@@ -378,12 +380,13 @@ func (tpd *TitlePageDialog) Show() {
 	tpd.dialog.Show()
 }
 
-// titleField is a field of a title page: its key, value and the lines it
+// titleField is a field of a title page: its key, the standard key it
+// is in the script's language (Titolo: Title), value and the lines it
 // takes (with its indented continuation lines).
 type titleField struct {
-	key, value string
-	more       []string // continuation lines, trimmed
-	raw        []string
+	key, std, value string
+	more            []string // continuation lines, trimmed
+	raw             []string
 }
 
 // dialogField are the fields the dialog edits.
@@ -391,7 +394,7 @@ var dialogField = map[string]bool{"title": true, "credit": true, "author": true,
 	"source": true, "draft date": true, "contact": true}
 
 // titleFields are the fields of a title page's lines.
-func titleFields(lines []string) []titleField {
+func titleFields(lines []string, d *fountain.Dialect) []titleField {
 	var out []titleField
 	for i, l := range lines {
 		if strings.TrimSpace(l) == "" {
@@ -404,7 +407,8 @@ func titleFields(lines []string) []titleField {
 			continue
 		}
 		if key, value, ok := strings.Cut(l, ":"); ok && isTitleField(l, lines, i) {
-			out = append(out, titleField{key: strings.TrimSpace(key), value: strings.TrimSpace(value), raw: []string{l}})
+			k := strings.TrimSpace(key)
+			out = append(out, titleField{key: k, std: d.TitleKey(k), value: strings.TrimSpace(value), raw: []string{l}})
 		}
 	}
 	return out
@@ -413,7 +417,7 @@ func titleFields(lines []string) []titleField {
 // loadFromScript fills the dialog from the script's title page.
 func (tpd *TitlePageDialog) loadFromScript() {
 	lines := strings.Split(tpd.window.textEditor.Text(), "\n")
-	fields := titleFields(lines[:titlePageEnd(lines)])
+	fields := titleFields(lines[:titlePageEnd(lines)], tpd.window.dialect())
 	if len(fields) == 0 {
 		return
 	}
@@ -427,7 +431,7 @@ func (tpd *TitlePageDialog) loadFromScript() {
 	tpd.includeContact.SetChecked(false)
 	for _, f := range fields {
 		value := strings.TrimSpace(strings.Join(append([]string{f.value}, f.more...), " "))
-		switch strings.ToLower(f.key) {
+		switch strings.ToLower(f.std) {
 		case "title":
 			tpd.titleEntry.SetText(value)
 		case "credit":

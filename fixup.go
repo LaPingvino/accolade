@@ -275,8 +275,9 @@ func splitForFix(text string) fixLines {
 	return f
 }
 
-// titleKey is a title page's first line: "Title: …", "Author: …".
-var titleKey = regexp.MustCompile(`^[A-Za-z][A-Za-z ]{0,20}:\s*\S`)
+// titleKey is a title page's first line: "Title: …", "Author: …", in
+// any language's letters ("Titolo: …", "片名: …").
+var titleKey = regexp.MustCompile(`^\p{L}[\p{L}\p{M}' ]{0,20}:\s*\S`)
 
 // titlePageStart: the script starts with a title page.
 func titlePageStart(lines []string) bool {

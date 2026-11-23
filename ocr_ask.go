@@ -26,7 +26,9 @@ func (w *MainWindow) guessOCRLanguage(fromName string, langs []string) string {
 }
 
 // selfNames are languages' own names that the display tables lack.
-var selfNames = map[string]string{"tok": "toki pona", "hekaya": "Hekaya, العربية"}
+var selfNames = map[string]string{"tok": "toki pona", "hekaya": "Hekaya, العربية",
+	// Hindi per script (Lexington's hi-Latn, hi-Deva, and hi for both)
+	"hi-Latn": "Hindi (Latin)", "hi-Deva": "Hindi (Devanagari)", "hi": "Hindi (both)"}
 
 // languageLabel names a language in itself, with its code: "עברית (he)".
 func languageLabel(code string) string {

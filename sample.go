@@ -2,14 +2,21 @@ package main
 
 import (
 	"bytes"
-	_ "embed"
+	"embed"
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
+	"path"
 	"path/filepath"
+	"slices"
+	"strings"
+	"sync"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
+	"github.com/LaPingvino/lexington/fountain"
 )
 
 // File > Open Sample (LOOP.md, Joop 2026-11-20): a script to try
@@ -78,47 +85,80 @@ func (w *MainWindow) openSample() {
 	w.openPath(p)
 }
 
-// The samples in a language written right to left (Joop, 2026-11-23: to
-// try Hebrew's points and Arabic's joining in the editor, the page view
-// and the PDF): a short scene each, in the language's own scene words,
-// cues and transitions (Lexington's rules for he and ar), with a
-// passage fully pointed or vowelled, plain lines, a parenthetical,
-// numbers and a name in Latin letters. New starts from the one in the
-// language for new scripts; File > Open Hebrew Sample and Open Arabic
-// Sample open them any time. The Hebrew passage is Genesis 11:1–4 (the
-// tower of Babel), as pointed by Mechon Mamre, without cantillation; the
-// Arabic is from Ali Baba and the Forty Thieves.
-var (
-	//go:embed examples/sample.he.fountain
-	sampleHebrew []byte
-	//go:embed examples/sample.ar.fountain
-	sampleArabic []byte
-)
+// The samples in other languages (Joop, 2026-11-23): a short scene
+// each, written in the language, in its own scene words, cues,
+// extensions, transitions and title page keys (Lexington's rules for
+// it), a story or setting of its culture: examples/sample.<lang>.fountain
+// (examples/README.md says which story each is, and that each is
+// machine-written, to be checked by a native reader). New starts from
+// the one in the language for new scripts; File > Open Sample lists them
+// all. The Hebrew one has a passage fully pointed (Genesis 11:1–4, the
+// tower of Babel, as pointed by Mechon Mamre, without cantillation), the
+// Arabic one vowelled (Ali Baba and the Forty Thieves), to try Hebrew's
+// points and Arabic's joining in the editor, the page view and the PDF.
+//
+//go:embed examples/sample.*.fountain
+var langSampleFiles embed.FS
 
-// langSample is a language's sample, its name and its text.
+// langSample is a language's sample: its language, its title (the title
+// page's) and its text.
 type langSample struct {
-	lang, name string
-	text       []byte
+	lang, title string
+	text        []byte
 }
 
-// langSamples are the samples by language.
-var langSamples = map[string]langSample{
-	"he": {"he", "Hebrew sample", sampleHebrew},
-	"ar": {"ar", "Arabic sample", sampleArabic},
+// langSamples are the samples, by language, read once.
+var langSamples = sync.OnceValue(func() map[string]langSample {
+	out := map[string]langSample{}
+	files, _ := fs.Glob(langSampleFiles, "examples/sample.*.fountain")
+	for _, f := range files {
+		lang := strings.TrimSuffix(strings.TrimPrefix(path.Base(f), "sample."), typeFountain.ext)
+		text, err := langSampleFiles.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		title := lang
+		for _, r := range fountain.ParseIn(machineLex().Language(lang), bytes.NewReader(text)) {
+			if r.Type == "Title" {
+				title = strings.TrimSpace(r.Contents)
+				break
+			}
+		}
+		out[lang] = langSample{lang, title, text}
+	}
+	return out
+})
+
+// sampleLanguages are the languages with a sample, by their names.
+func sampleLanguages() []string {
+	langs := slices.Collect(maps.Keys(langSamples()))
+	slices.SortFunc(langs, func(a, b string) int { return strings.Compare(languageName(a), languageName(b)) })
+	return langs
 }
 
 // languageSample is the text New starts a script in lang with: its
 // sample, or "" for none.
 func languageSample(lang string) string {
-	return string(langSamples[lang].text)
+	return string(langSamples()[lang].text)
 }
 
-// openLanguageSample is File > Open Hebrew (Arabic) Sample: a copy as
-// for Open Sample, named for its language (sample.he.fountain), so it
-// opens in it whatever the language for new scripts is.
+// sampleMenu is File > Open Sample: the sample to try everything on,
+// then each language's ("Esperanto: La unua kongreso").
+func (w *MainWindow) sampleMenu() *fyne.Menu {
+	items := []*fyne.MenuItem{fyne.NewMenuItem("A Chameleon (English)", w.openSample), fyne.NewMenuItemSeparator()}
+	for _, lang := range sampleLanguages() {
+		items = append(items, fyne.NewMenuItem(languageName(lang)+": "+langSamples()[lang].title, func() { w.openLanguageSample(lang) }))
+	}
+	return fyne.NewMenu("Open Sample", items...)
+}
+
+// openLanguageSample opens lang's sample: a copy as for Open Sample,
+// named for its title and language ("La unua kongreso (sample).eo.fountain"),
+// so it opens in it whatever the language for new scripts is.
 func (w *MainWindow) openLanguageSample(lang string) {
-	s := langSamples[lang]
-	p, err := copySample(samplesDir(), s.name, "."+s.lang+typeFountain.ext, s.text)
+	s := langSamples()[lang]
+	name := strings.NewReplacer("/", "-", "\\", "-", ":", "-").Replace(s.title) + " (sample)"
+	p, err := copySample(samplesDir(), name, "."+s.lang+typeFountain.ext, s.text)
 	if err != nil {
 		dialog.ShowError(fmt.Errorf("could not open the sample: %v", err), w.fyneWindow)
 		return

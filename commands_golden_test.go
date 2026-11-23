@@ -936,8 +936,12 @@ func sampleMoves(name, golden string) string {
 		return golden
 	}
 	golden = strings.Replace(golden, "  Open Recent\n    No recent scripts (disabled) (no action)\n", "  Open Recent\n    No recent scripts (disabled) (no action)\n  Open Sample\n", 1)
-	// the right-to-left samples (sample.go)
-	return strings.Replace(golden, "  Open Sample\n", "  Open Sample\n  Open Hebrew Sample\n  Open Arabic Sample\n", 1)
+	// its submenu: the sample, then each language's (sample.go)
+	sub := "  Open Sample\n    A Chameleon (English)\n    ---\n"
+	for _, lang := range sampleLanguages() {
+		sub += "    " + languageName(lang) + ": " + langSamples()[lang].title + "\n"
+	}
+	return strings.Replace(golden, "  Open Sample\n", sub, 1)
 }
 
 // writerMoves is a Production golden as a writer sees it (role.go): the

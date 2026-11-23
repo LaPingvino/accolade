@@ -154,3 +154,18 @@ func TestTitlePageDialogKeepsTheScripts(t *testing.T) {
 		t.Errorf("undo:\n%s", w.textEditor.Text())
 	}
 }
+
+// The dialog reads a title page in the script's own keys (Esperanto's
+// sample: Titolo, Aŭtoro) as the standard ones, and Insert replaces
+// them, not keeps them beside its own.
+func TestTitlePageDialogLanguageKeys(t *testing.T) {
+	w := langSampleWindow(t, "eo")
+	d := NewTitlePageDialog(w)
+	if d.titleEntry.Text != "La unua kongreso" || d.authorEntry.Text != "Accolade" || d.draftDateEntry.Text != "2026-11-23" {
+		t.Errorf("fields: %q %q %q", d.titleEntry.Text, d.authorEntry.Text, d.draftDateEntry.Text)
+	}
+	d.insertTitlePage()
+	if got := w.textEditor.Text(); strings.Contains(got, "Titolo:") || strings.Count(got, "La unua kongreso") != 1 {
+		t.Errorf("after Insert:\n%.300s", got)
+	}
+}

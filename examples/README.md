@@ -88,3 +88,35 @@ One row of the table is one check in `sampleFeatures` (`sample_test.go`).
 - **A Markdown document**: the sample is a screenplay; its source is the Markdown (with front matter).
 - **The other ways to keep a source**: in the script (`/* Source */`), kept by Accolade, beside the script.
 - **Collaboration**: nothing of a shared session.
+
+# The samples in other languages
+
+`sample.<lang>.fountain` is a short scene (about a page) in each language of Lexington's default configuration that
+has one, written in that language: its own scene words, cues, an extension, a parenthetical, a transition and title
+page keys, each as Lexington's rules for the language have them, so it reads back as written
+(`TestLanguageSamplesRead` in `sample_rtl_test.go` checks every one: headings, cues, transitions and the title page).
+They are embedded in the app (`sample.go`, every `sample.*.fountain` here); New in that language starts from it, and
+File > Open Sample lists them all. A language without one gets the English template in its words.
+
+Each is original writing on a public-domain story or a historical setting of the language's culture. **All are
+machine-written, to be checked by a native reader** (Esperanto: Joop).
+
+| file | language | story |
+|---|---|---|
+| `sample.eo.fountain` | Esperanto | Bulonjo-ĉe-Maro, August 1905, the first Universala Kongreso: delegates who learned the language alone meet at the door; Zamenhof backstage with Klara before his speech |
+| `sample.nl.fountain` | Dutch | Rembrandt's studio, 1642: Captain Banninck Cocq poses for the Night Watch, a militiaman complains about his place |
+| `sample.de.fountain` | German | the Bremen Town Musicians (Grimm): the donkey meets the dog on the road; the four scare the robbers |
+| `sample.fr.fountain` | French | the crow and the fox (La Fontaine) |
+| `sample.it.fountain` | Italian | Pinocchio (Collodi): Geppetto carves the puppet, who runs off into the street |
+| `sample.ru.fountain` | Russian | Krylov's Quartet: the monkey, the donkey, the goat and the bear change seats to play better |
+| `sample.tok.fountain` | toki pona | the ant and the grasshopper (Aesop): toki pona has no stories of its own yet |
+| `sample.zh.fountain` | Chinese | 守株待兔 (Han Feizi): the farmer who waits by the stump for another hare |
+| `sample.ja.fountain` | Japanese | 桃太郎: the peach on the river, the boy born from it |
+| `sample.he.fountain` | Hebrew | a mother reads the tower of Babel to her son (Genesis 11:1–4, pointed as by Mechon Mamre, no cantillation) |
+| `sample.ar.fountain` | Arabic | Ali Baba and the Forty Thieves: "Open Sesame" (افتح يا سمسم, vowelled) |
+
+Where a language's rules have no word of their own, the sample uses what the rules give it: Esperanto and toki pona
+have English's extensions (`O.S.`), and Esperanto, toki pona, Dutch and Russian end on a forced transition
+(`> MALLUMIĜO.`), as they have no whole-line transitions. The title page keys are Lexington's (its `TitleKeys`; for
+all but Arabic, Lexington's own choice). Lexington's PDF font has no Chinese or Japanese: those two print through
+HTML.

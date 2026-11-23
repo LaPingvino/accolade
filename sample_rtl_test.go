@@ -20,8 +20,9 @@ import (
 	"github.com/LaPingvino/lexington/lex"
 )
 
-// What each right-to-left sample's lines read as: its headings, cues and
-// transitions, the rest action, dialogue, parentheticals.
+// What each language's sample reads as: its headings, cues and
+// transitions, the rest action, dialogue, parentheticals. Every sample
+// (examples/sample.<lang>.fountain) has its line here.
 var langSampleWants = map[string]struct{ scenes, cues, transitions []string }{
 	"he": {
 		scenes:      []string{"1. פנים. ספרייה ישנה – לילה.", "2. חוץ. גג הבניין – יום."},
@@ -33,7 +34,56 @@ var langSampleWants = map[string]struct{ scenes, cues, transitions []string }{
 		cues:        []string{"@الزعيم", "الزعيم", "الزعيم", "@علي بابا", "علي بابا", "علي بابا"},
 		transitions: []string{"قطع إلى:", "تلاشي إلى أسود"},
 	},
+	"eo": {
+		scenes:      []string{"EKST. BULONJO-ĈE-MARO, ANTAŬ LA TEATRO - TAGO", "EN. MALANTAŬ LA SCENEJO - VESPERO"},
+		cues:        []string{"MISTER BROWN", "MARIE", "MISTER BROWN", "PJOTR", "KLARA", "ZAMENHOF", "KLARA", "VOĈO (O.S.)", "ZAMENHOF"},
+		transitions: []string{"> TRANĈO.", "> MALLUMIĜO."},
+	},
+	"de": {
+		scenes:      []string{"1. LANDSTRASSE NACH BREMEN AUSSEN/TAG", "2. VOR DEM RÄUBERHAUS IM WALD AUSSEN/NACHT"},
+		cues:        []string{"ESEL", "HUND", "ESEL", "HUND", "ESEL", "KATZE (OFF)", "HAHN", "ESEL"},
+		transitions: []string{"SCHNITT AUF:", "> ABBLENDE."},
+	},
+	"fr": {
+		scenes:      []string{"1 - FORÊT, AU PIED D'UN VIEUX CHÊNE - EXT/JOUR"},
+		cues:        []string{"RENARD", "RENARD (SUITE)", "RENARD", "UNE PIE (OFF)", "RENARD", "CORBEAU"},
+		transitions: []string{"FONDU AU NOIR"},
+	},
+	"it": {
+		scenes:      []string{"1. INT. BOTTEGA DI GEPPETTO - GIORNO", "2. EST. STRADA DEL PAESE - GIORNO"},
+		cues:        []string{"GEPPETTO", "GEPPETTO (CONTINUA)", "PINOCCHIO", "GEPPETTO", "PINOCCHIO", "MASTRO CILIEGIA (VOCE FUORI CAMPO)", "GEPPETTO", "GEPPETTO (CONTINUA)"},
+		transitions: []string{"STACCO SU:"},
+	},
+	"nl": {
+		scenes:      []string{"BIN. ATELIER VAN REMBRANDT, SINT ANTHONIESBREESTRAAT - DAG"},
+		cues:        []string{"BANNINCK COCQ", "REMBRANDT", "SCHUTTER (OFF)", "REMBRANDT", "BANNINCK COCQ", "REMBRANDT", "REMBRANDT (VERVOLGT)"},
+		transitions: []string{"> LANGZAAM NAAR ZWART."},
+	},
+	"ru": {
+		scenes:      []string{"1. НАТ. ЛЕСНАЯ ПОЛЯНА ПОД ЛИПАМИ. ДЕНЬ"},
+		cues:        []string{"МАРТЫШКА", "ОСЁЛ", "КОЗЁЛ", "МИШКА", "СОЛОВЕЙ (ЗА КАДРОМ)", "МАРТЫШКА"},
+		transitions: []string{"> ЗАТЕМНЕНИЕ."},
+	},
+	"tok": {
+		scenes:      []string{"KON. NASIN LON POKA PI MA PAN - TENPO SELI", "INSA. TOMO PI PIPI PALI - TENPO LETE"},
+		cues:        []string{"PIPI KALAMA", "PIPI PALI", "PIPI KALAMA", "PIPI KALAMA (O.S.)", "PIPI PALI"},
+		transitions: []string{"> TENPO LI TAWA.", "> PINI."},
+	},
+	"zh": {
+		scenes:      []string{"场景1 宋国田边 日 外", "场景2 宋国田边 昏 外"},
+		cues:        []string{"农夫", "邻居（画外音）", "农夫", "邻居", "农夫", "邻居"},
+		transitions: []string{"淡入：", "淡出"},
+	},
+	"ja": {
+		scenes:      []string{"○川辺（朝）", "○おじいさんとおばあさんの家・囲炉裏端（夕）"},
+		cues:        []string{"おばあさん", "おじいさん", "おばあさん", "おじいさん", "おばあさん", "語り手（N）"},
+		transitions: []string{"F・I", "F・O"},
+	},
 }
+
+// noPDFFont are the samples whose letters Lexington's PDF font (Courier
+// Badi) lacks: the PDF says so, and HTML prints them.
+var noPDFFont = map[string]bool{"zh": true, "ja": true}
 
 // langSampleWindow is a window with lang's sample opened by its File
 // menu item.
@@ -81,12 +131,47 @@ func readBack(t *testing.T, w *MainWindow) (scenes, cues, transitions []string) 
 	return scenes, cues, transitions
 }
 
+// titlePage is a script's title page as Lexington reads it in its
+// language: each standard key's value.
+func titlePage(w *MainWindow) map[string]string {
+	got := map[string]string{}
+	for _, r := range fountain.ParseIn(w.lex().Language(w.language), strings.NewReader(w.textEditor.Text())) {
+		if r.Type == lex.TypeScene {
+			break
+		}
+		if r.Contents != "" && got[r.Type] == "" {
+			got[r.Type] = strings.TrimSpace(r.Contents)
+		}
+	}
+	return got
+}
+
 // Each sample reads in its language as written: the editor and
 // Lexington agree, and its headings are headings, its cues cues, its
 // transitions transitions.
 func TestLanguageSamplesRead(t *testing.T) {
-	for lang, want := range langSampleWants {
+	langs := sampleLanguages()
+	if len(langs) != len(langSampleWants) {
+		t.Errorf("samples %v, wants for %d", langs, len(langSampleWants))
+	}
+	for _, lang := range langs {
+		want, ok := langSampleWants[lang]
+		if !ok {
+			t.Errorf("%s: a sample with no wants", lang)
+			continue
+		}
 		w := langSampleWindow(t, lang)
+		// written in the language's own title page keys, read as the
+		// standard ones
+		tp := titlePage(w)
+		if tp["Title"] == "" || tp["Title"] != langSamples()[lang].title || tp["Author"] != "Accolade" ||
+			tp["Draft date"] == "" && tp["Date"] == "" {
+			t.Errorf("%s title page: %q", lang, tp)
+		}
+		first, _, _ := strings.Cut(w.textEditor.Text(), ":")
+		if lexKey := w.lex().Language(lang).TitleKeys[first]; lexKey != "Title" {
+			t.Errorf("%s: the title's key %q is not the language's own", lang, first)
+		}
 		scenes, cues, transitions := readBack(t, w)
 		if !slices.Equal(scenes, want.scenes) {
 			t.Errorf("%s headings: %q", lang, scenes)
@@ -98,8 +183,8 @@ func TestLanguageSamplesRead(t *testing.T) {
 			t.Errorf("%s transitions: %q", lang, transitions)
 		}
 		// printed by Lexington's PDF writer, not a browser
-		if msg := pdfWarning(w.textEditor.Text(), w.lex().Language(lang)); msg != "" {
-			t.Errorf("%s PDF warning: %s", lang, msg)
+		if msg := pdfWarning(w.textEditor.Text(), w.lex().Language(lang)); (msg != "") != noPDFFont[lang] {
+			t.Errorf("%s PDF warning: %q", lang, msg)
 		}
 	}
 }
@@ -338,12 +423,12 @@ func TestLanguageSampleScreenshots(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// New in Esperanto: the template in its words
-	eo, _ := newDialogTestWindow(t)
-	eo.fyneWindow.Resize(fyne.NewSize(1100, 750))
-	eo.newLanguage = "eo"
-	eo.NewFile()
-	shot(eo, "new-eo-editor")
+	// the others in the editor
+	for _, lang := range []string{"eo", "zh", "de", "ru", "ja"} {
+		w := langSampleWindow(t, lang)
+		w.fyneWindow.Resize(fyne.NewSize(1100, 750))
+		shot(w, "sample-"+lang+"-editor")
+	}
 	for _, lang := range []string{"he", "ar"} {
 		w := langSampleWindow(t, lang)
 		w.fyneWindow.Resize(fyne.NewSize(1100, 750))
