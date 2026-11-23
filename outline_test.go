@@ -245,7 +245,7 @@ func TestOutlineColors(t *testing.T) {
 	for id, want := range []color.Color{color.NRGBA{0, 129, 239, 255}, color.NRGBA{239, 0, 73, 255}, color.Transparent, color.NRGBA{0, 255, 0, 255}} {
 		row := o.list.CreateItem()
 		o.list.UpdateItem(id, row)
-		r := row.(*dragRow).content.Objects[2].(*fyne.Container).Objects[0].(*canvas.Rectangle)
+		r := row.(*dragRow).content.Objects[2].(*fyne.Container).Objects[1].(*fyne.Container).Objects[0].(*canvas.Rectangle)
 		if r.FillColor != want {
 			t.Errorf("row %d: swatch %v, want %v", id, r.FillColor, want)
 		}

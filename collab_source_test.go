@@ -177,3 +177,62 @@ func TestSourceRejoin(t *testing.T) {
 		t.Errorf("the source doubled: %d runes, %d before", len(docText(b)), len(want))
 	}
 }
+
+// Two peers pick a source at the same moment, before either hears of the
+// other's: the setting's last writer wins on both, the other Doc is let
+// go on both, and the one whose pick lost is told so; the file it picked
+// is left as it was.
+func TestSourcePickRace(t *testing.T) {
+	a, b, _, _ := sourcePair(t)
+	cut := connect(t, a, b)
+	waitFor(t, "b has the source", func() bool { return docText(b) != "" && docText(b) == docText(a) })
+	cut()
+	dir := t.TempDir()
+	pick := func(w *MainWindow, name, text string) string {
+		p := filepath.Join(dir, name)
+		os.WriteFile(p, []byte(text), 0o644)
+		if err := w.useSource(p); err != nil {
+			t.Fatal(err)
+		}
+		if docText(w) != text {
+			t.Fatalf("%s's source is %q", name, docText(w))
+		}
+		return p
+	}
+	textA, textB := "# Ana's pick\n\nThe lamp was lit early that night.\n", "# Ben's pick\n\nNobody had seen the river so high.\n"
+	keptA, keptB := pick(a, "ana.md", textA), pick(b, "ben.md", textB)
+	connect(t, a, b)
+	waitFor(t, "one source on both", func() bool {
+		return a.sharedSource() != "" && a.sharedSource() == b.sharedSource() && docText(a) == docText(b)
+	})
+	winner, loser, lost, lostText := a, b, keptB, textB
+	if docText(a) == textB {
+		winner, loser, lost, lostText = b, a, keptA, textA
+	}
+	if docText(winner) != textA && docText(winner) != textB {
+		t.Fatalf("the source is neither pick: %q", docText(winner))
+	}
+	for _, w := range []*MainWindow{a, b} {
+		waitFor(t, "the lost pick let go", func() bool {
+			n := 0
+			for _, name := range w.shared.session.Names() {
+				if strings.HasPrefix(name, "source:") {
+					n++
+				}
+			}
+			return n == 1
+		})
+	}
+	if !strings.Contains(loser.statusLabel.Text, "picked") {
+		t.Errorf("the loser was not told: %q", loser.statusLabel.Text)
+	}
+	if strings.Contains(winner.statusLabel.Text, "picked") {
+		t.Errorf("the winner was told it lost: %q", winner.statusLabel.Text)
+	}
+	loser.srcDoc.ed.Edit(func(e *buffer.Buffer) { e.SetCursor(0, false); e.Insert("Edited. ") })
+	waitFor(t, "the winner has the loser's edit", func() bool { return strings.HasPrefix(docText(winner), "Edited. ") })
+	_ = loser.srcDoc.store()
+	if got, _ := os.ReadFile(lost); string(got) != lostText {
+		t.Errorf("the loser's own copy was written: %q", got)
+	}
+}

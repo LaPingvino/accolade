@@ -26,8 +26,9 @@ import (
 // (Choose Source, Keep Source in the Script turned off), makes a source
 // Doc: a peer joining, or taking up a kept state, takes the Doc as it is
 // and never sets it from its own copy, so nothing is doubled. Two peers
-// picking a source at once: the setting's last writer wins, and the other
-// Doc is left unused.
+// picking a source at once: the setting's last writer wins, the other Doc
+// is let go on every peer (the winner hears of it as a setting that lost:
+// Session.OnLost), and the one whose pick lost is told so.
 
 // sourceMeta is the shared setting naming the source's Doc.
 const sourceMeta = "source"
@@ -80,6 +81,7 @@ func (w *MainWindow) shareSourceAnew() {
 	s.session.DoIn(name, func(d *collab.Doc) { ops = d.SetText(text) })
 	s.session.LocalIn(name, ops)
 	s.session.SetMeta(sourceMeta, name)
+	s.madeSource = name
 	w.dropOtherSources(name)
 	w.bindSource()
 	w.keepSharedState()
@@ -95,6 +97,10 @@ func (w *MainWindow) adoptSource(name string) {
 		return
 	}
 	w.dropOtherSources(name)
+	if made := s.madeSource; made != "" && made != name {
+		s.madeSource = ""
+		w.lostSourcePick()
+	}
 	ref := w.sourceRef()
 	if ref.Origin == sourceInside {
 		return // the script holds one: that one is the script's
@@ -204,4 +210,18 @@ func (w *MainWindow) keepSharedSource() {
 		return
 	}
 	_ = d.store()
+}
+
+// lostSourcePick tells the writer that the source they shared or picked
+// is not the shared one any more: another peer picked one at the same
+// moment (or since), and the last pick wins. The window follows the
+// shared one from now on; the file they picked is left as it is.
+func (w *MainWindow) lostSourcePick() {
+	who := "Another writer"
+	if v := w.shared.session.MetaValue(sourceMeta); v.Replica != "" {
+		if n := w.shared.session.Meta(nameKey(v.Replica)); n != "" {
+			who = n
+		}
+	}
+	w.setStatus(who + " picked a source too: theirs is the shared one now. Choose Source… again to share yours instead")
 }

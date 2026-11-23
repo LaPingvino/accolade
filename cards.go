@@ -208,6 +208,7 @@ func (c *cardsView) update(text string) {
 		}
 		c.targets = nil // a view: nothing to drop on
 		c.follow()
+		c.showDots()
 		c.list.Refresh()
 		return
 	}
@@ -237,6 +238,7 @@ func (c *cardsView) update(text string) {
 	end(len(c.items))
 	c.lit = -1
 	c.follow()
+	c.showDots()
 	c.list.Refresh()
 }
 
@@ -270,6 +272,23 @@ func (c *cardsView) follow() {
 		}
 	}
 	c.lit = at
+}
+
+// showDots puts a dot on each card whose scene a co-writer is in.
+func (c *cardsView) showDots() {
+	if c.shown.timeline {
+		return
+	}
+	dots := c.w.peersInScenes(c.items)
+	for _, g := range c.list.Objects {
+		if grid, ok := g.(*fyne.Container); ok {
+			for _, o := range grid.Objects {
+				if k, ok := o.(*card); ok {
+					showRowDots(k.dots, dots[k.i])
+				}
+			}
+		}
+	}
 }
 
 // newGroupHeader heads a group of the grouped cards: its name and colour.
@@ -393,6 +412,7 @@ type card struct {
 	syn   *synopsisEntry
 	paper *canvas.Rectangle
 	lit   bool
+	dots  *fyne.Container // the co-writers in its scene (collab_cursors.go)
 }
 
 // synopsisEntry is where a card's synopsis is written.
@@ -429,14 +449,17 @@ func newCard(c *cardsView, i int, it outlineItem, preview string, folded bool) *
 		bottom = p
 	}
 	paper := canvasCard()
-	var inside fyne.CanvasObject = container.NewBorder(withSwatch(title, it.Color), bottom, nil, nil, syn)
+	dots := container.NewCenter(newPeerDots())
+	dots.Hide()
+	head := container.NewBorder(nil, nil, nil, dots, withSwatch(title, it.Color))
+	var inside fyne.CanvasObject = container.NewBorder(head, bottom, nil, nil, syn)
 	if folded { // its heading and how it starts
 		if bottom == nil {
 			bottom = layout.NewSpacer()
 		}
-		inside = container.NewBorder(withSwatch(title, it.Color), nil, nil, nil, bottom)
+		inside = container.NewBorder(head, nil, nil, nil, bottom)
 	}
-	k := &card{syn: syn, paper: paper, body: container.NewStack(paper, container.NewPadded(inside))}
+	k := &card{syn: syn, paper: paper, dots: dots, body: container.NewStack(paper, container.NewPadded(inside))}
 	k.c = c
 	k.dragged = dragged{board: c, i: i, self: k}
 	k.ExtendBaseWidget(k)

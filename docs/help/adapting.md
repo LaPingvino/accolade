@@ -181,6 +181,6 @@ cut:
 */
 ```
 
-Adaptation > What Accolade Learned… opens the list in the pane. Each lesson has a button that takes it away, and it is not learned again in that session. You can edit the block by hand too. Nothing is learned while you edit the script together with others.
+Adaptation > What Accolade Learned… opens the list in the pane. Each lesson has a button that takes it away, and it is not learned again in that session. You can edit the block by hand too. While you edit the script together with others, only the one who wrote a heading or cue learns from it ([Writing Together](together.md#automatic-changes)).
 
 See also: [Fountain Reference](fountain.md#source-links), [Markdown Syntax](cheat-markdown.md), [Accolade Blocks & Links](cheat-blocks.md).

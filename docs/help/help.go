@@ -48,7 +48,7 @@ type Page struct {
 }
 
 // The pages in the order the Help menu and the contents list them.
-var pageSlugs = []string{"index", "fountain", "final-draft", "adapting", "fixing-imports", "production", "table-read", "shortcuts", "formats", "settings", "lexington", "vim", "ex"}
+var pageSlugs = []string{"index", "fountain", "final-draft", "adapting", "fixing-imports", "production", "table-read", "together", "shortcuts", "formats", "settings", "lexington", "vim", "ex"}
 
 // The cheat sheets, in a screenplay's order (CheatsFor has a Markdown
 // document's).

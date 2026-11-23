@@ -39,3 +39,30 @@ func TestSpans(t *testing.T) {
 		t.Errorf("overlaps kept: %v", b.Spans())
 	}
 }
+
+// Marks move with the text: typed before them, at them (they stay
+// before), deleted around them (to where it was), undone, and a remote
+// edit too.
+func TestMarks(t *testing.T) {
+	b := New("one two three")
+	b.SetMarks([]int{4, 8})
+	b.SetCursor(0, false)
+	b.Insert("zero ") // before both
+	if m := b.Marks(); m[0] != 9 || m[1] != 13 {
+		t.Fatalf("after typing before: %v", m)
+	}
+	b.SetCursor(9, false)
+	b.Insert("X") // at the first: it stays before
+	if m := b.Marks(); m[0] != 9 || m[1] != 14 {
+		t.Fatalf("after typing at one: %v", m)
+	}
+	b.Replace(12, 16, "") // around the second: where it was
+	if m := b.Marks(); m[1] != 12 {
+		t.Fatalf("after deleting around it: %v", m)
+	}
+	b.Undo()
+	b.Remote(0, 5, "")
+	if m := b.Marks(); m[0] != 4 {
+		t.Errorf("after undo and a remote edit: %v", m)
+	}
+}

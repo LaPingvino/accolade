@@ -30,6 +30,7 @@ Accolade is a screenplay editor that writes plain Fountain. These pages are in t
 - [Fixing an Imported Script](fixing-imports.md) — every line of a kind set right at once: headings, cues, page debris, double spacing
 - [Production](production.md) — locking, revisions, breakdown, schedule and reports
 - [The Table Read](table-read.md) — the script read aloud on a TV or projector, a scene at a time, a phone driving it
+- [Writing Together](together.md) — sharing a script, what is shared, seeing each other, Undo and leaving
 - [Keyboard Shortcuts](shortcuts.md) — every shortcut, for a screenplay and a Markdown document
 - [File Formats](formats.md) — what Accolade opens, saves, imports and exports
 - [Lexington on the Command Line](lexington.md) — converting scripts without the editor

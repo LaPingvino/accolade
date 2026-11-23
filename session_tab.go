@@ -85,20 +85,9 @@ func (w *MainWindow) scriptCursorLine() int {
 	return line
 }
 
-// sayHere tells the others this side is here and its cursor's line: when
-// the line changed, or always (again).
-func (w *MainWindow) sayHere(always bool) {
-	s := w.shared
-	if s == nil || s.paused {
-		return
-	}
-	line := w.hereLine() // the Table Read's, while it leads (tableread_follow.go)
-	if !always && line == s.hereLine && s.saidHere {
-		return
-	}
-	s.hereLine, s.saidHere = line, true
-	s.session.SetHere(w.yourName(), line)
-}
+// sayHere tells the others this side is here, and its place (its
+// cursor's line, its selection): when it changed, or always (again).
+func (w *MainWindow) sayHere(always bool) { w.sayPlace(always) }
 
 // hereBeat says this side is still here every collab.HereEvery, and
 // lets the ribbon see who went quiet.
@@ -136,6 +125,7 @@ func (w *MainWindow) hereChanged() {
 		}
 	}
 	w.tableReadFollowHere() // the Table Read following someone (tableread_follow.go)
+	w.showPeers()           // their places in the editor, the outline and the cards (collab_cursors.go)
 	w.updateStatusBar()     // "Shared · 1 other"
 	w.ribbonFollow()
 }

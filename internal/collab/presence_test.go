@@ -130,3 +130,57 @@ func TestPresenceViewer(t *testing.T) {
 		t.Errorf("b sees %+v", h)
 	}
 }
+
+// A cursor said as an anchor stays with its text: a peer's edit before
+// it, a deletion of the rune it comes after, and the start; the selection
+// comes with it, and a peer whose ops have not come yet has the line.
+func TestPresenceAnchors(t *testing.T) {
+	key, _ := NewKey()
+	a, b := NewSession(key, New("a")), NewSession(key, New("b"))
+	edit := func(f func(d *Doc) []Op) {
+		var ops []Op
+		a.Do(func(d *Doc) { ops = f(d) })
+		a.Local(ops)
+	}
+	edit(func(d *Doc) []Op { return d.Insert(0, "INT. BARN - DAY\n\nRain falls.\n") })
+	link(a, b, "a", "b")
+	at := len([]rune("INT. BARN - DAY\n\nRain"))
+	b.SetHereAt("Bob", 2, at, at-4) // "Rain" selected, the cursor after it
+	place := func(s *Session) (cur, from int) {
+		p := s.Here()[0]
+		if p.At == nil || p.From == nil {
+			t.Fatalf("no place said: %+v", p)
+		}
+		s.Do(func(d *Doc) {
+			cur, _ = d.Place(*p.At)
+			from, _ = d.Place(*p.From)
+		})
+		return cur, from
+	}
+	if cur, from := place(a); cur != at || from != at-4 {
+		t.Fatalf("a sees Bob at %d from %d, not %d from %d", cur, from, at, at-4)
+	}
+	edit(func(d *Doc) []Op { return d.Insert(0, "FADE IN:\n\n") }) // before it: it moves with the text
+	if cur, _ := place(a); cur != at+10 {
+		t.Errorf("after an edit before it, at %d, not %d", cur, at+10)
+	}
+	edit(func(d *Doc) []Op { return d.Delete(at+10-1, 1) }) // the rune it comes after: where it was
+	if cur, _ := place(a); cur != at+10-1 {
+		t.Errorf("after its rune went, at %d, not %d", cur, at+9)
+	}
+	b.SetHereAt("Bob", 0, 0, 0)
+	if p := a.Here()[0]; p.At == nil || *p.At != (ID{}) || p.From != nil {
+		t.Errorf("at the start: %+v", p)
+	}
+	c := NewSession(key, New("c")) // nothing of the script here: the ID is not, the line is
+	var id ID
+	a.Do(func(d *Doc) { id = d.Anchor(5) })
+	c.Do(func(d *Doc) {
+		if _, ok := d.Place(id); ok {
+			t.Error("placed an ID not here")
+		}
+	})
+	if b, _ := json.Marshal(Presence{Replica: "x", Line: 2, Seq: 1}); string(b) != `{"r":"x","l":2,"s":1}` {
+		t.Errorf("a presence without a place: %s", b)
+	}
+}

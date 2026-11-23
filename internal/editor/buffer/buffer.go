@@ -34,6 +34,8 @@ type Buffer struct {
 	cursor, anchor int
 	// others are more selections than that one, the primary (spans.go)
 	others []Span
+	// marks are places that move with the text, not selections (SetMarks)
+	marks []int
 
 	undo, redo []step
 	group      *step // the step being built by Group
@@ -87,6 +89,9 @@ func (b *Buffer) SetText(text string) {
 	b.chAll = true
 	b.cursor, b.anchor = 0, 0
 	b.undo, b.redo = nil, nil
+	for i, m := range b.marks {
+		b.marks[i] = b.clamp(m)
+	}
 }
 
 // Cursor is the cursor offset.
@@ -371,6 +376,9 @@ func (b *Buffer) splice(start, end int, inserted []rune) {
 	b.noteChange(start, end, len(inserted))
 	b.text = append(b.text[:start], append(append([]rune(nil), inserted...), b.text[end:]...)...)
 	b.rev++
+	for i, m := range b.marks {
+		b.marks[i] = markMoved(m, start, end, len(inserted))
+	}
 	for i := range b.others { // the other selections move with the text
 		b.others[i].Anchor = shifted(b.others[i].Anchor, start, end, len(inserted))
 		b.others[i].Cursor = shifted(b.others[i].Cursor, start, end, len(inserted))
@@ -562,4 +570,28 @@ func remoteMove(off, start, end, n int) int {
 		return off + n - (end - start)
 	}
 	return start + n
+}
+
+// SetMarks keeps places in the text that move with it as it is edited,
+// and are nothing else to it (a co-writer's cursor and selection, drawn
+// by the editor): text typed at a mark goes after it, a mark in text
+// deleted goes to where it was.
+func (b *Buffer) SetMarks(marks []int) {
+	b.marks = b.marks[:0]
+	for _, m := range marks {
+		b.marks = append(b.marks, b.clamp(m))
+	}
+}
+
+// Marks are the places SetMarks keeps, moved with the text since.
+func (b *Buffer) Marks() []int { return b.marks }
+
+func markMoved(off, start, end, n int) int {
+	switch {
+	case off <= start:
+		return off
+	case off >= end:
+		return off + n - (end - start)
+	}
+	return start
 }

@@ -141,6 +141,7 @@ type outlinePanel struct {
 	folded   map[string]bool // sections shown without what is in them
 	list     *widget.List
 	box      fyne.CanvasObject
+	dots     map[int][]color.Color // who is in which item, by index (collab_cursors.go)
 
 	oneLine, twoLines float32 // row heights without and with a synopsis
 }
@@ -163,7 +164,9 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			room := canvas.NewRectangle(color.Transparent)
 			room.SetMinSize(fold.MinSize())
 			swatch := container.NewCenter(newSwatch())
-			return newDragRow(o, container.NewBorder(nil, nil, container.NewStack(room, fold), swatch, container.NewVBox(title, syn)))
+			dots := container.NewCenter(newPeerDots()) // the co-writers in it (collab_cursors.go)
+			dots.Hide()
+			return newDragRow(o, container.NewBorder(nil, nil, container.NewStack(room, fold), container.NewHBox(dots, swatch), container.NewVBox(title, syn)))
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id >= len(o.items) {
@@ -176,7 +179,9 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			box, fold := row.Objects[0].(*fyne.Container), row.Objects[1].(*fyne.Container).Objects[1].(*widget.Button)
 			title, syn := box.Objects[0].(*widget.Label), box.Objects[1].(*widget.Label)
 			o.showFold(fold, id)
-			showSwatch(row.Objects[2].(*fyne.Container).Objects[0].(*canvas.Rectangle), it.Color)
+			right := row.Objects[2].(*fyne.Container)
+			showSwatch(right.Objects[1].(*fyne.Container).Objects[0].(*canvas.Rectangle), it.Color)
+			showRowDots(right.Objects[0].(*fyne.Container), o.dots[id])
 			title.SetText(strings.Repeat("  ", max(0, it.Level-1)) + it.Text)
 			title.TextStyle = fyne.TextStyle{Bold: !it.Scene}
 			title.Refresh()
@@ -308,6 +313,10 @@ func (o *outlinePanel) show() {
 		o.items = filterOutline(o.all, o.filter.Text)
 	} else {
 		o.items = unfolded(o.all, o.folded)
+	}
+	o.dots = nil
+	if o.ofScript() {
+		o.dots = o.w.peersInScenes(o.items) // who is in which (collab_cursors.go)
 	}
 	// rows without a synopsis are one line high
 	if o.oneLine == 0 {

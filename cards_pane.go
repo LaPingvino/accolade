@@ -29,6 +29,7 @@ type cardsPane struct {
 	list  *widget.List
 	box   fyne.CanvasObject
 	row   float32 // a card's height
+	dots  map[int][]color.Color // who is in which card, by index (collab_cursors.go)
 }
 
 func (w *MainWindow) cardsPane() *cardsPane {
@@ -60,7 +61,9 @@ func newCardsPane(w *MainWindow) *cardsPane {
 			syn.SetPlaceHolder("Synopsis…")
 			syn.OnChanged = func(s string) { c.setSynopsis(syn.id, s) }
 			swatch := container.NewCenter(newSwatch())
-			body := container.NewBorder(nil, nil, swatch, nil, container.NewVBox(title, syn))
+			dots := container.NewCenter(newPeerDots()) // the co-writers in it (collab_cursors.go)
+			dots.Hide()
+			body := container.NewBorder(nil, nil, swatch, dots, container.NewVBox(title, syn))
 			return newDragRow(c, container.NewStack(bg, container.NewPadded(body)))
 		},
 		func(id widget.ListItemID, o fyne.CanvasObject) {
@@ -113,6 +116,7 @@ func (c *cardsPane) show(r *dragRow, id int) {
 	}
 	title.Refresh()
 	showSwatch(swatch, it.Color)
+	showRowDots(r.content.Objects[1].(*fyne.Container).Objects[0].(*fyne.Container).Objects[2].(*fyne.Container), c.dots[id])
 	typing := c.w.fyneWindow.Canvas().Focused() == fyne.Focusable(syn) && syn.id == id
 	syn.id = id
 	if !typing && syn.Text != it.Synopsis { // being typed: as it is (the script keeps one line)
@@ -130,6 +134,7 @@ func (c *cardsPane) show(r *dragRow, id int) {
 func (c *cardsPane) update(text string) {
 	c.of = c.w.scriptKey()
 	c.items = c.w.outlineItems(text)
+	c.dots = c.w.peersInScenes(c.items) // who is in which (collab_cursors.go)
 	if c.row == 0 {
 		c.row = c.list.CreateItem().MinSize().Height
 	}

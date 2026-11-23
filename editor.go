@@ -48,6 +48,7 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 		e.Tags = w.guessTags // a scene's guessed link beside its heading (linkup.go)
 		e.OnTagTapped = w.guessTagTapped
 		e.Marks = w.revisionMarksShown
+		e.OnPeer = w.peerTip // whose bar in the gutter (collab_cursors.go)
 		e.Inks = w.breakdownInksShown
 		e.OnSecondaryTapped = w.showTagMenu
 		w.vim = vi

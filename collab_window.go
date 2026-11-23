@@ -90,12 +90,16 @@ type shared struct {
 	// followOnly: joined with the follow link, a viewer that edits
 	// nothing (tableread_follow.go)
 	followOnly bool
+	// madeSource is the source Doc this side made (its source shared, or
+	// picked while shared), to tell it so if another peer's wins
+	madeSource string
 	// who is here (session_tab.go): this side's replica; the line said
 	// last; the beat saying it is still here; the one followed ("":
 	// nobody), their name and line as last followed
 	replica            string
-	hereLine           int
+	said               hereSaid // this side's place as said last (collab_cursors.go)
 	saidHere           bool
+	sayTimer           *uiTimer // a selection said once it rests
 	beat               *uiTimer
 	follow, followName string
 	followLine         int
@@ -182,6 +186,12 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 			w.keepSharedState()
 		}
 	}
+	s.session.OnLost = func(key, value string) {
+		if w.shared == s && key == sourceMeta && value != "" && value != s.session.Meta(sourceMeta) {
+			s.session.Drop(value) // a source picked here and there at once: the other's (collab_source.go)
+			w.keepSharedState()
+		}
+	}
 	s.session.OnMismatch = func(theirs int, app string) {
 		if w.shared == s {
 			s.other, s.otherApp, s.otherOlder = true, app, theirs < collab.Protocol
@@ -264,10 +274,12 @@ func (w *MainWindow) stopSharing() {
 		s.stop()
 		s.stateTimer.Stop()
 		s.beat.Stop()
+		s.sayTimer.Stop()
 		w.shared = nil
 		if w.tableRead != nil && w.tableRead.follow != "" {
 			w.tableRead.stopFollow() // nobody to follow now
 		}
+		w.showPeers() // the others' places go (collab_cursors.go)
 		setPageKey("")
 		w.updateStatusBar()
 		w.ribbonRefresh() // the Session tab goes
@@ -377,6 +389,8 @@ func (w *MainWindow) applyRemote(by string) {
 		w.recordChange(by, removed, e.Text, line)
 		line += strings.Count(e.Text, "\n")
 	}
+	w.scheduleSceneNumbers() // a number given here and there at once is given again (production.go)
+	w.showPeers()            // the others' places, in the text as it is now (collab_cursors.go)
 }
 
 // shareMeta sends a setting of the script (its language, its format) to

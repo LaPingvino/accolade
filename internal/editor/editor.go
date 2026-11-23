@@ -134,6 +134,13 @@ type ScriptEditor struct {
 	OnHover func(offset int, at fyne.Position, cell fyne.Size)
 	// AccessibleName is what screen readers call the editor ("Script").
 	AccessibleName string
+	// OnPeer, when set, is told of the pointer over a co-writer's bar in
+	// the gutter, or a tap on it (peers.go): their names, and its cell's
+	// place and size; names "" when the pointer left it.
+	OnPeer func(names string, at fyne.Position, cell fyne.Size)
+
+	peers     []Peer // the co-writers shown (SetPeers), their places buffer marks
+	peerShown bool   // OnPeer was told of a bar under the pointer
 
 	buf     *buffer.Buffer
 	layout  wrap.Layout
@@ -236,6 +243,7 @@ type drawing struct {
 	selStart, selEnd, curRow, curCol, gutter int
 	others                                   []buffer.Span // more selections
 	otherCursors                             map[int][]int // their cursors' columns by row
+	peers                                    peerDrawing   // the co-writers' bars and selections (peers.go)
 }
 
 // viewMargin is how many rows beyond the view the grid holds, so that
@@ -587,7 +595,7 @@ func (e *ScriptEditor) relayout() {
 		BGColor: color.NRGBA{R: uint8(wr >> 8), G: uint8(wg >> 8), B: uint8(wb >> 8), A: 0x28}}
 	e.draw = drawing{chip: chip, chipWarn: chipWarn, flash: flash, text: text, kinds: kinds, inline: inline, lineStart: lineStart, th: th, v: v, selected: selected, cursor: cursor,
 		highlight: highlight, number: number, selStart: selStart, selEnd: selEnd,
-		curRow: curRow, curCol: curCol, gutter: g, others: others, otherCursors: otherCursors}
+		curRow: curRow, curCol: curCol, gutter: g, others: others, otherCursors: otherCursors, peers: e.drawPeers()}
 	e.drawRows()
 }
 
@@ -831,6 +839,9 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, from, end int) {
 			cells[len(cells)-1] = widget.TextGridCell{Rune: markBar, Style: m}
 		}
 	}
+	if bar := d.peers.bar[r.Line]; bar != nil && g > 0 { // a co-writer's line: their bar, over a revision mark's
+		cells[g-1] = widget.TextGridCell{Rune: markBar, Style: bar}
+	}
 	for c := 0; c < r.Indent; c++ {
 		cells = append(cells, widget.TextGridCell{Rune: ' '})
 	}
@@ -885,6 +896,8 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, from, end int) {
 			cell.Style = withBackground(cell.Style, highlight.BGColor)
 		case off >= e.flash[0] && off < e.flash[1]:
 			cell.Style = withBackground(cell.Style, d.flash)
+		case len(d.peers.sels) > 0 && d.peers.peerSelAt(off) != nil: // a co-writer's selection
+			cell.Style = withBackground(cell.Style, d.peers.peerSelAt(off))
 		}
 		cells = append(cells, cell)
 		if wrap.Width(cell.Rune) == 2 { // a wide character's second column
@@ -1274,6 +1287,11 @@ func (e *ScriptEditor) FocusLost() {
 // Tapped focuses the editor and places the cursor at the click (Shift
 // extends the selection).
 func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
+	if names, at, ok := e.peerBarAt(ev.Position); ok && e.OnPeer != nil { // whose bar (the focus where it is)
+		e.peerShown = true
+		e.OnPeer(names, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
+		return
+	}
 	if line, ok := e.foldMarkAt(ev.Position); ok {
 		e.OnFoldTapped(line)
 		return
@@ -1365,6 +1383,7 @@ func (e *ScriptEditor) Cursor() desktop.Cursor { return desktop.TextCursor }
 // MouseIn, MouseMoved and MouseOut tell OnHover what is under the pointer.
 func (e *ScriptEditor) MouseIn(ev *desktop.MouseEvent) { e.MouseMoved(ev) }
 func (e *ScriptEditor) MouseMoved(ev *desktop.MouseEvent) {
+	e.peerHover(ev.Position, false)
 	if e.OnHover == nil {
 		return
 	}
@@ -1372,6 +1391,7 @@ func (e *ScriptEditor) MouseMoved(ev *desktop.MouseEvent) {
 	e.OnHover(off, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
 }
 func (e *ScriptEditor) MouseOut() {
+	e.peerHover(fyne.Position{}, true)
 	if e.OnHover != nil {
 		e.OnHover(-1, fyne.Position{}, fyne.Size{})
 	}

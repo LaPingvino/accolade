@@ -257,13 +257,19 @@ func (w *MainWindow) scheduleSceneNumbers() {
 // Shared, a peer numbers only the headings it wrote (wroteLine): every
 // peer sees a new scene, and the one writing it is the one who numbers
 // it, never in a co-writer's half-typed heading.
+//
+// Two peers adding a scene at one place at the same moment, before
+// either hears of the other's, each number theirs as the only new one:
+// the same number twice. Of two headings with one number, the later in
+// the text is numbered again, by its writer (the same answer on every
+// peer, so only one of them does it).
 func (w *MainWindow) numberNewScenes() {
 	if w.markdown || w.textEditor == nil {
 		return
 	}
 	e := w.textEditor
 	b := e.Buffer()
-	if b.CanRedo() || !b.CanUndo() || b.HasSelection() {
+	if b.HasSelection() {
 		return
 	}
 	text := e.Text()
@@ -273,10 +279,19 @@ func (w *MainWindow) numberNewScenes() {
 	}
 	heads := sceneHeads(text, w.sceneStarts())
 	line, _ := b.Position(b.Cursor())
-	var mine []int // the headings to number: this writer's (wroteLine)
+	fresh := !b.CanRedo() && b.CanUndo() // the writer has edited: new scenes are theirs to number
+	var mine []int                       // the headings to number: this writer's (wroteLine)
+	seen := map[string]bool{}
 	for i, h := range heads {
-		if (h.num == "" || h.stray) && h.line != line && w.wroteLine(h.line) {
+		twice := h.num != "" && seen[h.num]
+		seen[h.num] = true
+		switch {
+		case h.line == line || !(twice || fresh && (h.num == "" || h.stray)):
+		case w.wroteLine(h.line):
 			mine = append(mine, i)
+			if twice {
+				heads[i].num, heads[i].stray = "", false // a new one, numbered as such
+			}
 		}
 	}
 	if len(mine) == 0 {

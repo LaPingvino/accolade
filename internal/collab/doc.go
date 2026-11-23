@@ -144,6 +144,41 @@ func (d *Doc) Writer(pos int) string {
 	return ""
 }
 
+// Anchor is the place at rune offset pos as the rune it comes after (the
+// zero ID: the start), which stays where it is in the text whatever is
+// typed or deleted around it (Place).
+func (d *Doc) Anchor(pos int) ID {
+	if pos <= 0 {
+		return ID{}
+	}
+	if n, k := d.runeAt(min(pos, d.size) - 1); n != nil {
+		return n.id.plus(k)
+	}
+	return ID{}
+}
+
+// Place is the rune offset of the place after the rune id (Anchor): where
+// it was, if that rune is deleted since; false if it is not here (yet).
+func (d *Doc) Place(id ID) (int, bool) {
+	if id == (ID{}) {
+		return 0, true
+	}
+	at, k := d.find(id)
+	if at == nil {
+		return 0, false
+	}
+	pos := 0
+	for n := d.head.next; n != nil && n != at; n = n.next {
+		if !n.deleted {
+			pos += len(n.text)
+		}
+	}
+	if !at.deleted {
+		pos += k + 1
+	}
+	return pos, true
+}
+
 // find is the node holding the rune id and its offset there (nil: not
 // inserted here, yet).
 func (d *Doc) find(id ID) (*node, int) {

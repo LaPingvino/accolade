@@ -85,6 +85,11 @@ type Session struct {
 	meta     map[string]Value
 	// OnMeta is called (outside the lock, in Run) after a peer changed a setting.
 	OnMeta func(key, value string)
+	// OnLost is called (outside the lock, in Run) when a peer's value of a
+	// setting loses to the one here (set at the same moment, or before
+	// it): the value lost, which a window may need to let go of (a source
+	// picked at once by two: the other's Doc).
+	OnLost func(key, value string)
 	// OnMismatch is called when a peer speaks another Protocol (0: one
 	// from before there were versions), with its Accolade version if it
 	// said ("" before protocol 4).
@@ -307,14 +312,20 @@ func (s *Session) receive(from string, m message) {
 			}
 		}
 	}
-	var changed map[string]Value
+	var changed, lost map[string]Value
 	for k, v := range m.Meta {
-		if v.newer(s.meta[k]) {
+		switch cur := s.meta[k]; {
+		case v.newer(cur):
 			s.meta[k] = v
 			if changed == nil {
 				changed = map[string]Value{}
 			}
 			changed[k] = v
+		case v.Value != cur.Value:
+			if lost == nil {
+				lost = map[string]Value{}
+			}
+			lost[k] = v
 		}
 	}
 	name := m.Doc
@@ -367,6 +378,11 @@ func (s *Session) receive(from string, m message) {
 			}
 		}
 	}
+	if s.OnLost != nil {
+		for k, v := range lost {
+			s.OnLost(k, v.Value)
+		}
+	}
 	if to != nil {
 		for _, r := range replies {
 			_ = s.sendOps(to, r.doc, r.ops, "")
@@ -397,6 +413,13 @@ func (s *Session) Meta(key string) string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.meta[key].Value
+}
+
+// MetaValue is a shared setting as last set: its value, and who set it.
+func (s *Session) MetaValue(key string) Value {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.meta[key]
 }
 
 // SetMeta sets a shared setting here and sends it to every peer.

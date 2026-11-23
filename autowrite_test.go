@@ -88,3 +88,40 @@ func TestLearnTogether(t *testing.T) {
 	waitFor(t, "a's lesson at b", func() bool { return learnedBlock(b) == "places: street = EXT. KOVAČ ROAD" })
 	textIs(t, a, "a", b.textEditor.Text())
 }
+
+// Two peers add a scene at one place before either hears of the other's:
+// each numbers its own 1A. When they meet, the later of the two in the
+// text is numbered again (1B), by its writer only, so the script ends
+// with one 1A and one 1B on both sides.
+func TestSceneNumberCollision(t *testing.T) {
+	a, b, _ := sharedPair(t, lockScript)
+	a.lockSceneNumbers()
+	cut := connect(t, a, b)
+	textIs(t, b, "b", a.textEditor.Text())
+	cut()
+	add := func(w *MainWindow, scene string) {
+		text := w.textEditor.Text()
+		at := len([]rune(text[:strings.Index(text, "EXT. GARDEN")]))
+		w.textEditor.Edit(func(buf *buffer.Buffer) { buf.Replace(at, at, scene) })
+		w.textEditor.SetCursorOffset(0)
+		w.numberNewScenes()
+		if !strings.Contains(w.textEditor.Text(), "#1A#") {
+			t.Fatalf("not numbered alone:\n%s", w.textEditor.Text())
+		}
+	}
+	add(a, "INT. SHED - DAY\n\nTools.\n\n")
+	add(b, "INT. BARN - DAY\n\nHay.\n\n")
+	connect(t, a, b)
+	waitFor(t, "one 1A and one 1B on both", func() bool {
+		ta, tb := a.textEditor.Text(), b.textEditor.Text()
+		return ta == tb && strings.Count(ta, "#1A#") == 1 && strings.Count(ta, "#1B#") == 1
+	})
+	got := a.textEditor.Text()
+	if i, j := strings.Index(got, "#1A#"), strings.Index(got, "#1B#"); i > j {
+		t.Errorf("1B before 1A:\n%s", got)
+	}
+	uiSleep(2 * sceneNumberPause) // nothing more to number: it stays
+	if a.textEditor.Text() != got || b.textEditor.Text() != got {
+		t.Errorf("numbered on:\n%s\n%s", a.textEditor.Text(), b.textEditor.Text())
+	}
+}

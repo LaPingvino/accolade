@@ -13,10 +13,19 @@ import (
 // says it leaves (Gone), or until the peer it came through goes away.
 // None of it is kept (State): it is about now. A peer of protocol 5
 // before this ignores the message's "h", so the protocol stays 5.
+//
+// At and From are where the cursor is and where its selection starts
+// (nil: no selection), in the script's Doc, as the rune each comes after
+// (the zero ID: the start; Doc.Anchor): a co-writer's edit before them
+// leaves them where they were, so a window draws them right however its
+// text has moved since they were said (Doc.Place). Line stays for a peer
+// whose ops have not come yet, and for the peers before At.
 type Presence struct {
 	Replica string `json:"r"`
 	Name    string `json:"n,omitempty"`
 	Line    int    `json:"l"`
+	At      *ID    `json:"a,omitempty"`
+	From    *ID    `json:"f,omitempty"`
 	Seq     uint64 `json:"s"`
 	Gone    bool   `json:"g,omitempty"`
 	// View: a viewer that follows only (a Table Read on a TV): it edits
@@ -41,9 +50,23 @@ type heard struct {
 
 // SetHere says this side is here, as name, its cursor on line; again with
 // nothing changed, it says it is still here.
-func (s *Session) SetHere(name string, line int) {
+func (s *Session) SetHere(name string, line int) { s.SetHereAt(name, line, -1, -1) }
+
+// SetHereAt says this side is here, as name, its cursor on line at rune
+// offset cursor in the script, its selection from rune offset from
+// (from == cursor: none; cursor < 0: no place but the line).
+func (s *Session) SetHereAt(name string, line, cursor, from int) {
 	s.mu.Lock()
-	s.me = Presence{Replica: s.replica, Name: name, Line: line, Seq: s.me.Seq + 1, View: s.Viewer}
+	p := Presence{Replica: s.replica, Name: name, Line: line, Seq: s.me.Seq + 1, View: s.Viewer}
+	if d := s.docs[Script]; d != nil && cursor >= 0 {
+		at := d.Anchor(cursor)
+		p.At = &at
+		if from >= 0 && from != cursor {
+			f := d.Anchor(from)
+			p.From = &f
+		}
+	}
+	s.me = p
 	me := s.me
 	peers := s.othersThan("")
 	s.mu.Unlock()
