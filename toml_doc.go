@@ -231,6 +231,13 @@ func (d *tomlDoc) notes() []string {
 		for _, n := range slices.Sorted(maps.Keys(c.Elements)) {
 			unknown("Set "+n+": ", c.Elements[n])
 		}
+		for _, lang := range slices.Sorted(maps.Keys(c.Languages)) {
+			// a new scene written by the language's form must read as one
+			l := c.Language(lang)
+			if h, ok := exampleOf(lang, l, l.HeadingForm()); !ok {
+				out = append(out, fmt.Sprintf("%s: a new scene written by %q (%s) does not read as a scene heading: make it one of the patterns, or start it with a scene word.", lang, l.HeadingForm(), h))
+			}
+		}
 		for _, t := range []string{"Scenes", "Matchups", "Directions"} {
 			if d.has(t) {
 				out = append(out, "["+t+"] is the older way of writing languages: Lexington reads it over [Languages]. A language changed here moves out of it.")

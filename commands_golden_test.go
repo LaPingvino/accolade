@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))) // the moves write Linux keys too
+		want := newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -988,6 +988,15 @@ func linkUpMoves(name, golden string) string {
 func referencesMoves(name, golden string) string {
 	if strings.HasPrefix(name, "menu-markdown") {
 		return strings.Replace(golden, "  Help\n  Changes [Primary+Shift+H]\n", "  References\n  Help\n  Changes [Primary+Shift+H]\n", 1)
+	}
+	return golden
+}
+
+// newSceneMoves: Format › New Scene… before Storyboard Frame…
+// (new_scene.go).
+func newSceneMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-screenplay") {
+		return strings.Replace(golden, "  ---\n  Storyboard Frame…\n", "  ---\n  New Scene…\n  Storyboard Frame…\n", 1)
 	}
 	return golden
 }

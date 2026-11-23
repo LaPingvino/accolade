@@ -1012,17 +1012,30 @@ func (sg *suggester) hint() string {
 	if s := sg.at(); s != nil {
 		return "Tab: " + s.hints[0] + hintSuffix(0, len(s.alts))
 	}
-	names, heads := sg.firsts(b.Cursor())
-	return completionHintWith(e.Text(), b.Cursor(), sg.w.sceneStarts(), names, heads)
+	return hintOf(sg.w.completionAt(b.Cursor()))
 }
 
 // showSuggestionHint puts the hint for the cursor in the status bar, or
 // takes an old one away.
 func (w *MainWindow) showSuggestionHint() {
 	if w.markdown || w.textEditor == nil || !w.scriptInMain() { // Tab is the script's (middle.go)
+		if w.compl != nil {
+			w.compl.hide()
+		}
 		return
 	}
-	if h := w.suggester().hint(); h != "" {
+	h := ""
+	if p := w.complPop(); w.listKeys() && !(w.suggest != nil && w.suggest.cycle.valid(w.textEditor.Buffer())) {
+		p.follow() // the completion list (complete_list.go)
+	} else {
+		p.hide()
+	}
+	if w.compl.open() && !w.compl.cycle {
+		h = hintOf(w.compl.c) // what Tab takes: the list's
+	} else {
+		h = w.suggester().hint()
+	}
+	if h != "" {
 		w.setStatus(h)
 	} else if w.statusHint != "" {
 		w.setStatus("")

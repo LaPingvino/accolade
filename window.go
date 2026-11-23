@@ -89,6 +89,7 @@ type MainWindow struct {
 	cites      *citeState
 	citePop    *citePop
 	references *referencesPanel // View > References (references_pane.go)
+	compl      *complList       // the script's completion list (complete_list.go)
 	// the middle tabs: the script, the cards' full view, the panes put
 	// there (middle.go)
 	mid middle
@@ -1634,7 +1635,7 @@ func systemOpen(path string) {
 
 // setContent shows content in the window, with the tooltip layer over it.
 func (w *MainWindow) setContent(content fyne.CanvasObject) {
-	w.fyneWindow.SetContent(container.New(&windowLayout{w: w}, content, w.exPopup().layer, w.citePopup().layer, w.tooltips))
+	w.fyneWindow.SetContent(container.New(&windowLayout{w: w}, content, w.exPopup().layer, w.citePopup().layer, w.complPop().layer, w.tooltips))
 }
 
 // relayout puts the window together: the toolbar and the status bar,

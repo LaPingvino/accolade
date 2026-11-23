@@ -9,15 +9,16 @@ tabs: File [Write] Edit Production Collaboration View
   S Centered mark=>< keys (Ctrl+7) name=Centered (Ctrl+7)
   S Lyrics mark=~ keys (Ctrl+8) name=Lyrics (Ctrl+8)
 ## Scene
+  S New Scene icon=foreground_content-add.svg name=New Scene…
   S INT./EXT. icon=foreground_home.svg name=Inside or Outside…
   S Character icon=foreground_account.svg name=Character Name…
-  S Color icon=foreground_color-palette.svg name=Scene or Section Color… (Ctrl+Shift+L)
 ## Emphasis
   T Bold icon=foreground_bold.svg name=Bold (Ctrl+B)
   T Italic icon=foreground_italic.svg name=Italic (Ctrl+I)
   T Underline icon=foreground_underline.svg name=Underline (Ctrl+U)
   T Right to Left icon=foreground_rtl.svg name=Right to Left Line
   T Frame icon=foreground_image.svg name=Storyboard Frame…
+  T Color icon=foreground_color-palette.svg name=Scene or Section Color… (Ctrl+Shift+L)
 ## Script
   select Script format
   S Title Page icon=foreground_document.svg name=Title Page… (Ctrl+Shift+T)

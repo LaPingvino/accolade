@@ -629,6 +629,16 @@ func newRegistry() *registry {
 		&command{id: "write.storyboardFrame", label: "Storyboard Frame…", text: "Frame", ribbonLabel: "Frame",
 			tip: "A storyboard frame under this line: a picture, kept with the script ([[board: …]])", icon: func() fyne.Resource { return imageIcon },
 			when: scriptEditing, run: (*MainWindow).askFrame},
+		// a scene heading with fill-in fields, in the language's form (new_scene.go)
+		&command{id: "write.newScene", label: "New Scene…", text: "New Scene", ribbonLabel: "New Scene",
+			tip: "A new scene after this one: its heading filled in field by field, in the script language's form", icon: theme.ContentAddIcon,
+			when: screenplayOnly, run: func(w *MainWindow) {
+				if w.cards != nil && w.cardsShown() && !w.scriptInMain() { // the cards' own: after the current card (cards_tab.go)
+					w.newSceneAfterCurrent()
+					return
+				}
+				w.showNewScene()
+			}},
 		&command{id: "write.place", label: "Inside or Outside…", text: "INT./EXT.", tip: "INT./EXT.", icon: theme.HomeIcon, when: scriptEditing, pick: (*MainWindow).pickPlace},
 		&command{id: "write.character", label: "Character Name…", text: "Character", tip: "Character", icon: theme.AccountIcon, when: scriptEditing, pick: (*MainWindow).pickCharacter},
 		&command{id: "write.elementKind", label: "Elements as a list or as buttons", icon: theme.ViewRestoreIcon, when: scriptEditing,
@@ -874,7 +884,7 @@ func newRegistry() *registry {
 			at("format.rtl"), at("format.color"),
 			sep(), at("format.bold"), at("format.italic"), at("format.underline"), at("md.strike"), at("md.code"),
 			sep()), append(headings,
-			sep(), at("write.storyboardFrame"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
+			sep(), at("write.newScene"), at("write.storyboardFrame"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
 			sep(), at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote"),
 			sep(), at("md.codeBlock"), at("md.rule"), at("md.table"),
 		)...)},
@@ -1215,14 +1225,15 @@ func ribbonLayout() []ribbonTab {
 		}},
 		{title: "Write", groups: []ribbonGroup{
 			{title: "Element", homes: []home{{id: "elements"}}},
-			{title: "Scene", homes: []home{at("write.place"), at("write.character"), at("format.color")}},
+			// a whole new scene first (new_scene.go); the color a tool under the emphasis, for room
+			{title: "Scene", homes: []home{at("write.newScene"), at("write.place"), at("write.character")}},
 			// a Markdown document's elements: its headings, given by their keys
 			// as a screenplay's elements are (Ctrl+1…6, Ctrl+0)
 			{title: "Heading", homes: []home{keyed("md.heading1"), keyed("md.heading2"), keyed("md.heading3"),
 				keyed("md.heading4"), keyed("md.heading5"), keyed("md.heading6"), keyed("md.heading0"),
 				{id: "md.headings", large: true, phoneOnly: true}}},
 			{title: "Emphasis", homes: []home{tool("format.bold"), tool("format.italic"), tool("format.underline"), tool("md.strike"), tool("md.code"),
-				sep(), tool("format.rtl"), tool("write.storyboardFrame")}}, // a row of their own, under them
+				sep(), tool("format.rtl"), tool("write.storyboardFrame"), tool("format.color")}}, // a row of their own, under them
 			{title: "Insert", homes: []home{big("md.link"), at("md.image"), at("md.footnote"), at("md.table"), at("md.rule"), at("md.codeBlock")}},
 			{title: "Notes", homes: []home{at("md.noteJump"), at("md.renumberNotes")}},
 			{title: "Lists", homes: []home{at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote")}},

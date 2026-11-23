@@ -179,6 +179,7 @@ var exNames = map[string]string{
 	"md.noteJump":       "go-note",
 	"write.elementKind": "elements-list-or-buttons",
 	"write.place":       "inside-outside",
+	"write.newScene":    "new-scene", // the cards' too, while they are in front
 	"view.paneTop":      "move-pane-top",
 	"view.paneBottom":   "move-pane-bottom",
 	"view.paneMiddle":   "move-pane-middle",

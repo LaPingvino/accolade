@@ -32,9 +32,12 @@ func TestCompleteAt(t *testing.T) {
 	}{
 		{"AN", []string{"ANNA", "ANDREW"}}, // Anna speaks more often
 		{"AND", []string{"ANDREW"}},
-		{"     ANN", []string{"ANNA"}}, // indented like a name
-		{"INT. K", []string{"INT. KITCHEN - DAY"}},
-		{"ext", []string{"EXT. GARDEN - NIGHT"}},
+		{"     ANN", []string{"ANNA"}},                                 // indented like a name
+		{"INT. K", []string{"INT. KITCHEN"}},                           // the place, slot by slot
+		{"ext", []string{"EXT.", "EXT./INT."}},                         // the scene word first
+		{"EXT.", []string{"EXT. KITCHEN", "EXT. GARDEN", "EXT./INT."}}, // then the places, or a longer word
+		{"INT. KITCHEN -", []string{"INT. KITCHEN - DAY", "INT. KITCHEN - NIGHT"}},
+		{"INT. KITCHEN - N", []string{"INT. KITCHEN - NIGHT"}},
 		{"Anna", nil}, // not upper case: action
 		{"ANNA", nil}, // complete already
 		{"ZED", nil},

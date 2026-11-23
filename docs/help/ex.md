@@ -159,6 +159,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:italic** — Format > Italic
 - **:underline** — Format > Underline (screenplay)
 - **:storyboard-frame** — Format > Storyboard Frame (screenplay)
+- **:new-scene** — Format > New Scene (screenplay)
 - **:strikethrough** — Format > Strikethrough (Markdown)
 - **:inline-code** — Format > Inline Code (Markdown)
 - **:code-block** — Format > Code Block (Markdown)
@@ -318,7 +319,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:timeline-zoom-in** — Cards > Zoom In on the Timeline (while the Cards tab is there)
 - **:timeline-zoom-out** — Cards > Zoom Out on the Timeline (while the Cards tab is there)
 - **:make-it-the-order** — Put the scenes in the order the groups show, inside each section, as one undo step (Cards > Make It the Order) (while the Cards tab is there)
-- **:new-scene** — A new scene after the current card's (Cards > New Scene) (while the Cards tab is there)
+- **:new-card** — A new scene after the current card's (Cards > New Scene) (while the Cards tab is there)
 - **:fold-synopses** — The cards as their headings and how they start, without their synopses (Cards > Fold Synopses) (while the Cards tab is there)
 - **:open-card** — The current card's scene in the script (Cards > Open in the Script) (while the Cards tab is there)
 - **:back-to-script** — Cards > Back to the Script (while the Cards tab is there)

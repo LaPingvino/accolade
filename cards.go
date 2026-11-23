@@ -587,37 +587,23 @@ func (a *addCard) Tapped(*fyne.PointEvent) { a.c.w.askNewScene(a.at) }
 // askNewScene asks for a new scene's heading and synopsis and puts the
 // scene before item at (len: at the end), as one undo step.
 func (w *MainWindow) askNewScene(at int) {
-	heading := widget.NewEntry()
-	heading.SetPlaceHolder(newHeadingHint(w))
-	syn := widget.NewMultiLineEntry()
-	syn.Wrapping = fyne.TextWrapWord
-	syn.SetPlaceHolder("What happens")
-	form := dialog.NewForm("New Scene", "Add", "Cancel", []*widget.FormItem{
-		widget.NewFormItem("Heading", heading),
-		widget.NewFormItem("Synopsis", syn),
-	}, func(ok bool) {
-		if !ok || strings.TrimSpace(heading.Text) == "" {
-			return
-		}
+	// New Scene's form (new_scene.go), with the card's synopsis
+	var dlg dialog.Dialog
+	content, first := w.newSceneContentWith(func() { dlg.Hide() }, func(heading, syn string) {
 		old := w.textEditor.Text()
-		nw, line := addScene(old, w.sceneStarts(), at, heading.Text, syn.Text)
+		nw, line := addScene(old, w.sceneStarts(), at, heading, syn)
 		w.replaceText(old, nw)
 		w.textEditor.Navigate(func(b *buffer.Buffer) { b.SetCursor(b.LineStart(line), false) }) // the current card now
 		if w.cards != nil && w.cardsShown() {
 			w.cards.follow()
 		}
-	}, w.fyneWindow)
-	form.Resize(fyne.NewSize(420, 260))
-	form.Show()
-	w.fyneWindow.Canvas().Focus(heading)
-}
-
-// newHeadingHint is an example heading in the script's language.
-func newHeadingHint(w *MainWindow) string {
-	if in, _, _, ok := placeWords(w.sceneHeaders()); ok {
-		return strings.TrimSpace(in) + " PLACE - DAY"
+	})
+	dlg = dialog.NewCustomWithoutButtons("New Scene", content, w.fyneWindow)
+	dlg.Resize(fitDialog(w.fyneWindow, 520, 680))
+	dlg.Show()
+	if first != nil {
+		w.fyneWindow.Canvas().Focus(first)
 	}
-	return "INT. PLACE - DAY"
 }
 
 // toggleCards is the outline's Cards button: the cards' middle tab in

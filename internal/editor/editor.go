@@ -1950,3 +1950,7 @@ func (e *ScriptEditor) classifyTyping(lines []string, line int) []syntax.Kind {
 	}
 	return syntax.ClassifyTypingCached(lines, e.SceneStarts, e.casts, line)
 }
+
+// LineHeight is the height of a row of text (a pop-up under the cursor's
+// line goes this far below CursorPosition).
+func (e *ScriptEditor) LineHeight() float32 { return e.cellHeight() }

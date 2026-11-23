@@ -282,7 +282,7 @@ func cardsCommands() []*command {
 			run: func(w *MainWindow) { w.cardsFull().timeline().zoomBy(-1) }},
 		{id: "cards.makeOrder", label: "Make It the Order", tip: "Put the scenes in the order the groups show, inside each section, as one undo step",
 			ex: "make-it-the-order", icon: theme.ConfirmIcon, when: cardsGrid, enabled: cardsReorderable, run: (*MainWindow).makeCardsTheOrder},
-		{id: "cards.newScene", label: "New Scene…", tip: "A new scene after the current card's", ex: "new-scene", icon: theme.ContentAddIcon,
+		{id: "cards.newScene", label: "New Scene…", tip: "A new scene after the current card's", ex: "new-card", icon: theme.ContentAddIcon,
 			when: cardsInFront, run: (*MainWindow).newSceneAfterCurrent},
 		{id: "cards.foldSynopses", label: "Fold Synopses", tip: "The cards as their headings and how they start, without their synopses", ex: "fold-synopses",
 			icon: res(foldIcon), when: cardsGrid,

@@ -2,6 +2,8 @@ package main
 
 import (
 	"fyne.io/fyne/v2"
+
+	"github.com/LaPingvino/lexington/rules"
 	"strings"
 	"unicode"
 
@@ -24,10 +26,18 @@ func newScriptEditor(w *MainWindow) *editor.ScriptEditor {
 	tab := &completer{starts: w.sceneStarts}
 	if w != nil {
 		tab.first = func(cursor int) ([]string, []string) { return w.suggester().firsts(cursor) }
+		tab.lang = func() rules.Language { return w.lex().Language(w.language) }
+		tab.chosen = func(*completion) int { return w.compl.chosenNow() }
 		w.complete = tab
 	}
 	e.OnTab = func() bool {
 		if w != nil && w.scriptFolds.cycleHere() {
+			return true
+		}
+		if w != nil && w.compl.tab() { // the completion list's chosen one, while it is open (complete_list.go)
+			return true
+		}
+		if w != nil && w.compl.open() && tab.tab(e) { // going through the completions shown
 			return true
 		}
 		if w != nil && !w.markdown && w.suggester().tab() { // from the source (suggest.go)
@@ -108,6 +118,9 @@ func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 		}
 	}
 	e.OnKey = func(k *fyne.KeyEvent) bool {
+		if script && w != nil && w.compl.key(k) { // the completion list's ↑↓, Enter, Esc (complete_list.go)
+			return true
+		}
 		// Esc puts a suggestion away; vim's insert mode ends too
 		if script && k.Name == fyne.KeyEscape && w != nil && w.suggest != nil && w.suggest.dismiss() && !vi.active() {
 			return true

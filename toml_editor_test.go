@@ -44,6 +44,8 @@ func find[T fyne.CanvasObject](o fyne.CanvasObject, ok func(T) bool) T {
 		kids = []fyne.CanvasObject{c.Content}
 	case *widget.Card:
 		kids = []fyne.CanvasObject{c.Content}
+	case *flowBox:
+		kids = []fyne.CanvasObject{c.box}
 	case *container.AppTabs:
 		if c.Selected() != nil {
 			kids = []fyne.CanvasObject{c.Selected().Content}

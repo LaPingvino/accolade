@@ -257,8 +257,59 @@ func (e *tomlEditor) languageField(lang string, f rules.Field) fyne.CanvasObject
 	switch f.Key {
 	case "Scenes":
 		return list(now.Scenes, def.Scenes, "INT")
-	case "Headings":
-		return list(now.Headings, def.Headings, "{n}. {place} {io}/{time}")
+	case "Headings": // the pattern builder (heading_builder.go)
+		writeSo := func(p string) { e.langDo(lang, true, set(p, "Languages", lang, "NewHeading")) }
+		var shown []string
+		if len(now.Scenes) > 0 {
+			ex, _ := exampleOf(lang, now, rules.SceneForm)
+			shown = append(shown, "Fountain's own "+rules.SceneForm+" → "+ex)
+		}
+		for _, p := range def.Headings {
+			ex, _ := exampleOf(lang, now, p)
+			shown = append(shown, p+" → "+ex)
+		}
+		if len(def.Headings) == 0 {
+			shown = append(shown, "no patterns of its own")
+		}
+		return overridable(isSet, strings.Join(shown, "\n"), func() fyne.CanvasObject {
+			return headingBuilder(lang, now, now.Headings, setList, e.redraw, writeSo)
+		}, func() {
+			d := def.Headings
+			if d == nil {
+				d = []string{}
+			}
+			e.langDo(lang, true, set(d, path...))
+		}, reset)
+	case "NewHeading":
+		form := now.HeadingForm()
+		defForm := def.HeadingForm()
+		ex, _ := exampleOf(lang, now, defForm)
+		return overridable(isSet, defForm+" → "+ex, func() fyne.CanvasObject {
+			choices := []string{}
+			if len(now.Scenes) > 0 {
+				choices = append(choices, rules.SceneForm)
+			}
+			for _, p := range now.Headings {
+				if !slices.Contains(choices, p) {
+					choices = append(choices, p)
+				}
+			}
+			pick := widget.NewSelectEntry(choices)
+			pick.SetText(now.NewHeading)
+			pick.SetPlaceHolder(form)
+			example := widget.NewLabel(exampleText(lang, now, form))
+			example.Wrapping = fyne.TextWrapWord
+			pick.OnChanged = func(v string) {
+				if strings.TrimSpace(v) == "" {
+					return
+				}
+				if e.langDo(lang, false, set(v, path...)) {
+					example.SetText(exampleText(lang, e.doc.conf().Language(lang), v))
+				}
+			}
+			fyne.SetAccessibleLabel(pick, "New scenes are written by")
+			return container.NewVBox(pick, example)
+		}, func() { e.langDo(lang, true, set(form, path...)) }, reset)
 	case "Settings":
 		return list(now.Settings, def.Settings, "INNEN")
 	case "Times":

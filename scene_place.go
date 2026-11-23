@@ -52,7 +52,8 @@ func (w *MainWindow) pickPlace(at fyne.CanvasObject) {
 		return
 	}
 	scenes := w.sceneHeaders()
-	var items []*fyne.MenuItem
+	// a whole heading, field by field (new_scene.go)
+	items := []*fyne.MenuItem{fyne.NewMenuItem("New Scene…", w.showNewScene), fyne.NewMenuItemSeparator()}
 	if in, out, both, ok := placeWords(scenes); ok {
 		for _, word := range []string{in, out, both} {
 			items = append(items, fyne.NewMenuItem(word, func() { w.setPlace(word) }))
