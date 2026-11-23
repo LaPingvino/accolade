@@ -1431,3 +1431,13 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   rhythm (scene lengths side by side), who has been gone too long (lanes), which scenes are still empty or only a
   synopsis — and every edit in it is an edit of the Fountain text (no state of its own, one undo step). Same test
   for every view (cards, outline, characters, timeline): what does it make easier while writing?
+- 2026-11-23 (Joop: "Stripboard also opens in the middle and should probably be aligned with the others that were
+  corrected on this: also enable sidebar, switching and tabbed display." / "Check if anything else secretly opens in
+  the middle like this."): STRIPBOARD AS A MIDDLE TAB, next free agent slot. Checked (window.go relayout, the only
+  place the window's content is set): the stripboard is the one view that bypasses the middle tabs
+  (`if w.stripsVisible … center = w.stripboard.box`, and `w.mid.center` skipped for it). Make it a middle tab like
+  Cards (opened by View › Stripboard and Production's button, switchable, Back to the Side if it makes sense, the dock
+  beside it, its ribbon contextual tab following it), remove stripsVisible's special case. The other one found: on a
+  phone the page view (Preview) takes the script's place (`w.pagesVisible && w.narrow → center = w.pages`) — there it
+  should be a middle tab "Pages" next to Script, so switching back is a tab tap, not hiding the preview. Preferences
+  and the TOML editors are separate windows on purpose. Extend TestViewsFollowTheFront to both.
