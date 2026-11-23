@@ -295,7 +295,7 @@ func TestPrintOmittedRunsAsOne(t *testing.T) {
 		if err := exportAs(text, dir+"/s.pdf", "pdf", job); err != nil {
 			t.Fatal(err)
 		}
-		out, _ := exec.Command("pdftotext", "-layout", dir+"/s.pdf", "-").Output()
+		out, _ := exec.Command("pdftotext", "-enc", "UTF-8", "-layout", dir+"/s.pdf", "-").Output()
 		if !regexp.MustCompile(`(?m)^\s*4-5\s+OMITTED\s+4-5\s*$`).Match(out) {
 			t.Errorf("the PDF:\n%s", out)
 		}

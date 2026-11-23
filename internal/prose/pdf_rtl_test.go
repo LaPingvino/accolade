@@ -87,7 +87,7 @@ func TestPDFRightToLeft(t *testing.T) {
 			if _, err := exec.LookPath("pdftotext"); err != nil {
 				return
 			}
-			out, err := exec.Command("pdftotext", file, "-").Output()
+			out, err := exec.Command("pdftotext", "-enc", "UTF-8", file, "-").Output()
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -73,7 +73,7 @@ func TestExportPDF(t *testing.T) {
 	if !bytes.HasPrefix(data, []byte("%PDF-")) || len(data) < 1000 {
 		t.Errorf("not a PDF (%d bytes): %q", len(data), data[:min(len(data), 20)])
 	}
-	if text, err := exec.Command("pdftotext", "-layout", out, "-").Output(); err == nil {
+	if text, err := exec.Command("pdftotext", "-enc", "UTF-8", "-layout", out, "-").Output(); err == nil {
 		for _, s := range []string{"The Barn", "1 Writer's Lane", "FADE IN:", "INT. BARN - DAY", strings.Repeat(" ", 26) + "JOHN", "(beat)", "It's coming.", "CUT TO:"} {
 			if !strings.Contains(string(text), s) {
 				t.Errorf("PDF text is missing %q:\n%s", s, text)
