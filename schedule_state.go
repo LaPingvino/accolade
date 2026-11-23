@@ -124,7 +124,7 @@ func (w *MainWindow) currentSet() string {
 // scheduleFollow shows the schedule again where it is shown: the board
 // and the pane's stage.
 func (w *MainWindow) scheduleFollow() {
-	if w.stripsVisible && w.stripboard != nil {
+	if w.stripsShown() {
 		w.stripboard.update()
 	}
 	w.productionFollow()

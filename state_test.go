@@ -47,6 +47,20 @@ func TestViewsFollowTheFront(t *testing.T) {
 		{"close the source's tab", func(_ *testing.T, w *MainWindow, _ string) { w.closeMiddle("source") }},
 		{"close the notes' tab", func(_ *testing.T, w *MainWindow, _ string) { w.closeMiddle("notes") }},
 		{"close a pane", func(_ *testing.T, w *MainWindow, _ string) { w.togglePane("characters") }},
+		{"stripboard", func(_ *testing.T, w *MainWindow, _ string) { w.toggleStripboard() }},
+		{"stripboard, then back to the script", func(_ *testing.T, w *MainWindow, _ string) {
+			w.showStripboard(-1, -1)
+			w.showMiddle("")
+		}},
+		{"a scene from the stripboard", func(_ *testing.T, w *MainWindow, _ string) {
+			w.showStripboard(-1, -1)
+			w.stripboard.openScene(1)
+		}},
+		{"close the stripboard", func(_ *testing.T, w *MainWindow, _ string) { w.closeMiddle("strips") }},
+		{"pages tab", func(_ *testing.T, w *MainWindow, _ string) { w.showMiddle("pages") }},
+		{"close the pages", func(_ *testing.T, w *MainWindow, _ string) { w.closeMiddle("pages") }},
+		{"to a phone's width", func(_ *testing.T, w *MainWindow, _ string) { atWidth(w, 380) }},
+		{"to a desktop's width", func(_ *testing.T, w *MainWindow, _ string) { atWidth(w, 1100) }},
 		{"open", func(t *testing.T, w *MainWindow, p string) {
 			q := filepath.Join(filepath.Dir(p), "other.fountain")
 			os.WriteFile(q, []byte(other), 0o644)
@@ -101,22 +115,45 @@ func TestViewsFollowTheFront(t *testing.T) {
 			}
 		}},
 	}
-	for _, from := range []string{"", "source"} {
+	// the fronts: the script, the source, the stripboard (the script's
+	// preview shown before it); on a phone the script and its Pages tab
+	fronts := []struct {
+		name, id string
+		phone    bool
+	}{{"script", "", false}, {"source", "source", false}, {"stripboard", "strips", false},
+		{"phone, script", "", true}, {"phone, pages", "pages", true}}
+	for _, from := range fronts {
 		for _, s := range steps {
-			name := "script"
-			if from != "" {
-				name = from
-			}
-			t.Run(name+" in front, "+s.name, func(t *testing.T) {
+			t.Run(from.name+" in front, "+s.name, func(t *testing.T) {
 				noTrackers(t)
 				w, p := sourceWindow(t, sourceScript+"\n/* Notes\n# Notes heading\n\nThe notes.\n*/\n", sourceStory)
 				holdUI(t) // the script's Preview is made in the background
+				if from.phone {
+					atWidth(w, 380)
+				}
 				w.togglePane("outline")
 				w.togglePane("characters")
 				for _, id := range []string{"source", "notes", "cards"} {
 					w.openMiddle(id)
 				}
-				showWithPreview(t, w, from)
+				switch from.id {
+				case "strips":
+					showWithPreview(t, w, "")
+					w.toggleStripboard()
+				case "pages":
+					showWithPreview(t, w, "")
+					if w.mid.shown != "pages" {
+						t.Fatalf("a phone's Preview: %q in front, not the Pages tab", w.mid.shown)
+					}
+				default:
+					showWithPreview(t, w, from.id)
+				}
+				if from.phone && from.id == "" {
+					w.showMiddle("") // a tap on Script: the pages kept in their tab
+					if !w.pagesVisible || !w.mid.has("pages") {
+						t.Fatal("the Pages tab went with a tap on Script")
+					}
+				}
 				search(w, "the")
 				checkViews(t, w, "before")
 				s.do(t, w, p)
@@ -161,12 +198,27 @@ func checkViews(t *testing.T, w *MainWindow, when string) {
 	if w.livePreviewShown() && w.previewPane.last != w.writeEditor().Text() {
 		t.Errorf("%s: the Live Preview is not of the %s in front", when, front.kind)
 	}
-	if w.pagesVisible && !w.scriptInMain() {
+	if w.pagesVisible && !w.scriptInMain() && !w.mid.has("pages") {
 		t.Errorf("%s: the script's pages over the %s", when, front.kind)
+	}
+	if tab := w.mid.has("pages"); tab != (w.narrow && w.pagesVisible) {
+		t.Errorf("%s: a Pages tab %v, a phone %v, pages shown %v", when, tab, w.narrow, w.pagesVisible)
+	}
+	if w.mid.has("pages") && slices.Index(w.mid.tabs, "pages") != 0 {
+		t.Errorf("%s: the Pages tab is not next to Script: %v", when, w.mid.tabs)
+	}
+	if w.stripsShown() && w.ribbon != nil && w.ribbon.selected != "Production" {
+		t.Errorf("%s: the stripboard in front, the ribbon's %q tab", when, w.ribbon.selected)
 	}
 	if d := w.midDoc(); d != nil && !strings.Contains(w.fyneWindow.Title(), d.title()) {
 		t.Errorf("%s: the title %q does not name %s", when, w.fyneWindow.Title(), d.title())
 	}
+}
+
+// atWidth makes the window width wide (a phone under narrowWidth).
+func atWidth(w *MainWindow, width float32) {
+	w.fyneWindow.Resize(fyne.NewSize(width, 800))
+	w.onWindowWidth(width)
 }
 
 func firstItems(items []outlineItem) []string {

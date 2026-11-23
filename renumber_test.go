@@ -456,6 +456,7 @@ func TestRenumberDropsOmittedKeys(t *testing.T) {
 	w.addShootDay()
 	sb.selectScene(2, false)
 	sb.moveSelected(0, 0)
+	w.showMiddle("") // the board a middle tab: the script's in front for a command at its cursor
 	w.textEditor.SetCursorOffset(len([]rune(omitFollowScript[:strings.Index(omitFollowScript, "Dark cellar")])))
 	w.omitScene()
 	if !strings.Contains(w.textEditor.Text(), ".OMITTED #2#") {

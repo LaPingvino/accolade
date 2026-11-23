@@ -755,6 +755,9 @@ func dockMoves(name, golden string) string {
 			panes = append(panes, "  Characters") // a pane of its own since (characters_pane.go)
 		}
 	}
+	if strings.HasPrefix(name, "menu-screenplay") {
+		panes = append(panes, "  Stripboard") // a middle tab beside the panes (docs/MIDDLE.md), Production's
+	}
 	panes = append(panes, "  Side Panes", "  Move Pane to Top", "  Move Pane to Bottom", "  Open Pane in the Middle", // docs/MIDDLE.md
 		"  Middle Tab Back to the Side", "  Next Middle Tab [Primary+Next]", "  Previous Middle Tab [Primary+Prior]")
 	for i := range ms {
@@ -877,6 +880,7 @@ func writerMoves(name, golden string) string {
 	case strings.HasPrefix(name, "menu-"):
 		ms := parseGoldenMenus(golden)
 		takeItem(ms, "View", "Production")
+		takeItem(ms, "View", "Stripboard") // Production's middle tab
 		var out []goldenMenu
 		for _, m := range ms {
 			if m.title == "Production" {

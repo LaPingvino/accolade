@@ -357,6 +357,12 @@ func (p *previewPanel) update(text string) {
 // preview shows the document as it will look: a screenplay as a PDF, a
 // Markdown document in the preview beside the editor (or hides it).
 func (w *MainWindow) preview() {
+	w.mid.pagesBack = false
+	if w.mid.has("pages") { // a phone's: their tab to the front, the pages made again
+		w.showMiddle("pages")
+		w.previewPDF()
+		return
+	}
 	if w.main() == nil { // a view in front (the cards): the script's preview, with its tab
 		w.mid.keepPreview = false
 		w.showMiddle("")

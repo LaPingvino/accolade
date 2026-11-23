@@ -34,20 +34,24 @@ The transitions the test drives: show the source / the notes / the cards / the s
 document in front, Preview, the cards then Preview, the outline to the middle, the outline there and back to the side
 (Open in the Middle / Back to the Side), closing the source's and the notes' tab, closing a pane, Open, New, Open
 Sample, New Markdown Document, the document type to Markdown and back, a rename, sharing, joining, sharing and
-leaving, Production, Writer, Choose Source… with the Source tab open: 26 transitions × 2 fronts = 52 runs.
+leaving, Production, Writer, Choose Source… with the Source tab open; the stripboard, the stripboard then back to the
+script, a scene opened from it, closing it, the Pages tab, closing it, a phone's width, a desktop's width: 34
+transitions × 5 fronts (the script, the source, the stripboard; on a phone the script with its Pages tab behind, and
+the Pages tab) = 170 runs.
 `TestReportPagesAreNotFollowed` checks that a report's PDF in the page view is left alone (row 28).
 
 ## The views
 
 | view | describes | records | follows by |
 |---|---|---|---|
-| page view (the script's pages) | script, only with it in front | `pagesWant` at the request, `pagesComing` while one is made | made again (the pages there until then); hidden over another tab, and the Live Preview instead when the script became Markdown |
+| page view (the script's pages) | script, only with it in front (on a phone: its own middle tab, Pages, next to Script) | `pagesWant` at the request, `pagesComing` while one is made | made again (the pages there until then, in their tab on a phone); hidden over another tab (on a phone only when a document's tab comes in), and the Live Preview instead when the script became Markdown |
 | Follow Edits' target | the pages' script text | with the pages (newPageFollow) | goes with the pages (stopped by hidePages) |
 | Live Preview (and its Page Setup line) | front document | `previewPane.of` (`updateLivePreview`) | shown again of the front document; closed, and the pages instead, when that is a screenplay |
 | find bar: count and highlights | front document | `searchBar.of`, `lit` the editor highlighted | matches found again; the highlights leave the editor they were in |
 | outline | front document | `outline.of`, `outline.doc` | read again (`refresh`): the script's scenes, the source's chapters and passages, the notes' headings |
 | Cards pane (lit scenes) | script; lit: the source's passage when it is in front | `cardsDock.of` | read again (`update`, which follows the cursor) |
 | cards' full view | script | `cards.of` | read again |
+| stripboard (a middle tab) | script | `stripboard.of` (`update`) | read again |
 | Characters | script | `charsPane.of` | read again |
 | Source pane: lights, info, anchor caption | script (its links) | `source.of` (in `follow`) | `follow` |
 | Adapt… (open) | script, as planned at its opening | `adapting.of` | closed, with a status line (only a peer or a background read can change the script under the modal dialog) |
@@ -90,7 +94,7 @@ it reads the script's notes block on each edit).
 | 21 | Adapt… | the script replaced while it is open (a peer's type change, a join by a pasted link) | planned on the old script, its Insert into the new one | **fixed**: closed, with a status line |
 | 22 | Page Setup line | role, type | the page view's line is made with each Preview; the Live Preview's refreshes with it | follows with 11, 12, 16 |
 | 23 | Source tab's document | **Choose Source…** with the Source tab open (left open by the middle tabs) | the tab kept the old source; in a bundle (the same home) its text was what the pane read, and an edit in the tab would have been saved over the new one (read from the code; the test uses a source beside the script, not a bundle) | **fixed**: the old document is written to its home and let go first, the tab opened again on the new source, in front (Choose Source shows the source it chose) |
-| 24 | stripboard | any tab change (left open: "the stripboard is not a tab") | — | by design: one view in the middle; a tab change closes it, its command puts the script's tab in front; it follows the text on edits. Not a view of the hook |
+| 24 | stripboard | any tab change | — | (2026-11-23) a middle tab of its own now, like the cards' full view: it stays open behind the others, is read again as it comes to the front, and is a view of the hook (`stripboard.of`) |
 | 25 | Undo | a tab change | — | no state: the focused editor's, else the main one's |
 | 26 | collab presence | join, leave | — | the status bar's; follows with 17 |
 | 27 | everything | **Revert** | — | there is no Revert command; Restore Draft is one edit (`Replace`), which every view follows as an edit (pages with Follow Edits) |

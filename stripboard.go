@@ -19,8 +19,11 @@ import (
 )
 
 // The stripboard (Production > Stripboard, the Schedule stage's Open
-// Stripboard): the schedule in the editor's place, as the cards are, built
-// on them (a strip is dragged as a card is). A strip a scene, in its
+// Stripboard, View > Stripboard, the Schedule stage's Open Stripboard):
+// the schedule as a middle tab (middle.go), as the cards' full view is,
+// built on them (a strip is dragged as a card is): the script's tab and
+// the others beside it, the side panes beside it, the ribbon's Production
+// tab on its Schedule stage while it is in front. A strip a scene, in its
 // colour by INT/EXT and day or night (white INT. DAY, yellow EXT. DAY,
 // blue INT. NIGHT, green EXT. NIGHT: lexreport.StripColour), with its
 // number, INT/EXT, location, D/N, length in eighths and cast numbers; the
@@ -54,6 +57,7 @@ type stripboardView struct {
 	targets  []stripTarget
 	shownKey string
 	narrow   bool
+	of       docKey // the script it shows (state.go)
 
 	lastDayForm dialog.Dialog // the day's form last shown (tests)
 
@@ -74,7 +78,7 @@ type stripTarget struct {
 
 func newStripboard(w *MainWindow) *stripboardView {
 	sb := &stripboardView{w: w, selected: -1, list: container.NewVBox(), strips: map[int]*stripWidget{}}
-	back := widget.NewButtonWithIcon("Back to the Script", theme.DocumentIcon(), w.toggleStripboard)
+	back := widget.NewButtonWithIcon("Back to the Script", theme.DocumentIcon(), func() { w.showMiddle("") })
 	back.Importance = widget.LowImportance
 	heading := widget.NewLabelWithStyle("Stripboard", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
 	sb.count = widget.NewLabel("")
@@ -103,29 +107,28 @@ func newStripboard(w *MainWindow) *stripboardView {
 	return sb
 }
 
-// toggleStripboard shows the stripboard in the editor's place, or the
-// editor.
+// toggleStripboard is the Stripboard command: its middle tab opened, or
+// to the front; in front, closed (as a pane's View command).
 func (w *MainWindow) toggleStripboard() {
-	if w.markdown && !w.stripsVisible {
-		w.setStatus("The stripboard is a screenplay's scenes")
-		return
+	switch {
+	case w.stripsShown():
+		w.closeMiddle("strips")
+	case w.mid.has("strips"):
+		w.showMiddle("strips")
+	default:
+		w.openMiddle("strips")
 	}
-	if !w.stripsVisible && !w.scriptInMain() { // the script's tab to the front first, the others kept (middle.go)
-		w.showMiddle("")
+}
+
+// stripsShown reports whether the stripboard is the middle tab in front.
+func (w *MainWindow) stripsShown() bool { return w.mid.shown == "strips" && w.stripboard != nil }
+
+// stripsBoard is the stripboard, made at the first need.
+func (w *MainWindow) stripsBoard() *stripboardView {
+	if w.stripboard == nil {
+		w.stripboard = newStripboard(w)
 	}
-	w.stripsVisible = !w.stripsVisible
-	if w.stripsVisible {
-		if w.stripboard == nil {
-			w.stripboard = newStripboard(w)
-		}
-		w.stripboard.shownKey = ""
-		w.stripboard.update()
-	}
-	w.relayout()
-	if !w.stripsVisible {
-		w.fyneWindow.Canvas().Focus(w.textEditor)
-		w.productionFollow()
-	}
+	return w.stripboard
 }
 
 // showStripboard shows the board (scrolled to day d, -1 the top) with
@@ -134,10 +137,13 @@ func (w *MainWindow) showStripboard(d, sc int) {
 	if w.markdown {
 		return
 	}
-	if !w.stripsVisible {
+	if !w.stripsShown() {
 		w.toggleStripboard()
 	}
 	sb := w.stripboard
+	if sb == nil || !w.stripsShown() {
+		return // not for this role
+	}
 	if sc >= 0 {
 		sb.selected = sc
 		sb.shownKey = ""
@@ -174,6 +180,7 @@ func (sb *stripboardView) update() {
 	w.measureSchedule()
 	f, bt, p := w.scheduleFound()
 	sb.bt, sb.p = bt, p
+	sb.of = w.scriptKey()
 	sb.pool = f.pool(bt, p, sb.measuredStrips())
 	if sb.selected >= len(bt.scenes) || (sb.selected >= 0 && bt.scenes[sb.selected].omitted && p.dayOf[sb.selected] < 0) {
 		sb.selected = -1
@@ -521,9 +528,7 @@ func (sb *stripboardView) openScene(sc int) {
 	if sc < 0 || sb.bt == nil || sc >= len(sb.bt.scenes) {
 		return
 	}
-	line := sb.bt.scenes[sc].line
-	sb.w.toggleStripboard()
-	sb.w.goToLine(line)
+	sb.w.goToLine(sb.bt.scenes[sc].line) // the script's tab to the front, the board's kept
 }
 
 // scrollTo scrolls the board so that obj is in sight.

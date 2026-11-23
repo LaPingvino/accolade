@@ -107,7 +107,7 @@ func (w *MainWindow) docViews() []docView {
 			coming := w.pagesComing != 0 && w.pagesComing == w.previewGen
 			return w.pagesWant, w.pagesVisible && w.pages != nil && w.pagesPreview || coming
 		}, follow: func() {
-			if w.scriptInMain() && !w.markdown {
+			if (w.scriptInMain() || w.mid.has("pages")) && !w.markdown { // (a phone's Pages tab: made again in it)
 				w.previewPDF() // made again, the pages there until then
 				return
 			}
@@ -153,6 +153,12 @@ func (w *MainWindow) docViews() []docView {
 			}
 			return w.cards.of, true
 		}, follow: func() { w.cards.update(w.textEditor.Text()) }},
+		{name: "stripboard", script: true, shows: func() (docKey, bool) {
+			if !w.stripsShown() {
+				return docKey{}, false
+			}
+			return w.stripboard.of, true
+		}, follow: func() { w.stripboard.update() }},
 		{name: "characters", script: true, shows: func() (docKey, bool) {
 			if w.charsPane == nil || !w.charsPane.inSight() {
 				return docKey{}, false

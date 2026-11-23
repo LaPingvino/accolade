@@ -17,6 +17,21 @@ Previous Middle Tab) go round the tabs, the arrow keys go along the row on a tab
 tab beside the script's is open, so a window with the script alone looks as before. On a phone the row is one line
 (`overflowRow`): the tabs that fit, the one in front always among them, the others in its More menu.
 
+Two middle tabs are no dock pane (`midView`, `middleViews`), with no place in the side panes: their tab's menu has
+Close alone, and View > Middle Tab Back to the Side is greyed for them (`cmdEnv.midSide`). The **Stripboard**
+(Production > Stripboard, View > Stripboard, the Schedule stage's Open Stripboard and its rows; too wide for the side
+panes, where the Production pane's Schedule stage is its side form) is a tab like the cards' full view: the side
+panes beside it, its Back to the Script and Open Scene bring the script's tab forward and keep it, its command in
+front closes it, the Writer role and a Markdown document close it (`middlePrune`), and while it is in front the
+ribbon's Production tab comes forward on its Schedule stage (`env.strips`, as the Preview tab does) and goes back to
+the tab before as it leaves. On a **phone** the script's page view is a tab, **Pages**, always right after Script
+(`pagesTabFollow`, LOOP.md 2026-11-23: before it took the script's place, and the way back was closing the
+preview): Preview opens it in front; a tap on Script and back keeps the pages (`show` hands no preview over between
+the script, the pages and a view while it is there; a document's tab coming in closes it and gets its own); the
+pages made again for the script's tab coming back come in behind it (`pagesBack`); its ×, Close Preview and Escape
+close it; across `narrowWidth` it becomes the split beside the script and back. The ribbon's Preview tab is there
+while the Pages tab is in front.
+
 This replaced **Swap with Main** (2026-11-21): one pane at a time traded places with the script, which became a
 **Script** list tab in the dock. The swap machinery (`swapWithMain`, `swapBack`, `w.swapped`, `w.mainDoc`,
 `swappedCenter`, `swappedIsView`, the dock's Script tab `scriptPane` and its special cases in `boxOf`, `titleOf`,
@@ -150,7 +165,8 @@ the session names no Doc for (one picked before this peer had heard from the oth
 | `dock.go` `paneInSight` (the panes ask it before following) | in front of its slot | a pane in the middle is in sight when its own box is the tab in front (the outline, help), not when its document or full view is |
 | `palette.go`, `ribbon.go` (Esc, key tips), `ex_window.go`, `markdown_format.go`, full screen | the focus back to `w.textEditor` | `focusMain()` |
 | `help_pane.go` cheat sheets and the shortcuts page | the file's kind | the main editor's kind |
-| `stripboard.go` | it and the cards take turns in the main area | it puts the script's tab in front first, the other tabs kept |
+| `stripboard.go` | it and the cards take turns in the main area | (2026-11-23) a middle tab of its own (`stripsVisible` and its special case in `relayout` gone) |
+| `window.go` `relayout`, a phone's Preview | the pages in the script's place | a middle tab, Pages, next to Script (`pagesTabFollow`) |
 | `watchdog_js.go` | the script's vim mode | the main editor's |
 
 Kept as they are, and why:
@@ -199,8 +215,6 @@ Not done, and why:
   it", "not adapted yet", "cut on purpose") and its tap from a scene to the scene's passage are not anywhere now;
   the Cards pane still lights the passage's scenes. A place for them (the Cards pane's header, the outline) is
   open.
-- The stripboard is not a middle tab: it takes the middle's place as before, the script's tab put in front
-  first.
 - Passages are found by their opening words. A passage whose opening is not on its first line (a table) is
   not found, and the cursor in it counts as being in the passage before.
 
@@ -257,6 +271,16 @@ what waits for the pause (the Script tab) ≈3 ms.
 - `TestRelinkReanchors`, `TestRelinkInWindow` (relink_test.go): the edits for a passage changed (none when
   nothing changed); written at once when the cursor leaves the passage, one undo step; the pane's Done, the
   file read again, a script opened after its source changed.
+- `TestMiddleStripboard`: the board's tab among the others, the side panes beside it, the ribbon's Production tab
+  on Schedule, Close only (no Back to the Side), Back to the Script and Open Scene keeping it, Previous Middle Tab,
+  the Schedule stage's row bringing it forward, the command in front closing it, the Writer role closing it.
+- `TestMiddlePhonePages`: Preview on a phone opens Pages next to Script in front; Script and back keeps the pages
+  (not made again), the Preview tab only with them in front, through the cards, the tab's ×, a desktop's width (the
+  split) and a phone's again, Close Preview.
+- `TestViewsFollowTheFront` (state_test.go) also starts from the stripboard and from a phone's Script and Pages tabs,
+  with the steps stripboard, back to the script, a scene from it, closing it, the Pages tab, closing it, and a
+  phone's and a desktop's width.
 - `TestMiddleScreenshots` (SHOT_DIR): desktop and phone: the script alone, View > Cards, Script + Cards + Source
-  with each in front, its links written again, the notes, the outline in the middle, the Cards pane back to the side.
+  with each in front, its links written again, the notes, the outline in the middle, the Cards pane back to the side,
+  the stripboard's tab with the side panes beside it, the Preview (a phone's Pages tab), the script's tab with it.
 - `TestTakeChange` (internal/editor/buffer), `TestOffstage` (internal/editor).

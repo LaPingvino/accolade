@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync/atomic"
 
@@ -17,9 +18,10 @@ import (
 	"github.com/LaPingvino/lexington/pdf"
 )
 
-// The page view in the window: beside the script on a wide window, in
-// its place on a phone; Close (or Escape on the pages) puts the script
-// back.
+// The page view in the window: beside the script on a wide window; on a
+// phone a middle tab of its own, Pages, beside the script's (middle.go),
+// so the way back to the script is a tap; Close (or Escape on the pages,
+// or the tab's ×) closes it.
 
 // showPages shows a drawing in the window's page view: title over it,
 // the PDF it is of (name its file's name, for saving), extra over the
@@ -42,6 +44,9 @@ func (w *MainWindow) showPages(d pdf.Drawing, title, pdfPath, name string, extra
 	v.setNote("")
 	wasVisible := w.pagesVisible
 	w.pagesVisible = true
+	back := w.mid.pagesBack
+	w.mid.pagesBack = false
+	w.pagesTabFollow(!back)
 	if !wasVisible || rebuilt {
 		w.relayout()
 	}
@@ -74,7 +79,11 @@ func (w *MainWindow) hidePages() {
 	if !w.pagesVisible {
 		return
 	}
+	if w.mid.shown == "pages" && !w.mid.showing {
+		w.mid.show("") // the script's tab to the front first
+	}
 	w.pagesVisible = false
+	w.pagesTabFollow(false)
 	if w.pages.follow != nil {
 		w.pages.follow.stop()
 		w.pages.follow = nil
@@ -83,6 +92,27 @@ func (w *MainWindow) hidePages() {
 	w.relayout()
 	w.focusEditor()
 	w.ribbonRefresh() // the Preview tab goes
+}
+
+// pagesTabFollow puts the page view where the window's width says: on a
+// phone, while it is shown, a middle tab "Pages" right after the script's
+// (front: brought to the front as it comes); else none, the pages beside
+// the script (relayout).
+func (w *MainWindow) pagesTabFollow(front bool) {
+	m := &w.mid
+	want := w.narrow && w.pagesVisible && w.pages != nil
+	switch {
+	case want && !m.has("pages"):
+		m.tabs = append([]string{"pages"}, m.tabs...)
+		if front {
+			m.show("pages")
+		}
+	case !want && m.has("pages"):
+		if m.shown == "pages" && !m.showing {
+			m.show("") // (a tab between the script and a view: the pages stay)
+		}
+		m.tabs = slices.DeleteFunc(m.tabs, func(s string) bool { return s == "pages" })
+	}
 }
 
 // focusEditor gives the script the focus.

@@ -48,7 +48,8 @@ func livePreviewOnly(e cmdEnv) bool { return e.livePreview }
 
 // previewEnv fills in what the Preview tab's rules look at.
 func (w *MainWindow) previewEnv(e *cmdEnv) {
-	e.preview = w.pagesVisible && w.pages != nil || w.livePreviewShown()
+	// (a phone's pages: while their middle tab is in front)
+	e.preview = w.pagesVisible && w.pages != nil && (!w.mid.has("pages") || w.mid.shown == "pages") || w.livePreviewShown()
 	e.livePreview = w.livePreviewShown()
 	v := w.previewView()
 	e.pagesShown = v != nil && v.d != nil && len(v.d.Pages) > 0

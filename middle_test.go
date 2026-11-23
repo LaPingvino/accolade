@@ -8,6 +8,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
@@ -701,6 +702,16 @@ func TestMiddleScreenshots(t *testing.T) {
 		w.backToSide("cards")
 		w.textEditor.SetCursorOffset(runeAt(t, w.textEditor.Text(), "EXT. GARDEN - NIGHT"))
 		snap("8-cards-pane")
+		w.toggleStripboard() // a middle tab, the side panes beside it
+		snap("9-stripboard")
+		w.showMiddle("")
+		shown := make(chan *pageView, 4)
+		onPagesShown(t, func(v *pageView) { shown <- v })
+		w.preview() // a phone's: the Pages tab next to Script; a desktop's: beside the script
+		awaitPages(t, shown)
+		snap("10-pages")
+		w.showMiddle("")
+		snap("11-script-and-pages")
 	}
 }
 
@@ -848,4 +859,126 @@ func TestMiddleNotesTogether(t *testing.T) {
 	waitFor(t, "b has a's notes", func() bool { return notesOf(b.textEditor.Text()) == "shared by a" })
 	b.writeNotes("b first; shared by a")
 	waitFor(t, "a's notes follow b", func() bool { return d.Text() == "b first; shared by a" })
+}
+
+// The stripboard is a middle tab (docs/MIDDLE.md): opened by its command,
+// one tab among the others, the side panes beside it, the ribbon's
+// Production tab on its Schedule stage while it is in front; Back to the
+// Script and a scene opened keep its tab; the command in front closes
+// it; it has no place in the side panes; the Writer role closes it.
+func TestMiddleStripboard(t *testing.T) {
+	w := newTestWindow(t, schedScript)
+	w.fyneWindow.Resize(fyne.NewSize(1100, 700))
+	r := ribbonOnFor(t, w)
+	w.togglePane("outline")
+	w.openMiddle("cards")
+	w.showMiddle("")
+	r.selected = "Write"
+	w.ribbonRefresh()
+
+	w.toggleStripboard()
+	if !w.stripsShown() || midTitles(w) != "Script Cards [Stripboard]" {
+		t.Fatalf("tabs %q", midTitles(w))
+	}
+	if w.mid.body != fyne.CanvasObject(w.stripboard.box) || !w.paneInSight("outline") || w.sideSplit == nil {
+		t.Error("the board is not in the middle with the side panes beside it")
+	}
+	if r.selected != "Production" || r.stage != stageSchedule {
+		t.Errorf("the ribbon: %q, stage %d", r.selected, r.stage)
+	}
+	if e := w.cmdEnv(); !e.away || e.midSide {
+		t.Error("the board can go back to the side")
+	}
+	if m := w.mid.menu("strips"); len(m.Items) != 1 || m.Items[0].Label != "Close Stripboard" {
+		t.Errorf("its tab's menu %v", m.Items)
+	}
+	w.backToSide("strips")
+	if !w.mid.has("strips") {
+		t.Error("Back to the Side closed it")
+	}
+	test.Tap(findButton(w.stripboard.box, "Back to the Script"))
+	if !w.scriptInMain() || !w.mid.has("strips") || r.selected != "Write" {
+		t.Errorf("Back to the Script: tabs %q, the ribbon's %q", midTitles(w), r.selected)
+	}
+	w.mid.step(-1) // round to the last: the board
+	if !w.stripsShown() {
+		t.Fatalf("Previous Middle Tab: %q", midTitles(w))
+	}
+	w.stripboard.openScene(1)
+	if !w.scriptInMain() || !w.mid.has("strips") {
+		t.Errorf("a scene opened: %q", midTitles(w))
+	}
+	w.showStripboard(-1, 1) // the Schedule stage's row: the board to the front, its scene selected
+	if !w.stripsShown() || w.stripboard.selected != 1 {
+		t.Errorf("showStripboard: %q, selected %d", midTitles(w), w.stripboard.selected)
+	}
+	w.toggleStripboard()
+	if w.mid.has("strips") || w.mid.shown != "cards" {
+		t.Errorf("the command in front did not close it: %q", midTitles(w))
+	}
+	w.toggleStripboard()
+	w.setOwnRole(roleWriter)
+	if w.mid.has("strips") {
+		t.Error("the Writer role kept the board")
+	}
+	w.toggleStripboard()
+	if w.mid.has("strips") {
+		t.Error("the board opened for a writer")
+	}
+}
+
+// On a phone the page view is a middle tab, Pages, next to the script's:
+// Preview opens it in front, a tap on Script and back keeps the pages (the
+// ribbon's Preview tab with them in front only), its × closes them, and a
+// desktop's width puts them beside the script again.
+func TestMiddlePhonePages(t *testing.T) {
+	w, _ := sourceWindow(t, sourceScript, sourceStory)
+	holdUI(t)
+	atWidth(w, 380)
+	w.openMiddle("cards")
+	w.showMiddle("")
+	shown := make(chan *pageView, 4)
+	onPagesShown(t, func(v *pageView) { shown <- v })
+	w.preview()
+	awaitPages(t, shown)
+	if midTitles(w) != "Script [Pages] Cards" || w.mid.body != fyne.CanvasObject(w.pages) {
+		t.Fatalf("tabs %q", midTitles(w))
+	}
+	if !w.cmdEnv().preview {
+		t.Error("the Pages tab in front, no Preview tab")
+	}
+	gen := w.previewGen
+	w.showMiddle("")
+	if !w.pagesVisible || midTitles(w) != "[Script] Pages Cards" || w.previewGen != gen || w.mid.body != w.editorView {
+		t.Errorf("a tap on Script: tabs %q, pages %v", midTitles(w), w.pagesVisible)
+	}
+	if w.cmdEnv().preview {
+		t.Error("the script in front, the Preview tab still there")
+	}
+	w.showMiddle("cards")
+	w.showMiddle("pages")
+	if !w.pagesVisible || w.mid.shown != "pages" {
+		t.Errorf("through the cards: tabs %q, pages %v", midTitles(w), w.pagesVisible)
+	}
+	if m := w.mid.menu("pages"); len(m.Items) != 1 || m.Items[0].Label != "Close Pages" {
+		t.Errorf("its tab's menu %v", m.Items)
+	}
+	test.Tap(w.mid.shut)
+	if w.pagesVisible || w.mid.has("pages") || !w.scriptInMain() {
+		t.Errorf("the ×: tabs %q, pages %v", midTitles(w), w.pagesVisible)
+	}
+	w.preview()
+	awaitPages(t, shown)
+	atWidth(w, 1100)
+	if !w.pagesVisible || w.mid.has("pages") || !w.scriptInMain() {
+		t.Errorf("a desktop's width: tabs %q, pages %v", midTitles(w), w.pagesVisible)
+	}
+	atWidth(w, 380)
+	if w.mid.shown != "pages" {
+		t.Errorf("a phone's width again: tabs %q", midTitles(w))
+	}
+	w.hidePages() // Close Preview, Escape on the pages
+	if w.mid.has("pages") || !w.scriptInMain() {
+		t.Errorf("Close Preview: tabs %q", midTitles(w))
+	}
 }

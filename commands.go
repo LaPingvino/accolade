@@ -51,6 +51,10 @@ type cmdEnv struct {
 	// document (Adaptation, Production, Export) are the script's while it
 	// is away
 	away, midDoc, midTabs bool
+	// midSide: the middle tab in front can go back to the side panes (a
+	// pane's; not the stripboard, the pages); strips: the stripboard is
+	// in front (the ribbon's Production tab comes forward)
+	midSide, strips bool
 	// a preview is shown (the page view, or a document's Live Preview:
 	// the Preview tab); livePreview: the Live Preview; pagesShown: pages
 	// are in sight; pdfFile: a PDF to save; refreshable: the pages can be
@@ -75,6 +79,8 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	e.away = !w.scriptInMain()
 	e.midDoc = w.midDoc() != nil
 	e.midTabs = len(w.mid.tabs) > 0
+	e.midSide = e.away && middleView(w.mid.shown) == nil
+	e.strips = w.stripsShown()
 	e.renamed = w.canUndoRename()
 	e.brought = !w.carried.empty()
 	if w.settings != nil {
@@ -641,6 +647,9 @@ func newRegistry() *registry {
 	prod := func(id, label string, ic func() fyne.Resource, run func(*MainWindow)) *command {
 		return &command{id: id, label: label, icon: ic, when: screenplayOnly, run: run, role: productionRole}
 	}
+	stripboard := prod("production.stripboard", "Stripboard", func() fyne.Resource { return stripboardIcon }, (*MainWindow).toggleStripboard)
+	stripboard.tip = "The stripboard as a middle tab: the scenes on their shoot days"
+	stripboard.checked = func(w *MainWindow) bool { return w.mid.has("strips") }
 	unlock := prod("production.unlockNumbers", "Unlock Scene Numbers…", res(unlockIcon), (*MainWindow).unlockSceneNumbers)
 	unlock.enabled, unlock.text = numbersLocked, "Unlock…"
 	renumber := prod("production.renumber", "Renumber Scenes…", res(renumberIcon), (*MainWindow).renumberScenes)
@@ -675,7 +684,7 @@ func newRegistry() *registry {
 		nextScene,
 		prod("production.sceneDone", "Mark Scene Done", res(doneIcon), (*MainWindow).markSceneDoneHere),
 		prod("production.sheets", "Breakdown Sheets…", res(sheetsIcon), func(w *MainWindow) { w.showReportsOf(lexreport.KindSheets) }),
-		prod("production.stripboard", "Stripboard", func() fyne.Resource { return stripboardIcon }, (*MainWindow).toggleStripboard),
+		stripboard,
 		prod("production.schedule", "Schedule…", theme.CalendarIcon, (*MainWindow).showScheduleStage),
 		// the Schedule stage's
 		prod("production.addDay", "Add Day", res(addDayIcon), (*MainWindow).addShootDay),

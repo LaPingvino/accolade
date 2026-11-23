@@ -170,7 +170,7 @@ func dockCommands() []*command {
 		&command{id: "view.paneMiddle", label: "Open Pane in the Middle", tip: "The pane picked last as a tab in the middle, beside the script (middle.go)", icon: res(swapIcon),
 			run: func(w *MainWindow) { w.dock.middleCurrent() }},
 		&command{id: "view.paneSide", label: "Middle Tab Back to the Side", tip: "The middle tab in front back in the side panes", icon: res(dockIcon),
-			run: func(w *MainWindow) { w.backToSide(w.mid.shown) }, enabled: func(e cmdEnv) bool { return e.away }},
+			run: func(w *MainWindow) { w.backToSide(w.mid.shown) }, enabled: func(e cmdEnv) bool { return e.midSide }},
 		&command{id: "view.midNext", label: "Next Middle Tab", tip: "The middle tab after the one in front: the script, the cards, a pane put there",
 			keys: middleKeys(fyne.KeyPageDown), icon: theme.NavigateNextIcon,
 			run: func(w *MainWindow) { w.mid.step(1) }, enabled: func(e cmdEnv) bool { return e.midTabs }},
@@ -197,6 +197,7 @@ func dockHomes() []home {
 	for _, p := range dockPanes() {
 		homes = append(homes, at("view."+p.id))
 	}
+	homes = append(homes, at("production.stripboard")) // a middle tab beside them (Production's; middle.go)
 	return append(homes, at("view.dock"), at("view.paneTop"), at("view.paneBottom"), at("view.paneMiddle"), at("view.paneSide"),
 		at("view.midNext"), at("view.midPrev"))
 }

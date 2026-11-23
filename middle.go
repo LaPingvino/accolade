@@ -51,6 +51,69 @@ type middle struct {
 	tabW map[string]*dockTab
 	row  *overflowRow
 	shut *tooltip.Button
+	// showing: show is under way (hidePages, called from it, leaves the
+	// tab in front to it)
+	showing bool
+	// pagesBack: the script's pages being made again for the script's tab
+	// coming back (previewFollowsMain): on a phone their tab comes in
+	// behind the script's, not in front of it
+	pagesBack bool
+}
+
+// midView is a middle tab that is no dock pane, with no place in the side
+// panes: the stripboard (too wide for them; the Production pane's
+// Schedule stage is its side), and on a phone the script's pages. Its
+// tab's menu has Close alone.
+type midView struct {
+	title   string
+	applies func(w *MainWindow) bool // there for the document and role now
+	why     string                   // the status when it is not
+	box     func(w *MainWindow) fyne.CanvasObject
+	focus   func(w *MainWindow) fyne.Focusable // nil: its tab
+	shown   func(w *MainWindow)                // coming to the front
+	closed  func(w *MainWindow)                // its tab closed
+}
+
+// middleViews are the middle tabs that are no dock pane, by id (made in
+// init: they call into the window's code that calls back here).
+var middleViews map[string]*midView
+
+func init() { middleViews = makeMiddleViews() }
+
+// middleView is the middle tab id that is no dock pane, nil if it is none.
+func middleView(id string) *midView { return middleViews[id] }
+
+func makeMiddleViews() map[string]*midView {
+	return map[string]*midView{
+		// the stripboard (stripboard.go): Production > Stripboard, View >
+		// Stripboard, the Schedule stage's Open Stripboard and its rows
+		"strips": {title: "Stripboard", why: "The stripboard is a screenplay's scenes, in the Production role",
+			applies: func(w *MainWindow) bool { return !w.markdown && !w.writerView() },
+			box:     func(w *MainWindow) fyne.CanvasObject { return w.stripsBoard().box },
+			shown: func(w *MainWindow) {
+				sb := w.stripsBoard()
+				sb.shownKey = ""
+				sb.update()
+				w.productionFollow()
+			},
+			closed: func(w *MainWindow) { w.productionFollow() }},
+		// on a phone, the page view (pageview_window.go): beside the script's
+		// tab, so the way back to the script is a tap
+		"pages": {title: "Pages", applies: func(*MainWindow) bool { return true },
+			box: func(w *MainWindow) fyne.CanvasObject {
+				if w.pages == nil {
+					return layout.NewSpacer()
+				}
+				return w.pages
+			},
+			focus: func(w *MainWindow) fyne.Focusable {
+				if w.pages == nil {
+					return nil
+				}
+				return w.pages.area
+			},
+			closed: func(w *MainWindow) { w.hidePages() }},
+	}
 }
 
 // has reports whether the pane with id is a middle tab.
@@ -69,6 +132,9 @@ func (m *middle) ids() []string { return append([]string{""}, m.tabs...) }
 func (m *middle) title(id string) string {
 	if p := m.w.dock.pane(id); p != nil {
 		return p.cmd.label
+	}
+	if v := middleView(id); v != nil {
+		return v.title
 	}
 	return "Script"
 }
@@ -104,6 +170,12 @@ func (w *MainWindow) cardsFull() *cardsView {
 // middleBlocked is why the pane with id cannot go in the middle now (""
 // it can).
 func (w *MainWindow) middleBlocked(id string) string {
+	if v := middleView(id); v != nil {
+		if !v.applies(w) {
+			return v.why
+		}
+		return ""
+	}
 	p := w.dock.pane(id)
 	if p == nil || !w.dock.applies(p) {
 		return "That pane is not there for this document"
@@ -124,6 +196,12 @@ func (w *MainWindow) openMiddle(id string) {
 	}
 	if why := w.middleBlocked(id); why != "" {
 		w.setStatus(why)
+		return
+	}
+	if middleView(id) != nil {
+		m.tabs = append(m.tabs, id)
+		w.showMiddle(id)
+		w.setStatus(m.status())
 		return
 	}
 	p := w.dock.pane(id)
@@ -157,6 +235,9 @@ func (w *MainWindow) openMiddle(id string) {
 func (m *middle) status() string {
 	w := m.w
 	what := m.title(m.shown)
+	if middleView(m.shown) != nil {
+		return what + " in the middle: the × on its tab row closes it"
+	}
 	if d := m.docs[m.shown]; d != nil {
 		msg := what + " in the middle (" + d.where() + "): its tab's menu puts it back to the side"
 		if w.shared != nil && d.sharedAs() == "" {
@@ -182,6 +263,12 @@ func (m *middle) show(id string) {
 		w.focusMain()
 		return
 	}
+	m.showing = true
+	defer func() { m.showing = false }()
+	// a phone's Pages tab stays among the script and the views: the pages
+	// are a tab of their own there, not the preview beside the script
+	// (pagesTabFollow); a document coming in has its own preview
+	keepPages := m.has("pages") && m.docs[m.shown] == nil && m.docs[id] == nil
 	// a preview shown is of the document in front: it goes with it, and
 	// the one coming in gets its own (Joop: the preview "gets stuck when
 	// clicking swap")
@@ -193,25 +280,32 @@ func (m *middle) show(id string) {
 	if w.searchBar != nil {
 		w.searchBar.of = docKey{} // its matches are found again in the tab coming in (state.go)
 	}
-	w.previewGen++ // a script's PDF still being made is not shown over another tab
-	w.hidePages()
-	w.previewVisible = false
-	w.stripsVisible = false // one view in the middle
+	if !keepPages {
+		w.previewGen++ // a script's PDF still being made is not shown over another tab
+		if id != "pages" {
+			w.hidePages()
+		}
+		w.previewVisible = false
+	}
 	m.shown = id
 	w.textEditor.SetOffstage(id != "") // out of sight: laid out again when back (internal/editor)
 	if d := m.docs[id]; d != nil {
 		d.ed.SetOffstage(false)
 	}
 	p := w.dock.pane(id)
-	switch {
+	switch v := middleView(id); {
 	case id == "cards":
 		w.cardsFull().update(w.textEditor.Text())
 	case p != nil && m.boxShown(p) && p.shown != nil:
 		p.shown(w)
+	case v != nil && v.shown != nil:
+		v.shown(w)
 	}
 	editorTab := w.main() != nil
 	w.relayout()
-	if editorTab {
+	if keepPages {
+		// the pages stay as they are, in their tab
+	} else if editorTab {
 		m.keepPreview = false
 		w.previewFollowsMain(hadPreview)
 	} else {
@@ -234,6 +328,7 @@ func (w *MainWindow) previewFollowsMain(had bool) {
 	if !had {
 		return
 	}
+	w.mid.pagesBack = w.narrow && !w.editorMarkdown() // the script's tab in front, its pages' behind (pagesTabFollow)
 	if w.editorMarkdown() {
 		if w.previewPane == nil {
 			w.previewPane = newPreviewPanel()
@@ -279,6 +374,9 @@ func (w *MainWindow) closeMiddle(id string) {
 	if p := w.dock.pane(id); p != nil && p.toSide != nil {
 		p.toSide(w)
 	}
+	if v := middleView(id); v != nil && v.closed != nil {
+		v.closed(w)
+	}
 	w.relayout()
 	w.focusMain()
 	w.refreshMenu()
@@ -288,6 +386,10 @@ func (w *MainWindow) closeMiddle(id string) {
 // backToSide closes middle tab id and shows its pane in the dock.
 func (w *MainWindow) backToSide(id string) {
 	if !w.mid.has(id) {
+		return
+	}
+	if v := middleView(id); v != nil {
+		w.setStatus(v.title + " has no place in the side panes: the × on the tab row closes it")
 		return
 	}
 	w.closeMiddle(id)
@@ -315,6 +417,12 @@ func (w *MainWindow) closeMiddleDocs() {
 // document now (Cards in a Markdown document, Production for a Writer).
 func (w *MainWindow) middlePrune() {
 	for _, id := range slices.Clone(w.mid.tabs) {
+		if v := middleView(id); v != nil {
+			if !v.applies(w) {
+				w.closeMiddle(id)
+			}
+			continue
+		}
 		if p := w.dock.pane(id); p == nil || !w.dock.applies(p) {
 			w.closeMiddle(id)
 		}
@@ -362,6 +470,8 @@ func (m *middle) center(script fyne.CanvasObject) fyne.CanvasObject {
 		} else {
 			body = p.box(w)
 		}
+	} else if v := middleView(m.shown); v != nil {
+		body = v.box(w)
 	}
 	m.body = body
 	m.tabW = map[string]*dockTab{}
@@ -409,6 +519,9 @@ func (m *middle) menu(id string) *fyne.Menu {
 		return nil // the script stays in the middle
 	}
 	title := m.title(id)
+	if middleView(id) != nil { // no place in the side panes
+		return fyne.NewMenu(title, fyne.NewMenuItem("Close "+title, func() { w.closeMiddle(id) }))
+	}
 	return fyne.NewMenu(title,
 		fyne.NewMenuItem("Back to the Side", func() { w.backToSide(id) }),
 		fyne.NewMenuItem("Close "+title, func() { w.closeMiddle(id) }))
@@ -439,15 +552,25 @@ func (w *MainWindow) focusMain() {
 		c.Focus(e)
 		return
 	}
-	if p := w.dock.pane(w.mid.shown); p != nil && w.mid.boxShown(p) && p.focus != nil {
-		if f := p.focus(w); f != nil {
-			c.Focus(f)
-			return
-		}
+	if f := w.midViewFocus(); f != nil {
+		c.Focus(f)
+		return
 	}
 	if t := w.mid.tabW[w.mid.shown]; t != nil {
 		c.Focus(t)
 	}
+}
+
+// midViewFocus is what takes the keyboard in the view in front in the
+// middle (the outline's list, the pages), nil none.
+func (w *MainWindow) midViewFocus() fyne.Focusable {
+	if p := w.dock.pane(w.mid.shown); p != nil && w.mid.boxShown(p) && p.focus != nil {
+		return p.focus(w)
+	}
+	if v := middleView(w.mid.shown); v != nil && v.focus != nil {
+		return v.focus(w)
+	}
+	return nil
 }
 
 // mainFocus is what F6 goes to first: the middle's editor, view or tab.
@@ -455,10 +578,8 @@ func (w *MainWindow) mainFocus() fyne.Focusable {
 	if e := w.mainEditor(); e != nil {
 		return e
 	}
-	if p := w.dock.pane(w.mid.shown); p != nil && w.mid.boxShown(p) && p.focus != nil {
-		if f := p.focus(w); f != nil {
-			return f
-		}
+	if f := w.midViewFocus(); f != nil {
+		return f
 	}
 	if t := w.mid.tabW[w.mid.shown]; t != nil {
 		return t

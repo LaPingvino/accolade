@@ -1520,3 +1520,19 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   text layer, so Accolade never offers OCR. Add a text-layer quality check on import (share of dictionary/real words,
   odd character runs, words broken by stray spaces): below a bar, offer "This PDF's text looks garbled — read it with
   OCR instead?" (the existing ocr_ask.go flow), never automatically.
+- 2026-11-23: STRIPBOARD AS A MIDDLE TAB, and a phone's Pages tab (branch stripstab, not merged). The middle gained
+  tabs that are no dock pane (`midView`, middle.go): their menu has Close alone, Back to the Side greyed
+  (`cmdEnv.midSide`). The Stripboard is one (Production › Stripboard, now also View › Stripboard after the panes, the
+  Schedule stage's Open Stripboard and rows): beside Script and the others, switchable, × / its command in front
+  close it, the side panes beside it, Back to the Script and Open Scene keep its tab, the Writer role and Markdown
+  prune it, and the ribbon's Production tab comes forward on its Schedule stage while it is in front (as Preview's
+  does), back to the tab before after. Back to the Side left out: the Production pane's Schedule stage is its side
+  form, and the board is too wide for the dock. `stripsVisible` and relayout's special case are gone. On a phone the
+  page view is the tab Pages right after Script (`pagesTabFollow`): Preview opens it in front, Script and back keeps
+  the pages (no hand-off between the script, the pages and a view; a document's tab still takes its own preview), the
+  pages remade for the script's tab coming back arrive behind it (`pagesBack`), ×/Close Preview/Escape close it, and
+  crossing `narrowWidth` turns it into the split and back; the ribbon's Preview tab only with Pages in front. Both
+  registered in state.go (a `stripboard` docView; the `pages` one remakes in its tab), TestViewsFollowTheFront now
+  starts from the stripboard and a phone's Script/Pages too (5 fronts × 34 steps), new TestMiddleStripboard and
+  TestMiddlePhonePages, TestMiddleScreenshots shots 9–11 (looked at: desktop board with the Cards pane beside,
+  phone Script/Pages/Stripboard row). docs/MIDDLE.md, STATE.md updated; the commands golden's View menu move.

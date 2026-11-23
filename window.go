@@ -253,7 +253,6 @@ type MainWindow struct {
 	renumbering      *renumberDlg   // Renumber Scenes… as last opened (renumber_dialog.go)
 	breakdownRun     int            // the tags being found
 	schedule         scheduleState  // the shooting schedule (schedule_state.go)
-	stripsVisible    bool           // the stripboard in the editor's place (stripboard.go)
 	stripboard       *stripboardView
 	lastTagCategory  string         // the category last tagged in (offered first)
 	lastReports      *reportsDialog // the reports last shown (tests)
@@ -1289,7 +1288,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	if w.cardsShown() {
 		w.cards.update(text)
 	}
-	if w.stripsVisible && w.stripboard != nil {
+	if w.stripsShown() {
 		w.stripboard.update()
 	}
 	w.followSource()
@@ -1556,13 +1555,9 @@ func (w *MainWindow) relayout() {
 		}
 	}
 	var center fyne.CanvasObject = w.editorView
-	if w.stripsVisible && w.stripboard != nil {
-		center = w.stripboard.box
-	} else if !w.scriptInMain() {
+	if !w.scriptInMain() {
 		// another middle tab in front: w.mid.center below puts it there
-	} else if w.pagesVisible && w.pages != nil && w.narrow { // a phone: in the script's place
-		center = w.pages
-	} else if w.pagesVisible && w.pages != nil {
+	} else if w.pagesVisible && w.pages != nil && !w.mid.has("pages") { // (a phone's are a tab of their own)
 		split := container.NewHSplit(w.editorView, w.pages)
 		split.Offset = 0.5
 		center = split
@@ -1571,10 +1566,8 @@ func (w *MainWindow) relayout() {
 		split.Offset = 0.55
 		center = split
 	}
-	if !w.stripsVisible || w.stripboard == nil {
-		center = w.mid.center(center) // the tab in front, under the middle's tabs
-	}
-	side := w.dock.object() // dock.go
+	center = w.mid.center(center) // the tab in front, under the middle's tabs
+	side := w.dock.object()       // dock.go
 	var left fyne.CanvasObject
 	if side != nil && w.narrow {
 		// a phone: the panes under the script, both in sight, the split
@@ -1667,10 +1660,11 @@ func (w *MainWindow) onWindowWidth(width float32) {
 		}
 		c := w.fyneWindow.Canvas()
 		focused := c.Focused() // a new content drops the focus
+		w.pagesTabFollow(true) // the pages a tab of their own on a phone, beside the script on a desktop
 		w.relayout()
 		w.productionFollow() // its buttons go where the room is
 		w.ribbonRefresh()    // one row of tabs, one of buttons, on a phone
-		if w.stripsVisible && w.stripboard != nil {
+		if w.stripsShown() {
 			w.stripboard.update() // strips of two lines on a phone
 		}
 		if focused != nil {

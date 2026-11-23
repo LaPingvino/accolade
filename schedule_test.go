@@ -52,7 +52,7 @@ Dry at last.
 // board is the window's stripboard, shown and measured.
 func board(t *testing.T, w *MainWindow) *stripboardView {
 	t.Helper()
-	if !w.stripsVisible {
+	if !w.stripsShown() {
 		w.toggleStripboard()
 	}
 	w.measureSchedule()
@@ -495,12 +495,12 @@ func TestScheduleStage(t *testing.T) {
 		t.Errorf("rows %q", ts)
 	}
 	rows[0].onTap()
-	if !w.stripsVisible {
+	if !w.stripsShown() {
 		t.Error("a day's row does not open the stripboard")
 	}
 	w.toggleStripboard()
 	test.Tap(p.sched.open)
-	if !w.stripsVisible {
+	if !w.stripsShown() {
 		t.Error("Open Stripboard")
 	}
 	w.toggleStripboard()
