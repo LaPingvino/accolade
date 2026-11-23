@@ -74,9 +74,15 @@ Links written before read as they are; one is written again only when the source
 
 ### When the source changes
 
-Because links are short, a change to the story can break one: a new paragraph elsewhere with the same few words makes it fit two places, and editing the words it quotes loses it. So Accolade looks at every link again whenever the source changes: when you edit it in Accolade (as the cursor leaves the passage, at Done, or at Save), when its file changed and is read again, when you open a script whose source changed since it was last saved, and at Adaptation > Update Source Links. A link that no longer finds its passage alone, but whose passage is still there, is written again for it: lengthened, or re-anchored to its new words. That is one undo step, and the status bar says how many, for example "2 links lengthened".
+Because links are short, a change to the story can break one: a new paragraph elsewhere with the same few words makes it fit two places, and editing the words it quotes loses it. So Accolade looks at every link again whenever the source changes: when you edit it in Accolade (as the cursor leaves the passage, at Done, or at Save), when its file changed and is read again, when you open a script whose source changed since it was last saved, and at Adaptation > Update Source Links. Accolade writes a link again by itself only when it is sure which passage it is: the passage is unchanged (the link is lengthened), or its words changed but it is the only passage left between two that did not (the link is re-anchored to its new words). That is one undo step, and the status bar says how many, for example "2 links lengthened".
 
-Some links cannot be fixed. When two passages and the words around them are exactly alike, the chip says **↗ 2 places**; when the passage was taken out of the story, it says **↗ source?**. Point at the chip to read why. The Source pane lists them too: the scene's links under its heading, and the scenes with such links in the line about the whole script. A link to a passage that was taken out keeps that passage's words, so it is found again if the passage comes back.
+When Accolade is not sure (several passages next to each other reworded, a passage moved and edited), it leaves the link as it is and its chip says **↗ check?**. Point at it to read which passage it seems to be now; press and hold it (or right-click) for **Move It There**, one undo step, or **Keep As It Is**.
+
+Some links cannot be fixed. When two passages and the words around them are exactly alike, the chip says **↗ 2 places**; when the passage was taken out of the story, it says **↗ source?**. Point at the chip to read why. The Source pane lists them too: the scene's links under its heading, and the scenes with such links in the line about the whole script.
+
+### Another version of the source
+
+Choose a new version of the story with Adaptation > Choose Source… (a new draft, a heavily edited copy, a translation), and Accolade lines the whole old version up with the new one, passage by passage in order. Links whose passage it is sure of move at once, in one undo step; the rest get **↗ check?** as above. The status bar says, for example, "7 links moved, 3 to check, 1 not found".
 
 Within a session, the pane still shows a passage whose words changed after it was linked in the warning colour, and the count says how many are "changed since linked": check those scenes against the story.
 

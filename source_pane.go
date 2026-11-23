@@ -78,6 +78,7 @@ type sourcePane struct {
 	// for the script's next opening
 	linkedSrc, snapWritten string
 	linkedRef              sourceRef
+	linkedScript           string      // the script it was for (another source for it: Choose Source)
 	sugg                   suggestions // links offered (adaptation_suggest.go)
 	seedAsked              bool        // an unwritten script offered to start from the source
 	fresh                  bool        // the source just read: the list not scrolled yet
@@ -817,6 +818,14 @@ func (s *sourcePane) follow() {
 				problems = append(problems, q+" names "+f+", not this script's source: read against it")
 			}
 		}
+		g, guessed := s.w.linkGuesses[m.links[i].Ref.rawKey()]
+		if guessed { // relink.go
+			say := q + ": " + g.Why
+			if g.Target {
+				say += "; its chip offers to move it there"
+			}
+			problems = append(problems, say)
+		}
 		switch mt.Kind {
 		case linkFound, linkNear:
 			for p := mt.Passages[0]; p <= mt.last(); p++ {
@@ -836,7 +845,7 @@ func (s *sourcePane) follow() {
 		case linkMissing:
 			if bad := m.links[i].Ref.Bad; bad != "" {
 				problems = append(problems, "A link cannot be read: "+bad)
-			} else {
+			} else if !guessed {
 				problems = append(problems, q+" is not in the source: its passage was taken out, or its words changed past finding")
 			}
 		}

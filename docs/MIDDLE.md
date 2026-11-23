@@ -178,12 +178,15 @@ Kept as they are, and why:
   it the pane again.
 - **Updating the links** (relink.go; Joop 2026-11-22, replacing the earlier Update Links / Not Now notice).
   When the source's text changed and the writer then leaves the passage in the source's middle tab, leaves that tab, presses the Source
-  pane's Done, or saves, `relinkFixes` compares the passages before and after (`alignPassages`: the same ones at
-  both ends, those there once on each side with the same words, the edited ones most alike in their stretch). A
-  link that found its passages before and no longer finds exactly them is written again at once for where they
-  are now (`fragmentFor`: lengthened or re-anchored), all in one undo step of the script's, the status line
-  saying how many. One that cannot be told apart, or whose passages are gone, warns (its chip, "↗ 2 places" /
-  "↗ source?"). The adaptation block's entries the same, in the same undo step. The same runs when the source's
+  pane's Done, or saves, `relinkFixes` compares the passages before and after (`alignPassagesSure`: a monotone
+  alignment, the same ones at both ends and the unique same-words anchors certain, between them a
+  Needleman–Wunsch pairing by likeness and place, certain only for the one passage left between two anchors). A
+  link that found its passages before and no longer finds exactly them is written again at once only when its
+  pairing is certain (`fragmentFor`: lengthened or re-anchored), one undo step of the script's, the status line
+  saying how many; otherwise it is left byte for byte, its chip "↗ check?" with the guess and Move It There / Keep
+  As It Is (Joop 2026-11-23: write only on certain evidence). One that cannot be told apart, or whose passages
+  are gone, warns (its chip, "↗ 2 places" / "↗ source?"). The adaptation block's entries are written when certain.
+  Choose Source… for the same script aligns the whole old source with the new ("N links moved, M to check"). The same runs when the source's
   file is read again, and when a script is opened whose source changed since it was saved (the source then is
   kept in Accolade's data folder, `links/`, by the script's path).
 - The header's editing row for a document in the main editor is Markdown's without Start a Screenplay

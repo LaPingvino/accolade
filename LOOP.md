@@ -1264,3 +1264,22 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   session through linkedWords); short links almost never match approximately (near needs 4 words), so a quoted
   word edited outside Accolade with no saved base (never saved since) gives "↗ source?" until linked again; an
   ambiguous link that later resolves (its twin edited) follows whichever still matches.
+- 2026-11-23: rebased shortlinks on main (middle tabs: relink triggers now in middle.go's tab switch and
+  relinkOnLeave via midDoc/passageSeen; TestLinkOffer* became TestRelinkOnLeavingTab / TestRelinkCutOnly), then the
+  follow-up (Joop: "fix a lot also by position … rough match of a full new source and half-done edit"; then "write
+  only when certain"). alignPassagesSure: monotone alignment, ends + unique same-words anchors (LIS) + moved,
+  between anchors a Needleman–Wunsch pairing (likeness + place in the stretch, banded with bag-of-words for a whole
+  new source); certain = same words, or the one passage left between two anchors (unless another passage reads
+  like it, or what is there reads like another: moved/copied). The script is written only when certain; every
+  weaker pairing is a guess: the link left byte for byte, chip "↗ check?" (warning colour) with the guess in its
+  tip, long press → Move It There (one undo step) / Keep As It Is; guesses go with a link written again
+  (carryGuesses); the pane lists them. The protective rewrites of the first round (whole words for a gone passage,
+  shared words for alike) are gone: a gone passage whose link's words fit another passage now warns "↗ source?".
+  Choose Source… on the same script aligns the whole old source with the new: "Another source: 7 links moved, 3 to
+  check" (TestRelinkAnotherSource: 14 passages, ~half rewritten, one added, one taken out). TestRelinkProperty (30
+  seeds): not found/ambiguous 29.9 % before → 29.4 % (with the passage still there 1.7 → 5.1 %, the cost of not
+  writing weak pairs), plus 8.0 % finding another passage and warned (gone passages, guesses); 53 guesses made, 49
+  right; 400 seeds pass. Reworded run of 4 (order kept): 0 written, 4 to check, 4 guessed right. Weak pairing
+  leaves the script byte for byte (TestRelinkWeakLeavesScript). Shot: relink-chip-check (SHOT_DIR, that test).
+  Open: guesses live for the session only; the moved/copied guard compares each lone pair with every passage (bag
+  of words), slow-ish for a whole-novel swap with many lone pairs (background).

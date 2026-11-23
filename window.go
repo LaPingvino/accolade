@@ -91,6 +91,9 @@ type MainWindow struct {
 	charRenamed *renamed
 	// relinking is how many looks at the links are being worked out (relink.go)
 	relinking int
+	// linkGuesses are the links the relinking did not write, by their
+	// rawKey: a guess to check, or a warning (relink.go)
+	linkGuesses map[string]linkGuess
 	// the others' changes to a shared script (changes.go)
 	changes      []change
 	changesPanel *changesPanel

@@ -1,16 +1,19 @@
 package main
 
 import (
+	"fmt"
 	"maps"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
 	"fyne.io/fyne/v2"
 
+	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
@@ -33,8 +36,8 @@ func TestRelinkReanchors(t *testing.T) {
 	script := []rune(sourceScript)
 	text := string(script[:start]) + block + string(script[end:])
 	nw := passagesOf(strings.Replace(sourceStory, "She opened the door to the garden", "She pushed open the door of the garden", 1))
-	edits, c, moved := relinkFixes(text, old, nw)
-	if c.reanchored != 1 || c.entries != 1 || c.lengthened != 0 || c.warned != 0 || len(moved) != 1 {
+	edits, c, moved, _ := relinkFixes(text, old, nw)
+	if c.reanchored != 1 || c.entries != 1 || c.lengthened != 0 || c.check != 0 || len(moved) == 0 {
 		t.Fatalf("%+v, moved %v: %v", c, moved, edits)
 	}
 	got := withEdits(text, edits)
@@ -53,14 +56,15 @@ func TestRelinkReanchors(t *testing.T) {
 	if !strings.Contains(c.String(), "1 link re-anchored") {
 		t.Errorf("said %q", c.String())
 	}
-	if edits, c, _ := relinkFixes(text, old, old); len(edits) != 0 {
+	if edits, c, _, _ := relinkFixes(text, old, old); len(edits) != 0 {
 		t.Errorf("nothing changed, yet %+v", c)
 	}
-	// the change not known (a script opened): a near link alone
+	// the change not known: a near link is a guess to check, not written
 	near := strings.Replace(sourceScript, "She opened the door to the garden and stepped…", "She opened a door to the garden and stepped…", 1)
-	edits, c, _ = relinkFixes(near, nil, old)
-	if c.reanchored != 1 || len(edits) != 1 || !strings.Contains(edits[0].Text, "#:~:text=") {
-		t.Errorf("the near link: %+v %v", c, edits)
+	edits, c, _, g := relinkFixes(near, nil, old)
+	r := parseLinks(near)[0].Ref
+	if len(edits) != 0 || c.check != 1 || !g[r.rawKey()].Target || g[r.rawKey()].I != passageNamed(t, old, "She opened") {
+		t.Errorf("the near link: %+v %v %+v", c, edits, g)
 	}
 }
 
@@ -76,7 +80,7 @@ func TestRelinkLengthens(t *testing.T) {
 	if mt := newLinkMatcher(nw).matchRef(linkRef{Dir: d}); mt.Kind != linkAmbiguous {
 		t.Fatalf("the test's link %+v is %+v in the new story", d, mt)
 	}
-	edits, c, _ := relinkFixes(script, old, nw)
+	edits, c, _, _ := relinkFixes(script, old, nw)
 	if c.lengthened != 1 || len(edits) != 1 {
 		t.Fatalf("%+v: %v", c, edits)
 	}
@@ -91,9 +95,9 @@ func TestRelinkLengthens(t *testing.T) {
 }
 
 // When nothing can tell the passage apart (the story and its copy), the
-// link warns: its chip says "↗ 2 places", the pane why. When its passage
-// is gone but its words fit another, it is written in the passage's
-// whole words: not found, "↗ source?".
+// link is left as it is and warns: its chip says "↗ 2 places". When its
+// passage is gone but its words fit another, it is left as it is too,
+// and its chip says "↗ source?", why in its tip.
 func TestRelinkImpossible(t *testing.T) {
 	story := "Morning came.\n\nShe opened the door to the rain.\n\nHe slept.\n"
 	old := passagesOf(story)
@@ -103,42 +107,207 @@ func TestRelinkImpossible(t *testing.T) {
 	}
 	script := "INT. HOUSE - NIGHT\n\n" + fragmentNote("", []textDirective{d}) + "\n"
 	twice := passagesOf(story + "\n" + story)
-	edits, c, _ := relinkFixes(script, old, twice)
-	if len(edits) != 1 || c.warned != 1 {
+	if edits, c, _, _ := relinkFixes(script, old, twice); len(edits) != 0 {
 		t.Fatalf("alike: %+v %v", c, edits)
 	}
-	alike := withEdits(script, edits) // the words that fit both, a few more: no later edit makes it find one of them by chance
-	if !strings.Contains(alike, "#:~:text=Morning came.-,She opened the door to the rain.,-He slept.]]") {
-		t.Errorf("alike: %q", alike)
-	}
-	if again, _, _ := relinkFixes(alike, twice, twice); len(again) != 0 {
-		t.Errorf("written again and again: %v", again)
-	}
-	lm := newLinkMatcher(twice)
-	chips := findLinkChips(alike, lm)
-	if len(chips) != 1 || chips[0].Label != "↗ 2 places" || !strings.Contains(chips[0].Tip, "fits 2 places in the source alike") {
+	chips := findLinkChips(script, newLinkMatcher(twice))
+	if len(chips) != 1 || chips[0].Label != "↗ 2 places" || !chips[0].Warn || !strings.Contains(chips[0].Tip, "fits 2 places in the source alike") {
 		t.Errorf("the chip: %+v", chips)
 	}
 	// gone, and its short words found in a passage added later
 	gone := passagesOf("Morning came.\n\nHe slept.\n\nShe danced in the rain.\n")
-	if mt := newLinkMatcher(gone).matchRef(linkRef{Dir: d}); !mt.found() {
+	lm := newLinkMatcher(gone)
+	if mt := lm.matchRef(linkRef{Dir: d}); !mt.found() {
 		t.Fatalf("the test's link %+v is %+v without its passage", d, mt)
 	}
-	edits, c, _ = relinkFixes(script, old, gone)
-	if c.warned != 1 || len(edits) != 1 {
-		t.Fatalf("gone: %+v %v", c, edits)
+	edits, c, _, g := relinkFixes(script, old, gone)
+	if len(edits) != 0 || c.lost != 1 || len(g) != 1 {
+		t.Fatalf("gone: %+v %v %v", c, edits, g)
 	}
-	got := withEdits(script, edits)
-	if !strings.Contains(got, "#:~:text=Morning came.-,She opened the door to the rain.]]") {
-		t.Errorf("gone: %q", got)
-	}
-	chips = findLinkChips(got, newLinkMatcher(gone))
-	if len(chips) != 1 || chips[0].Label != "↗ source?" || !strings.Contains(chips[0].Tip, "taken out") {
+	chips = findLinkChipsIn(script, lm, g, func(_ string, find func() []editor.Chip) []editor.Chip { return find() })
+	if len(chips) != 1 || chips[0].Label != "↗ source?" || !chips[0].Warn || !strings.Contains(chips[0].Tip, "taken out") {
 		t.Errorf("the chip: %+v", chips)
 	}
-	// and it comes back: found again
-	if mt := newLinkMatcher(old).matchRef(parseLinks(got)[0].Ref); mt.Kind != linkFound || mt.Passages[0] != 1 {
-		t.Errorf("the passage back: %+v", mt)
+}
+
+// A weak pairing (two passages next to each other both reworded: which
+// is which is a guess) leaves the script byte for byte as it was; the
+// chips say "↗ check?" with the guess in their tips, and Move It There
+// writes one, one undo step.
+func TestRelinkWeakLeavesScript(t *testing.T) {
+	story := "# The Garden\n\nMorning came over the hills.\n\nShe opened the door to the rain.\n\nThe dog barked at the gate twice.\n\nHe slept until noon.\n"
+	reworded := strings.NewReplacer("She opened the door to the rain.", "Anna pushed the door wide; it was pouring.",
+		"The dog barked at the gate twice.", "Twice, at the gate, a hound gave voice.").Replace(story)
+	old, nw := passagesOf(story), passagesOf(reworded)
+	var script strings.Builder
+	script.WriteString("INT. HOUSE - DAY\n\n")
+	lm := newLinkMatcher(old)
+	for _, p := range []int{2, 3} {
+		d, _ := fragmentFor(lm, p, p)
+		script.WriteString(fragmentNote("", []textDirective{d}) + "\n\n")
+	}
+	text := script.String()
+	edits, c, _, g := relinkFixes(text, old, nw)
+	if len(edits) != 0 || c.check != 2 {
+		t.Fatalf("written: %+v %v", c, edits)
+	}
+	for k, l := range parseLinks(text) {
+		if gu := g[l.Ref.rawKey()]; !gu.Target || gu.I != 2+k {
+			t.Errorf("link %d's guess %+v", k, gu)
+		}
+	}
+	// in the window: the script as it was, byte for byte; Move It There
+	w, p := sourceWindow(t, text, story)
+	if err := w.SaveFile(); err != nil {
+		t.Fatal(err)
+	}
+	saved := w.textEditor.Text()
+	os.WriteFile(filepath.Join(filepath.Dir(p), "story.md"), []byte(reworded), 0o644)
+	later := time.Now().Add(time.Minute)
+	os.Chtimes(filepath.Join(filepath.Dir(p), "story.md"), later, later)
+	w.sourcePane().follow()
+	if w.textEditor.Text() != saved || !strings.Contains(w.statusText(), "2 links to check") {
+		t.Fatalf("weak pairs written (%q):\n%s", w.statusText(), w.textEditor.Text())
+	}
+	if os.Getenv("SHOT_DIR") != "" {
+		w.fyneWindow.Resize(fyne.NewSize(1100, 650))
+		w.textEditor.SetCursorOffset(0)
+		w.sourcePane().follow()
+		shotTo(t, w, "relink-chip-check")
+	}
+	chips := w.linkChips(w.textEditor.Text())
+	if len(chips) != 2 || chips[0].Label != "↗ check?" || !chips[0].Warn || !strings.Contains(chips[0].Tip, "“Anna … pouring.”") {
+		t.Fatalf("the chips: %+v", chips)
+	}
+	w.moveLinkToGuess(chips[0])
+	m := w.sourcePane().current()
+	if !m.matches[0].found() || m.matches[0].Passages[0] != 2 || w.textEditor.Text() == saved {
+		t.Errorf("moved: %+v\n%s", m.matches[0], w.textEditor.Text())
+	}
+	if chips := w.linkChips(w.textEditor.Text()); chips[0].Warn || chips[1].Label != "↗ check?" {
+		t.Errorf("after the move: %+v", chips)
+	}
+	w.textEditor.Undo()
+	if w.textEditor.Text() != saved {
+		t.Error("the move is not one undo step")
+	}
+	w.keepLinkAsIs(w.linkChips(w.textEditor.Text())[1])
+	if chips := w.linkChips(w.textEditor.Text()); chips[1].Label == "↗ check?" {
+		t.Errorf("Keep As It Is: %+v", chips[1])
+	}
+}
+
+// Every passage of a run reworded, the order kept: none written; each
+// link's guess is the passage in its place.
+func TestRelinkRewordedRun(t *testing.T) {
+	var ps, re []string
+	for k := range 10 {
+		ps = append(ps, fmt.Sprintf("Paragraph %s tells of the %s and the %s.", words[k], words[k+1], words[k+2]))
+		re = append(re, ps[k])
+	}
+	for k := 3; k <= 6; k++ {
+		re[k] = fmt.Sprintf("Here %d words quite other than before stand.", k)
+	}
+	old, nw := passagesOf(strings.Join(ps, "\n\n")), passagesOf(strings.Join(re, "\n\n"))
+	lm := newLinkMatcher(old)
+	var script strings.Builder
+	for k := range old {
+		d, _ := fragmentFor(lm, k, k)
+		script.WriteString(fragmentNote("", []textDirective{d}) + "\n\n")
+	}
+	text := script.String()
+	edits, c, _, g := relinkFixes(text, old, nw)
+	right := 0
+	for k, l := range parseLinks(text) {
+		if gu, ok := g[l.Ref.rawKey()]; ok && gu.Target && gu.I == k {
+			right++
+		}
+	}
+	t.Logf("reworded run of 4: %d written, %d to check, %d of them guessed right", len(edits), c.check, right)
+	if len(edits) != 0 || c.check != 4 || right != 4 {
+		t.Errorf("%+v %v, %d right", c, edits, right)
+	}
+}
+
+// words for made-up paragraphs.
+var words = strings.Fields("rain door sea wind garden light night stone river boat kettle stairs lamp bread salt road")
+
+// Another source for a half-adapted script (Choose Source…: a new
+// draft, about half its passages rewritten): the whole of it aligned with
+// the one before, every certain link moved in one undo step, the rest to
+// check, the status saying "N moved, M to check, K not found".
+func TestRelinkAnotherSource(t *testing.T) {
+	var ps, re []string
+	rng := rand.New(rand.NewSource(7))
+	vocab := strings.Fields("the a of and to in she he it was had her his that with for on as at by from " +
+		"rain door sea wind garden light night stone river boat kettle stairs lamp bread salt road hill field bell " +
+		"cold warm late early old new red grey opened walked slept sang waited ran")
+	for range 14 { // prose-like: function words and others, every paragraph its own
+		ws := make([]string, 8+rng.Intn(8))
+		for i := range ws {
+			ws[i] = vocab[rng.Intn(len(vocab))]
+		}
+		ps = append(ps, strings.ToUpper(ws[0][:1])+ws[0][1:]+" "+strings.Join(ws[1:], " ")+".")
+	}
+	re = append(re, "A new opening, never there before.") // added at the start: everything moves
+	for k, p := range ps {
+		switch {
+		case k == 13: // taken out
+		case k%2 == 1 || k == 8: // rewritten: alone between two as they were (7, 8 and 9 together: guesses)
+			re = append(re, fmt.Sprintf("Rewritten %d, nothing of the old words.", k))
+		default:
+			re = append(re, p)
+		}
+	}
+	story, draft := strings.Join(ps, "\n\n")+"\n", strings.Join(re, "\n\n")+"\n"
+	old := passagesOf(story)
+	lm := newLinkMatcher(old)
+	var script strings.Builder
+	script.WriteString("INT. HOUSE - DAY\n\n")
+	for k := range 10 { // half-adapted: the first ten passages linked
+		d, _ := fragmentFor(lm, k, k)
+		script.WriteString(fragmentNote("", []textDirective{d}) + "\n\n")
+	}
+	w, p := sourceWindow(t, script.String(), story)
+	w.sourcePane().follow()
+	before := w.textEditor.Text()
+	nu := filepath.Join(filepath.Dir(p), "draft2.md")
+	os.WriteFile(nu, []byte(draft), 0o644)
+	if err := w.useSourceText(nu, draft); err != nil {
+		t.Fatal(err)
+	}
+	w.sourcePane().follow()
+	st := w.statusText()
+	t.Logf("status %q", st)
+	if !strings.Contains(st, "Another source: ") || !strings.Contains(st, " moved, ") || !strings.Contains(st, " to check") {
+		t.Fatalf("status %q", st)
+	}
+	m := w.sourcePane().current()
+	nw := w.sourcePane().passages
+	moved, check := 0, 0
+	for k, mt := range m.matches {
+		g, guessed := w.linkGuesses[m.links[k].Ref.rawKey()]
+		switch {
+		case guessed && g.Target:
+			check++
+			if nw[g.I].Plain != re[g.I] { // (re is nw's text, passage for passage)
+				t.Errorf("link %d's guess %d", k, g.I)
+			}
+		case mt.Kind == linkFound && nw[mt.Passages[0]].Plain == re[k+1]:
+			moved++ // its passage in its new place
+		default:
+			t.Errorf("link %d: %+v, guess %+v", k, mt, g)
+		}
+	}
+	if moved != 7 || check != 3 { // 7, 8 and 9 rewritten together: guesses
+		t.Errorf("%d moved, %d to check", moved, check)
+	}
+	if !strings.Contains(st, "7 links moved, 3 to check") {
+		t.Errorf("%d moved, %d to check", moved, check)
+	}
+	w.textEditor.Undo()
+	if w.textEditor.Text() != before {
+		t.Error("the moves are not one undo step")
 	}
 }
 
@@ -241,9 +410,15 @@ func TestAlignPassages(t *testing.T) {
 	if to := alignPassages(old, moved); to[at] != len(moved)-1 || to[at+1] != at {
 		t.Errorf("moved: %v", to)
 	}
+	// written over in its place, its neighbours as they were: the passage there now, by its place
 	other := passagesOf(strings.Replace(sourceStory, "She opened the door to the garden and stepped out into the *rain*.", "A wholly different paragraph now.", 1))
-	if to := alignPassages(old, other); to[at] != -1 {
+	if to := alignPassages(old, other); to[at] != at {
 		t.Errorf("a passage written over maps to %d", to[at])
+	}
+	// taken out: nothing in its place
+	gone := passagesOf(strings.Replace(sourceStory, "She opened the door to the garden and stepped out into the *rain*.\n\n", "", 1))
+	if to := alignPassages(old, gone); to[at] != -1 || to[at+1] != at {
+		t.Errorf("taken out: %v", to)
 	}
 }
 
@@ -268,7 +443,7 @@ func TestRelinkProperty(t *testing.T) {
 	if testing.Short() {
 		seeds = 5
 	}
-	fixed, warned, checked := 0, 0, 0
+	fixed, warned, warnedThere, checked, toCheck, withTarget, rightGuess := 0, 0, 0, 0, 0, 0, 0
 	for seed := int64(1); seed <= int64(seeds); seed++ {
 		rng := rand.New(rand.NewSource(seed))
 		para := func() string {
@@ -310,6 +485,7 @@ func TestRelinkProperty(t *testing.T) {
 			}
 		}
 		text := script.String()
+		guesses := map[string]linkGuess{}  // as the window keeps them
 		alikeIDs := map[int]map[int]bool{} // a link's passages alike when it was ambiguous, by the link
 		for step := range 40 {
 			for range 1 + rng.Intn(2) {
@@ -345,7 +521,16 @@ func TestRelinkProperty(t *testing.T) {
 			if len(ps) != len(paras) {
 				t.Fatalf("seed %d step %d: %d passages of %d paragraphs", seed, step, len(ps), len(paras))
 			}
-			edits, c, _ := relinkFixes(text, old, ps)
+			edits, c, mv, g := relinkFixes(text, old, ps)
+			for k, l := range parseLinks(text) { // the guesses made now: right?
+				if gu, ok := g[l.Ref.rawKey()]; ok && gu.Target {
+					withTarget++
+					if paras[gu.I].id == linkIDs[k] {
+						rightGuess++
+					}
+				}
+			}
+			guesses = carryGuesses(guesses, mv, g)
 			fixed += c.lengthened + c.reanchored
 			text = withEdits(text, edits)
 			lm := newLinkMatcher(ps)
@@ -366,6 +551,9 @@ func TestRelinkProperty(t *testing.T) {
 				mt := lm.matchRef(l.Ref)
 				if !mt.found() {
 					warned++
+					if current(linkIDs[k]) != "" {
+						warnedThere++ // its passage still there
+					}
 					if mt.Kind == linkAmbiguous {
 						if alikeIDs[k] == nil {
 							alikeIDs[k] = map[int]bool{}
@@ -377,6 +565,11 @@ func TestRelinkProperty(t *testing.T) {
 					continue
 				}
 				p := mt.Passages[0]
+				if g, ok := guesses[l.Ref.rawKey()]; ok && !(mt.last() == p && paras[p].id == linkIDs[k]) {
+					toCheck++ // its chip warns: "↗ check?" or "↗ source?"
+					_ = g
+					continue
+				}
 				switch {
 				case mt.last() == p && paras[p].id == linkIDs[k]:
 				case mt.last() == p && (paras[p].text == current(linkIDs[k]) || paras[p].text == before[linkIDs[k]]):
@@ -385,6 +578,10 @@ func TestRelinkProperty(t *testing.T) {
 					linkIDs[k] = paras[p].id // its own gone, a copy of it (nearly) is the link's from now on
 				case mt.last() == p && before[paras[p].id] == before[linkIDs[k]] && before[linkIDs[k]] != "":
 					linkIDs[k] = paras[p].id // word for word its twin before the step: which is which, no words tell
+				case mt.last() == p && current(linkIDs[k]) == "" && before[paras[p].id] == "":
+					linkIDs[k] = paras[p].id // its own gone and another put in its place: read as it reworded (alignPassages pairs by place)
+				case mt.last() == p && slices.ContainsFunc(links, func(o sourceLink) bool { return o.Key == l.Key && linkIDs[o.Line/2] == paras[p].id }):
+					linkIDs[k] = paras[p].id // word for word another link's, whose passage this is: the same link
 				case mt.last() == p && alikeIDs[k][paras[p].id]:
 					linkIDs[k] = paras[p].id // one it could not be told from, the others changed since
 				default:
@@ -398,7 +595,10 @@ func TestRelinkProperty(t *testing.T) {
 			}
 		}
 	}
-	t.Logf("%d links looked at, %d written again, %d warning", checked, fixed, warned)
+	t.Logf("%d links looked at, %d written again, %d not found or ambiguous (%.1f%%), %d of them with their passage still there (%.1f%%); "+
+		"%d finding another passage and warned (%.1f%%); %d guesses to check made, %d of them right",
+		checked, fixed, warned, 100*float64(warned)/float64(checked), warnedThere, 100*float64(warnedThere)/float64(checked),
+		toCheck, 100*float64(toCheck)/float64(checked), withTarget, rightGuess)
 	if fixed == 0 {
 		t.Error("nothing was written again: the edits do not test it")
 	}
@@ -436,7 +636,7 @@ func TestRelinkDroppedLookAgain(t *testing.T) {
 	}
 	// as a dropped look leaves it: the links last looked at against the story before the change
 	s.linkedSrc = sourceStory
-	if w.relink(w.textEditor.Text()+"x", []linkEdit{{0, 0, "y"}}, relinkCount{}, nil) {
+	if w.relink(w.textEditor.Text()+"x", []linkEdit{{0, 0, "y"}}, relinkCount{}, nil, nil) {
 		t.Fatal("a look for another script applied")
 	}
 	s.follow()
