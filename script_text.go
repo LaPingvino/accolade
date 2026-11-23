@@ -47,7 +47,7 @@ func withLanguageLine(text, lang string) string {
 // here).
 func cutLanguageLine(text string) (string, string, bool) {
 	at, lang := fountain.LanguageLine(text)
-	if lang = strings.ToLower(lang); at < 0 || sceneConf(lang) == nil {
+	if lang = languageKey(lang); at < 0 || lang == "" {
 		return text, "", false
 	}
 	return text[:at], lang, true

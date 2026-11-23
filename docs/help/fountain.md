@@ -33,7 +33,7 @@ INT. KITCHEN - NIGHT
 Rain against the window.
 ```
 
-Scripts in other languages have their own words: EN./EKST. in Esperanto, BIN./BUI. in Dutch, and so on. Edit > Script Language… chooses them, and a file named like `scene.eo.fountain` says its own language (a bundle keeps it inside; see [File Formats](formats.md#a-script-in-another-language)).
+Scripts in other languages have their own words: EN./EKST. in Esperanto, BIN./BUI. in Dutch, and so on. Hindi comes three ways: Hindi (Latin) for Hindi written in Latin letters with English Fountain's INT./EXT. (`hi-Latn`), Hindi (Devanagari) for headings written as Hindi scripts write them, `घर का आँगन/रात/बाहर`, with INT./EXT. still read (`hi-Deva`), and Hindi (both) for either or both (`hi`). Edit > Script Language… chooses them, and a file named like `scene.eo.fountain` or `scene.hi-Deva.fountain` says its own language (a bundle keeps it inside; see [File Formats](formats.md#a-script-in-another-language)).
 
 ### Forced scene headings
 

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -31,14 +32,26 @@ var selfNames = map[string]string{"tok": "toki pona", "hekaya": "Hekaya, الع�
 	"hi-Latn": "Hindi (Latin)", "hi-Deva": "Hindi (Devanagari)", "hi": "Hindi (both)"}
 
 // languageLabel names a language in itself, with its code: "עברית (he)".
+// A name that ends in brackets takes the code inside them: "Hindi
+// (Latin, hi-Latn)".
 func languageLabel(code string) string {
+	name := selfName(code)
+	switch {
+	case name == "":
+		return code
+	case strings.HasSuffix(name, ")"):
+		return fmt.Sprintf("%s, %s)", strings.TrimSuffix(name, ")"), code)
+	}
+	return fmt.Sprintf("%s (%s)", name, code)
+}
+
+// selfName is a language's name in itself ("עברית", "Hindi (Latin)"),
+// "" for a code with none.
+func selfName(code string) string {
 	if name := selfNames[code]; name != "" {
-		return fmt.Sprintf("%s (%s)", name, code)
+		return name
 	}
-	if name := display.Self.Name(language.Make(code)); name != "" {
-		return fmt.Sprintf("%s (%s)", name, code)
-	}
-	return code
+	return display.Self.Name(language.Make(code))
 }
 
 // pdfPages are what OCR could read in a PDF: its scanned pages (no text),

@@ -1,0 +1,138 @@
+package main
+
+import (
+	"image/png"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strings"
+	"testing"
+	"time"
+
+	"fyne.io/fyne/v2"
+
+	"github.com/LaPingvino/lexington/fountain"
+	"github.com/LaPingvino/lexington/lex"
+)
+
+// Hindi per script (Lexington's hi-Latn, hi-Deva, hi): named so in the
+// pickers, found in a file's name in any case and by its fallback.
+func TestHindiNames(t *testing.T) {
+	for code, want := range map[string]string{"hi-Latn": "Hindi (Latin)", "hi-Deva": "Hindi (Devanagari)", "hi": "Hindi (both)"} {
+		if got := languageName(code); got != want {
+			t.Errorf("languageName(%s) = %q, want %q", code, got, want)
+		}
+		if got, want := languageLabel(code), strings.TrimSuffix(want, ")")+", "+code+")"; got != want {
+			t.Errorf("languageLabel(%s) = %q, want %q", code, got, want)
+		}
+		if !slices.Contains(scriptLanguages(), code) {
+			t.Errorf("%s is not among the languages", code)
+		}
+	}
+	for path, want := range map[string]string{
+		"/s/film.hi-Latn.fountain": "hi-Latn", "/s/film.hi-latn.fountain": "hi-Latn", "/s/film.hi_Deva.fountain": "hi-Deva",
+		"/s/film.hi-Deva-IN.fountain": "hi-Deva", "/s/film.HI.fountain": "hi", "/s/film.hi-Arab.fountain": "hi",
+		"/s/film.de-CH.fountain": "de", "/s/film.xx-Yyyy.fountain": "", "/s/my.script.fountain": "",
+	} {
+		if got := languageOf(path); got != want {
+			t.Errorf("languageOf(%s) = %q, want %q", path, got, want)
+		}
+	}
+	if got := withLanguageName("/s/film.hi-Deva.fountain", "hi-Latn"); got != "/s/film.hi-Latn.fountain" {
+		t.Errorf("withLanguageName: %s", got)
+	}
+	if _, lang, ok := cutLanguageLine(withLanguageLine("INT. ROOM - DAY\n", "hi-deva")); !ok || lang != "hi-Deva" {
+		t.Errorf("language line: %q %v", lang, ok)
+	}
+}
+
+// TestHindiNewTemplate: New in each Hindi gives a script in its words
+// that reads back as a screenplay in it: the heading a heading, the cues
+// cues, the closing transition a transition; a window in hi-Latn reads
+// with hi-Latn's own rules, not English's with the same scene words.
+func TestHindiNewTemplate(t *testing.T) {
+	for lang, words := range map[string][]string{
+		"hi-Latn": {"INT. LIVING ROOM - DAY", "FADE OUT."},
+		"hi-Deva": {"शीर्षक: UNTITLED SCREENPLAY", "अंदर. LIVING ROOM - दिन", "फ़ेड आउट"},
+		"hi":      {"शीर्षक: UNTITLED SCREENPLAY", "INT. LIVING ROOM - DAY", "फ़ेड आउट"},
+	} {
+		w := newTestWindow(t, "")
+		w.setLanguage(lang)
+		if w.language != lang {
+			t.Fatalf("%s: the window's language is %q", lang, w.language)
+		}
+		text := w.newScriptText(lang)
+		for _, word := range words {
+			if !strings.Contains(text, word) {
+				t.Errorf("%s: no %q in\n%s", lang, word, text)
+			}
+		}
+		types := map[string]string{}
+		for _, l := range fountain.ParseIn(w.dialect().Lang, strings.NewReader(text)) {
+			types[strings.TrimSpace(l.Contents)] = l.Type
+		}
+		heading, end := words[len(words)-2], words[len(words)-1]
+		for row, want := range map[string]string{heading: lex.TypeScene, "JOHN": lex.TypeSpeaker, "JOHN (V.O.)": lex.TypeSpeaker,
+			"(sighing)": lex.TypeParen, "UNTITLED SCREENPLAY": "Title", "This screenplay isn't writing itself.": lex.TypeDialog, end: lex.TypeTrans} {
+			if got := types[row]; got != want {
+				t.Errorf("%s: %q read as %q, want %q", lang, row, got, want)
+			}
+		}
+		if !isSceneHeadingIn(heading, sceneStarts(lang)) {
+			t.Errorf("%s: the editor does not see %q as a heading", lang, heading)
+		}
+		if lang == "hi-Latn" && !slices.Contains(w.dialect().Lang.Times, "DIN") {
+			t.Errorf("hi-Latn's window reads with %v's times", w.dialect().Lang.Times)
+		}
+	}
+}
+
+// devanagariScene is a short Hindi scene in Devanagari with conjuncts
+// (क्षत्रिय, श्रद्धा, ज्ञान), matras before and after their consonant
+// (कि, की), reph (धर्म) and eyelash ra (र्‍), for the screenshots.
+const devanagariScene = "शीर्षक: क्षत्रिय\n\nशिक्षा अधिकारी का दफ़्तर (बाहरी कक्ष)/दिन/अंदर\n\n" +
+	"रजनी कमरे में आती है। कि की कु कू के कै को कौ कं कः कँ\n\n" +
+	"रजनी\n(धीरे से)\nक्षत्रिय का धर्म और कर्म, श्रद्धा और ज्ञान। र्‍य द्ध ट्र प्र\n\n" +
+	"ANNA\nनमस्ते, हिन्दी।\n\nकट टू\n"
+
+// TestDevanagariScreenshots renders a Devanagari scene in the editor, its
+// page view and the PDF's page (SHOT_DIR as in screenshot_test.go).
+func TestDevanagariScreenshots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	shot := func(w *MainWindow, name string) {
+		w.fyneWindow.Content().Refresh()
+		f, err := os.Create(filepath.Join(dir, name+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if err := png.Encode(f, w.fyneWindow.Canvas().Capture()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	w, _ := newDialogTestWindow(t)
+	w.fyneWindow.Resize(fyne.NewSize(1100, 750))
+	w.setLanguage("hi-Deva")
+	w.textEditor.SetText(devanagariScene)
+	uiSleep(200 * time.Millisecond)
+	shot(w, "hi-deva-editor")
+	pdfPath := filepath.Join(dir, "hi-deva.pdf")
+	if err := exportAs(w.textEditor.Text(), pdfPath, "pdf", w.layoutJob()); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := exec.Command("pdftoppm", "-png", "-r", "150", pdfPath, filepath.Join(dir, "hi-deva-pdf")).CombinedOutput(); err != nil {
+		t.Errorf("pdftoppm: %v %s", err, b)
+	}
+	t.Logf("PDF warning: %q", pdfWarning(w.textEditor.Text(), w.lex().Language("hi-Deva")))
+	v := previewAndWait(t, w)
+	v.toAnchor(1, 0) // the script's first page
+	uiSleep(100 * time.Millisecond)
+	shot(w, "hi-deva-pages")
+}

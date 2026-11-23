@@ -50,7 +50,7 @@ func dialectType(lang string) fileType {
 
 // languageName is a language's name in itself, without its code.
 func languageName(lang string) string {
-	name := []rune(strings.TrimSuffix(languageLabel(lang), " ("+lang+")"))
+	name := []rune(cmp.Or(selfName(lang), lang))
 	if len(name) > 0 { // as a name stands: Esperanto, not esperanto
 		name[0] = unicode.ToUpper(name[0])
 	}

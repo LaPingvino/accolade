@@ -58,8 +58,15 @@ func languageOf(path string) string {
 	if len(parts) < 3 {
 		return ""
 	}
-	if l := strings.ToLower(parts[len(parts)-2]); sceneConf(l) != nil {
-		return l
+	return languageKey(parts[len(parts)-2])
+}
+
+// languageKey is the machine's language a BCP 47 tag names: itself in
+// any case, else the one it falls back to (hi-deva: hi-Deva, hi-Deva-IN:
+// hi-Deva, de-CH: de; Lexington's Lookup); "" for none with scene words.
+func languageKey(tag string) string {
+	if k, ok := lexSettings.Lookup(tag); ok && sceneConf(k) != nil {
+		return k
 	}
 	return ""
 }

@@ -1515,7 +1515,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Tapped; the press unfocuses the line, the tap gives it back), a click elsewhere leaves the list up while the line
   stays open, the browser build only compiled.
 - 2026-11-23 (Joop: "we might want to add hi-Latn for the common Fountain format most seem to use, and hi-Deva for
-  Devanagari. And maybe just hi for supporting both at once..."): the Hindi preset as three language codes in
+  Devanagari. And maybe just hi for supporting both at once..."): DONE (branch hindi, not merged; Lexington 1.33.0, 1.35.0;
+  see the tick log). The Hindi preset as three language codes in
   Lexington's config: hi-Latn (Hindi in Latin letters, what most Hindi Fountain scripts use), hi-Deva (Devanagari),
   and hi = both at once (scene words, transitions and cue rules of either script recognized; the writer writes in
   either or mixes). BCP 47 script subtags, so a file named x.hi-Latn.fountain / a bundle's language "hi-Deva" picks
@@ -1671,3 +1672,23 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the … menu or the ribbon), and on a phone the clickable script name keeps its place before the icons: less-used icons
   overflow into … first (ribbon.go now hides the title below 80 px of room). Where even that's too narrow, the name
   stays reachable by tapping the Script middle tab's label / the title in the … menu (the same name editor).
+- 2026-11-23: HINDI PRESET (branch hindi, not merged; Lexington 1.33.0, 1.35.0: Knows exact again, so keep both's xq-2 is free). Lexington: hi-Latn (English Fountain's
+  words, as Hindi scripts in Latin letters write them, + DIN/RAAT/SUBAH/SHAAM times), hi-Deva (the NCERT textbook's
+  heading "शिक्षा अधिकारी का दफ़्तर (बाहरी कक्ष)/दिन/अंदर" as a place/time/inside pattern, अंदर/बाहर, दिन/रात/सुबह/शाम,
+  कट टू, (डिजॉल्व टू), noCaps cues, English's INT./EXT./V.O./" TO:" kept), hi = both (tested superset). No Devanagari
+  standard found: the dotted अंदर./बाहर. prefix words, फ़ेड इन/आउट and the title keys (शीर्षक, लेखक…) are Lexington's
+  own, said so in docs/LANGUAGES.md "Hindi" with the sources. BCP 47 generally: TOMLConf.Lookup / rules.Tag — any case,
+  _ for -, then without the last subtag (hi-Deva-IN → hi-Deva, de-CH → de, hi-Arab → hi); Language/Knows/Scenes
+  follow it. Accolade: languageOf and the language line go through it (film.hi-latn.fountain is hi-Latn); the picker
+  says "Hindi (Latin, hi-Latn)", "Hindi (Devanagari, hi-Deva)", "Hindi (both, hi)" (a name in brackets takes its code
+  inside them); languageName "Hindi (Latin)"…; help fountain.md. New's template in each reads back (hindi_lang_test.go,
+  and TestNewInEveryLanguage covers them). DEVANAGARI CHECK (TestDevanagariScreenshots, SHOT_DIR): the editor draws
+  every letter in its own cell, unshaped — matras apart with dotted circles (कि as क + ि, not reordered), conjuncts
+  as halant forms (क्ष्, ज्ञ broken), no reph (धर्म) — from a system Devanagari fallback (Courier Badi has none); the
+  ribbon's Fyne labels (अंदर/बाहर.) shape right. Lexington's own PDF (and so the page view): Courier Prime has no
+  Devanagari — boxes in the PDF, nothing in the page view; PDFWarning says so, and with Chromium on the computer
+  export goes through it: Chromium's PDF (Noto Sans Devanagari) shapes right (क्षत्रिय, कि, की, धर्म, श्रद्धा, ज्ञान),
+  but its bold (the heading, a synthetic Type 3 bold) loses the hook of ि/ी, and a parenthetical's taller line touches
+  the dialogue under it. Chromium only runs here outside the sandbox. For the rest of Hindi (end of the queue): a
+  Devanagari companion font for Courier Badi with shaping in Lexington's PDF (as pdf/arabic.go does Arabic: HarfBuzz-
+  style reordering + conjunct GSUB is far more than Arabic's joining), and the editor shaping runs, not runes.
