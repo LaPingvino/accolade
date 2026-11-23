@@ -263,6 +263,7 @@ func newLanguageCommand() *command {
 			for _, l := range scriptLanguages() {
 				it := fyne.NewMenuItem(languageLabel(l), func() {
 					w.changeSetting("script-language", func(s *Settings) { s.SetString("script-language", l) })
+					w.newLanguage = l // New's next, here (window.go)
 				})
 				it.Checked = w.newScriptLanguage() == l
 				items = append(items, it)

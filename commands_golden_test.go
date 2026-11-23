@@ -868,7 +868,9 @@ func sampleMoves(name, golden string) string {
 	if !strings.HasPrefix(name, "menu-") {
 		return golden
 	}
-	return strings.Replace(golden, "  Open Recent\n    No recent scripts (disabled) (no action)\n", "  Open Recent\n    No recent scripts (disabled) (no action)\n  Open Sample\n", 1)
+	golden = strings.Replace(golden, "  Open Recent\n    No recent scripts (disabled) (no action)\n", "  Open Recent\n    No recent scripts (disabled) (no action)\n  Open Sample\n", 1)
+	// the right-to-left samples (sample.go)
+	return strings.Replace(golden, "  Open Sample\n", "  Open Sample\n  Open Hebrew Sample\n  Open Arabic Sample\n", 1)
 }
 
 // writerMoves is a Production golden as a writer sees it (role.go): the

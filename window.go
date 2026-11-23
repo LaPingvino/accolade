@@ -121,6 +121,9 @@ type MainWindow struct {
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
+	// newLanguage is the language picked on File > New in: since the
+	// script's language was last set: New's, before the script's
+	newLanguage string
 	// noFountainCopy: the script's .accolade keeps no text.fountain beside
 	// its language's text (script_text.go)
 	noFountainCopy bool
@@ -1043,7 +1046,7 @@ func (w *MainWindow) setLanguage(lang string) {
 	if !conf.knows(lang) {
 		lang = "en"
 	}
-	w.language = lang
+	w.language, w.newLanguage = lang, ""
 	if w.headerBar != nil && w.headerBar.place != nil {
 		// the place button in the language: BIN./BUI. in Dutch
 		if _, _, both, ok := placeWords(conf.headers(lang)); ok {
@@ -1058,6 +1061,15 @@ func (w *MainWindow) setLanguage(lang string) {
 		w.textEditor.Refresh()
 	}
 	w.shareMeta("language", lang)
+}
+
+// preferredLanguage is the preferences' language for new scripts, as
+// setLanguage takes it.
+func (w *MainWindow) preferredLanguage() string {
+	if w.settings == nil || !w.lex().knows(w.settings.GetString("script-language")) {
+		return "en"
+	}
+	return w.settings.GetString("script-language")
 }
 
 // sceneStarts are what scene headings start with in the script's
@@ -1109,12 +1121,22 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.forgetUnsavedSource()
 	w.setMarkdown(false)
 	w.format = fileFormat{} // a new script is UTF-8
-	text := newScriptTemplate()
+	// the language picked last: New in:'s, else the script's (Script
+	// Language), else the preferences'
+	lang := cmp.Or(w.newLanguage, w.language)
+	w.setLanguage(lang)
+	text := w.newScriptText(w.language) // its own sample, or the template in it (new_template.go)
 	if empty {
 		text = ""
 	}
 	w.textEditor.SetText(text)
 	w.currentFile, w.plainBundle = "", ""
+	// saved, a script in another language than the preferences' says so
+	w.suggestedName = ""
+	w.languageSaid = w.language != w.preferredLanguage()
+	if w.languageSaid {
+		w.nameLanguage(w.language)
+	}
 	w.looseUnsaved = ""
 	w.hideLooseNotice()
 	w.setBundle(nil)

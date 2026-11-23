@@ -121,12 +121,21 @@ func (r *runRenderer) Refresh() {
 			}
 			i = j
 		}
+		var joins []bool // in the mirrored cells: a cell drawn in one piece with the one before
+		if m[1] > m[0] {
+			rs := make([]rune, m[1]-m[0])
+			for k := range rs {
+				rs[k] = cells[m[0]+k].Rune
+			}
+			joins = make([]bool, len(cells))
+			copy(joins[m[0]:], ltrJoins(rs))
+		}
 		for i := 0; i < len(cells); { // texts
 			style, col := styleOf(cells[i].Style), colorOf(cells[i].Style, fg)
 			var b strings.Builder
 			j := i
 			inMirror := m[1] > m[0] && i >= m[0] && i < m[1]
-			for j < len(cells) && (j == i || !boundary(j)) && (!inMirror || j == i || sameWay(cells[i].Rune, cells[j].Rune)) &&
+			for j < len(cells) && (j == i || !boundary(j)) && (!inMirror || j == i || joins[j]) &&
 				narrow(cells[j].Rune) && cells[j].Rune != wideFill && styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col) {
 				b.WriteRune(cells[j].Rune)
 				j++
@@ -164,6 +173,9 @@ func (r *runRenderer) Refresh() {
 				}
 			}
 			if text := b.String(); strings.TrimSpace(text) != "" {
+				if inMirror && j == i+1 {
+					text = mirrorBracket(text) // "(" drawn right to left is ")"
+				}
 				t := r.text(nt)
 				nt++
 				t.Text, t.Color, t.TextSize = text, col, size
@@ -211,6 +223,65 @@ func sameWay(a, b rune) bool {
 	}
 	wa, wb := way(a), way(b)
 	return wa != 0 && (wb == wa || wb == 3)
+}
+
+// ltrJoins tells for each character of a right-to-left row's text
+// whether it is drawn in one piece with the one before, as the Unicode
+// bidi algorithm orders them: letters of one direction together, a mark
+// with what it is on; neutrals (spaces, signs) between two Latin letters
+// with them ("Pieter Bruegel", "O.S"), one separator between two numbers
+// with them ("23:40", "1.5"); every other neutral in its own cell.
+func ltrJoins(rs []rune) []bool {
+	class := func(r rune) bidi.Class { p, _ := bidi.LookupRune(r); return p.Class() }
+	joins := make([]bool, len(rs))
+	base := 0 // the last character not a mark
+	for k := 1; k < len(rs); k++ {
+		joins[k] = sameWay(rs[base], rs[k])
+		if class(rs[k]) != bidi.NSM {
+			base = k
+		}
+	}
+	strong := func(k int) int { // 0 none, 1 Latin, 2 number
+		if k < 0 || k >= len(rs) {
+			return 0
+		}
+		switch class(rs[k]) {
+		case bidi.L:
+			return 1
+		case bidi.EN, bidi.AN:
+			return 2
+		}
+		return 0
+	}
+	for a := 0; a < len(rs); {
+		if sameWay(rs[a], rs[a]) || class(rs[a]) == bidi.NSM { // not a neutral
+			a++
+			continue
+		}
+		b := a
+		for b < len(rs) && !sameWay(rs[b], rs[b]) && class(rs[b]) != bidi.NSM {
+			b++
+		}
+		before, after := strong(a-1), strong(b)
+		sep := b == a+1 && (class(rs[a]) == bidi.CS || class(rs[a]) == bidi.ES)
+		if before == 1 && after == 1 || before == 2 && after == 2 && sep {
+			for k := a; k <= b && k < len(rs); k++ {
+				joins[k] = true
+			}
+		}
+		a = b
+	}
+	return joins
+}
+
+// mirrorBracket is a bracket as drawn right to left: its mirror.
+func mirrorBracket(s string) string {
+	pairs := map[string]string{"(": ")", ")": "(", "[": "]", "]": "[", "{": "}", "}": "{",
+		"<": ">", ">": "<", "«": "»", "»": "«", "‹": "›", "›": "‹"}
+	if m, ok := pairs[s]; ok {
+		return m
+	}
+	return s
 }
 
 // isFlagLetter: a regional indicator, two of which make a flag (🇳🇱).

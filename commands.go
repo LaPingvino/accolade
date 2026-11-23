@@ -454,6 +454,10 @@ func newRegistry() *registry {
 		&command{id: "file.recent", label: "Open Recent", icon: theme.HistoryIcon, submenu: func(w *MainWindow) *fyne.Menu { return w.recentMenu().ChildMenu }},
 		// a script to try everything on (sample.go)
 		&command{id: "file.openSample", label: "Open Sample", icon: theme.DocumentIcon, run: (*MainWindow).openSample},
+		&command{id: "file.openSampleHe", label: "Open Hebrew Sample", icon: theme.DocumentIcon,
+			run: func(w *MainWindow) { w.openLanguageSample("he") }},
+		&command{id: "file.openSampleAr", label: "Open Arabic Sample", icon: theme.DocumentIcon,
+			run: func(w *MainWindow) { w.openLanguageSample("ar") }},
 		&command{id: "file.import", label: "Import as Markdown…", icon: theme.UploadIcon, run: (*MainWindow).ImportDocument},
 		&command{id: "file.importPandoc", label: "Import with pandoc…", icon: theme.UploadIcon, when: withPandoc, run: (*MainWindow).ImportWithPandoc}, // more formats
 		// a Markdown document is a source to start from
@@ -754,7 +758,7 @@ func newRegistry() *registry {
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
-			at("file.open"), at("file.recent"), at("file.openSample"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
+			at("file.open"), at("file.recent"), at("file.openSample"), at("file.openSampleHe"), at("file.openSampleAr"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
 			sep(), at("file.export"), at("file.exportClean"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
@@ -1015,7 +1019,7 @@ var ribbonLabels = map[string]string{
 	// File (the browser's Open and Save say more in their menu items)
 	"file.open": "Open", "file.save": "Save",
 	"file.newEmpty": "Empty", "file.newMarkdown": "Markdown", "file.newWindow": "Window", "file.newEmptyWindow": "Empty Window",
-	"file.recent": "Recent", "file.openSample": "Sample", "file.import": "Import", "file.importPandoc": "With pandoc",
+	"file.recent": "Recent", "file.openSample": "Sample", "file.openSampleHe": "Hebrew Sample", "file.openSampleAr": "Arabic Sample", "file.import": "Import", "file.importPandoc": "With pandoc",
 	"file.exportClean": "Clean Fountain", "file.pageSetup": "Page Setup",
 	"source.choose": "Choose Source", "file.startScreenplay": "Start Screenplay",
 	// Write

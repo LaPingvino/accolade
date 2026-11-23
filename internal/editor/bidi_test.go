@@ -3,6 +3,7 @@ package editor
 import (
 	"fyne.io/fyne/v2"
 
+	"strings"
 	"testing"
 
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
@@ -90,5 +91,36 @@ func TestLanguageRTLLayout(t *testing.T) {
 	}
 	if !e.LineRTL("2.") || e.LineRTL("Hello") || e.LineRTL("‎…") || RTL("…") {
 		t.Error("LineRTL")
+	}
+}
+
+// In a right-to-left row Latin words and numbers keep their order, with
+// what stands between them as the bidi algorithm has it.
+func TestLTRJoins(t *testing.T) {
+	pieces := func(s string) []string {
+		rs := []rune(s)
+		var out []string
+		for k, j := range ltrJoins(rs) {
+			if j && k > 0 {
+				out[len(out)-1] += string(rs[k])
+			} else {
+				out = append(out, string(rs[k]))
+			}
+		}
+		return out
+	}
+	for s, want := range map[string][]string{
+		"השעה 23:40.":        {"השעה", " ", "23:40", "."},
+		"של Pieter Bruegel,": {"של", " ", "Pieter Bruegel", ","},
+		"דני (O.S.)":         {"דני", " ", "(", "O.S", ".", ")"},
+		"אולי 7, אולי 70.":   {"אולי", " ", "7", ",", " ", "אולי", " ", "70", "."},
+		"وَجَدَ":             {"وَجَدَ"},
+	} {
+		if got := pieces(s); strings.Join(got, "|") != strings.Join(want, "|") {
+			t.Errorf("%q: %q", s, got)
+		}
+	}
+	if mirrorBracket("(") != ")" || mirrorBracket("x") != "x" {
+		t.Error("brackets")
 	}
 }
