@@ -243,6 +243,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:fold-sections** — View > Fold All (Sections Only)
 - **:headings-only** — View > Headings Only
 - **:unfold-all** — View > Unfold All
+- **:timeline-strip** — A strip of the story over the script: where you are, its rhythm, who has been gone (View > Timeline Strip) (screenplay)
 - **:statistics** — View > Statistics (screenplay)
 - **:fullscreen** — View > Fullscreen
 - **:document-type** `item` — View > Document Type
@@ -294,3 +295,21 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:preview-refresh** — Preview > Refresh > Refresh (while a preview is shown)
 - **:preview-follow-edits** — Preview > Refresh > Follow Edits (while a preview is shown)
 - **:close-preview** — Preview > Close > Close Preview (while a preview is shown)
+
+### Cards
+
+- **:cards-grid** — The cards in rows, grouped (Cards > Grid) (not in the browser)
+- **:cards-timeline** — The scenes in story order, as long as they are, under their acts (Cards > Timeline) (not in the browser)
+- **:lanes-characters** — A lane for each who speaks: where they are, and where they are gone (Cards > Lanes by Character) (not in the browser)
+- **:lanes-tags** — A lane for each tag on the headings ([[London]]): a storyline's scenes (Cards > Lanes by Tag) (not in the browser)
+- **:timeline-zoom-in** — Cards > Zoom In on the Timeline (not in the browser)
+- **:timeline-zoom-out** — Cards > Zoom Out on the Timeline (not in the browser)
+- **:make-it-the-order** — Put the scenes in the order the groups show, inside each section, as one undo step (Cards > Make It the Order) (not in the browser)
+- **:new-scene** — A new scene after the current card's (Cards > New Scene) (not in the browser)
+- **:fold-synopses** — The cards as their headings and how they start, without their synopses (Cards > Fold Synopses) (not in the browser)
+- **:open-card** — The current card's scene in the script (Cards > Open in the Script) (not in the browser)
+- **:back-to-script** — Cards > Back to the Script (not in the browser)
+- **:group-section** — Cards > Group By Section (not in the browser)
+- **:group-color** — Cards > Group By Color (not in the browser)
+- **:group-character** — Cards > Group By Character (not in the browser)
+- **:group-tag** — Cards > Group By Tag (not in the browser)

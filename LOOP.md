@@ -1695,3 +1695,18 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the dialogue under it. Chromium only runs here outside the sandbox. For the rest of Hindi (end of the queue): a
   Devanagari companion font for Courier Badi with shaping in Lexington's PDF (as pdf/arabic.go does Arabic: HarfBuzz-
   style reordering + conjunct GSUB is far more than Arabic's joining), and the editor shaping runs, not runes.
+- 2026-11-23: CONTEXTUAL RIBBON TABS (1) CARDS with the TIMELINE, done (branch cardstab, not merged). cards_tab.go: the
+  Cards tab while the cards are in front (like Preview; the Menus look gets a Cards menu and keeps the header's
+  buttons). The current card is the script's cursor's scene, no selection of its own: Rearrange (Move…, Swap…, Move
+  Up/Down, Promote/Demote through the engine, one undo step, the cursor going along — command.onCards), Arrange (Grid /
+  Timeline, kept per script in "cards-looks", carried by a rename; lanes; zoom), Group (Section / Color / Character /
+  Tag: a view, dragging off) + Make It the Order (internal/structure Reorder: one Result, the scenes sorted inside
+  each section — the acts stay; a scene in several groups goes where it is first), Card (New Scene… after the current,
+  Color, Fold Synopses, Open in the Script), Close. timeline.go: blocks as long as the scene (story_model.go: the
+  schedule's measured eighths by heading key, else counted from the lines), colours, act bands, empty/synopsis-only as
+  outlines, lanes by character (a mark where they speak, a line where gone) or heading tag; ←/→ move the cursor,
+  Enter opens, Alt+←/→ or drag moves (Alt+↑/↓ on a phone, vertical there); Ctrl+wheel/+/- zoom (no pinch yet: the
+  browser's pinch is wired to the page view only). timeline_strip.go, the writing-first part: View > Timeline Strip
+  (off by default) — the story as a strip over the editor, the cursor's scene lit, "Scene n of m · length · act ·
+  only its synopsis · gone longest: ANNA 7"; tap goes there; folds to a line; re-read 400 ms after typing, the pages
+  measured 3 s after. Typing benchmark pair (BenchmarkScriptKey sample vs sample-strip): no difference.

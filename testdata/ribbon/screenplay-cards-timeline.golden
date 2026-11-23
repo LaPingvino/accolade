@@ -1,0 +1,21 @@
+tabs: File Write Edit Production Collaboration View [Cards]
+## Rearrange
+  L Move icon=foreground_content-paste.svg name=Move…
+  L Swap icon=foreground_view-refresh.svg name=Swap…
+  S Move Up icon=foreground_arrow-up.svg name=Move Up
+  S Move Down icon=foreground_arrow-down.svg name=Move Down
+  S Promote icon=foreground_arrow-back.svg name=Promote
+  S Demote icon=foreground_arrow-forward.svg name=Demote
+## Arrange
+  L Grid icon=foreground_grid.svg name=Grid
+  L Timeline icon=foreground_timeline.svg (checked) name=Timeline
+  S Characters icon=foreground_account.svg name=Lanes by Character
+  S Tags icon=foreground_tag.svg name=Lanes by Tag
+  S Zoom In icon=foreground_view-zoom-in.svg name=Zoom In on the Timeline
+  S Zoom Out icon=foreground_view-zoom-out.svg name=Zoom Out on the Timeline
+## Card
+  L New Scene icon=foreground_content-add.svg name=New Scene…
+  S Color icon=foreground_color-palette.svg name=Scene or Section Color… (Ctrl+Shift+L)
+  S Open in the Script icon=foreground_document.svg name=Open in the Script
+## Close
+  L Back to Script icon=foreground_cancel.svg name=Back to the Script

@@ -153,6 +153,12 @@ func (w *MainWindow) docViews() []docView {
 			}
 			return w.cards.of, true
 		}, follow: func() { w.cards.update(w.textEditor.Text()) }},
+		{name: "timeline strip", script: true, shows: func() (docKey, bool) {
+			if w.strip == nil || !w.stripShown() {
+				return docKey{}, false
+			}
+			return w.strip.of, true
+		}, follow: func() { w.strip.update() }},
 		{name: "stripboard", script: true, shows: func() (docKey, bool) {
 			if !w.stripsShown() {
 				return docKey{}, false

@@ -379,6 +379,10 @@ func structureCommands() []*command {
 	}
 	step := func(dir int, op structure.Op) func(w *MainWindow) {
 		return func(w *MainWindow) { // a strip with the focus moves instead (stripboard.go); a Markdown document's lines
+			if w.cardsShown() { // the current card's (cards_tab.go)
+				w.cardsMoveBy(dir)
+				return
+			}
 			w.orStrip(dir, w.do(&command{editing: true, run: func(w *MainWindow) {
 				if w.editorMarkdown() {
 					moveLines(w.writeEditor(), dir)
@@ -394,9 +398,11 @@ func structureCommands() []*command {
 		{id: "structure.down", label: "Move Down", ex: "move-down", keys: alt(fyne.KeyDown, false), icon: theme.MoveDownIcon, run: step(1, structure.MoveDown),
 			tip: "Move the section, scene, speech or paragraph at the cursor (or the selected ones) down past the next"},
 		{id: "structure.promote", label: "Promote", ex: "promote", keys: alt(fyne.KeyLeft, false), macKeys: mac(fyne.KeyLeft, false), icon: theme.NavigateBackIcon, editing: true, when: screenplayOnly, run: mv(structure.Promote),
-			tip: "Out: a section a level up, a scene out of its section, a speech's line out into action"},
+			onCards: cardsSideways(structure.Promote, -1),
+			tip:     "Out: a section a level up, a scene out of its section, a speech's line out into action"},
 		{id: "structure.demote", label: "Demote", ex: "demote", keys: alt(fyne.KeyRight, false), macKeys: mac(fyne.KeyRight, false), icon: theme.NavigateNextIcon, editing: true, when: screenplayOnly, run: mv(structure.Demote),
-			tip: "In: a section a level down, a scene into the next section, action into the speech beside it"},
+			onCards: cardsSideways(structure.Demote, 1),
+			tip:     "In: a section a level down, a scene into the next section, action into the speech beside it"},
 		{id: "structure.intoPrev", label: "Into the Scene Before", ex: "into-previous", keys: alt(fyne.KeyUp, true), icon: theme.UploadIcon, editing: true, when: screenplayOnly, run: mv(structure.IntoPrev),
 			tip: "The speech or paragraph at the cursor into the end of the scene before"},
 		{id: "structure.intoNext", label: "Into the Next Scene", ex: "into-next", keys: alt(fyne.KeyDown, true), icon: theme.DownloadIcon, editing: true, when: screenplayOnly, run: mv(structure.IntoNext),
@@ -415,9 +421,9 @@ func structureCommands() []*command {
 			tip: "Select the unit around the selection: the line, its speech, its scene, its section"},
 		{id: "structure.shrink", label: "Shrink Selection", ex: "shrink-selection", keys: alt(fyne.KeyI, false), icon: theme.ZoomOutIcon, editing: true, when: screenplayOnly, run: (*MainWindow).shrinkSelection,
 			tip: "Back to the selection before Expand Selection"},
-		{id: "structure.swap", label: "Swap…", ex: "swap-ranges", icon: theme.ViewRefreshIcon, when: screenplayOnly, run: func(w *MainWindow) { w.showStructPicker(false, -1) },
+		{id: "structure.swap", label: "Swap…", ex: "swap-ranges", icon: theme.ViewRefreshIcon, when: screenplayOnly, run: func(w *MainWindow) { w.showStructPicker(false, w.cardsAtLine()) },
 			tip: "Swap scenes, runs of scenes or sections with others"},
-		{id: "structure.move", label: "Move…", ex: "move-range", icon: theme.ContentPasteIcon, when: screenplayOnly, run: func(w *MainWindow) { w.showStructPicker(true, -1) },
+		{id: "structure.move", label: "Move…", ex: "move-range", icon: theme.ContentPasteIcon, when: screenplayOnly, run: func(w *MainWindow) { w.showStructPicker(true, w.cardsAtLine()) },
 			tip: "Move scenes, a run of scenes or a section before or after another"},
 	}
 }

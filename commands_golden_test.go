@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))) // the moves write Linux keys too
+		want := stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -450,6 +450,15 @@ func helpMoves(name, golden string) string {
 // structureMoves: the structural moves (structure_window.go): Edit's
 // Move Line Up/Down are View > Structure's Move Up/Down, with the rest of
 // the moves (a screenplay's) beside them, and their keys.
+// stripMoves: View > Timeline Strip after the Structure submenu (a
+// screenplay's: timeline_strip.go).
+func stripMoves(base, golden string) string {
+	if !strings.HasPrefix(base, "menu-screenplay") {
+		return golden
+	}
+	return strings.Replace(golden, "    Swap…\n    Move…\n", "    Swap…\n    Move…\n  Timeline Strip\n", 1)
+}
+
 func structureMoves(base, golden string) string {
 	md := strings.Contains(base, "markdown")
 	type key struct{ keys, label string }

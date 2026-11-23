@@ -13,11 +13,12 @@ tabs: File Write Edit Production Collaboration [View]
   S Statistics icon=foreground_statistics.svg name=Statistics…
   S Line Numbers icon=foreground_line-numbers.svg name=Line Numbers
   S Status Bar icon=foreground_status-bar.svg (checked) name=Status Bar
-## Folding
+## Story
   S Fold Here icon=foreground_fold.svg name=Fold or Unfold Here (Ctrl+Shift+.)
   S Fold Sections icon=foreground_fold-sections.svg name=Fold All (Sections Only)
   S Headings Only icon=foreground_heading.svg name=Headings Only
   S Unfold All icon=foreground_unfold.svg name=Unfold All
+  S Strip icon=foreground_story-strip.svg name=Timeline Strip
 ## Window
   S Fullscreen icon=foreground_view-fullscreen.svg name=Fullscreen (Ctrl+Shift+F)
   S Document Type icon=foreground_file.svg name=Document Type

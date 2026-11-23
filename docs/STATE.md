@@ -50,7 +50,8 @@ the Pages tab) = 170 runs.
 | find bar: count and highlights | front document | `searchBar.of`, `lit` the editor highlighted | matches found again; the highlights leave the editor they were in |
 | outline | front document | `outline.of`, `outline.doc` | read again (`refresh`): the script's scenes, the source's chapters and passages, the notes' headings |
 | Cards pane (lit scenes) | script; lit: the source's passage when it is in front | `cardsDock.of` | read again (`update`, which follows the cursor) |
-| cards' full view | script | `cards.of` | read again |
+| cards' full view (its grid or its timeline, the current card lit) | script | `cards.of` | read again |
+| timeline strip over the editor (View > Timeline Strip) | script, with it in front | `strip.of` (`update`) | read again (`storyNow`, once a text) |
 | stripboard (a middle tab) | script | `stripboard.of` (`update`) | read again |
 | Characters | script | `charsPane.of` | read again |
 | Source pane: lights, info, anchor caption | script (its links) | `source.of` (in `follow`) | `follow` |

@@ -175,11 +175,14 @@ type ribbonBar struct {
 	// came, chosen again when the last goes
 	beforeContext        string
 	previewing, boarding bool
-	pageCount            *widget.Label // the Preview tab's "Page n of N"
-	env                  cmdEnv
-	stage                int    // the Production stage shown (stageLock …)
-	builtFor             string // what the groups were made for
-	phone                bool
+	// carding: the cards are the middle tab in front (their Cards tab:
+	// cards_tab.go)
+	carding   bool
+	pageCount *widget.Label // the Preview tab's "Page n of N"
+	env       cmdEnv
+	stage     int    // the Production stage shown (stageLock …)
+	builtFor  string // what the groups were made for
+	phone     bool
 
 	buttons  []*ribbonButton            // the groups' buttons, in order
 	elements map[string]*ribbonButton   // the element buttons, by element
@@ -304,6 +307,8 @@ func (r *ribbonBar) contextFollow(was *bool, on bool, title string) {
 		r.selected = "Stripboard"
 	case r.previewing:
 		r.selected = "Preview"
+	case r.carding:
+		r.selected = "Cards"
 	}
 }
 
@@ -338,6 +343,7 @@ func (r *ribbonBar) refresh() {
 	r.order.follow(env)
 	r.contextFollow(&r.boarding, env.strips, "Stripboard") // the stripboard came to the front or left it
 	r.contextFollow(&r.previewing, env.preview, "Preview") // a preview opened or closed
+	r.contextFollow(&r.carding, env.cards, "Cards")        // the cards came to the front or left it
 	if t, ok := tabOf(r.selected); !ok || !tabShown(t, env) {
 		r.selected = "Write" // the tab gone (Fixed has no Quick tab), or none chosen yet
 		if env.smart {
@@ -354,7 +360,7 @@ func (r *ribbonBar) refresh() {
 	}
 	r.stage = stage
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
-		boolKey(env.away), boolKey(env.midDoc), boolKey(env.strips), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
+		boolKey(env.away), boolKey(env.midDoc), boolKey(env.strips), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), boolKey(env.cards), boolKey(env.timeline), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
 		boolKey(env.smart), strconv.Itoa(w.quick().gen), boolKey(r.quickRowShown())}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key

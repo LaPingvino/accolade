@@ -30,6 +30,19 @@ func BenchmarkScriptKey(b *testing.B) {
 			e.TypedRune('x')
 		}
 	})
+	// the sample with the timeline strip over the editor (timeline_strip.go)
+	b.Run("sample-strip", func(b *testing.B) {
+		w, _ := newBenchWindow(b)
+		w.openSample()
+		w.toggleStrip()
+		realTimers(b)
+		e := w.textEditor
+		w.fyneWindow.Canvas().Focus(e)
+		e.SetCursorOffset(strings.Index(e.Text(), "Noon heat."))
+		for b.Loop() {
+			e.TypedRune('x')
+		}
+	})
 	// the novel's screenplay, its 200 links, the novel kept in it
 	b.Run("novel", func(b *testing.B) {
 		w, _, at := benchWindow(b, true)

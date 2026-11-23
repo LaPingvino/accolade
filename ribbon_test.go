@@ -132,6 +132,15 @@ func TestRibbonGolden(t *testing.T) {
 		r.selectTab(tab)
 		ribbonGolden(t, "screenplay-"+strings.ToLower(tab), dumpRibbon(r))
 	}
+	// the Cards tab: the grid's, the timeline's
+	w.toggleCards()
+	w.ribbonRefresh()
+	ribbonGolden(t, "screenplay-cards", dumpRibbon(r))
+	w.setCardsLook(cardsLook{timeline: true})
+	ribbonGolden(t, "screenplay-cards-timeline", dumpRibbon(r))
+	w.setCardsLook(cardsLook{})
+	w.showMiddle("")
+	w.ribbonRefresh()
 	r.selectTab("Adaptation") // not there without a source: Write
 	if r.selected != "Write" {
 		t.Errorf("the Adaptation tab chosen without a source: %s", r.selected)
@@ -843,4 +852,12 @@ func TestRibbonFitsDesktop(t *testing.T) {
 	check("Preview markdown")
 	w.preview()
 	w.setDocumentType(false)
+	// the Cards tab, its grid's and its timeline's
+	w.toggleCards()
+	r.refresh()
+	check("Cards grid")
+	w.setCardsLook(cardsLook{timeline: true})
+	check("Cards timeline")
+	w.setCardsLook(cardsLook{})
+	w.showMiddle("")
 }

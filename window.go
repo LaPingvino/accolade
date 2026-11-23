@@ -221,6 +221,13 @@ type MainWindow struct {
 	// typing pauses, and the command palette while open (palette.go)
 	ribbon      *ribbonBar
 	ribbonTimer *uiTimer
+	// the timeline strip over the editor and its pause, the pages'
+	// measure for it and the timeline, the story read for them, the
+	// cards' look of a script not saved yet (timeline_strip.go, cards_tab.go)
+	strip                    *storyStrip
+	stripTimer, measureTimer *uiTimer
+	story                    storyCache
+	cardsUnsaved             string
 	// ribbonOrder is the ribbon's order in this window, as its lock set it:
 	// "smart", "fixed", or "" (Smart on a phone, Fixed on the desktop: quick.go)
 	ribbonOrder string
@@ -699,7 +706,7 @@ func (w *MainWindow) showImported(filePath, text, from string) {
 	w.format = fileFormat{}
 	w.setMarkdown(false)
 	w.textEditor.SetText(text)
-	w.looseUnsaved = ""
+	w.looseUnsaved, w.cardsUnsaved = "", ""
 	w.hideLooseNotice() // written by Lexington: read as written
 	w.filledWith = w.textEditor.Text()
 	w.currentFile, w.plainBundle = "", ""
@@ -1143,7 +1150,7 @@ func (w *MainWindow) createNewFile(empty bool) {
 	if w.languageSaid {
 		w.nameLanguage(w.language)
 	}
-	w.looseUnsaved = ""
+	w.looseUnsaved, w.cardsUnsaved = "", ""
 	w.hideLooseNotice()
 	w.setBundle(nil)
 	w.setCarried(nil, "")
@@ -1316,6 +1323,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	if w.cardsShown() {
 		w.cards.update(text)
 	}
+	w.stripEdited() // the timeline strip, once typing pauses
 	if w.stripsShown() {
 		w.stripboard.update()
 	}
@@ -1416,6 +1424,10 @@ func (w *MainWindow) onCursorChanged() {
 	w.followSource()         // the scene's passages
 	if w.cardsDock != nil && w.paneInSight("cards") {
 		w.cardsDock.follow() // the scene's card
+	}
+	w.stripCursor() // the timeline strip's lit scene
+	if w.cards != nil && w.cardsShown() {
+		w.cards.follow() // the current card
 	}
 	// what Tab would complete or take from the source, or nothing once
 	// it no longer applies
@@ -1582,15 +1594,18 @@ func (w *MainWindow) relayout() {
 			v.followLook()
 		}
 	}
-	var center fyne.CanvasObject = w.editorView
+	if w.cards != nil {
+		w.cards.followLook()
+	}
+	var center fyne.CanvasObject = w.scriptView() // with the timeline strip over it, if on
 	if !w.scriptInMain() {
 		// another middle tab in front: w.mid.center below puts it there
 	} else if w.pagesVisible && w.pages != nil && !w.mid.has("pages") { // (a phone's are a tab of their own)
-		split := container.NewHSplit(w.editorView, w.pages)
+		split := container.NewHSplit(center, w.pages)
 		split.Offset = 0.5
 		center = split
 	} else if w.previewVisible && w.previewPane != nil {
-		split := container.NewHSplit(w.editorView, w.previewPane.box)
+		split := container.NewHSplit(center, w.previewPane.box)
 		split.Offset = 0.55
 		center = split
 	}
@@ -1721,7 +1736,7 @@ const narrowWidth = 600
 func (w *MainWindow) onWindowWidth(width float32) {
 	if narrow := width < narrowWidth; narrow != w.narrow {
 		w.narrow = narrow
-		if r := w.ribbon; narrow && r != nil && w.ribbonOrder == "" && !r.picked && !r.previewing && !r.boarding {
+		if r := w.ribbon; narrow && r != nil && w.ribbonOrder == "" && !r.picked && !r.previewing && !r.boarding && !r.carding {
 			r.selected = "" // a phone's ribbon: the order's first tab in front (Quick in Smart: quick.go)
 		}
 		c := w.fyneWindow.Canvas()

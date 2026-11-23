@@ -9,7 +9,7 @@ tabs: File Write Edit Adaptation Collaboration [View]
   L Preview icon=foreground_visibility.svg name=Live Preview (Ctrl+Shift+P)
   S Line Numbers icon=foreground_line-numbers.svg name=Line Numbers
   S Status Bar icon=foreground_status-bar.svg (checked) name=Status Bar
-## Folding
+## Story
   S Fold Here icon=foreground_fold.svg name=Fold or Unfold Here (Ctrl+Shift+.)
   S Fold Sections icon=foreground_fold-sections.svg name=Fold All (Sections Only)
   S Headings Only icon=foreground_heading.svg name=Headings Only

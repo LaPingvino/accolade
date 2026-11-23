@@ -65,6 +65,10 @@ type cmdEnv struct {
 	// ribbon: the ribbon shows; smart: in its Smart order; phone: at a
 	// phone's width (quick.go)
 	ribbon, smart, phone bool
+	// cards: the cards are the middle tab in front (the Cards tab);
+	// timeline: as their timeline; grouped: their grid grouped by other
+	// than section (cards_tab.go)
+	cards, timeline, grouped bool
 }
 
 // cmdEnv is the window's.
@@ -90,6 +94,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 		e.fontSize = w.settings.GetInt("font-size")
 	}
 	w.previewEnv(&e)
+	w.cardsEnv(&e)
 	e.ribbon = w.ribbonOn()
 	e.smart = e.ribbon && w.ribbonSmart()
 	e.phone = w.narrow
@@ -155,6 +160,11 @@ type command struct {
 	// button with the focus given back to the editor
 	editing bool
 	run     func(w *MainWindow)
+	// onCards, if set, is what it does while the cards are in front
+	// (cards_tab.go): on the current card; key: given by its key (or a
+	// menu, the palette), not a ribbon button (the timeline's Alt+Left
+	// moves the scene where Promote would)
+	onCards func(w *MainWindow, key bool)
 	// pick, if set, opens a picker next to anchor (nil from a menu)
 	pick func(w *MainWindow, anchor fyne.CanvasObject)
 	// tap, if set, is what its button does instead of run
@@ -282,6 +292,21 @@ func keyText(s fyne.Shortcut) string {
 
 // do is c as a menu item or shortcut does it.
 func (w *MainWindow) do(c *command) func() {
+	if c.onCards != nil {
+		return func() {
+			if w.cardsShown() {
+				w.noteUse(c)
+				c.onCards(w, true)
+				return
+			}
+			w.doOutsideCards(c)()
+		}
+	}
+	return w.doOutsideCards(c)
+}
+
+// doOutsideCards is do without the cards' way.
+func (w *MainWindow) doOutsideCards(c *command) func() {
 	if c.pick != nil {
 		return func() { w.noteUse(c); c.pick(w, nil) }
 	}
@@ -304,6 +329,22 @@ func (w *MainWindow) do(c *command) func() {
 
 // tapped is c as a button does it (anchor: the button).
 func (w *MainWindow) tapped(c *command, anchor fyne.CanvasObject) func() {
+	if c.onCards != nil {
+		other := w.tappedOutsideCards(c, anchor)
+		return func() {
+			if w.cardsShown() {
+				w.noteUse(c)
+				c.onCards(w, false)
+				return
+			}
+			other()
+		}
+	}
+	return w.tappedOutsideCards(c, anchor)
+}
+
+// tappedOutsideCards is tapped without the cards' way.
+func (w *MainWindow) tappedOutsideCards(c *command, anchor fyne.CanvasObject) func() {
 	switch {
 	case c.pick != nil:
 		return func() { w.noteUse(c); c.pick(w, anchor) }
@@ -718,6 +759,10 @@ func newRegistry() *registry {
 		&command{id: "view.foldSections", label: "Fold All (Sections Only)", icon: res(foldSectionsIcon), run: (*MainWindow).foldSections},
 		&command{id: "view.headingsOnly", label: "Headings Only", icon: func() fyne.Resource { return headingIcon }, run: (*MainWindow).foldHeadings},
 		&command{id: "view.unfoldAll", label: "Unfold All", icon: res(unfoldIcon), run: func(w *MainWindow) { w.foldAll(true) }},
+		// the timeline strip over the editor (timeline_strip.go)
+		&command{id: "view.timelineStrip", label: "Timeline Strip", ribbonLabel: "Strip", tip: "A strip of the story over the script: where you are, its rhythm, who has been gone",
+			ex: "timeline-strip", icon: res(storyStripIcon), when: screenplayOnly,
+			checked: func(w *MainWindow) bool { return w.settings != nil && w.settings.GetBoolean(stripPref) }, run: (*MainWindow).toggleStrip},
 		&command{id: "view.statistics", label: "Statistics…", icon: res(statisticsIcon), when: screenplayOnly, run: (*MainWindow).showStatistics},
 		// Alt+Enter too, as in many programs
 		&command{id: "view.fullscreen", label: "Fullscreen", tip: "Full screen, without distractions", icon: theme.ViewFullScreenIcon,
@@ -751,6 +796,7 @@ func newRegistry() *registry {
 	add(settingCommands()...)   // ribbon_settings.go
 	add(previewCommands()...)   // the Preview tab's (previewtab.go)
 	add(stripsCommands()...)    // the Stripboard tab's (stripstab.go)
+	add(cardsCommands()...)     // the Cards tab's (cards_tab.go)
 	add(quickCommands()...)     // the ribbon's order and the Quick row (quick.go)
 
 	elements := make([]home, len(toolbarElements))
@@ -808,11 +854,12 @@ func newRegistry() *registry {
 		}},
 		{title: "View", homes: append(append([]home{
 			at("view.preview"), at("view.foldHere"), at("view.foldSections"),
-			at("view.headingsOnly"), at("view.unfoldAll"), {label: "Structure", sub: structureMenu()}, sep()},
+			at("view.headingsOnly"), at("view.unfoldAll"), {label: "Structure", sub: structureMenu()}, at("view.timelineStrip"), sep()},
 			dockHomes()...), // the side dock's panes together, and its own (dock.go)
 			sep(), at("view.statistics"), at("view.fullscreen"), at("set.toolbar"), at("view.ribbonLock"), at("set.quickRow"),
 			sep(), at("view.documentType"), at("view.role"),
 		)},
+		{title: "Cards", when: cardsInFront, homes: cardsMenu()}, // while the cards are in front (cards_tab.go)
 		{title: "Help", homes: helpMenu()},
 	}
 	r.topRow = []home{
@@ -938,6 +985,7 @@ func (w *MainWindow) menuBar(env cmdEnv) *fyne.MainMenu {
 func (w *MainWindow) previewKey(name fyne.KeyName, mod fyne.KeyModifier) bool {
 	e := cmdEnv{markdown: w.markdown, browser: inBrowser, writer: w.writerView()}
 	w.previewEnv(&e) // (F5: Refresh, while a preview is shown)
+	w.cardsEnv(&e)
 	for _, pk := range commands().previewKeys {
 		if pk.key.Key() == name && pk.key.Mod() == mod && pk.c.applies(e) {
 			w.do(pk.c)()
@@ -1178,11 +1226,13 @@ func ribbonLayout() []ribbonTab {
 			{title: "Panes", homes: dockRibbonHomes()},
 			// what the window shows; its look (the preferences changed while working: ribbon_settings.go)
 			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")}},
-			{title: "Folding", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll")}},
+			// the story's shape: its folds, and the timeline strip over the script
+			{title: "Story", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll"), at("view.timelineStrip")}},
 			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),
 				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")}},
 		}},
 		previewTab(), // while a preview is shown, last (the others' key tips stay)
 		stripsTab(),  // while the stripboard is in front (stripstab.go)
+		cardsTab(),   // while the cards are in front (cards_tab.go)
 	}
 }

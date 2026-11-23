@@ -34,9 +34,14 @@ type scheduleState struct {
 	rep         *lexreport.Report
 	toReport    []int              // the text's scenes to the report's (-1 none)
 	strips      []*lexreport.Strip // by the text's scene (nil: not measured)
-	marks       []string           // all issues' marks, a line each
-	set         string             // the current revision's set ("" before any issue)
-	breakdown   lexreport.Breakdown
+	// lens are the scenes' lengths as last measured, by headingKeys, for
+	// the timeline and its strip (kept while typing makes the measure
+	// stale); lensRun counts the measures they came from
+	lens      map[string]int
+	lensRun   int
+	marks     []string // all issues' marks, a line each
+	set       string   // the current revision's set ("" before any issue)
+	breakdown lexreport.Breakdown
 }
 
 // scheduleNow is the script's schedule, read again if need be.
@@ -45,7 +50,7 @@ func (w *MainWindow) scheduleNow() *scheduleFile {
 		f, err := readSchedule(w.extrasHome())
 		// measured again too (another script, or a new issue's marks); a
 		// measure under way is not taken
-		w.schedule = scheduleState{key: key, file: f, err: err, run: w.schedule.run + 1}
+		w.schedule = scheduleState{key: key, file: f, err: err, run: w.schedule.run + 1, lensRun: w.schedule.lensRun + 1}
 	}
 	return &w.schedule.file
 }
@@ -184,7 +189,19 @@ func (w *MainWindow) measureSchedule() {
 		}
 		s.measuredFor, s.pendingFor = text, ""
 		s.rep, s.toReport, s.strips, s.breakdown, s.marks, s.set = m.rep, m.toReport, m.strips, m.bd, m.marks, m.set
+		heads := make([]int, len(bt.scenes))
+		for i, sc := range bt.scenes {
+			heads[i] = sc.line
+		}
+		s.lens = map[string]int{}
+		for i, key := range headingKeys(strings.Split(text, "\n"), heads) {
+			if i < len(m.strips) && m.strips[i] != nil && m.strips[i].Eighths > 0 {
+				s.lens[key] = int(m.strips[i].Eighths)
+			}
+		}
+		s.lensRun++
 		w.scheduleFollow()
+		w.storyMeasured()
 	})
 }
 
