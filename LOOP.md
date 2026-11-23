@@ -1396,3 +1396,14 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   "blank lines inside a speech / action paragraph like this → join" (the match previewed, one undo step), and a
   document's own conventions (in Hope Talks, the translation's way of setting things that standard Fountain sets
   otherwise) recorded as a rule once and applied to every match.
+- 2026-11-23 (Joop: "and especially move commands should be intuitive. I remember a long time ago someone wrote about
+  intuitive script editing, which felt to me similar to e.g. Emacs paredit"): STRUCTURAL MOVES, paredit for scripts —
+  folded into the swap/move item (2026-11-20) and the keyboard pass. The script's units nest: section > scene >
+  beat/paragraph > speech (cue + parenthetical + dialogue, moved as one, like Page2Stage's drag) > line. Commands work
+  on the unit at the cursor and keep the script well-formed at all times (a cue never orphaned from its speech, a
+  scene never split mid-speech): move up/down among siblings (Alt+↑/↓ in every mode, vim/helix keys too), move to the
+  next/previous parent (a speech into the next scene: "barf"; the next scene's first speech into this one: "slurp"),
+  swap with the neighbour, transpose two speakers' lines, raise/lower (a dialogue line out into action, action into a
+  character's line), select the unit (expand/shrink selection by unit, like tree-sitter's). Each one undo step, its
+  names discoverable in ex completion (:move-scene-down …) and the palette. Joop's half-remembered article on
+  intuitive script editing: not found in a first search; ask him for the name if it comes back to him.
