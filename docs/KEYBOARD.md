@@ -65,7 +65,12 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Italic | `format.italic` | Ctrl+I | Cmd+I | Ctrl+I | W 1 | :italic |
 | Underline | `format.underline` | Ctrl+U | Cmd+U | Ctrl+U | W U | :underline |
 | Storyboard Frame… | `write.storyboardFrame` |  |  |  | W F | :storyboard-frame |
+| Include File… | `write.include` |  |  |  |  | :include |
+| Marker… | `write.marker` | Ctrl+M | Control+M | Ctrl+M |  | :marker |
+| Next Marker | `write.nextMarker` | Ctrl+Alt+M | Control+Option+M | Ctrl+Alt+M |  | :next-marker |
+| Previous Marker | `write.previousMarker` | Ctrl+Shift+Alt+M | Control+Shift+Option+M | Ctrl+Shift+Alt+M |  | :previous-marker |
 | New Scene… | `write.newScene` |  |  |  | W N | :new-scene |
+| Number Scenes in Headings | `format.numberScenes` |  |  |  |  | :number-scenes-in-headings |
 | Inside or Outside… | `write.place` |  |  |  | W I | :inside-outside |
 | Character Name… | `write.character` |  |  |  | W H | :character-name |
 | Elements as a list or as buttons | `write.elementKind` |  |  |  |  | :elements-list-or-buttons |
@@ -338,6 +343,7 @@ Found and fixed by this audit:
 - The browser: New (Ctrl+N), Title Page (Ctrl+Shift+T) and the middle tabs (Ctrl+PgDn/PgUp) had keys the browser keeps; there they are Ctrl+Alt+N (New Empty: Ctrl+Shift+Alt+N), Ctrl+Shift+Alt+T and Alt+PgDn/PgUp. Ctrl+Tab out of the editor is the browser's too: F6 goes to the panes.
 - A Mac: Replace's Cmd+H hid the app; it is Cmd+Option+F there (the Mac's own Replace).
 - Inside or Outside… and Character Name… panicked when given from a menu, the palette or the `:` line (no button to open under): their menu opens under the cursor now.
+- The markers (Highland's directives) had no keys: they have Highland's, Control+M (Marker…) and Control+Option+M (Next Marker) on a Mac, and Control+Shift+Option+M for Previous Marker beside them; elsewhere the same with Ctrl (Ctrl+M, Ctrl+Alt+M, Ctrl+Shift+Alt+M), none of which clashed.
 - The help wrote Ctrl+Next and Ctrl+Prior for Ctrl+PgDn and Ctrl+PgUp.
 - A dialog's scroll did not follow the focus (Tab onto a control below the fold left it out of sight): Tab now scrolls every scroll holding the control to it (scrollToFocus, keyboard.go).
 - The Table Read's reading area took the focus and did not show it: a line round it now.

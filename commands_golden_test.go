@@ -372,22 +372,43 @@ func TestCommandsGolden(t *testing.T) {
 }
 
 // keyboardMoves: the keyboard pass (keyboard.go, docs/KEYBOARD.md): on a
-// Mac, Replace… is Cmd+Option+F (Cmd+H hides the app there).
+// Mac, Replace… is Cmd+Option+F (Cmd+H hides the app there); the
+// markers have Highland's keys.
 func keyboardMoves(name, golden string) string {
-	if runtime.GOOS != "darwin" {
-		return golden
+	mac := runtime.GOOS == "darwin"
+	// the markers' keys, Highland's (⌃M, ⌃⌥M on a Mac)
+	markers := [][2]string{{"Primary+M", "Marker…"}, {"Primary+Alt+M", "Next Marker"}, {"Primary+Shift+Alt+M", "Previous Marker"}}
+	if mac {
+		markers = [][2]string{{"Control+M", "Marker…"}, {"Control+Alt+M", "Next Marker"}, {"Control+Shift+Alt+M", "Previous Marker"}}
 	}
-	golden = strings.Replace(golden, "  Replace… [Primary+H]\n", "  Replace… [Primary+Alt+F]\n", 1)
+	screenplay := strings.Contains(name, "screenplay")
+	if screenplay && strings.HasPrefix(name, "menu-") {
+		for _, m := range markers {
+			golden = strings.Replace(golden, "  "+m[1]+"\n", "  "+m[1]+" ["+m[0]+"]\n", 1)
+		}
+	}
+	if mac {
+		golden = strings.Replace(golden, "  Replace… [Primary+H]\n", "  Replace… [Primary+Alt+F]\n", 1)
+	}
 	if !strings.HasPrefix(name, "shortcuts-") && !strings.HasPrefix(name, "fullscreen-") {
 		return golden
 	}
 	lines := strings.Split(strings.TrimSuffix(golden, "\n"), "\n")
 	for i, l := range lines {
-		switch l {
-		case "Primary+H = Replace…":
+		switch {
+		case mac && l == "Primary+H = Replace…":
 			lines[i] = "Primary+Alt+F = Replace…"
-		case "Primary+H":
+		case mac && l == "Primary+H":
 			lines[i] = "Primary+Alt+F"
+		}
+	}
+	if screenplay {
+		for _, m := range markers {
+			if strings.HasPrefix(name, "shortcuts-") {
+				lines = append(lines, m[0]+" = "+m[1])
+			} else {
+				lines = append(lines, m[0])
+			}
 		}
 	}
 	slices.Sort(lines)

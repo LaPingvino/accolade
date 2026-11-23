@@ -112,6 +112,7 @@ func keyboardOnlyPage() string {
 	p("- %s … %s — the line's element (Scene Heading to Lyrics); %s — a new scene, field by field.\n", k(elementCommandID("Scene Heading")), k(elementCommandID("Lyrics")), k("write.newScene"))
 	p("- While “Tab: …” shows on the status line, **Tab** takes the name or heading offered, again for the next; **Esc** puts it away.\n")
 	p("- %s, %s, %s — find, find next, replace.\n", k("edit.find"), k("edit.findNext"), k("edit.replace"))
+	p("- %s — a marker to come back to (not printed); %s and %s — the next and the one before.\n", k("write.marker"), k("write.nextMarker"), k("write.previousMarker"))
 	p("- %s — the pages beside the script; %s — the outline; %s — the cards.\n\n", k("view.preview"), k("view.outline"), k("view.cards"))
 
 	p("## Moving scenes and sections\n\n")

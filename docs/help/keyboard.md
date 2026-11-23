@@ -17,6 +17,7 @@ Everything Accolade does can be done without a mouse. This page walks through a 
 - **Ctrl+1** … **Ctrl+8** — the line's element (Scene Heading to Lyrics); Format > New Scene — a new scene, field by field.
 - While “Tab: …” shows on the status line, **Tab** takes the name or heading offered, again for the next; **Esc** puts it away.
 - **Ctrl+F**, **Ctrl+G**, **Ctrl+H** — find, find next, replace.
+- **Ctrl+M** — a marker to come back to (not printed); **Ctrl+Alt+M** and **Ctrl+Shift+Alt+M** — the next and the one before.
 - **Ctrl+Shift+P** — the pages beside the script; **Ctrl+Shift+O** — the outline; **Ctrl+Shift+D** — the cards.
 
 ## Moving scenes and sections

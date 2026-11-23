@@ -67,6 +67,9 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Heading 5** — Ctrl+5 (Markdown)
 - **Heading 6** — Ctrl+6 (Markdown)
 - **Normal Text** — Ctrl+0 (Markdown)
+- **Marker** — Ctrl+M (screenplay; on a Mac Control+M)
+- **Next Marker** — Ctrl+Alt+M (screenplay; on a Mac Control+Option+M)
+- **Previous Marker** — Ctrl+Shift+Alt+M (screenplay; on a Mac Control+Shift+Option+M)
 - **Link** — Ctrl+L (Markdown)
 
 ## Adaptation menu

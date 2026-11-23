@@ -58,6 +58,9 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **Ctrl+5** Heading 5
 - **Ctrl+6** Heading 6
 - **Ctrl+0** Normal Text
+- **Ctrl+M** Marker
+- **Ctrl+Alt+M** Next Marker
+- **Ctrl+Shift+Alt+M** Previous Marker
 - **Ctrl+L** Link
 
 ## Adaptation
@@ -133,6 +136,9 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 Option+Left and Option+Right move by word there, so these take Control+Option, and Cmd+H hides the app:
 
 - **Cmd+Option+F** Replace
+- **Control+M** Marker
+- **Control+Option+M** Next Marker
+- **Control+Shift+Option+M** Previous Marker
 - **Control+Option+Left** Promote
 - **Control+Option+Right** Demote
 - **Control+Shift+Option+Left** Pass the Last Speech On

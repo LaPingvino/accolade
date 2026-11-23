@@ -653,12 +653,17 @@ func newRegistry() *registry {
 		&command{id: "write.include", label: "Include File…", ex: "include",
 			tip:  "Another file printed where this line is: Highland's {{INCLUDE: file}}, relative to the script's folder",
 			icon: theme.FileTextIcon, when: scriptEditing, run: (*MainWindow).askInclude},
+		// the markers' keys are Highland's: ⌃M and ⌃⌥M on a Mac, Ctrl+M and
+		// Ctrl+Alt+M elsewhere (docs/KEYBOARD.md)
 		&command{id: "write.marker", label: "Marker…", ex: "marker",
+			keys: []fyne.Shortcut{shortcut(fyne.KeyM, 0)}, macKeys: []fyne.Shortcut{plainKey(fyne.KeyM, fyne.KeyModifierControl)},
 			tip: "A place to come back to, not printed: Highland's {{%m: label}}", icon: theme.MailForwardIcon,
 			when: scriptEditing, run: (*MainWindow).askMarker},
 		&command{id: "write.nextMarker", label: "Next Marker", ex: "next-marker", tip: "To the next {{%m: …}} marker",
+			keys: []fyne.Shortcut{shortcut(fyne.KeyM, fyne.KeyModifierAlt)}, macKeys: []fyne.Shortcut{plainKey(fyne.KeyM, fyne.KeyModifierControl|fyne.KeyModifierAlt)},
 			when: screenplayOnly, run: func(w *MainWindow) { w.gotoMarker(false) }},
 		&command{id: "write.previousMarker", label: "Previous Marker", ex: "previous-marker", tip: "To the {{%m: …}} marker before",
+			keys: []fyne.Shortcut{shortcut(fyne.KeyM, fyne.KeyModifierShift|fyne.KeyModifierAlt)}, macKeys: []fyne.Shortcut{plainKey(fyne.KeyM, fyne.KeyModifierControl|fyne.KeyModifierShift|fyne.KeyModifierAlt)},
 			when: screenplayOnly, run: func(w *MainWindow) { w.gotoMarker(true) }},
 		// a scene heading with fill-in fields, in the language's form (new_scene.go)
 		&command{id: "write.newScene", label: "New Scene…", text: "New Scene", ribbonLabel: "New Scene",
