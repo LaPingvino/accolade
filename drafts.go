@@ -66,6 +66,11 @@ type savedDraft struct {
 	// (issue_undo.go); nil for a draft, an import and an issue kept
 	// before Accolade noted it
 	Made *issueMade `json:"made,omitempty"`
+	// MergedFrom is the outside copy a merge took changes from (its
+	// file's name), and Base the draft it was compared against
+	// (merge.go); "" for any other draft
+	MergedFrom string `json:"mergedFrom,omitempty"`
+	Base       string `json:"base,omitempty"`
 }
 
 // issueMade is what an issue changed in the production block besides
@@ -171,7 +176,7 @@ func newDraftAs(r extrasReader, like savedDraft, text []byte, ext string, source
 		name = fmt.Sprintf("Draft %d", len(ds)+1)
 	}
 	d = savedDraft{Name: name, Date: now.UTC().Truncate(time.Second), Kind: cmp.Or(kind, kindDraft),
-		Colour: like.Colour, Issued: like.Issued, Made: like.Made}
+		Colour: like.Colour, Issued: like.Issued, Made: like.Made, MergedFrom: like.MergedFrom, Base: like.Base}
 	taken := map[string]bool{}
 	for _, o := range ds {
 		taken[o.ID] = true

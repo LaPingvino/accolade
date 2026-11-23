@@ -201,5 +201,23 @@ func TestDraftsScreenshots(t *testing.T) {
 		dd.dialog.Hide()
 		showCompare(w, dd.drafts, dd.drafts[0].ID, nowID)
 		shot(w, "compare-"+size.name+".png")
+		// Merge Changes…: a copy of For Anna, changed elsewhere
+		theirs := strings.NewReplacer("Bram cooks.", "Bram cooks soup.", "Rain falls on the roses.", "Rain falls on the dead roses.",
+			"Tom waits by the door.", "Tom waits by the open door.").Replace(draftScriptOld+"\nTOM\nHello?\n") +
+			"\nEXT. ROAD - NIGHT\n\nA car passes.\n"
+		p := filepath.Join(t.TempDir(), "anna.fountain")
+		os.WriteFile(p, []byte(theirs), 0o644)
+		oc, err := w.readOutside(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		cv := showMerge(w, dd.drafts, dd.drafts[0].ID, oc)
+		if len(cv.changeIDs) > 1 {
+			cv.choose(cv.changeIDs[1], choiceTake)
+		}
+		shot(w, "merge-"+size.name+".png")
+		cv.step(1)
+		cv.step(1)
+		shot(w, "merge-"+size.name+"-2.png")
 	}
 }

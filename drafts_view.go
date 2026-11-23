@@ -16,9 +16,10 @@ import (
 )
 
 // Collaboration > Save Draft… and Collaboration > Drafts… (drafts.go has the store): the
-// list of drafts, Compare (two drafts, or one with the script now, by
-// scene and element: side by side on a desktop, one under the other on a
-// phone; read-only, taking changes over is a later step) and Restore.
+// list of drafts, Compare (two drafts, or one with the script now or a
+// file from outside, by scene and element: side by side on a desktop, one
+// under the other on a phone) and Restore. File > Merge Changes… takes a
+// copy's changes over, in the same compare (merge.go, merge_view.go).
 
 // showSaveDraft is Collaboration > Save Draft…: a name for the draft.
 func (w *MainWindow) showSaveDraft() {
@@ -219,7 +220,9 @@ const nowID = ""
 // compareView is Compare: two versions, by scene and element, as a
 // middle tab (middle.go) with the ribbon's Compare tab while it is in
 // front (compare_tab.go); in the Menus look a bar of its own has the
-// tab's Previous, Next and Close.
+// tab's Previous, Next and Close. Merging (merge_view.go), From is the
+// base and To the copy whose changes are offered, each to Take or Leave,
+// into the script now.
 type compareView struct {
 	w          *MainWindow
 	drafts     []savedDraft // newest first
@@ -241,6 +244,17 @@ type compareView struct {
 	changes []fyne.CanvasObject
 	titles  []string
 	at      int
+	// outside is a copy from outside (Merge Changes…, File…), one of the
+	// versions to compare; merge, while merging
+	outside   *outsideCopy
+	merge     *mergeState
+	fromLabel *widget.Label
+	toLabel   *widget.Label
+	mergeRow  *fyne.Container // merging: Merge Taken and what it does
+	mergeBtn  *widget.Button
+	mergeBar  *fyne.Container // merging, in the Menus look: Take, Leave, Take Scene
+	choices   map[int]*widget.RadioGroup
+	changeIDs []int // merging: the change each of changes is
 }
 
 const nowLabel = "The script now"
@@ -248,9 +262,21 @@ const nowLabel = "The script now"
 // showCompare compares draft fromID with toID (nowID: the script now),
 // in the Compare middle tab (one at a time: a new compare replaces it).
 func showCompare(w *MainWindow, drafts []savedDraft, fromID, toID string) *compareView {
-	cv := &compareView{w: w, drafts: drafts, at: -1}
+	return showCompareWith(w, drafts, fromID, toID, nil, false)
+}
+
+// showCompareWith is showCompare with a copy from outside among the
+// versions (outsideID), and merging: its changes since fromID offered.
+func showCompareWith(w *MainWindow, drafts []savedDraft, fromID, toID string, oc *outsideCopy, merging bool) *compareView {
+	cv := &compareView{w: w, drafts: drafts, at: -1, outside: oc}
+	if merging {
+		cv.merge = &mergeState{}
+	}
 	cv.narrow = w.narrow
 	cv.labels, cv.ids = []string{nowLabel}, []string{nowID}
+	if oc != nil {
+		cv.labels, cv.ids = append(cv.labels, outsideLabel(oc)), append(cv.ids, outsideID)
+	}
 	hasSource := w.draftSource() != nil
 	for _, d := range drafts {
 		cv.labels = append(cv.labels, draftLabel(d))
@@ -278,9 +304,17 @@ func showCompare(w *MainWindow, drafts []savedDraft, fromID, toID string) *compa
 	cv.scroll = container.NewVScroll(cv.body)
 
 	var top fyne.CanvasObject
-	fromRow, toRow := labelled("From:", cv.from), labelled("To:", cv.to)
-	extras := []fyne.CanvasObject{}
-	if hasSource {
+	fromWord, toWord := "From:", "To:"
+	if merging {
+		fromWord, toWord = "Base:", "Changes from:"
+	}
+	cv.fromLabel, cv.toLabel = widget.NewLabel(fromWord), widget.NewLabel(toWord)
+	fromRow := container.NewBorder(nil, nil, cv.fromLabel, nil, cv.from)
+	toRow := container.NewBorder(nil, nil, cv.toLabel, nil, cv.to)
+	file := widget.NewButtonWithIcon("File…", theme.FolderOpenIcon(), cv.chooseOutside)
+	fyne.SetAccessibleLabel(file, "Compare with a file")
+	extras := []fyne.CanvasObject{file}
+	if hasSource && !merging {
 		extras = append(extras, labelled("Compare:", cv.what))
 	}
 	if cv.narrow {
@@ -293,13 +327,10 @@ func showCompare(w *MainWindow, drafts []savedDraft, fromID, toID string) *compa
 	fyne.SetAccessibleLabel(prev, "Previous change")
 	next := widget.NewButtonWithIcon("Next Change", theme.NavigateNextIcon(), func() { cv.step(1) })
 	closeButton := widget.NewButtonWithIcon("Close", theme.CancelIcon(), func() { w.closeCompare() })
-	note := widget.NewLabel("Read only: restoring a whole draft is in Drafts…")
-	note.Importance = widget.LowImportance
-	cv.bar = container.NewHBox(prev, next, layout.NewSpacer(), closeButton)
-	if !cv.narrow {
-		cv.bar = container.NewHBox(prev, next, note, layout.NewSpacer(), closeButton)
-	}
-	cv.box = container.NewBorder(container.NewVBox(cv.bar, top, cv.summary), nil, nil, nil, cv.scroll)
+	cv.mergeBar = cv.newMergeBar()
+	cv.bar = container.NewHBox(prev, next, cv.mergeBar, layout.NewSpacer(), closeButton)
+	cv.mergeRow = cv.newMergeRow()
+	cv.box = container.NewBorder(container.NewVBox(cv.bar, top, cv.summary, cv.mergeRow), nil, nil, nil, cv.scroll)
 	cv.follow()
 	cv.from.SetSelected(cv.labelOf(fromID))
 	cv.to.SetSelected(cv.labelOf(toID))
@@ -318,6 +349,8 @@ func showCompare(w *MainWindow, drafts []savedDraft, fromID, toID string) *compa
 func (cv *compareView) follow() {
 	setVisible(cv.bar, !cv.w.ribbonOn())
 	setVisible(cv.sideBySide, !cv.w.ribbonOn())
+	setVisible(cv.mergeBar, cv.merge != nil)
+	setVisible(cv.mergeRow, cv.merge != nil)
 }
 
 // closeCompare closes the Compare middle tab.
@@ -376,6 +409,12 @@ func (cv *compareView) version(id string, source bool) (string, error) {
 		}
 		return w.textEditor.Text(), nil
 	}
+	if id == outsideID && cv.outside != nil {
+		if source {
+			return "", nil
+		}
+		return cv.outside.text, nil
+	}
 	for _, d := range cv.drafts {
 		if d.ID != id {
 			continue
@@ -399,6 +438,10 @@ func (cv *compareView) version(id string, source bool) (string, error) {
 // show compares the two chosen, in the background, and shows it.
 func (cv *compareView) show() {
 	if cv.from.Selected == "" || cv.to.Selected == "" {
+		return
+	}
+	if cv.merge != nil {
+		cv.showMerged()
 		return
 	}
 	source := cv.what.Selected == "Source"

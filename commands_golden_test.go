@@ -360,7 +360,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))) // the moves write Linux keys too
+		want := mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -967,6 +967,14 @@ func linkUpMoves(name, golden string) string {
 		return strings.Replace(golden, "Primary+Alt+J = Next Source Passage\n", "Primary+Alt+G = Link Guess for This Scene…\nPrimary+Alt+J = Next Source Passage\n", 1)
 	case strings.HasPrefix(name, "fullscreen-screenplay"):
 		return strings.Replace(golden, "Primary+Alt+J\n", "Primary+Alt+G\nPrimary+Alt+J\n", 1)
+	}
+	return golden
+}
+
+// mergeMoves: File > Merge Changes… before Import as Markdown… (merge.go).
+func mergeMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-") {
+		return strings.Replace(golden, "  Import as Markdown…\n", "  Merge Changes…\n  Import as Markdown…\n", 1)
 	}
 	return golden
 }

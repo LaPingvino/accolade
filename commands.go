@@ -85,6 +85,9 @@ type cmdEnv struct {
 	// compare: Compare is the middle tab in front; compareChanged: with
 	// changes to go to (compare_tab.go)
 	compare, compareChanged bool
+	// merging: Compare is merging (File > Merge Changes…); mergeTaken:
+	// with a change taken
+	merging, mergeTaken bool
 	// tableRead: the Table Read is the middle tab in front (its tab);
 	// tableReadOpen: it is open, there or in its window (tableread_tab.go)
 	tableRead, tableReadOpen bool
@@ -548,6 +551,9 @@ func newRegistry() *registry {
 			run: (*MainWindow).addToMySettings},
 		&command{id: "file.saveDraft", label: "Save Draft…", icon: res(draftIcon), run: (*MainWindow).showSaveDraft},
 		&command{id: "file.drafts", label: "Drafts…", icon: theme.HistoryIcon, run: (*MainWindow).showDrafts},
+		// a copy edited outside, its changes taken (merge.go)
+		&command{id: "file.mergeChanges", label: "Merge Changes…", tip: "Take changes from a copy edited elsewhere (Highland, Final Draft, a .fountain)",
+			icon: res(compareIcon), run: (*MainWindow).mergeChanges},
 		&command{id: "file.share", label: "Edit Together…", icon: res(togetherIcon), run: (*MainWindow).shareDialog},
 		&command{id: "file.join", label: "Join a Shared Script…", icon: theme.LoginIcon, run: (*MainWindow).joinDialog},
 		&command{id: "file.titlePage", label: "Title Page…", icon: theme.DocumentIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyT, fyne.KeyModifierShift)}, when: screenplayOnly,
@@ -845,7 +851,7 @@ func newRegistry() *registry {
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
-			at("file.open"), at("file.recent"), at("file.openSample"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
+			at("file.open"), at("file.recent"), at("file.openSample"), at("file.mergeChanges"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
 			sep(), at("file.export"), at("file.exportClean"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
@@ -1261,7 +1267,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Together", homes: []home{big("file.share"), at("file.join"), at("view.changes")}},
 			// the script read aloud, a TV following (tableread_tab.go)
 			{title: "Table Read", homes: []home{big("view.tableRead"), at("tableread.followLink")}},
-			{title: "Drafts", homes: []home{big("file.saveDraft"), at("file.drafts"), at("collab.compare"), at("set.draftsSide")}},
+			{title: "Drafts", homes: []home{big("file.saveDraft"), at("file.drafts"), at("collab.compare"), at("file.mergeChanges"), at("set.draftsSide")}},
 		}},
 		{title: "View", groups: []ribbonGroup{
 			// the side dock's panes (dock.go)

@@ -82,7 +82,7 @@ The elements: `scene-heading`, `action`, `character`, `parenthetical`, `dialogue
 
 - **:h[elp]** `[command or page]` — This list in the Help tab; :h scene the line on :scene; :h fountain a help page
 
-The pages: `index`, `fountain`, `final-draft`, `adapting`, `fixing-imports`, `production`, `table-read`, `together`, `shortcuts`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
+The pages: `index`, `fountain`, `final-draft`, `adapting`, `fixing-imports`, `production`, `merging`, `table-read`, `shortcuts`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
 
 ## Accolade's commands
 
@@ -106,6 +106,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:rename** — File > Rename
 - **:undo-rename** — File > Undo Rename
 - **:add-to-my-settings** — File > Add to My Settings (not in the browser)
+- **:merge-changes** — File > Merge Changes
 - **:export** `[format]` — File > Export
 - **:export-clean-fountain** — File > Export Clean Fountain (screenplay)
 - **:page-setup** — File > Page Setup
@@ -361,6 +362,10 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 
 - **:previous-change** — The changed scene before (Compare > Previous Change) (while the Compare tab is there)
 - **:next-change** — The next changed scene (Compare > Next Change) (while the Compare tab is there)
+- **:take** — Take this change into the script, then the next (Compare > Take) (while the Compare tab is there)
+- **:leave** — Leave the script as it is here, then the next change (Compare > Leave) (while the Compare tab is there)
+- **:take-scene** — Take every change in this change's scene (Compare > Take All From This Scene) (while the Compare tab is there)
+- **:merge-taken** — Write what is taken into the script, as a new draft (Compare > Merge Taken Changes) (while the Compare tab is there)
 - **:close-compare** — Compare > Close Compare (while the Compare tab is there)
 
 ### Table Read

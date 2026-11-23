@@ -2,8 +2,8 @@
 // Markdown) element by element, as a writer reads the change: which
 // scenes changed, and in them which elements were cut, added or changed,
 // a changed one word by word. It is what Collaboration > Drafts… > Compare shows,
-// and what production's revision colours (PRODUCTION step 4) and Merge
-// Changes will build on.
+// what production's revision colours (PRODUCTION step 4) build on, and
+// File > Merge Changes…'s three-way merge (merge.go).
 //
 // An element is a paragraph: the lines between blank lines (a scene
 // heading, an action paragraph, a character's cue with their lines).
@@ -58,23 +58,59 @@ type Scene struct {
 // Split cuts a script into its elements; isHeading tells a scene
 // heading's line (nil: none).
 func Split(text string, isHeading func(string) bool) []Element {
-	var es []Element
+	ps := SplitAt(text, isHeading)
+	es := make([]Element, len(ps))
+	for i, p := range ps {
+		es[i] = p.Element
+	}
+	return es
+}
+
+// Placed is an element with where it is in the text, in bytes: Start its
+// first line's, TextEnd its last line's end, End the next element's
+// start (the text's end for the last).
+type Placed struct {
+	Element
+	Start, TextEnd, End int
+}
+
+// SplitAt is Split with each element's place in the text.
+func SplitAt(text string, isHeading func(string) bool) []Placed {
+	var es []Placed
 	var cur []string
+	start, textEnd := 0, 0
 	flush := func() {
 		if len(cur) == 0 {
 			return
 		}
-		t := strings.Join(cur, "\n")
-		es = append(es, Element{Text: t, Heading: isHeading != nil && len(cur) == 1 && isHeading(cur[0])})
+		t := strings.ReplaceAll(strings.Join(cur, "\n"), "\r", "")
+		if n := len(es); n > 0 {
+			es[n-1].End = start
+		}
+		es = append(es, Placed{Element: Element{Text: t, Heading: isHeading != nil && len(cur) == 1 && isHeading(cur[0])},
+			Start: start, TextEnd: textEnd, End: len(text)})
 		cur = cur[:0]
 	}
-	for _, line := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
-		line = strings.TrimRightFunc(line, unicode.IsSpace)
+	for at := 0; at <= len(text); {
+		end := strings.IndexByte(text[at:], '\n')
+		next := 0
+		if end < 0 {
+			end, next = len(text), len(text)+1
+		} else {
+			end += at
+			next = end + 1
+		}
+		line := strings.TrimRightFunc(text[at:end], unicode.IsSpace)
 		if line == "" {
 			flush()
-			continue
+		} else {
+			if len(cur) == 0 {
+				start = at
+			}
+			cur = append(cur, line)
+			textEnd = end
 		}
-		cur = append(cur, line)
+		at = next
 	}
 	flush()
 	return es
@@ -82,13 +118,37 @@ func Split(text string, isHeading func(string) bool) []Element {
 
 // Diff compares the old elements with the new.
 func Diff(old, new []Element) []Row {
-	a, b := texts(old), texts(new)
-	ops := diff(a, b)
 	var rows []Row
+	for _, r := range diffIdx(old, new) {
+		switch r.kind {
+		case Same:
+			rows = append(rows, Row{Kind: Same, Old: old[r.i].Text, New: new[r.j].Text, Heading: new[r.j].Heading})
+		case Removed:
+			rows = append(rows, Row{Kind: Removed, Old: old[r.i].Text, Heading: old[r.i].Heading})
+		case Added:
+			rows = append(rows, Row{Kind: Added, New: new[r.j].Text, Heading: new[r.j].Heading})
+		case Changed:
+			o, n := old[r.i].Text, new[r.j].Text
+			rows = append(rows, Row{Kind: Changed, Old: o, New: n, Words: Words(o, n), Heading: new[r.j].Heading})
+		}
+	}
+	return rows
+}
+
+// idxRow is a row by its elements' indexes: i the old's, j the new's.
+type idxRow struct {
+	kind Kind
+	i, j int
+}
+
+// diffIdx is Diff by the elements' indexes.
+func diffIdx(old, new []Element) []idxRow {
+	ops := diff(texts(old), texts(new))
+	var rows []idxRow
 	i, j := 0, 0
 	for k := 0; k < len(ops); {
 		if ops[k] == Same {
-			rows = append(rows, Row{Kind: Same, Old: a[i], New: b[j], Heading: new[j].Heading})
+			rows = append(rows, idxRow{Same, i, j})
 			i, j, k = i+1, j+1, k+1
 			continue
 		}
@@ -111,7 +171,7 @@ func Diff(old, new []Element) []Row {
 // pairUp makes a run of removed (del) and added (ins) elements rows: an
 // added element alike to a removed one, in the run's order, is that one
 // changed; between those, the removed come before the added.
-func pairUp(old, new []Element, del, ins []int) []Row {
+func pairUp(old, new []Element, del, ins []int) []idxRow {
 	type pair struct{ d, i int }
 	var pairs []pair
 	d := 0
@@ -124,23 +184,22 @@ func pairUp(old, new []Element, del, ins []int) []Row {
 			}
 		}
 	}
-	var rows []Row
+	var rows []idxRow
 	removed := func(from, to int) {
 		for _, x := range del[from:to] {
-			rows = append(rows, Row{Kind: Removed, Old: old[x].Text, Heading: old[x].Heading})
+			rows = append(rows, idxRow{Removed, x, -1})
 		}
 	}
 	added := func(from, to int) {
 		for _, x := range ins[from:to] {
-			rows = append(rows, Row{Kind: Added, New: new[x].Text, Heading: new[x].Heading})
+			rows = append(rows, idxRow{Added, -1, x})
 		}
 	}
 	dp, ip := 0, 0
 	for _, p := range pairs {
 		removed(dp, p.d)
 		added(ip, p.i)
-		o, n := old[del[p.d]].Text, new[ins[p.i]].Text
-		rows = append(rows, Row{Kind: Changed, Old: o, New: n, Words: Words(o, n), Heading: new[ins[p.i]].Heading})
+		rows = append(rows, idxRow{Changed, del[p.d], ins[p.i]})
 		dp, ip = p.d+1, p.i+1
 	}
 	removed(dp, len(del))
