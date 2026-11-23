@@ -26,7 +26,7 @@ type runGrid struct {
 	// Bidi is how each row's text is ordered (right-to-left text, and
 	// left-to-right runs in it)
 	Bidi []rowBidi
-	e      *ScriptEditor // its theme and cell size
+	e    *ScriptEditor // its theme and cell size
 }
 
 func newRunGrid(e *ScriptEditor) *runGrid {
@@ -129,8 +129,10 @@ func (r *runRenderer) Refresh() {
 			// (one cut off from its letters by a style or a wide character
 			// stands alone)
 			alone := inText && bd.level(i) > 0 && !leads(cells[i].Rune, int8(bd.level(i)))
-			for j < len(cells) && (j == i || !boundary(j) && !alone) && (!inText || j == i || joins[j]) &&
-				narrow(cells[j].Rune) && cells[j].Rune != wideFill && styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col) {
+			for j < len(cells) && narrow(cells[j].Rune) && cells[j].Rune != wideFill &&
+				(j > i && inCluster(cells, j) || // a cluster is drawn whole (क्ष, कि), in its first cell's style
+					(j == i || !boundary(j) && !alone) && (!inText || j == i || joins[j]) &&
+						styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col)) {
 				b.WriteRune(cells[j].Rune)
 				j++
 			}
@@ -144,7 +146,8 @@ func (r *runRenderer) Refresh() {
 				prev := cells[i].Rune
 				for j < len(cells) {
 					c := cells[j].Rune
-					joined := prev == 0x200D || (isFlagLetter(prev) && isFlagLetter(c) && j == i+1)
+					joined := prev == 0x200D || (isFlagLetter(prev) && isFlagLetter(c) && j == i+1) ||
+						wrap.JoinsBefore(prev, c) // a cluster (in a font that lacks its script)
 					if c != wideFill && cellWidth(c) != 0 && !joined {
 						break
 					}
@@ -218,6 +221,14 @@ func (r *runRenderer) Refresh() {
 	for _, o := range r.images[:ni] {
 		r.objects = append(r.objects, o)
 	}
+}
+
+// inCluster tells whether cell j belongs to the cluster of the cell
+// before it (wrap.JoinsBefore): a text run goes on over it, whatever its
+// style, as the shaper draws a cluster only whole (Devanagari's
+// conjuncts, the i-matra before its consonant, the reph over the next).
+func inCluster(cells []widget.TextGridCell, j int) bool {
+	return j > 0 && wrap.JoinsBefore(cells[j-1].Rune, cells[j].Rune)
 }
 
 // wideGlyph, when set, draws a wide character as a picture w by h of

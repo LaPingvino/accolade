@@ -101,7 +101,7 @@ var langSampleWants = map[string]struct{ scenes, cues, transitions []string }{
 
 // noPDFFont are the samples whose letters Lexington's PDF font (Courier
 // Badi) lacks: the PDF says so, and HTML prints them.
-var noPDFFont = map[string]bool{"zh": true, "ja": true, "hi-Deva": true}
+var noPDFFont = map[string]bool{"zh": true, "ja": true}
 
 // langSampleWindow is a window with lang's sample opened by its File
 // menu item.

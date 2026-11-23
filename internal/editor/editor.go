@@ -1516,7 +1516,44 @@ func (e *ScriptEditor) offsetAt(p fyne.Position) int {
 	if b, cells := e.order(max(row, 0)); b.reordered() || b.RTL {
 		return e.offsetDrawnAt(max(row, 0), b, cells, p.X/e.cellWidth()-float32(e.gutter()))
 	}
-	return e.layout.Offset(max(row, 0), max(col, 0))
+	off := e.layout.Offset(max(row, 0), max(col, 0))
+	if e.isClusterEdge(off) {
+		return off
+	}
+	// inside a cluster (drawn whole): its nearer edge
+	start, end := e.clusterEdge(off, false), e.clusterEdge(off, true)
+	_, cs := e.layout.RowCol(start)
+	_, ce := e.layout.RowCol(end)
+	if r, _ := e.layout.RowCol(end); r != max(row, 0) || col-cs <= ce-col {
+		return start
+	}
+	return end
+}
+
+// isClusterEdge tells whether the cursor can stand at an offset: not
+// inside a cluster (wrap.JoinsBefore), which is drawn whole.
+func (e *ScriptEditor) isClusterEdge(off int) bool {
+	return off <= 0 || off >= e.buf.Len() || !wrap.JoinsBefore(e.buf.At(off-1), e.buf.At(off))
+}
+
+// clusterEdge is the edge of the cluster at off: its start, or with after
+// its end; off itself at an edge.
+func (e *ScriptEditor) clusterEdge(off int, after bool) int {
+	for !e.isClusterEdge(off) {
+		if after {
+			off++
+		} else {
+			off--
+		}
+	}
+	return off
+}
+
+// clusterBefore and clusterAfter are the cursor's places one cluster
+// before and after off.
+func (e *ScriptEditor) clusterBefore(off int) int { return e.clusterEdge(max(off-1, 0), false) }
+func (e *ScriptEditor) clusterAfter(off int) int {
+	return e.clusterEdge(min(off+1, e.buf.Len()), true)
 }
 
 // offsetDrawnAt is the offset nearest to column x of a reordered row:
@@ -1551,12 +1588,17 @@ func (e *ScriptEditor) offsetDrawnAt(row int, b rowBidi, cells []widget.TextGrid
 	return e.layout.Offset(row, start)
 }
 
-// wordAt is the word (letters and digits) around an offset, or the single
+// wordAt is the word (letters, digits and their marks) around an offset, or the single
 // character there if it is not part of a word.
 func (e *ScriptEditor) wordAt(off int) (start, end int) {
 	text := []rune(e.buf.Text())
 	isWord := func(i int) bool {
-		return i >= 0 && i < len(text) && (unicode.IsLetter(text[i]) || unicode.IsDigit(text[i]))
+		r := rune(0)
+		if i >= 0 && i < len(text) {
+			r = text[i]
+		}
+		// a word's marks and joiners are of it (हिन्दी: its vowel signs, its virama)
+		return unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsMark(r) || r == 0x200C || r == 0x200D
 	}
 	if !isWord(off) && isWord(off-1) {
 		off--
@@ -1658,8 +1700,11 @@ func (e *ScriptEditor) deleteAt(before bool) {
 	switch {
 	case !e.buf.HasOthers() && before:
 		e.buf.DeleteBackward()
-	case !e.buf.HasOthers():
+	case !e.buf.HasOthers() && e.buf.HasSelection():
 		e.buf.DeleteForward()
+	case !e.buf.HasOthers(): // the cluster after it whole (a conjunct, a letter and its signs)
+		cur := e.buf.Cursor()
+		e.buf.Replace(cur, e.clusterAfter(cur), "")
 	default:
 		e.buf.EditSpans(func(s buffer.Span) (int, int, string) {
 			switch {
@@ -1668,7 +1713,7 @@ func (e *ScriptEditor) deleteAt(before bool) {
 			case before:
 				return max(s.Start()-1, 0), s.End(), ""
 			}
-			return s.Start(), s.End() + 1, ""
+			return s.Start(), e.clusterAfter(s.End()), ""
 		})
 	}
 }
@@ -1706,7 +1751,7 @@ func (e *ScriptEditor) Key(name fyne.KeyName, extend bool) {
 		case target >= len(e.layout.Rows):
 			move(e.buf.Len())
 		default:
-			move(e.layout.Offset(target, e.goalCol))
+			move(e.clusterEdge(e.layout.Offset(target, e.goalCol), false))
 		}
 	}
 
@@ -1740,13 +1785,13 @@ func (e *ScriptEditor) Key(name fyne.KeyName, extend bool) {
 		if s, _ := e.buf.Selection(); e.buf.HasSelection() && !e.shift {
 			move(s)
 		} else {
-			move(cur - 1)
+			move(e.clusterBefore(cur))
 		}
 	case fyne.KeyRight:
 		if _, end := e.buf.Selection(); e.buf.HasSelection() && !e.shift {
 			move(end)
 		} else {
-			move(cur + 1)
+			move(e.clusterAfter(cur))
 		}
 	case fyne.KeyHome:
 		move(e.layout.Offset(row, 0))

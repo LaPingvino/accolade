@@ -94,6 +94,14 @@ func (b *Buffer) SetText(text string) {
 	}
 }
 
+// At is the rune at offset i (0 outside the text).
+func (b *Buffer) At(i int) rune {
+	if i < 0 || i >= len(b.text) {
+		return 0
+	}
+	return b.text[i]
+}
+
 // Cursor is the cursor offset.
 func (b *Buffer) Cursor() int { return b.cursor }
 
@@ -415,7 +423,10 @@ func (b *Buffer) TakeChange() (start, end, oldEnd int, ok bool) {
 
 func (b *Buffer) clamp(off int) int { return max(0, min(off, len(b.text))) }
 
-func isSeparator(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }
+// isSeparator: not of a word (a letter, a digit, a letter's mark).
+func isSeparator(r rune) bool {
+	return !unicode.IsLetter(r) && !unicode.IsDigit(r) && !unicode.IsMark(r)
+}
 
 // Lines.
 

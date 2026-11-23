@@ -40,6 +40,18 @@ func zeroWidth(r rune) bool {
 		(r >= 0x1160 && r <= 0x11FF)
 }
 
+// JoinsBefore tells whether b belongs to the cluster of a, the character
+// before it (a cluster is drawn whole, and the cursor goes round it): b a
+// mark (a vowel sign, a virama, a nukta, an accent) or a joiner, a after
+// a zero-width joiner, or a Devanagari consonant after a virama (क्ष).
+func JoinsBefore(a, b rune) bool {
+	if a < 0x20 { // a line's start (a mark there has no letter)
+		return false
+	}
+	return unicode.In(b, unicode.Mn, unicode.Mc, unicode.Me) || b == 0x200C || b == 0x200D || a == 0x200D ||
+		a == 0x094D && b >= 0x0900 && b <= 0x097F
+}
+
 // Span is a stretch of the text, [Start, End) in runes, shown as Cols
 // columns in one piece (a chip drawn in its place): its first rune takes
 // the columns, the others none, and no row breaks inside it.

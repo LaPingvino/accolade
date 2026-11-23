@@ -182,3 +182,17 @@ func TestWrapSpans(t *testing.T) {
 		}
 	}
 }
+
+func TestJoinsBefore(t *testing.T) {
+	for _, c := range []struct {
+		a, b rune
+		want bool
+	}{
+		{'क', '्', true}, {'्', 'ष', true}, {'क', 'ि', true}, {'र', '‍', true}, {'‍', 'य', true},
+		{'य', ' ', false}, {' ', 'क', false}, {'क', 'क', false}, {'\n', 'ि', false}, {'e', '̂', true},
+	} {
+		if got := JoinsBefore(c.a, c.b); got != c.want {
+			t.Errorf("JoinsBefore(%q, %q) = %v", c.a, c.b, got)
+		}
+	}
+}

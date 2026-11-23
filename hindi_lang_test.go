@@ -121,7 +121,9 @@ const devanagariScene = "शीर्षक: क्षत्रिय\n\nशि�
 	"ANNA\nनमस्ते, हिन्दी।\n\nकट टू\n"
 
 // TestDevanagariScreenshots renders a Devanagari scene in the editor, its
-// page view and the PDF's page (SHOT_DIR as in screenshot_test.go).
+// page view and the PDF's page at 600 dpi, then the Devanagari sample in
+// the editor and its PDF (SHOT_DIR as in screenshot_test.go). The PDF
+// warns of nothing: Lexington prints Devanagari shaped.
 func TestDevanagariScreenshots(t *testing.T) {
 	dir := os.Getenv("SHOT_DIR")
 	if dir == "" {
@@ -151,14 +153,31 @@ func TestDevanagariScreenshots(t *testing.T) {
 	if err := exportAs(w.textEditor.Text(), pdfPath, "pdf", w.layoutJob()); err != nil {
 		t.Fatal(err)
 	}
-	if b, err := exec.Command("pdftoppm", "-png", "-r", "150", pdfPath, filepath.Join(dir, "hi-deva-pdf")).CombinedOutput(); err != nil {
+	if b, err := exec.Command("pdftoppm", "-png", "-r", "600", pdfPath, filepath.Join(dir, "hi-deva-pdf")).CombinedOutput(); err != nil {
 		t.Errorf("pdftoppm: %v %s", err, b)
 	}
-	t.Logf("PDF warning: %q", pdfWarning(w.textEditor.Text(), w.lex().Language("hi-Deva")))
+	if msg := pdfWarning(w.textEditor.Text(), w.lex().Language("hi-Deva")); msg != "" {
+		t.Errorf("PDF warning: %q", msg) // Lexington shapes Devanagari since 1.48
+	}
 	v := previewAndWait(t, w)
 	v.toAnchor(1, 0) // the script's first page
 	uiSleep(100 * time.Millisecond)
 	shot(w, "hi-deva-pages")
+	// the Devanagari sample, as File › Samples opens it
+	sample, err := os.ReadFile(filepath.Join("examples", "sample.hi-Deva.fountain"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	w.textEditor.SetText(string(sample))
+	uiSleep(200 * time.Millisecond)
+	shot(w, "hi-deva-sample-editor")
+	samplePDF := filepath.Join(dir, "hi-deva-sample.pdf")
+	if err := exportAs(w.textEditor.Text(), samplePDF, "pdf", w.layoutJob()); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := exec.Command("pdftoppm", "-png", "-r", "600", "-f", "2", "-l", "2", samplePDF, filepath.Join(dir, "hi-deva-sample-pdf")).CombinedOutput(); err != nil {
+		t.Errorf("pdftoppm: %v %s", err, b)
+	}
 }
 
 // The pickers show Hindi, its variants (hi-Latn, hi-Deva) behind More
