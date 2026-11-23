@@ -1359,3 +1359,40 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   relayout after a focus event, the tooltip package's default runner). Shots: TestOutlineScreenshots
   (outline-{desktop,phone}-{0-script,1-source,2-notes}) looked at. Left: the outline's passages show no status
   (adapted/cut); the source's outline takes 93 ms on the UI goroutine for the novel's tab change (once); Adapt… is closed rather than planned again; Restore Draft is an edit (no Revert command exists).
+  2026-11-23 (Joop: Fitzgerald's "Three Comrades" screenplay, 1938, as printed in the 1978 Bruccoli edition — "it's
+  a scan, so it both needs the OCR and then it hits the format issues. Good luck!"): third local benchmark (book
+  edition under copyright: local only, ~/.local/share/accolade-bench/three-comrades/). What a page holds: an OCR text
+  layer already (page 40: ~1 200 chars) and tesseract on a 200 dpi render reads it as well; numbered shots
+  ("39 A GLASS OF FOAMING BEER—"), cues in mixed case with the parenthetical on the same line ("Koster (really
+  pleased)"), transitions right-aligned ("DISSOLVE TO:"), hyphenation across lines ("thirti-/eth"), OCR noise
+  ("So T um proud", "i ms old"), page furniture. Use Accolade's OWN import for it — importPDF / Lexington's pdfin
+  with tesseract, the OCR language asked in ocr_ask.go (Joop: "Accolade has OCR support, so of course it should
+  work using that") — and measure what it gives; fix the importer (Lexington first) where it fails: (b) the
+  per-document layout learning above, (c) de-hyphenation and OCR-noise repair offered as suggestions, never
+  applied silently.
+  Also (Joop: "I also found a version of Amélie which was surprisingly in English, and has similar issues..."): an
+  English Amélie (2001) screenplay PDF, local only (~/.local/share/accolade-bench/amelie/). A text layer from OCR of
+  a justified typescript: words spread by runs of spaces, headings "Scene 6 - int. day -", the cue glued to its
+  parenthetical ("THE WOMAN(very calmly)"), the narrator's voice-over as indented quoted text with NO cue, OCR noise
+  ("The Whal.e's"). Needs: space-run collapsing, numbered "Scene N - int./ext." headings, a cue split from a glued
+  parenthetical, and a quoted indented block read as narration (V.O.) with the narrator asked once.
+  Joop: "we can probably not expect to get all of these right at once, but we can definitely do a best effort and
+  make it easy to fix via the source tool..." — so the goal is a best-effort import plus EASY FIXING in the source
+  pane, not a perfect importer: the imported script beside its source (the PDF page image for a scan, its text for
+  others); a wrong element fixed once for the whole document ("lines like this are cues" — the layout label, applied
+  to every line of that group, one undo step); OCR/hyphenation suggestions as quiet marks to accept or dismiss; a
+  per-page "looks right" tick so the writer sees what is checked. Measure each benchmark as "lines right after
+  import" and "fixes needed to get it right" (fewer, bigger fixes are the win).
+  Joop: "And 'easy tools available to fix this up', e.g. the scene format for Amelie is very unexpected, but with a
+  pattern or format matcher that should be easy to fix at once." — a PATTERN FIXER in the source pane: pick one
+  line ("Scene 6 - int. day -"), Accolade proposes the pattern it fits (shown in plain words, editable: "Scene
+  <number> - <int/ext>. <time> -", regex underneath for those who want it), highlights every line it matches with a
+  count, and offers what to make of them: "Scene headings" with a template for the result ("INT. … - DAY #6#"), or
+  cues, transitions, page debris to drop, narration. Preview of all matches before applying; one undo step; saved
+  with the document's import settings so a re-import of the same source applies it again. The same tool covers
+  glued cues ("NAME(paren)" → cue + parenthetical) and Fitzgerald's numbered shots.
+  Joop: "And something like that should also be able to fix the extra newlines and uncommon translation format
+  choices for HOPE TALKS" — the pattern fixer also works on blank lines and layout choices, not only on single lines:
+  "blank lines inside a speech / action paragraph like this → join" (the match previewed, one undo step), and a
+  document's own conventions (in Hope Talks, the translation's way of setting things that standard Fountain sets
+  otherwise) recorded as a rule once and applied to every match.
