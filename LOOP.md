@@ -1310,3 +1310,12 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   rule as the link-up item). The far source (A. López Luna, "Zamenhof: Iniciador del Esperanto", Spanish) stays the
   cross-language stretch goal. Renata's script and PDF are her work: measure locally only, never commit, upload or
   quote; synthetic look-alikes for tests (a public-domain screenplay PDF and a hand-damaged Fountain of it).
+  Joop, same day: "That was also a big challenge, especially as her screenplay was further away from standard format.
+  Same thing e.g. with what I just looked at online: Scott Fitzgerald's old screenplays, which didn't use US standard
+  format yet..." — so recognition must not assume today's US layout. Read a screenplay source by learning ITS layout:
+  group lines by indent, case, length, punctuation and repeated patterns (numbered shots "12. MED. SHOT —",
+  "NAME: speech" on one line, two-column A/V or European layouts, stage-play style, camera directions inline,
+  parentheticals anywhere), then label the groups (heading, shot, cue, dialogue, action, transition, page debris) by
+  which pattern fits, the writer able to correct a label once for the whole document ("these are cues"). Benchmark:
+  period scripts in public-domain or freely available form (1930s–40s studio shooting scripts with numbered shots;
+  stage plays), Renata's locally; for each, labelled lines right/wrong.
