@@ -239,12 +239,12 @@ Other notes on a heading, such as `[[London]]`, are tags: the Export dialog can 
 
 ### Source links
 
-When you adapt a story, a note starting with `from:` links a scene to the passage of the source it comes from. Accolade writes the browsers' Text Fragment form: the passage's first words, then its last words after a comma.
+When you adapt a story, a note starting with `from:` links a scene to the passage of the source it comes from. Accolade writes the browsers' Text Fragment form: the passage's first words, then its last words after a comma, as few of each as find that passage and no other.
 
 ```
 INT. KITCHEN - NIGHT
 
-[[from: #:~:text=She opened the door to the garden and,out into the rain.]]
+[[from: #:~:text=She opened,rain.]]
 ```
 
 A link may name a file in front, `[[from: story.md#:~:text=…]]`, and words just before or after the passage, to tell two alike passages apart. The older form, the passage's first words in quotes, is still read:

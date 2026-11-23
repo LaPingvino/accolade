@@ -89,9 +89,6 @@ type MainWindow struct {
 	// the Characters pane, and the last rename for Undo (characters_pane.go, characters_rename.go)
 	charsPane   *charactersPane
 	charRenamed *renamed
-	// linkOffer is the question about links quoting a passage whose
-	// opening changed (source_links_offer.go)
-	linkOffer *linkOfferNotice
 	// the others' changes to a shared script (changes.go)
 	changes      []change
 	changesPanel *changesPanel
@@ -338,7 +335,7 @@ func (w *MainWindow) setupUI() {
 		widget.NewSeparator(),
 		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel),
 	)
-	w.bottom = container.NewVBox(w.newLooseNotice(), w.newLinkOffer(), w.statusBar)
+	w.bottom = container.NewVBox(w.newLooseNotice(), w.statusBar)
 
 	w.relayout()
 
@@ -770,7 +767,7 @@ func (w *MainWindow) readPDFInBackground(filePath, what string,
 }
 
 func (w *MainWindow) SaveFile() error {
-	w.offerLinkUpdate(w.srcDoc)           // a passage's opening changed: its links (source_links_offer.go)
+	w.relinkAfterEdit(w.srcDoc)           // the source edited: its links looked at again (relink.go)
 	if err := w.storeDocs(); err != nil { // the source in the main editor, with the script (document.go)
 		return err
 	}
@@ -806,6 +803,7 @@ func (w *MainWindow) saveToFile(filePath string) error {
 	if err := w.writeScript(filePath, data, nativeData); err != nil {
 		return fmt.Errorf("failed to write file: %v", err)
 	}
+	w.keepLinkBase(filePath) // the source its links were looked at against, for its next opening (relink.go)
 	if utf8Instead {
 		w.format.Windows1252 = false
 		w.setStatus("Saved as UTF-8: Windows-1252 cannot hold every character now in the script")

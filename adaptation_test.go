@@ -132,7 +132,7 @@ func TestStatuses(t *testing.T) {
 		t.Fatalf("passage 9 is %q", ps[rain2].Plain)
 	}
 	c2 := cutFor(ps, rain2)
-	if !strings.HasPrefix(c2.String(), "#:~:text=") || !strings.Contains(c2.String(), "-,The rain kept falling.") ||
+	if !strings.HasPrefix(c2.String(), "#:~:text=") || !strings.Contains(c2.String(), "-,The,falling.") ||
 		resolveCut(c2, ps) != (cutSpan{rain2, rain2}) {
 		t.Errorf("cut entry for the second rain: %q", c2.String())
 	}
@@ -181,7 +181,7 @@ func TestMarkAsCut(t *testing.T) {
 	rowOf(s, item).cut.OnTapped()
 	text := w.textEditor.Text()
 	inside, ok := adaptationBlock(text)
-	if !ok || inside != "cut:\n  #:~:text=a list item of its own" {
+	if !ok || inside != "cut:\n  #:~:text=a,own" {
 		t.Fatalf("block %q %v in\n%s", inside, ok, text)
 	}
 	if notesOf(text) != "my notes" || w.sourceRef().Origin != sourceInside {
@@ -210,13 +210,13 @@ func TestMarkAsCut(t *testing.T) {
 	s.list.Select(9)
 	s.toggleCut()
 	inside, _ = adaptationBlock(w.textEditor.Text())
-	if inside != "cut:\n  #:~:text=another-,The rain kept falling.\n  #:~:text=open.-,The rain kept falling." {
+	if inside != "cut:\n  #:~:text=another-,The,falling.\n  #:~:text=open.-,The,falling." {
 		t.Errorf("twice there: %q", inside)
 	}
 	s.list.Select(6)
 	s.toggleCut() // unmark the first only
 	inside, _ = adaptationBlock(w.textEditor.Text())
-	if inside != "cut:\n  #:~:text=open.-,The rain kept falling." || s.statusOf(6) != statusToDo || s.statusOf(9) != statusCut {
+	if inside != "cut:\n  #:~:text=open.-,The,falling." || s.statusOf(6) != statusToDo || s.statusOf(9) != statusCut {
 		t.Errorf("unmarked one: %q", inside)
 	}
 	// an adapted passage or a heading is not cut

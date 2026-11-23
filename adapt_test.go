@@ -33,10 +33,10 @@ func lineIn(t *testing.T, script, s string) int {
 }
 
 const (
-	linkOpened  = "[[from: #:~:text=She opened the door to the garden and stepped out into the rain.]]"
-	linkWho     = `[[from: #:~:text="Who's there?" Anna called%2C but nobody answered.]]`
-	linkMorning = "[[from: #:~:text=The next morning the,door stood open.]]"
-	linkRain1   = "[[from: #:~:text=another-,The rain kept falling.]]"
+	linkOpened  = "[[from: #:~:text=She,rain.]]"
+	linkWho     = `[[from: #:~:text="Who's,answered.]]`
+	linkMorning = "[[from: #:~:text=The next,open.]]"
+	linkRain1   = "[[from: #:~:text=another-,The,falling.]]"
 )
 
 // Where Next and Previous go on from, the item's cases: a middle chapter
@@ -117,7 +117,7 @@ func TestAdaptDefaults(t *testing.T) {
 		!strings.Contains(w.Note, "after Scene 1 · INT. HOUSE - NIGHT") || !strings.Contains(w.Reason, "She opened") {
 		t.Errorf("where: %+v", w)
 	}
-	c = adaptCtxFor(t, partly, "She opened") // in HOUSE: the story goes on from its passage
+	c = adaptCtxFor(t, partly, "She,rain") // in HOUSE: the story goes on from its passage
 	if pl = planAdapt(c, 3); pl.Hows[pl.How].How != howAddHere || !strings.Contains(pl.Hows[pl.How].Reason, "goes on from “She opened") {
 		t.Errorf("going on: %+v", pl.Hows[pl.How])
 	}
@@ -283,7 +283,7 @@ func TestAdaptNewScene(t *testing.T) {
 		t.Fatalf("inserted:\n%s\nwant\n%s", got, want)
 	}
 	// the preview shows the link as the writer reads it, never encoded
-	if preview != "INT. PLACE - DAY\n\n[[↗ “\"Who's there?\" Anna called, but nobody answered.”]]" {
+	if preview != "INT. PLACE - DAY\n\n[[↗ “\"Who's … answered.”]]" {
 		t.Errorf("preview %q", preview)
 	}
 	if s.statusOf(who) != statusAdapted || selected(w) != "PLACE - DAY" || s.adapting != nil {
@@ -302,8 +302,8 @@ func TestAdaptNewScene(t *testing.T) {
 	w.nextSourcePassage()
 	w.adaptSourcePassage()
 	s.adapting.how.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-	if !strings.Contains(w.textEditor.Text(), linkWho+" [[from: #:~:text=a list item of its own]]") &&
-		!strings.Contains(w.textEditor.Text(), "[[from: #:~:text=a list item of its own]]") {
+	if !strings.Contains(w.textEditor.Text(), linkWho+" [[from: #:~:text=a,own]]") &&
+		!strings.Contains(w.textEditor.Text(), "[[from: #:~:text=a,own]]") {
 		t.Errorf("Enter did not take the likely:\n%s", w.textEditor.Text())
 	}
 	// the rain, there twice: its link tells it by the words before it

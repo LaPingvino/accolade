@@ -100,7 +100,7 @@ func TestMiddleSource(t *testing.T) {
 	search(w, "garden")
 	w.searchBar.replaceEntry.SetText("orchard")
 	w.replaceAll()
-	if strings.Contains(d.Text(), "garden") || !strings.Contains(w.textEditor.Text(), "garden") {
+	if strings.Contains(d.Text(), "garden") || withoutLinks(w.textEditor.Text()) != withoutLinks(script) { // (its links follow the source: relink.go)
 		t.Errorf("replaced in the wrong text: %q", d.Text())
 	}
 	w.hideFindReplace()
@@ -188,6 +188,13 @@ func TestMiddleSourceInsideScript(t *testing.T) {
 	w.closeMiddle("source")
 	before := w.textEditor.Text()
 	w.fyneWindow.Canvas().Focus(w.textEditor)
+	if !strings.Contains(before, "Then She opened") || strings.Contains(before, "[[from: \"She opened the door") {
+		t.Fatalf("the link to the passage edited not written again: %q", before)
+	}
+	w.undo() // the links written again for the source's new words: a step of their own
+	if !strings.Contains(w.textEditor.Text(), "[[from: \"She opened the door") || !strings.Contains(w.textEditor.Text(), "One.") {
+		t.Fatalf("the first Undo: %q", w.textEditor.Text())
+	}
 	w.undo()
 	if w.textEditor.Text() == before || strings.Contains(w.textEditor.Text(), "One.") {
 		t.Errorf("the script's Undo did not take the source's writing back as one: %q", w.textEditor.Text())
@@ -619,101 +626,30 @@ func TestCardsPane(t *testing.T) {
 	}
 }
 
-// A passage's opening words edited: the links that found it by the old
-// words are written again for the new ones, the others left as they are.
-func TestLinkFixes(t *testing.T) {
-	old := passagesOf(sourceStory)
-	story := strings.Replace(sourceStory, "She opened the door to the garden", "She pushed open the door of the garden", 1)
-	nw := passagesOf(story)
-	edits, n, _ := linkFixes(sourceScript, old, nw)
-	if n != 1 || len(edits) != 1 {
-		t.Fatalf("%d links, %d edits: %v", n, len(edits), edits)
-	}
-	script := []rune(sourceScript)
-	e := edits[0]
-	got := string(script[:e.Start]) + e.Text + string(script[e.End:])
-	if strings.Contains(got, "She opened the door") || !strings.Contains(got, "pushed") {
-		t.Fatalf("the link %q", e.Text)
-	}
-	m := newSourceModel(nw, got, nil)
-	at := passageNamed(t, nw, "She pushed")
-	if lines := m.linked(at); len(lines) != 1 {
-		t.Errorf("the new link finds %v", lines)
-	}
-	if _, n, _ := linkFixes(sourceScript, old, old); n != 0 {
-		t.Errorf("nothing changed, yet %d links to update", n)
-	}
-	// a passage split in two: a link to it goes to its last part too
-	if to := alignPassages(old, passagesOf(strings.Replace(sourceStory, "and stepped out", "and stopped.\n\nShe stepped out", 1))); to[2] != 3 {
-		t.Errorf("the split passage maps to %d", to[2])
-	}
-}
-
-// In the main editor: the cursor leaving a passage whose opening was
-// edited, the notice asks; Update Links is one undo step of the script's;
-// Not Now leaves the links. The Source pane's Done asks as well.
-func TestLinkOffer(t *testing.T) {
+// Leaving the source's tab (it stays open) after editing a passage writes
+// the links quoting it again, one undo step.
+func TestRelinkOnLeavingTab(t *testing.T) {
 	w, _ := sourceWindow(t, sourceScript, sourceStory)
 	w.openMiddle("source")
 	d := w.midDoc()
 	at := runeAt(t, d.Text(), "She opened")
-	d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+10, "pushed") }) // "She pushed the door…"
-	if w.linkOffer.box.Visible() {
-		t.Fatal("asked while still in the passage")
-	}
-	d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
-	if !w.linkOffer.box.Visible() || !strings.Contains(w.linkOffer.text.Text, "1 link") {
-		t.Fatalf("no offer: %q", w.linkOffer.text.Text)
-	}
 	script := w.textEditor.Text()
-	w.updateOfferedLinks()
-	if w.linkOffer.box.Visible() || strings.Contains(w.textEditor.Text(), "She opened the door") {
-		t.Fatalf("not updated: %q", w.textEditor.Text())
+	d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+10, "pushed") })
+	w.showMiddle("")
+	if strings.Contains(w.textEditor.Text(), "She opened the door") || !w.mid.has("source") {
+		t.Errorf("leaving the source's tab did not write the link again:\n%s", w.textEditor.Text())
 	}
 	w.textEditor.Undo()
 	if w.textEditor.Text() != script {
-		t.Error("the update is not one undo step")
-	}
-	// Not Now: as they are
-	at = runeAt(t, d.Text(), "The next morning")
-	d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+11, "following") })
-	d.ed.SetCursorOffset(0)
-	if !w.linkOffer.box.Visible() {
-		t.Fatal("no offer for the second passage")
-	}
-	w.hideLinkOffer()
-	if w.textEditor.Text() != script {
-		t.Error("Not Now changed the script")
-	}
-	w.closeMiddle("source")
-
-	// leaving the source's tab (it stays open) asks too
-	w1, _ := sourceWindow(t, sourceScript, sourceStory)
-	w1.openMiddle("source")
-	d1 := w1.midDoc()
-	at = runeAt(t, d1.Text(), "She opened")
-	d1.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+10, "pushed") })
-	w1.showMiddle("")
-	if !w1.linkOffer.box.Visible() || !w1.mid.has("source") {
-		t.Error("leaving the source's tab did not offer")
-	}
-
-	// the pane's Edit and Done
-	w2, _ := sourceWindow(t, sourceScript, sourceStory)
-	s := w2.sourcePane()
-	s.toggleEdit()
-	s.w.srcDoc.SetText(strings.Replace(sourceStory, "The next morning the garden", "Next day the garden", 1))
-	s.toggleEdit()
-	if !w2.linkOffer.box.Visible() {
-		t.Error("Done did not offer to update the link")
+		t.Error("not one undo step")
 	}
 }
 
 // TestMiddleScreenshots renders the middle's tabs, on the desktop and at
 // a phone's size (SHOT_DIR as in screenshot_test.go): the script alone,
 // Cards from View > Cards (a middle tab, nothing in the sidebar), then
-// Script + Cards + Source with each in front, the link offer, the notes,
-// the outline in the middle, the Cards pane beside the script.
+// Script + Cards + Source with each in front, its links written again,
+// the notes, the outline in the middle, the Cards pane beside the script.
 func TestMiddleScreenshots(t *testing.T) {
 	dir := os.Getenv("SHOT_DIR")
 	if dir == "" {
@@ -753,8 +689,7 @@ func TestMiddleScreenshots(t *testing.T) {
 		at := runeAt(t, d.Text(), "She opened")
 		d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+10, "pushed") })
 		d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
-		snap("5-link-offer")
-		w.hideLinkOffer()
+		snap("5-relinked")
 		w.openMiddle("notes")
 		w.midDoc().SetText("Anna's door: does it open inward?\n\n- the frost scene moves to the morning\n")
 		snap("6-notes")
@@ -766,23 +701,6 @@ func TestMiddleScreenshots(t *testing.T) {
 		w.backToSide("cards")
 		w.textEditor.SetCursorOffset(runeAt(t, w.textEditor.Text(), "EXT. GARDEN - NIGHT"))
 		snap("8-cards-pane")
-	}
-}
-
-// A link already near (the source changed since it was linked) is not
-// offered for an edit elsewhere: it keeps its words and its flag.
-func TestLinkFixesLeaveNearLinks(t *testing.T) {
-	old := passagesOf(sourceStory)
-	script := strings.Replace(sourceScript, "She opened the door to the garden and stepped…", "She opened a door to the garden and stepped…", 1)
-	if m := newSourceModel(old, script, nil); m.matches[0].Kind != linkNear {
-		t.Fatalf("the test's link is %v, not near", m.matches[0].Kind)
-	}
-	nw := passagesOf(strings.Replace(sourceStory, "The next morning the garden", "Next day the garden", 1))
-	edits, _, _ := linkFixes(script, old, nw)
-	for _, e := range edits {
-		if strings.Contains(string([]rune(script)[e.Start:e.End]), "She opened") {
-			t.Errorf("the near link was rewritten: %q", e.Text)
-		}
 	}
 }
 
@@ -857,6 +775,22 @@ func TestMiddleRenameAndJoin(t *testing.T) {
 	}
 }
 
+// withoutLinks is a script without its source links (what the source's
+// own edits leave as it is).
+func withoutLinks(text string) string {
+	for {
+		i := strings.Index(text, "[[from:")
+		if i < 0 {
+			return text
+		}
+		j := strings.Index(text[i:], "]]")
+		if j < 0 {
+			return text
+		}
+		text = text[:i] + text[i+j+2:]
+	}
+}
+
 // ex's :s and vim's keys act on the source in the middle, not the
 // script; Live Preview shows the source, and the script's tab in front
 // takes it away (a screenplay's preview is its pages).
@@ -881,7 +815,7 @@ func TestMiddleExVimPreview(t *testing.T) {
 	for _, r := range "dd" {
 		d.ed.TypedRune(r)
 	}
-	if strings.HasPrefix(d.Text(), "---\n") || w.textEditor.Text() != script {
+	if strings.HasPrefix(d.Text(), "---\n") || withoutLinks(w.textEditor.Text()) != withoutLinks(script) { // (its links follow the source: relink.go)
 		t.Errorf("dd: %q", strings.SplitN(d.Text(), "\n", 2)[0])
 	}
 	w.settings.SetString("editor-keys", "standard")

@@ -622,19 +622,21 @@ func matcherFor(ps []passage) *linkMatcher {
 	return lastMatcher.lm
 }
 
-// Writing: how long a new link's parts are, at least: short, so a link
-// reads as a range ("first words … last words"), grown by fragmentFor
-// until it finds its passages only. (Reading old links, cut entries'
-// old form, and near starts keep source.go's linkWords.) Three words of
-// textEnd leave a near end out (nearEnd needs four): an end edited in the
-// source makes the link missing rather than near, and Update Source
-// Links writes it again.
-const (
-	linkStartWords = 4 // textStart's words
-	linkEndWords   = 3 // textEnd's words
-	linkWholeWords = 7 // a passage this short is quoted whole, as textStart alone
-	maxContext     = 8 // a prefix's or suffix's words, at most
-)
+// Writing (Joop 2026-11-22: "checking shortest unique for start and
+// finish"): a new link is as short as it can be and still find its
+// passages alone. textStart is the fewest first words of the first
+// passage, textEnd the fewest last words of the last one, that make the
+// range find exactly these passages (fewest in all; of those as many,
+// the fewer end words); a passage no longer than that is quoted whole,
+// as textStart alone. When no words of the passages themselves tell them
+// from another place, the words before them (prefix-) or after them
+// (-suffix) do. The links are looked at again whenever the source
+// changes (relink.go): one the change made ambiguous grows then.
+//
+// (Reading old links, cut entries' old form, and near starts keep
+// source.go's linkWords.)
+
+const maxContext = 8 // a prefix's or suffix's words, at most
 
 // wordFields is how many of fs, from the start (or the end), hold n
 // words: fields of punctuation only (". . .") do not count.
@@ -655,13 +657,148 @@ func wordFields(fs []string, n int, fromEnd bool) int {
 	return len(fs)
 }
 
-// fragmentFor is a link to passages [i, j]: textStart the first
-// passage's first words (linkStartWords of them; all if it is short), textEnd
-// the last one's last words, written as they are in the source (the
-// browser compares the text). If that finds another place too: more of
-// textStart, then of textEnd; else the first words with the words
-// before (prefix-), or after (-suffix). unique is false if nothing tells
-// it apart; the directive then has both.
+// before reports whether a comes before word w of passage p.
+func (a wordAt) before(p, w int) bool { return int(a.p) < p || int(a.p) == p && int(a.w) < w }
+
+// shortestRange is the shortest textStart and textEnd that find
+// passages [i, j] alone (with the context pre and suf): ns of fi's
+// fields (the first passage's first block) and ne of fj's (the last
+// one's last block), ne 0 for fi quoted whole; ns 0 if none does. It
+// reads the index as findDir matches: textStart anywhere in a passage,
+// textEnd the first after it.
+func (lm *linkMatcher) shortestRange(i, j int, fi, fj []string, single bool, pre, suf []string) (ns, ne int) {
+	fx := lm.index()
+	fw := make([][]string, len(fi)) // each field's words
+	for k, f := range fi {
+		fw[k] = normWords(f)
+	}
+	wholeWords, lastField := 0, 0 // the whole's words; its last field with words, from 1
+	for k, w := range fw {
+		wholeWords += len(w)
+		if len(w) > 0 {
+			lastField = k + 1
+		}
+	}
+	var run []string // textStart's words
+	var cands []wordAt
+	best, bestNs, bestNe := 0, 0, 0
+	wholeOK := false
+	for k := 1; k <= len(fi); k++ {
+		if len(fw[k-1]) == 0 {
+			continue // punctuation only: no word more
+		}
+		first := len(run) == 0
+		run = append(run, fw[k-1]...)
+		if first {
+			for _, a := range fx.at[run[0]] {
+				if lm.prefixOK(int(a.p), int(a.w), pre) {
+					cands = append(cands, a)
+				}
+			}
+		}
+		kept := cands[:0]
+		for _, a := range cands {
+			if runAt(fx.words[a.p], int(a.w), run) {
+				kept = append(kept, a)
+			}
+		}
+		cands = kept
+		if !slices.Contains(cands, wordAt{int32(i), 0}) {
+			return 0, 0 // (the page's words are not the index's: findDir decides)
+		}
+		if single && k == lastField { // the whole: as textStart alone
+			wholeOK = true
+			for _, a := range cands {
+				if int(a.p) != i && lm.suffixOK(int(a.p), int(a.w)+len(run), suf) {
+					wholeOK = false
+					break
+				}
+			}
+			break
+		}
+		if best > 0 && len(run)+1 >= best {
+			break // no shorter with an end
+		}
+		// another passage before the last one with these words finds a
+		// range of its own; the first after it (later) must find no end
+		later, bad := wordAt{-1, -1}, false
+		for _, a := range cands {
+			if int(a.p) == i {
+				continue
+			}
+			if int(a.p) <= j {
+				bad = true
+			} else {
+				later = a
+			}
+			break
+		}
+		if bad {
+			continue
+		}
+		var end []string
+		for m := 1; m <= len(fj); m++ {
+			f := fj[len(fj)-m]
+			w := normWords(f)
+			if len(w) == 0 {
+				continue
+			}
+			if single && k+m >= len(fi) {
+				break // they would meet: the whole instead
+			}
+			end = append(slices.Clone(w), end...)
+			if best > 0 && len(run)+len(end) >= best {
+				break
+			}
+			if lm.endFinds(end, i, len(run), j, later, suf) {
+				best, bestNs, bestNe = len(run)+len(end), k, m
+				break
+			}
+		}
+	}
+	switch {
+	case wholeOK && (best == 0 || wholeWords <= best):
+		return len(fi), 0
+	case best > 0:
+		return bestNs, bestNe
+	}
+	return 0, 0
+}
+
+// endFinds reports whether textEnd end, after a textStart of n words
+// opening passage i, is first found in passage j; and finds none after
+// the textStart's first place past j (later; p -1 for none).
+func (lm *linkMatcher) endFinds(end []string, i, n, j int, later wordAt, suf []string) bool {
+	list := lm.fi.at[end[0]]
+	k := sort.Search(len(list), func(k int) bool { return !list[k].before(i, n) })
+	fits := func(a wordAt) bool {
+		return runAt(lm.fi.words[a.p], int(a.w), end) && lm.suffixOK(int(a.p), int(a.w)+len(end), suf)
+	}
+	for ; k < len(list); k++ {
+		if fits(list[k]) {
+			break
+		}
+	}
+	if k == len(list) || int(list[k].p) != j {
+		return false
+	}
+	if later.p < 0 {
+		return true
+	}
+	from := int(later.w) + n
+	k = sort.Search(len(list), func(k int) bool { return !list[k].before(int(later.p), from) })
+	for ; k < len(list); k++ {
+		if fits(list[k]) {
+			return false
+		}
+	}
+	return true
+}
+
+// fragmentFor is the shortest link to passages [i, j] (see Writing,
+// above), written as the source has the words (the browser compares the
+// text). unique is false if nothing tells them apart; the directive then
+// has a few words of each end and all the context there is.
 func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 	ps := lm.ps
 	bi, bj := blockFields(ps[i].shown()), blockFields(ps[j].shown())
@@ -677,54 +814,31 @@ func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 		mt := lm.matchRef(linkRef{Dir: d})
 		return mt.Kind == linkFound && mt.Passages[0] == i && mt.Last == j
 	}
-	// textStart's and textEnd's fields: [0, ns) of i, [len-ne, len) of j
-	ns, ne := wordFields(fi, linkStartWords, false), wordFields(fj, linkEndWords, true)
-	whole := single && len(fi) <= linkWholeWords
-	if whole {
-		ns, ne = len(fi), 0
-	}
 	mk := func(ns, ne int) textDirective {
-		if single && ns+ne >= len(fi) {
+		if single && ns+ne >= len(fi) || ne == 0 {
 			return textDirective{Start: join(fi, " ")}
 		}
-		d := textDirective{Start: join(fi[:ns], " ")}
-		if ne > 0 {
-			d.End = join(fj[len(fj)-ne:], " ")
-			// a range's inner edges need no punctuation (a word boundary is one): easier to read
-			d.Start = strings.TrimRight(d.Start, ",;:-–—")
-			d.End = strings.TrimLeft(d.End, ",;:-–—")
-			if normWords(d.Start) == nil || normWords(d.End) == nil {
-				return textDirective{Start: join(fi[:ns], " "), End: join(fj[len(fj)-ne:], " ")}
-			}
+		d := textDirective{Start: join(fi[:ns], " "), End: join(fj[len(fj)-ne:], " ")}
+		// a range's inner edges need no punctuation (a word boundary is one): easier to read
+		d.Start = strings.TrimRight(d.Start, ",;:-–—")
+		d.End = strings.TrimLeft(d.End, ",;:-–—")
+		if normWords(d.Start) == nil || normWords(d.End) == nil {
+			return textDirective{Start: join(fi[:ns], " "), End: join(fj[len(fj)-ne:], " ")}
 		}
 		return d
 	}
-	d = mk(ns, ne)
-	if ok(d) {
+	try := func(pre, suf string) (textDirective, bool) {
+		ns, ne := lm.shortestRange(i, j, fi, fj, single, normWords(pre), normWords(suf))
+		if ns == 0 {
+			return textDirective{}, false
+		}
+		d := mk(ns, ne)
+		d.Prefix, d.Suffix = pre, suf
+		return d, ok(d)
+	}
+	if d, good := try("", ""); good {
 		return d, true
 	}
-	short := d // with context: the words more did not help, fewer will not hurt
-	for ns < len(fi) {
-		ns++
-		if d = mk(ns, ne); ok(d) {
-			return d, true
-		}
-		if single && d.End == "" {
-			break
-		}
-	}
-	if !(single && d.End == "") {
-		for ne > 0 && ne < len(fj) {
-			ne++
-			if d = mk(ns, ne); ok(d) {
-				return d, true
-			}
-			if single && d.End == "" {
-				break
-			}
-		}
-	}
-	base := short
 	var before, after []string
 	if q := lm.index().prev[i]; q >= 0 {
 		if b := blockFields(ps[q].shown()); len(b) > 0 {
@@ -737,38 +851,39 @@ func fragmentFor(lm *linkMatcher, i, j int) (d textDirective, unique bool) {
 		}
 	}
 	for k := 1; k <= min(maxContext, len(before)); k++ {
-		d = base
-		d.Prefix = join(before[len(before)-k:], " ")
-		if len(normWords(d.Prefix)) == 0 {
-			continue
-		}
-		if ok(d) {
-			return d, true
+		if pre := join(before[len(before)-k:], " "); normWords(pre) != nil {
+			if d, good := try(pre, ""); good {
+				return d, true
+			}
 		}
 	}
 	for k := 1; k <= min(maxContext, len(after)); k++ {
-		d = base
-		d.Suffix = join(after[:k], " ")
-		if len(normWords(d.Suffix)) == 0 {
-			continue
-		}
-		if ok(d) {
-			return d, true
+		if suf := join(after[:k], " "); normWords(suf) != nil {
+			if d, good := try("", suf); good {
+				return d, true
+			}
 		}
 	}
-	d = base
+	var pre, suf string
 	if len(before) > 0 {
-		d.Prefix = join(before[len(before)-min(maxContext, len(before)):], " ")
+		pre = join(before[len(before)-min(maxContext, len(before)):], " ")
 	}
 	if len(after) > 0 {
-		d.Suffix = join(after[:min(maxContext, len(after))], " ")
+		suf = join(after[:min(maxContext, len(after))], " ")
 	}
-	if len(normWords(d.Prefix)) == 0 {
-		d.Prefix = ""
+	if normWords(pre) == nil {
+		pre = ""
 	}
-	if len(normWords(d.Suffix)) == 0 {
-		d.Suffix = ""
+	if normWords(suf) == nil {
+		suf = ""
 	}
+	if d, good := try(pre, suf); good {
+		return d, true
+	}
+	// nothing tells them apart (two passages alike, and their
+	// neighbours): a few words of each end, all the context there is
+	d = mk(wordFields(fi, 4, false), wordFields(fj, 3, true))
+	d.Prefix, d.Suffix = pre, suf
 	return d, ok(d)
 }
 

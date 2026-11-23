@@ -16,7 +16,16 @@ import (
 func TestMain(m *testing.M) {
 	defaultRole = roleProduction
 	defaultLook = "menus"
-	os.Exit(m.Run())
+	// what Accolade keeps in its data folder (kept sources, the sources
+	// links were looked at against: relink.go) never in the real one
+	data, err := os.MkdirTemp("", "accolade-data-")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("XDG_DATA_HOME", data)
+	code := m.Run()
+	os.RemoveAll(data)
+	os.Exit(code)
 }
 
 // lockedScript is a script locked for production and issued Blue.

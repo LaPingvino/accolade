@@ -52,15 +52,15 @@ On a narrow screen (a phone), the side panes go under the script as one row of t
 
 ## Links
 
-A link is a Fountain note in the scene, in the browsers' Text Fragment form. It holds the passage's own words: its first four words, and for a longer passage its last three after a comma (the range's comma). A comma in the story's own words is written `%2C`, so it is not read as the range's.
+A link is a Fountain note in the scene, in the browsers' Text Fragment form. It holds as few of the passage's own words as find it and nothing else in the story: its first words, then after a comma (the range's comma) its last words. Often one or two of each are enough; a short passage is quoted whole when that is no longer. A comma in the story's own words is written `%2C`, so it is not read as the range's.
 
 ```
 INT. KITCHEN - NIGHT
 
-[[from: #:~:text=She opened the door,into the rain.]]
+[[from: #:~:text=She opened,rain.]]
 ```
 
-The editor draws a link as a small chip, **↗ source** (or **↗ 3 passages** for a link to several). Point at it, or press and hold on a touch screen, to read its words as the story has them: "She opened the door … into the rain." Click it, or move the cursor into it, and the link's own text shows, to edit; it is a chip again when the cursor leaves.
+The editor draws a link as a small chip, **↗ source** (or **↗ 3 passages** for a link to several; **↗ 2 places** or **↗ source?** when it cannot find its passage alone, see below). Point at it, or press and hold on a touch screen, to read its words as the story has them: "She opened the door … into the rain." Click it, or move the cursor into it, and the link's own text shows, to edit; it is a chip again when the cursor leaves.
 
 Because a link holds words, not a line number, the story can change around it and the link still finds its passage.
 
@@ -70,9 +70,15 @@ Pick the passage in the pane, put the cursor in the scene, and choose Adaptation
 
 When the same words are in the story more than once, Accolade quotes more of the passage, or the words just before or after it (`text=said Anna.-,Yes.`). If two passages and their neighbours are exactly alike, the link cannot tell them apart and the status bar says so.
 
+Old links keep reading as they were; only new ones are written this short.
+
 ### When the source changes
 
-A link whose first words were edited in the source is still found if most of them are the same. A link to a longer passage holds only its last three words as well: if those change, the link is not found any more (its chip says **↗ source?**) until the scene is linked again. The pane then shows that passage's mark in the warning colour, and the count says how many are "changed since linked". Link the scene again to bring it up to date.
+Because links are short, a change to the story can break one: a new paragraph elsewhere with the same few words makes it fit two places, and editing the words it quotes loses it. So Accolade looks at every link again whenever the source changes: when you edit it in Accolade (as the cursor leaves the passage, at Done, or at Save), when its file changed and is read again, when you open a script whose source changed since it was last saved, and at Adaptation > Update Source Links. A link that no longer finds its passage alone, but whose passage is still there, is written again for it: lengthened, or re-anchored to its new words. That is one undo step, and the status bar says how many, for example "2 links lengthened".
+
+Some links cannot be fixed. When two passages and the words around them are exactly alike, the chip says **↗ 2 places**; when the passage was taken out of the story, it says **↗ source?**. Point at the chip to read why. The Source pane lists them too: the scene's links under its heading, and the scenes with such links in the line about the whole script. A link to a passage that was taken out keeps that passage's words, so it is found again if the passage comes back.
+
+Within a session, the pane still shows a passage whose words changed after it was linked in the warning colour, and the count says how many are "changed since linked": check those scenes against the story.
 
 ### Old links
 

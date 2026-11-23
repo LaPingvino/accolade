@@ -187,7 +187,7 @@ func (m *middle) show(id string) {
 	// clicking swap")
 	hadPreview := w.pagesVisible || w.previewVisible || m.keepPreview
 	if d := m.docs[m.shown]; d != nil { // leaving a document
-		w.offerLinkUpdate(d) // a passage's opening changed: the links quoting it
+		w.relinkAfterEdit(d) // the source edited: its links looked at again (relink.go)
 		d.ed.SetOffstage(true)
 	}
 	if w.searchBar != nil {
@@ -522,7 +522,7 @@ func (w *MainWindow) mainCursorMoved() {
 	if w.cardsDock != nil && w.paneInSight("cards") {
 		w.cardsDock.follow() // the passage's scenes' cards
 	}
-	w.linksOfferOnLeave()
+	w.relinkOnLeave()
 }
 
 // goToScript puts the script's cursor at the start of a line, the

@@ -244,7 +244,7 @@ func TestFragmentRange(t *testing.T) {
 	}
 	// written: the first passage's words to the last's
 	d, u := fragmentFor(lm, 1, 3)
-	if !u || d.Start != "She opened the door" || d.End != "into the rain." {
+	if !u || d.Start != "She opened" || d.End != "rain." { // "She" alone opens a passage before the last: a range of its own
 		t.Errorf("written range %+v %v", d, u)
 	}
 	// suggestions of neighbours are one range (a heading between is next to)
@@ -340,7 +340,8 @@ func TestFragmentBlockEntries(t *testing.T) {
 }
 
 // Adaptation > Update Source Links: old links and entries in the new form,
-// for the same passages, one undo step; the ambiguous and missing left.
+// for the same passages, one undo step, a near one re-anchored; the
+// ambiguous and missing left.
 func TestUpdateSourceLinks(t *testing.T) {
 	story := "# The Garden\n\nShe opened the door to the garden and the wind came in from the sea.\n\nThe rain kept falling.\n\nIt was late.\n\nThe rain kept falling.\n\n“Who's there?” Anna called, but nobody answered.\n"
 	script := "INT. HOUSE - NIGHT\n\nAnna. [[from: \"She opened the door to the garden and…\"]]\n\n" +
@@ -352,12 +353,12 @@ func TestUpdateSourceLinks(t *testing.T) {
 	w.updateSourceLinks()
 	text := w.textEditor.Text()
 	for _, want := range []string{
-		"Anna. [[from: #:~:text=She opened the door,from the sea.]]",
-		"[[from: \"The rain kept falling.\"]]",                                // ambiguous: as it was
-		"[[from: #:~:text=Who’s there? Anna called%2C but someone answered]]", // near: its words kept
+		"Anna. [[from: #:~:text=She,sea.]]",
+		"[[from: \"The rain kept falling.\"]]", // ambiguous: as it was
+		"[[from: #:~:text=“Who's,answered.]]",  // near: re-anchored to its passage's words
 		"[[from: \"Not in the story at all\"]]",
-		"skipped links:\n  INT. HOUSE - NIGHT = #:~:text=It was late.",
-		"cut:\n  #:~:text=late.-,The rain kept falling.",
+		"skipped links:\n  INT. HOUSE - NIGHT = #:~:text=It,late.",
+		"cut:\n  #:~:text=late.-,The,falling.",
 	} {
 		if !strings.Contains(text, want) {
 			t.Errorf("no %q in\n%s", want, text)
@@ -371,7 +372,7 @@ func TestUpdateSourceLinks(t *testing.T) {
 		t.Fatalf("links %d, were %d", len(after.matches), len(before.matches))
 	}
 	for i := range after.matches {
-		if a, b := after.matches[i], before.matches[i]; a.Kind != b.Kind || !slices.Equal(a.Passages, b.Passages) {
+		if a, b := after.matches[i], before.matches[i]; a.Kind != b.Kind && !(b.Kind == linkNear && a.Kind == linkFound) || !slices.Equal(a.Passages, b.Passages) {
 			t.Errorf("link %d: %+v, was %+v", i, a, b)
 		}
 	}
@@ -603,10 +604,10 @@ func TestFragmentFileNames(t *testing.T) {
 	}
 }
 
-// New links start short (linkStartWords first words, linkEndWords last,
-// whole up to linkWholeWords) and grow only until they find their passage
-// alone: on the sample's story and on the bench novel, each written link
-// finds its passage and only it.
+// New links are the shortest that find their passage alone: on the
+// sample's story and on the bench novel, each written link finds its
+// passage and only it, and one word less of its start or its end does
+// not.
 func TestShortLinksUnique(t *testing.T) {
 	zr, err := zip.NewReader(bytes.NewReader(sampleAccolade), int64(len(sampleAccolade)))
 	if err != nil {
@@ -625,7 +626,30 @@ func TestShortLinksUnique(t *testing.T) {
 	for _, c := range []struct{ name, md string }{{"sample", story}, {"novel", novel}} {
 		ps := passagesOf(c.md)
 		lm := newLinkMatcher(ps)
-		linkable, grown, alike := 0, 0, 0
+		linkable, words, alike := 0, 0, 0
+		finds := func(d textDirective, i int) bool {
+			mt := lm.matchRef(linkRef{Dir: d})
+			return mt.Kind == linkFound && mt.Passages[0] == i && mt.last() == i
+		}
+		less := func(term string, fromEnd bool) (string, bool) { // a word less: its first or last field with words
+			fs := strings.Fields(term)
+			if len(normWords(term)) < 2 {
+				return "", false
+			}
+			n := wordFields(fs, len(fs), fromEnd) // all
+			for k := 1; k < n; k++ {
+				var cut []string
+				if fromEnd {
+					cut = fs[k:]
+				} else {
+					cut = fs[:len(fs)-k]
+				}
+				if w := normWords(strings.Join(cut, " ")); len(w) < len(normWords(term)) && len(w) > 0 {
+					return strings.Join(cut, " "), true
+				}
+			}
+			return "", false
+		}
 		for i, p := range ps {
 			if !p.linkable() {
 				continue
@@ -636,21 +660,24 @@ func TestShortLinksUnique(t *testing.T) {
 				alike++ // a passage that reads as another one does, word for word
 				continue
 			}
-			if mt := lm.matchRef(linkRef{Dir: d}); mt.Kind != linkFound || mt.Passages[0] != i || mt.last() != i {
-				t.Errorf("%s: passage %d's link %+v finds %+v", c.name, i, d, mt)
+			if !finds(d, i) {
+				t.Errorf("%s: passage %d's link %+v finds %+v", c.name, i, d, lm.matchRef(linkRef{Dir: d}))
 			}
-			ws, we := len(normWords(d.Start)), len(normWords(d.End))
-			if d.End == "" && ws > 0 && we == 0 && ws <= linkWholeWords {
-				ws = 0 // quoted whole
-			}
-			if d.End != "" && we == 0 {
+			if d.End != "" && normWords(d.End) == nil {
 				t.Errorf("%s: passage %d's link ends in no words: %+v", c.name, i, d)
 			}
-			if d.Prefix != "" || d.Suffix != "" || ws > linkStartWords || we > linkEndWords {
-				grown++
+			words += len(normWords(d.Start)) + len(normWords(d.End))
+			if d.End == "" || d.Prefix != "" || d.Suffix != "" {
+				continue // quoted whole, or with context
+			}
+			if s, ok := less(d.Start, false); ok && finds(textDirective{Start: s, End: d.End}, i) {
+				t.Errorf("%s: passage %d's link %+v finds it with the start %q", c.name, i, d, s)
+			}
+			if e, ok := less(d.End, true); ok && finds(textDirective{Start: d.Start, End: e}, i) {
+				t.Errorf("%s: passage %d's link %+v finds it with the end %q", c.name, i, d, e)
 			}
 		}
-		t.Logf("%s: %d passages linkable, %d links grew past the short start, %d alike (not unique)", c.name, linkable, grown, alike)
+		t.Logf("%s: %d passages linkable, %.2f words a link, %d alike (not unique)", c.name, linkable, float64(words)/float64(max(1, linkable-alike)), alike)
 		if c.name == "sample" && linkable < 25 {
 			t.Errorf("the sample's story has %d passages", linkable)
 		}

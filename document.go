@@ -96,8 +96,7 @@ type document struct {
 	// moving: its home is moving (Keep Source in the Script), not going
 	fromHome, writing, moving bool
 	// linkBase is a source's text as its links were last looked at
-	// (source_links_offer.go): what an edit of a passage's opening is
-	// measured from; atPassage the passage its cursor was in (-1 none),
+	// (relink.go): what an edit of the source is measured from; atPassage the passage its cursor was in (-1 none),
 	// seenRev its text's revision then
 	linkBase  string
 	atPassage int

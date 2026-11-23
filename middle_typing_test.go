@@ -238,43 +238,10 @@ func TestMiddleFolds(t *testing.T) {
 	}
 }
 
-// A passage's opening edited: the adaptation block's entries naming it
-// (cut:, the old form's words or the new form's) are offered with the
-// links, written for its new words in the same undo step.
-func TestLinkFixesCuts(t *testing.T) {
-	old := passagesOf(sourceStory)
-	start, end, block := withAdaptationBlock(sourceScript, "cut:\n  \"She opened the door\"\n  \"The next morning\"")
-	script := []rune(sourceScript)
-	text := string(script[:start]) + block + string(script[end:])
-	nw := passagesOf(strings.Replace(sourceStory, "She opened the door to the garden", "She pushed open the door of the garden", 1))
-	edits, links, entries := linkFixes(text, old, nw)
-	if links != 1 || entries != 1 {
-		t.Fatalf("%d links, %d entries (want 1, 1): %v", links, entries, edits)
-	}
-	got := []rune(text)
-	for _, e := range edits { // the last first
-		got = append(append(append([]rune(nil), got[:e.Start]...), []rune(e.Text)...), got[e.End:]...)
-	}
-	inside, ok := adaptationBlock(string(got))
-	if !ok {
-		t.Fatalf("no block: %q", string(got))
-	}
-	cuts := parseCuts(inside)
-	at := passageNamed(t, nw, "She pushed")
-	if len(cuts) != 2 || resolveCut(cuts[0], nw) != (cutSpan{at, at}) {
-		t.Errorf("the cut entry %v does not name the passage %d now: %q", cuts, at, inside)
-	}
-	if cuts[1].String() != `"The next morning"` {
-		t.Errorf("the other entry changed: %q", cuts[1].String())
-	}
-	if s := fixesSaid(links, entries); s != "1 link and 1 entry of the adaptation block" {
-		t.Errorf("said %q", s)
-	}
-}
-
-// The offer for an entry alone: no link quotes the passage, its cut:
-// entry does; the notice says so, Update writes it as one undo step.
-func TestLinkOfferCutOnly(t *testing.T) {
+// An entry alone: no link quotes the passage, its cut: entry does; the
+// cursor leaving the passage edited in the source's tab writes it again,
+// one undo step.
+func TestRelinkCutOnly(t *testing.T) {
 	var kept []string
 	for _, l := range strings.Split(sourceScript, "\n") {
 		if i := strings.Index(l, "[[from:"); i >= 0 { // no links
@@ -290,13 +257,12 @@ func TestLinkOfferCutOnly(t *testing.T) {
 	w.openMiddle("source")
 	d := w.midDoc()
 	at := runeAt(t, d.Text(), "The next morning")
+	before := w.textEditor.Text()
 	d.ed.Edit(func(b *buffer.Buffer) { b.Replace(at+4, at+8, "following") }) // "The following morning"
 	d.ed.SetCursorOffset(0)
-	if !w.linkOffer.box.Visible() || !strings.Contains(w.linkOffer.text.Text, "1 entry of the adaptation block in the script quotes") {
-		t.Fatalf("the offer: %q", w.linkOffer.text.Text)
+	if !strings.Contains(w.statusText(), "1 entry of the adaptation block written again") {
+		t.Errorf("status %q", w.statusText())
 	}
-	before := w.textEditor.Text()
-	w.updateOfferedLinks()
 	inside, _ := adaptationBlock(w.textEditor.Text())
 	cuts := parseCuts(inside)
 	nw := passagesOf(d.Text())

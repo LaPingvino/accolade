@@ -11,7 +11,9 @@ import (
 
 // Source links as chips (LOOP.md, Joop 2026-11-20): in the script's
 // editor a [[from: …]] note is drawn as a small chip, "↗ source" (or
-// "↗ 3 passages" for a link to a range, or a note naming several), its
+// "↗ 3 passages" for a link to a range, or a note naming several; a
+// warning, "↗ source?" or "↗ 2 places", for one that cannot find its
+// passage alone), its
 // quote decoded on hover or a long press: the words as the source has
 // them, commas and all, a range as "first words … last words". The
 // Text Fragments form, percent-encoding and all (textfrag.go), is the
@@ -113,17 +115,20 @@ func lineChips(line string, lm *linkMatcher, refs *[]linkRef) []editor.Chip {
 		e += s + 2
 		if *refs = appendLinkRefs((*refs)[:0], line[s+2:e-2]); len(*refs) > 0 {
 			start := utf8.RuneCountInString(line[:s])
-			label, tip := chipText(*refs, lm)
-			out = append(out, editor.Chip{Start: start, End: start + utf8.RuneCountInString(line[s:e]), Label: label, Tip: tip})
+			label, tip, warn := chipText(*refs, lm)
+			out = append(out, editor.Chip{Start: start, End: start + utf8.RuneCountInString(line[s:e]), Label: label, Tip: tip, Warn: warn})
 		}
 		at = e
 	}
 	return out
 }
 
-// chipText is a link's chip, and its tip: the quote, decoded.
-func chipText(refs []linkRef, lm *linkMatcher) (label, tip string) {
-	n, lost := 0, false
+// chipText is a link's chip, and its tip: the quote, decoded. A link
+// that cannot find its passages alone warns (relink.go): "↗ source?" for
+// one not found, "↗ 2 places" for one that fits more than one place, the
+// tip saying why.
+func chipText(refs []linkRef, lm *linkMatcher) (label, tip string, warn bool) {
+	n, lost, places := 0, false, 0
 	quotes := make([]string, 0, len(refs))
 	for _, r := range refs {
 		quotes = append(quotes, readableQuote(r))
@@ -131,15 +136,20 @@ func chipText(refs []linkRef, lm *linkMatcher) (label, tip string) {
 			n++
 			continue
 		}
-		if mt := lm.matchRef(r); mt.found() {
+		switch mt := lm.matchRef(r); {
+		case mt.found():
 			n += mt.last() - mt.Passages[0] + 1
-		} else {
+		case mt.Kind == linkAmbiguous:
+			places = max(places, len(mt.Passages))
+		default:
 			lost = true
 		}
 	}
 	switch {
 	case lost:
 		label = "↗ source?"
+	case places > 1:
+		label = "↗ " + groupDigits(places) + " places"
 	case n > 1:
 		label = "↗ " + groupDigits(n) + " passages"
 	default:
@@ -148,11 +158,14 @@ func chipText(refs []linkRef, lm *linkMatcher) (label, tip string) {
 	tip = strings.Join(quotes, "\n")
 	switch {
 	case lost:
-		tip += "\n(not found in the source as it is now: Adaptation > Update Source Links)"
+		tip += "\n(not in the source as it is now: its passage was taken out, or its words changed past finding)"
+	case places > 1:
+		tip += "\n(fits " + groupDigits(places) + " places in the source alike, and nothing around them tells them apart: " +
+			"which one the scene adapts is not known)"
 	case lm != nil && n > 1:
 		tip += "\n(" + groupDigits(n) + " passages of the source)"
 	}
-	return label, tip
+	return label, tip, lost || places > 1
 }
 
 // readableQuote is what a link names as a writer reads it: its words

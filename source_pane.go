@@ -70,14 +70,19 @@ type sourcePane struct {
 	doubt      map[int]bool // an ambiguous link of the scene's fits them
 	jumping    bool         // the cursor is moving because of a tap here
 
-	statuses     []passageStatus     // as the rows show them (adaptation.go)
-	changed      map[int]bool        // adapted passages changed since they were linked
-	linkedWords  map[string][]string // each link's passage's words as first seen linked (by the link's words)
-	sugg         suggestions         // links offered (adaptation_suggest.go)
-	seedAsked    bool                // an unwritten script offered to start from the source
-	fresh        bool                // the source just read: the list not scrolled yet
-	offered      int                 // the passage Next showed last (-1 none)
-	offeredWords []string            // its words, to find it again
+	statuses    []passageStatus     // as the rows show them (adaptation.go)
+	changed     map[int]bool        // adapted passages changed since they were linked
+	linkedWords map[string][]string // each link's passage's words as first seen linked (by the link's words)
+	// linkedSrc is the source's text the script's links were last looked
+	// at against (relink.go), for linkedRef; snapWritten the one last kept
+	// for the script's next opening
+	linkedSrc, snapWritten string
+	linkedRef              sourceRef
+	sugg                   suggestions // links offered (adaptation_suggest.go)
+	seedAsked              bool        // an unwritten script offered to start from the source
+	fresh                  bool        // the source just read: the list not scrolled yet
+	offered                int         // the passage Next showed last (-1 none)
+	offeredWords           []string    // its words, to find it again
 
 	reading    *storyread.Reading // what the source shows (source_reading.go)
 	readingFor string
@@ -577,6 +582,7 @@ type sourceRead struct {
 	size    int64
 	src     string
 	err     error
+	disk    bool // read from its file (not an open document's text, nor the script's)
 }
 
 func (r *sourceRead) same(o *sourceRead) bool {
@@ -602,6 +608,7 @@ func (s *sourcePane) loadSource(background bool) {
 	}
 	var src string
 	var err error
+	disk := false
 	if open := s.w.srcDoc; ref.Origin == sourceInside || ref.Origin == sourceBundle || open != nil && open.ref == ref { // in memory (an open document's text)
 		src, _ = s.w.sourceText(ref)
 		if ref == s.ref && sameString(src, s.src) {
@@ -614,8 +621,9 @@ func (s *sourcePane) loadSource(background bool) {
 			return
 		}
 		src, err = s.w.sourceText(ref)
+		disk = true
 	}
-	r := &sourceRead{ref: ref, modTime: mod, size: size, src: src, err: err}
+	r := &sourceRead{ref: ref, modTime: mod, size: size, src: src, err: err, disk: disk}
 	if !background || len(src) < backgroundSource {
 		s.loading = nil
 		s.use(r, passagesOf(src))
@@ -637,6 +645,7 @@ func (s *sourcePane) loadSource(background bool) {
 
 // use shows a source read, parted into passages.
 func (s *sourcePane) use(r *sourceRead, ps []passage) {
+	defer s.relinkRead(r, s.ref, s.src, ps) // the links looked at again for the source as it is now (relink.go)
 	if (r.ref.Origin == sourceInside) != (s.ref.Origin == sourceInside) {
 		s.w.refreshMenu() // Keep Source in the Script (an undo can change it)
 	}
@@ -816,19 +825,18 @@ func (s *sourcePane) follow() {
 				first = mt.Passages[0]
 			}
 			if mt.Kind == linkNear || changedIn(s.changed, mt) {
-				problems = append(problems, q+": the source changed since it was linked; "+
-					"check the scene, then Link to Source Passage again")
+				problems = append(problems, q+": the source changed since it was linked; check the scene")
 			}
 		case linkAmbiguous:
 			for _, p := range mt.Passages {
 				doubt[p] = true
 			}
-			problems = append(problems, fmt.Sprintf("%s fits %d passages: quote more of it", q, len(mt.Passages)))
+			problems = append(problems, fmt.Sprintf("%s fits %d places in the source alike: nothing tells which the scene adapts", q, len(mt.Passages)))
 		case linkMissing:
 			if bad := m.links[i].Ref.Bad; bad != "" {
 				problems = append(problems, "A link cannot be read: "+bad)
 			} else {
-				problems = append(problems, q+" is not in the source")
+				problems = append(problems, q+" is not in the source: its passage was taken out, or its words changed past finding")
 			}
 		}
 	}
@@ -845,7 +853,7 @@ func (s *sourcePane) follow() {
 		info += "\n" + strings.Join(problems, "\n")
 	}
 	if a, n := m.count(linkAmbiguous), m.count(linkMissing); a+n > 0 {
-		info += fmt.Sprintf("\nIn the script: %d of %d links ambiguous, %d not found", a, len(m.links), n)
+		info += fmt.Sprintf("\nIn the script: %d of %d links ambiguous, %d not found", a, len(m.links), n) + m.warnedWhere()
 	}
 	s.setInfo(info)
 	if !sameSet(lit, s.lit) || !sameSet(doubt, s.doubt) {
@@ -1147,7 +1155,7 @@ func (s *sourcePane) toggleEdit() {
 		return
 	}
 	d := s.w.srcDoc
-	s.w.offerLinkUpdate(d) // its passages' openings changed: the links quoting them
+	s.w.relinkAfterEdit(d) // the source edited: its links looked at again (relink.go)
 	if err := s.w.closeDoc(d); err != nil {
 		dialog.ShowError(err, s.w.fyneWindow)
 		return

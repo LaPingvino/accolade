@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"slices"
 	"strings"
 	"sync"
@@ -135,7 +136,7 @@ type sourceLink struct {
 
 // linkWords is the number of first words an old-form link (or cut
 // entry) quotes, at least: enough to find a passage again. New links,
-// in the Text Fragments form, start shorter (textfrag.go's linkStartWords).
+// in the Text Fragments form, are as short as find their passage alone (textfrag.go's fragmentFor).
 const linkWords = 8
 
 // parseLinks finds the source links in a script: not in a boneyard
@@ -530,6 +531,37 @@ func (m *sourceModel) linked(p int) []int {
 	}
 	slices.Sort(lines)
 	return lines
+}
+
+// warnedWhere is where the links that warn are (ambiguous or not
+// found): " (in INT. HOUSE - NIGHT, …)", the first scenes, "" if none.
+func (m *sourceModel) warnedWhere() string {
+	var at []string
+	more := 0
+	for i, mt := range m.matches {
+		if mt.found() {
+			continue
+		}
+		h := spanAt(m.spans, m.links[i].Line).Heading
+		if h == "" {
+			h = "before the first scene"
+		}
+		switch {
+		case slices.Contains(at, h):
+		case len(at) < 3:
+			at = append(at, h)
+		default:
+			more++
+		}
+	}
+	if len(at) == 0 {
+		return ""
+	}
+	s := " (in " + strings.Join(at, ", ")
+	if more > 0 {
+		s += fmt.Sprintf(" and %d more", more)
+	}
+	return s + ")"
 }
 
 // count is how many links matched so.

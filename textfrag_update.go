@@ -3,16 +3,14 @@ package main
 import (
 	"fmt"
 	"slices"
-
-	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
 // Adaptation > Update Source Links: the old form's links and block entries
 // ([[from: "…"]], cut: "…" (2)) written in the new one (textfrag.go), in
-// one undo step. Only what is found is written again, for the passages
-// it found (a near one keeps its words, so it still says the source
-// changed); an ambiguous or missing link, or one the new form cannot
-// tell from another place, stays as it was.
+// one undo step, for the passages they find; a link of either form that
+// only nearly finds its passages is re-anchored to their words now
+// (relink.go). An ambiguous or missing link, or one the new form cannot
+// tell from another place, stays as it was (its chip warns).
 
 // linkEdit is a piece of the script replaced: [Start, End) in runes.
 type linkEdit struct {
@@ -24,27 +22,36 @@ type linkEdit struct {
 // first; how many links and entries were written anew, and how many were
 // left as they were.
 func updateLinksEdits(text string, lm *linkMatcher) (edits []linkEdit, updated, left int) {
-	newNote := func(r linkRef, mt linkMatch) (string, bool) {
-		switch mt.Kind {
-		case linkFound:
-			return linkNoteFor(lm, mt.Passages[0], mt.last())
-		case linkNear: // its words kept: still near, still flagged
-			nr := linkRef{Dir: textDirective{Start: r.Quote}}
-			if again := lm.matchRef(nr); again.found() && again.Passages[0] == mt.Passages[0] {
-				return fragmentNote("", []textDirective{nr.Dir}), true
+	links := parseLinks(text)
+	for a := 0; a < len(links); {
+		b := a // the note's links: one note may hold several directives
+		for b < len(links) && links[b].Start == links[a].Start {
+			b++
+		}
+		note := links[a:b]
+		a = b
+		var dirs []textDirective
+		changed := false
+		for _, l := range note {
+			dir := l.Ref.Dir
+			if l.Ref.Old {
+				dir = textDirective{Start: l.Ref.Quote}
 			}
+			if mt := lm.matchRef(l.Ref); l.Ref.Bad == "" && (mt.Kind == linkNear || l.Ref.Old && mt.Kind == linkFound) {
+				if d, unique := fragmentFor(lm, mt.Passages[0], mt.last()); unique {
+					dir, changed = d, true
+					updated++
+					dirs = append(dirs, dir)
+					continue
+				}
+			}
+			if l.Ref.Old {
+				left++
+			}
+			dirs = append(dirs, dir)
 		}
-		return "", false
-	}
-	for _, l := range parseLinks(text) {
-		if !l.Ref.Old {
-			continue
-		}
-		if note, ok := newNote(l.Ref, lm.matchRef(l.Ref)); ok {
-			edits = append(edits, linkEdit{l.Start, l.End, note})
-			updated++
-		} else {
-			left++
+		if changed {
+			edits = append(edits, linkEdit{note[0].Start, note[0].End, fragmentNote(note[0].Ref.File, dirs)})
 		}
 	}
 	// the block: cut: and skipped links:
@@ -115,21 +122,7 @@ func (w *MainWindow) updateSourceLinks() {
 	e := w.textEditor
 	edits, updated, left := updateLinksEdits(e.Text(), matcherFor(s.passages))
 	if len(edits) > 0 {
-		e.Edit(func(b *buffer.Buffer) {
-			b.Group(func() {
-				cursor := b.Cursor()
-				for _, ed := range edits { // the last first: the offsets before stay
-					b.Replace(ed.Start, ed.End, ed.Text)
-					switch {
-					case cursor >= ed.End:
-						cursor += len([]rune(ed.Text)) - (ed.End - ed.Start)
-					case cursor > ed.Start:
-						cursor = ed.Start
-					}
-				}
-				b.SetCursor(cursor, false)
-			})
-		})
+		w.applyLinkEdits(edits)
 	}
 	switch {
 	case updated == 0 && left == 0:

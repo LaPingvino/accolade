@@ -154,7 +154,7 @@ func TestBlockFoldScreenshots(t *testing.T) {
 		shotTo(t, w, "folds-omitted-"+size.name)
 		e.SetCursorOffset(strings.Index(e.Text(), "Noon heat"))
 		shotTo(t, w, "chips-top-"+size.name)
-		e.SetCursorOffset(strings.Index(e.Text(), "superintendent Otchumyelov,"))
+		e.SetCursorOffset(strings.Index(e.Text(), "#:~:text=THE,near") + 10)
 		shotTo(t, w, "chips-raw-"+size.name)
 		e.SetCursorOffset(strings.Index(e.Text(), "Yes. [[from"))
 	}

@@ -1239,3 +1239,27 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the first adapted section, gaps between) offered one at a time as a quiet line "Enkonduko (9 paragraphs) isn't in
   the script — Mark as Cut?"; (5) Adaptation › Link Up the Script… does it all at once in a review list for when the
   writer wants that. Measure on Joop's copy: scenes guessed right / wrong / silent, and report.
+- 2026-11-23: shortest unique links (branch shortlinks, not merged; Joop 2026-11-22: "checking shortest unique
+  for start and finish … auto-fix … when impossible signal this with a warning"). fragmentFor writes the fewest
+  first words and fewest last words that find the passage(s) alone (read off the word index, confirmed by
+  findDir; a short passage whole when that is no longer; prefix-/-suffix only when nothing inside tells it
+  apart); the 4+3 constants are gone. Lengths (words in text=, all passages linked singly): sample 6.45 → 3.10,
+  novel 6.96 → 3.75; the sample's 100 script links 7.2 → 3.7 words (43.8 → 25.2 chars). relink.go replaces the
+  Update Links / Not Now notice (source_links_offer.go deleted): whenever the source changes (the cursor leaving an
+  edited passage, the pane's Done, Save, the file read again, Update Source Links, a script opened whose source
+  changed since it was saved) every link is looked at; one that found its passage(s) before and does not now is
+  lengthened or re-anchored at once, one undo step, status "The source changed: 2 links lengthened, 1
+  re-anchored". alignPassages now maps by content (ends, unique same-words anchors on the longest in-order run,
+  moved ones, then mutual-best order-aware likeness ≥ 0.6) and never by place alone. Can't be fixed: chip "↗ 2
+  places" / "↗ source?" in the warning colour (editor.Chip.Warn), tooltip says why, pane lists the scenes; a link
+  that would find another passage is written so it doesn't (alike: their shared words + context; gone: up to 8+8
+  old words + context, found again if they come back). New on-disk store: <data>/accolade/links/<hash of script
+  path>.md, the source as the script's links were last looked at, written on open (first time) and on Save; tests
+  get a temp XDG_DATA_HOME in TestMain. Tests: TestRelinkProperty (30 seeds × 40 steps of add/delete/edit/copy/
+  move on a 32-word vocabulary; 400 seeds pass), Reanchors, Lengthens, Impossible, InWindow, AlignPassages,
+  minimality in TestShortLinksUnique. Bench (BenchmarkScriptKey/sample, -count 5, load ~7): 3.39 → 3.12 ms median,
+  allocs 5809 → 5783. Shots: SHOT_DIR=… go test -run TestRelinkScreenshots. Open: near links are re-anchored on any
+  source change, so the cross-session "changed since linked" flag a near link carried is gone (kept within a
+  session through linkedWords); short links almost never match approximately (near needs 4 words), so a quoted
+  word edited outside Accolade with no saved base (never saved since) gives "↗ source?" until linked again; an
+  ambiguous link that later resolves (its twin edited) follows whichever still matches.

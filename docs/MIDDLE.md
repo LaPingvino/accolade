@@ -176,16 +176,16 @@ Kept as they are, and why:
   opens it there (not the pane), as do the outline's Cards button (`toggleCards`) and the pane's full-view
   button; the view's Back to the Script brings the script's tab to the front, Back to the Side on its tab makes
   it the pane again.
-- **Updating the links** (source_links_offer.go). Say the source's text changed where a passage opens, and the
-  writer then leaves that passage in the main editor, presses the Source pane's Done, or saves. Then
-  `linkFixes` compares the passages before and after: the same ones before and after the change, and those
-  between them in order (`alignPassages`). It finds the script's `[[from:]]` links that found a changed
-  passage and no longer find exactly it. A notice above the status bar says how many there are and offers
-  **Update Links** or **Not Now**. Update writes each such link in the new form for the passage's new words
-  (`fragmentFor`), all in one undo step of the script's. A link that cannot be told apart from another place
-  stays as it was. The adaptation block's entries naming a changed passage (cut:, skipped links:) are offered and
-  written with the links, by the same rules (`fixedCut`), in the same undo step. Nothing is changed without the
-  writer's yes.
+- **Updating the links** (relink.go; Joop 2026-11-22, replacing the earlier Update Links / Not Now notice).
+  When the source's text changed and the writer then leaves the passage in the source's middle tab, leaves that tab, presses the Source
+  pane's Done, or saves, `relinkFixes` compares the passages before and after (`alignPassages`: the same ones at
+  both ends, those there once on each side with the same words, the edited ones most alike in their stretch). A
+  link that found its passages before and no longer finds exactly them is written again at once for where they
+  are now (`fragmentFor`: lengthened or re-anchored), all in one undo step of the script's, the status line
+  saying how many. One that cannot be told apart, or whose passages are gone, warns (its chip, "↗ 2 places" /
+  "↗ source?"). The adaptation block's entries the same, in the same undo step. The same runs when the source's
+  file is read again, and when a script is opened whose source changed since it was saved (the source then is
+  kept in Accolade's data folder, `links/`, by the script's path).
 - The header's editing row for a document in the main editor is Markdown's without Start a Screenplay
   (`docRow`): the window has a screenplay already.
 
@@ -249,8 +249,10 @@ what waits for the pause (the Script tab) ≈3 ms.
 - `TestMiddleTogether`, `TestMiddleNotesTogether`, `TestMiddleTypingTogether`: two windows over the loopback.
 - `TestCharactersInTheMiddle`, `TestAdaptScriptAway` (the → to a scene brings the script's tab forward and
   flashes it), `TestKeepSourceInsideWhileOpen`, `TestMiddleRenameAndJoin`, `TestMiddleExVimPreview`,
-  `TestMiddleFolds`, `TestMiddleSpanWrite`, `TestLinkFixes`, `TestLinkOffer` (also on leaving the source's tab),
-  `TestLinkFixesCuts`, `TestLinkOfferCutOnly`, `TestPassageLines`.
+  `TestMiddleFolds`, `TestMiddleSpanWrite`, `TestPassageLines`.
+- `TestRelinkReanchors`, `TestRelinkInWindow` (relink_test.go): the edits for a passage changed (none when
+  nothing changed); written at once when the cursor leaves the passage, one undo step; the pane's Done, the
+  file read again, a script opened after its source changed.
 - `TestMiddleScreenshots` (SHOT_DIR): desktop and phone: the script alone, View > Cards, Script + Cards + Source
-  with each in front, the link offer, the notes, the outline in the middle, the Cards pane back to the side.
+  with each in front, its links written again, the notes, the outline in the middle, the Cards pane back to the side.
 - `TestTakeChange` (internal/editor/buffer), `TestOffstage` (internal/editor).

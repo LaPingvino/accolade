@@ -181,8 +181,8 @@ func TestFragmentForUnique(t *testing.T) {
 		t.Errorf("found as %+v", m)
 	}
 	d, _ = fragmentFor(newLinkMatcher(passagesOf(sourceStory)), 2, 2)
-	if d.Start != "She opened the door" || d.End != "into the rain." {
-		t.Errorf("four words and the end's three: %+v", d)
+	if d.Start != "She" || d.End != "rain." {
+		t.Errorf("the fewest first and last words: %+v", d)
 	}
 	if d, unique := fragmentFor(lm, 3, 3); !unique || d.Prefix != "Short." || d.Start != "Short." {
 		t.Errorf("the second Short. by its prefix: %+v %v", d, unique)
@@ -443,7 +443,7 @@ func TestLinkInserted(t *testing.T) {
 	s.list.Select(door)
 	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(4))
 	w.linkToSource()
-	note := `[[from: #:~:text=She opened the door,into the rain.]]`
+	note := `[[from: #:~:text=She,rain.]]`
 	want := "INT. HOUSE - NIGHT\n\nShe looks out.\n\n" + note + "\n\nANNA\nWho's there?\n"
 	if got := w.textEditor.Text(); got != want {
 		t.Fatalf("on an empty line:\n%q\nwant\n%q", got, want)
@@ -452,7 +452,7 @@ func TestLinkInserted(t *testing.T) {
 	s.list.Select(who)
 	w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineEnd(lineWith(t, w, "Who's there?")))
 	w.linkToSource()
-	if l := w.textEditor.Buffer().Line(lineWith(t, w, "Who's there?")); l != `Who's there? [[from: #:~:text="Who's there?" Anna called%2C but nobody answered.]]` {
+	if l := w.textEditor.Buffer().Line(lineWith(t, w, "Who's there?")); l != `Who's there? [[from: #:~:text="Who's,answered.]]` {
 		t.Errorf("after dialogue: %q", l)
 	}
 	// a scene heading: below it
@@ -503,7 +503,7 @@ func TestCursorLightsPassages(t *testing.T) {
 	if !sameSet(s.lit, map[int]bool{morning: true}) || len(s.doubt) != 2 {
 		t.Errorf("EXT. GARDEN - DAY: lit %v doubt %v", s.lit, s.doubt)
 	}
-	for _, said := range []string{"fits 2 passages", "is not in the source", "1 not found"} {
+	for _, said := range []string{"fits 2 places", "is not in the source", "1 not found"} {
 		if !strings.Contains(s.info.Text, said) {
 			t.Errorf("info does not say %q:\n%s", said, s.info.Text)
 		}

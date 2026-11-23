@@ -179,6 +179,7 @@ type ScriptEditor struct {
 type Chip struct {
 	Start, End int
 	Label, Tip string
+	Warn       bool // drawn in the warning colour (a link that cannot find its passage alone)
 }
 
 // Fold is a fold of lines: those in [From, To) hidden under the
@@ -206,7 +207,7 @@ type drawing struct {
 	th                                       fyne.Theme
 	v                                        fyne.ThemeVariant
 	selected, cursor, highlight, number      *widget.CustomTextGridStyle
-	chip                                     *widget.CustomTextGridStyle // a chip's label
+	chip, chipWarn                           *widget.CustomTextGridStyle // a chip's label; a warning chip's
 	flash                                    color.Color
 	selStart, selEnd, curRow, curCol, gutter int
 	others                                   []buffer.Span // more selections
@@ -550,7 +551,10 @@ func (e *ScriptEditor) relayout() {
 	flash := color.NRGBA{R: uint8(fr >> 8), G: uint8(fg >> 8), B: uint8(fb >> 8), A: 0x50}
 	chip := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePrimary, v),
 		BGColor: color.NRGBA{R: uint8(fr >> 8), G: uint8(fg >> 8), B: uint8(fb >> 8), A: 0x28}}
-	e.draw = drawing{chip: chip, flash: flash, text: text, kinds: kinds, inline: inline, lineStart: lineStart, th: th, v: v, selected: selected, cursor: cursor,
+	wr, wg, wb, _ := th.Color(theme.ColorNameWarning, v).RGBA()
+	chipWarn := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNameWarning, v),
+		BGColor: color.NRGBA{R: uint8(wr >> 8), G: uint8(wg >> 8), B: uint8(wb >> 8), A: 0x28}}
+	e.draw = drawing{chip: chip, chipWarn: chipWarn, flash: flash, text: text, kinds: kinds, inline: inline, lineStart: lineStart, th: th, v: v, selected: selected, cursor: cursor,
 		highlight: highlight, number: number, selStart: selStart, selEnd: selEnd,
 		curRow: curRow, curCol: curCol, gutter: g, others: others, otherCursors: otherCursors}
 	e.drawRows()
@@ -805,6 +809,9 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		if i, ok := e.laid.chipAt[off]; ok && i < len(e.chips) { // a chip: its label
 			c := e.chips[i]
 			var style widget.TextGridStyle = d.chip
+			if c.Warn {
+				style = d.chipWarn
+			}
 			if off >= selStart && off < selEnd {
 				style = withBackground(style, selected.BGColor)
 			}

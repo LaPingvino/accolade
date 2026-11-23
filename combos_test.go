@@ -199,12 +199,12 @@ func TestComboNoSource(t *testing.T) {
 		comboShot(t, w, "kept-new")
 		s.prompt.yes.OnTapped()
 		text := w.textEditor.Text()
-		for _, want := range []string{"# The Lighthouse", "## Chapter 1", "## Chapter 2", "## Chapter 3", `[[from: #:~:text=Mara climbed`} {
+		for _, want := range []string{"# The Lighthouse", "## Chapter 1", "## Chapter 2", "## Chapter 3", `[[from: #:~:text=Mara,`} {
 			if !strings.Contains(text, want) {
 				t.Errorf("no %q in\n%s", want, text)
 			}
 		}
-		if !textAfter(t, w, "## Chapter 1", "[[from: #:~:text=Mara climbed") || textAfter(t, w, "## Chapter 2", "[[from: #:~:text=Mara climbed") {
+		if !textAfter(t, w, "## Chapter 1", "[[from: #:~:text=Mara,") || textAfter(t, w, "## Chapter 2", "[[from: #:~:text=Mara,") {
 			t.Errorf("the first scene is not under Chapter 1:\n%s", text)
 		}
 		if sel := selected(w); sel == "" || !strings.Contains(text, ". "+sel+"\n") {
@@ -285,7 +285,7 @@ func checkStarted(t *testing.T, w *MainWindow) {
 			t.Errorf("no %q in\n%s", want, text)
 		}
 	}
-	if !textAfter(t, w, "## Chapter 1", "[[from: #:~:text=Mara climbed") || textAfter(t, w, "## Chapter 2", "[[from: #:~:text=Mara climbed") {
+	if !textAfter(t, w, "## Chapter 1", "[[from: #:~:text=Mara,") || textAfter(t, w, "## Chapter 2", "[[from: #:~:text=Mara,") {
 		t.Errorf("the first scene is not under Chapter 1:\n%s", text)
 	}
 	// the heading the story suggests, its words after INT. selected to write over
@@ -296,7 +296,7 @@ func checkStarted(t *testing.T, w *MainWindow) {
 	s := w.sourcePane()
 	w.textEditor.SetCursorOffset(len([]rune(w.textEditor.Text())))
 	adaptNew(s, passageNamed(t, s.passages, "The storm came"))
-	if !textAfter(t, w, "## Chapter 2", "[[from: #:~:text=The storm came") || textAfter(t, w, "## Chapter 3", "[[from: #:~:text=The storm came") {
+	if !textAfter(t, w, "## Chapter 2", "[[from: #:~:text=The storm,") || textAfter(t, w, "## Chapter 3", "[[from: #:~:text=The storm,") {
 		t.Errorf("Chapter 2's scene is not under it:\n%s", w.textEditor.Text())
 	}
 }
@@ -342,7 +342,7 @@ func TestComboNoLinks(t *testing.T) {
 	}
 	comboShot(t, w, "beside-nolinks")
 	s.prompt.yes.OnTapped() // Link
-	if !strings.Contains(w.textEditor.Text(), "INT. LIGHTHOUSE STAIRS - NIGHT\n\n[[from: #:~:text=Mara climbed the stairs,into the dark.]]\n\nMara climbs") {
+	if !strings.Contains(w.textEditor.Text(), "INT. LIGHTHOUSE STAIRS - NIGHT\n\n[[from: #:~:text=Mara climbed,dark.]]\n\nMara climbs") {
 		t.Errorf("linked:\n%s", w.textEditor.Text())
 	}
 	if !strings.Contains(s.prompt.label.Text, "2 of 3: INT. LAMP ROOM") {
@@ -441,8 +441,8 @@ func TestComboPartial(t *testing.T) {
 			w.textEditor.SetCursorOffset(0)
 			s.stepPassage(1)
 			adaptNew(s, s.selected)
-			if !textAfter(t, w, "Only the gulls. Come up", "[[from: #:~:text=The storm came") ||
-				!textAfter(t, w, "Only the gulls. Come up", "## Chapter 2") || !textAfter(t, w, "## Chapter 2", "[[from: #:~:text=The storm came") {
+			if !textAfter(t, w, "Only the gulls. Come up", "[[from: #:~:text=The storm,") ||
+				!textAfter(t, w, "Only the gulls. Come up", "## Chapter 2") || !textAfter(t, w, "## Chapter 2", "[[from: #:~:text=The storm,") {
 				t.Errorf("Next from the top, then Adapt…:\n%s", w.textEditor.Text())
 			}
 			if c.name == "inside" && w.sourceRef().Origin != sourceInside {
@@ -468,8 +468,8 @@ func TestComboEmptyScript(t *testing.T) {
 			}
 			origin := w.sourceRef().Origin
 			s.prompt.yes.OnTapped()
-			if !textAfter(t, w, "Title: The Lighthouse", "## Chapter 1") || !textAfter(t, w, "## Chapter 1", "[[from: #:~:text=Mara climbed") ||
-				textAfter(t, w, "## Chapter 2", "[[from: #:~:text=Mara climbed") {
+			if !textAfter(t, w, "Title: The Lighthouse", "## Chapter 1") || !textAfter(t, w, "## Chapter 1", "[[from: #:~:text=Mara,") ||
+				textAfter(t, w, "## Chapter 2", "[[from: #:~:text=Mara,") {
 				t.Errorf("started:\n%s", w.textEditor.Text())
 			}
 			if w.sourceRef().Origin != origin {
@@ -548,7 +548,7 @@ func TestComboEpigraph(t *testing.T) {
 	story := strings.Replace(comboStory, "## Chapter 1\n", "An old song of the coast, sung by the keepers' wives.\n\n## Chapter 1\n", 1)
 	w.showImportedMarkdown("lighthouse.md", story, "Markdown", 0)
 	w.startScreenplayFromSource()
-	if !textAfter(t, w, "# The Lighthouse", "[[from: #:~:text=An old song") || !textAfter(t, w, "[[from: #:~:text=An old song", "## Chapter 1") {
+	if !textAfter(t, w, "# The Lighthouse", "[[from: #:~:text=An,") || !textAfter(t, w, "[[from: #:~:text=An,", "## Chapter 1") {
 		t.Errorf("the epigraph's scene:\n%s", w.textEditor.Text())
 	}
 }
@@ -605,7 +605,7 @@ func TestComboGrowing(t *testing.T) {
 	if s.selected >= 0 && s.statusOf(s.selected) == statusToDo {
 		adaptNew(s, s.selected)
 	}
-	if !strings.Contains(w.textEditor.Text(), `[[from: #:~:text=The storm came`) {
+	if !strings.Contains(w.textEditor.Text(), `[[from: #:~:text=The storm,`) {
 		t.Errorf("Next did not go on into what was added:\n%s", w.textEditor.Text())
 	}
 }

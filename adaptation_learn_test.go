@@ -481,7 +481,7 @@ func TestLearnNotFromAnotherScenesLinks(t *testing.T) {
 	d.how.choose(0)
 	d.heading.SetText("INT. PLACE - DAY")
 	d.accept()
-	moveTo(t, w3, "The next morning the")
+	moveTo(t, w3, "#:~:text=The next")
 	l := lineWith(t, w3, "INT. PLACE - DAY")
 	w3.textEditor.Navigate(func(b *buffer.Buffer) { b.Select(b.LineStart(l)+5, b.LineEnd(l)) })
 	w3.onCursorChanged()
@@ -501,8 +501,8 @@ func TestLearnSkippedLink(t *testing.T) {
 		t.Fatalf("asked %q", s.prompt.label.Text)
 	}
 	s.prompt.skip.OnTapped()
-	if b := learnedBlock(w); b != "skipped links:\n  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=Mara climbed the stairs,step out loud.\n"+
-		"  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=\"Is anyone up there?\",into the dark." {
+	if b := learnedBlock(w); b != "skipped links:\n  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=Mara,loud.\n"+
+		"  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=\"Is,dark." {
 		t.Fatalf("block %q", b)
 	}
 	if body(w) != strings.TrimRight(comboNoLinks, "\n") {
@@ -516,8 +516,8 @@ func TestLearnSkippedLink(t *testing.T) {
 	s.prompt.no.OnTapped()
 	s.learned.open = true
 	s.learned.layout()
-	forgetRow(t, w, "Not linked: INT. LIGHTHOUSE STAIRS - NIGHT, “Mara climbed")
-	forgetRow(t, w, "Not linked: INT. LIGHTHOUSE STAIRS - NIGHT, “Is anyone")
+	forgetRow(t, w, "Not linked: INT. LIGHTHOUSE STAIRS - NIGHT, “Mara")
+	forgetRow(t, w, "Not linked: INT. LIGHTHOUSE STAIRS - NIGHT, “")
 	w.suggestSourceLinks()
 	if !strings.Contains(s.prompt.label.Text, "1 of 3: INT. LIGHTHOUSE STAIRS") {
 		t.Errorf("forgotten: %q", s.prompt.label.Text)

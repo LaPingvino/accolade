@@ -49,8 +49,8 @@ func TestLinkChipsSample(t *testing.T) {
 		tips[c.Tip] = true
 	}
 	for _, want := range []string{
-		"“THE police superintendent Otchumyelov … beggar near them.”",
-		"“\"H'm. Very good,\" says … it, I ask?\"”",
+		"“THE … near them.”",
+		"“\"H'm. … I ask?\"”",
 		"“\"Yes.\"” (after “visit?”)",
 	} {
 		if !tips[want] {
@@ -58,27 +58,27 @@ func TestLinkChipsSample(t *testing.T) {
 		}
 	}
 	// the cursor in a link: its text; out: a chip again
-	e.SetCursorOffset(runeIndex(t, text, "superintendent Otchumyelov,"))
-	if rowWith(w, "[[from: #:~:text=THE police") == "" {
+	e.SetCursorOffset(runeIndex(t, text, "#:~:text=THE,near") + 10)
+	if rowWith(w, "[[from: #:~:text=THE,near") == "" {
 		t.Errorf("the link the cursor is in is not its text:\n%s", strings.Join(shownRows(w)[:14], "\n"))
 	}
 	if rowWith(w, "Hold him! ↗ source") == "" {
 		t.Error("another link opened too")
 	}
 	e.SetCursorOffset(0)
-	if rowWith(w, "[[from: #:~:text=THE police") != "" {
+	if rowWith(w, "[[from: #:~:text=THE,near") != "" {
 		t.Error("the link stayed open with the cursor out")
 	}
 	// a hover's tip is the chip's
-	at := runeIndex(t, text, "[[from: #:~:text=\"So you bite")
-	if c, ok := e.ChipAt(at); !ok || !strings.HasPrefix(c.Tip, "“\"So you bite, you") {
+	at := runeIndex(t, text, "[[from: #:~:text=\"So,")
+	if c, ok := e.ChipAt(at); !ok || !strings.HasPrefix(c.Tip, "“\"So … ah!") {
 		t.Errorf("ChipAt %+v %v", c, ok)
 	}
 	// Find, a word in a link: the link opens
 	w.showFind()
-	w.searchBar.SetSearchText("aforementioned")
+	w.searchBar.SetSearchText("near them")
 	w.findNext()
-	if rowWith(w, "aforementioned") == "" {
+	if rowWith(w, "near them") == "" {
 		t.Error("Find did not open the link it found the word in")
 	}
 	w.hideFindReplace()
