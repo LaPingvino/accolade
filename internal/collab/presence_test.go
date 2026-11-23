@@ -2,6 +2,7 @@ package collab
 
 import (
 	"encoding/json"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -23,11 +24,11 @@ func TestPresence(t *testing.T) {
 	key, _ := NewKey()
 	now := time.Unix(1000, 0)
 	s := map[string]*Session{}
-	changes := 0
+	var changes atomic.Int32 // OnHere runs on a goroutine of its own (hereChanged)
 	for _, n := range []string{"a", "b", "c"} {
 		s[n] = NewSession(key, New(n))
 		s[n].Now = func() time.Time { return now }
-		s[n].OnHere = func() { changes++ }
+		s[n].OnHere = func() { changes.Add(1) }
 	}
 	link := func(x, y string) {
 		s[x].AddPeer(y, func(b []byte) error { return s[y].Receive(x, b) })
@@ -45,7 +46,7 @@ func TestPresence(t *testing.T) {
 	if got := names(s["c"]); len(got) != 2 || got[0] != "Ann" {
 		t.Fatalf("c has %v (a two away, told on joining)", got)
 	}
-	if changes == 0 {
+	if changes.Load() == 0 {
 		t.Error("OnHere not called")
 	}
 	s["a"].SetHere("Ann", 12)
