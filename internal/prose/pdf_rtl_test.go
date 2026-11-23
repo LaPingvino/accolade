@@ -3,6 +3,7 @@ package prose
 import (
 	"math"
 	"os/exec"
+	"runtime"
 	"strings"
 	"testing"
 	"unicode"
@@ -89,6 +90,12 @@ func TestPDFRightToLeft(t *testing.T) {
 				t.Errorf("right-to-left text ends at %.1f, not at the margin %.1f", right, pageW-72)
 			}
 			if _, err := exec.LookPath("pdftotext"); err != nil {
+				return
+			}
+			if runtime.GOOS == "windows" {
+				// Windows' pdftotext splits pointed words at their marks
+				// ("אֱל הִים") and repeats points; Linux and macOS read
+				// the same PDF back as written
 				return
 			}
 			out, err := exec.Command("pdftotext", "-enc", "UTF-8", file, "-").Output()
