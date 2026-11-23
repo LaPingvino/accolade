@@ -1441,3 +1441,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   phone the page view (Preview) takes the script's place (`w.pagesVisible && w.narrow → center = w.pages`) — there it
   should be a middle tab "Pages" next to Script, so switching back is a tab tap, not hiding the preview. Preferences
   and the TOML editors are separate windows on purpose. Extend TestViewsFollowTheFront to both.
+- 2026-11-23 (Joop: "I think we might want to add Hindi, that's a huge market xD"): HINDI, after the reset. First the
+  risk: Devanagari needs shaping (conjuncts, matras reordering around consonants) — check the editor (Fyne fork's
+  shaper) and especially the PDF (gofpdf doesn't shape; see how Lexington prints Arabic and whether that covers
+  Devanagari) with screenshots of both before anything else. Then: a Hindi language rule in Lexington (scene words,
+  transitions; Indian scripts often keep INT./EXT. in English with dialogue in Devanagari or in Hindi in Latin
+  letters — all three read right), a Devanagari companion font for Courier Badi (e.g. Noto Sans Devanagari) via the
+  same fallback the Hebrew points use, the help page. Indian layouts (two-column, Hindi in Latin letters) through the
+  screenplay-sources pattern fixer.
