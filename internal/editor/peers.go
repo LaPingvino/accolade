@@ -148,18 +148,37 @@ func (e *ScriptEditor) peerBarAt(p fyne.Position) (string, fyne.Position, bool) 
 	return strings.Join(names, ", "), fyne.NewPos(float32(g-1)*e.cellWidth(), float32(row)*e.cellHeight()), true
 }
 
-// peerHover tells OnPeer of the bar under the pointer, or that it left one.
-func (e *ScriptEditor) peerHover(p fyne.Position, out bool) {
+// peerHover tells OnPeer of the bar under the pointer, or that it left
+// one; true when the pointer is on one.
+func (e *ScriptEditor) peerHover(p fyne.Position, out bool) bool {
 	if e.OnPeer == nil {
-		return
+		return false
 	}
 	names, at, ok := "", fyne.Position{}, false
 	if !out {
 		names, at, ok = e.peerBarAt(p)
 	}
 	if !ok && !e.peerShown {
-		return
+		return false
 	}
 	e.peerShown = ok
 	e.OnPeer(names, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
+	return ok
+}
+
+// PeerBarAt is where the co-writers' bar on line's first row is drawn
+// (false: no bar there, or the line not laid out): for a tip shown from
+// elsewhere, or a test's pointer.
+func (e *ScriptEditor) PeerBarAt(line int) (fyne.Position, fyne.Size, bool) {
+	e.fresh()
+	g := e.gutter()
+	if g == 0 || e.draw.peers.bar[line] == nil {
+		return fyne.Position{}, fyne.Size{}, false
+	}
+	for i, r := range e.layout.Rows {
+		if r.Line == line {
+			return fyne.NewPos(float32(g-1)*e.cellWidth(), float32(i)*e.cellHeight()), fyne.NewSize(e.cellWidth(), e.cellHeight()), true
+		}
+	}
+	return fyne.Position{}, fyne.Size{}, false
 }

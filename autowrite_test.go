@@ -89,6 +89,21 @@ func TestLearnTogether(t *testing.T) {
 	textIs(t, a, "a", b.textEditor.Text())
 }
 
+// A number written twice in a script not shared (or by one writer) is
+// left for Renumber: nothing changes by itself.
+func TestSceneNumberTwiceAlone(t *testing.T) {
+	w := newTestWindow(t, strings.Replace(lockScript, "EXT. GARDEN - DAY [[red]]", "EXT. GARDEN - DAY #2# [[red]]", 1))
+	w.lockSceneNumbers()
+	text := strings.Replace(w.textEditor.Text(), "INT. HOUSE - NIGHT #3#", "INT. HOUSE - NIGHT #2#", 1)
+	w.textEditor.SetText(text)
+	w.textEditor.Edit(func(b *buffer.Buffer) { b.Replace(0, 0, ""); b.Insert("") })
+	w.textEditor.SetCursorOffset(len([]rune(text)) - 1)
+	w.numberNewScenes()
+	if got := w.textEditor.Text(); got != text {
+		t.Errorf("renumbered by itself:\n%s", got)
+	}
+}
+
 // Two peers add a scene at one place before either hears of the other's:
 // each numbers its own 1A. When they meet, the later of the two in the
 // text is numbered again (1B), by its writer only, so the script ends

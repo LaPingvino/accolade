@@ -1383,7 +1383,9 @@ func (e *ScriptEditor) Cursor() desktop.Cursor { return desktop.TextCursor }
 // MouseIn, MouseMoved and MouseOut tell OnHover what is under the pointer.
 func (e *ScriptEditor) MouseIn(ev *desktop.MouseEvent) { e.MouseMoved(ev) }
 func (e *ScriptEditor) MouseMoved(ev *desktop.MouseEvent) {
-	e.peerHover(ev.Position, false)
+	if e.peerHover(ev.Position, false) {
+		return // a co-writer's bar: its tip, not the text's
+	}
 	if e.OnHover == nil {
 		return
 	}

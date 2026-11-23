@@ -116,13 +116,21 @@ func (w *MainWindow) sayPlace(always bool) {
 		return
 	}
 	b := w.textEditor.Buffer()
+	caughtUp := false
+	s.session.Do(func(d *collab.Doc) { caughtUp = d.Len() == b.Len() })
+	if !caughtUp {
+		return // the key not in the Doc yet: said once it is (shareEdit)
+	}
 	cursor := b.Cursor()
 	from, to := b.Selection()
-	now := hereSaid{line: w.hereLine(), from: from, to: to}
+	now := hereSaid{line: w.hereLine()} // the Table Read's, while it leads (tableread_follow.go)
+	if from != to { // a cursor alone is said by its line, not at each step along it
+		now.from, now.to = from, to
+	}
 	if !always && s.saidHere && now == s.said {
 		return
 	}
-	if !always && s.saidHere && now.line == s.said.line && (from != to || s.said.from != s.said.to) {
+	if !always && s.saidHere && now.line == s.said.line {
 		w.debounce(&s.sayTimer, selectionSayPause, func() {
 			if w.shared == s {
 				w.sayPlace(true)

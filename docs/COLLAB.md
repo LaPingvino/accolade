@@ -324,7 +324,11 @@ messages of their own, batched like the text's runs.
   strip moved on each side apart: both kept; a day taken away), `TestPlacesBetween`.
 - Not done: the drafts store, the locked pages and the issues stay as the table says (local, or in the text). Two
   people adding a shoot day at once get two days. Untag and a tag of the same words at once: the tag's key is its
-  words, so the last writer wins.
+  words, so the last writer wins. A map's catch-up goes by the highest clock seen of each replica, without the
+  counts the Docs have (found item 6): a link that breaks mid catch-up while a replica's entries also reach the
+  peer another way could leave an entry out until that key is written again. A joining window starts its breakdown
+  and schedule from the maps (empty while they have nothing, `joinExtras`), so what it had of its own is never put
+  in; it is written over where that window keeps them.
 
 ## Presence: each other's places (step 6, built 2026-11-23)
 

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
@@ -82,6 +83,35 @@ func TestCursorsTogether(t *testing.T) {
 	a.cardsPane().update(a.textEditor.Text())
 	if d := a.cardsDock.dots; len(d) != 1 {
 		t.Errorf("cards dots %v", d)
+	}
+	// Bob types along his line: nothing said; Enter: his new line, exactly
+	b.fyneWindow.Canvas().Focus(b.textEditor)
+	b.textEditor.SetCursorOffset(b.textEditor.CursorOffset()) // the selection gone
+	b.sayHere(false)
+	seq := func() uint64 { return a.hereNow()[0].Seq }
+	waitFor(t, "Bob's cursor alone", func() bool { p := a.textEditor.Peers(); return len(p) == 1 && p[0].From == p[0].Cursor })
+	before := seq()
+	test.Type(b.textEditor, "ab")
+	textIs(t, a, "a", b.textEditor.Text())
+	if seq() != before {
+		t.Errorf("typing along a line said the place %d times", seq()-before)
+	}
+	end := len([]rune(b.textEditor.Text()[:strings.Index(b.textEditor.Text(), "loft.")+len("loft.")]))
+	b.textEditor.SetCursorOffset(end)
+	test.Type(b.textEditor, "\n")
+	textIs(t, a, "a", b.textEditor.Text())
+	waitFor(t, "Bob on his new line", func() bool {
+		p := a.textEditor.Peers()
+		return len(p) == 1 && p[0].Cursor == end+1 && a.textEditor.PeerLines()[11] == "Bob"
+	})
+	// the pointer over his bar: his name, kept (not taken away by the text's hover)
+	at, cell, ok := a.textEditor.PeerBarAt(11)
+	if !ok {
+		t.Fatal("no bar on line 11")
+	}
+	a.textEditor.MouseMoved(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: at.AddXY(cell.Width/2, cell.Height/2)}})
+	if a.tooltips == nil || a.noteTipShown != "Bob is here" {
+		t.Errorf("the bar's tip: %q", a.noteTipShown)
 	}
 	b.leaveSession()
 	waitFor(t, "Bob gone from a's editor", func() bool { return len(a.textEditor.PeerLines()) == 0 })

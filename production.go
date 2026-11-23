@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/LaPingvino/accolade/internal/collab"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
@@ -281,10 +282,13 @@ func (w *MainWindow) numberNewScenes() {
 	line, _ := b.Position(b.Cursor())
 	fresh := !b.CanRedo() && b.CanUndo() // the writer has edited: new scenes are theirs to number
 	var mine []int                       // the headings to number: this writer's (wroteLine)
-	seen := map[string]bool{}
+	seen := map[string]int{}             // a number's first heading's line
 	for i, h := range heads {
-		twice := h.num != "" && seen[h.num]
-		seen[h.num] = true
+		first, had := seen[h.num]
+		twice := h.num != "" && had && w.numberedApart(first, h.line)
+		if !had {
+			seen[h.num] = h.line
+		}
 		switch {
 		case h.line == line || !(twice || fresh && (h.num == "" || h.stray)):
 		case w.wroteLine(h.line):
@@ -304,6 +308,26 @@ func (w *MainWindow) numberNewScenes() {
 		edits = append(edits, lineEdit{b.LineStart(h.line), b.LineEnd(h.line), lex.WithSceneNumber(h.text, nums[i])})
 	}
 	e.Edit(func(b *buffer.Buffer) { applyBackwards(edits, b.Amend) })
+}
+
+// numberedApart reports whether the headings on lines a and b were
+// written by two peers of a shared script (their first runes' writers),
+// each numbering theirs before hearing of the other's. A number written
+// twice by one writer, or in a script not shared, is the writer's to
+// mend (Renumber), not changed by itself.
+func (w *MainWindow) numberedApart(a, b int) bool {
+	if w.shared == nil {
+		return false
+	}
+	buf := w.textEditor.Buffer()
+	apart := false
+	w.shared.session.Do(func(d *collab.Doc) {
+		if d.Len() == buf.Len() {
+			x, y := d.Writer(buf.LineStart(a)), d.Writer(buf.LineStart(b))
+			apart = x != "" && y != "" && x != y
+		}
+	})
+	return apart
 }
 
 // sceneAtCursor is the scene the cursor is in, in runes: from its

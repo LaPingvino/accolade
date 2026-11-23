@@ -227,8 +227,9 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 				w.applyShared(k, v)
 			}
 		}
-		w.takeSharedBreakdown()
-		w.takeSharedSchedule()
+	}
+	if joining {
+		w.joinExtras() // the breakdown and schedule: the peers' (collab_extras.go)
 	}
 	if !joining {
 		s.synced = true
@@ -345,6 +346,7 @@ func (w *MainWindow) shareEdit(text string) {
 	w.shared.session.Local(ops)
 	if len(ops) > 0 { // this side's own edit (a peer's makes none here)
 		w.typedWhileFollowing()
+		w.sayHere(false) // a line made or joined: the place said now that the Doc has the key (collab_cursors.go)
 	}
 	w.keepSharedState()
 }

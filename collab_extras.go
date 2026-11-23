@@ -128,6 +128,28 @@ func (w *MainWindow) shareBreakdownAnew() {
 	}
 }
 
+// joinExtras starts a joining window's breakdown and schedule from the
+// shared maps, empty while they have nothing: what the window had of its
+// own before is not the shared script's, and is never put in the maps.
+func (w *MainWindow) joinExtras() {
+	s := w.shared
+	if s == nil || w.markdown {
+		return
+	}
+	if !s.session.HasMap(breakdownMap) {
+		if w.breakdownNow(); w.breakdown.err == nil {
+			w.breakdown.file = breakdownFile{Version: 1}
+		}
+	}
+	if !s.session.HasMap(scheduleMap) {
+		if w.scheduleNow(); w.schedule.err == nil {
+			w.schedule.file, w.schedule.undo = scheduleFile{Version: 1, Days: []schedDay{}}, nil
+		}
+	}
+	w.takeSharedBreakdown()
+	w.takeSharedSchedule()
+}
+
 // shareBreakdownChange gives the shared map what a change of this
 // window's breakdown changed (saveBreakdown).
 func (w *MainWindow) shareBreakdownChange(f *breakdownFile) {
