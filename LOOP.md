@@ -1297,3 +1297,16 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   quote it; local measurement only, and only once the Spanish source is at hand (ask Joop). Approaches to weigh then:
   a bilingual word list per language pair, names/numbers/places as language-free anchors plus order, or an offline
   translation of the source first.
+- 2026-11-23 (Joop, sharing Renata Ventura's Hope Talks: the PDF "HOPE TALKS (Version 3) 25-01-2011.pdf" (and a .doc
+  synopsis) in ~/drive/Esperanto/Filmo vivo de Zamenhof/ are the sources the hopetalks.fountain files were made from;
+  the final fixed version is the upload Hope_Talks_2026_fix.fountain — "We might want to be able to recognize
+  screenplay sources as well, for fix-up work..."): SCREENPLAY SOURCES. When the chosen source is itself a screenplay
+  (a PDF/DOCX/FDX/Fountain — recognized by its shape: headings, centred cues, dialogue blocks), the source pane reads
+  it as a screenplay (Lexington's importers) and aligns scene to scene and line to line instead of passage to
+  passage: same language, mostly the same words, so most pairs are certain. For fix-up work: per scene, what the
+  converted script lost, garbled or merged against the source (PDF extraction debris: page numbers, (MORE)/(CONT'D),
+  split dialogue, hyphenation, wrong element types), each shown as a quiet difference with "Take the Source's" /
+  "Keep Mine"; a summary "N scenes match, M differ, K missing"; never written without the writer's choice (the same
+  rule as the link-up item). The far source (A. López Luna, "Zamenhof: Iniciador del Esperanto", Spanish) stays the
+  cross-language stretch goal. Renata's script and PDF are her work: measure locally only, never commit, upload or
+  quote; synthetic look-alikes for tests (a public-domain screenplay PDF and a hand-damaged Fountain of it).
