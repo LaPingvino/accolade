@@ -206,7 +206,7 @@ func (v *vim) rune(r rune) bool {
 		switch {
 		case r == 'g':
 			v.motion('g')
-		case strings.ContainsRune("jkhl", r) && v.org != nil && !v.visual(): // evil-org: headings
+		case strings.ContainsRune("jkhls", r) && v.org != nil && !v.visual(): // evil-org: headings; gs: the scene's guessed link (linkup.go)
 			v.org("g" + string(r))
 		}
 		return true

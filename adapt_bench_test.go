@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/LaPingvino/accolade/internal/prose"
-	"github.com/LaPingvino/accolade/internal/storyread"
 )
 
 // The adaptation benchmark: public-domain pairs of a story and a period
@@ -18,11 +17,10 @@ import (
 // checked by hand). For each pair it runs the matching Accolade has and
 // reports how many scenes it places:
 //
-//   - suggest: suggestLinks, the per-scene guesser the source pane offers
-//     links from (a script with no links, all passages still to do, the
-//     story read by storyread). Its guess for a scene is the passages it
-//     suggests (at most three), each on its own: right when one of them
-//     is in the mapping.
+//   - scenes: alignScenes (scene_align.go), the scene aligner the
+//     script's "↗ link?" guesses and the source pane's sections come
+//     from: the scenes placed in order along the source, each silent
+//     unless sure. Its guess for a scene is a range of passages.
 //   - align: alignPassagesSure, the passage aligner relinking uses, run on
 //     the whole script made into passages (each block of action or speech
 //     one, cues and parentheticals left out) against the source. Its guess
@@ -35,7 +33,12 @@ import (
 // the files disagree with each other (a scene count, a heading, or a
 // passage index whose words moved).
 //
-// The numbers are the same from run to run (TestSuggestLinksSameEachTime).
+// Before it (2026-11-23), suggestLinks guessed for every scene: Christmas
+// Carol 12 right, the invented one guessed; Jane Eyre 0 right of 11 once
+// its sums no longer ran in a map's order (0–3 before, from run to run),
+// both invented ones guessed.
+//
+// The numbers are the same from run to run (TestAlignScenesSameEachTime).
 func TestAdaptBench(t *testing.T) {
 	if testing.Short() {
 		t.Skip("adaptation benchmark: not with -short")
@@ -151,23 +154,6 @@ func adaptBenchPair(t *testing.T, dir string) {
 		}
 	}
 
-	// suggest
-	m := newSourceModel(ps, script, starts)
-	reading := storyread.Read(storyPassages(ps), "en", storyread.Hints{})
-	sugs := suggestLinks(script, starts, ps, m.status, reading, nil)
-	byScene := map[int][]int{}
-	for _, s := range sugs {
-		byScene[s.Scene] = s.Passages
-	}
-	var sug benchScore
-	for k, r := range rows {
-		var guess [][2]int
-		for _, p := range byScene[k] {
-			guess = append(guess, [2]int{p, p})
-		}
-		t.Logf("suggest %-60s %-28s guess %v: %s", r.heading, rangesString(r.ranges), byScene[k], sug.add(r, guess))
-	}
-
 	// align
 	sps, sceneOf := scriptPassages(script, starts)
 	to, sure := alignPassagesSure(sps, ps)
@@ -210,7 +196,6 @@ func adaptBenchPair(t *testing.T, dir string) {
 			filepath.Base(dir), name, s.right+s.wrong+s.silent, s.right, s.wrong, s.silent,
 			s.noneSilent+s.noneGuessed, s.noneSilent, s.noneGuessed)
 	}
-	report("suggest", sug)
 	report("align  ", al)
 	report("scenes ", sa)
 }
@@ -279,10 +264,9 @@ func scriptPassages(script string, starts []string) ([]passage, []int) {
 	return ps, sceneOf
 }
 
-// TestSuggestLinksSameEachTime: the same script and source give the same
-// guesses each time (the sums once ran in a map's order, so near-ties fell
-// either way from one call to the next).
-func TestSuggestLinksSameEachTime(t *testing.T) {
+// TestAlignScenesSameEachTime: the same script and source give the same
+// guesses each time (sums over a map's words run in their order).
+func TestAlignScenesSameEachTime(t *testing.T) {
 	dir := filepath.Join("testdata", "adapt-bench", "jane-eyre")
 	src, err := os.ReadFile(filepath.Join(dir, "source.md"))
 	if err != nil {
@@ -293,11 +277,10 @@ func TestSuggestLinksSameEachTime(t *testing.T) {
 		t.Fatal(err)
 	}
 	ps := passagesOf(string(src))
-	starts := []string{"INT.", "EXT.", "INT./EXT.", "I/E"}
-	m := newSourceModel(ps, string(script), starts)
-	first := fmt.Sprint(suggestLinks(string(script), starts, ps, m.status, nil, nil))
-	for range 6 {
-		if again := fmt.Sprint(suggestLinks(string(script), starts, ps, m.status, nil, nil)); again != first {
+	scenes := scenesOf(string(script), []string{"INT.", "EXT.", "INT./EXT.", "I/E"})
+	first := fmt.Sprint(alignScenes(scenes, ps, nil))
+	for range 4 {
+		if again := fmt.Sprint(alignScenes(scenes, ps, nil)); again != first {
 			t.Fatalf("another answer for the same input:\n%s\n%s", first, again)
 		}
 	}

@@ -12,7 +12,7 @@ tabs: File Write Edit [Adaptation] Production Collaboration View
   S Mark as Cut icon=foreground_content-cut.svg name=Mark Source Passage as Cut
 ## Links
   L Link icon=foreground_link.svg name=Link to Source Passage
-  S Suggest icon=foreground_suggest.svg name=Suggest Links to the Source
+  S Link Up icon=foreground_suggest.svg name=Link Up the Script…
   S Update icon=foreground_view-refresh.svg name=Update Source Links
   S Headings as Sections icon=foreground_toc.svg name=Source Headings as Sections
 ## Learned

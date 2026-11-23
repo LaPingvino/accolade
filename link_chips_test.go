@@ -7,7 +7,9 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-// The sample's links are chips: "↗ source" in place of the note, its
+// The sample's links are chips: "↗ source" in place of the note ("↗ 2
+// passages" for a range, the source read for the guesses beside the
+// script even with its pane hidden: linkup.go), its
 // quote decoded in the tip, the note's own text while the cursor is in
 // it; Find opens the link it finds in; the text never changes.
 func TestLinkChipsSample(t *testing.T) {
@@ -28,7 +30,7 @@ func TestLinkChipsSample(t *testing.T) {
 		t.Fatalf("%d chips for %d links", len(chips), links)
 	}
 	for _, c := range chips {
-		if c.Label != "↗ source" {
+		if c.Label != "↗ source" && !(strings.HasPrefix(c.Label, "↗ ") && strings.HasSuffix(c.Label, " passages")) { // a range: its count
 			t.Errorf("label %q", c.Label)
 		}
 		if strings.Contains(c.Tip, "%2C") || strings.Contains(c.Tip, "#:~:") || !strings.HasPrefix(c.Tip, "“") {

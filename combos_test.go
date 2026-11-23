@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+
+	"github.com/LaPingvino/accolade/internal/editor"
 )
 
 // Every combination of source and screenplay, as a writer meets it
@@ -301,73 +303,200 @@ func checkStarted(t *testing.T, w *MainWindow) {
 	}
 }
 
-// A script written without links, the source added: its scenes' links
-// are suggested one scene at a time, Link or Skip; nothing goes in by
-// itself, and a scene from nowhere in the story gets none.
+// A script written without links, the source added: each scene the
+// source reads like gets a faint "↗ link?" tag after its heading, the one
+// from nowhere in the story none; nothing is written until one is
+// accepted (one undo step); Not This is remembered; the source pane
+// labels the chapters adapted, and Next goes on after the last.
 func TestComboNoLinks(t *testing.T) {
 	w, _ := sourceWindow(t, comboNoLinks, comboStory)
 	s := w.sourcePane()
 	ps := s.passages
-	got := suggestLinks(comboNoLinks, w.sceneStarts(), ps, s.current().status, s.currentReading(), nil)
-	want := map[string][]string{
-		"INT. LIGHTHOUSE STAIRS - NIGHT": {"Mara climbed", "\"Is anyone"},
-		"INT. LAMP ROOM - NIGHT":         {"\"Only the gulls"},
-		"EXT. HARBOUR - NIGHT":           {"The storm came", "\"We have to go"}, // Tomas at the window: too few words in it
-	}
-	if len(got) != len(want) {
-		t.Errorf("%d scenes suggested: %+v", len(got), got)
-	}
-	for _, sg := range got {
-		var names []string
-		for _, p := range sg.Passages {
-			names = append(names, ps[p].Plain)
-		}
-		ws, ok := want[sg.Heading]
-		if !ok || len(ws) != len(names) {
-			t.Errorf("%s: %q", sg.Heading, names)
-			continue
-		}
-		for i := range ws {
-			if !strings.HasPrefix(names[i], ws[i]) {
-				t.Errorf("%s: %q, want %q", sg.Heading, names, ws)
-			}
-		}
-	}
-	// the pane asked at once, about the first scene; the script as it was
-	if !s.prompt.box.Visible() || !strings.Contains(s.prompt.label.Text, "1 of 3: INT. LIGHTHOUSE STAIRS") || !s.prompt.skip.Visible() {
-		t.Fatalf("not asked: %q", s.prompt.label.Text)
-	}
-	if w.textEditor.Text() != comboNoLinks {
+	if w.textEditor.Text() != comboNoLinks || w.textEditor.Buffer().CanUndo() {
 		t.Fatal("the script changed before anything was accepted")
 	}
+	want := map[string][2]string{
+		"INT. LIGHTHOUSE STAIRS - NIGHT": {"Mara climbed", ""},
+		"INT. LAMP ROOM - NIGHT":         {"\"Only the gulls", ""},
+		"EXT. HARBOUR - NIGHT":           {"The storm came", "\"We have to go"},
+	}
+	tags := w.guessTags()
+	if len(tags) != len(want) {
+		t.Errorf("%d tags: %v", len(tags), tags)
+	}
+	byLine := s.guessesByLine()
+	for line, tag := range tags {
+		g := byLine[line]
+		ws, ok := want[g.Heading]
+		if !ok || tag.Label != "↗ link?" || !strings.HasPrefix(ps[g.First].Plain, ws[0]) || ws[1] != "" && !strings.HasPrefix(ps[g.Last].Plain, ws[1]) {
+			t.Errorf("line %d: %s %q, %q … %q", line, g.Heading, tag.Label, ps[g.First].Plain, ps[g.Last].Plain)
+		}
+	}
+	// the chapters: the first two adapted (by a guess), the third not yet
+	labels := map[string]string{}
+	for p, l := range s.up.labelAt {
+		labels[ps[p].Plain] = l
+	}
+	if labels["Chapter 1"] != "adapted? (scenes 1–2)" || labels["Chapter 2"] != "adapted? (scene 3)" || labels["Chapter 3"] != "not adapted yet" {
+		t.Errorf("sections %q", labels)
+	}
+	if os.Getenv("SHOT_DIR") != "" {
+		s.scrollToTop(passageNamed(t, ps, "Chapter 1"))
+		comboShot(t, w, "linkup-sections")
+	}
+	// Next goes on after the last scene placed, not from the top
+	toEnd(w)
+	w.nextSourcePassage()
+	if s.selected < 0 || !strings.HasPrefix(ps[s.selected].Plain, "In the morning") {
+		t.Errorf("Next went to %d", s.selected)
+	}
 	comboShot(t, w, "beside-nolinks")
-	s.prompt.yes.OnTapped() // Link
-	if !strings.Contains(w.textEditor.Text(), "INT. LIGHTHOUSE STAIRS - NIGHT\n\n[[from: #:~:text=Mara climbed,dark.]]\n\nMara climbs") {
+	if os.Getenv("SHOT_DIR") != "" { // the tag's menu, from the keyboard (Alt+L)
+		w.textEditor.SetCursorOffset(w.textEditor.Buffer().LineStart(lineWith(t, w, "INT. LAMP ROOM")))
+		w.linkGuessHere()
+		comboShot(t, w, "linkup-menu")
+		for o := w.fyneWindow.Canvas().Overlays().Top(); o != nil; o = w.fyneWindow.Canvas().Overlays().Top() {
+			w.fyneWindow.Canvas().Overlays().Remove(o)
+		}
+	}
+	// Accept: the link under the heading, one undo step
+	stairs := lineWith(t, w, "INT. LIGHTHOUSE STAIRS")
+	s.acceptGuess(stairs, byLine[stairs])
+	if !strings.Contains(w.textEditor.Text(), "INT. LIGHTHOUSE STAIRS - NIGHT\n\n[[from: #:~:text=Mara,loud.]]\n\nMara climbs") {
 		t.Errorf("linked:\n%s", w.textEditor.Text())
 	}
-	if !strings.Contains(s.prompt.label.Text, "2 of 3: INT. LAMP ROOM") {
-		t.Errorf("then: %q", s.prompt.label.Text)
+	if _, still := w.guessTags()[stairs]; still {
+		t.Error("the linked scene keeps its tag")
 	}
-	s.prompt.skip.OnTapped() // Skip
-	if !strings.Contains(s.prompt.label.Text, "3 of 3: EXT. HARBOUR") || strings.Contains(w.textEditor.Text(), "[[from: #:~:text=“Only the gulls") {
-		t.Errorf("after Skip: %q", s.prompt.label.Text)
-	}
-	s.prompt.no.OnTapped() // Not Now
-	if s.prompt.box.Visible() {
-		t.Error("Not Now left it")
-	}
-	if c := countOf(s.statuses); c.Adapted != 2 {
+	if c := countOf(s.statuses); c.Adapted != 1 {
 		t.Errorf("count %+v", c)
 	}
-	w.textEditor.Undo() // the Skip remembered (skipped links:), one step
-	w.textEditor.Undo() // the scene's links, one step
+	labels = map[string]string{}
+	for p, l := range s.up.labelAt {
+		labels[ps[p].Plain] = l
+	}
+	if labels["Chapter 1"] != "adapted (scenes 1–2)" {
+		t.Errorf("with a link: %q", labels)
+	}
+	w.textEditor.Undo()
 	if w.textEditor.Text() != comboNoLinks {
 		t.Errorf("undo:\n%s", w.textEditor.Text())
 	}
-	// asked again from the menu: the scenes still without links
-	w.suggestSourceLinks()
-	if !strings.Contains(s.prompt.label.Text, "1 of 3") {
-		t.Errorf("again: %q", s.prompt.label.Text)
+	// Not This: remembered, its tag gone
+	lamp := lineWith(t, w, "INT. LAMP ROOM")
+	s.notThisGuess(s.guessesByLine()[lamp])
+	if _, still := w.guessTags()[lamp]; still || !strings.Contains(learnedBlock(w), "skipped links:\n  INT. LAMP ROOM - NIGHT = ") {
+		t.Errorf("Not This: block %q", learnedBlock(w))
+	}
+	if body(w) != strings.TrimRight(comboNoLinks, "\n") {
+		t.Errorf("Not This changed the script's body: %q", body(w))
+	}
+	w.textEditor.Undo()
+	if _, back := w.guessTags()[lamp]; !back || w.textEditor.Text() != comboNoLinks {
+		t.Error("undone, the guess is not back")
+	}
+	// Link Up the Script…: all of them, checked, one undo step
+	w.linkUpScript()
+	if len(s.up.checks) != 3 || s.up.apply == nil {
+		t.Fatalf("Link Up lists %d", len(s.up.checks))
+	}
+	s.up.apply()
+	if n := strings.Count(w.textEditor.Text(), "[[from:"); n != 3 {
+		t.Errorf("%d links:\n%s", n, w.textEditor.Text())
+	}
+	if len(w.guessTags()) != 0 {
+		t.Error("tags left after Link Up")
+	}
+	w.textEditor.Undo()
+	if w.textEditor.Text() != comboNoLinks {
+		t.Errorf("one undo:\n%s", w.textEditor.Text())
+	}
+}
+
+// The tag is drawn after the heading, faint, and is not text: the
+// cursor goes from the heading's end to the next line, a tap on it opens
+// its menu (here: told), the text never changes.
+func TestGuessTagNotText(t *testing.T) {
+	w, _ := sourceWindow(t, comboNoLinks, comboStory)
+	e := w.textEditor
+	lamp := lineWith(t, w, "INT. LAMP ROOM")
+	found := false
+	for _, r := range shownRows(w) {
+		if strings.HasSuffix(strings.TrimRight(r, " "), "INT. LAMP ROOM - NIGHT ↗ link?") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("no tag drawn: %q", shownRows(w))
+	}
+	end := e.Buffer().LineEnd(lamp)
+	e.SetCursorOffset(end)
+	e.TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
+	if got, _ := e.Buffer().Position(e.CursorOffset()); got != lamp+1 {
+		t.Errorf("Right from the heading's end: line %d, want %d", got, lamp+1)
+	}
+	at, cell, ok := e.TagRect(lamp)
+	if !ok {
+		t.Fatal("no place for the tag")
+	}
+	tapped := -1
+	e.OnTagTapped = func(line int, _ editor.Tag, _ fyne.Position, _ fyne.Size) { tapped = line }
+	e.Tapped(&fyne.PointEvent{Position: at.AddXY(cell.Width*2, cell.Height/2)})
+	if tapped != lamp {
+		t.Errorf("tap on the tag: %d", tapped)
+	}
+	if e.Text() != comboNoLinks {
+		t.Error("the text changed")
+	}
+}
+
+// R1: a source chosen for a script, its guesses made: the script is as
+// it was, byte for byte, not changed, nothing to undo.
+func TestLinkUpLeavesScript(t *testing.T) {
+	for _, c := range comboOrigins {
+		t.Run(c.name, func(t *testing.T) {
+			if c.name == "inside" {
+				return // keeping it inside is a change asked for
+			}
+			w := c.open(t, comboNoLinks)
+			s := w.sourcePane()
+			s.follow()
+			if len(s.up.guesses) == 0 || len(w.guessTags()) == 0 {
+				t.Fatal("no guesses made")
+			}
+			if w.textEditor.Text() != comboNoLinks || w.textEditor.Buffer().CanUndo() || w.hasChanges {
+				t.Errorf("the script changed (changes %v):\n%s", w.hasChanges, w.textEditor.Text())
+			}
+		})
+	}
+}
+
+// A long part of the story before the first adapted chapter is offered
+// as cut, once, on a line of its own; Mark as Cut cuts its passages, one
+// undo step.
+func TestLinkUpOffersCut(t *testing.T) {
+	filler := strings.Repeat("A paragraph of the prologue, which the script does not adapt yet.\n\n", 9)
+	story := strings.Replace(comboStory, "## Chapter 1\n", "## Prologue\n\n"+filler+"## Chapter 1\n", 1)
+	w, _ := sourceWindow(t, comboNoLinks, story)
+	s := w.sourcePane()
+	if !s.prompt.box.Visible() || s.prompt.label.Text != "Prologue (9 paragraphs) isn't in the script. Mark as Cut?" {
+		t.Fatalf("asked %q", s.prompt.label.Text)
+	}
+	if w.textEditor.Text() != comboNoLinks {
+		t.Fatal("asking wrote")
+	}
+	comboShot(t, w, "linkup-cut")
+	s.prompt.yes.OnTapped()
+	if c := countOf(s.statuses); c.Cut != 9 {
+		t.Errorf("count %+v", c)
+	}
+	w.textEditor.Undo()
+	if w.textEditor.Text() != comboNoLinks {
+		t.Errorf("undo:\n%s", w.textEditor.Text())
+	}
+	s.follow()
+	if s.prompt.box.Visible() {
+		t.Errorf("asked again: %q", s.prompt.label.Text)
 	}
 }
 
@@ -487,18 +616,21 @@ func TestComboEmptyScript(t *testing.T) {
 	}
 }
 
-// The source wherever it is kept, a script without links: suggested.
+// The source wherever it is kept, a script without links: guessed.
 func TestComboNoLinksOrigins(t *testing.T) {
 	for _, c := range comboOrigins {
 		t.Run(c.name, func(t *testing.T) {
 			w := c.open(t, comboNoLinks)
 			s := w.sourcePane()
-			if !s.prompt.box.Visible() || !strings.Contains(s.prompt.label.Text, "1 of 3: INT. LIGHTHOUSE STAIRS") {
-				t.Fatalf("not suggested: %q", s.prompt.label.Text)
+			s.follow()
+			stairs := lineWith(t, w, "INT. LIGHTHOUSE STAIRS")
+			g, ok := s.guessesByLine()[stairs]
+			if !ok || !g.guessed() {
+				t.Fatalf("not guessed: %+v", s.up.guesses)
 			}
-			s.prompt.yes.OnTapped()
-			if c := countOf(s.statuses); c.Adapted != 2 {
-				t.Errorf("count %+v in\n%s", c, w.textEditor.Text()[:600])
+			s.acceptGuess(stairs, g)
+			if c := countOf(s.statuses); c.Adapted != 1 {
+				t.Errorf("count %+v in\n%s", c, w.textEditor.Text())
 			}
 		})
 	}

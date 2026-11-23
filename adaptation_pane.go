@@ -441,6 +441,9 @@ func (s *sourcePane) showAnchor(m *sourceModel) {
 		label := spanLabelsFor(s)[a.span]
 		t = "after: " + s.anchorText(a) + " · " + label + ", above the cursor"
 	}
+	if a.guessed {
+		t += " (by its words)"
+	}
 	if s.anchorLine.Text != t {
 		s.anchorLine.SetText(t)
 	}

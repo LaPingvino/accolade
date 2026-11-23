@@ -1239,6 +1239,29 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the first adapted section, gaps between) offered one at a time as a quiet line "Enkonduko (9 paragraphs) isn't in
   the script — Mark as Cut?"; (5) Adaptation › Link Up the Script… does it all at once in a review list for when the
   writer wants that. Measure on Joop's copy: scenes guessed right / wrong / silent, and report.
+- 2026-11-23: LINK UP, done (branch linkup, not merged). (a) suggestLinks summed in map order (Jane Eyre 0–3
+  right from run to run); fixed, then replaced. (b)+(c) scene_align.go: each scene against windows of the source
+  (1–50 passages), the rarer words they share (once each, log N/df) against chance for a window of that size (long
+  passages hold more words), a z-score; scenes placed in order by a forward–backward DP (any left out), a floor of
+  1 + √(2 ln places); confidence = the best total against the scene left out (slack 1.5) or placed off its hill;
+  silent below 2. Scenes left out between two placed ones are looked for in the gap alone (a lower floor for fewer
+  places). Links are fixed anchors. Bench, before → after (right/wrong/silent; invented silent): Christmas Carol
+  12/0/0, invented guessed → 12/0/0, invented silent; Jane Eyre 0/11/0 (deterministic), both invented guessed →
+  7/0/4, both silent. Joop's Kredu (21 scenes, 1 linked, local only): its links taken out, found again; with them
+  in, 18 of the other 20 guessed, all in the source's order (rightness unknown). UI: the editor's Tags (a faint
+  label after a line, not text: the cursor passes it; Short "↗?" where "↗ link?" has no room), tap/long press →
+  Accept (one undo step) / Adjust… / Not This (skipped links:); Alt+L and vim gs open it from the keyboard. Source
+  pane: chapter (else run) labels "adapted (scenes 3–9)", "adapted? (…)" when only guessed, "not adapted yet";
+  Next/Adapt… go on after a guessed scene (anchor "(by its words)"); a skipped section offered as cut one at a
+  time; Adaptation › Link Up the Script… (replaces Suggest Links and its "1 of N" prompts) lists guesses (checked)
+  and skipped sections (not), one undo step. Guesses are made also with the pane hidden once the source is read
+  (so link chips count passages there too). Tests: TestComboNoLinks, TestGuessTagNotText, TestLinkUpLeavesScript
+  (R1: byte for byte, nothing to undo, no changes flag), TestLinkUpOffersCut, TestAlignScenesSameEachTime,
+  TestAdaptBenchPrivate (skips without the file; counts only). Shots: SHOT_DIR=… -run 'TestComboNoLinks$|
+  TestLinkUpOffersCut$' (combo-linkup-{sections,menu,cut}, combo-beside-nolinks). Open: the guess range is the
+  dense core of the window (often one passage), so Accept links less than the scene adapts; the last scene is
+  often silent (nothing after it to hold it); Jane Eyre's non-monotone scenes (I.II after II.II in the novel)
+  stay silent; storyread's dialogue lines are not used yet; guesses live for the session (Not This persists).
 - 2026-11-23: shortest unique links (branch shortlinks, not merged; Joop 2026-11-22: "checking shortest unique
   for start and finish … auto-fix … when impossible signal this with a warning"). fragmentFor writes the fewest
   first words and fewest last words that find the passage(s) alone (read off the word index, confirmed by

@@ -49,6 +49,9 @@ func (w *MainWindow) org(cmd string) bool {
 			}
 		}
 		return goTo(-1)
+	case "gs": // the cursor's scene's guessed link: its menu (linkup.go)
+		w.linkGuessHere()
+		return true
 	case "gl": // the first heading inside
 		if i >= 0 && i+1 < len(items) && items[i+1].Level > items[i].Level {
 			return goTo(i + 1)

@@ -32,7 +32,8 @@ const (
 type anchor struct {
 	passage int // -1: before the first
 	kind    anchorKind
-	span    int // the scene's first line (anchorScene, anchorBefore)
+	span    int  // the scene's first line (anchorScene, anchorBefore)
+	guessed bool // the scene's place is a guess (linkup.go), not its link
 }
 
 // inclusive reports whether the anchor's own passage is a candidate:
@@ -58,12 +59,15 @@ func (m *sourceModel) anchorAt(line, picked, viewTop int) anchor {
 				at = max(at, mt.last())
 			}
 		}
+		kind := anchorScene
+		if m.spans[k].Line != cur.Line {
+			kind = anchorBefore
+		}
 		if at >= 0 {
-			kind := anchorScene
-			if m.spans[k].Line != cur.Line {
-				kind = anchorBefore
-			}
 			return anchor{passage: at, kind: kind, span: m.spans[k].Line}
+		}
+		if g, ok := m.guessEnd[m.spans[k].Line]; ok { // no link, a guess: on from where it seems to be
+			return anchor{passage: g, kind: kind, span: m.spans[k].Line, guessed: true}
 		}
 	}
 	if viewTop >= 0 && viewTop < len(m.passages) {

@@ -181,7 +181,7 @@ the cursor's scene only; only the block changes, as part of the writer's last un
   about the name.
 - **A heading written for a scene linked to a passage** (over Adapt…'s placeholder, or written in Adapt…, or a link put under a heading
   written in this session), other than any the source's place makes: the place is matched to it from then on.
-- **Skip on a suggested link:** remembered under `skipped links:`.
+- **Not This on a guessed link:** remembered under `skipped links:` (linkup.go).
 
 It learns from actions, not from how the script stands: what the script had when it was opened teaches nothing, and
 a cue or heading is looked at once the cursor has left it (half typed, nothing). The source pane's "What Accolade

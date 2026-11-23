@@ -434,7 +434,7 @@ func (w *MainWindow) toggleRibbonOrder() {
 var quickLabels = map[string]string{
 	"source.next": "Next Passage", "source.previous": "Previous Passage", "source.adapt": "Adapt",
 	"edit.findNext": "Find Next", "edit.findPrevious": "Find Previous", "source.update": "Update Links",
-	"source.suggest": "Suggest Links", "source.link": "Link", "production.nextScene": "Next Scene",
+	"source.linkUp": "Link Up", "source.link": "Link", "production.nextScene": "Next Scene",
 	"view.production": "Production", "file.newEmpty": "New Empty",
 }
 

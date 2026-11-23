@@ -45,7 +45,7 @@ import (
 //     the script had when it was opened teaches nothing; nor does a
 //     heading typed above a linked scene, its links under it until the
 //     blank line after it is typed (fromAnother); a heading renamed does.
-//   - Skip on a suggested link: written at once (adaptation_suggest.go).
+//   - Not This on a guessed link: written at once (linkup.go).
 
 // takenCue is a cue a suggestion put in: the source's name for the
 // speaker, the cue, the line under it.

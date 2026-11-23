@@ -492,35 +492,32 @@ func TestLearnNotFromAnotherScenesLinks(t *testing.T) {
 	}
 }
 
-// A suggested link skipped is remembered in the block and not offered
-// to that scene again; taken away in the view, it is.
+// A guess turned down (Not This) is remembered in the block and not
+// offered to that scene again; taken away in the view, it is.
 func TestLearnSkippedLink(t *testing.T) {
 	w, _ := sourceWindow(t, comboNoLinks, comboStory)
 	s := w.sourcePane()
-	if !strings.Contains(s.prompt.label.Text, "1 of 3: INT. LIGHTHOUSE STAIRS") {
-		t.Fatalf("asked %q", s.prompt.label.Text)
+	stairs := lineWith(t, w, "INT. LIGHTHOUSE STAIRS")
+	g, ok := s.guessesByLine()[stairs]
+	if !ok {
+		t.Fatal("no guess")
 	}
-	s.prompt.skip.OnTapped()
-	if b := learnedBlock(w); b != "skipped links:\n  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=Mara,loud.\n"+
-		"  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=\"Is,dark." {
+	s.notThisGuess(g)
+	if b := learnedBlock(w); b != "skipped links:\n  INT. LIGHTHOUSE STAIRS - NIGHT = #:~:text=Mara,loud." {
 		t.Fatalf("block %q", b)
 	}
 	if body(w) != strings.TrimRight(comboNoLinks, "\n") {
 		t.Errorf("the script changed: %q", body(w))
 	}
-	s.prompt.no.OnTapped()
-	w.suggestSourceLinks()
-	if !strings.Contains(s.prompt.label.Text, "1 of 2: INT. LAMP ROOM") {
-		t.Errorf("again: %q", s.prompt.label.Text)
+	if _, still := w.guessTags()[stairs]; still {
+		t.Error("offered again")
 	}
-	s.prompt.no.OnTapped()
 	s.learned.open = true
 	s.learned.layout()
 	forgetRow(t, w, "Not linked: INT. LIGHTHOUSE STAIRS - NIGHT, “Mara")
-	forgetRow(t, w, "Not linked: INT. LIGHTHOUSE STAIRS - NIGHT, “")
-	w.suggestSourceLinks()
-	if !strings.Contains(s.prompt.label.Text, "1 of 3: INT. LIGHTHOUSE STAIRS") {
-		t.Errorf("forgotten: %q", s.prompt.label.Text)
+	s.follow()
+	if _, back := w.guessTags()[stairs]; !back {
+		t.Error("forgotten, not offered again")
 	}
 }
 

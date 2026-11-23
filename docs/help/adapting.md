@@ -90,9 +90,14 @@ Within a session, the pane still shows a passage whose words changed after it wa
 
 Earlier versions of Accolade wrote the first words in quotes: `[[from: "She opened the door to the…"]]`. These are still read. Adaptation > Update Source Links rewrites every link it can find in the new form, in one undo step. Links it cannot place are left as they are.
 
-### Suggested links
+### Linking up a script written without links
 
-A script written before it had a source has no links. Adaptation > Suggest Links to the Source goes through the scenes and finds the passage each one reads like: a line of dialogue the story has, or the passage's words in the scene's. For each, the pane asks: Link, Skip or Not Now. Nothing is linked unless you say so. A skipped one is remembered and not offered to that scene again.
+A script written before it had a source has no links. Accolade reads its scenes against the source, in order (the rarer words they share, and where the scenes around them are), and guesses where each comes from. A guess is never written into the script:
+
+- A scene it is fairly sure of gets a faint **↗ link?** after its heading (just **↗?** where the line has no room). It is not text: the cursor passes it. Tap it (or Adaptation > Link Guess for This Scene…, Alt+L; in vim mode `gs`) for **Accept** (the link goes in, one undo step), **Adjust…** (the guess picked in the source pane, to pick the right passage and link it) or **Not This** (not offered for that scene again). A scene it is not sure of, or one invented for the script, gets nothing.
+- The source pane labels its chapters (or, without chapters, the stretches the scenes come from): "adapted (scenes 3–9)", "adapted? (scene 4)" when only guessed, and "not adapted yet" after the last of them. Next goes on from there, not from the top.
+- A part of the source skipped before or between adapted ones is offered, one at a time, on a quiet line in the pane: "Prologue (9 paragraphs) isn't in the script. Mark as Cut?"
+- Adaptation > Link Up the Script… lists all the guesses and skipped parts at once, to check and write in one go (one undo step).
 
 ## Statuses
 
@@ -162,7 +167,7 @@ As you adapt, Accolade learns from what you do, quietly, as part of your own und
 - **A name:** you rename a cue Tab put in (TOM to THOMAS), so the story's name becomes another name for that character.
 - **Not a name:** you throw away a cue Tab put in twice (Monday, Lord), so the word is no character.
 - **A place:** you write your own heading for a linked scene, so that place gets your heading from then on.
-- **A skipped link:** a suggested link you skipped is not offered to that scene again.
+- **A skipped link:** a guessed link you turned down (Not This) is not offered to that scene again.
 
 It keeps them in the script's `/* Adaptation` block:
 

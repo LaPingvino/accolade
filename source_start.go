@@ -167,3 +167,17 @@ func (s *sourcePane) seedScript() {
 	}
 	s.firstScene()
 }
+
+// offerStart asks, once per source, whether a script with nothing
+// written yet starts from the source. One with scenes gets its guesses
+// beside it instead (linkup.go): no question.
+func (s *sourcePane) offerStart(m *sourceModel) {
+	if s.seedAsked || s.prompt.box.Visible() || !slices.ContainsFunc(s.passages, passage.counted) || len(m.links) > 0 {
+		return
+	}
+	if len(m.spans) == 1 && m.spans[0].Heading == "" { // no scene, no section
+		s.seedAsked = true
+		s.prompt.ask("Nothing written yet. Start from the source: its chapters as sections, and the first scene?",
+			"Start from the Source", s.seedScript)
+	}
+}

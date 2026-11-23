@@ -474,6 +474,7 @@ type sourceModel struct {
 	cuts     []cutMark       // the adaptation block's cut: entries
 	cutAt    []cutSpan       // the passages each names (first -1: none)
 	status   []passageStatus // the passages' (adaptation.go)
+	guessEnd map[int]int     // by span line, the last passage a scene with no link is guessed to adapt (linkup.go)
 }
 
 func newSourceModel(ps []passage, script string, starts []string) *sourceModel {

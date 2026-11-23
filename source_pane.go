@@ -79,12 +79,13 @@ type sourcePane struct {
 	// for the script's next opening
 	linkedSrc, snapWritten string
 	linkedRef              sourceRef
-	linkedScript           string      // the script it was for (another source for it: Choose Source)
-	sugg                   suggestions // links offered (adaptation_suggest.go)
-	seedAsked              bool        // an unwritten script offered to start from the source
-	fresh                  bool        // the source just read: the list not scrolled yet
-	offered                int         // the passage Next showed last (-1 none)
-	offeredWords           []string    // its words, to find it again
+	linkedScript           string        // the script it was for (another source for it: Choose Source)
+	up                     linkUp        // the scenes' guesses and the source's sections (linkup.go)
+	linkUpDialog           dialog.Dialog // Link Up the Script… as shown
+	seedAsked              bool          // an unwritten script offered to start from the source
+	fresh                  bool          // the source just read: the list not scrolled yet
+	offered                int           // the passage Next showed last (-1 none)
+	offeredWords           []string      // its words, to find it again
 
 	reading    *storyread.Reading // what the source shows (source_reading.go)
 	readingFor string
@@ -213,7 +214,11 @@ func newPassageRow() *fyne.Container {
 	adapt := newRowButton("Adapt…", theme.DocumentCreateIcon())
 	adapt.Importance = widget.HighImportance
 	cut := newRowButton("Mark as Cut", theme.ContentCutIcon())
-	line := container.NewHBox(more, scenes, adapt, cut)
+	section := widget.NewLabel("") // a section's: adapted (scenes 3–9), not adapted yet (linkup.go)
+	section.SizeName = theme.SizeNameCaptionText
+	section.Importance = widget.LowImportance
+	section.Hide()
+	line := container.NewHBox(section, more, scenes, adapt, cut)
 	line.Hide()
 	left := container.NewHBox(bar, newStatusMark()) // clear of the list's scroll bar on the right
 	return container.NewStack(bg, container.NewBorder(nil, nil, left, nil, container.NewVBox(text, line)))
@@ -233,7 +238,8 @@ type passageRow struct {
 	mark    *statusMark
 	body    *fyne.Container // text over line
 	text    *widget.RichText
-	line    *fyne.Container // more, scenes, adapt, cut
+	line    *fyne.Container // section, more, scenes, adapt, cut
+	section *widget.Label
 	more    *widget.Button
 	scenes  *widget.Button // → Scene 4
 	adapt   *widget.Button
@@ -247,8 +253,8 @@ func rowParts(row *fyne.Container) passageRow {
 	return passageRow{
 		bg: row.Objects[0].(*canvas.Rectangle), bar: left.Objects[0].(*canvas.Rectangle),
 		mark: left.Objects[1].(*statusMark), body: body,
-		text: body.Objects[0].(*widget.RichText), line: line, more: line.Objects[0].(*widget.Button),
-		scenes: line.Objects[1].(*widget.Button), adapt: line.Objects[2].(*widget.Button), cut: line.Objects[3].(*widget.Button),
+		text: body.Objects[0].(*widget.RichText), line: line, section: line.Objects[0].(*widget.Label), more: line.Objects[1].(*widget.Button),
+		scenes: line.Objects[2].(*widget.Button), adapt: line.Objects[3].(*widget.Button), cut: line.Objects[4].(*widget.Button),
 	}
 }
 
@@ -260,9 +266,10 @@ type rowActs struct {
 	scenesName string
 	adapt, cut bool
 	cutLabel   string
+	section    string // the section's label, on its heading's row (linkup.go)
 }
 
-func (a rowActs) any() bool { return a.scenes != "" || a.adapt || a.cut }
+func (a rowActs) any() bool { return a.scenes != "" || a.adapt || a.cut || a.section != "" }
 
 // fill puts md in a row, shown in full or short, with its line's acts;
 // it reports whether it was cut. The row is laid out again: the list may
@@ -294,6 +301,10 @@ func fill(r passageRow, md string, full bool, acts rowActs) bool {
 		if on {
 			fyne.SetAccessibleLabel(b, name)
 		}
+	}
+	setVisible(r.section, acts.section != "")
+	if r.section.Text != acts.section {
+		r.section.SetText(acts.section)
 	}
 	setLabel(r.scenes, acts.scenes != "", acts.scenes, acts.scenesName)
 	setLabel(r.adapt, acts.adapt, "Adapt…", "Adapt the picked passage: how and where it goes in the script")
@@ -352,6 +363,7 @@ func (s *sourcePane) rowActs(id int) rowActs {
 	} else if len(sc) > 1 {
 		a.scenes, a.scenesName = plural(len(sc), "scene"), fmt.Sprintf("Choose one of the %d scenes adapting this passage", len(sc))
 	}
+	a.section = s.up.labelAt[id]
 	if id == s.selected {
 		switch s.statusOf(id) {
 		case statusToDo:
@@ -652,7 +664,7 @@ func (s *sourcePane) use(r *sourceRead, ps []passage) {
 		s.w.refreshMenu() // Keep Source in the Script (an undo can change it)
 	}
 	if r.ref != s.ref { // another source: its offers are new, the last one's question gone
-		s.sugg, s.seedAsked = suggestions{}, false
+		s.up, s.seedAsked = linkUp{}, false
 		s.prompt.hide()
 		s.linkedWords = nil
 	}
@@ -745,6 +757,7 @@ func (s *sourcePane) current() *sourceModel {
 			defer s.w.textEditor.RedrawMarks() // the chips count the passages again (link_chips.go)
 		}
 		s.model, s.modelFor = newSourceModelWith(s.matcher, text, s.w.sceneStarts()), text
+		s.model.guessEnd = s.guessEnd()
 	}
 	return s.model
 }
@@ -778,6 +791,7 @@ func (s *sourcePane) follow() {
 	cancel(&s.w.followTimer) // done now
 	s.w.learnFromWriting()
 	if !s.shown() {
+		s.updateGuesses() // the tags beside the script, with the source read already
 		return
 	}
 	s.loadSource(true)
@@ -804,6 +818,7 @@ func (s *sourcePane) follow() {
 	s.showAnchor(m)
 	s.learned.update(s)
 	s.offerStart(m)
+	s.updateGuesses()
 	line, _ := s.w.textEditor.Buffer().Position(s.w.textEditor.CursorOffset())
 	lit, doubt := map[int]bool{}, map[int]bool{}
 	var problems []string
@@ -1120,7 +1135,7 @@ func (s *sourcePane) syncActs() {
 // hasActs reports whether row id has a line of acts (rowActs) under its
 // text: the scenes linking to it, or the pick's Adapt… and Mark as Cut.
 func (s *sourcePane) hasActs(id int) bool {
-	if len(s.linkedBy[id]) > 0 {
+	if len(s.linkedBy[id]) > 0 || s.up.labelAt[id] != "" {
 		return true
 	}
 	return id == s.selected && (s.statusOf(id) == statusToDo || s.statusOf(id) == statusCut)

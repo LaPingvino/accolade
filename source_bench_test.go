@@ -585,10 +585,10 @@ func BenchmarkSwappedSourceKey(b *testing.B) {
 	})
 }
 
-// The links suggested for the bench screenplay without its links (a
+// The links guessed for the bench screenplay without its links (a
 // script written before it had a source): the story read, then the
-// scenes matched to it, as the pane does it in the background.
-func BenchmarkSuggestLinks(b *testing.B) {
+// scenes aligned to it, as the pane does it in the background.
+func BenchmarkGuessScenes(b *testing.B) {
 	md, script := benchFixture()
 	var kept []string
 	for _, l := range strings.Split(script, "\n") {
@@ -604,10 +604,9 @@ func BenchmarkSuggestLinks(b *testing.B) {
 			storyread.Read(storyPassages(ps), "en", storyread.Hints{})
 		}
 	})
-	r := storyread.Read(storyPassages(ps), "en", storyread.Hints{})
-	b.Run("match", func(b *testing.B) {
+	b.Run("align", func(b *testing.B) {
 		for b.Loop() {
-			suggestLinks(script, benchStarts, ps, m.status, r, nil)
+			guessScenes(script, benchStarts, m)
 		}
 	})
 }

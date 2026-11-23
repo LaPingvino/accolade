@@ -106,6 +106,14 @@ type ScriptEditor struct {
 	// underlined (production's breakdown tags), by line: each a range of
 	// the line's columns (runes). Read at each layout, as Marks.
 	Inks func() map[int][]Ink
+	// Tags, when set, are labels drawn faintly after a line's text (a
+	// guess beside a scene heading: "↗ link?"), by line. Not text: the
+	// cursor never goes into one and nothing of it is in the buffer; a
+	// tap (or a right click, a long press) on it goes to OnTagTapped, with
+	// its first cell's place and size. Read at each layout, as Marks. A
+	// tag that does not fit after the line's last row is not drawn.
+	Tags        func() map[int]Tag
+	OnTagTapped func(line int, t Tag, at fyne.Position, cell fyne.Size)
 	// OnSecondaryTapped, when set, is told of a right click (a long press
 	// on a touch screen) at a position on the canvas: the cursor is put
 	// there first, unless it is in the selection.
@@ -168,6 +176,7 @@ type ScriptEditor struct {
 	headings            map[int]bool                        // the lines that can fold (Headings)
 	marks               map[int]*widget.CustomTextGridStyle // the lines' marks (Marks), as drawn
 	inks                map[int][]Ink                       // the lines' inked words (Inks)
+	tags                map[int]Tag                         // the lines' tags (Tags)
 	chips               []Chip                              // the text's (Chips), as asked last
 	laid                laidOut                             // the last layout, for its key
 	// offstage: out of sight (SetOffstage); stale: changed since laid out
@@ -180,6 +189,12 @@ type Chip struct {
 	Start, End int
 	Label, Tip string
 	Warn       bool // drawn in the warning colour (a link that cannot find its passage alone)
+}
+
+// Tag is a label after a line (Tags); Short is drawn instead where Label
+// has no room (a phone's long heading); Tip is the caller's.
+type Tag struct {
+	Label, Short, Tip string
 }
 
 // Fold is a fold of lines: those in [From, To) hidden under the
@@ -511,6 +526,10 @@ func (e *ScriptEditor) relayout() {
 	e.inks = nil
 	if e.Inks != nil {
 		e.inks = e.Inks()
+	}
+	e.tags = nil
+	if e.Tags != nil && !e.Markdown {
+		e.tags = e.Tags()
 	}
 	e.marks = nil
 	if e.Marks != nil {
@@ -856,6 +875,15 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
 		}
 	}
+	if _, label, ok := e.tagOf(i); ok { // a tag after the line: faint, not text
+		cells = append(cells, widget.TextGridCell{Rune: ' '})
+		for _, ch := range label {
+			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
+			if wrap.Width(ch) == 2 {
+				cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: number})
+			}
+		}
+	}
 	if e.focused && i == curRow {
 		setCursor(&cells, g+curCol, cursor)
 	}
@@ -865,6 +893,81 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		}
 	}
 	return widget.TextGridRow{Cells: cells}
+}
+
+// tagOf is the tag drawn after row i, if one is, and the label drawn:
+// on a line's last row, read left to right, not a folded block, with
+// room for it (its Short if only that has room).
+func (e *ScriptEditor) tagOf(i int) (Tag, string, bool) {
+	if i < 0 || i >= len(e.layout.Rows) || len(e.tags) == 0 {
+		return Tag{}, "", false
+	}
+	r := e.layout.Rows[i]
+	t, ok := e.tags[r.Line]
+	if !ok || !r.Last || e.blockAt[r.Line] || e.rowRTL(i) {
+		return Tag{}, "", false
+	}
+	room := e.columns - 1 - e.tagStart(i) - 1 // the last column clear (a scroll bar over it)
+	for _, l := range []string{t.Label, t.Short} {
+		if l != "" && labelWidth(l) <= room {
+			return t, l, true
+		}
+	}
+	return Tag{}, "", false
+}
+
+// tagStart is the column (the gutter's counted) after row i's text,
+// where its tag's space goes.
+func (e *ScriptEditor) tagStart(i int) int {
+	r := e.layout.Rows[i]
+	c := e.gutter() + r.Indent + e.layout.RowWidth(i)
+	if e.foldAt[r.Line] {
+		c += 2 // " …"
+	}
+	return c
+}
+
+func labelWidth(s string) int {
+	n := 0
+	for _, r := range s {
+		n += wrap.Width(r)
+	}
+	return n
+}
+
+// tagAt is the line whose tag is drawn at p, its tag, and its first
+// cell's place.
+func (e *ScriptEditor) tagAt(p fyne.Position) (int, Tag, fyne.Position, bool) {
+	e.fresh()
+	if e.OnTagTapped == nil || p.Y < 0 || len(e.layout.Rows) == 0 {
+		return 0, Tag{}, fyne.Position{}, false
+	}
+	row, col := int(p.Y/e.cellHeight()), int(p.X/e.cellWidth())
+	t, label, ok := e.tagOf(row)
+	if !ok {
+		return 0, Tag{}, fyne.Position{}, false
+	}
+	start := e.tagStart(row) + 1
+	if col < start || col >= start+labelWidth(label) {
+		return 0, Tag{}, fyne.Position{}, false
+	}
+	return e.layout.Rows[row].Line, t, fyne.NewPos(float32(start)*e.cellWidth(), float32(row)*e.cellHeight()), true
+}
+
+// TagRect is where line's tag is drawn in the editor (its first cell's
+// place), if it is: for a menu opened on it from the keyboard.
+func (e *ScriptEditor) TagRect(line int) (fyne.Position, fyne.Size, bool) {
+	e.fresh()
+	for i, r := range e.layout.Rows {
+		if r.Line != line || !r.Last {
+			continue
+		}
+		if _, _, ok := e.tagOf(i); !ok {
+			return fyne.Position{}, fyne.Size{}, false
+		}
+		return fyne.NewPos(float32(e.tagStart(i)+1)*e.cellWidth(), float32(i)*e.cellHeight()), fyne.NewSize(e.cellWidth(), e.cellHeight()), true
+	}
+	return fyne.Position{}, fyne.Size{}, false
 }
 
 // labelCells are a folded block's row: its label (FoldLabel) after the
@@ -1145,6 +1248,10 @@ func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
 		e.OnFoldTapped(line)
 		return
 	}
+	if line, t, at, ok := e.tagAt(ev.Position); ok {
+		e.OnTagTapped(line, t, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
+		return
+	}
 	e.focus()
 	off := e.offsetAt(ev.Position)
 	if c, _, ok := e.chipUnder(ev.Position); ok && !e.shift { // a chip tapped: into it, its text shown
@@ -1158,6 +1265,10 @@ func (e *ScriptEditor) Tapped(ev *fyne.PointEvent) {
 // TappedSecondary puts the cursor at a right click (unless it is in the
 // selection) and tells OnSecondaryTapped.
 func (e *ScriptEditor) TappedSecondary(ev *fyne.PointEvent) {
+	if line, t, at, ok := e.tagAt(ev.Position); ok {
+		e.OnTagTapped(line, t, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
+		return
+	}
 	if c, at, ok := e.chipUnder(ev.Position); ok && e.OnChipPressed != nil {
 		e.OnChipPressed(c, at, fyne.NewSize(e.cellWidth(), e.cellHeight()))
 		return
