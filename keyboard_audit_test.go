@@ -17,6 +17,7 @@ import (
 //	UPDATE_KEYBOARD=1 go test -run TestKeyboardAudit .
 func TestKeyboardAudit(t *testing.T) {
 	w := sampleWindow(t, sampleAccolade)
+	keepAllSettings(t, w)
 	w.fyneWindow.Resize(fyne.NewSize(1400, 900))
 	r := ribbonOnFor(t, w)
 	r.refresh()

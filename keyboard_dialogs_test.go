@@ -171,10 +171,18 @@ func openedBy(w *MainWindow, a dialogAudit) (c fyne.Canvas, root fyne.CanvasObje
 // Tab reaches every control.
 func TestDialogTabOrder(t *testing.T) {
 	w := sampleWindow(t, sampleAccolade)
+	keepAllSettings(t, w)
 	w.fyneWindow.Resize(fyne.NewSize(1200, 800))
 	report := os.Getenv("TAB_REPORT") != ""
 	var lines []string
-	for _, a := range auditedDialogs() {
+	for i, a := range auditedDialogs() {
+		if r := os.Getenv("AUDIT_RANGE"); r != "" { // AUDIT_RANGE=10-20: some of them (bisecting)
+			var lo, hi int
+			fmt.Sscanf(r, "%d-%d", &lo, &hi)
+			if i < lo || i >= hi {
+				continue
+			}
+		}
 		var c fyne.Canvas
 		var root fyne.CanvasObject
 		var closeIt func()
@@ -221,6 +229,7 @@ func TestDialogsFocusVisible(t *testing.T) {
 		t.Skip("pixel capture of focus: checked by the runs without -race (as TestFocusIsVisible)")
 	}
 	w := sampleWindow(t, sampleAccolade)
+	keepAllSettings(t, w)
 	byID := map[string]dialogAudit{}
 	for _, a := range auditedDialogs() {
 		byID[a.id] = a
@@ -275,4 +284,23 @@ func focusShot(t *testing.T, c fyne.Canvas, dir, name string) {
 	}
 	defer f.Close()
 	png.Encode(f, c.Capture())
+}
+
+// keepAllSettings puts every setting back as it was once t ends: the
+// audits give every command, and the settings are the process's (a
+// report's kind chosen, the renumbering last used …).
+func keepAllSettings(t *testing.T, w *MainWindow) {
+	t.Helper()
+	s := w.settings
+	s.mu.RLock()
+	was := make(map[string]any, len(s.data))
+	for k, v := range s.data {
+		was[k] = v
+	}
+	s.mu.RUnlock()
+	t.Cleanup(func() {
+		s.mu.Lock()
+		s.data = was
+		s.mu.Unlock()
+	})
 }

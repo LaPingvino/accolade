@@ -14,6 +14,7 @@ const exScript = "Title: X\n\n# One\n\nINT. A - DAY #1#\n\nAlpha.\n\nINT. B - DA
 func exWin(t *testing.T, text string) (*MainWindow, *string) {
 	t.Helper()
 	w := draftsWindow(t)
+	keepAllSettings(t, w)
 	w.setOwnRole(roleProduction)
 	w.textEditor.SetText(text)
 	said := new(string)
