@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/accolade/internal/cite"
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
 	"github.com/LaPingvino/accolade/internal/images"
 	"github.com/LaPingvino/accolade/internal/prose"
@@ -42,6 +43,7 @@ type mdPageSetup struct {
 	altCaptions     bool           // a picture without a title has its alt text as caption
 	pics            *images.Loader // the document's pictures (not a setting: the window's)
 	cite            citeExport     // Pandoc's export: the library and style it cites with (citations.go)
+	lib             *cite.Library  // the document's library, for Accolade's own citations (not a setting: the window's; nil: as written)
 }
 
 // mdNotesPlaces are the notes' places as kept, in prose.NotesPlace's
@@ -54,11 +56,11 @@ var (
 
 func (w *MainWindow) markdownPageSetup() mdPageSetup {
 	if w.settings == nil {
-		return mdPageSetup{pics: w.pictures()}
+		return mdPageSetup{pics: w.pictures(), lib: w.library()}
 	}
 	p := mdPageSetup{paper: w.settings.GetString(mdPaperPref), titlePage: w.settings.GetBoolean(mdTitlePagePref),
 		notesPerChapter: w.settings.GetBoolean(mdNotesPerChapterPref), altCaptions: w.settings.GetBoolean(mdAltCaptionsPref),
-		pics: w.pictures()}
+		pics: w.pictures(), lib: w.library()}
 	if i := slices.Index(mdNotesPlaces, w.settings.GetString(mdNotesPref)); i > 0 {
 		p.notesAt = prose.NotesPlace(i)
 	}

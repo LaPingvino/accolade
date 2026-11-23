@@ -378,6 +378,15 @@ func (r *bibRaw) entry() *Entry {
 	e.Issue = f("number", "issue")
 	e.Pages = f("pages")
 	e.Edition = f("edition")
+	e.Genre = f("type")
+	if e.Genre == "" {
+		switch r.typ {
+		case "phdthesis":
+			e.Genre = "PhD diss."
+		case "mastersthesis":
+			e.Genre = "Master's thesis"
+		}
+	}
 	e.DOI = f("doi")
 	e.URL = f("url")
 	e.Note = f("note", "addendum")

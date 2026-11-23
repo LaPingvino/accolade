@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"github.com/LaPingvino/lexington/pdf"
 
+	"github.com/LaPingvino/accolade/internal/cite"
 	"github.com/LaPingvino/accolade/internal/prose"
 )
 
@@ -35,7 +36,7 @@ func proseFonts() prose.PDFFonts {
 // markdownDoc is the document to print: its body, title, paper and title
 // page.
 func markdownDoc(text, title string, p mdPageSetup, titlePage []string) *prose.Doc {
-	d := prose.FromMarkdown(markdownBody(text))
+	d := prose.FromMarkdown(citedBody(text, p.lib))
 	d.Title = cmp.Or(d.Title, title)
 	d.Paper, d.TitlePage = p.paper, titlePage
 	d.NotesAt, d.NotesPerChapter = p.notesAt, p.notesPerChapter
@@ -44,9 +45,10 @@ func markdownDoc(text, title string, p mdPageSetup, titlePage []string) *prose.D
 }
 
 // markdownPDFMissing says what of the document Accolade's PDF cannot
-// print as written ("" if it prints all of it).
-func markdownPDFMissing(text string) string {
-	return prose.FromMarkdown(markdownBody(text)).PDFMissing(proseFonts())
+// print as written ("" if it prints all of it), its citations cited
+// from lib.
+func markdownPDFMissing(text string, lib *cite.Library) string {
+	return prose.FromMarkdown(citedBody(text, lib)).PDFMissing(proseFonts())
 }
 
 // markdownPDF is the document's PDF as Accolade writes it, and its pages.
@@ -58,8 +60,8 @@ func markdownPDF(text, title string, p mdPageSetup, titlePage []string) ([]byte,
 
 // mdPDFByPrinting: the document's PDF is made in the print dialog — one
 // Accolade cannot print, with no Chromium on the computer to make it.
-func mdPDFByPrinting(text string) bool {
-	return markdownPDFMissing(text) != "" && pdfByPrinting()
+func mdPDFByPrinting(text string, lib *cite.Library) bool {
+	return markdownPDFMissing(text, lib) != "" && pdfByPrinting()
 }
 
 // mdPages is the Live Preview's Pages: the document's PDF in a page
@@ -115,7 +117,7 @@ func (m *mdPages) updateAfter(text string, delay time.Duration) {
 		tmp := fmt.Sprintf("%s.%d.tmp", out, gen)
 		inBackground(func() made {
 			data, d, err := markdownPDF(text, title, page, titlePage)
-			r := made{d: d, missing: markdownPDFMissing(text), out: tmp, err: err}
+			r := made{d: d, missing: markdownPDFMissing(text, page.lib), out: tmp, err: err}
 			if err == nil && os.WriteFile(tmp, data, 0o644) != nil {
 				r.out = ""
 			}

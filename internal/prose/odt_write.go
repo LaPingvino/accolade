@@ -100,6 +100,10 @@ func (w *odtWriter) block(b *strings.Builder, bl *Block, pstyle string) {
 				return
 			}
 		}
+		if bl.Hanging && pstyle == "" { // a bibliography's entry
+			w.para(b, "P_hanging", bl.Spans)
+			return
+		}
 		w.para(b, cmpOr(pstyle, "Text_20_body"), bl.Spans)
 	case Heading:
 		lv := min(max(bl.Level, 1), 6)
@@ -214,6 +218,8 @@ func (w *odtWriter) automatic() string {
 	for _, n := range names {
 		b.WriteString(`<style:style style:name="` + n + `" style:family="text"><style:text-properties` + w.textStyles[n] + `/></style:style>`)
 	}
+	b.WriteString(`<style:style style:name="P_hanging" style:family="paragraph" style:parent-style-name="Text_20_body">` +
+		`<style:paragraph-properties fo:margin-left="0.5in" fo:text-indent="-0.5in"/></style:style>`)
 	b.WriteString(`<style:style style:name="P_break" style:family="paragraph" style:parent-style-name="Text_20_body">` +
 		`<style:paragraph-properties fo:text-align="center"/></style:style>`)
 	if len(w.pics.list) > 0 {

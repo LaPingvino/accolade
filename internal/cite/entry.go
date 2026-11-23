@@ -74,6 +74,7 @@ type Entry struct {
 	Issue     string
 	Pages     string
 	Edition   string
+	Genre     string // a thesis's kind (PhD diss.), a report's
 	DOI       string
 	URL       string
 	Note      string

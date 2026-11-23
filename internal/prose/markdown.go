@@ -109,7 +109,15 @@ func (r *mdReader) blocks(parent ast.Node) []*Block {
 func (r *mdReader) block(n ast.Node) *Block {
 	switch n := n.(type) {
 	case *ast.Paragraph, *ast.TextBlock:
-		return &Block{Kind: Para, Spans: r.spans(n, Span{})}
+		b := &Block{Kind: Para, Spans: r.spans(n, Span{})}
+		if len(b.Spans) > 0 && strings.HasPrefix(b.Spans[0].Text, HangingMark) {
+			b.Hanging = true
+			b.Spans[0].Text = b.Spans[0].Text[len(HangingMark):]
+			if b.Spans[0].Text == "" && b.Spans[0].Image == nil && b.Spans[0].Note == nil && !b.Spans[0].Break {
+				b.Spans = b.Spans[1:]
+			}
+		}
+		return b
 	case *ast.Heading:
 		b := &Block{Kind: Heading, Level: n.Level, Spans: r.spans(n, Span{})}
 		if id, ok := n.AttributeString("id"); ok {

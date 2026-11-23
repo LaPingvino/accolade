@@ -101,7 +101,7 @@ func exportMarkdownWith(text, title, out, id string, p mdPageSetup, titlePage []
 	case "md":
 		return writeFileAtomic(out, []byte(text))
 	case "txt":
-		return writeFileAtomic(out, []byte(prose.FromMarkdown(body).Plain()))
+		return writeFileAtomic(out, []byte(prose.FromMarkdown(citedBody(text, p.lib)).Plain()))
 	case "html":
 		page, err := markdownHTMLWith(text, title, p, titlePage)
 		if err != nil {
@@ -109,10 +109,7 @@ func exportMarkdownWith(text, title, out, id string, p mdPageSetup, titlePage []
 		}
 		return writeFileAtomic(out, page)
 	case "docx", "odt":
-		d := prose.FromMarkdown(body)
-		d.Title = cmp.Or(d.Title, title)
-		d.Paper, d.TitlePage = p.paper, titlePage
-		d.Images, d.AltCaptions = p.pics, p.altCaptions
+		d := markdownDoc(text, title, p, titlePage)
 		var b bytes.Buffer
 		var err error
 		if id == "docx" {
@@ -126,7 +123,7 @@ func exportMarkdownWith(text, title, out, id string, p mdPageSetup, titlePage []
 		return writeFileAtomic(out, b.Bytes())
 	case "pdf":
 		// Accolade's own (md_pdf.go); a browser's for what it cannot print
-		missing := markdownPDFMissing(text)
+		missing := markdownPDFMissing(text, p.lib)
 		if missing == "" {
 			data, _, err := markdownPDF(text, title, p, titlePage)
 			if err != nil {
@@ -282,10 +279,10 @@ func (ed *markdownExportDialog) formatChanged() {
 		}
 	}
 	text := ed.w.textEditor.Text()
-	printing := f.id == "pdf" && mdPDFByPrinting(text)
+	printing := f.id == "pdf" && mdPDFByPrinting(text, ed.w.library())
 	if f.id == "pdf" {
 		note = "Written by Accolade: headings, emphasis, lists, quotes, code, tables and footnotes, on the page setup's paper; Live Preview's Pages shows it."
-		if missing := markdownPDFMissing(text); missing != "" {
+		if missing := markdownPDFMissing(text, ed.w.library()); missing != "" {
 			note = "Made by Chromium from the web page, without a dialog (Accolade's PDF cannot print " + missing + " yet)."
 		}
 		if printing {
@@ -305,7 +302,7 @@ func (ed *markdownExportDialog) formatChanged() {
 func (ed *markdownExportDialog) run() {
 	f := markdownExportByLabel(ed.format.Selected)
 	ed.settings.SetString("markdown-export-format", f.id)
-	if f.id == "pdf" && mdPDFByPrinting(ed.w.textEditor.Text()) {
+	if f.id == "pdf" && mdPDFByPrinting(ed.w.textEditor.Text(), ed.w.library()) {
 		_ = ed.settings.Save()
 		ed.dialog.Hide()
 		ed.w.printMarkdown()
@@ -338,17 +335,17 @@ func (ed *markdownExportDialog) run() {
 		titlePage := page.titlePageOf(text, ed.w.scriptName())
 		ed.export.Disable()
 		ed.status.SetText("Exporting...")
-		var cites citeInputs
-		if f.pandoc != "" {
-			cites = ed.w.citeInputsFor(text) // where the library may be: read in the background
-		}
+		cites := ed.w.citeInputsFor(text) // where the library may be: read in the background
 		inBackground(func() error {
-			if f.pandoc != "" {
+			switch {
+			case f.pandoc != "":
 				c, err := citeExportFor(text, cites)
 				if err != nil {
 					return err
 				}
 				page.cite = c
+			case page.lib == nil && f.id != "md": // Accolade's own: cites from the library, read now if the window has not yet
+				page.lib = libraryNow(text, cites)
 			}
 			return exportMarkdownWith(text, title, out, f.id, page, titlePage)
 		}, func(err error) {

@@ -237,6 +237,7 @@ func TestCiteLibraryWatched(t *testing.T) {
 	// none beside it: Preferences' main library
 	os.Remove(filepath.Join(dir, "refs.bib"))
 	w.settings.SetString(citeLibraryPref, other)
+	t.Cleanup(func() { w.settings.SetString(citeLibraryPref, "") }) // the settings are shared: no main library left for the next tests
 	os.WriteFile(other, []byte(`[{"id": "main1", "title": "Main"}]`), 0o644)
 	w.library()
 	if lib := w.library(); lib == nil || lib.Get("main1") == nil {

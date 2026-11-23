@@ -46,6 +46,9 @@ type Block struct {
 	Start    int // an ordered list's first number
 	Text     string
 	Rows     [][][]Span
+	// Hanging: a paragraph whose lines after the first are indented (a
+	// bibliography's entry): Markdown's starts with HangingMark.
+	Hanging bool
 	// ID is a heading's anchor (Markdown's, as [text](#id) links to it;
 	// "" if none)
 	ID string
@@ -98,6 +101,11 @@ func (b *Block) Picture() *Image {
 	}
 	return img
 }
+
+// HangingMark starts a Markdown paragraph that is set with a hanging
+// indent (an invisible separator, U+2063: the bibliography Accolade's
+// citations add, internal/cite, starts each entry with it).
+const HangingMark = "\u2063"
 
 // Doc is a document.
 type Doc struct {

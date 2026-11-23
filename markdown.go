@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/accolade/internal/cite"
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
@@ -349,10 +350,14 @@ func (p *previewPanel) update(text string) {
 		return
 	}
 	var pics *images.Loader
+	var lib *cite.Library
 	if p.w != nil {
-		pics = p.w.pictures()
+		pics, lib = p.w.pictures(), p.w.library()
 	}
-	p.text.Segments, _ = markdownSegments(markdownBody(text), -1, pics)
+	// the citations in Accolade's style, the references as paragraphs
+	// (Fyne's rich text has no hanging indent)
+	body := strings.ReplaceAll(citedBody(text, lib), cite.EntryMark, "")
+	p.text.Segments, _ = markdownSegments(body, -1, pics)
 	if p.w != nil { // with its title page
 		p.text.Segments = append(titleSegments(p.w.markdownPageSetup().titlePageOf(text, p.w.scriptName())), p.text.Segments...)
 		p.line.refresh()
@@ -399,16 +404,19 @@ func markdownHTML(text, title string) ([]byte, error) {
 // title page's lines.
 func markdownHTMLWith(text, title string, p mdPageSetup, titlePage []string) ([]byte, error) {
 	var body bytes.Buffer
-	if err := prose.MarkdownHTML([]byte(markdownBody(text)), &body); err != nil {
+	if err := prose.MarkdownHTML([]byte(citedBody(text, p.lib)), &body); err != nil {
 		return nil, err
 	}
+	// the bibliography's entries, with a hanging indent
+	html := strings.ReplaceAll(body.String(), "<p>"+cite.EntryMark, `<p class="csl-entry">`)
 	var out bytes.Buffer
 	fmt.Fprintf(&out, `<!doctype html><html><head><meta charset="utf-8"><title>%s</title>`+
 		`<style>body{font:12pt/1.5 Georgia,serif;max-width:40em;margin:2em auto;padding:0 1em}`+
-		`img{max-width:100%%}pre,code{font-family:monospace}blockquote{margin-left:1.5em;font-style:italic}%s</style></head><body>`,
+		`img{max-width:100%%}pre,code{font-family:monospace}blockquote{margin-left:1.5em;font-style:italic}`+
+		`.csl-entry{padding-left:2em;text-indent:-2em}%s</style></head><body>`,
 		strings.NewReplacer("&", "&amp;", "<", "&lt;").Replace(title), p.pageCSS())
 	out.WriteString(titlePageHTML(titlePage))
-	out.Write(body.Bytes())
+	out.WriteString(strings.ReplaceAll(html, cite.EntryMark, ""))
 	out.WriteString("</body></html>\n")
 	return out.Bytes(), nil
 }

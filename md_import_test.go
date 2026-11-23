@@ -236,7 +236,7 @@ func TestBrowserPDFMarkdown(t *testing.T) {
 		t.Skip("no Chromium browser")
 	}
 	text := storyDraft + "\nשלום, עולם.\n"
-	if markdownPDFMissing(text) == "" {
+	if markdownPDFMissing(text, nil) == "" {
 		t.Fatal("Accolade's PDF prints Hebrew prose now: give this test a document it cannot")
 	}
 	out := filepath.Join(t.TempDir(), "story.pdf")

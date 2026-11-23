@@ -113,6 +113,12 @@ func (w *docxWriter) block(b *Block, c docxCtx) {
 				return
 			}
 		}
+		if b.Hanging && c.style == "" && len(c.list) == 0 && c.quote == 0 { // a bibliography's entry
+			w.b.WriteString(`<w:p><w:pPr><w:ind w:left="720" w:hanging="720"/></w:pPr>`)
+			w.runs(&w.b, b.Spans)
+			w.b.WriteString(`</w:p>`)
+			return
+		}
 		w.para(c.style, c, b.Spans)
 	case Heading:
 		w.para(fmt.Sprintf("Heading%d", min(max(b.Level, 1), 6)), c, b.Spans)

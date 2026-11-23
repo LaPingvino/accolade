@@ -37,6 +37,7 @@ func ParseCSLJSON(data []byte) ([]*Entry, error) {
 			Issue:     jsonText(it["issue"]),
 			Pages:     jsonText(it["page"]),
 			Edition:   jsonText(it["edition"]),
+			Genre:     jsonText(it["genre"]),
 			DOI:       jsonText(it["DOI"]),
 			URL:       jsonText(it["URL"]),
 			Note:      jsonText(it["note"]),

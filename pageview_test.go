@@ -302,7 +302,7 @@ const mdPagesDoc = "---\ntitle: The Lighthouse Keeper\nauthor: A. Writer\n---\n\
 // the PDF, Lexington's producer, the page setup's paper.
 func TestMarkdownPDFNative(t *testing.T) {
 	out := filepath.Join(t.TempDir(), "doc.pdf")
-	if m := markdownPDFMissing(mdPagesDoc); m != "" {
+	if m := markdownPDFMissing(mdPagesDoc, nil); m != "" {
 		t.Fatalf("missing: %s", m)
 	}
 	if err := exportMarkdownWith(mdPagesDoc, "The Lighthouse Keeper", out, "pdf", mdPageSetup{paper: "letter", titlePage: true},
@@ -320,7 +320,7 @@ func TestMarkdownPDFNative(t *testing.T) {
 	if len(pages) != 2 || !strings.Contains(pages[0][0].Text, "The Lighthouse Keeper") || !strings.Contains(pages[1][0].Text, "The Lighthouse Keeper") {
 		t.Errorf("%d pages: %+v", len(pages), pages)
 	}
-	if m := markdownPDFMissing("# שלום\n\nעולם\n"); !strings.Contains(m, "right to left") {
+	if m := markdownPDFMissing("# שלום\n\nעולם\n", nil); !strings.Contains(m, "right to left") {
 		t.Errorf("Hebrew prose: %q", m)
 	}
 }

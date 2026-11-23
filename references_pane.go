@@ -2,7 +2,6 @@ package main
 
 import (
 	"image/color"
-	"strings"
 	"time"
 
 	"fyne.io/fyne/v2"
@@ -108,21 +107,13 @@ func newReferencesPanel(w *MainWindow) *referencesPanel {
 func refItems(text string, lib *cite.Library) []refItem {
 	cited, nocite := citedKeys(text)
 	first := map[string]int{}
-	lines := strings.Split(text, "\n")
-	kinds := syntax.ClassifyMarkdown(lines)
-	for i, l := range lines {
-		switch kinds[i] {
-		case syntax.MdCode, syntax.MdCodeFence, syntax.MdFrontMatter, syntax.MdComment:
-			continue
-		}
-		for _, c := range syntax.Citations(l) {
-			for _, k := range c.Keys {
-				if _, ok := first[k.Key]; !ok {
-					first[k.Key] = i
-				}
+	cite.EachCitation(text, func(i int, c syntax.Citation) {
+		for _, k := range c.Keys {
+			if _, ok := first[k.Key]; !ok {
+				first[k.Key] = i
 			}
 		}
-	}
+	})
 	var out []refItem
 	for _, k := range cited {
 		out = append(out, refItem{key: k, entry: lib.Get(k), line: first[k]})

@@ -175,6 +175,13 @@ func (w *MainWindow) citations() *citeState {
 				w.noteTipShown = "" // shown again, as it is now
 				w.citeTipAtCursor()
 			}
+		}, func() { // the preview's citations and references, from the library as read now
+			if p := w.previewPane; w.previewVisible && p != nil {
+				w.updateLivePreview()
+				if p.showsPages() && p.pages != nil && !w.followEdits() && p.pages.view.d != nil { // not made again by the update
+					p.pages.update(p.last)
+				}
+			}
 		})
 	}
 	return w.cites
@@ -324,22 +331,14 @@ func (w *MainWindow) citeTipAtCursor() {
 // with the front matter's nocite after them.
 func citedKeys(text string) (cited, nocite []string) {
 	seen := map[string]bool{}
-	lines := strings.Split(text, "\n")
-	kinds := syntax.ClassifyMarkdown(lines)
-	for i, l := range lines {
-		switch kinds[i] {
-		case syntax.MdCode, syntax.MdCodeFence, syntax.MdFrontMatter, syntax.MdComment:
-			continue
-		}
-		for _, c := range syntax.Citations(l) {
-			for _, k := range c.Keys {
-				if !seen[k.Key] {
-					seen[k.Key] = true
-					cited = append(cited, k.Key)
-				}
+	cite.EachCitation(text, func(_ int, c syntax.Citation) {
+		for _, k := range c.Keys {
+			if !seen[k.Key] {
+				seen[k.Key] = true
+				cited = append(cited, k.Key)
 			}
 		}
-	}
+	})
 	for _, k := range cite.FrontOf(text).Nocite {
 		if !seen[k] {
 			seen[k] = true
@@ -347,6 +346,27 @@ func citedKeys(text string) (cited, nocite []string) {
 		}
 	}
 	return cited, nocite
+}
+
+// citedBody is the part of a Markdown document that is shown and
+// printed (markdownBody), its citations in Accolade's own author-date
+// style and its bibliography added when it has a library (lib; nil:
+// the citations as written) — what the Live Preview, the page view and
+// Accolade's own PDF, Word, ODT and web page show (internal/cite,
+// style.go). Pandoc's exports cite with --citeproc instead.
+func citedBody(text string, lib *cite.Library) string {
+	return cite.Render(markdownBody(text), lib, cite.FrontOf(text).Nocite)
+}
+
+// libraryNow is the document's library, found and read at once (the
+// background's work, for an export: the window's may not be read yet).
+func libraryNow(text string, in citeInputs) *cite.Library {
+	if !strings.ContainsRune(text, '@') {
+		return nil
+	}
+	in.listed()
+	_, lib, _ := cite.Resolve(in.place, in.read)
+	return lib
 }
 
 // citeExport is what Pandoc's export needs to cite: the library's file

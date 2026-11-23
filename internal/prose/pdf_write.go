@@ -840,15 +840,22 @@ func (p *pdfWriter) width(pc piece) float64 {
 // lines breaks pieces into lines width wide: at spaces, a word longer
 // than the line broken where it must.
 func (p *pdfWriter) lines(ps []piece, width float64) [][]piece {
+	return p.hangingLines(ps, width, width)
+}
+
+// hangingLines are lines of ps, the first width wide, the others rest.
+func (p *pdfWriter) hangingLines(ps []piece, first, rest float64) [][]piece {
 	var lines [][]piece
 	var line []piece
 	w := 0.0
+	width := first
 	end := func() {
 		for len(line) > 0 && line[len(line)-1].space {
 			line = line[:len(line)-1]
 		}
 		lines = append(lines, line)
 		line, w = nil, 0
+		width = rest
 	}
 	for i := 0; i < len(ps); {
 		if ps[i].brk {
@@ -923,9 +930,17 @@ func (p *pdfWriter) paragraph(spans []Span, base style, left, right float64, a a
 // wrapping, a line at a time (emit); first, if set, is told where the
 // first line's top is, on its page.
 func (p *pdfWriter) flow(spans []Span, base style, left, right float64, a align, first func(y float64)) {
+	p.flowHanging(spans, base, left, right, 0, a, first)
+}
+
+// flowHanging is flow with the lines after the first indented by hang.
+func (p *pdfWriter) flowHanging(spans []Span, base style, left, right, hang float64, a align, first func(y float64)) {
 	lh := base.size * leading
-	for i, line := range p.lines(p.pieces(spans, base), right-left) {
+	for i, line := range p.hangingLines(p.pieces(spans, base), right-left, right-left-hang) {
 		x := left
+		if i > 0 {
+			x += hang
+		}
 		if a == alignCenter {
 			x += p.centred(line, right-left)
 		}
@@ -1039,6 +1054,10 @@ func (p *pdfWriter) block(b *Block, indent float64, quoted, first bool) {
 		}
 		if img := b.Picture(); img != nil {
 			p.picture(img, b.Spans, left)
+			return
+		}
+		if b.Hanging { // a bibliography's entry
+			p.flowHanging(b.Spans, body, left, p.right, 2*indentStp, alignLeft, nil)
 			return
 		}
 		p.paragraph(b.Spans, body, left, p.right, alignLeft)
