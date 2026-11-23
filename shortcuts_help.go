@@ -216,7 +216,7 @@ func shortcutsPage(env cmdEnv, both bool) string {
 	}
 	b.WriteString("\n## The command palette and the ribbon\n\n" + strings.Join(paletteRibbonKeys(), "\n") + "\n")
 	b.WriteString("\n## Vim and helix\n\nPreferences > Editor gives the editor vim's or helix's keys; the menus' shortcuts stay. " +
-		"Their own keys are not documented yet: [Vim and Helix Modes](vim.md).\n")
+		"Their own keys are not documented yet: [Vim and Helix Modes](vim.md); the `:` line's commands, which it completes as you type: [Ex Commands](ex.md).\n")
 	return b.String()
 }
 

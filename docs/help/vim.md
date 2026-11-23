@@ -8,3 +8,4 @@ Until then:
 
 - Tab and Enter in normal mode are vim's (Tab folds the heading under the cursor, Enter goes down a line); in insert mode they are the screenplay's, as in [Coming from Final Draft](final-draft.md).
 - The menus and their shortcuts work in every mode: see [Keyboard Shortcuts](shortcuts.md).
+- **:** opens the command line: as you type, a list shows the commands it may be, Tab completes them, and every command of the menus is there by name. All of them: [Ex Commands](ex.md).

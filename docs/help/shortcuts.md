@@ -113,4 +113,4 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 
 ## Vim and helix
 
-Preferences > Editor gives the editor vim's or helix's keys; the menus' shortcuts stay. Their own keys are not documented yet: [Vim and Helix Modes](vim.md).
+Preferences > Editor gives the editor vim's or helix's keys; the menus' shortcuts stay. Their own keys are not documented yet: [Vim and Helix Modes](vim.md); the `:` line's commands, which it completes as you type: [Ex Commands](ex.md).

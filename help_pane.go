@@ -49,6 +49,8 @@ func (w *MainWindow) helpPage(slug string) (help.Page, bool) {
 		p.Markdown = shortcutsPage(env, false)
 	case "cheat-shortcuts":
 		p.Markdown = shortcutsSheet(env, false)
+	case "ex":
+		p.Markdown = exHelpPage()
 	}
 	return p, true
 }

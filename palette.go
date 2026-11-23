@@ -302,18 +302,24 @@ func (p *palette) run() {
 	}
 	e := p.shown[p.chosen]
 	p.pop.Hide()
-	w := p.w
+	p.w.runByName(e.c, e.action, e.away)
+}
+
+// runByName runs c as asked for by name (the palette, the ':' line):
+// action is a submenu item's, nil for c's own; away, c is put away by
+// the role, and the script works as Production first and says so.
+func (w *MainWindow) runByName(c *command, action func(), away bool) {
 	w.focusMain() // the main editor: an editing command acts on what is written there
 	said := ""
-	if e.away { // asked for by name: this script works as Production now
+	if away { // asked for by name: this script works as Production now
 		w.setOwnRole(roleProduction)
-		said = "Working as Production for this script (" + e.c.label + " is production's): View > Working As goes back"
+		said = "Working as Production for this script (" + c.label + " is production's): View > Working As goes back"
 		w.setStatus(said)
 	}
-	if e.action != nil {
-		e.action()
+	if action != nil {
+		action()
 	} else {
-		w.tapped(e.c, nil)()
+		w.tapped(c, nil)()
 	}
 	if said != "" && w.statusLabel != nil && w.statusLabel.Text != said && w.statusLabel.Text != "" {
 		w.setStatus(w.statusLabel.Text + " · working as Production for this script now")

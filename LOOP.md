@@ -1460,3 +1460,22 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   steps 4–6), page view on real browser/Android, Characters leftovers, lock-the-writer layers, File › Merge Changes;
   from Wed 2026-11-25: Markdown images + storyboard frames + cast photos, then Table Read / cast, citations; then
   the keyboard pass; then the rest of Hindi (font companion, Indian layouts) near the end; title page keys last.
+- 2026-11-23: ex mode completion (branch excomplete, not merged; Joop: "Maybe ex mode should have autocomplete /
+  discoverable commands? … those commands are not easy to guess"; "and especially move commands should be
+  intuitive"). One table, ex_table.go: ex.go's line commands (vim's names and abbreviations, s[ubstitute], co[py]…;
+  ex.go now takes its names from it), the window's own (:e[dit] file, :sc[ene] heading-or-number, :el[ement],
+  :heading, :h[elp] [cmd|page], and the moves: :move-scene-up/-down (org's Alt+K/J), :promote-/:demote-section,
+  :next-/:previous-heading, :go-parent-section, :go-first-inside) and every registry command by a name made from
+  its label (:next-source-passage), shorter for the common ones (:preview, :fold, :export, :outline, :cards); a
+  submenu's items are its argument (:theme dark, :recent …), elements :element's, headings :heading's, help pages
+  :help's — a test checks every registry command is reached and no name hides another. The ':' line lists what it
+  may be as you type (a layer of the window, not a pop-up: the line keeps the keyboard), prefix first, then fuzzy;
+  an empty line the most useful; Tab completes and cycles, Shift+Tab back, arrows choose, Enter runs the line as
+  typed (or the arrows' choice), a command wanting its argument lists it instead (:scene ↵ lists the scenes);
+  Up on an empty line is the history. Arguments complete: scene headings, elements, export formats, files on the
+  desktop for :w/:e, submenu items. Phone: two-line rows, a tap completes and runs. docs/help/ex.md is made from
+  the table (UPDATE_HELP=1 go test -run TestExHelp), live in the app's Help tab; vim.md, index.md and the shortcuts
+  page link it. Moves are named move-<what>-up/-down, so ":mo" lists them all (keywords bring the jumps after);
+  the STRUCTURAL MOVES slot (move-speech-…) is a comment in exWindowCommands — no such entry is in this LOOP.md
+  yet. Fixed on the way: :m to an address outside the script (:m-9 on line 3) panicked; it says "invalid address".
+  palette.run's role switch is runByName now, shared with the ':' line.

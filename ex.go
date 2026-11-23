@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"unicode"
 )
 
 // Ex commands, as vim's command line has them (":" in vim and helix
@@ -53,10 +52,24 @@ func (st *exState) run(cmd string, lines []string, cur int, visual [2]int) (exRe
 	if err != nil {
 		return res, err
 	}
-	name, rest := p.command()
+	word, rest := p.command()
+	name := ""
+	if c, _ := exCommands().lookup(word); c != nil && c.line() {
+		name = c.canon // the table's: s, su and substitute are one
+	}
+	bang := false
+	if (name == "g" || name == "q" || name == "") && strings.HasPrefix(rest, "!") { // g! q! (s!a!b! is s)
+		bang, rest = true, rest[1:]
+	}
+	if name == "" && word != "" {
+		return res, &exNotCommand{name: word, bang: bang, rest: rest}
+	}
+	if bang && name == "g" {
+		name = "v" // g! is v
+	}
 	if !given {
 		from, to = cur, cur
-		if name == "g" || name == "v" || name == "g!" || name == "w" || name == "wq" || name == "x" {
+		if name == "g" || name == "v" || name == "w" || name == "wq" || name == "x" {
 			from, to = 0, len(lines)-1
 		}
 	}
@@ -78,9 +91,9 @@ func (st *exState) run(cmd string, lines []string, cur int, visual [2]int) (exRe
 		res.lines, res.line = n.lines, n.line
 		res.msg = n.msg
 		return res, nil
-	case "g", "g!", "v":
+	case "g", "v":
 		return st.global(rest, name != "g", lines, from, to)
-	case "d", "de", "del", "delete":
+	case "d":
 		res.yank = strings.Join(lines[from:to+1], "\n") + "\n"
 		res.lines = append(append([]string(nil), lines[:from]...), lines[to+1:]...)
 		if len(res.lines) == 0 {
@@ -89,24 +102,27 @@ func (st *exState) run(cmd string, lines []string, cur int, visual [2]int) (exRe
 		res.line = min(from, len(res.lines)-1)
 		res.msg = fmt.Sprintf("%d fewer lines", to-from+1)
 		return res, nil
-	case "y", "ya", "yank":
+	case "y":
 		res.yank = strings.Join(lines[from:to+1], "\n") + "\n"
 		res.msg = fmt.Sprintf("%d lines yanked", to-from+1)
 		return res, nil
-	case "j", "join":
+	case "j":
 		if !given || from == to {
 			to = min(from+1, len(lines)-1)
 		}
 		res.lines = join(lines, from, to)
 		res.line = from
 		return res, nil
-	case "m", "mo", "move", "t", "co", "copy":
+	case "m", "t":
 		dest, err := p.address(strings.TrimSpace(rest))
 		if err != nil {
 			return res, err
 		}
+		if dest < -1 || dest >= len(lines) {
+			return res, errors.New("invalid address")
+		}
 		block := append([]string(nil), lines[from:to+1]...)
-		if name == "t" || name == "co" || name == "copy" {
+		if name == "t" {
 			res.lines = insertLines(lines, dest+1, block)
 			res.line = dest + len(block)
 			return res, nil
@@ -121,24 +137,31 @@ func (st *exState) run(cmd string, lines []string, cur int, visual [2]int) (exRe
 		res.lines = insertLines(without, dest+1, block)
 		res.line = dest + len(block)
 		return res, nil
-	case "u", "undo":
+	case "u":
 		res.undo = true
 		return res, nil
-	case "w", "write":
+	case "w":
 		res.write, res.file = true, strings.TrimSpace(rest)
 		return res, nil
-	case "wq", "x", "xit", "exit":
+	case "wq", "x":
 		res.write, res.quit = true, true
 		return res, nil
-	case "q", "quit":
-		res.quit = true
-		return res, nil
-	case "q!", "quit!":
-		res.quit, res.keep = true, true
+	case "q":
+		res.quit, res.keep = true, bang // :q! closes without saving
 		return res, nil
 	}
-	return res, fmt.Errorf("%w: %s", errNotCommand, name)
+	return res, &exNotCommand{name: word, bang: bang, rest: rest}
 }
+
+// exNotCommand is a command ex.go does not run: the window's own or the
+// registry's (ex_window.go), or none.
+type exNotCommand struct {
+	name, rest string
+	bang       bool
+}
+
+func (e *exNotCommand) Error() string { return errNotCommand.Error() + ": " + e.name }
+func (e *exNotCommand) Unwrap() error { return errNotCommand }
 
 // exParser reads a command's range and name.
 type exParser struct {
@@ -267,28 +290,11 @@ func (p *exParser) address(s string) (int, error) {
 	return l, err
 }
 
-// command reads the command's name: letters (s and g end at their
-// delimiter), or ! after q and g.
+// command reads the command's name (exNameOf: letters, and - between
+// them), and the rest.
 func (p *exParser) command() (name, rest string) {
 	s := strings.TrimSpace(p.s[p.i:])
-	j := 0
-	for j < len(s) && unicode.IsLetter(rune(s[j])) {
-		j++
-	}
-	name = s[:j]
-	if name == "su" || name == "substitute" {
-		name = "s"
-	}
-	if name == "global" {
-		name = "g"
-	}
-	if name == "vglobal" {
-		name = "v"
-	}
-	if j < len(s) && s[j] == '!' && (name == "g" || name == "q" || name == "quit") {
-		name += "!"
-		j++
-	}
+	name, j := exNameOf(s, 0)
 	return name, s[j:]
 }
 

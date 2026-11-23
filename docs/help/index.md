@@ -24,6 +24,7 @@ Accolade is a screenplay editor that writes plain Fountain. These pages are in t
 - [File Formats](formats.md) — what Accolade opens, saves, imports and exports
 - [Lexington on the Command Line](lexington.md) — converting scripts without the editor
 - [Vim and Helix Modes](vim.md) — not documented yet
+- [Ex Commands](ex.md) — every command of the `:` line, which completes them as you type
 
 ## Cheat sheets
 

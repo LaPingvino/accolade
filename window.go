@@ -76,6 +76,7 @@ type MainWindow struct {
 	exLabel  *widget.Label
 	exPrompt func(string) // the line is a prompt's (helix s), not a command
 	exVisual [2]int
+	exPop    *exPop // the ':' line's completion list (ex_window.go)
 	// the middle tabs: the script, the cards' full view, the panes put
 	// there (middle.go)
 	mid middle
@@ -1537,7 +1538,7 @@ func systemOpen(path string) {
 
 // setContent shows content in the window, with the tooltip layer over it.
 func (w *MainWindow) setContent(content fyne.CanvasObject) {
-	w.fyneWindow.SetContent(container.New(&windowLayout{w: w}, content, w.tooltips))
+	w.fyneWindow.SetContent(container.New(&windowLayout{w: w}, content, w.exPopup().layer, w.tooltips))
 }
 
 // relayout puts the window together: the toolbar and the status bar,
