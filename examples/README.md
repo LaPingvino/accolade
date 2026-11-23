@@ -115,7 +115,7 @@ machine-written, to be checked by a native reader** (Esperanto: Joop).
 | `sample.ja.fountain` | Japanese | 桃太郎: the peach on the river, the boy born from it |
 | `sample.he.fountain` | Hebrew | a mother reads the tower of Babel to her son (Genesis 11:1–4, pointed as by Mechon Mamre, no cantillation) |
 | `sample.ar.fountain` | Arabic | Ali Baba and the Forty Thieves: "Open Sesame" (افتح يا سمسم, vowelled) |
-| `sample.hi-Deva.fountain` | Hindi in Devanagari | the monkey and the crocodile (Panchatantra, book 4): the crocodile's wife wants the monkey's heart; the monkey left it in the jamun tree |
+| `sample.hi-Deva.fountain` | Hindi in Devanagari | the monkey and the crocodile (Panchatantra, book 4): the crocodile's wife wants the monkey's heart; in mid-river the monkey says he left it in the jamun tree |
 | `sample.hi-Latn.fountain` | Hindi in Latin letters | the same scenes as Hindi Fountain scripts in Latin letters write them: English headings, cues, extensions and transitions (`EXT. … - DIN`, `CUT TO:`, `(V.O.)`), the action and dialogue in Hindi |
 
 Where a language's rules have no word of their own, the sample uses what the rules give it: Esperanto and toki pona
