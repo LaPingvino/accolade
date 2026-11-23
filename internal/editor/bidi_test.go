@@ -2,7 +2,10 @@ package editor
 
 import (
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/test"
 
+	"slices"
 	"strings"
 	"testing"
 
@@ -51,11 +54,11 @@ func TestRTLMirrored(t *testing.T) {
 	e.FocusGained()
 	e.Buffer().SetCursor(5, false) // before ל
 	e.changed(false)
-	if m := e.mirrored(1); m != [2]int{e.gutter(), e.gutter() + 4} {
-		t.Errorf("mirrored cells %v", m)
+	if b, _ := e.order(1); b.From != e.gutter() || len(b.Levels) != 4 || !b.RTL || !slices.Equal(b.Order, []int{3, 2, 1, 0}) {
+		t.Errorf("right-to-left row ordered %+v", b)
 	}
-	if e.mirrored(0) != [2]int{} {
-		t.Error("left-to-right row mirrored")
+	if b, _ := e.order(0); b.reordered() || b.RTL {
+		t.Error("left-to-right row reordered")
 	}
 	if c := e.visualCol(1, 1); c != 2 { // ל: second from the right of 4
 		t.Errorf("ל drawn at column %d", c)
@@ -100,7 +103,7 @@ func TestLTRJoins(t *testing.T) {
 	pieces := func(s string) []string {
 		rs := []rune(s)
 		var out []string
-		for k, j := range ltrJoins(rs) {
+		for k, j := range bidiJoins(rs, bidiLevels(rs, true)) {
 			if j && k > 0 {
 				out[len(out)-1] += string(rs[k])
 			} else {
@@ -122,5 +125,109 @@ func TestLTRJoins(t *testing.T) {
 	}
 	if mirrorBracket("(") != ")" || mirrorBracket("x") != "x" {
 		t.Error("brackets")
+	}
+}
+
+// shown is row i as drawn: its cells' runes placed at their columns.
+func shown(e *ScriptEditor, i int) string {
+	b, cells := e.order(i)
+	if cells == nil {
+		cells = e.row(i).Cells
+	}
+	at := drawnCols(cells, b)
+	out := []rune(strings.Repeat(" ", at[len(cells)]+2))
+	for k, c := range cells {
+		if c.Rune != wideFill && cellWidth(c.Rune) > 0 && at[k] >= 0 && at[k] < len(out) {
+			r := c.Rune
+			if b.level(k)%2 == 1 {
+				r = []rune(mirrorBracket(string(r)))[0]
+			}
+			out[at[k]] = r
+		}
+	}
+	return strings.TrimRight(string(out[e.gutter():]), " ")
+}
+
+// The bidi algorithm orders each row: right-to-left words in a
+// left-to-right line and left-to-right ones in a right-to-left line
+// drawn the way they read, numbers whole.
+func TestBidiRows(t *testing.T) {
+	for line, want := range map[string]string{
+		"Title: המגדל":                  "Title: לדגמה",
+		"Title: המגדל 2 abc":            "Title: 2 לדגמה abc",
+		"Title: سمسم 2026 draft":        "Title: 2026 مسمس draft",
+		"השעה 23:40 של Pieter Bruegel.": ".Pieter Bruegel לש 23:40 העשה",
+		"דני (O.S.)":                    "(.O.S) ינד",
+		"Hello":                         "Hello",
+	} {
+		e := newEditor(t, line, 60)
+		e.changed(false)
+		if got := shown(e, 0); strings.TrimSpace(got) != want {
+			t.Errorf("%q drawn %q, want %q", line, got, want)
+		}
+	}
+}
+
+// The cursor moves through the text as it is written and is drawn on its
+// character wherever that is drawn; a click on a character's cell lands
+// before it (on its reading side), and a selection lights the cells of
+// what is selected.
+func TestBidiCursorAndClicks(t *testing.T) {
+	for _, line := range []string{"השעה 23:40 של Pieter Bruegel.", "Title: המגדל and more", "مرحبا 12:30 يا"} {
+		e := newEditor(t, line, 60)
+		e.FocusGained()
+		e.changed(false)
+		rs := []rune(line)
+		b, cells := e.order(0)
+		at := drawnCols(cells, b)
+		for off := range rs {
+			e.Buffer().SetCursor(off, false)
+			e.changed(false)
+			pos := e.CursorPosition()
+			k := e.gutter() + off // one cell a character in these lines
+			if want := float32(at[k]) * e.cellWidth(); pos.X != want {
+				t.Errorf("%q: cursor at %d drawn at x %v, want %v", line, off, pos.X, want)
+			}
+			// a click on the half of the cell its reading starts from
+			x := pos.X + e.cellWidth()*0.25
+			if b.level(k)%2 == 1 {
+				x = pos.X + e.cellWidth()*0.75
+			}
+			if got := e.offsetAt(fyne.NewPos(x, 1)); got != off {
+				t.Errorf("%q: click before %q lands at %d, want %d", line, rs[off], got, off)
+			}
+		}
+		// a selection of "23:40" / "המגדל": its cells, and only they, lit
+		s := strings.IndexAny(line, "2ה")
+		if s < 0 {
+			s = 0
+		}
+		from := len([]rune(line[:s]))
+		e.Buffer().SetCursor(from, false)
+		e.Buffer().SetCursor(from+5, true)
+		e.FocusLost()
+		e.changed(false)
+		row := e.row(0)
+		for k := range rs {
+			sel := row.Cells[e.gutter()+k].Style != nil && row.Cells[e.gutter()+k].Style.BackgroundColor() != nil
+			if want := k >= from && k < from+5; sel != want {
+				t.Errorf("%q: cell of %q selected %v", line, rs[k], sel)
+			}
+		}
+	}
+}
+
+// In a right-to-left line drawn in a font without its letters (each
+// letter in its own cell) the signs between words stand each in its own
+// cell: drawn together they would read left to right (": " for " :").
+func TestBidiNeutralsAlone(t *testing.T) {
+	e := newEditor(t, "כותרת: המגדל, 23:40.", 40)
+	e.changed(false)
+	for _, o := range test.WidgetRenderer(e.grid).Objects() {
+		if tx, ok := o.(*canvas.Text); ok {
+			if rs := []rune(tx.Text); len(rs) > 1 && !leads(rs[0], 1) && !leads(rs[0], 2) {
+				t.Errorf("%q drawn in one piece at x %v", tx.Text, tx.Position().X)
+			}
+		}
 	}
 }

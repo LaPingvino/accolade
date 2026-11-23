@@ -772,18 +772,25 @@ func (e *ScriptEditor) drawRows() {
 		first, end = max(first-viewMargin, 0), min(end+viewMargin, len(e.layout.Rows))
 	}
 	rows := make([]widget.TextGridRow, end-first)
-	mirror := make([][2]int, end-first)
+	order := make([]rowBidi, end-first)
 	for i := first; i < end; i++ {
-		rows[i-first] = e.row(i)
-		mirror[i-first] = e.mirrored(i)
+		row, from, to := e.rowCells(i)
+		rows[i-first], order[i-first] = row, newRowBidi(row.Cells, from, to, e.rowRTL(i))
 	}
 	e.gridFirst, e.gridEnd = first, end
-	e.grid.Rows, e.grid.Mirror = rows, mirror
+	e.grid.Rows, e.grid.Bidi = rows, order
 	e.BaseWidget.Refresh()
 }
 
 // row is the grid row of the wrapped row i.
 func (e *ScriptEditor) row(i int) widget.TextGridRow {
+	row, _, _ := e.rowCells(i)
+	return row
+}
+
+// rowCells is the grid row of the wrapped row i, and its text's cells
+// [from, end) (none for a folded block's summary).
+func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, from, end int) {
 	d := &e.draw
 	text, kinds, th, v, g := d.text, d.kinds, d.th, d.v, d.gutter
 	selStart, selEnd, curRow, curCol := d.selStart, d.selEnd, d.curRow, d.curCol
@@ -832,8 +839,9 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 		lineStyle = kindStyle(kinds[r.Line], th, v)
 	}
 	if first && e.blockAt[r.Line] { // a folded block: its summary, quiet
-		return widget.TextGridRow{Cells: e.labelCells(cells, r, number)}
+		return widget.TextGridRow{Cells: e.labelCells(cells, r, number)}, len(cells), len(cells)
 	}
+	from = len(cells)
 	spans := d.inline[r.Line]
 	inks := e.inks[r.Line]
 	for off := r.Start; off < r.End; off++ {
@@ -883,6 +891,7 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 			cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: cell.Style})
 		}
 	}
+	end = len(cells)
 	if r.Last && e.foldAt[r.Line] { // a folded heading: what it holds is hidden
 		for _, ch := range " …" {
 			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
@@ -905,7 +914,7 @@ func (e *ScriptEditor) row(i int) widget.TextGridRow {
 			setCursor(&cells, g+c, cursor)
 		}
 	}
-	return widget.TextGridRow{Cells: cells}
+	return widget.TextGridRow{Cells: cells}, from, end
 }
 
 // tagOf is the tag drawn after row i, if one is, and the label drawn:
@@ -1369,19 +1378,92 @@ func (e *ScriptEditor) MouseOut() {
 }
 
 // charAt is the character whose cell is at a position in the editor, and
-// the cell's place (-1 if there is none: the gutter, past the text, a
-// line laid out right to left).
+// the cell's place (-1 if there is none: the gutter, past the text).
 func (e *ScriptEditor) charAt(p fyne.Position) (int, fyne.Position) {
 	e.fresh()
 	row, col := int(p.Y/e.cellHeight()), int(p.X/e.cellWidth())-e.gutter()
-	if p.Y < 0 || row >= len(e.layout.Rows) || col < 0 || e.rowRTL(row) {
+	if p.Y < 0 || row >= len(e.layout.Rows) || col < 0 {
 		return -1, fyne.Position{}
 	}
 	r := e.layout.Rows[row]
+	if b, cells := e.order(row); b.reordered() || b.RTL {
+		k, _, ok := e.cellDrawnAt(row, b, cells, float32(col)+0.5)
+		if !ok {
+			return -1, fyne.Position{}
+		}
+		at := drawnCols(cells, b)[k]
+		return e.layout.Offset(row, e.logicalCol(cells, k)), fyne.NewPos(float32(at)*e.cellWidth(), float32(row)*e.cellHeight())
+	}
 	if col < r.Indent || col >= r.Indent+e.layout.RowWidth(row) {
 		return -1, fyne.Position{}
 	}
 	return e.layout.Offset(row, col), fyne.NewPos(float32(e.gutter()+col)*e.cellWidth(), float32(row)*e.cellHeight())
+}
+
+// order is how row's text is drawn, and its cells (none when it is drawn
+// as written).
+func (e *ScriptEditor) order(row int) (rowBidi, []widget.TextGridCell) {
+	if row < 0 || row >= len(e.layout.Rows) {
+		return rowBidi{}, nil
+	}
+	rtl := e.rowRTL(row)
+	if !rtl && !e.mayReorder(row) {
+		return rowBidi{}, nil
+	}
+	gr, from, end := e.rowCells(row)
+	return newRowBidi(gr.Cells, from, end, rtl), gr.Cells
+}
+
+// mayReorder: row's text (or a chip's label shown in it) has a character
+// at or past Hebrew's, so it may have right-to-left letters (a quick look
+// before building its cells).
+func (e *ScriptEditor) mayReorder(row int) bool {
+	r := e.layout.Rows[row]
+	text := e.draw.text
+	for off := min(r.Start, len(text)); off < min(r.End, len(text)); off++ {
+		if text[off] >= 0x0590 {
+			return true
+		}
+		if i, ok := e.laid.chipAt[off]; ok && i < len(e.chips) { // a chip shows its label
+			for _, ch := range e.chips[i].Label {
+				if ch >= 0x0590 {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// cellDrawnAt is the text cell of row drawn at column x (from the text
+// area's left, fractions within a cell kept), and how far into it x is
+// (0 at its left edge, 1 at its right): a wide character's second cell
+// is its first's.
+func (e *ScriptEditor) cellDrawnAt(row int, b rowBidi, cells []widget.TextGridCell, x float32) (k int, frac float32, ok bool) {
+	at := drawnCols(cells, b)
+	x += float32(e.gutter())
+	for i := b.From; i < min(b.From+len(b.Levels), len(cells)); i++ {
+		w := float32(cellWidth(cells[i].Rune))
+		if w == 0 || x < float32(at[i]) || x >= float32(at[i])+w {
+			continue
+		}
+		frac = x - float32(at[i])
+		if cells[i].Rune == wideFill && i > b.From {
+			l := min(at[i], at[i-1])
+			return i - 1, (x - float32(l)) / 2, true
+		}
+		return i, frac, true
+	}
+	return 0, 0, false
+}
+
+// logicalCol is the layout column of cell k of a row (the gutter left out).
+func (e *ScriptEditor) logicalCol(cells []widget.TextGridCell, k int) int {
+	c := 0
+	for _, cell := range cells[:k] {
+		c += cellWidth(cell.Rune)
+	}
+	return c - e.gutter()
 }
 
 func (e *ScriptEditor) focus() {
@@ -1404,12 +1486,42 @@ func (e *ScriptEditor) offsetAt(p fyne.Position) int {
 	if row >= len(e.layout.Rows) {
 		return e.buf.Len()
 	}
-	if e.rowRTL(row) { // between two cells, counted from the right
-		r := e.layout.Rows[max(row, 0)]
-		w := e.layout.RowWidth(max(row, 0))
-		col = r.Indent + w - min(max(col-r.Indent, 0), w)
+	if b, cells := e.order(max(row, 0)); b.reordered() || b.RTL {
+		return e.offsetDrawnAt(max(row, 0), b, cells, p.X/e.cellWidth()-float32(e.gutter()))
 	}
 	return e.layout.Offset(max(row, 0), max(col, 0))
+}
+
+// offsetDrawnAt is the offset nearest to column x of a reordered row:
+// before the character clicked or after it, by the half clicked and the
+// way it reads; past the text, its start or end by the side.
+func (e *ScriptEditor) offsetDrawnAt(row int, b rowBidi, cells []widget.TextGridCell, x float32) int {
+	r := e.layout.Rows[row]
+	if k, frac, ok := e.cellDrawnAt(row, b, cells, x); ok {
+		col := e.logicalCol(cells, k)
+		after := frac >= 0.5
+		if b.level(k)%2 == 1 {
+			after = !after
+		}
+		if after {
+			w := cellWidth(cells[k].Rune)
+			if k+1 < len(cells) && cells[k+1].Rune == wideFill {
+				w++
+			}
+			col += w
+		}
+		return e.layout.Offset(row, col)
+	}
+	start, end := r.Indent, r.Indent+e.layout.RowWidth(row)
+	at := drawnCols(cells, b)
+	lo := at[min(b.From, len(cells))] - e.gutter()
+	for i := b.From; i < min(b.From+len(b.Levels), len(cells)); i++ {
+		lo = min(lo, at[i]-e.gutter())
+	}
+	if (x < float32(lo)) == b.RTL {
+		return e.layout.Offset(row, end)
+	}
+	return e.layout.Offset(row, start)
 }
 
 // wordAt is the word (letters and digits) around an offset, or the single
@@ -1452,37 +1564,21 @@ func (e *ScriptEditor) rowRTL(row int) bool {
 	return l < len(e.rtl) && e.rtl[l]
 }
 
-// mirrored is the cells of a right-to-left row's text, to draw right to
-// left (none for other rows).
-func (e *ScriptEditor) mirrored(row int) [2]int {
-	if !e.rowRTL(row) {
-		return [2]int{}
-	}
-	r := e.layout.Rows[row]
-	from := e.gutter() + r.Indent
-	n := r.End - r.Start
-	if text := e.draw.text; r.End <= len(text) {
-		for _, ch := range text[r.Start:r.End] {
-			if wrap.Width(ch) == 2 {
-				n++ // its second cell
-			}
-		}
-	}
-	return [2]int{from, from + n}
-}
-
-// visualCol is where column col of a row is drawn: mirrored in a
-// right-to-left row (its end left of its text).
+// visualCol is where column col of a row is drawn: where the bidi
+// algorithm puts its cell (a right-to-left row's end left of its text).
 func (e *ScriptEditor) visualCol(row, col int) int {
-	if !e.rowRTL(row) {
+	b, cells := e.order(row)
+	if !b.reordered() && !b.RTL {
 		return col
 	}
-	r := e.layout.Rows[row]
-	w := e.layout.RowWidth(row)
-	if t := col - r.Indent; t >= 0 && t < w {
-		return r.Indent + w - 1 - t
-	} else if t >= w {
-		return max(r.Indent-1-(t-w), 0)
+	g := e.gutter()
+	at := drawnCols(cells, b)
+	if i := cellAt(cells, g+col); i < len(cells) {
+		return at[i] - g
+	}
+	end := min(b.From+len(b.Levels), len(cells))
+	if b.RTL && b.From < end { // past the cells: on from the text's left
+		return max(at[len(cells)-1]-g-(g+col-(at[len(cells)]-1)), 0)
 	}
 	return col
 }

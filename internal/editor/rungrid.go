@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"golang.org/x/image/font/sfnt"
-	"golang.org/x/text/unicode/bidi"
 
 	"github.com/LaPingvino/accolade/internal/editor/wrap"
 )
@@ -24,10 +23,9 @@ import (
 type runGrid struct {
 	widget.BaseWidget
 	Rows []widget.TextGridRow
-	// Mirror, for a right-to-left row, is the cells of its text [from, end)
-	// drawn right to left; cells after them (the cursor at the line's end)
-	// go left of them
-	Mirror [][2]int
+	// Bidi is how each row's text is ordered (right-to-left text, and
+	// left-to-right runs in it)
+	Bidi []rowBidi
 	e      *ScriptEditor // its theme and cell size
 }
 
@@ -77,34 +75,26 @@ func (r *runRenderer) Refresh() {
 	for y, row := range r.g.Rows {
 		cells := row.Cells
 		top := float32(y) * ch
-		// x[i] is cell i's column: marks take none
-		x := make([]float32, len(cells)+1)
-		for i, c := range cells {
-			x[i+1] = x[i] + float32(cellWidth(c.Rune))*cw
+		var bd rowBidi
+		if y < len(r.g.Bidi) {
+			bd = r.g.Bidi[y]
 		}
-		var m [2]int
-		if y < len(r.g.Mirror) {
-			m = r.g.Mirror[y]
-			m[1] = min(m[1], len(cells))
-		}
-		left := func(i int) float32 { // where cell i is drawn
-			switch {
-			case m[1] <= m[0] || i < m[0]:
-				return x[i]
-			case i < m[1]:
-				return x[m[0]] + x[m[1]] - x[i+1]
-			}
-			return x[m[0]] - (x[i+1] - x[m[1]])
-		}
+		cols := drawnCols(cells, bd) // where each cell is drawn
+		end := min(bd.From+len(bd.Levels), len(cells))
+		left := func(i int) float32 { return float32(cols[i]) * cw }
+		width := func(i int) float32 { return float32(cellWidth(cells[i].Rune)) * cw }
 		span := func(i, j int) (float32, float32) { // where cells [i, j) are drawn
-			l, rt := left(i), left(i)+x[i+1]-x[i]
+			l, rt := left(i), left(i)+width(i)
 			for k := i + 1; k < j; k++ {
-				l, rt = min(l, left(k)), max(rt, left(k)+x[k+1]-x[k])
+				l, rt = min(l, left(k)), max(rt, left(k)+width(k))
 			}
 			return l, rt - l
 		}
-		// runs do not cross into or out of the mirrored cells
-		boundary := func(j int) bool { return m[1] > m[0] && (j == m[0] || j == m[1]) }
+		// runs do not cross into or out of the reordered text, nor from one
+		// level to another in it (drawn apart)
+		boundary := func(j int) bool {
+			return bd.reordered() && (j == bd.From || j == end || bd.level(j) != bd.level(j-1))
+		}
 		for i := 0; i < len(cells); { // backgrounds
 			bg := backgroundOf(cells[i].Style)
 			j := i + 1
@@ -121,21 +111,25 @@ func (r *runRenderer) Refresh() {
 			}
 			i = j
 		}
-		var joins []bool // in the mirrored cells: a cell drawn in one piece with the one before
-		if m[1] > m[0] {
-			rs := make([]rune, m[1]-m[0])
+		var joins []bool // in the reordered text: a cell drawn in one piece with the one before
+		if bd.reordered() {
+			rs := make([]rune, end-bd.From)
 			for k := range rs {
-				rs[k] = cells[m[0]+k].Rune
+				rs[k] = cells[bd.From+k].Rune
 			}
 			joins = make([]bool, len(cells))
-			copy(joins[m[0]:], ltrJoins(rs))
+			copy(joins[bd.From:], bidiJoins(rs, bd.Levels[:len(rs)]))
 		}
 		for i := 0; i < len(cells); { // texts
 			style, col := styleOf(cells[i].Style), colorOf(cells[i].Style, fg)
 			var b strings.Builder
 			j := i
-			inMirror := m[1] > m[0] && i >= m[0] && i < m[1]
-			for j < len(cells) && (j == i || !boundary(j)) && (!inMirror || j == i || joins[j]) &&
+			inText := bd.reordered() && i >= bd.From && i < end
+			// in the reordered text a piece starts with a letter of its way
+			// (one cut off from its letters by a style or a wide character
+			// stands alone)
+			alone := inText && bd.level(i) > 0 && !leads(cells[i].Rune, int8(bd.level(i)))
+			for j < len(cells) && (j == i || !boundary(j) && !alone) && (!inText || j == i || joins[j]) &&
 				narrow(cells[j].Rune) && cells[j].Rune != wideFill && styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col) {
 				b.WriteRune(cells[j].Rune)
 				j++
@@ -173,7 +167,7 @@ func (r *runRenderer) Refresh() {
 				}
 			}
 			if text := b.String(); strings.TrimSpace(text) != "" {
-				if inMirror && j == i+1 {
+				if bd.level(i)%2 == 1 && j == i+1 {
 					text = mirrorBracket(text) // "(" drawn right to left is ")"
 				}
 				t := r.text(nt)
@@ -230,75 +224,6 @@ func (r *runRenderer) Refresh() {
 // size, in color: in the browser, whose fonts have the CJK the bundled
 // one lacks (glyph_js.go). The desktop's fonts fall back by themselves.
 var wideGlyph func(s string, c color.Color, bold bool, size, w, h float32) image.Image
-
-// sameWay reports whether two characters of a right-to-left row are drawn
-// in one piece: both written left to right (numbers, Latin) or both right
-// to left (Arabic, joined); spaces and signs stand each in its own cell.
-func sameWay(a, b rune) bool {
-	way := func(r rune) int {
-		p, _ := bidi.LookupRune(r)
-		switch p.Class() {
-		case bidi.L, bidi.EN, bidi.AN:
-			return 1
-		case bidi.R, bidi.AL:
-			return 2
-		case bidi.NSM:
-			return 3 // a mark goes with what it is on
-		}
-		return 0
-	}
-	wa, wb := way(a), way(b)
-	return wa != 0 && (wb == wa || wb == 3)
-}
-
-// ltrJoins tells for each character of a right-to-left row's text
-// whether it is drawn in one piece with the one before, as the Unicode
-// bidi algorithm orders them: letters of one direction together, a mark
-// with what it is on; neutrals (spaces, signs) between two Latin letters
-// with them ("Pieter Bruegel", "O.S"), one separator between two numbers
-// with them ("23:40", "1.5"); every other neutral in its own cell.
-func ltrJoins(rs []rune) []bool {
-	class := func(r rune) bidi.Class { p, _ := bidi.LookupRune(r); return p.Class() }
-	joins := make([]bool, len(rs))
-	base := 0 // the last character not a mark
-	for k := 1; k < len(rs); k++ {
-		joins[k] = sameWay(rs[base], rs[k])
-		if class(rs[k]) != bidi.NSM {
-			base = k
-		}
-	}
-	strong := func(k int) int { // 0 none, 1 Latin, 2 number
-		if k < 0 || k >= len(rs) {
-			return 0
-		}
-		switch class(rs[k]) {
-		case bidi.L:
-			return 1
-		case bidi.EN, bidi.AN:
-			return 2
-		}
-		return 0
-	}
-	for a := 0; a < len(rs); {
-		if sameWay(rs[a], rs[a]) || class(rs[a]) == bidi.NSM { // not a neutral
-			a++
-			continue
-		}
-		b := a
-		for b < len(rs) && !sameWay(rs[b], rs[b]) && class(rs[b]) != bidi.NSM {
-			b++
-		}
-		before, after := strong(a-1), strong(b)
-		sep := b == a+1 && (class(rs[a]) == bidi.CS || class(rs[a]) == bidi.ES)
-		if before == 1 && after == 1 || before == 2 && after == 2 && sep {
-			for k := a; k <= b && k < len(rs); k++ {
-				joins[k] = true
-			}
-		}
-		a = b
-	}
-	return joins
-}
 
 // mirrorBracket is a bracket as drawn right to left: its mirror.
 func mirrorBracket(s string) string {

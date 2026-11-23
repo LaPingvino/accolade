@@ -1635,6 +1635,21 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   glyphs make single-spaced dialogue lines touch — the font (Courier Badi repo: Arabic glyph heights/vertical metrics);
   (6) Hebrew dagesh in yod/lamed hard to see — the font. (1)–(4) Accolade/Lexington, (5)–(6) Courier Badi. The Arabic
   sample's vowelling is the agent's own, to be checked by a native reader.
+  Done 2026-11-23 (branch rtlfix, not merged), (1)–(4); (5)–(6) stay with Courier Badi. Lexington v1.38.0: (1) a
+  format aligned "C" is not mirrored (every centred format: the title page, centred text), so rtl title lines share
+  the Latin ones' centre; (4) right-to-left marks (Arabic vowels, Hebrew points) print apart where the font's GPOS
+  mark/mkmk put them (each letter+marks shaped alone in logical order by go-text; fatha on hamza, fatha over shadda;
+  plain marks barely move), recorded in the Drawing so the page view shows them; the text reads out as written:
+  the marks also print invisibly in place (Tr 3), the placed copies are /Span ActualText () marked content
+  (pdftotext and pdfin skip them; pdfin gives combining marks no width). Lam-alef with a mark keeps the default
+  place if the shaper gives other glyph counts. Editor (internal/editor/bidi.go, rungrid.go): each row's text cells
+  get UBA levels (go-text bidi; in a ltr line numbers after rtl letters at level 2 told apart) and are drawn in rule-L2
+  order; one Text per word of one direction (a ltr run in rtl text joins its spaces: "Pieter Bruegel", "23:40"), a
+  sign alone in its cell, mirrored at an odd level. Cursor and selection are cells, so they sit on their characters
+  wherever drawn; arrows still move logically; clicks (offsetAt/charAt) and CursorPosition go through the same map
+  (TestBidiRows, TestBidiCursorAndClicks, TestBidiNeutralsAlone). Levels are per wrapped row, not per line (the
+  row's cells hold chips' labels); differs only for numbers right after a wrap. The samples' editor shots are
+  pixel-identical to before (whole rtl lines were right); "Title: המגדל" in an English line was letter-reversed.
 - 2026-11-23: STRUCTURAL MOVES + Swap…/Move… as one engine (branch structmoves, not merged). internal/structure:
   the body read as a tree (sections > scenes > blocks: a speech is one, side-by-side ones too, a boneyard is one >
   lines), title page and end blocks never touched; every move a reorder of line spans, then checked by reading the
