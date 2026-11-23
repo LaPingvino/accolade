@@ -1449,3 +1449,6 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   letters — all three read right), a Devanagari companion font for Courier Badi (e.g. Noto Sans Devanagari) via the
   same fallback the Hebrew points use, the help page. Indian layouts (two-column, Hindi in Latin letters) through the
   screenplay-sources pattern fixer.
+  Joop: "I think it should already work as is, just without any presets for it available, so I think preset first
+  is a good approach." — so ORDER: the Hindi preset/language rule first (Lexington, tagged), the shaping check as a
+  screenshot in the same item to confirm it (not a gate in front of it).
