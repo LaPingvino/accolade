@@ -1,6 +1,7 @@
 package prose
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -9,12 +10,16 @@ import (
 	"golang.org/x/net/html/atom"
 	"golang.org/x/net/html/charset"
 
+	"github.com/LaPingvino/accolade/internal/images"
 	"github.com/LaPingvino/accolade/internal/pace"
 )
 
 // ReadHTML reads a web page: its headings, paragraphs, lists, quotes,
 // code, tables, emphasis and links. Scripts, styles, navigation and forms
-// are left out; images too, a comment in their place.
+// are left out. Pictures are kept: a data: URI's file in the Image's
+// Data (to be saved: SaveImages), any other address as it is (a file
+// beside the page is the caller's to copy; one on the web is never
+// fetched).
 //
 // golang.org/x/net/html (the Go project's own HTML5 parser, already in
 // Accolade's modules through pion's WebRTC) parses the page as browsers
@@ -44,7 +49,8 @@ func ReadHTML(r io.Reader) (*Doc, error) {
 }
 
 type htmlReader struct {
-	doc *Doc
+	doc  *Doc
+	pics int // the pictures in data: URIs so far
 }
 
 func findAtom(n *html.Node, a atom.Atom) *html.Node {
@@ -210,9 +216,21 @@ func (x *htmlReader) spans(n *html.Node, f Span) []Span {
 	case atom.Br:
 		return []Span{{Break: true}}
 	case atom.Img:
-		x.doc.Dropped++
-		alt := strings.TrimSpace(attrOf(n, "alt"))
-		return []Span{{Comment: strings.TrimSpace("image left out: " + alt)}}
+		alt, src := strings.TrimSpace(attrOf(n, "alt")), strings.TrimSpace(attrOf(n, "src"))
+		if src == "" {
+			x.doc.Dropped++
+			return []Span{{Comment: strings.TrimSpace("image left out: " + alt)}}
+		}
+		img := &Image{Src: src, Alt: alt, Title: strings.TrimSpace(attrOf(n, "title"))}
+		if strings.HasPrefix(strings.ToLower(src), "data:") {
+			if p := images.New(nil).Load(src); p.Data != nil {
+				x.pics++
+				img.Data, img.Src = p.Data, fmt.Sprintf("image%d%s", x.pics, extOf(p.Data))
+			}
+		}
+		s := f
+		s.Text, s.Image = alt, img
+		return []Span{s}
 	case atom.Strong, atom.B:
 		g.Bold = true
 	case atom.Em, atom.I, atom.Cite, atom.Var, atom.Dfn:

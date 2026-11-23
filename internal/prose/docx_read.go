@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"errors"
 	"io"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,8 +14,9 @@ import (
 
 // ReadDOCX reads a Word document: its paragraphs, headings (by their
 // style, whatever its language: its name or outline level), lists,
-// quotes, tables, bold, italic, links and footnotes. Images and other
-// objects are left out, a comment in their place.
+// quotes, tables, bold, italic, links, footnotes and pictures (their
+// files in the Images' Data, to be saved: SaveImages). Other objects
+// are left out, a comment in their place.
 func ReadDOCX(r io.ReaderAt, size int64) (*Doc, error) {
 	z, err := zip.NewReader(r, size)
 	if err != nil {
@@ -27,7 +29,8 @@ func ReadDOCX(r io.ReaderAt, size int64) (*Doc, error) {
 	if doc == nil {
 		return nil, errors.New("not a Word document (.docx): it has no word/document.xml")
 	}
-	x := &docxReader{styles: map[string]*docxStyle{}, lists: map[string]map[int]bool{}, links: map[string]string{}, notes: map[string]*node{}}
+	x := &docxReader{styles: map[string]*docxStyle{}, lists: map[string]map[int]bool{}, links: map[string]string{}, notes: map[string]*node{},
+		media: map[string]string{}, z: z}
 	if n, err := zipPart(z, "word/styles.xml"); err == nil {
 		x.readStyles(n)
 	}
@@ -38,6 +41,9 @@ func ReadDOCX(r io.ReaderAt, size int64) (*Doc, error) {
 		for _, rel := range n.all("Relationship") {
 			if strings.HasSuffix(rel.attr("Type"), "/hyperlink") {
 				x.links[rel.attr("Id")] = rel.attr("Target")
+			}
+			if strings.HasSuffix(rel.attr("Type"), "/image") && rel.attr("TargetMode") != "External" {
+				x.media[rel.attr("Id")] = path.Clean(path.Join("word", rel.attr("Target")))
 			}
 		}
 	}
@@ -75,6 +81,8 @@ type docxReader struct {
 	lists  map[string]map[int]bool // numId: the levels that are numbered (not bullets)
 	links  map[string]string
 	notes  map[string]*node // "footnote:3", "endnote:1"
+	media  map[string]string // the pictures' files in the zip, by their relation
+	z      *zip.Reader
 }
 
 var headingName = regexp.MustCompile(`(?i)^(heading|überschrift|titre|kop|título|titolo|rubrik|nagłówek|заголовок)\s*(\d)$`)
@@ -356,15 +364,41 @@ func (x *docxReader) run(r *node, f Span) []Span {
 				out = append(out, Span{Note: blocks})
 			}
 		case "drawing", "pict", "object", "AlternateContent":
-			x.doc.Dropped++
-			alt := ""
+			alt, title := "", ""
 			if d := c.find("docPr"); d != nil {
-				alt = cmpOr(d.attr("descr"), d.attr("title"), d.attr("name"))
+				alt, title = cmpOr(d.attr("descr"), d.attr("name")), d.attr("title")
 			}
-			out = append(out, Span{Comment: strings.TrimSpace("image left out: " + alt)})
+			if img := x.picture(c, alt, title); img != nil {
+				s := f
+				s.Text, s.Image = img.Alt, img
+				out = append(out, s)
+				continue
+			}
+			x.doc.Dropped++
+			out = append(out, Span{Comment: strings.TrimSpace("image left out: " + cmpOr(alt, title))})
 		}
 	}
 	return out
+}
+
+// picture is the picture a drawing shows (a blip's, or a VML image's),
+// its file read from the zip; nil if it has none.
+func (x *docxReader) picture(c *node, alt, title string) *Image {
+	id := ""
+	if b := c.find("blip"); b != nil {
+		id = b.attr("embed")
+	} else if v := c.find("imagedata"); v != nil {
+		id = v.attr("id")
+	}
+	name := x.media[id]
+	if name == "" {
+		return nil
+	}
+	data, err := zipFile(x.z, name)
+	if err != nil {
+		return nil
+	}
+	return &Image{Src: path.Base(name), Alt: alt, Title: title, Data: data}
 }
 
 func cmpOr(ss ...string) string {

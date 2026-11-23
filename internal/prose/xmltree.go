@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"strings"
 
 	"github.com/LaPingvino/accolade/internal/pace"
@@ -164,6 +165,21 @@ func zipPart(z *zip.Reader, name string) (*node, error) {
 }
 
 // xmlEsc escapes text for XML.
+// zipFile is a file of the zip, read.
+func zipFile(z *zip.Reader, name string) ([]byte, error) {
+	for _, f := range z.File {
+		if f.Name == name {
+			r, err := f.Open()
+			if err != nil {
+				return nil, err
+			}
+			defer r.Close()
+			return io.ReadAll(io.LimitReader(r, 64<<20))
+		}
+	}
+	return nil, fs.ErrNotExist
+}
+
 func xmlEsc(s string) string {
 	var b strings.Builder
 	_ = xml.EscapeText(&b, []byte(s))
@@ -174,6 +190,18 @@ func xmlEsc(s string) string {
 type zipWriter struct {
 	z   *zip.Writer
 	err error
+}
+
+// file writes a binary part (a picture), stored as it is.
+func (w *zipWriter) file(name string, data []byte) {
+	if w.err != nil {
+		return
+	}
+	f, err := w.z.CreateHeader(&zip.FileHeader{Name: name, Method: zip.Store})
+	if err == nil {
+		_, err = f.Write(data)
+	}
+	w.err = err
 }
 
 func (w *zipWriter) part(name, body string, stored bool) {

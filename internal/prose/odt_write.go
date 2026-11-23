@@ -12,7 +12,7 @@ import (
 // Word too): LibreOffice's own styles (Text body, Heading 1–6,
 // Quotations, Preformatted Text), real lists and footnotes.
 func (d *Doc) WriteODT(out io.Writer) error {
-	w := &odtWriter{textStyles: map[string]string{}, titlePage: len(d.TitlePage) > 0}
+	w := &odtWriter{textStyles: map[string]string{}, titlePage: len(d.TitlePage) > 0, pics: newEmbedder(d)}
 	for i, line := range d.TitlePage {
 		style := "P_title_line"
 		switch {
@@ -30,7 +30,14 @@ func (d *Doc) WriteODT(out io.Writer) error {
 	w.blocks(&w.b, d.Blocks, "")
 	z := &zipWriter{z: zip.NewWriter(out)}
 	z.part("mimetype", "application/vnd.oasis.opendocument.text", true)
-	z.part("META-INF/manifest.xml", odtManifest, false)
+	manifest := odtManifest
+	for _, em := range w.pics.list {
+		manifest = strings.Replace(manifest, `</manifest:manifest>`, fmt.Sprintf(`<manifest:file-entry manifest:full-path="Pictures/image%d.%s" manifest:media-type="image/%s"/></manifest:manifest>`, em.n, em.ext, em.ext), 1)
+	}
+	z.part("META-INF/manifest.xml", manifest, false)
+	for _, em := range w.pics.list {
+		z.file(fmt.Sprintf("Pictures/image%d.%s", em.n, em.ext), em.data)
+	}
 	z.part("meta.xml", xmlDecl+`<office:document-meta `+odtNS+` office:version="1.3"><office:meta><dc:title>`+xmlEsc(d.Title)+
 		`</dc:title><meta:generator>Accolade</meta:generator></office:meta></office:document-meta>`, false)
 	z.part("styles.xml", odtStyles(d.Paper), false)
@@ -60,14 +67,16 @@ const odtNS = `xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" `
 	`xmlns:xlink="http://www.w3.org/1999/xlink" ` +
 	`xmlns:dc="http://purl.org/dc/elements/1.1/" ` +
 	`xmlns:meta="urn:oasis:names:tc:opendocument:xmlns:meta:1.0" ` +
-	`xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"`
+	`xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" ` +
+	`xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"`
 
 type odtWriter struct {
 	b          strings.Builder
 	textStyles map[string]string // T_bi: its properties
 	notes      int
 	tables     int
-	titlePage  bool // the title page's styles are wanted
+	titlePage  bool      // the title page's styles are wanted
+	pics       *embedder // the pictures
 }
 
 // blocks writes blocks; pstyle is the style of their paragraphs ("" Text
@@ -81,6 +90,16 @@ func (w *odtWriter) blocks(b *strings.Builder, bs []*Block, pstyle string) {
 func (w *odtWriter) block(b *strings.Builder, bl *Block, pstyle string) {
 	switch bl.Kind {
 	case Para:
+		if img := bl.Picture(); img != nil {
+			if em := w.pics.get(img); em != nil {
+				pw, ph := w.pics.blockSize(em)
+				b.WriteString(`<text:p text:style-name="P_picture">` + odtFrame(em, pw, ph, img.Alt) + `</text:p>`)
+				if c := w.pics.doc.caption(img); c != "" {
+					b.WriteString(`<text:p text:style-name="P_caption">` + odtText(c) + `</text:p>`)
+				}
+				return
+			}
+		}
 		w.para(b, cmpOr(pstyle, "Text_20_body"), bl.Spans)
 	case Heading:
 		lv := min(max(bl.Level, 1), 6)
@@ -137,6 +156,13 @@ func (w *odtWriter) spans(b *strings.Builder, spans []Span) {
 			w.blocks(b, s.Note, "Footnote")
 			b.WriteString(`</text:note-body></text:note>`)
 			continue
+		case s.Image != nil:
+			if em := w.pics.get(s.Image); em != nil {
+				pw, ph := inlineSize(em)
+				b.WriteString(odtFrame(em, pw, ph, s.Image.Alt))
+				continue
+			}
+			s.Text, s.Italic = altText(s.Image), true
 		case s.Comment != "" || s.Text == "":
 			continue
 		}
@@ -190,6 +216,13 @@ func (w *odtWriter) automatic() string {
 	}
 	b.WriteString(`<style:style style:name="P_break" style:family="paragraph" style:parent-style-name="Text_20_body">` +
 		`<style:paragraph-properties fo:text-align="center"/></style:style>`)
+	if len(w.pics.list) > 0 {
+		b.WriteString(`<style:style style:name="P_picture" style:family="paragraph" style:parent-style-name="Text_20_body">` +
+			`<style:paragraph-properties fo:text-align="center" fo:keep-with-next="always"/></style:style>` +
+			`<style:style style:name="P_caption" style:family="paragraph" style:parent-style-name="Text_20_body">` +
+			`<style:paragraph-properties fo:text-align="center"/><style:text-properties fo:font-style="italic" fo:font-size="10pt"/></style:style>` +
+			`<style:style style:name="Fr_pic" style:family="graphic"><style:graphic-properties style:vertical-pos="middle" style:vertical-rel="text" fo:border="none"/></style:style>`)
+	}
 	if w.titlePage { // centred, the title a third down; the page breaks after the last line
 		title := `<style:paragraph-properties fo:text-align="center" fo:margin-top="3in" fo:margin-bottom="0.33in"`
 		b.WriteString(`<style:style style:name="P_title" style:family="paragraph" style:parent-style-name="Standard">` +

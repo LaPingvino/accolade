@@ -240,14 +240,14 @@ func TestReadHTML(t *testing.T) {
 		"The wind came in from the *west*, and the rain followed it **hard and grey**.\\\nNobody went out.\n\n" +
 		"- a brass compass\n- a letter\n  1. read once\n  2. read twice\n\n" +
 		"> The sea gives back what it takes.\n\n" +
-		"See [the harbour](https://example.org/harbour) and <!-- image left out: a map -->.\n\n" +
+		"See [the harbour](https://example.org/harbour) and ![a map](x.png).\n\n" +
 		"```\nkeep *this*\n  as it is\n```\n\n" +
 		"| Day | Ships |\n| --- | --- |\n| Monday | 3 |\n\n" +
 		"Loose text at the end.\n"
 	if got := d.Markdown(); got != want {
 		t.Errorf("got:\n%s\nwant:\n%s", got, want)
 	}
-	if d.Title != "The Keeper" || d.Dropped != 1 {
+	if d.Title != "The Keeper" || d.Dropped != 0 {
 		t.Errorf("title %q, %d dropped", d.Title, d.Dropped)
 	}
 }

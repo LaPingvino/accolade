@@ -2,6 +2,8 @@ package prose
 
 import (
 	"bytes"
+	"cmp"
+	"fmt"
 	"io"
 	"math"
 	"net/url"
@@ -12,6 +14,8 @@ import (
 
 	lexfont "github.com/LaPingvino/lexington/font"
 	"github.com/LaPingvino/lexington/pdf"
+
+	"github.com/LaPingvino/accolade/internal/images"
 	"golang.org/x/image/font/gofont/gobold"
 	"golang.org/x/image/font/gofont/gobolditalic"
 	"golang.org/x/image/font/gofont/goitalic"
@@ -33,10 +37,17 @@ import (
 // work: an address's, a heading's anchor (#…), a note's number to the
 // note and back; the headings are the PDF's outline.
 //
+// Pictures (Doc.Images): one alone in its paragraph on a line of its own,
+// as wide as the text at most (never larger than it is, at 96 dpi as a
+// browser shows it), kept on one page (made smaller to fit one), its
+// title under it as a caption; one in a line of text as high as the
+// line. One that cannot be read (missing, on the web — never fetched —,
+// an SVG) is a quiet placeholder: its alt text and where it is.
+//
 // Not yet: text read right to left (Hebrew, Arabic: their order on the
-// line), scripts no font here has (CJK…), images (their alt text is in
-// the model, as in Word and ODT). PDFMissing says what a document has of
-// those; the caller prints such a document through a browser instead.
+// line), scripts no font here has (CJK…). PDFMissing says what a
+// document has of those; the caller prints such a document through a
+// browser instead.
 
 // PDFFonts are the proportional face's files for the text: regular, bold,
 // italic, bold italic (TrueType). nil: the Go fonts (BSD licence). Code
@@ -207,6 +218,36 @@ type pdfWriter struct {
 	gapNext   float64         // the gap before the next line laid out for a note
 	decor     []func(float64) // drawn with the next line (a list item's mark)
 	finished  bool            // the text is all laid out: only notes are left
+	pics      map[string]*pic // the pictures read, by their Image
+}
+
+// pic is a picture in the PDF: its name there and its size in pixels, or
+// why it is not shown.
+type pic struct {
+	name string
+	w, h int
+	err  error
+}
+
+// pic is img's picture, read into the PDF once.
+func (p *pdfWriter) pic(img *Image) *pic {
+	key := img.Src
+	if img.Data != nil {
+		key = fmt.Sprintf("%p", img)
+	}
+	if pc, ok := p.pics[key]; ok {
+		return pc
+	}
+	if p.pics == nil {
+		p.pics = map[string]*pic{}
+	}
+	pc := &pic{name: "pic" + strconv.Itoa(len(p.pics)+1)}
+	p.pics[key] = pc
+	got := p.doc.picture(img)
+	if pc.err = got.Err; pc.err == nil {
+		pc.w, pc.h, pc.err = pdf.AddImage(p.d, pc.name, got.Data)
+	}
+	return pc
 }
 
 // note is a footnote: its number and text, the chapter of its first
@@ -661,6 +702,8 @@ type piece struct {
 	brk   bool
 	w     float64
 	note  *note
+	pic   *pic    // a picture in the line, ph high
+	ph    float64 //
 }
 
 // pieces are spans as runs: words and spaces, each in the face that has
@@ -682,6 +725,27 @@ func (p *pdfWriter) pieces(spans []Span, base style) []piece {
 		}
 		if s.Break {
 			out = append(out, piece{brk: true, st: st})
+			continue
+		}
+		if s.Image != nil {
+			if pc := p.pic(s.Image); pc.err == nil {
+				h := st.size * 1.15 // as high as the line's letters
+				out = append(out, piece{pic: pc, st: st, ph: h, w: h * float64(pc.w) / float64(pc.h)})
+				continue
+			}
+			// its alt text in grey, [in brackets]
+			alt := st
+			alt.color = [3]int{110, 110, 110}
+			if st.href != "" {
+				alt.color = [3]int{26, 13, 171}
+			}
+			text := "[" + cmp.Or(strings.TrimSpace(s.Image.Alt), "picture") + "]"
+			for k, word := range strings.Fields(text) {
+				if k > 0 {
+					out = append(out, piece{text: " ", face: p.face(' ', alt), st: alt, space: true})
+				}
+				out = append(out, p.runs(word, alt)...)
+			}
 			continue
 		}
 		if s.Note != nil {
@@ -719,7 +783,7 @@ func (p *pdfWriter) pieces(spans []Span, base style) []piece {
 		flush()
 	}
 	for i := range out {
-		if !out[i].brk {
+		if !out[i].brk && out[i].pic == nil {
 			out[i].w = p.width(out[i])
 		}
 	}
@@ -817,6 +881,14 @@ func (p *pdfWriter) lines(ps []piece, width float64) [][]piece {
 		// a word longer than the line: as much of it as fits
 		for k := i; k < j; k++ {
 			pc := ps[k]
+			if pc.pic != nil {
+				if w+pc.w > width && len(line) > 0 {
+					end()
+				}
+				line = append(line, pc)
+				w += pc.w
+				continue
+			}
 			for _, r := range pc.text {
 				c := pc
 				c.text = string(r)
@@ -928,6 +1000,11 @@ func safeAddress(href string) bool {
 // draw prints a piece at x on the line at y, lh high.
 func (p *pdfWriter) draw(pc piece, x, y, lh float64) {
 	d := p.d
+	if pc.pic != nil { // on the line's baseline, a little below
+		base := y + lh/2 + 0.3*pc.st.size
+		pdf.DrawImage(d, pc.pic.name, x, base+0.15*pc.st.size-pc.ph, pc.w, pc.ph)
+		return
+	}
 	p.setFont(pc.face, pc.st)
 	d.SetTextColor(pc.st.color[0], pc.st.color[1], pc.st.color[2])
 	d.SetXY(x, y-pc.st.rise)
@@ -959,6 +1036,10 @@ func (p *pdfWriter) block(b *Block, indent float64, quoted, first bool) {
 	case Para:
 		if !first {
 			p.gap(textSize * 0.6)
+		}
+		if img := b.Picture(); img != nil {
+			p.picture(img, b.Spans, left)
+			return
 		}
 		p.paragraph(b.Spans, body, left, p.right, alignLeft)
 	case Heading:
@@ -1040,6 +1121,77 @@ func (p *pdfWriter) block(b *Block, indent float64, quoted, first bool) {
 			p.gap(textSize * 0.6)
 		}
 		p.table(b, left)
+	}
+}
+
+// picture prints a picture on a line of its own, from left to the text's
+// right edge: as wide as that at most and never larger than it is (at 96
+// dpi), on one page, its caption under it. One that cannot be read is a
+// grey box with its alt text and where it is (a link, for one on the web).
+func (p *pdfWriter) picture(img *Image, spans []Span, left float64) {
+	width := p.right - left
+	caption := img.Title
+	if caption == "" && p.doc.AltCaptions {
+		caption = img.Alt
+	}
+	capSt := style{size: noteSize, italic: true, color: [3]int{90, 90, 90}}
+	href := ""
+	for _, s := range spans {
+		if s.Image == img {
+			href = s.Link
+		}
+	}
+	pc := p.pic(img)
+	if pc.err != nil {
+		lh := noteSize * leading
+		label := cmp.Or(strings.TrimSpace(img.Alt), "Picture")
+		where := img.Src
+		if strings.HasPrefix(strings.ToLower(where), "data:") {
+			where = "an embedded picture"
+		}
+		if len(where) > 120 {
+			where = where[:117] + "…"
+		}
+		st := style{size: noteSize, color: [3]int{110, 110, 110}}
+		lines := p.lines(p.pieces([]Span{{Text: label, Italic: true}}, st), width-16)
+		srcSt := st
+		if images.IsRemote(img.Src) && safeAddress(img.Src) {
+			srcSt.href, srcSt.color = img.Src, [3]int{26, 13, 171}
+		}
+		lines = append(lines, p.lines(p.pieces([]Span{{Text: where + " (" + images.Why(pc.err) + ")"}}, srcSt), width-16)...)
+		h := float64(len(lines))*lh + 12
+		p.emit(h, nil, func(y float64) {
+			p.d.SetDrawColor(190, 190, 190)
+			p.d.SetLineWidth(0.5)
+			p.d.Rect(left, y+1, width, h-2, "D")
+			ly := y + 6
+			for _, l := range lines {
+				p.drawLine(l, left+8, ly, lh)
+				ly += lh
+			}
+		})
+		return
+	}
+	w := math.Min(width, float64(pc.w)*0.75)
+	h := w * float64(pc.h) / float64(pc.w)
+	capLines := [][]piece(nil)
+	if caption != "" {
+		capLines = p.lines(p.pieces([]Span{{Text: caption}}, capSt), width)
+	}
+	capH := float64(len(capLines)) * noteSize * leading
+	if most := p.limit() - p.top - capH - 4; h > most && most > 0 { // a page's height at most
+		h = most
+		w = h * float64(pc.w) / float64(pc.h)
+	}
+	p.room(h + capH + 4)
+	x := left + (width-w)/2
+	p.emit(h, nil, func(y float64) {
+		pdf.DrawImage(p.d, pc.name, x, y, w, h)
+		p.link(href, x, y, w, h)
+	})
+	if caption != "" {
+		p.gap(4)
+		p.flow([]Span{{Text: caption}}, capSt, left, p.right, alignCenter, nil)
 	}
 }
 

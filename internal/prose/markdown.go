@@ -205,6 +205,7 @@ func (r *mdReader) spans(parent ast.Node, f Span) []Span {
 		case *ast.Image:
 			s := f
 			s.Text = spansText(r.spans(n, Span{}))
+			s.Image = &Image{Src: string(n.Destination), Alt: s.Text, Title: string(n.Title)}
 			out = append(out, s)
 		case *east.FootnoteLink:
 			out = append(out, Span{Note: r.notes[n.Index]})

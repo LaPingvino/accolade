@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"errors"
 	"io"
+	"path"
 	"strconv"
 	"strings"
 
@@ -12,7 +13,8 @@ import (
 
 // ReadODT reads an OpenDocument text (LibreOffice, Google Docs, Word's
 // .odt): its paragraphs, headings, lists, quotes, tables, bold, italic,
-// links and footnotes. Images and other objects are left out, a comment
+// links, footnotes and pictures (their files in the Images' Data, to be
+// saved: SaveImages). Other objects are left out, a comment
 // in their place.
 func ReadODT(r io.ReaderAt, size int64) (*Doc, error) {
 	z, err := zip.NewReader(r, size)
@@ -26,7 +28,7 @@ func ReadODT(r io.ReaderAt, size int64) (*Doc, error) {
 	if content == nil {
 		return nil, errors.New("not an OpenDocument text (.odt): it has no content.xml")
 	}
-	x := &odtReader{styles: map[string]*odtStyle{}, lists: map[string]map[int]bool{}}
+	x := &odtReader{styles: map[string]*odtStyle{}, lists: map[string]map[int]bool{}, z: z}
 	if s, err := zipPart(z, "styles.xml"); err == nil && s != nil {
 		x.readStyles(s)
 	}
@@ -51,6 +53,7 @@ type odtReader struct {
 	doc    *Doc
 	styles map[string]*odtStyle    // "paragraph:P1", "text:T1"
 	lists  map[string]map[int]bool // a list style's levels that are numbered
+	z      *zip.Reader
 }
 
 func (x *odtReader) readStyles(root *node) {
@@ -290,8 +293,21 @@ func (x *odtReader) spans(n *node, f Span) []Span {
 			}
 			out = append(out, Span{Note: blocks})
 		case "frame":
+			title, desc := strings.TrimSpace(c.child("title").text()), strings.TrimSpace(c.child("desc").text())
+			alt := cmpOr(desc, title, c.attr("name"))
+			if im := c.child("image"); im != nil {
+				href := im.attr("href")
+				if data, err := zipFile(x.z, strings.TrimPrefix(href, "./")); err == nil && href != "" {
+					if desc == "" {
+						title = ""
+					}
+					s := f
+					s.Text, s.Image = alt, &Image{Src: path.Base(href), Alt: alt, Title: title, Data: data}
+					out = append(out, s)
+					continue
+				}
+			}
 			x.doc.Dropped++
-			alt := cmpOr(strings.TrimSpace(c.child("title").text()), strings.TrimSpace(c.child("desc").text()), c.attr("name"))
 			out = append(out, Span{Comment: strings.TrimSpace("image left out: " + alt)})
 		case "annotation", "annotation-end", "bookmark", "bookmark-start", "bookmark-end", "reference-mark",
 			"reference-mark-start", "reference-mark-end", "change", "change-start", "change-end", "soft-page-break",

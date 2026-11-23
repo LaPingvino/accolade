@@ -11,7 +11,7 @@ import (
 // (Normal, Heading 1–6, Quote, List Paragraph), real lists and
 // footnotes, so it is restyled in Word or LibreOffice as any other.
 func (d *Doc) WriteDOCX(out io.Writer) error {
-	w := &docxWriter{nextNum: 2}
+	w := &docxWriter{nextNum: 2, pics: newEmbedder(d)}
 	for i, line := range d.TitlePage {
 		w.b.WriteString(`<w:p><w:pPr><w:jc w:val="center"/>`)
 		if i == 0 { // the title, a third down the page
@@ -37,7 +37,10 @@ func (d *Doc) WriteDOCX(out io.Writer) error {
 	z.part("word/settings.xml", docxSettings, false)
 	z.part("word/numbering.xml", w.numbering(), false)
 	z.part("word/footnotes.xml", w.footnotes(), false)
-	z.part("word/document.xml", xmlDecl+`<w:document `+wNS+`><w:body>`+w.b.String()+
+	for _, em := range w.pics.list {
+		z.file(fmt.Sprintf("word/media/image%d.%s", em.n, em.ext), em.data)
+	}
+	z.part("word/document.xml", xmlDecl+`<w:document `+wNS+` `+drawingNS+`><w:body>`+w.b.String()+
 		`<w:sectPr>`+docxPage(d.Paper)+`<w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>`+
 		`</w:body></w:document>`, false)
 	if z.err != nil {
@@ -64,13 +67,19 @@ const xmlDecl = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` + "\n"
 const wNS = `xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ` +
 	`xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"`
 
+// drawingNS are the namespaces of a picture placed in the text.
+const drawingNS = `xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" ` +
+	`xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ` +
+	`xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"`
+
 type docxWriter struct {
 	b       strings.Builder
 	links   []string // the hyperlinks' targets: rId100, rId101, ...
 	notes   []string // the footnotes' paragraphs
 	nums    []string // numbered lists: a <w:num> each, restarting
 	nextNum int
-	inNote  bool // in a footnote: its links would need rels of their own
+	inNote  bool      // in a footnote: its links and pictures would need rels of their own
+	pics    *embedder // the pictures (nil in a footnote)
 }
 
 // docxCtx is where a block is: in quotes, in list items.
@@ -94,6 +103,16 @@ func (w *docxWriter) blocks(bs []*Block, c docxCtx) {
 func (w *docxWriter) block(b *Block, c docxCtx) {
 	switch b.Kind {
 	case Para:
+		if img := b.Picture(); img != nil && !w.inNote {
+			if em := w.pics.get(img); em != nil {
+				pw, ph := w.pics.blockSize(em)
+				w.b.WriteString(`<w:p><w:pPr><w:keepNext/><w:jc w:val="center"/></w:pPr>` + docxDrawing(em, w.picRel(em), pw, ph, img.Alt) + `</w:p>`)
+				if c := w.pics.doc.caption(img); c != "" {
+					w.b.WriteString(`<w:p><w:pPr><w:pStyle w:val="Caption"/><w:jc w:val="center"/></w:pPr><w:r><w:t xml:space="preserve">` + xmlEsc(c) + `</w:t></w:r></w:p>`)
+				}
+				return
+			}
+		}
 		w.para(c.style, c, b.Spans)
 	case Heading:
 		w.para(fmt.Sprintf("Heading%d", min(max(b.Level, 1), 6)), c, b.Spans)
@@ -185,6 +204,15 @@ func (w *docxWriter) runs(b *strings.Builder, spans []Span) {
 			w.nextNum, w.nums = nb.nextNum, append(w.nums, nb.nums...)
 			fmt.Fprintf(b, `<w:r><w:rPr><w:rStyle w:val="FootnoteReference"/></w:rPr><w:footnoteReference w:id="%d"/></w:r>`, id)
 			continue
+		case s.Image != nil && !w.inNote:
+			if em := w.pics.get(s.Image); em != nil {
+				pw, ph := inlineSize(em)
+				b.WriteString(docxDrawing(em, w.picRel(em), pw, ph, s.Image.Alt))
+				continue
+			}
+			s.Text, s.Italic = altText(s.Image), true
+		case s.Image != nil:
+			s.Text, s.Italic = altText(s.Image), true
 		case s.Comment != "" || s.Text == "":
 			continue
 		}
@@ -268,9 +296,16 @@ func (w *docxWriter) rels() string {
 		fmt.Fprintf(&b, `<Relationship Id="rId%d" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="%s" TargetMode="External"/>`,
 			100+i, xmlAttr(l))
 	}
+	for _, em := range w.pics.list {
+		fmt.Fprintf(&b, `<Relationship Id="%s" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image%d.%s"/>`,
+			w.picRel(em), em.n, em.ext)
+	}
 	b.WriteString(`</Relationships>`)
 	return b.String()
 }
+
+// picRel is a picture's relation.
+func (w *docxWriter) picRel(em *embedded) string { return fmt.Sprintf("rIdPic%d", em.n) }
 
 func xmlAttr(s string) string {
 	return strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", `"`, "&quot;").Replace(s)
@@ -322,6 +357,8 @@ func docxCoreProps(title string) string {
 const docxTypes = xmlDecl + `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
 	`<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
 	`<Default Extension="xml" ContentType="application/xml"/>` +
+	`<Default Extension="png" ContentType="image/png"/>` +
+	`<Default Extension="jpeg" ContentType="image/jpeg"/>` +
 	`<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>` +
 	`<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>` +
 	`<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>` +
@@ -361,4 +398,6 @@ var docxStyleSheet = xmlDecl + `<w:styles ` + wNS + `>` +
 	`<w:style w:type="character" w:styleId="FootnoteReference"><w:name w:val="footnote reference"/><w:rPr><w:vertAlign w:val="superscript"/></w:rPr></w:style>` +
 	`<w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="0563C1"/><w:u w:val="single"/></w:rPr></w:style>` +
 	`<w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/></w:style>` +
+	`<w:style w:type="paragraph" w:styleId="Caption"><w:name w:val="caption"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/>` +
+	`<w:rPr><w:i/><w:sz w:val="20"/></w:rPr></w:style>` +
 	`</w:styles>`

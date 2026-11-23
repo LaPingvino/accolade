@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/LaPingvino/accolade/internal/images"
 	"github.com/LaPingvino/accolade/internal/pace"
 )
 
@@ -58,13 +59,44 @@ type Span struct {
 	Link                 string // where the text links to
 	Break                bool   // a line break, without text
 	Note                 []*Block
-	// Comment is kept in Markdown as an HTML comment (an image left out)
-	// and nowhere else.
+	// Comment is kept in Markdown as an HTML comment and nowhere else.
 	Comment string
+	// Image, when set, makes the span a picture (Text its alt text, what
+	// plain text shows of it).
+	Image *Image
+}
+
+// Image is a picture in the text: Src as the document names it (a path
+// beside it or in its bundle's assets/, a data: URI, an address never
+// fetched: internal/images), its alt text and its title (a block
+// picture's caption). Data is an imported document's file, not saved
+// yet (SaveImages).
+type Image struct {
+	Src, Alt, Title string
+	Data            []byte
 }
 
 func (s Span) sameFormat(o Span) bool {
 	return s.Bold == o.Bold && s.Italic == o.Italic && s.Strike == o.Strike && s.Code == o.Code && s.Link == o.Link
+}
+
+// Picture is the picture a paragraph is, when it holds one alone (and
+// spaces): a block picture, printed on a line of its own at the text's
+// width (never larger), its title under it.
+func (b *Block) Picture() *Image {
+	if b.Kind != Para {
+		return nil
+	}
+	var img *Image
+	for _, s := range b.Spans {
+		switch {
+		case s.Image != nil && img == nil:
+			img = s.Image
+		case s.Image != nil, s.Note != nil, s.Comment != "", !s.Break && strings.TrimSpace(s.Text) != "":
+			return nil
+		}
+	}
+	return img
 }
 
 // Doc is a document.
@@ -84,6 +116,22 @@ type Doc struct {
 	// keep theirs as footnotes, numbered through).
 	NotesAt         NotesPlace
 	NotesPerChapter bool
+	// Images reads the pictures the text names (nil: none read; each
+	// shows as its alt text). An Image's Data, when set, comes first.
+	Images *images.Loader
+	// AltCaptions: a block picture without a title has its alt text as
+	// its caption.
+	AltCaptions bool
+}
+
+// picture is the picture img names, read.
+func (d *Doc) picture(img *Image) *images.Picture {
+	if img.Data != nil {
+		p := &images.Picture{Src: img.Src, Data: img.Data}
+		p.Image, p.Err = images.Decode(img.Data, img.Src)
+		return p
+	}
+	return d.Images.Load(img.Src)
 }
 
 // NotesPlace is where a PDF's footnotes print.
@@ -225,8 +273,8 @@ func (m *mdWriter) inline(spans []Span, indent string) string {
 	// merged: neighbours in one format are one span
 	var ss []Span
 	for _, s := range spans {
-		if n := len(ss); n > 0 && s.Note == nil && s.Comment == "" && !s.Break && ss[n-1].Note == nil &&
-			ss[n-1].Comment == "" && !ss[n-1].Break && ss[n-1].sameFormat(s) {
+		if n := len(ss); n > 0 && s.Note == nil && s.Comment == "" && !s.Break && s.Image == nil && ss[n-1].Note == nil &&
+			ss[n-1].Comment == "" && !ss[n-1].Break && ss[n-1].Image == nil && ss[n-1].sameFormat(s) {
 			ss[n-1].Text += s.Text
 			continue
 		}
@@ -247,6 +295,13 @@ func (m *mdWriter) inline(spans []Span, indent string) string {
 			continue
 		case s.Comment != "":
 			b.WriteString("<!-- " + strings.ReplaceAll(s.Comment, "--", "–") + " -->")
+			continue
+		case s.Image != nil:
+			pic := imageMarkdown(s.Image)
+			if s.Link != "" {
+				pic = "[" + pic + "](" + linkTarget(s.Link) + ")"
+			}
+			b.WriteString(pic)
 			continue
 		}
 		text := s.Text
@@ -304,6 +359,16 @@ func collapse(s string) string {
 		}
 	}
 	return b.String()
+}
+
+// imageMarkdown is a picture as Markdown: ![alt](src "title").
+func imageMarkdown(img *Image) string {
+	alt := strings.NewReplacer(`\`, `\\`, `[`, `\[`, `]`, `\]`).Replace(collapse(img.Alt))
+	out := "![" + alt + "](" + linkTarget(img.Src)
+	if img.Title != "" {
+		out += ` "` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(collapse(img.Title)) + `"`
+	}
+	return out + ")"
 }
 
 func linkTarget(url string) string {
