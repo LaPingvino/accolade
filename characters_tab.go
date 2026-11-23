@@ -11,8 +11,8 @@ import (
 // character: the one opened in the pane, else the one tapped last —
 // Rename Everywhere…, Merge Into…, Add Alias…, Not a Character, their
 // Note, the next and previous cue, Their Scenes (a scene to go to), and
-// Close. In a Markdown document only the rename and the places apply.
-// (The cast photo, later.)
+// Close. In a Markdown document the rename, the note and the places
+// apply (the learned notes' are a screenplay's). (The cast photo, later.)
 
 // The rules of the Characters tab's commands.
 func charactersInSight(e cmdEnv) bool  { return e.characters }
@@ -117,8 +117,8 @@ func charactersCommands() []*command {
 			},
 			run: func(w *MainWindow) { w.onCharacter(func(p *charactersPane, c charInfo) { p.setNot(c.Key, !c.Not) }) }},
 		{id: "chars.note", label: "Their Note", ribbonLabel: "Note", ex: "character-note", icon: theme.FileTextIcon,
-			tip: "The character opened in the pane, their note to type in (kept in the script's character list)", nameFor: characterNamed("Their Note"),
-			when: charactersOfScript, enabled: characterChosen,
+			tip: "The character opened in the pane, their note to type in (kept in the character list at the document's end)", nameFor: characterNamed("Their Note"),
+			when: charactersInSight, enabled: characterChosen,
 			run: func(w *MainWindow) {
 				w.onCharacter(func(p *charactersPane, c charInfo) {
 					p.openChar(c.Key)

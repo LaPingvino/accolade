@@ -71,6 +71,6 @@ require (
 	golang.org/x/time v0.14.0 // indirect
 )
 
-replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261122231229-7ea7b487acdf // linux-a11y 7ea7b487: a scroll with nowhere to go hands the wheel outward
+replace fyne.io/fyne/v2 => ../fyne-nestedclip // nested-clip bd9edc8a (linux-a11y 7ea7b487 + a clip inside another cut to it): until it is pushed and pinned
 
 replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4

@@ -82,7 +82,7 @@ func passageLines(src string, ps []passage) []int {
 	lines := strings.Split(src, "\n")
 	body := markdownBody(src)
 	from := len(lines) - len(strings.Split(body, "\n")) // the front matter's lines
-	end := strings.Count(src[:markdownNotes.startByte(src)], "\n") + 1
+	end := strings.Count(src[:markdownEndByte(src)], "\n") + 1
 	out := make([]int, len(ps))
 	at := max(0, from)
 	for i, p := range ps {

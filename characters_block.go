@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/lexington/fountain"
 
@@ -43,16 +44,94 @@ import (
 
 var charactersMarks = endMarks(fountain.EndCharacters)
 
-// charactersBlock is what is inside the script's character list.
-func charactersBlock(text string) (string, bool) {
-	t := tailSetOf(text).chars
+// A Markdown document keeps its character list the same way, in an HTML
+// comment before its notes (which no Markdown app shows):
+//
+//	<!-- Characters
+//	Anna: the one who stays
+//	  age: 34
+//	-->
+//
+//	<!-- Notes
+//	…
+//	-->
+var markdownCharsMarks = newNotesMarks("<!-- Characters", "-->", "-- >")
+
+// charBlock is which kind of document's character list: a screenplay's
+// boneyard block, or a Markdown document's comment (true).
+type charBlock bool
+
+const (
+	screenplayList charBlock = false
+	markdownList   charBlock = true
+)
+
+// charBlock is the window's document's.
+func (w *MainWindow) charBlock() charBlock { return charBlock(w.markdown) }
+
+// inside is what is inside the document's character list.
+func (k charBlock) inside(text string) (string, bool) {
+	t := k.tail(text)
 	return t.inside, t.ok
 }
+
+// tail is the document's character list block, as found.
+func (k charBlock) tail(text string) tailBlock {
+	if k == markdownList {
+		return mdCharsTail(text)
+	}
+	return tailSetOf(text).chars
+}
+
+// with is the edit that makes the document's character list hold inside
+// ("" takes it out): where (runes) and what. A new block goes after the
+// text, before the other blocks at its end.
+func (k charBlock) with(text, inside string) (start, end int, block string) {
+	if k == markdownList {
+		t := mdCharsTail(text)
+		if !t.ok { // before the notes block, or at the end
+			t.start = utf8.RuneCountInString(text[:markdownNotes.startByte(text)])
+		}
+		return withTailBlockAt(text, t, markdownCharsMarks, inside, t.start)
+	}
+	return withTailBlock(text, tailSetOf(text).chars, charactersMarks, inside)
+}
+
+// list is the document's character list.
+func (k charBlock) list(text string) charList {
+	inside, _ := k.inside(text)
+	return parseCharList(inside)
+}
+
+// mdCharsTail is a Markdown document's character list: the comment just
+// before its notes block (or at its end), in bytes and in runes.
+func mdCharsTail(text string) tailBlock {
+	end := markdownNotes.startByte(text)
+	i, inside := markdownCharsMarks.at(text[:end])
+	if i < 0 {
+		return tailBlock{}
+	}
+	start := utf8.RuneCountInString(text[:i])
+	return tailBlock{bstart: i, bend: end, start: start, end: start + utf8.RuneCountInString(text[i:end]), ok: true,
+		inside: strings.ReplaceAll(inside, markdownCharsMarks.escaped, markdownCharsMarks.close)}
+}
+
+// markdownEndByte is where a Markdown document's own text ends: before
+// its character list and its notes.
+func markdownEndByte(text string) int {
+	if t := mdCharsTail(text); t.ok {
+		return t.bstart
+	}
+	return markdownNotes.startByte(text)
+}
+
+// charactersBlock is what is inside the script's character list.
+func charactersBlock(text string) (string, bool) { return screenplayList.inside(text) }
 
 // withCharactersBlock is the edit that makes the script's character list
 // hold inside ("" takes it out): where (runes) and what.
 func withCharactersBlock(text, inside string) (start, end int, block string) {
-	return withTailBlock(text, tailSetOf(text).chars, charactersMarks, inside)
+	return screenplayList.with(text, inside)
 }
 
 // The fields a character's entry has besides the note, in the order an
@@ -279,10 +358,7 @@ func sameEntry(a, b charEntry) bool {
 }
 
 // charListOf is the script's character list.
-func charListOf(text string) charList {
-	inside, _ := charactersBlock(text)
-	return parseCharList(inside)
-}
+func charListOf(text string) charList { return screenplayList.list(text) }
 
 // listedNames are the names in the script's character list, as written:
 // the `list` cue rule's (a cue is a name of the list).
@@ -309,12 +385,18 @@ func isListed(text, name string) bool {
 // so (LOOP.md, the language rules), and Add to the List in the pane. The
 // name is written as given, without its extension.
 func addedName(text, name string) (start, end int, block string, ok bool) {
-	name = strings.TrimSpace(cueName(name))
-	l := charListOf(text)
+	return screenplayList.added(text, cueName(name))
+}
+
+// added is the edit that puts name in the document's character list
+// (ok false if it is there already), as addedName.
+func (k charBlock) added(text, name string) (start, end int, block string, ok bool) {
+	name = strings.TrimSpace(name)
+	l := k.list(text)
 	if name == "" || l.find(name) >= 0 {
 		return 0, 0, "", false
 	}
 	entries := append(append([]charEntry(nil), l.entries...), charEntry{Name: name, from: -1})
-	start, end, block = withCharactersBlock(text, l.inside(entries))
+	start, end, block = k.with(text, l.inside(entries))
 	return start, end, block, true
 }

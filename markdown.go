@@ -234,9 +234,10 @@ func continueList(e *editor.ScriptEditor) bool {
 }
 
 // markdownBody is the part of a Markdown document that is shown and
-// printed: without the front matter and the notes block.
+// printed: without the front matter, the character list and the notes
+// block.
 func markdownBody(text string) string {
-	text = string([]rune(text)[:markdownNotes.start(text)])
+	text = text[:markdownEndByte(text)]
 	lines := strings.Split(text, "\n")
 	kinds := syntax.ClassifyMarkdown(lines)
 	i := 0

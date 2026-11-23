@@ -712,7 +712,22 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   screenplay's (Markdown has no block); a rename does not touch the Notes or Source blocks; in the screenshots a
   multi-line entry's text drew past the pane's scroll at its bottom edge (seen in the test renderer, not checked
   in the GL one).
-- 2026-11-21: Characters tab leftovers (branch characters): check in the real app whether a multi-line Characters entry draws past the pane's scroll edge (seen in test shots) and fix; Rename Everywhere also offers the Notes and Source blocks (shown as separate counts, off by default); character notes for Markdown documents (a block of their own, as for screenplays); Undo of a Merge with the breakdown changed since — say so instead of leaving it silently. Small; with the next item touching the pane.
+- 2026-11-21: Characters tab leftovers — DONE (branch charsleft, not merged; waits on the Fyne fork's push): (1) the
+  entry past the scroll's edge was the test renderer's, not the app's: under xvfb the GL canvas cuts a scroll inside a
+  scroll to it (ClipStack.Push), while the tree walk the software painter and taps use took the inner clip as is
+  (any Entry in the detail, its own scroll inside the pane's: the Age field's "40" drawn in the status bar). Fixed in
+  the fork (~/Projects/fyne-nestedclip, branch nested-clip, bd9edc8a: driver.walkObjectTree intersects, with
+  TestWalkVisibleObjectTree_NestedClip); go.mod points at it by a local path until it is pushed and pinned.
+  TestCharactersScrollEdge (what lies under the edge stays the same scrolled; a tap there reaches no field).
+  (2) Rename Everywhere offers the notes and the source, each with its count, unticked (renamePlacesIn,
+  renameChecks); with the source the links' quotes and the adaptation block's cut:/skipped links: entries follow,
+  still finding their passages (TestRenameAlsoBlocks). (3) A Markdown document's character list: `<!-- Characters`
+  … `-->` before its notes (charBlock: screenplayList, markdownList), note and fields (no actor), Add to the List,
+  photo; names only in the list listed; the list not in the body, the preview or the mentions; Their Note on the tab
+  in Markdown too; View > Document Type carries it (TestMarkdownCharacterNotes, TestMarkdownListPlace). (4) Undo or
+  Redo of a Merge with the breakdown or schedule changed since says the cast stays merged there (keptAsIs,
+  TestMergeUndoSays). Shots (TestCharactersLeftScreenshots) characters-{desktop,phone}-{5-edge,6-rename-blocks,
+  7-markdown-notes}.png. Help: index (Characters, contextual tabs), the blocks cheat sheet; ex.md regenerated.
 - 2026-11-21 (Joop: "The font file button goes to the main preference screen, without any font file picker on either web or desktop"; "the new ribbon selection is already better than what preferences offers"): DONE (branch fontpicker) — Font File… opens the file picker itself (Fyne's open dialog; the browser's own, kept in /files/ and so across reloads), and Preferences' Font is the ribbon's list (Courier Badi, System, the chosen file by name) with Choose File… beside it, both in sync. One picker for both (chooseFileIn). Tested (TestRibbonMoreSettings drives Font File…), screenshot preferences-font.png.
 - 2026-11-21: Export > Clean Fountain (branch cleanfountain, not merged; Lexington branch strip, not tagged: go.mod
   has `replace … => ../lexington-strip` until the tag). Lexington: fountain.Strip(text, scenes, StripOptions) —

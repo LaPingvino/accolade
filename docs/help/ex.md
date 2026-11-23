@@ -352,7 +352,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:merge-character** — The character's cues take another's name, their notes together (Characters > Character > Merge Into) (while the Characters tab is there)
 - **:add-alias** — Another name the story or a cue has for the character (the learned notes) (Characters > Character > Add Alias) (while the Characters tab is there)
 - **:not-a-character** — Left out of the characters and the source's reading (the learned notes); again: a character after all (Characters > Character > Not a Character) (while the Characters tab is there)
-- **:character-note** — The character opened in the pane, their note to type in (kept in the script's character list) (Characters > Notes > Their Note) (while the Characters tab is there)
+- **:character-note** — The character opened in the pane, their note to type in (kept in the character list at the document's end) (Characters > Notes > Their Note) (while the Characters tab is there)
 - **:next-cue** — The script's cursor on the character's next cue (Characters > Places > Next Cue) (while the Characters tab is there)
 - **:previous-cue** — The script's cursor on the character's cue before (Characters > Places > Previous Cue) (while the Characters tab is there)
 - **:their-scenes** `item` — The scenes the character speaks in: one to go to (Characters > Places > Their Scenes) (while the Characters tab is there)

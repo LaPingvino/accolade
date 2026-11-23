@@ -228,10 +228,14 @@ func cueSpanOf(line string) (cueSpan, bool) {
 
 // markdownChars reads the names of a Markdown document, as a story is
 // read: who is named, the most weighty first, and where each stands.
+//
+// Its character list (characters_block.go, the comment before the notes)
+// gives a name its note and fields, and lists those the reading does not
+// find (yet) after them, in the list's order.
 func markdownChars(text, lang string) *charModel {
-	m := &charModel{markdown: true}
+	m := &charModel{markdown: true, list: markdownList.list(text)}
 	r := storyread.Read(storyPassages(passagesOf(text)), lang, storyread.Hints{})
-	rs := []rune(text)
+	rs := []rune(text[:markdownEndByte(text)]) // the places in the text, not in its list or notes
 	for _, c := range r.Characters {
 		if c.Name == storyread.Narrator {
 			continue
@@ -240,7 +244,37 @@ func markdownChars(text, lang string) *charModel {
 			Mentions: wordPlaces(rs, c.Name)}
 		m.chars = append(m.chars, info)
 	}
+	for i, e := range m.list.entries {
+		k := e.key()
+		if k == "" {
+			continue
+		}
+		if j := m.find(k); j >= 0 {
+			if m.chars[j].Entry < 0 {
+				m.chars[j].Entry = i
+			}
+			continue
+		}
+		m.chars = append(m.chars, charInfo{Name: e.Name, Key: k, Entry: i, Mentions: namePlaces(rs, e.Name)})
+	}
 	return m
+}
+
+// namePlaces are the runes where a listed name stands in text as a word,
+// as written or in another case the name is written in (Anna, ANNA).
+func namePlaces(rs []rune, name string) []int {
+	out := wordPlaces(rs, name)
+	for _, n := range []string{casedLike("Anna", name), strings.ToUpper(name)} {
+		if n != name {
+			out = append(out, wordPlaces(rs, n)...)
+		}
+	}
+	slices.Sort(out)
+	out = slices.Compact(out)
+	if out == nil {
+		out = []int{} // a name, with no places yet
+	}
+	return out
 }
 
 // wordPlaces are the runes where name stands in text as a word (or words).

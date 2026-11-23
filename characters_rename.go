@@ -10,6 +10,7 @@ import (
 
 	"github.com/LaPingvino/accolade/internal/collab"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/editor/syntax"
 	"github.com/LaPingvino/lexington/lex"
 )
 
@@ -94,57 +95,169 @@ func casedLike(was, name string) string {
 	return name
 }
 
-// nameEdits are the edits in the script's body that rename the character
-// with key to name: its cues (renameCues), or the name as a word wherever
-// it stands (renameEverywhere). In runes, in order.
+// renamePlaces are the places a rename can change (edits, in runes, in
+// order), by where they stand: the script's body (a Markdown document's
+// text), and what Rename Everywhere offers besides, off unless asked: the
+// notes block, and the source block with the source links' quotes and
+// the adaptation block's entries that name its passages (so that they
+// keep finding them).
+type renamePlaces struct {
+	body   []lineEdit
+	notes  []lineEdit
+	source []lineEdit // the source block's
+	links  []lineEdit // the links' quotes in the body, with the source
+}
+
+// renameAlso are the blocks a rename takes in besides the body.
+type renameAlso struct{ notes, source bool }
+
+// renamePlacesIn are the places that rename the character with key to
+// name in text (md: a Markdown document, which has notes but no source
+// block): its cues (renameCues: Merge, the body only), or the name as a
+// word wherever it stands (renameEverywhere).
 //
 // Everywhere, a place counts when it is written in capitals (ANNA), with a
 // capital each word (Anna), or as the character is spelled in a cue or the
 // list (known: McCLANE, ben); so a character called WILL leaves "I will
-// go" alone. The title page (Author: Ben Smith) and the source links'
+// go" alone. The title page (Author: Ben Smith; a Markdown document's
+// front matter) is left as it is, and in the body the source links'
 // quotes ([[from: …text=Anna opened…]], which must keep finding their
-// passage) are left as they are.
-func nameEdits(text string, starts []string, key, name string, scope renameScope, known []string) []lineEdit {
-	var out []lineEdit
+// passage): they are renamed with the source (links), as its passages are.
+func renamePlacesIn(text string, md bool, starts []string, key, name string, scope renameScope, known []string) renamePlaces {
+	var out renamePlaces
 	if scope == renameCues {
+		if md {
+			return out
+		}
 		m := screenplayChars(text, starts)
 		for _, c := range m.chars {
 			for _, s := range c.Cues {
 				if charKey(s.name) == key {
-					out = append(out, lineEdit{s.start, s.end, casedLike(s.name, name)})
+					out.body = append(out.body, lineEdit{s.start, s.end, casedLike(s.name, name)})
 				}
 			}
 		}
-		slices.SortFunc(out, func(a, b lineEdit) int { return a.start - b.start })
+		slices.SortFunc(out.body, func(a, b lineEdit) int { return a.start - b.start })
 		return out
 	}
-	body := []rune(text[:bodyEndByte(text)])
 	want := []rune(key)
 	if len(want) == 0 {
-		return nil
+		return out
+	}
+	var bodyEnd, from int
+	var notes notesMarks
+	if md {
+		bodyEnd = markdownEndByte(text)
+		notes = markdownNotes
+	} else {
+		bodyEnd = bodyEndByte(text)
+		notes = fountainNotes
+	}
+	rs := []rune(text)
+	body := []rune(text[:bodyEnd])
+	if md {
+		from = frontMatterRunes(body)
+	} else {
+		from = titleRunes(body)
 	}
 	skip := leftAlone(body)
-	for i := titleRunes(body); i+len(want) <= len(body); i++ {
-		if i > 0 && isWordRune(body[i-1]) {
+	out.body = wordEdits(rs, from, len(body), want, name, known, skip)
+	if !md {
+		for _, q := range linkQuotes(body) {
+			out.links = append(out.links, wordEdits(rs, q[0], q[1], want, name, known, nil)...)
+		}
+		if t := tailSetOf(text).src; t.ok {
+			if a, b, ok := blockInside(text, t.bstart, t.bend, sourceMarks); ok {
+				out.source = wordEdits(rs, a, b, want, name, known, nil)
+			}
+		}
+	}
+	if i, _ := notes.at(text); i >= 0 {
+		if a, b, ok := blockInside(text, i, len(text), notes); ok {
+			out.notes = wordEdits(rs, a, b, want, name, known, nil)
+		}
+	}
+	return out
+}
+
+// edits are the places a rename changes, in order: the body, and the
+// blocks asked for besides.
+func (p renamePlaces) edits(also renameAlso) []lineEdit {
+	out := slices.Clone(p.body)
+	if also.source {
+		out = append(out, p.links...)
+		out = append(out, p.source...)
+	}
+	if also.notes {
+		out = append(out, p.notes...)
+	}
+	slices.SortFunc(out, func(a, b lineEdit) int { return a.start - b.start })
+	return out
+}
+
+// wordEdits rename the name (want: its key) where it stands as a word in
+// rs[from:to], each place in its own case; skip: stretches left alone
+// (leftAlone's, nil none).
+func wordEdits(rs []rune, from, to int, want []rune, name string, known []string, skip map[int]int) []lineEdit {
+	var out []lineEdit
+	for i := from; i+len(want) <= to; i++ {
+		if i > 0 && isWordRune(rs[i-1]) {
 			continue
 		}
-		if !sameUpper(body[i:i+len(want)], want) {
+		if !sameUpper(rs[i:i+len(want)], want) {
 			continue
 		}
 		j := i + len(want)
-		if j < len(body) && isWordRune(body[j]) {
+		if j < len(rs) && isWordRune(rs[j]) {
 			continue
 		}
 		if k, ok := skip[i]; ok { // a source link's: past it
 			i = k - 1
 			continue
 		}
-		was := string(body[i:j])
+		was := string(rs[i:j])
 		if !namelike(was) && !slices.Contains(known, was) {
 			continue
 		}
 		out = append(out, lineEdit{i, j, casedLike(was, name)})
 		i = j - 1
+	}
+	return out
+}
+
+// blockInside is where the inside of the block at text[start:end] (as
+// found: the blank lines before it, its marks) is, in runes: after its
+// opening line, before its close mark.
+func blockInside(text string, start, end int, m notesMarks) (from, to int, ok bool) {
+	j := strings.Index(text[start:end], m.open+"\n")
+	if j < 0 {
+		return 0, 0, false
+	}
+	a := start + j + len(m.open) + 1
+	k := strings.LastIndex(text[a:end], m.close)
+	if k < 0 {
+		return 0, 0, false
+	}
+	from = utf8.RuneCountInString(text[:a])
+	return from, from + utf8.RuneCountInString(text[a:a+k]), true
+}
+
+// linkQuotes are the source links' quotes in body (runes, [from, to)):
+// in [[from: file#:~:text=…]] what follows "#:~:", in the old form
+// [[from: "…"]] what follows "from:"; the file's name is the link's.
+func linkQuotes(body []rune) [][2]int {
+	var out [][2]int
+	for _, l := range linkStretches(body) {
+		link := string(body[l[0]:l[1]])
+		at, skip := strings.Index(link, "#:~:"), len("#:~:")
+		if at < 0 {
+			at, skip = len("[[from:"), 0
+		}
+		end := l[1]
+		if strings.HasSuffix(link, "]]") {
+			end -= 2
+		}
+		out = append(out, [2]int{l[0] + utf8.RuneCountInString(link[:at+skip]), end})
 	}
 	return out
 }
@@ -173,6 +286,18 @@ func namelike(s string) bool {
 // source links ([[from: …]]): each rune in one, the stretch's end.
 func leftAlone(body []rune) map[int]int {
 	out := map[int]int{}
+	for _, l := range linkStretches(body) {
+		for k := l[0]; k < l[1]; k++ {
+			out[k] = l[1]
+		}
+	}
+	return out
+}
+
+// linkStretches are the source links ([[from: …]]) in body, in runes:
+// [start, end), in order.
+func linkStretches(body []rune) [][2]int {
+	var out [][2]int
 	s := string(body)
 	at := 0 // runes before s[b:]
 	for b := 0; ; {
@@ -189,9 +314,7 @@ func leftAlone(body []rune) map[int]int {
 			j += 2
 		}
 		n := utf8.RuneCountInString(s[b : b+j])
-		for k := at; k < at+n; k++ {
-			out[k] = at + n
-		}
+		out = append(out, [2]int{at, at + n})
 		at += n
 		b += j
 	}
@@ -204,6 +327,18 @@ func titleRunes(body []rune) int {
 	n := 0
 	for _, l := range lines[:titlePageEnd(lines)] {
 		n += utf8.RuneCountInString(l) + 1
+	}
+	return min(n, len(body))
+}
+
+// frontMatterRunes is where a Markdown document's front matter ends, in
+// runes (0: it has none), as markdownBody reads it.
+func frontMatterRunes(body []rune) int {
+	lines := strings.Split(string(body), "\n")
+	kinds := syntax.ClassifyMarkdown(lines)
+	n := 0
+	for i := 0; i < len(kinds) && kinds[i] == syntax.MdFrontMatter; i++ {
+		n += utf8.RuneCountInString(lines[i]) + 1
 	}
 	return min(n, len(body))
 }
@@ -270,8 +405,9 @@ func renameEdit(before, after string, starts []string, edits []lineEdit, from, t
 // renameCharacter renames the character with key to name (scope) as one
 // undo step, the list, the learned notes and the extras following; it
 // reports how many places changed. known are the character's spellings
-// (nameEdits).
-func (w *MainWindow) renameCharacter(key, name string, scope renameScope, known []string) int {
+// (renamePlacesIn); also, the blocks Rename Everywhere takes in besides the
+// body (renamePlaces).
+func (w *MainWindow) renameCharacter(key, name string, scope renameScope, known []string, also renameAlso) int {
 	name = strings.Join(strings.Fields(name), " ")
 	newKey := charKey(name)
 	if w.textEditor == nil || key == "" || newKey == "" {
@@ -279,9 +415,10 @@ func (w *MainWindow) renameCharacter(key, name string, scope renameScope, known 
 	}
 	e := w.textEditor
 	before := e.Text()
-	edits := nameEdits(before, w.sceneStarts(), key, name, scope, known)
+	edits := renamePlacesIn(before, w.markdown, w.sceneStarts(), key, name, scope, known).edits(also)
 	// the list: the entry renamed, or for Merge put into the other's
-	list := charListOf(before)
+	k := w.charBlock()
+	list := k.list(before)
 	entries := slices.Clone(list.entries)
 	if i := list.find(key); i >= 0 {
 		if j := list.find(newKey); scope == renameCues && j >= 0 && j != i {
@@ -292,13 +429,14 @@ func (w *MainWindow) renameCharacter(key, name string, scope renameScope, known 
 		}
 	}
 	var blocks []lineEdit
-	if inside, ok := charactersBlock(before); ok {
+	if inside, ok := k.inside(before); ok {
 		if nu := list.inside(entries); nu != inside {
-			s, t, block := withCharactersBlock(before, nu)
+			s, t, block := k.with(before, nu)
 			blocks = append(blocks, lineEdit{s, t, block})
 		}
 	}
-	// the learned notes: the cue's names under the new one
+	// the learned notes: the cue's names under the new one; with the
+	// source, the entries that name its passages as their quotes go
 	l := learnedOf(before)
 	for _, a := range l.Aliases {
 		if charKey(a.Cue) == key {
@@ -306,8 +444,12 @@ func (w *MainWindow) renameCharacter(key, name string, scope renameScope, known 
 			break
 		}
 	}
-	if inside, ok := adaptationBlock(before); ok {
-		if nu := withLearned(inside, l); nu != inside {
+	if inside, ok := adaptationBlock(before); ok && !w.markdown {
+		nu := withLearned(inside, l)
+		if also.source && scope == renameEverywhere {
+			nu = renamedEntries(nu, key, name, known)
+		}
+		if nu != inside {
 			s, t, block := withAdaptationBlock(before, nu)
 			blocks = append(blocks, lineEdit{s, t, block})
 		}
@@ -353,6 +495,35 @@ func (w *MainWindow) renameCharacter(key, name string, scope renameScope, known 
 	r.atAfter = true
 	w.followNumbers(true) // the headings that changed are the ones seen now
 	return len(edits)
+}
+
+// renamedEntries is the adaptation block's inside with the name renamed
+// in its cut: and skipped links: entries, which name the source's
+// passages by their words (a rename in the source with them).
+func renamedEntries(inside, key, name string, known []string) string {
+	lines := strings.Split(inside, "\n")
+	in := false
+	want := []rune(key)
+	for i, line := range lines {
+		if k, _, ok := isBlockKey(line); ok {
+			switch k {
+			case "cut", "cuts", "skipped links", "skipped link", "skipped", "skips":
+				in = true
+			default:
+				in = false
+			}
+		}
+		if !in {
+			continue
+		}
+		rs := []rune(line)
+		ed := wordEdits(rs, 0, len(rs), want, name, known, nil)
+		for j := len(ed) - 1; j >= 0; j-- {
+			rs = slices.Concat(rs[:ed[j].start], []rune(ed[j].text), rs[ed[j].end:])
+		}
+		lines[i] = string(rs)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // shareEditsFirst gives a shared script's session a change made of many
@@ -493,10 +664,39 @@ func (w *MainWindow) followRenamed() {
 	} else {
 		follow, stripsFollow = true, true
 	}
-	if !follow || r.refollow == nil {
+	if !follow {
+		return
+	}
+	if r.refollow == nil {
+		if say := keptAsIs(to == 0, tagsFollow && string(r.bd[0]) != string(r.bd[1]),
+			stripsFollow && string(r.sched[0]) != string(r.sched[1])); say != "" {
+			w.setStatus(say)
+		}
 		return
 	}
 	r.refollow(to == 0, tagsFollow, stripsFollow)
+}
+
+// keptAsIs says that an Undo (back) or Redo of a merge left the breakdown
+// (bd), the schedule (sched) or both as they are: the merge changed them,
+// and they changed since, so its cast members cannot be told apart again
+// ("": neither; nothing to say).
+func keptAsIs(back, bd, sched bool) string {
+	var what string
+	switch {
+	case bd && sched:
+		what = "the breakdown and the schedule"
+	case bd:
+		what = "the breakdown"
+	case sched:
+		what = "the schedule"
+	default:
+		return ""
+	}
+	if back {
+		return "Merge undone in the script; " + what + " changed since, so its cast stays merged there"
+	}
+	return "Merge redone in the script; " + what + " changed since, so its cast was not merged again there"
 }
 
 // followRename brings the breakdown and the schedule from the text before

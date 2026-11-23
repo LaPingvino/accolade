@@ -29,8 +29,10 @@ import (
 //
 // In a Markdown document the pane lists the names the document reads as
 // someone's (storyread, as a story is read), each tapped to where it next
-// stands; Rename Everywhere renames one. The list and its notes are a
-// screenplay's.
+// stands; Rename Everywhere renames one. Its character list is a comment
+// before its notes (<!-- Characters … -->), with the note and the fields
+// as a screenplay's (the actor aside: that is Production's); the learned
+// notes (Merge, aliases, not a character) are a screenplay's.
 //
 // The pane reads the script once typing pauses, and only while in sight;
 // the cast numbers, which lay the script out as printed, in the
@@ -128,10 +130,8 @@ func (p *charactersPane) focusTarget() fyne.Focusable {
 	switch {
 	case p.open == "":
 		return p.filter
-	case p.model != nil && !p.model.markdown:
-		return p.detail.note
 	}
-	return nil // a name opened in Markdown: its buttons, by Tab
+	return p.detail.note
 }
 
 // inSight reports whether the pane is in sight.
@@ -327,6 +327,9 @@ func (p *charactersPane) noteOf(c charInfo) string {
 func (p *charactersPane) charStats(c charInfo) string {
 	var parts []string
 	if p.model.markdown {
+		if len(c.Mentions) == 0 && c.Entry >= 0 {
+			return "in the list, not named yet"
+		}
 		parts = append(parts, plural(len(c.Mentions), "mention"))
 		if c.Speeches > 0 {
 			parts = append(parts, plural(c.Speeches, "line"))
@@ -639,27 +642,23 @@ func (p *charactersPane) showDetail() {
 		}
 	}
 	d.updating = false
-	if m.markdown {
-		d.form.Hide()
-		d.listed.Hide()
-	} else {
-		d.form.Show()
-		d.listed.Show()
-		items := []*widget.FormItem{d.noteRow}
-		for f, it := range d.fieldRow {
-			if f != fieldActor || !p.w.writerView() { // the actor is Production's
-				items = append(items, it)
-			}
+	items := []*widget.FormItem{d.noteRow}
+	for f, it := range d.fieldRow {
+		if f != fieldActor || !p.w.writerView() && !m.markdown { // the actor is Production's
+			items = append(items, it)
 		}
-		if len(items) != len(d.form.Items) {
-			d.form.Items = items
-			d.form.Refresh()
-		}
-		if c.Entry >= 0 {
-			d.listed.SetText("Kept in the script's character list (/* Characters */ at its end)")
-		} else {
-			d.listed.SetText("Not in the character list yet: a note or a field puts them there")
-		}
+	}
+	if len(items) != len(d.form.Items) {
+		d.form.Items = items
+		d.form.Refresh()
+	}
+	switch {
+	case c.Entry < 0:
+		d.listed.SetText("Not in the character list yet: a note or a field puts them there")
+	case m.markdown:
+		d.listed.SetText("Kept in the document's character list (<!-- Characters --> before its notes)")
+	default:
+		d.listed.SetText("Kept in the script's character list (/* Characters */ at its end)")
 	}
 	// the scenes
 	var rows []fyne.CanvasObject
@@ -688,7 +687,10 @@ func (p *charactersPane) actionButtons(c charInfo) []fyne.CanvasObject {
 	}
 	out := []fyne.CanvasObject{btn("Rename Everywhere…", func() { p.askRename(c.Key) })}
 	if p.model.markdown {
-		return out
+		if c.Entry < 0 {
+			out = append(out, btn("Add to the List", func() { p.addToList(c.Key) }))
+		}
+		return append(out, btn("Choose Photo…", func() { p.choosePhoto(c.Key) }))
 	}
 	out = append(out, btn("Merge Into…", func() { p.askMerge(c.Key) }), btn("Add Alias…", func() { p.askAlias(c.Key) }))
 	if c.Not {
@@ -707,7 +709,7 @@ func (p *charactersPane) actionButtons(c charInfo) []fyne.CanvasObject {
 // none, or it cannot be read).
 func (p *charactersPane) photoOf(c charInfo, size int) image.Image {
 	m := p.model
-	if m == nil || m.markdown || c.Entry < 0 || c.Entry >= len(m.list.entries) {
+	if m == nil || c.Entry < 0 || c.Entry >= len(m.list.entries) {
 		return nil
 	}
 	src := strings.TrimSpace(m.list.entries[c.Entry].Fields[fieldPhoto])
@@ -762,12 +764,13 @@ type entryTag struct {
 func (p *charactersPane) writeEntry(key string, field int, change func(*charEntry)) {
 	w := p.w
 	c, ok := p.charOf(key)
-	if !ok || w.markdown {
+	if !ok {
 		return
 	}
 	e := w.textEditor
 	text := e.Text()
-	list := charListOf(text)
+	k := w.charBlock()
+	list := k.list(text)
 	entries := append([]charEntry(nil), list.entries...)
 	i := list.find(key)
 	if i < 0 {
@@ -778,12 +781,12 @@ func (p *charactersPane) writeEntry(key string, field int, change func(*charEntr
 	if entries[i].from < 0 && entries[i].empty() {
 		return // nothing to keep yet
 	}
-	inside, _ := charactersBlock(text)
+	inside, _ := k.inside(text)
 	nu := list.inside(entries)
 	if nu == inside {
 		return
 	}
-	start, end, block := withCharactersBlock(text, nu)
+	start, end, block := k.with(text, nu)
 	tag := entryTag{p, key, field}
 	ours := e.UndoTag() == tag
 	n := e.UndoSteps()
@@ -803,7 +806,7 @@ func (p *charactersPane) addToList(key string) {
 		return
 	}
 	e := p.w.textEditor
-	start, end, block, ok := addedName(e.Text(), c.Name)
+	start, end, block, ok := p.w.charBlock().added(e.Text(), c.Name)
 	if !ok {
 		return
 	}
@@ -811,7 +814,9 @@ func (p *charactersPane) addToList(key string) {
 	p.w.setStatus(c.Name + " is in the character list now")
 }
 
-// askRename asks for the new name and renames the character everywhere.
+// askRename asks for the new name and renames the character everywhere:
+// in the body; in the notes and the source too if asked (each with how
+// many places the name stands in it, off at first).
 func (p *charactersPane) askRename(key string) {
 	c, ok := p.charOf(key)
 	if !ok {
@@ -819,7 +824,9 @@ func (p *charactersPane) askRename(key string) {
 	}
 	entry := widget.NewEntry()
 	entry.SetText(c.Name)
-	n := len(nameEdits(p.w.textEditor.Text(), p.w.sceneStarts(), key, c.Name, renameEverywhere, p.spellings(c)))
+	w := p.w
+	places := renamePlacesIn(w.textEditor.Text(), w.markdown, w.sceneStarts(), key, c.Name, renameEverywhere, p.spellings(c))
+	n := len(places.body)
 	what := fmt.Sprintf("%s stands in %s (cues, action, dialogue, headings): each is renamed in its own case, in one undo step. "+
 		"The title page and the source links are left as they are.", c.Name, plural(n, "place"))
 	if p.model.markdown {
@@ -827,14 +834,38 @@ func (p *charactersPane) askRename(key string) {
 	}
 	note := widget.NewLabel(what)
 	note.Wrapping = fyne.TextWrapWord
-	dialog.ShowForm("Rename "+c.Name, "Rename", "Cancel", []*widget.FormItem{
-		widget.NewFormItem("New name", entry), widget.NewFormItem("", note),
-	}, func(ok bool) {
+	items := []*widget.FormItem{widget.NewFormItem("New name", entry), widget.NewFormItem("", note)}
+	inNotes, inSource := renameChecks(places)
+	label := "Also in"
+	if inNotes != nil {
+		items = append(items, widget.NewFormItem(label, inNotes))
+		label = ""
+	}
+	if inSource != nil {
+		it := widget.NewFormItem(label, inSource)
+		it.HintText = "Its links and cut entries follow"
+		items = append(items, it)
+	}
+	dialog.ShowForm("Rename "+c.Name, "Rename", "Cancel", items, func(ok bool) {
 		if ok {
-			p.rename(key, entry.Text, renameEverywhere)
+			also := renameAlso{notes: inNotes != nil && inNotes.Checked, source: inSource != nil && inSource.Checked}
+			p.renameIn(key, entry.Text, renameEverywhere, also)
 		}
-	}, p.w.fyneWindow)
-	p.w.fyneWindow.Canvas().Focus(entry)
+	}, w.fyneWindow)
+	w.fyneWindow.Canvas().Focus(entry)
+}
+
+// renameChecks are Rename Everywhere's choices besides the body: the
+// notes and the source, each where the name stands in it (nil: not),
+// off.
+func renameChecks(places renamePlaces) (notes, source *widget.Check) {
+	if n := len(places.notes); n > 0 {
+		notes = widget.NewCheck(fmt.Sprintf("the notes (%s)", plural(n, "place")), nil)
+	}
+	if n := len(places.source); n > 0 {
+		source = widget.NewCheck(fmt.Sprintf("the source (%s)", plural(n, "place")), nil)
+	}
+	return notes, source
 }
 
 // askMerge asks which character this one is, and merges it into them.
@@ -870,6 +901,11 @@ func (p *charactersPane) askMerge(key string) {
 
 // rename renames or merges the character (scope), the pane following.
 func (p *charactersPane) rename(key, name string, scope renameScope) {
+	p.renameIn(key, name, scope, renameAlso{})
+}
+
+// renameIn is rename, in the blocks also asked for besides the body.
+func (p *charactersPane) renameIn(key, name string, scope renameScope, also renameAlso) {
 	c, ok := p.charOf(key)
 	if !ok || strings.TrimSpace(name) == "" {
 		return
@@ -881,7 +917,7 @@ func (p *charactersPane) rename(key, name string, scope renameScope) {
 		p.w.setStatus(o.Name + " is a character already: Merge Into… makes one of the two")
 		return
 	}
-	n := p.w.renameCharacter(key, name, scope, p.spellings(c))
+	n := p.w.renameCharacter(key, name, scope, p.spellings(c), also)
 	if n == 0 && charKey(name) == key {
 		return
 	}

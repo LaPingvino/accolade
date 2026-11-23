@@ -132,8 +132,8 @@ func (w *MainWindow) typeAfterRename(oldPath, oldName, newPath, newName string) 
 
 // setDocumentType is View > Document Type: the document becomes a
 // screenplay or Markdown, keeping its name and its text (no Fountain
-// clean-up runs); a notes block in the other type's form is carried over
-// to this one's. The choice is remembered for the file.
+// clean-up runs); a notes block and a character list in the other type's
+// form are carried over to this one's. The choice is remembered for the file.
 func (w *MainWindow) setDocumentType(markdown bool) {
 	// the views follow at the end (state.go)
 	defer w.scriptChange()()
@@ -146,11 +146,20 @@ func (w *MainWindow) setDocumentType(markdown bool) {
 		from, to = markdownNotes, fountainNotes
 	}
 	text := w.textEditor.Text()
-	if start, end, block, ok := carriedNotes(text, from, to); ok {
+	notesStart, notesEnd, notes, carryNotes := carriedNotes(text, from, to)
+	listStart, listEnd, list, carryList := carriedList(text, markdown)
+	if carryNotes || carryList {
 		w.textEditor.Edit(func(b *buffer.Buffer) {
 			cursor := b.Cursor()
-			b.Replace(start, end, block)
-			b.SetCursor(min(cursor, start), false)
+			if carryNotes { // the later first: the list's place stays
+				b.Replace(notesStart, notesEnd, notes)
+				cursor = min(cursor, notesStart)
+			}
+			if carryList {
+				b.Replace(listStart, listEnd, list)
+				cursor = min(cursor, listStart)
+			}
+			b.SetCursor(cursor, false)
 		})
 	}
 	w.setMarkdown(markdown)
@@ -158,6 +167,30 @@ func (w *MainWindow) setDocumentType(markdown bool) {
 	if inBrowser { // an unsaved document comes back as this type after a reload
 		w.keepDraft()
 	}
+}
+
+// carriedList is the character list of text in the other type's form
+// (characters_block.go), rewritten in this one's (toMarkdown: Markdown's):
+// where it is (in runes) and what replaces it. ok is false if there is
+// none, one in this form already, or it is not just before the notes (or
+// the end), where the other form looks for it.
+func carriedList(text string, toMarkdown bool) (start, end int, block string, ok bool) {
+	from, to, marks := screenplayList, markdownList, markdownCharsMarks
+	if !toMarkdown {
+		from, to, marks = markdownList, screenplayList, charactersMarks
+	}
+	if _, has := to.inside(text); has {
+		return 0, 0, "", false
+	}
+	t := from.tail(text)
+	if !t.ok || from == screenplayList && t.bend != tailSetOf(text).notes {
+		return 0, 0, "", false
+	}
+	block = strings.TrimRight(marks.text(t.inside), "\n")
+	if t.bend == len(text) {
+		block += "\n"
+	}
+	return t.start, t.end, block, true
 }
 
 // carriedNotes is the notes block of text in from's form, rewritten in

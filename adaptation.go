@@ -437,10 +437,20 @@ func withAdaptationBlock(text, inside string) (start, end int, block string) {
 // text) hold inside: where (runes) and what. A new block goes after the
 // script, before the other blocks at its end.
 func withTailBlock(text string, t tailBlock, marks notesMarks, inside string) (start, end int, block string) {
+	at := 0
+	if !t.ok {
+		at = bodyEnd(text)
+	}
+	return withTailBlockAt(text, t, marks, inside, at)
+}
+
+// withTailBlockAt is withTailBlock with where a new block goes (runes):
+// at, after the text's blank lines before it.
+func withTailBlockAt(text string, t tailBlock, marks notesMarks, inside string, at int) (start, end int, block string) {
 	if t.ok {
 		start, end = t.start, t.end
 	} else {
-		end = bodyEnd(text)
+		end = at
 		start = utf8.RuneCountInString(strings.TrimRight(string([]rune(text)[:end]), "\n"))
 	}
 	block = strings.TrimRight(marks.text(inside), "\n")
