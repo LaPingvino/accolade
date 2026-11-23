@@ -72,7 +72,7 @@ The elements: `scene-heading`, `action`, `character`, `parenthetical`, `dialogue
 
 - **:h[elp]** `[command or page]` — This list in the Help tab; :h scene the line on :scene; :h fountain a help page
 
-The pages: `index`, `fountain`, `final-draft`, `adapting`, `production`, `shortcuts`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
+The pages: `index`, `fountain`, `final-draft`, `adapting`, `fixing-imports`, `production`, `shortcuts`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
 
 ## Accolade's commands
 
@@ -120,6 +120,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:replace** — Edit > Replace
 - **:find-next** — Edit > Find Next
 - **:find-previous** — Edit > Find Previous
+- **:fix-lines-like-this** — Edit > Fix Lines Like This (screenplay)
 - **:cut-selection** — Edit > Cut
 - **:copy-selection** — Edit > Copy
 - **:paste** — Edit > Paste
