@@ -1852,11 +1852,12 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
 - 2026-11-23 (Joop, on the uneven Devanagari of 1.103 — the aa-matra and half-forms each in a cell of their own with a
   stretched headline, आ squeezed into one: "I think option 2 with double-width ligatures for anything composed of the
   half-forms is probably a good idea for Devanagari. That would kinda tick all boxes? That would also document this
-  properly for others and give a way to check how it looks..."): DEVANAGARI CELL MODEL, after the Courier Badi refit
+  properly for others and give a way to check how it looks..."; named with Joop: LEKHAN MONOSPACE, after the Nagari
+  Lekhan Yantra typewriter — "That rule follows the spirit of old typewriters"): DEVANAGARI CELL MODEL, after the Courier Badi refit
   (same repo). The terminal model (cells per grapheme cluster; cf. the Monotty fonts, the linux-utf8 double-width
   proposal, Unicode's Text Terminal WG): a simple cluster (one consonant or independent vowel with its matras and
   marks, आ, कि, ला) is ONE cell; a cluster with half-forms (a conjunct: क्ष, त्न, स्क्री, र्य) is ONE DOUBLE-WIDTH
-  glyph (two cells), never a stretched headline. (1) A short public spec in courier-badi (docs/DEVANAGARI-CELLS.md):
+  glyph (two cells), never a stretched headline. (1) A short public spec in courier-badi (docs/LEKHAN.md, "Lekhan monospace"; the width function "Lekhan width"; the typewriter lineage as its rationale):
   the rule in Unicode terms (extended grapheme clusters with the virama tailoring), examples, what a terminal or
   another font does to follow it; (2) Courier Badi 1.105 built to it (glyphs drawn to fit 1 or 2 cells,
   check-devanagari.py checking the rule); (3) one shared width function — Lexington's wrap (pdf/devanagari.go,
