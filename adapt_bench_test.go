@@ -193,6 +193,18 @@ func adaptBenchPair(t *testing.T, dir string) {
 		}
 		t.Logf("align   %-60s %-28s guess %d–%d (%d blocks paired, %d sure): %s", r.heading, rangesString(r.ranges), lo, hi, n, nSure, al.add(r, guess))
 	}
+	// scenes: the scene aligner (scene_align.go), silent when unsure
+	guesses := alignScenes(scenes, ps, nil)
+	var sa benchScore
+	for k, r := range rows {
+		g := guesses[k]
+		var guess [][2]int
+		if g.guessed() {
+			guess = [][2]int{{g.First, g.Last}}
+		}
+		t.Logf("scenes  %-60s %-28s guess %d–%d (%d wide, z %.1f, sure %.1f): %s", r.heading, rangesString(r.ranges),
+			g.First, g.Last, g.Last-g.First+1, g.Z, g.Sure, sa.add(r, guess))
+	}
 	report := func(name string, s benchScore) {
 		t.Logf("%s %s: %d scenes mapped: %d right, %d wrong, %d silent; %d invented: %d silent (right), %d guessed (wrong)",
 			filepath.Base(dir), name, s.right+s.wrong+s.silent, s.right, s.wrong, s.silent,
@@ -200,6 +212,7 @@ func adaptBenchPair(t *testing.T, dir string) {
 	}
 	report("suggest", sug)
 	report("align  ", al)
+	report("scenes ", sa)
 }
 
 func rangesString(rs [][2]int) string {
@@ -287,5 +300,88 @@ func TestSuggestLinksSameEachTime(t *testing.T) {
 		if again := fmt.Sprint(suggestLinks(string(script), starts, ps, m.status, nil, nil)); again != first {
 			t.Fatalf("another answer for the same input:\n%s\n%s", first, again)
 		}
+	}
+}
+
+// TestAdaptBenchPrivate measures on a script and source kept outside the
+// repository (ACCOLADE_PRIVATE_BENCH, default
+// ~/.local/share/accolade-bench/kredu/*.textbundle: text*.fountain and
+// assets/source.md), counts only: nothing of the text is printed. The
+// scenes linked there are the truth: their links taken out (in memory),
+// are they found again? Then with them in as anchors: how many of the
+// rest are guessed (whether rightly is not known).
+func TestAdaptBenchPrivate(t *testing.T) {
+	glob := os.Getenv("ACCOLADE_PRIVATE_BENCH")
+	if glob == "" {
+		home, _ := os.UserHomeDir()
+		glob = filepath.Join(home, ".local", "share", "accolade-bench", "kredu", "*.textbundle")
+	}
+	dirs, _ := filepath.Glob(glob)
+	if len(dirs) == 0 {
+		t.Skip("no private bench here")
+	}
+	for k, dir := range dirs {
+		texts, _ := filepath.Glob(filepath.Join(dir, "text.*.fountain"))
+		if len(texts) == 0 {
+			texts, _ = filepath.Glob(filepath.Join(dir, "text.fountain"))
+		}
+		src, err1 := os.ReadFile(filepath.Join(dir, "assets", "source.md"))
+		if len(texts) == 0 || err1 != nil {
+			continue
+		}
+		b, _ := os.ReadFile(texts[0])
+		script := string(b)
+		lang := ""
+		if parts := strings.Split(filepath.Base(texts[0]), "."); len(parts) == 3 {
+			lang = parts[1]
+		}
+		starts := sceneStarts(lang)
+		ps := passagesOf(string(src))
+		m := newSourceModel(ps, script, starts)
+		scenes := scenesOf(script, starts)
+		truth := sceneAnchors(scenes, m)
+		// the links out
+		rs := []rune(script)
+		links := parseLinks(script)
+		for i := len(links) - 1; i >= 0; i-- {
+			rs = append(rs[:links[i].Start:links[i].Start], rs[links[i].End:]...)
+		}
+		bare := string(rs)
+		bareScenes := scenesOf(bare, starts)
+		if len(bareScenes) != len(scenes) {
+			t.Fatalf("pair %d: %d scenes without the links, %d with", k, len(bareScenes), len(scenes))
+		}
+		var right, wrong, silent, others, guessed int
+		gs := alignScenes(bareScenes, ps, nil)
+		for s, g := range gs {
+			tr, ok := truth[s]
+			switch {
+			case !ok:
+				others++
+				if g.guessed() {
+					guessed++
+				}
+			case !g.guessed():
+				silent++
+			case g.First <= tr[1] && g.Last >= tr[0]:
+				right++
+			default:
+				wrong++
+			}
+		}
+		t.Logf("private %d (%d scenes, %d passages, %d linked): links out: linked ones %d right, %d wrong, %d silent; the other %d: %d guessed",
+			k, len(scenes), len(ps), len(truth), right, wrong, silent, others, guessed)
+		gs = alignScenes(scenes, ps, truth)
+		guessed, last, order := 0, -1, true
+		for _, g := range gs {
+			if g.guessed() {
+				guessed++
+			}
+			if g.First >= 0 {
+				order = order && g.First >= last
+				last = g.First
+			}
+		}
+		t.Logf("private %d: links in as anchors: %d of the other %d guessed; in the source's order: %v", k, guessed, others, order)
 	}
 }
