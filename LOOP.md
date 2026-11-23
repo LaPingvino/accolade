@@ -1612,8 +1612,9 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   has no toolbar in either look (Menus look: the Production menu has the commands while it is in front — unlike
   Preview, which keeps its bar there); its count is its first line. Phone: a grip (≡) per strip drags it (edge
   scroll), a drag elsewhere scrolls, a long press (or right-click) has its actions; days fold to bands (everywhere);
-  the dock's sheet folds down to its row while the board is in front (sheetFollow). internal/structure is not on
-  main: the board's own moves. Shots before/after: combo-stripboard-ribbon-*, combo-stripboard-folded-*,
+  the dock's sheet folds down to its row while the board is in front (sheetFollow). internal/structure (merged
+  since) does not apply: the board never moves the script's text — the unscheduled's "script order" is only how the
+  pool is listed, and every board move is a schedule edit (days, shooting order), not a scene moved in the script. Shots before/after: combo-stripboard-ribbon-*, combo-stripboard-folded-*,
   middle-phone-9-stripboard.
 - 2026-11-23 (Hebrew/Arabic samples merged; left wrong, from its report): (1) PDF title page: rtl lines sit ~0.5 in
   left of the Latin ones (centred on mirrored margins); (2) editor: a Hebrew run inside a left-to-right line (title

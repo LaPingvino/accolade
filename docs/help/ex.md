@@ -56,7 +56,7 @@ Line commands take a range of lines before their name; without one they act on t
 - **:move-pane-bottom** — View > Move Pane to Bottom
 - **:move-pane-middle** — View > Open Pane in the Middle
 - **:move-pane-side** — View > Middle Tab Back to the Side
-- **:move-strip-to** — Production > Move Strip To (working as Production; while the stripboard is in front)
+- **:move-strip-to** — Move the selected strip to a day, or back to the unscheduled (Production > Move Strip To) (working as Production; while the stripboard is in front)
 - **:move-strip-up** — Production > Move Strip Up (working as Production; while the stripboard is in front)
 - **:move-strip-down** — Production > Move Strip Down (working as Production; while the stripboard is in front)
 
@@ -228,14 +228,14 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:continued-where-scene-breaks** — Production > Options > CONTINUED Where a Scene Breaks (screenplay; working as Production)
 - **:number-scenes-in-exports** — Production > Options > Number the Scenes in Exports (screenplay; working as Production)
 - **:unschedule-strip** — Production > Unschedule Strip (working as Production; while the stripboard is in front)
-- **:undo-board-change** — Production > Undo Board Change (working as Production; while the stripboard is in front)
+- **:undo-board-change** — Take the board's last change back (Production > Undo Board Change) (working as Production; while the stripboard is in front)
 - **:edit-day** — Production > Edit Day (working as Production; while the stripboard is in front)
 - **:fold-all-days** — Production > Fold All Days (working as Production; while the stripboard is in front)
 - **:unfold-all-days** — Production > Unfold All Days (working as Production; while the stripboard is in front)
 - **:group-by-location** — Production > Group by Location (working as Production; while the stripboard is in front)
 - **:group-by-cast** — Production > Group by Cast (working as Production; while the stripboard is in front)
-- **:open-strip-scene** — Production > Open Strip's Scene (working as Production; while the stripboard is in front)
-- **:strip-checked** — Production > Strip Checked (working as Production; while the stripboard is in front)
+- **:open-strip-scene** — The selected strip's scene in the script (the board's tab kept) (Production > Open Strip's Scene) (working as Production; while the stripboard is in front)
+- **:strip-checked** — The selected strip's scene changed since it was scheduled: checked, its flag taken away (Production > Strip Checked) (working as Production; while the stripboard is in front)
 - **:close-stripboard** — Production > Close Stripboard (working as Production; while the stripboard is in front)
 
 ### View
