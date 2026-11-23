@@ -1797,3 +1797,30 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the first 40 pt in, Word w:hanging, ODT P_hanging. cite.EachCitation is the one walk (References pane, pandoc's
   keys, the style). Shots citestyle-{text,pages}-{desktop,phone}.png in the scratchpad's shots/, looked at. Left:
   a numeric style; a citation split over two lines of the source is not seen (as in phase 1).
+- 2026-11-23 (Joop: "I noticed that Hindi is missing some translations, which looks odd on the example."): HINDI
+  SAMPLES, next free slot. Hindi arrived after the per-language samples, so New in Hindi gives the generated English
+  template with Hindi scene words only. Write real samples examples/sample.hi-Deva.fountain and sample.hi-Latn.fountain
+  (a Panchatantra tale, public domain; same shape as the others: heading, action, 2–3 speakers, a parenthetical, an
+  extension, a transition; title page in Hindi keys), listed in File › Open Sample; fill the gaps in Lexington's hi
+  words (extensions V.O./O.S. equivalents, transitions) where Hindi screenplays have common terms — otherwise keep the
+  English ones and say so in docs/LANGUAGES.md; the read-back test covers both samples. Devanagari still unshaped in
+  the editor (separate matras, broken conjuncts) — the open question to Joop whether to move DEVANAGARI SHAPING
+  (editor + a Devanagari PDF font) up.
+  Joop: "Sounds like a good idea. We can look if there is a good devanagari monospace donor and integrate that the same
+  way as the hebrew." — DEVANAGARI IN COURIER BADI, in the courier-badi repo after its current Arabic-metrics branch:
+  (1) research open-licensed (OFL/Apache, compatible with Courier Badi's OFL) Devanagari fonts usable as a donor for a
+  monospaced design — true monospace Devanagari is rare, so also judge proportional donors that can be fitted to
+  Courier's advance (conjuncts and matras as cluster-wide glyphs, GSUB/GPOS kept); report candidates with licence,
+  coverage (conjuncts, reph, nukta, Vedic not needed), and how each fits 12 pt Courier's line; (2) integrate the best
+  the way Hebrew was (read the repo's history of the Hebrew integration and follow it), with Devanagari's shaping
+  features intact; (3) then Accolade: the editor draws a Devanagari cluster as one unit across its cells (rungrid, like
+  Arabic's joined runs) so matras/conjuncts/reph shape, and Lexington's PDF uses the new Courier Badi for Devanagari
+  (no more boxes, no browser route needed). Screens: editor + PDF at 600 dpi of क्षत्रिय, कि, की, धर्म, श्रद्धा, ज्ञान.
+- 2026-11-23 (Joop: "We have some number based new formats, I think that should be toggleable and easily
+  auto-numbered..."): AUTO-NUMBERED HEADINGS, right after newscene merges (same slot model, heading_slots.go). In a
+  heading pattern with {n} (zh 场景{n}, he/hi-Deva "{n}. …"), the number IS the scene number: kept in step with scene
+  order automatically (insert, move — the structure engine's moves —, delete), one source of truth with Fountain's
+  #n# numbers so the two never disagree; locked numbers (Production's Lock) stay, new scenes get A-numbers (12A);
+  Format › Number Scenes in Headings toggles it per script (default on for pattern languages with {n}); off drops the
+  {n} slot from every heading (partial headings), on fills them in — one undo step each; Renumber Scenes on demand when
+  automatic numbering is off. Tests per pattern language; screenshots.
