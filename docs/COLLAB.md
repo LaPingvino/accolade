@@ -187,8 +187,13 @@ in the pane's passages; and the room's copy as the Doc is. A source Doc with no 
 sends to it, so a browser that kept its state without the source (over 1 MiB) and reloads with nobody online keeps
 the room's copy, and an edit made then stays its own and is replaced when the peers' Doc comes; an empty source is
 therefore not shared (the status line says "yours only"). Not done: a peer's own different source when it
-joins is replaced by the shared one for that session (its file is written only if it saves); two peers picking a
-source at the same moment: the setting's last writer wins and the other is dropped, its edits with it. The cost
+joins is replaced by the shared one for that session (its file is written only if it saves). Two peers picking a
+source at the same moment (built 2026-11-23): the setting's last writer wins on both; the winner hears of the other
+pick as a setting that lost (`Session.OnLost`, a peer's value older than its own) and lets that Doc go, so neither
+keeps or sends it; the loser (the window that made the Doc, `shared.madeSource`) is told on the status line who
+picked theirs and that Choose Source… again shares its own instead. The file it picked is never touched (Choose
+Source keeps a copy); its window follows the shared one from then on. `TestSourcePickRace` (it failed before: the
+winner kept the lost Doc). The cost
 of a peer's key in a window was not measured: the numbers above are the Doc's, and each peer's message re-reads
 the source pane's passages (in the background past 64 KiB). The breakdown and the schedule are step 4.
 
@@ -214,8 +219,8 @@ Decided per item, with its merge rule:
 | What | Decision | Merge rule |
 |---|---|---|
 | Language, script format, document type, names | shared setting (meta) | last writer wins (clock, then replica) |
-| Breakdown tags (breakdown.json) | shared CRDT map, a Doc kind of its own | per tag ID: last writer wins; a removal is a tombstone, so two people tagging different things keep both |
-| Schedule (schedule.json: days, strip order) | shared CRDT map | per strip: (day, fractional position), last writer wins, so a strip is never lost or doubled by concurrent moves; day definitions per day ID, last writer wins |
+| Breakdown tags (breakdown.json) | shared CRDT map (built: step 4 below) | per key (a category, an element, a tag, a scene done): last writer wins; a removal is a tombstone, so two people tagging different things keep both |
+| Schedule (schedule.json: days, strip order) | shared CRDT map (built: step 4 below) | per strip: (day, fractional position), last writer wins, so a strip is never lost or doubled by concurrent moves; day definitions per day ID, last writer wins |
 | Locked pages, issues' data in the production block | in the text already, or a snapshot sent on change | a single production act (Lock, Issue) by one person, last writer wins as a whole value |
 | Drafts store (assets/drafts/) | local | each peer's own history; Save Draft and Compare work on what that peer has. Too big to send live, and a draft is a moment of one person's copy |
 | The kept source copy, the source choice | local, the content shared by (2) | — |
@@ -247,15 +252,23 @@ messages of their own, batched like the text's runs.
   co-writer's is marked known, without a lesson; a cue Tab put in is watched only where Tab was pressed). The two
   guards are gone. A line whose writer has left, or wrote it in an earlier run (each run is a new replica), is
   nobody's: it is not numbered until Lock Scene Numbers, nor learned from. Two peers adding a scene at one place at
-  the same moment, before either hears of the other's, can both give theirs the same A-number (each numbers its
-  own as the only new one); Renumber or a peer's next look ends it. TestSceneNumbersTogether and TestLearnTogether
-  fail when every peer may write (checked). The other "not shared" checks were looked at: the breakdown, the
+  the same moment, before either hears of the other's, both give theirs the same A-number (each numbers its own
+  as the only new one). Built 2026-11-23: after a peer's edit the numbering runs again (`applyRemote` schedules
+  it), and of two headings with one number the later in the text is numbered anew, by its writer only
+  (`wroteLine`): the same answer on every peer, so one of them writes it, and the order comes out right (12A, then
+  12B). "The later writer" by clock was not taken: it could renumber the earlier heading into a number that sorts
+  after the later one. `TestSceneNumberCollision` (two windows apart, each numbering its own 1A, then meeting; it
+  failed before). TestSceneNumbersTogether and TestLearnTogether fail when every peer may write (checked). The other "not shared" checks were looked at: the breakdown, the
   schedule, the revision marks and the scene-number follow write sidecars or the margin, never the text (sharing
   them is step 4); `shareEditsFirst` (Characters' Rename/Merge) and the middle tabs' "yours only" are not guards.
 - **Undo**: only your own steps (fix 3).
 
 ### Protocol versioning
 
+- Protocol 6 (2026-11-23): shared maps (below). A peer of 5 would read the hello and the maps' messages without
+  error and silently miss every breakdown and schedule change, so by the rule below 6 is a new protocol: 5 and 6
+  tell each other apart and say which side is older. Presence (`"h"`, and its anchors `"a"`, `"f"`) is ignorable
+  and changed nothing.
 - Every hello carries `p` (the protocol) and `app` (Accolade's version). A peer of another protocol is listened to
   for nothing more, and the status bar says which side runs the older Accolade.
 - Peers before protocol 4 show "another version" as before. They read the v4 hello, see p=4, and stop. Protocol 5
@@ -283,6 +296,81 @@ messages of their own, batched like the text's runs.
 - `TestLongScript` (internal/collab) was seen to fail under `-race` on this machine (it times 70 000 inserts); it
   passed in the race gates of 21 Nov evening, before runs and after.
 
+## Step 4: the breakdown and the schedule as shared maps (built 2026-11-23, protocol 6)
+
+- **internal/collab maps.go:** a session holds maps by name, each of string keys to values, the last writer winning
+  per key (a Lamport clock over the map, then the replica), a key taken away kept as gone. `MapSet` sets and takes
+  away keys here and sends them; a peer's entries come in messages of their own (`"x"` the map, `"e"` the entries,
+  batched under 8 KiB as the text's runs) and are passed on along a chain; `OnMap` says which map changed. A hello
+  carries each map's version (`"xs"`: the highest clock seen of each replica), never the map, and the other side
+  sends the entries past it, oldest first. The kept state keeps the maps (`"maps"`, which an older reader ignores).
+  `TestSharedMaps`: a chain of three, two writing one key apart and meeting, different keys both kept, the kept
+  state, entries shuffled and doubled (the same map), `OnMap`.
+- **The breakdown (collab_extras.go):** a key per category (`c <id>`), element (`e <id>`), tag (`t <the tag>`: its
+  element, scene and words) and scene marked done (`d <scene>`). Every change of the breakdown goes through
+  `saveBreakdown`, which gives the map the keys that changed (`shareBreakdownChange`); a peer's change makes the map
+  the window's breakdown and writes it where its extras are (`takeSharedBreakdown`, through `storeBreakdown`, which
+  never writes over a file that could not be read). One element made by two at once (the same category and name,
+  each its own random id) is read as the one with the first id, the other's tags joined to it. The sharer puts its
+  breakdown in as it starts; a joiner, or a kept state taken up, takes the map and never puts its own in.
+- **The schedule:** a key per day (`y <id>`: date, call, notes and its place among the days), per strip (`s <the
+  scene>`: its day and place there, its start, sum and set), and the pool's order (`p`). A place is a number between
+  its neighbours' (`placesBetween`: a place still in order is kept, a new or moved one goes halfway), so a move
+  changes the strip moved only. Every change goes through `writeSchedule`; a peer's change replaces the window's
+  schedule and forgets the board's Undo (it undoes one's own last change only). A strip whose day was taken away
+  goes to the pool.
+- Tests: `TestBreakdownTogether` (a's tag to b, who has none; b's Untag back; tags made apart, one element made on
+  both sides at once: all kept, one element, the files written), `TestScheduleTogether` (days and strips to b; a
+  strip moved on each side apart: both kept; a day taken away), `TestPlacesBetween`.
+- Not done: the drafts store, the locked pages and the issues stay as the table says (local, or in the text). Two
+  people adding a shoot day at once get two days. Untag and a tag of the same words at once: the tag's key is its
+  words, so the last writer wins.
+
+## Presence: each other's places (step 6, built 2026-11-23)
+
+- Presence (`collab.Presence`, presence.go) carries the cursor and the selection's other end as anchors in the
+  script's Doc (`"a"`, `"f"`: the ID of the rune each comes after, `Doc.Anchor`, placed with `Doc.Place`; a deleted
+  rune still places, where it was). A peer whose runes are not here yet is drawn at its line, as before. A window
+  says its place when its cursor's line changes (at once), when its selection changes (once it has rested 150 ms),
+  and every 30 s.
+- The editor (internal/editor peers.go) draws each co-writer as a bar in their colour in the gutter's last column
+  (the revision mark's, which theirs covers while they are there), on every row of their line (a folded line's: its
+  heading's), and their selection tinted. Their places are buffer marks (`Buffer.SetMarks`), so this side's typing
+  moves them with the text at once; they are placed anew from the anchors whenever presence comes and after each
+  peer's edit (`showPeers`). The pointer over a bar (or a tap on it) names them in a tip; the tap leaves the cursor
+  and the focus as they are. The outline and the cards (the pane and the full view) show a dot in their colour on
+  their scene. Nothing is drawn per key that was not before: with nobody here the editor's drawing is unchanged.
+- Tests: `TestPresenceAnchors` (collab), `TestMarks` (buffer), `TestPeers` (editor: the bar, its line after typing
+  above, the tap, a fold), `TestCursorsTogether` (two windows: line, selection, typing above, the dots, leaving);
+  shots `TestCursorsScreenshots`.
+
+## Trying it on two devices (by hand)
+
+The tests run two windows in one process over a fake connection; the real trackers, WebRTC and the browser build
+were never run together here. A script for two people (or one person with two devices), about fifteen minutes:
+
+1. **Desktop and browser.** On the desktop open a screenplay with a source beside it (or File > Open Sample).
+   Collaboration > Edit Together…, Copy the link. Open the link on a phone or in another browser. Within half a
+   minute both status bars say "Shared · 1 other", and the Session tab lists the other.
+2. **Typing.** Type on each side in turn, then both at once in the same scene. Both texts stay the same; each sees
+   the other's bar in the margin on their line, their selection tinted, and a dot on their scene in the outline.
+   Point at (or tap) the bar: their name. Undo on one side takes back only its own typing.
+3. **Follow.** Session > Follow on the phone; move the desktop's cursor through the script: the phone follows. Type
+   on the phone: it stops.
+4. **The source.** Open the Source pane on both; Edit on the phone, type a sentence, Done: it shows on the desktop.
+   On the desktop, Save: the file beside the script has the phone's sentence.
+5. **Production.** Tag a word on the desktop (Production > Tag Selection…): it is tagged on the phone. Put a scene
+   on a shoot day on the phone's stripboard: the desktop's board shows it.
+6. **Leaving and coming back.** Close the desktop's window, then reload the browser tab with nobody else
+   connected: the script comes back from what the browser kept. Open the link on the desktop again: both meet,
+   nothing doubled.
+7. **An old peer.** With an Accolade from before protocol 6 at hand, join with it: both say which side is older,
+   and neither takes the other's text.
+8. **A hidden tab.** Leave the browser tab in the background for over two minutes while typing on the desktop;
+   come back: it catches up.
+
+Note what differs (with the device and browser) in LOOP.md.
+
 ## What is left, in order
 
 1. ~~The single-writer rule for automatic writes (auto A-numbers, learned notes). Then the two guards go:
@@ -290,6 +378,9 @@ messages of their own, batched like the text's runs.
 2. ~~Run-length Doc nodes and kept ops, benchmarked on a novel-sized text.~~ Done (question 2 above).
 3. ~~Named Docs in a session (protocol 5). The source shared through them, and the source pane's editing live.~~
    Done (question 2 above).
-4. The breakdown and the schedule as shared CRDT maps (their own message kind, batched).
-5. A help page on editing together: what is shared and what stays yours, Undo, and leaving.
-6. Presence: each peer's cursor shown in the others' editors, with their name.
+4. ~~The breakdown and the schedule as shared CRDT maps (their own message kind, batched).~~ Done (step 4 above).
+5. ~~A help page on editing together: what is shared and what stays yours, Undo, and leaving.~~ Done:
+   docs/help/together.md ("Writing Together").
+6. ~~Presence: each peer's cursor shown in the others' editors, with their name.~~ Done (presence above).
+7. The two-device run above, by Joop, and what it finds.
+8. Measure a peer's edit's cost in a window on the novel (each message re-reads the source pane's passages).

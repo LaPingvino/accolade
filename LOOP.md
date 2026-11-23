@@ -1750,3 +1750,19 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   tapped): From/To/Side by side over it, the Compare tab forward with Next/Previous Change (round the changed scenes,
   "Change 2 of 3: heading"), Side by Side, Close; Menus look: a Compare menu and its own bar. Opening another document
   closes it. Accept/Keep left out: Compare is read only (taking a change over or back is for when it can edit).
+- 2026-11-23: COLLABORATION, the others' places + the 2026-11-21 follow-ups + COLLAB steps 4–6, done (branch collab3,
+  not merged; docs/COLLAB.md has each). (1) Others' cursors: presence carries the cursor and selection as anchors in
+  the script's Doc (Doc.Anchor/Place, "a"/"f", ignorable); the editor draws each co-writer as a bar in their colour
+  in the gutter's last column on their line (a fold's heading when folded), their selection tinted (internal/editor
+  peers.go), the places buffer marks so one's own typing moves them at once, placed again from the anchors on
+  presence and after each peer's edit (collab_cursors.go); a hover or tap on the bar names them (the cursor stays);
+  a dot in their colour on their scene in the outline, the Cards pane and the full cards. (2) A-number collision
+  (TestSceneNumberCollision, failed first): after a peer's edit numbering runs again; of two equal numbers the later
+  heading in the text is renumbered by its writer. Source-pick race (TestSourcePickRace, failed first): the winner
+  drops the lost Doc (Session.OnLost), the loser is told on the status line. (3) Step 4, protocol 6: shared maps
+  (internal/collab maps.go: LWW per key, tombstones, own messages, hello versions, kept state); the breakdown and
+  the schedule ride on them through saveBreakdown/writeSchedule (collab_extras.go; strips by fractional place).
+  Step 5: help page "Writing Together" (docs/help/together.md; adapting.md's stale line fixed). Step 6 is (1).
+  The real-browser/two-device run could not be done here: COLLAB.md "Trying it on two devices" is the script for
+  Joop. Shots /tmp/claude-1000/-home-joop-Projects/ae6846d1-bb30-4c7d-ba32-b9c1892682db/scratchpad/shots/
+  collab-cursors-{ann,bob}-{desktop,phone}.png. Left: the two-device run; a peer's edit's cost on the novel.

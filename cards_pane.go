@@ -28,7 +28,7 @@ type cardsPane struct {
 	seen  linesSeen
 	list  *widget.List
 	box   fyne.CanvasObject
-	row   float32 // a card's height
+	row   float32               // a card's height
 	dots  map[int][]color.Color // who is in which card, by index (collab_cursors.go)
 }
 

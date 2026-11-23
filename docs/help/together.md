@@ -17,7 +17,8 @@ Two or more people can edit one script at the same time, each in Accolade or in 
 | Its language, format and document type (screenplay or Markdown) | Where you save it, and its file name |
 | The source, when it is kept beside the script, in a bundle or as a kept copy | Your drafts and compares |
 | Characters, notes, learned notes and the source block, which are part of the script's text | Your settings and the look of your window |
-| Who is here and where their cursor is | Breakdown tags and the shooting schedule (for now) |
+| The breakdown's tags and the shooting schedule (days and strips) | The stripboard's Undo, which takes back only your own last move |
+| Who is here and where their cursor is | |
 
 Each of you saves your own copy, where you choose. A script you joined is kept by Accolade for that link, so a reload or a later visit with the same link starts from it, even when nobody else is online, and merges with the others' when they come back.
 
@@ -39,6 +40,10 @@ Some changes Accolade makes by itself: the scene number of a new scene in a lock
 ## The source
 
 When the script's source is kept outside the script (beside it, in its bundle or as a kept copy), it is shared too: editing it in the Source pane or as a middle tab reaches the others as you type. A co-writer who has no source of their own keeps the shared one as a copy for that link. If two people choose a different source at the same moment, the later choice is the shared one; the other person is told so on the status line, and can choose theirs again.
+
+## Production together
+
+Tagging and untagging words (the breakdown) and the stripboard's days and strips are shared as they change: two people tagging different words, or moving different strips, keep both; a strip moved by both at once ends where the last move put it, never lost or doubled. A shoot day taken away sends its strips back to the pool for everyone. Each of you keeps the breakdown and the schedule beside your own copy of the script.
 
 ## Leaving
 

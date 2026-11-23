@@ -22,6 +22,9 @@ type state struct {
 	Runs []Op             `json:"runs"`
 	Docs map[string][]Op  `json:"docs,omitempty"`
 	Meta map[string]Value `json:"meta,omitempty"`
+	// Maps are the shared maps' entries (protocol 6; a reader of before
+	// ignores them)
+	Maps map[string][]Entry `json:"maps,omitempty"`
 }
 
 // State is the session's Docs and settings, to keep.
@@ -39,6 +42,12 @@ func (s *Session) StateOf(names ...string) ([]byte, error) {
 			}
 			st.Docs[name] = runsOf(d.Ops())
 		}
+	}
+	for name, x := range s.maps {
+		if st.Maps == nil {
+			st.Maps = map[string][]Entry{}
+		}
+		st.Maps[name] = x.missing(nil)
 	}
 	s.mu.Unlock()
 	return json.Marshal(st)
@@ -67,5 +76,11 @@ func Restore(key Key, replica string, kept []byte) (*Session, error) {
 		}
 	}
 	maps.Copy(s.meta, st.Meta)
+	for name, es := range st.Maps {
+		x := s.sharedMap(name)
+		for _, e := range es {
+			x.apply(e)
+		}
+	}
 	return s, nil
 }

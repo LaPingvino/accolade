@@ -113,9 +113,9 @@ type v4 struct {
 	By   string           `json:"by,omitempty"`
 }
 
-// Peers of protocol 4 and 5 tell each other apart, and neither takes the
-// other's text: a protocol 4 peer reads the hello (it unmarshals into its
-// message) and sees p=5; a v4 hello here is a mismatch, older, and what
+// Peers of protocol 4 and this one tell each other apart, and neither
+// takes the other's text: a protocol 4 peer reads the hello (it
+// unmarshals into its message) and sees p=6; a v4 hello here is a mismatch, older, and what
 // follows it is not listened to nor passed on.
 func TestMixedProtocols(t *testing.T) {
 	key, _ := NewKey()
@@ -130,7 +130,7 @@ func TestMixedProtocols(t *testing.T) {
 	}
 	b, _ := key.Open(sent[0])
 	var m v4
-	if err := json.Unmarshal(b, &m); err != nil || !m.Hello || m.Proto != 5 || m.App != "1.5" {
+	if err := json.Unmarshal(b, &m); err != nil || !m.Hello || m.Proto != Protocol || m.App != "1.5" {
 		t.Fatalf("a v4 peer reads %+v, %v", m, err)
 	}
 	// a v4 peer's hello and edits
@@ -155,7 +155,7 @@ func TestMixedProtocols(t *testing.T) {
 	s.OnMismatch = func(p int, _ string) { ours = p }
 	o.OnMismatch = func(p int, _ string) { olds = p }
 	link(s, o, "a", "o")
-	if ours != 4 || olds != 5 || textIn(o, Script) != "" {
+	if ours != 4 || olds != Protocol || textIn(o, Script) != "" {
 		t.Errorf("mismatch seen as %d and %d; o has %q", ours, olds, textIn(o, Script))
 	}
 }

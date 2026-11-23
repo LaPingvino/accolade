@@ -33,6 +33,11 @@ type message struct {
 	By string `json:"by,omitempty"`
 	// Here is a peer saying it is here, or leaves (presence.go)
 	Here *Presence `json:"h,omitempty"`
+	// Map is the shared map Entries are of (maps.go); Maps, with a hello,
+	// each map's version
+	Map     string                       `json:"x,omitempty"`
+	Entries []Entry                      `json:"e,omitempty"`
+	Maps    map[string]map[string]uint64 `json:"xs,omitempty"`
 }
 
 // docVersion is a Doc's state in a hello.
@@ -45,8 +50,11 @@ type docVersion struct {
 // told apart (OnMismatch), not half understood. Any change to what goes
 // over the wire bumps it (a field old peers may ignore does not); see
 // docs/COLLAB.md. 4: hellos carry counts (Doc.Missing). 5: named Docs (a
-// message names its Doc, a hello has each Doc's version).
-const Protocol = 5
+// message names its Doc, a hello has each Doc's version). 6: shared maps
+// (a message of a map's entries, a hello has each map's version): a peer
+// of 5 would miss the breakdown's changes without a word, so it is told
+// apart instead.
+const Protocol = 6
 
 // Script is the name of the session's first Doc, the script's.
 const Script = "script"
@@ -102,6 +110,10 @@ type Session struct {
 	// on the UI goroutine, in the same step as its editor, so a key typed
 	// meanwhile is never compared with a document that is ahead of it.
 	Run func(func())
+	// OnMap is called (outside the lock, in Run) after a peer changed the
+	// shared map name (maps.go).
+	OnMap func(name string)
+	maps  map[string]*sharedMap
 	// OnHere is called (outside the lock, in Run) when who is here
 	// changed (Here), or what line they are on.
 	OnHere func()
@@ -116,7 +128,8 @@ type Session struct {
 // NewSession shares doc, the script, with the peers that have key.
 func NewSession(key Key, doc *Doc) *Session {
 	return &Session{key: key, replica: doc.replica, docs: map[string]*Doc{Script: doc}, peers: map[string]func([]byte) error{},
-		other: map[string]bool{}, dropped: map[string]bool{}, meta: map[string]Value{}, proto: Protocol, here: map[string]heard{}}
+		other: map[string]bool{}, dropped: map[string]bool{}, meta: map[string]Value{}, proto: Protocol, here: map[string]heard{},
+		maps: map[string]*sharedMap{}}
 }
 
 // Do is f with the script's Doc, the session locked.
@@ -213,6 +226,12 @@ func (s *Session) hello() message {
 	m := message{Hello: true, Proto: s.proto, App: s.App, Meta: maps.Clone(s.meta), Docs: map[string]docVersion{}}
 	for name, d := range s.docs {
 		m.Docs[name] = docVersion{V: d.Version(), N: d.Counts()}
+	}
+	for name, x := range s.maps {
+		if m.Maps == nil {
+			m.Maps = map[string]map[string]uint64{}
+		}
+		m.Maps[name] = maps.Clone(x.seen)
 	}
 	return m
 }
@@ -312,6 +331,27 @@ func (s *Session) receive(from string, m message) {
 			}
 		}
 	}
+	type mapReply struct {
+		name    string
+		entries []Entry
+	}
+	var mapReplies []mapReply
+	if m.Hello { // each map's entries the peer lacks
+		for _, name := range slices.Sorted(maps.Keys(s.maps)) {
+			if es := s.maps[name].missing(m.Maps[name]); len(es) > 0 {
+				mapReplies = append(mapReplies, mapReply{name, es})
+			}
+		}
+	}
+	var freshEntries []Entry
+	if m.Map != "" {
+		x := s.sharedMap(m.Map)
+		for _, e := range m.Entries {
+			if x.apply(e) {
+				freshEntries = append(freshEntries, e)
+			}
+		}
+	}
 	var changed, lost map[string]Value
 	for k, v := range m.Meta {
 		switch cur := s.meta[k]; {
@@ -386,6 +426,17 @@ func (s *Session) receive(from string, m message) {
 	if to != nil {
 		for _, r := range replies {
 			_ = s.sendOps(to, r.doc, r.ops, "")
+		}
+		for _, r := range mapReplies {
+			_ = s.sendEntries(to, r.name, r.entries)
+		}
+	}
+	if len(freshEntries) > 0 {
+		for _, p := range others {
+			_ = s.sendEntries(p, m.Map, freshEntries)
+		}
+		if s.OnMap != nil {
+			s.OnMap(m.Map)
 		}
 	}
 	if len(fresh) > 0 {

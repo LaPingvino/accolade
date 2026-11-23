@@ -186,6 +186,18 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 			w.keepSharedState()
 		}
 	}
+	s.session.OnMap = func(name string) {
+		if w.shared != s {
+			return
+		}
+		switch name { // a peer's change (collab_extras.go)
+		case breakdownMap:
+			w.takeSharedBreakdown()
+		case scheduleMap:
+			w.takeSharedSchedule()
+		}
+		w.keepSharedState()
+	}
 	s.session.OnLost = func(key, value string) {
 		if w.shared == s && key == sourceMeta && value != "" && value != s.session.Meta(sourceMeta) {
 			s.session.Drop(value) // a source picked here and there at once: the other's (collab_source.go)
@@ -215,13 +227,17 @@ func (w *MainWindow) startSharing(key collab.Key, joining bool) {
 				w.applyShared(k, v)
 			}
 		}
+		w.takeSharedBreakdown()
+		w.takeSharedSchedule()
 	}
 	if !joining {
 		s.synced = true
 		w.shareMeta("language", w.language)
 		w.shareMeta("format", w.scriptFormatKey())
 		w.shareMeta("markdown", strconv.FormatBool(w.markdown))
-		w.shareSourceAnew() // the source, if kept outside the script (collab_source.go)
+		w.shareSourceAnew()    // the source, if kept outside the script (collab_source.go)
+		w.shareBreakdownAnew() // the breakdown's tags (collab_extras.go)
+		w.shareScheduleAnew()  // and the schedule
 	}
 	setPageKey(s.pageKey()) // a reload of the page comes back to it (a viewer's as one)
 	w.keepSharedState()

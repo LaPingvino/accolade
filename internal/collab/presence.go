@@ -11,8 +11,9 @@ import (
 // comes, when its cursor goes to another line, and every HereEvery; it is
 // counted here until HereFor has gone by without a word from it, until it
 // says it leaves (Gone), or until the peer it came through goes away.
-// None of it is kept (State): it is about now. A peer of protocol 5
-// before this ignores the message's "h", so the protocol stays 5.
+// None of it is kept (State): it is about now. A peer that does not know
+// it ignores the message's "h" (and a presence's "a" and "f"): it added
+// no protocol.
 //
 // At and From are where the cursor is and where its selection starts
 // (nil: no selection), in the script's Doc, as the rune each comes after

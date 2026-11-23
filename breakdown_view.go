@@ -165,8 +165,16 @@ func (w *MainWindow) toggleBreakdownTags() {
 }
 
 // saveBreakdown writes the breakdown where the script's extras are, and
-// shows it again.
+// shows it again; shared, the peers get what changed (collab_extras.go).
 func (w *MainWindow) saveBreakdown() {
+	if f := w.breakdownNow(); w.breakdown.err == nil {
+		w.shareBreakdownChange(f)
+	}
+	w.storeBreakdown()
+}
+
+// storeBreakdown writes the breakdown as it is, and shows it again.
+func (w *MainWindow) storeBreakdown() {
 	f := w.breakdownNow()
 	if err := w.breakdown.err; err != nil { // never written over what could not be read
 		dialog.ShowError(fmt.Errorf("the breakdown could not be read, so it is not written over (%v): "+

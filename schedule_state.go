@@ -93,8 +93,16 @@ func (w *MainWindow) undoSchedule() {
 }
 
 // writeSchedule writes the schedule where the script's extras are, and
-// shows it again.
+// shows it again; shared, the peers get what changed (collab_extras.go).
 func (w *MainWindow) writeSchedule() {
+	if f := w.scheduleNow(); w.schedule.err == nil {
+		w.shareScheduleChange(f)
+	}
+	w.storeSchedule()
+}
+
+// storeSchedule writes the schedule as it is, and shows it again.
+func (w *MainWindow) storeSchedule() {
 	f := w.scheduleNow()
 	f.Version = 1
 	if f.Days == nil {
