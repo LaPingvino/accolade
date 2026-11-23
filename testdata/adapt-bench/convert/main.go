@@ -206,7 +206,7 @@ var (
 	actLine   = regexp.MustCompile(`^ACT ([IVX]+)\.$`)
 	italics   = regexp.MustCompile(`_([^_]+)_`)
 	jointCue  = regexp.MustCompile(`^_([^_]+)\._ ?\} ?_([^_]+)\._ ?\} (.*)$`)
-	inlineDir = regexp.MustCompile(`\(\s*_[^)]*\)|\[_[^\]]*$`)
+	inlineDir = regexp.MustCompile(`\(\s*_[^)]*\)|\[_[^\]]*(?:\]|$)`)
 )
 
 // playFountain: the play from its first act to its last line.

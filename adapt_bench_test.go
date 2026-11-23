@@ -35,8 +35,9 @@ import (
 // passage index whose words moved).
 //
 // The suggest numbers on a loose pair can differ from run to run:
-// suggestLinks sums a scene's word weights in map order, so near-ties
-// between passages fall either way.
+// suggestLinks itself answers differently for the same input (two calls
+// with one reading differ), most likely because it sums a scene's word
+// weights in map order, so near-ties between passages fall either way.
 func TestAdaptBench(t *testing.T) {
 	if testing.Short() {
 		t.Skip("adaptation benchmark: not with -short")
