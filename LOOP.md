@@ -1452,3 +1452,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Joop: "I think it should already work as is, just without any presets for it available, so I think preset first
   is a good approach." — so ORDER: the Hindi preset/language rule first (Lexington, tagged), the shaping check as a
   screenshot in the same item to confirm it (not a gate in front of it).
+- 2026-11-23 (Joop: "I think the preset early, rest of hindi around the end of the todo might be the best approach."):
+  ORDER NOW (after the four running branches — link-up, pattern fixer, ex completion, swap/structural moves — merge):
+  (1) stripboard + a phone's pages as middle tabs; (2) the Hindi preset (Lexington language rule + preset, a
+  Devanagari screenshot); (3) the timeline strip (needs the structural moves); (4) A New Hope import details (needs
+  Joop's file); (5) older open items: undoable issues / Withdraw Last Issue, collab follow-ups (real browsers, COLLAB
+  steps 4–6), page view on real browser/Android, Characters leftovers, lock-the-writer layers, File › Merge Changes;
+  from Wed 2026-11-25: Markdown images + storyboard frames + cast photos, then Table Read / cast, citations; then
+  the keyboard pass; then the rest of Hindi (font companion, Indian layouts) near the end; title page keys last.
