@@ -1753,6 +1753,7 @@ func (w *MainWindow) relayout() {
 		content = container.NewBorder(container.NewHBox(layout.NewSpacer(), leave), nil, nil, nil, content)
 	}
 	w.setContent(content)
+	w.docsOnStage()
 }
 
 // relayoutTop lays the window out again round the top (the ribbon grew

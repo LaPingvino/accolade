@@ -231,7 +231,6 @@ func (w *MainWindow) openMiddle(id string) {
 			m.docs = map[string]*document{}
 		}
 		m.docs[id] = d
-		d.ed.SetOffstage(true) // laid out when it comes to the front
 	}
 	w.dock.on[id] = false // one place at a time: a Fyne object has one parent
 	if p.toMiddle != nil {
@@ -289,7 +288,6 @@ func (m *middle) show(id string) {
 	hadPreview := w.pagesVisible || w.previewVisible || m.keepPreview
 	if d := m.docs[m.shown]; d != nil { // leaving a document
 		w.relinkAfterEdit(d) // the source edited: its links looked at again (relink.go)
-		d.ed.SetOffstage(true)
 	}
 	if w.searchBar != nil {
 		w.searchBar.of = docKey{} // its matches are found again in the tab coming in (state.go)
@@ -304,9 +302,7 @@ func (m *middle) show(id string) {
 	w.sheetFollow(m.shown, id) // a phone's panes folded down under the board
 	m.shown = id
 	w.textEditor.SetOffstage(id != "") // out of sight: laid out again when back (internal/editor)
-	if d := m.docs[id]; d != nil {
-		d.ed.SetOffstage(false)
-	}
+	w.docsOnStage()                    // the documents' editors too (document.go)
 	p := w.dock.pane(id)
 	switch v := middleView(id); {
 	case id == "cards":
@@ -378,7 +374,6 @@ func (w *MainWindow) closeMiddle(id string) {
 	m.tabs = slices.DeleteFunc(m.tabs, func(s string) bool { return s == id })
 	if d := m.docs[id]; d != nil {
 		delete(m.docs, id)
-		d.ed.SetOffstage(false)
 		if w.searchBar != nil {
 			d.ed.SetHighlights(nil)
 		}

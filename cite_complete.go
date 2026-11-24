@@ -99,7 +99,11 @@ func (w *MainWindow) citeTyping() (start int, typed string, ok bool) {
 	if !ok {
 		return 0, "", false
 	}
-	if kinds, ok := e.MarkdownKinds(); ok && li < len(kinds) {
+	kinds, ok := e.MarkdownKinds() // as laid out; out of sight, not laid out since: read here
+	if !ok {
+		kinds = syntax.ClassifyMarkdown(strings.Split(e.Text(), "\n"))
+	}
+	if li < len(kinds) {
 		switch kinds[li] {
 		case syntax.MdCode, syntax.MdCodeFence, syntax.MdFrontMatter, syntax.MdComment:
 			return 0, "", false

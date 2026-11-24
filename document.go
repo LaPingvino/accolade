@@ -138,6 +138,7 @@ func newDoc(w *MainWindow, kind docKind) *document {
 		d.ed.SetLineNumbers(w.settings.GetBoolean("show-line-numbers"))
 	}
 	d.view = container.NewThemeOverride(editor.NewPageScroll(d.ed, 0), newEditorTheme(family, size))
+	d.ed.SetOffstage(true) // out of sight until shown (docsOnStage)
 	d.reload()
 	return d
 }
@@ -596,6 +597,31 @@ func (w *MainWindow) sourceDoc() *document {
 	w.srcDoc = newDoc(w, docSource)
 	w.srcDoc.followShared() // shared: the Doc's text, the peers' edits in it
 	return w.srcDoc
+}
+
+// docsOnStage tells each open document's editor whether it is in sight.
+// One out of sight (behind another middle tab, a source open only to
+// follow a shared Doc, the Source pane behind another pane or folded
+// away) does not wrap the whole text again at each key, its own or a
+// co-writer's: it is laid out when shown, or when something reads its
+// layout (internal/editor: SetOffstage). Called wherever what is shown
+// changes: the window laid out again, a middle tab or a pane to the front,
+// the Source pane's Edit.
+func (w *MainWindow) docsOnStage() {
+	for _, d := range w.openDocs() {
+		d.ed.SetOffstage(!w.docInSight(d))
+	}
+}
+
+// docInSight reports whether the document's editor is on the screen: in
+// front of the middle, or the source edited in the Source pane, that pane
+// in front of its place and not folded down under a phone's board.
+func (w *MainWindow) docInSight(d *document) bool {
+	if id := w.mid.shown; id != "" && w.mid.docs[id] == d {
+		return true
+	}
+	return d == w.srcDoc && w.source != nil && w.source.editing && w.dock != nil &&
+		w.dock.inSight("source") && !(w.narrow && w.sheetDown)
 }
 
 // notesDoc is the script's notes as a document, opened at the first need.

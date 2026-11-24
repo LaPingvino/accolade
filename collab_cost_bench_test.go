@@ -157,6 +157,48 @@ func BenchmarkPeerKey(b *testing.B) {
 			i++
 		}
 	})
+	// the same two with the source in front of a's middle (Open in the
+	// Middle), so in sight: laid out at each key, where the rows above
+	// (the source open only to follow its Doc) are out of sight and wait
+	shown := func(b *testing.B) (a, p *MainWindow, deliver func(bool)) {
+		a, p, deliver = setup(b)
+		a.openMiddle("source")
+		if a.midDoc() != a.srcDoc || a.srcDoc.ed.Offstage() {
+			b.Fatal("the source is not in front")
+		}
+		cancelPending(a)
+		a.fyneWindow.Canvas().Focus(a.srcDoc.ed)
+		return a, p, deliver
+	}
+	b.Run("local-source-shown", func(b *testing.B) {
+		a, _, _ := shown(b)
+		i := 0
+		for b.Loop() {
+			type1(a.srcDoc.ed, off, i)
+			b.StopTimer()
+			cancelPending(a)
+			b.StartTimer()
+			i++
+		}
+	})
+	b.Run("peer-source-shown", func(b *testing.B) {
+		a, p, deliver := shown(b)
+		i := 0
+		for b.Loop() {
+			b.StopTimer()
+			type1(p.srcDoc.ed, off, i)
+			cancelPending(p)
+			b.StartTimer()
+			deliver(true)
+			b.StopTimer()
+			cancelPending(a)
+			b.StartTimer()
+			i++
+		}
+		if a.srcDoc.Text() != p.srcDoc.Text() {
+			b.Fatal("a's source did not follow")
+		}
+	})
 	// a's own key in the script (the pane shown), against p's below
 	b.Run("local-script", func(b *testing.B) {
 		a, _, _ := setup(b)

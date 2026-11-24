@@ -119,6 +119,22 @@ func (l line) cols(a, b int) int {
 	return n
 }
 
+// fits reports whether runes [a, b) take at most room columns, looking
+// no further than room (a long paragraph's rest is not counted again at
+// each of its rows).
+func (l line) fits(a, b, room int) bool {
+	if l.ws == nil && l.cells == nil {
+		return b-a <= room
+	}
+	n := 0
+	for i := a; i < b; i++ {
+		if n += l.w(i); n > room {
+			return false
+		}
+	}
+	return true
+}
+
 // boundary tells whether a cluster starts at rune i (a row may break
 // there, spans aside).
 func (l line) boundary(i int) bool {
@@ -214,7 +230,7 @@ func Wrap(text []rune, width int) Layout {
 // WrapSpans is Wrap with spans shown in one piece (sorted, apart).
 func WrapSpans(text []rune, width int, spans []Span) Layout {
 	width = max(width, 1)
-	l := Layout{Width: width, text: text, cells: cellsOf(text), spans: spans}
+	l := Layout{Width: width, text: text, cells: cellsOf(text), spans: spans, Rows: make([]Row, 0, rowsGuess(text, width))}
 	line, start, k := 0, 0, 0
 	for i := 0; i <= len(text); i++ {
 		if i < len(text) && text[i] != '\n' {
@@ -223,14 +239,32 @@ func WrapSpans(text []rune, width int, spans []Span) Layout {
 		for k < len(spans) && spans[k].End <= start {
 			k++
 		}
-		l.Rows = append(l.Rows, wrapLine(newLine(text[start:i], start, l.cells, spans[k:]), start, line, width)...)
+		l.Rows = wrapLine(l.Rows, newLine(text[start:i], start, l.cells, spans[k:]), start, line, width)
 		line++
 		start = i + 1
 	}
 	return l
 }
 
-func wrapLine(ln line, base, number, width int) []Row {
+// rowsGuess is about how many rows text takes at width: room for them
+// at once, not grown row by row.
+func rowsGuess(text []rune, width int) int {
+	return len(text)/width + lineBreaks(text) + 1
+}
+
+// lineBreaks is how many line breaks text has.
+func lineBreaks(text []rune) int {
+	n := 0
+	for _, r := range text {
+		if r == '\n' {
+			n++
+		}
+	}
+	return n
+}
+
+// wrapLine appends the line's rows to rows.
+func wrapLine(rows []Row, ln line, base, number, width int) []Row {
 	line := ln.r
 	indent := 0
 	for indent < len(line) && line[indent] == ' ' {
@@ -242,11 +276,10 @@ func wrapLine(ln line, base, number, width int) []Row {
 		indent = 0
 	}
 
-	var rows []Row
 	pos, pad := 0, 0
 	for {
 		room := width - pad
-		if ln.cols(pos, len(line)) <= room {
+		if ln.fits(pos, len(line), room) {
 			return append(rows, Row{Line: number, Start: base + pos, End: base + len(line), Indent: pad, Last: true})
 		}
 		end := ln.fit(pos, room)
@@ -258,8 +291,8 @@ func wrapLine(ln line, base, number, width int) []Row {
 			}
 		}
 		// spaces right at the break stay on this row
-		for end < len(line) && line[end] == ' ' && !ln.inside(end) && ln.boundary(end+1) && ln.cols(pos, end) < room {
-			end++
+		for used := ln.cols(pos, end); end < len(line) && line[end] == ' ' && !ln.inside(end) && ln.boundary(end+1) && used < room; end++ {
+			used += ln.w(end)
 		}
 		end = ln.whole(end, pos)
 		rows = append(rows, Row{Line: number, Start: base + pos, End: base + end, Indent: pad})
@@ -288,7 +321,7 @@ func WrapFormatted(text []rune, width int, formats []Format) Layout {
 // (sorted, apart).
 func WrapFormattedSpans(text []rune, width int, formats []Format, spans []Span) Layout {
 	width = max(width, 1)
-	l := Layout{Width: width, text: text, cells: cellsOf(text), spans: spans}
+	l := Layout{Width: width, text: text, cells: cellsOf(text), spans: spans, Rows: make([]Row, 0, rowsGuess(text, width))}
 	line, start, k := 0, 0, 0
 	for i := 0; i <= len(text); i++ {
 		if i < len(text) && text[i] != '\n' {
@@ -301,14 +334,15 @@ func WrapFormattedSpans(text []rune, width int, formats []Format, spans []Span) 
 		for k < len(spans) && spans[k].End <= start {
 			k++
 		}
-		l.Rows = append(l.Rows, formatLine(newLine(text[start:i], start, l.cells, spans[k:]), start, line, width, f)...)
+		l.Rows = formatLine(l.Rows, newLine(text[start:i], start, l.cells, spans[k:]), start, line, width, f)
 		line++
 		start = i + 1
 	}
 	return l
 }
 
-func formatLine(ln line, base, number, width int, f Format) []Row {
+// formatLine appends the line's rows to rows.
+func formatLine(rows []Row, ln line, base, number, width int, f Format) []Row {
 	line := ln.r
 	col, room := f.Indent, f.Width
 	if col < 0 || col >= width {
@@ -317,10 +351,9 @@ func formatLine(ln line, base, number, width int, f Format) []Row {
 	if room <= 0 || col+room > width {
 		room = width - col
 	}
-	var rows []Row
 	for pos := 0; ; {
 		end := len(line)
-		if ln.cols(pos, len(line)) > room {
+		if !ln.fits(pos, len(line), room) {
 			end = ln.fit(pos, room)
 			for b := end; b > pos+1; b-- {
 				if ln.breakable(b) {
@@ -328,8 +361,8 @@ func formatLine(ln line, base, number, width int, f Format) []Row {
 					break
 				}
 			}
-			for end < len(line) && line[end] == ' ' && !ln.inside(end) && ln.boundary(end+1) && ln.cols(pos, end) < room {
-				end++
+			for used := ln.cols(pos, end); end < len(line) && line[end] == ' ' && !ln.inside(end) && ln.boundary(end+1) && used < room; end++ {
+				used += ln.w(end)
 			}
 			end = ln.whole(end, pos)
 		}

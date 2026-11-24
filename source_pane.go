@@ -770,6 +770,7 @@ func (s *sourcePane) showBody() {
 		s.body.Objects = []fyne.CanvasObject{o}
 		s.body.Refresh()
 	}
+	s.w.docsOnStage() // the source's editor in sight, or out of it (document.go)
 }
 
 // current is the model of the script as it is now, made again if the

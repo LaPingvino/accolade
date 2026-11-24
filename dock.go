@@ -771,6 +771,7 @@ func (d *dock) showFront(slot int) {
 	if f := d.hideTips[slot]; f != nil {
 		f()
 	}
+	d.w.docsOnStage() // the Source pane's editor behind another pane, or in front (document.go)
 }
 
 // pick puts a tab's pane in front (a tap on it, an arrow key); a phone's

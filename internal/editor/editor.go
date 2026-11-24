@@ -436,6 +436,9 @@ func (e *ScriptEditor) SetOffstage(off bool) {
 	}
 }
 
+// Offstage reports whether the editor is out of sight (SetOffstage).
+func (e *ScriptEditor) Offstage() bool { return e.offstage }
+
 // fresh lays the editor out if it changed out of sight: what reads the
 // layout reads the text as it is.
 func (e *ScriptEditor) fresh() {
