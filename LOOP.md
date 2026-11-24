@@ -2006,3 +2006,6 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   a prose note; it offers Restore (uncomment in place, one undo step; in a locked draft the scene number's OMITTED
   link is respected — restoring an omitted scene brings its number back). Prose boneyards stay notes. Same reading in
   the editor's margin mark (cut vs note).
+  Joop: "Prose can be a valid action block 😉 err on the side of allowing :)" — so Restore is offered on every
+  boneyard (plain prose restores as action); the parse only decides the mark and label (clearly script → "Cut" with
+  its heading; otherwise "Note"), never whether Restore is allowed.
