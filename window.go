@@ -1481,7 +1481,8 @@ func (w *MainWindow) updateStatusBar() {
 	}
 	w.statusOf = w.frontKey()
 	var text string
-	stale := false // the counts stand from before typing: counted after a pause
+	// stale: the counts stand from before typing, counted after a pause
+	stale := false
 	if d := w.main(); d != nil && d.kind != docScript { // the document in the main editor (middle.go)
 		text, stale = w.markdownStats(d, d.Text())
 		text += " · " + d.kind.String() + ", " + d.where()

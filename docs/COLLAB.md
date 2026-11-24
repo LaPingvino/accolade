@@ -489,3 +489,38 @@ With `rule` in place too (a run of its own afterwards, the machine busier, load 
 36k → 19k allocs); sample 3.6 / 3.8 ms, sample-strip 3.6 / 3.3, hi-Deva 6.8 / 6.3, hi-Deva-drawn 7.7 / 7.2,
 novel-move 20 / 16 (its allocations the same: run-to-run spread). In sight, a key in the novel source is now the
 dozen whole-text passes above, the status bar's counts among them (~5 ms).
+
+### The status bar's counts after a pause (2026-11-24)
+
+The status bar's words and pages (`markdownStats`) are no longer counted at each key. Once the text counted has
+changed, the last count stands, and the bar counts again once typing pauses (`followPause`, 200 ms, as the source pane
+follows typing; `countPending`, markdown.go); another document, or one not yet counted, is counted at once. Saving
+(the script's `saveToFile`, a document's `store`) and the Markdown export dialog count at once (`countsNow`).
+Incremental counting was not taken: a line's words count only if its kind is prose, and the kinds hang on the whole
+text before it (a code fence opened above), so it would need incremental classification first. A pause costs one
+count, as before; `TestMarkdownCountsAfterPause` checks the count stands while typing, is right after the pause, and
+right at once on a save.
+
+In the editor's layout, the lines an edit left alone (matched from the start and the end of the last layout's
+lines) keep their direction and their inline emphasis (`sameLines`; `TestLayoutKeepsUntouchedLines` checks
+against a layout from nothing, edit after edit, a code fence opened and closed among them). The text's runes are
+copied from the buffer (`Buffer.Runes`) instead of decoded from its string again, and the lines' starts are counted
+without a rune slice per line. The wrap and `ClassifyMarkdown` stay whole-text passes.
+
+`BenchmarkPeerKey` and `BenchmarkScriptKey`, `-benchtime 10x -count 3`, before and after. The machine was loaded
+(load 5 for the first run, 21 for the second: other work beside it), so the times are noise; the allocations are
+the measure:
+
+| a key | before | after |
+|---|---|---|
+| own key in the source, in sight (the middle) | 48 ms (47–50), 11.6 MB, 23.6k allocs | 50 ms (28–52), 7.3 MB, 16.2k allocs |
+| a peer's key in the source, in sight | 78 ms (51–115), 12.2 MB, 24.3k allocs | 41 ms (39–67), 8.0 MB, 16.8k allocs |
+| `BenchmarkScriptKey/novel` (a screenplay: no Markdown counts) | 92 ms (82–112), 18.5 MB, 19.2k allocs | 128 ms (109–150), 18.5 MB, 19.2k allocs |
+
+Before, the rest (one run each, load 5): own key out of sight 7.1 ms, 2.8 MB, 0.8k allocs; a peer's 10.9 ms,
+3.6 MB, 2.3k; the peer's pause 511 ms, 72 MB, 446k; own key in the script 77 ms, 5.5 MB, 16.3k; a peer's 38 ms,
+5.6 MB, 11.4k; ScriptKey sample 3.5 ms, sample-strip 3.3, hi-Deva 6.7, hi-Deva-drawn 8.9, novel-move 38 (12.2 MB,
+6.7k allocs). Those paths have no Markdown status bar or Markdown layout in sight; they were not run again.
+A third of a key's allocations in a shown novel went (7k of 24k, 4.3 MB of 11.6), the counts' share and the
+emphasis's. What is left of the relayout is the wrap, `ClassifyMarkdown`, the text as a string and as lines, and the
+grid's rows.
