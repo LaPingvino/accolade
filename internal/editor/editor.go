@@ -627,6 +627,7 @@ type laidOut struct {
 	key       layoutKey
 	ok        bool
 	text      []rune
+	lines     []string // the text's lines
 	rtl       []bool
 	layout    wrap.Layout
 	kinds     []syntax.Kind
@@ -662,11 +663,20 @@ func (e *ScriptEditor) MarkdownKinds() (kinds []syntax.Kind, ok bool) {
 
 // layOut wraps and classifies the text.
 func (e *ScriptEditor) layOut(key layoutKey) laidOut {
-	l := laidOut{key: key, ok: true, text: []rune(e.buf.Text())}
+	l := laidOut{key: key, ok: true, text: e.buf.Runes()}
 	text, g := l.text, key.gutter
 	lines := strings.Split(e.buf.Text(), "\n")
+	l.lines = lines
+	// the lines an edit left as they were, before and after it, keep what
+	// the last layout found in them (a line's direction, its emphasis)
+	was := &e.laid
+	then := was.sameLines(lines)
 	l.rtl = make([]bool, len(lines))
 	for i, ln := range lines {
+		if j := then(i); j >= 0 && was.key.rtl == key.rtl {
+			l.rtl[i] = was.rtl[j]
+			continue
+		}
 		l.rtl[i] = lex.LineRTL(ln, key.rtl)
 	}
 	spans := l.chipSpans(e.chips, key.raw, lines)
@@ -695,12 +705,18 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 		off := 0
 		for i, ln := range lines {
 			l.lineStart[i] = off
-			off += len([]rune(ln)) + 1
-			switch kinds[i] {
-			case syntax.Action, syntax.MdHeading, syntax.MdQuote, syntax.MdListItem:
-				if s := syntax.MarkdownInline(ln); s != nil {
+			off += utf8.RuneCountInString(ln) + 1
+			if !inlineKind(kinds[i]) {
+				continue
+			}
+			if j := then(i); j >= 0 && was.inline != nil && inlineKind(was.kinds[j]) {
+				if s := was.inline[j]; s != nil {
 					l.inline[i] = s
 				}
+				continue
+			}
+			if s := syntax.MarkdownInline(ln); s != nil {
+				l.inline[i] = s
 			}
 		}
 	case kinds == nil && e.Syntax:
@@ -716,6 +732,44 @@ func (e *ScriptEditor) layOut(key layoutKey) laidOut {
 	}
 	l.kinds = kinds
 	return l
+}
+
+// inlineKind reports whether a Markdown line of kind k is looked at for
+// emphasis, code and links (MarkdownInline).
+func inlineKind(k syntax.Kind) bool {
+	switch k {
+	case syntax.Action, syntax.MdHeading, syntax.MdQuote, syntax.MdListItem:
+		return true
+	}
+	return false
+}
+
+// sameLines maps the lines now to the same lines in l, its layout's: those
+// before an edit and those after it, matched from the start and from the
+// end. then(i) is line i's index in l, or -1 (changed, or no layout).
+func (l *laidOut) sameLines(now []string) (then func(i int) int) {
+	old := l.lines
+	if !l.ok || old == nil {
+		return func(int) int { return -1 }
+	}
+	n := min(len(old), len(now))
+	p := 0
+	for p < n && old[p] == now[p] {
+		p++
+	}
+	s := 0
+	for s < n-p && old[len(old)-1-s] == now[len(now)-1-s] {
+		s++
+	}
+	return func(i int) int {
+		switch {
+		case i < p:
+			return i
+		case i >= len(now)-s:
+			return i - len(now) + len(old)
+		}
+		return -1
+	}
 }
 
 // chipSpans are the chips drawn as labels (all but raw, and none on a

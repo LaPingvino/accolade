@@ -2,6 +2,7 @@ package editor
 
 import (
 	"image/color"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -159,5 +160,39 @@ func TestInks(t *testing.T) {
 		if c.Style != nil && c.Style.Style().Underline {
 			t.Error("the first line inked")
 		}
+	}
+}
+
+// A layout after an edit keeps the emphasis and direction of the lines the
+// edit left alone: what it has is what a layout from nothing finds, edit
+// after edit (a code fence opened and closed, lines joined and split,
+// right-to-left lines among them).
+func TestLayoutKeepsUntouchedLines(t *testing.T) {
+	e := newEditor(t, "# One\n\nSome **bold** and *it*.\n\nשלום *עולם*\n\n- a `code` item\n\n> a [link](x) quote\n\nlast *line*", 40)
+	e.FocusLost()
+	e.Syntax, e.Markdown = true, true
+	e.changed(false)
+	edits := []struct {
+		at          int
+		del, insert string
+	}{
+		{7, "", "*more* "}, {0, "", "```\n"}, {0, "```\n", ""}, {20, "", "\n"}, {20, "\n", ""},
+		{5, "\n", ""}, {5, "", "\n\nnew **line** here"}, {40, "", "```"}, {40, "```", ""},
+	}
+	for n, ed := range edits {
+		text := e.buf.Text()
+		if ed.del != "" && !strings.HasPrefix(string([]rune(text)[ed.at:]), ed.del) {
+			t.Fatalf("edit %d: %q is not at %d in %q", n, ed.del, ed.at, text)
+		}
+		e.buf.Replace(ed.at, ed.at+len([]rune(ed.del)), ed.insert)
+		e.changed(false)
+		got := e.laid
+		e.laid = laidOut{}
+		want := e.layOut(got.key)
+		if !reflect.DeepEqual(got.inline, want.inline) || !reflect.DeepEqual(got.rtl, want.rtl) ||
+			!reflect.DeepEqual(got.lineStart, want.lineStart) || !reflect.DeepEqual(got.kinds, want.kinds) {
+			t.Errorf("edit %d: kept %v %v, from nothing %v %v", n, got.inline, got.rtl, want.inline, want.rtl)
+		}
+		e.laid = got
 	}
 }

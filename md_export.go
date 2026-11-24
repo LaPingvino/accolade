@@ -192,6 +192,7 @@ type markdownExportDialog struct {
 }
 
 func newMarkdownExportDialog(w *MainWindow) *markdownExportDialog {
+	w.countsNow()
 	ed := &markdownExportDialog{w: w, settings: GetSettings()}
 	var labels []string
 	for _, f := range markdownExports() {

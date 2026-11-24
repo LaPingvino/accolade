@@ -167,14 +167,46 @@ func markdownOutline(text string) []outlineItem {
 	return items
 }
 
-// markdownStats is markdownStats(text), counted once for a text: the
-// status bar asks on each cursor move and edit, several times a key.
-func (w *MainWindow) markdownStats(text string) string {
+// markdownStats is markdownStats(text) for the status bar, counted once
+// for a text (the bar asks on each cursor move and edit, several times a
+// key) and not on every key: counting a novel's words classifies all its
+// lines, a fifth of a key's cost (docs/COLLAB.md, step 8). Once the text
+// of the one counted (of: its document, or the script's editor) has
+// changed, the last count stands and stale is true: the bar counts
+// again once typing pauses (countPending). Another one, or none counted
+// yet, is counted at once.
+func (w *MainWindow) markdownStats(of any, text string) (out string, stale bool) {
 	c := &w.mdCounted
-	if !c.ok || !sameString(c.text, text) {
-		c.text, c.out, c.ok = text, markdownStats(text), true
+	switch {
+	case c.ok && c.of == of && sameString(c.text, text):
+	case c.ok && c.of == of && !w.countNow:
+		return c.out, true
+	default:
+		c.of, c.text, c.out, c.ok = of, text, markdownStats(text), true
 	}
-	return c.out
+	return c.out, false
+}
+
+// countPending counts the status bar's words again once typing pauses
+// (followPause, as the source pane follows it).
+func (w *MainWindow) countPending() {
+	w.debounce(&w.countTimer, followPause, func() {
+		w.countNow = true
+		w.updateStatusBar()
+		w.countNow = false
+	})
+}
+
+// countsNow brings the status bar's counts up to the text at once, a
+// count put off by typing with them: the file is being saved or exported.
+func (w *MainWindow) countsNow() {
+	if w.countTimer == nil {
+		return
+	}
+	cancel(&w.countTimer)
+	w.countNow = true
+	w.updateStatusBar()
+	w.countNow = false
 }
 
 // markdownStats is the status bar's text for a Markdown document: its

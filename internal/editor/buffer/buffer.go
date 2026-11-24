@@ -66,6 +66,10 @@ func (b *Buffer) Text() string {
 	return b.str
 }
 
+// Runes is a copy of the text, as runes: what []rune(b.Text()) is,
+// without decoding the string again.
+func (b *Buffer) Runes() []rune { return append([]rune(nil), b.text...) }
+
 // Rev is the text's revision: it changes whenever the text does.
 func (b *Buffer) Rev() uint64 { return b.rev }
 

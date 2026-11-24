@@ -144,9 +144,12 @@ type MainWindow struct {
 	joinAsFollower bool
 	// mdCounted is the Markdown text the status bar counted last (markdown.go)
 	mdCounted struct {
+		of        any // the document counted, or the script's editor
 		text, out string
 		ok        bool
 	}
+	countTimer *uiTimer // the status bar's counts, after typing (markdown.go)
+	countNow   bool     // count the status bar's words now, not after a pause
 	// language is the script's language ("en", "eo", ...): its scene
 	// headings (language.go)
 	language string
@@ -881,6 +884,7 @@ func (w *MainWindow) SaveFileAs() error {
 }
 
 func (w *MainWindow) saveToFile(filePath string) error {
+	w.countsNow()
 	main, native, hasNative := w.scriptTexts(filePath, w.textEditor.Text())
 	data, utf8Instead := encodeScript(main, w.format)
 	var nativeData []byte
@@ -1477,13 +1481,15 @@ func (w *MainWindow) updateStatusBar() {
 	}
 	w.statusOf = w.frontKey()
 	var text string
+	stale := false // the counts stand from before typing: counted after a pause
 	if d := w.main(); d != nil && d.kind != docScript { // the document in the main editor (middle.go)
-		text = w.markdownStats(d.Text()) + " · " + d.kind.String() + ", " + d.where()
+		text, stale = w.markdownStats(d, d.Text())
+		text += " · " + d.kind.String() + ", " + d.where()
 		if w.shared != nil && d.sharedAs() == "" {
 			text += " · yours only, not shared"
 		}
 	} else if w.markdown {
-		text = w.markdownStats(w.textEditor.Text())
+		text, stale = w.markdownStats(w.textEditor, w.textEditor.Text())
 	} else {
 		text = computeStats(w.textEditor.Text(), w.textEditor.CursorOffset(), w.sceneStarts()).String()
 	}
@@ -1494,6 +1500,11 @@ func (w *MainWindow) updateStatusBar() {
 		text = s + " · " + text
 	}
 	w.statsLabel.SetText(text)
+	if stale {
+		w.countPending() // after the label: under the tests it runs at once
+	} else {
+		cancel(&w.countTimer)
+	}
 }
 
 func (w *MainWindow) onCursorChanged() {

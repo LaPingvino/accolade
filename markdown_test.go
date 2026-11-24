@@ -274,3 +274,43 @@ func TestMarkdownStatsAndPrint(t *testing.T) {
 		t.Error("front matter printed")
 	}
 }
+
+// The status bar's word count is not made on every key (a novel's count
+// is a fifth of a key's cost): while typing, the last count stands; once
+// typing pauses, it is the text's; a save counts at once.
+func TestMarkdownCountsAfterPause(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	md := filepath.Join(t.TempDir(), "story.md")
+	os.WriteFile(md, []byte("One two three.\n"), 0o644)
+	if err := w.LoadFile(md); err != nil {
+		t.Fatal(err)
+	}
+	if got := w.statsLabel.Text; !strings.Contains(got, "3 words") {
+		t.Fatalf("opened: %q", got)
+	}
+	debounceAtOnce = false
+	t.Cleanup(func() { debounceAtOnce = true })
+	holdUI(t)
+	e := w.textEditor
+	e.SetCursorOffset(len("One two three."))
+	for _, r := range " four five" {
+		e.TypedRune(r)
+	}
+	if got := w.statsLabel.Text; !strings.Contains(got, "3 words") {
+		t.Errorf("counted while typing: %q", got)
+	}
+	waitFor(t, "the count after the pause", func() bool { return strings.Contains(w.statsLabel.Text, "5 words") })
+
+	for _, r := range " six" {
+		e.TypedRune(r)
+	}
+	if err := w.saveToFile(md); err != nil {
+		t.Fatal(err)
+	}
+	if got := w.statsLabel.Text; !strings.Contains(got, "6 words") {
+		t.Errorf("saved, not counted: %q", got)
+	}
+	if w.countTimer != nil {
+		t.Error("a count still waits after the save")
+	}
+}

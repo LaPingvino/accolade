@@ -306,6 +306,7 @@ func (d *document) rehome() {
 
 // store writes the document to its home if it changed.
 func (d *document) store() error {
+	d.w.countsNow()
 	text := d.ed.Text()
 	if sameString(text, d.stored) {
 		d.ed.Buffer().TakeChange() // back as it was: nothing to write
