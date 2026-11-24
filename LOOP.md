@@ -1987,3 +1987,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the line), filter by kind (to do, other, revision); Add Note at the cursor (one key) writes an inline note there;
   the notepad's end block stays as the pane's "General" section for notes about the whole script. Notes in the text
   get a quiet margin mark in the editor so they are seen in context without cluttering the line.
+  Joop 2026-11-24, refining: "We might want to rip out the current boneyards notes block and add a list of
+  unrecognized notes and boneyard sections in a sidebar instead, enabling navigation and editing in the sidebar."
+  So: remove the notepad's special end block (notes.go, View > Notes, its Markdown <!-- Notes --> twin); the side
+  pane lists every [[note]] whose kind no other tool claims, and every /* boneyard */ section, wherever they are, in
+  script order with context; click navigates, and each can be edited in place in the pane (an edit of the text, one
+  undo step). Existing files lose nothing: their end notes block is a boneyard section like any other and shows up in
+  the list by itself. Recognised kinds (to do, revision, beats, colour/marker notes) keep their own tools and filters
+  in the same pane.
