@@ -1999,3 +1999,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   we need compatibility with any other software for that one..." So the pane keeps an "Unsorted notes" entry: notes
   not tied to a place, stored as Accolade likes (the end boneyard block is fine; no other app needs to read them as
   notes), added from the pane with one action; the old block's content shows there.
+  Joop: "boneyards are generally commented out sections, like the OMITTED stuff. it would be useful to recognize that
+  and enable boneyard comments to be uncommented if meaningful as script, and marked slightly differently..." So
+  the pane tells the two apart by parsing the inside (Lexington's own parse): a boneyard that reads as script (scene
+  headings, cues and dialogue, transitions) shows as "Cut" with its first heading or line, marked differently from
+  a prose note; it offers Restore (uncomment in place, one undo step; in a locked draft the scene number's OMITTED
+  link is respected — restoring an omitted scene brings its number back). Prose boneyards stay notes. Same reading in
+  the editor's margin mark (cut vs note).
