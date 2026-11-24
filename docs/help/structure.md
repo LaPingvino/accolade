@@ -65,7 +65,7 @@ There are other ways to use the same tools. Write scenes first and add sections 
 
 ## Starting from a structure
 
-File > New from Structure starts a script laid out in one of these. Insert Structure (Format menu, the palette, `:structure name`) puts one at the end of the script you have, in one undo step. Each one is sections and synopses with a note on how to use it, nothing more: write over the synopses, delete what you don't need, and grow the rest into scenes.
+File > New from Structure starts a script laid out in one of these. Insert Structure (Format menu, the palette, `:structure name`) puts one into the script you have, in one undo step: after the section the cursor is in, before the next `#` section (on a `#` heading, before it; with none after it, at the end), so nothing already there comes to be in another section. Each one is sections and synopses with a note on how to use it, nothing more: write over the synopses, delete what you don't need, and grow the rest into scenes.
 
 - **Three Acts** — the acts, with their turning points, midpoint and climax as `##` parts.
 - **Sequences** (after Frank Daniel) — eight sequences in three acts.

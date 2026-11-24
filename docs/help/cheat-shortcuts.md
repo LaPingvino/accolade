@@ -82,8 +82,8 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **Alt+Down** Move Down
 - **Alt+Left** Promote
 - **Alt+Right** Demote
-- **Shift+Alt+Up** Into the Scene Before
-- **Shift+Alt+Down** Into the Next Scene
+- **Shift+Alt+Up** Into the One Before
+- **Shift+Alt+Down** Into the Next One
 - **Shift+Alt+Left** Pass the Last Speech On
 - **Shift+Alt+Right** Take In the Next Speech
 - **Alt+T** Swap Speakers' Lines

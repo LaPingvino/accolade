@@ -39,8 +39,8 @@ Line commands take a range of lines before their name; without one they act on t
 - **:move-down** — Move the section, scene, speech or paragraph at the cursor (or the selected ones) down past the next (View > Structure > Move Down)
 - **:promote** — Out: a section a level up, a scene out of its section, a speech's line out into action (View > Structure > Promote) (screenplay)
 - **:demote** — In: a section a level down, a scene into the next section, action into the speech beside it (View > Structure > Demote) (screenplay)
-- **:into-previous** — The speech or paragraph at the cursor into the end of the scene before (View > Structure > Into the Scene Before) (screenplay)
-- **:into-next** — The speech or paragraph at the cursor into the start of the next scene (View > Structure > Into the Next Scene) (screenplay)
+- **:into-previous** — The speech or paragraph at the cursor into the end of the scene before; a section's synopsis or note into the section before (View > Structure > Into the One Before) (screenplay)
+- **:into-next** — The speech or paragraph at the cursor into the start of the next scene; a section's synopsis or note into the next section (View > Structure > Into the Next One) (screenplay)
 - **:barf** — Barf: this scene's last speech or paragraph out into the next scene (View > Structure > Pass the Last Speech On) (screenplay)
 - **:slurp** — Slurp: the next scene's first speech or paragraph into the end of this one (View > Structure > Take In the Next Speech) (screenplay)
 - **:transpose-speakers** — This speech's lines to the speaker before, theirs to this one (the cues change places) (View > Structure > Swap Speakers' Lines) (screenplay)
@@ -195,7 +195,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:footnote** — Format > Footnote (Markdown)
 - **:go-note** — Format > Go to Note or Reference (Markdown)
 - **:renumber-notes** — Format > Renumber Notes (Markdown)
-- **:structure** `item` — A structure's sections and synopses put in at the end of this script, one undo step (Format > Insert Structure) (screenplay)
+- **:structure** `item` — A structure's sections and synopses put in after the cursor's section (before the next # section), one undo step (Format > Insert Structure) (screenplay)
 
 ### Write
 

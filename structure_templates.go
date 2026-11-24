@@ -23,7 +23,7 @@ import (
 // the structural moves work on them as on any script, and each line is
 // written over, moved, grown into scenes or deleted. File > New from
 // Structure starts a script with one; Insert Structure (:structure) puts
-// one at the end of this script's body, one undo step. The descriptions
+// one in after the cursor's section (structureInsertAt), one undo step. The descriptions
 // are Accolade's own; a method's originator is named as an attribution.
 // docs/help/structure.md shows them as worked examples of the tools.
 
@@ -318,14 +318,21 @@ func (w *MainWindow) newFromStructure(t structureTemplate) {
 	}, w.fyneWindow)
 }
 
-// insertStructure puts structure t at the end of the script's body
-// (before the blocks at its end), one undo step, the cursor at its note.
+// insertStructure puts structure t in at the cursor's section boundary
+// (structureInsertAt), one undo step, the cursor at its note.
 func (w *MainWindow) insertStructure(t structureTemplate) {
+	w.insertStructureText(structureText(t), t.name)
+}
+
+// insertStructureText puts the structure ins (sections, synopses, notes)
+// in at the cursor's section boundary, one undo step, the cursor at its
+// start; what names it in the status line.
+func (w *MainWindow) insertStructureText(ins, what string) {
 	if w.markdown || w.textEditor == nil || w.scriptAway("Insert Structure") {
 		return
 	}
 	text := w.textEditor.Text()
-	at := bodyEnd(text)
+	at, where := structureInsertAt(text, w.textEditor.CursorOffset(), w.sceneStarts())
 	before := string([]rune(text)[:at])
 	pre := ""
 	switch {
@@ -336,7 +343,7 @@ func (w *MainWindow) insertStructure(t structureTemplate) {
 	default:
 		pre = "\n\n"
 	}
-	ins := pre + structureText(t)
+	ins = pre + strings.TrimRight(ins, "\n") + "\n"
 	switch after := string([]rune(text)[at:]); {
 	case strings.HasPrefix(after, "\n"): // its blank lines are there
 		ins = strings.TrimSuffix(ins, "\n")
@@ -350,7 +357,37 @@ func (w *MainWindow) insertStructure(t structureTemplate) {
 		})
 	})
 	w.fyneWindow.Canvas().Focus(w.textEditor)
-	w.setStatus(fmt.Sprintf("%s put in at the end: write over its synopses", t.name))
+	w.setStatus(fmt.Sprintf("%s put in %s: write over its synopses", what, where))
+}
+
+// structureInsertAt is where a structure goes in, in runes, with the
+// cursor at cursor (runes): at the cursor's section boundary, where no
+// part of the script comes to be in another section: before the next
+// top-level section (# …) after the cursor's line, or the one it is on;
+// else at the end of the script's body (before the blocks at its end).
+// where says it for the status line.
+func structureInsertAt(text string, cursor int, starts []string) (at int, where string) {
+	body := bodyEnd(text)
+	runes := []rune(text)
+	cursor = min(max(cursor, 0), len(runes))
+	line := strings.Count(string(runes[:cursor]), "\n")
+	top := map[int]string{} // the top-level sections, by their lines
+	for _, it := range outlineOf(text, starts) {
+		if !it.Scene && it.Level == 1 {
+			top[it.Line] = it.Text
+		}
+	}
+	n := 0 // line i's start, in runes
+	for i, l := range strings.Split(text, "\n") {
+		if n >= body {
+			break
+		}
+		if name, ok := top[i]; ok && i >= line {
+			return n, "before " + name
+		}
+		n += len([]rune(l)) + 1
+	}
+	return body, "at the end"
 }
 
 // templateMenu lists the structures, each doing do with it.
@@ -369,7 +406,7 @@ func templateCommands() []*command {
 			tip:     "A new script laid out as a structure: three acts, sequences, a beat sheet…, its parts as sections and synopses",
 			submenu: func(w *MainWindow) *fyne.Menu { return templateMenu("New from Structure", w.newFromStructure) }},
 		{id: "write.insertStructure", label: "Insert Structure", ex: "structure", icon: theme.ListIcon, when: screenplayOnly,
-			tip:     "A structure's sections and synopses put in at the end of this script, one undo step",
+			tip:     "A structure's sections and synopses put in after the cursor's section (before the next # section), one undo step",
 			submenu: func(w *MainWindow) *fyne.Menu { return templateMenu("Insert Structure", w.insertStructure) }},
 	}
 }

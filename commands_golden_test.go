@@ -525,7 +525,7 @@ func structureMoves(base, golden string) string {
 	keys := []key{{"Alt+Up", "Move Up"}, {"Alt+Down", "Move Down"}}
 	if !md {
 		keys = append(keys, key{"Alt+Left", "Promote"}, key{"Alt+Right", "Demote"},
-			key{"Shift+Alt+Up", "Into the Scene Before"}, key{"Shift+Alt+Down", "Into the Next Scene"},
+			key{"Shift+Alt+Up", "Into the One Before"}, key{"Shift+Alt+Down", "Into the Next One"},
 			key{"Shift+Alt+Left", "Pass the Last Speech On"}, key{"Shift+Alt+Right", "Take In the Next Speech"},
 			key{"Alt+T", "Swap Speakers' Lines"}, key{"Alt+O", "Expand Selection"}, key{"Alt+I", "Shrink Selection"})
 	}

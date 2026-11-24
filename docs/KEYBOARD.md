@@ -157,8 +157,8 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Move Down | `structure.down` | Alt+Down | Option+Down | Alt+Down | E D | :move-down |
 | Promote | `structure.promote` | Alt+Left | Control+Option+Left | Alt+Left | E T | :promote |
 | Demote | `structure.demote` | Alt+Right | Control+Option+Right | Alt+Right | E 1 | :demote |
-| Into the Scene Before | `structure.intoPrev` | Shift+Alt+Up | Shift+Option+Up | Shift+Alt+Up |  | :into-previous |
-| Into the Next Scene | `structure.intoNext` | Shift+Alt+Down | Shift+Option+Down | Shift+Alt+Down |  | :into-next |
+| Into the One Before | `structure.intoPrev` | Shift+Alt+Up | Shift+Option+Up | Shift+Alt+Up |  | :into-previous |
+| Into the Next One | `structure.intoNext` | Shift+Alt+Down | Shift+Option+Down | Shift+Alt+Down |  | :into-next |
 | Pass the Last Speech On | `structure.barf` | Shift+Alt+Left | Control+Shift+Option+Left | Shift+Alt+Left |  | :barf |
 | Take In the Next Speech | `structure.slurp` | Shift+Alt+Right | Control+Shift+Option+Right | Shift+Alt+Right |  | :slurp |
 | Swap Speakers' Lines | `structure.transpose` | Alt+T | Option+T | Alt+T |  | :transpose-speakers |
