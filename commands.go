@@ -880,6 +880,7 @@ func newRegistry() *registry {
 		keys: []fyne.Shortcut{shortcut(fyne.KeyK, 0), plainKey(fyne.KeyF1, 0)}, run: (*MainWindow).showPalette})
 	add(&command{id: "help.about", label: "About Accolade", icon: theme.InfoIcon, run: func(w *MainWindow) { w.app.showAbout() }})
 	add(structureCommands()...)  // the structural moves (structure_window.go)
+	add(templateCommands()...)   // New from Structure, Insert Structure (structure_templates.go)
 	add(dockCommands()...)       // the side dock's panes and its own (dock.go)
 	add(helpCommands()...)       // help_pane.go
 	add(settingCommands()...)    // ribbon_settings.go
@@ -907,7 +908,7 @@ func newRegistry() *registry {
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
-			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.mergeChanges"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
+			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.newStructure"), at("file.mergeChanges"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
 			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
@@ -925,7 +926,7 @@ func newRegistry() *registry {
 			at("format.rtl"), at("format.color"),
 			sep(), at("format.bold"), at("format.italic"), at("format.underline"), at("md.strike"), at("md.code"),
 			sep()), append(headings,
-			sep(), at("write.newScene"), at("format.numberScenes"), at("write.storyboardFrame"), at("write.include"), at("write.marker"), at("write.nextMarker"), at("write.previousMarker"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
+			sep(), at("write.newScene"), at("write.insertStructure"), at("format.numberScenes"), at("write.storyboardFrame"), at("write.include"), at("write.marker"), at("write.nextMarker"), at("write.previousMarker"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
 			sep(), at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote"),
 			sep(), at("md.codeBlock"), at("md.rule"), at("md.table"),
 		)...)},

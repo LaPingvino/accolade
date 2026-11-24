@@ -31,10 +31,20 @@ import (
 type outlineItem struct {
 	Line     int    // where it is
 	Text     string // the heading, without markers, notes or scene number
-	Synopsis string // Fountain's "= ..." lines under it
+	Synopsis string // its own synopsis: the first "= ..." lines under it
 	Color    string // the heading's color note, as lex.NoteColor reads it
 	Level    int    // a section's level (# 1, ## 2); scenes are one deeper
 	Scene    bool
+	// Loose are the synopses in it after its own: each "= ..." paragraph
+	// standing on its own (a beat, a moment planned), in the text's order
+	Loose []looseSynopsis
+}
+
+// looseSynopsis is a synopsis paragraph standing on its own in a scene or
+// section: its first line and its text (its lines joined).
+type looseSynopsis struct {
+	Line int
+	Text string
 }
 
 // outlineOf the script's text.
@@ -43,10 +53,14 @@ func outlineOf(text string, starts []string) []outlineItem {
 	section := 0
 	lines := strings.Split(text, "\n")
 	inBoneyard := false // notes and other /* ... */ are not the script
+	// own: the item's own synopsis can still come (only blank lines and
+	// notes since its heading); inSyn: the line before was a synopsis
+	own, inSyn := false, false
 	for i, l := range lines {
 		t := strings.TrimSpace(l)
 		if inBoneyard || strings.HasPrefix(t, "/*") {
 			inBoneyard = !strings.Contains(strings.TrimPrefix(t, "/*"), "*/")
+			inSyn = false
 			continue
 		}
 		prevBlank := i == 0 || strings.TrimSpace(lines[i-1]) == ""
@@ -55,16 +69,53 @@ func outlineOf(text string, starts []string) []outlineItem {
 			level := len(t) - len(strings.TrimLeft(t, "#"))
 			section = level
 			items = append(items, outlineItem{Line: i, Text: lex.SectionText(t), Level: level, Color: lex.NoteColor(t)})
+			own, inSyn = true, false
 		case prevBlank && (isSceneHeadingIn(t, starts) || (strings.HasPrefix(t, ".") && !strings.HasPrefix(t, ".."))):
 			heading, _ := lex.SceneNumber(strings.TrimPrefix(t, "."))
 			items = append(items, outlineItem{Line: i, Text: strings.ToUpper(strings.TrimSpace(heading)), Level: section + 1, Scene: true, Color: lex.NoteColor(t)})
-		case strings.HasPrefix(t, "=") && !strings.HasPrefix(t, "==") && len(items) > 0:
+			own, inSyn = true, false
+		case isSynopsisLine(t) && len(items) > 0:
 			it := &items[len(items)-1]
-			it.Synopsis = strings.TrimSpace(it.Synopsis + " " + strings.TrimSpace(t[1:]))
+			s := strings.TrimSpace(t[1:])
+			switch {
+			case own:
+				it.Synopsis = strings.TrimSpace(it.Synopsis + " " + s)
+			case inSyn && len(it.Loose) > 0:
+				lo := &it.Loose[len(it.Loose)-1]
+				lo.Text = strings.TrimSpace(lo.Text + " " + s)
+			default:
+				it.Loose = append(it.Loose, looseSynopsis{Line: i, Text: s})
+			}
+			inSyn = true
+		case t == "":
+			if inSyn {
+				own = false // its own synopsis has ended
+			}
+			inSyn = false
+		case isNoteLine(t):
+			inSyn = false
+		default:
+			own, inSyn = false, false
 		}
 	}
 	return items
 }
+
+// looseText is item it's loose synopses, a line each (for finding them).
+func looseText(it outlineItem) string {
+	var b strings.Builder
+	for _, l := range it.Loose {
+		b.WriteString("\n" + l.Text)
+	}
+	return b.String()
+}
+
+// isSynopsisLine tells whether the trimmed line t is a synopsis ("= …",
+// not a page break's "===").
+func isSynopsisLine(t string) bool { return strings.HasPrefix(t, "=") && !strings.HasPrefix(t, "==") }
+
+// isNoteLine tells whether the trimmed line t is a note alone: [[…]].
+func isNoteLine(t string) bool { return strings.HasPrefix(t, "[[") && strings.HasSuffix(t, "]]") }
 
 // filterOutline is the items whose heading or synopsis has query in it
 // (in any case), each with the sections it is in, for where it is.
@@ -82,7 +133,7 @@ func filterOutline(items []outlineItem, query string) []outlineItem {
 				sections = sections[:len(sections)-1]
 			}
 		}
-		if strings.Contains(strings.ToLower(it.Text+"\n"+it.Synopsis), query) {
+		if strings.Contains(strings.ToLower(it.Text+"\n"+it.Synopsis+looseText(it)), query) {
 			for _, s := range sections {
 				if !shown[s] {
 					shown[s] = true
@@ -166,7 +217,8 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			swatch := container.NewCenter(newSwatch())
 			dots := container.NewCenter(newPeerDots()) // the co-writers in it (collab_cursors.go)
 			dots.Hide()
-			return newDragRow(o, container.NewBorder(nil, nil, container.NewStack(room, fold), container.NewHBox(dots, swatch), container.NewVBox(title, syn)))
+			loose := container.NewVBox() // the loose synopses in it, a line each
+			return newDragRow(o, container.NewBorder(nil, nil, container.NewStack(room, fold), container.NewHBox(dots, swatch), container.NewVBox(title, syn, loose)))
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id >= len(o.items) {
@@ -191,6 +243,8 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			} else {
 				syn.Show()
 			}
+			showLoose(box.Objects[2].(*fyne.Container), it)
+			box.Refresh() // laid out again: the rows are reused
 		},
 	)
 	o.list.OnSelected = func(id widget.ListItemID) {
@@ -321,18 +375,41 @@ func (o *outlinePanel) show() {
 	// rows without a synopsis are one line high
 	if o.oneLine == 0 {
 		row := o.list.CreateItem().(*dragRow).content
+		row.Objects[0].(*fyne.Container).Objects[2].Hide() // no loose synopses
 		o.twoLines = row.MinSize().Height
 		row.Objects[0].(*fyne.Container).Objects[1].Hide()
 		o.oneLine = row.MinSize().Height
 	}
-	for id, it := range o.items {
-		if it.Synopsis == "" {
-			o.list.SetItemHeight(id, o.oneLine)
-		} else {
-			o.list.SetItemHeight(id, o.twoLines)
-		}
+	for id := range o.items {
+		o.list.SetItemHeight(id, o.rowHeight(id))
 	}
 	o.list.Refresh()
+}
+
+// showLoose shows item it's loose synopses in box, a line each ("= …"),
+// as its synopsis is shown.
+func showLoose(box *fyne.Container, it outlineItem) {
+	if len(it.Loose) == 0 {
+		box.Hide()
+		return
+	}
+	box.Show()
+	for len(box.Objects) < len(it.Loose) {
+		l := widget.NewLabel("")
+		l.SizeName = theme.SizeNameCaptionText
+		l.TextStyle = fyne.TextStyle{Italic: true}
+		l.Truncation = fyne.TextTruncateEllipsis
+		box.Add(l)
+	}
+	for k, o := range box.Objects {
+		l := o.(*widget.Label)
+		if k >= len(it.Loose) {
+			l.Hide()
+			continue
+		}
+		l.SetText(strings.Repeat("  ", max(0, it.Level)) + "= " + it.Loose[k].Text)
+		l.Show()
+	}
 }
 
 // showFold makes the item's fold button: shown for a section with
@@ -472,10 +549,12 @@ func dropIndex(o dragList, id int, dy float32) int {
 // The outline as a dragList.
 func (o *outlinePanel) rowItems() []outlineItem { return o.items }
 func (o *outlinePanel) rowHeight(id int) float32 {
-	if o.items[id].Synopsis == "" {
-		return o.oneLine
+	it := o.items[id]
+	h := o.oneLine + float32(len(it.Loose))*(o.twoLines-o.oneLine) // a line each
+	if it.Synopsis != "" {
+		h += o.twoLines - o.oneLine
 	}
-	return o.twoLines
+	return h
 }
 func (o *outlinePanel) tapRow(id int) { o.list.Select(id) }
 func (o *outlinePanel) moveRow(from, to int) {

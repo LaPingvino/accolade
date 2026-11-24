@@ -168,6 +168,8 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Shrink Selection | `structure.shrink` | Alt+I | Option+I | Alt+I |  | :shrink-selection |
 | Swap… | `structure.swap` |  |  |  | E W | :swap |
 | Move… | `structure.move` |  |  |  | E V | :move-range |
+| New from Structure | `file.newStructure` |  |  |  |  | :new-from-structure |
+| Insert Structure | `write.insertStructure` |  |  |  |  | :structure |
 | Outline | `view.outline` | Ctrl+Shift+O | Cmd+Shift+O | Ctrl+Shift+O | V O | :outline |
 | Notes | `view.notes` | Ctrl+Shift+K | Cmd+Shift+K | Ctrl+Shift+K | V N | :notes |
 | Characters | `view.characters` |  |  |  | V C | :characters |
@@ -186,6 +188,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Previous Middle Tab | `view.midPrev` | Ctrl+PgUp | Cmd+PgUp | Alt+PgUp |  | :previous-middle-tab |
 | Help Contents | `help.page.index` |  |  |  |  | :help index |
 | Fountain Reference | `help.page.fountain` |  |  |  |  | :help fountain |
+| Structure: Sections, Synopses and Notes | `help.page.structure` |  |  |  |  | :help structure |
 | Coming from Final Draft | `help.page.final-draft` |  |  |  |  | :help final-draft |
 | Adapting a Story | `help.page.adapting` |  |  |  |  | :help adapting |
 | Fixing an Imported Script | `help.page.fixing-imports` |  |  |  |  | :help fixing-imports |

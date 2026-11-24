@@ -187,7 +187,7 @@ func (t *Tree) step(r run, down bool) (Result, error) {
 	what := r.kind().String()
 	if !down {
 		if r.i == lo {
-			return Result{}, Refusal(fmt.Sprintf("Nothing to move it past: the first %s here%s", what, crossHint(r.kind(), false)))
+			return Result{}, Refusal(fmt.Sprintf("Nothing to move it past: the first %s here%s", what, crossHint(r, false)))
 		}
 		p := r.parent.Kids[r.i-1]
 		a0, a1 := r.lines()
@@ -197,7 +197,7 @@ func (t *Tree) step(r run, down bool) (Result, error) {
 		return res, nil
 	}
 	if r.j == hi {
-		return Result{}, Refusal(fmt.Sprintf("Nothing to move it past: the last %s here%s", what, crossHint(r.kind(), true)))
+		return Result{}, Refusal(fmt.Sprintf("Nothing to move it past: the last %s here%s", what, crossHint(r, true)))
 	}
 	nx := r.parent.Kids[r.j+1]
 	a0, a1 := r.lines()
@@ -207,9 +207,15 @@ func (t *Tree) step(r run, down bool) (Result, error) {
 	return res, nil
 }
 
-// crossHint says how a block goes on into the scene beside.
-func crossHint(k Kind, down bool) string {
+// crossHint says how a block goes on into the scene beside (a
+// section's own block: the section beside).
+func crossHint(r run, down bool) string {
+	k := r.kind()
 	switch {
+	case k == Block && r.parent.Kind == Section && down:
+		return " (Alt+Shift+Down takes it into the next section)"
+	case k == Block && r.parent.Kind == Section:
+		return " (Alt+Shift+Up takes it into the section before)"
 	case k == Block && down:
 		return " (Alt+Shift+Down takes it into the next scene)"
 	case k == Block:
@@ -398,6 +404,9 @@ func (t *Tree) into(r run, next bool) (Result, error) {
 	}
 	a0, a1 := r.lines()
 	own := r.parent
+	if own.Kind == Section {
+		return t.intoSection(r, next)
+	}
 	if next {
 		for _, s := range t.scenes() {
 			if s.First > a1 && s != own {
@@ -416,6 +425,71 @@ func (t *Tree) into(r run, next bool) (Result, error) {
 		return Result{}, Refusal("No scene before it to go into")
 	}
 	return t.moveTo(r, prev.Last, true, fmt.Sprintf("Into %s, at its end", t.Name(prev)))
+}
+
+// intoSection takes a section's own blocks (a synopsis, a note, action
+// before its scenes) into the section before it in the text (next: after
+// it), among that one's own blocks: at their end, or their start (after
+// its own synopsis, which stays the first). A
+// section's blocks stay a section's, as a scene's go into scenes.
+func (t *Tree) intoSection(r run, next bool) (Result, error) {
+	own := r.parent
+	var to *Node
+	for _, n := range t.containers() {
+		if n.Kind != Section || n == own {
+			continue
+		}
+		if next && n.First > own.First {
+			to = n
+			break
+		}
+		if !next && n.First < own.First {
+			to = n
+		}
+	}
+	if to == nil {
+		if next {
+			return Result{}, Refusal("No section after it to go into")
+		}
+		return Result{}, Refusal("No section before it to go into")
+	}
+	var lastOwn, firstOwn *Node // its own blocks, before what it holds
+	for _, k := range to.Kids {
+		if k.Kind != Block {
+			break
+		}
+		if firstOwn == nil {
+			firstOwn = k
+		}
+		lastOwn = k
+	}
+	if next {
+		msg := fmt.Sprintf("Into %s, at its start", t.Name(to))
+		if firstOwn != nil && t.synopsis(firstOwn) { // its own synopsis stays first
+			return t.moveTo(r, firstOwn.Last, true, msg)
+		}
+		if firstOwn != nil {
+			return t.moveTo(r, firstOwn.First, false, msg)
+		}
+		if len(to.Kids) > 0 {
+			return t.moveTo(r, to.Kids[0].First, false, msg)
+		}
+		return t.moveTo(r, to.HeadEnd, true, msg)
+	}
+	msg := fmt.Sprintf("Into %s, after its own", t.Name(to))
+	switch {
+	case lastOwn != nil:
+		return t.moveTo(r, lastOwn.Last, true, msg)
+	case len(to.Kids) > 0:
+		return t.moveTo(r, to.Kids[0].First, false, msg)
+	}
+	return t.moveTo(r, to.HeadEnd, true, msg)
+}
+
+// synopsis tells whether block n is a synopsis paragraph ("= …").
+func (t *Tree) synopsis(n *Node) bool {
+	l := strings.TrimSpace(t.S.Lines[n.First])
+	return strings.HasPrefix(l, "=") && !strings.HasPrefix(l, "==")
 }
 
 // toSceneStart moves blocks r to the start of scene s, under its heading.

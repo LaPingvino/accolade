@@ -94,7 +94,9 @@ func (d sceneDraft) reads() bool {
 }
 
 // newSceneAt is where a new scene goes, in runes: after the scene the
-// cursor is in (before the next heading or section); between scenes at
+// cursor is in (before the next heading or section, or before the next
+// synopsis standing on its own in it: a beat still to write); on such a
+// synopsis, right before it (the synopsis is the new scene's); between scenes at
 // the cursor's line if it is blank, else after its paragraph; after the
 // title page on it; before the blocks at the end after them.
 func newSceneAt(text string, cursor int, starts []string) int {
@@ -116,13 +118,31 @@ func newSceneAt(text string, cursor int, starts []string) int {
 	if tp := titlePageEnd(lines); tp > 0 && line < tp {
 		return min(lineStart(tp), body)
 	}
+	items := outlineOf(text, starts)
+	for _, it := range items { // on a loose synopsis: the scene it plans starts there
+		for _, l := range it.Loose {
+			if l.Line <= line && line < synopsisEnd(lines, l.Line) && lineStart(l.Line) < body {
+				return lineStart(l.Line)
+			}
+		}
+	}
 	in, next := false, -1
-	for _, it := range outlineOf(text, starts) {
+	for _, it := range items {
 		if lineStart(it.Line) >= body {
 			break
 		}
 		if it.Line <= line {
 			in = it.Scene
+			next = -1
+			for _, l := range it.Loose { // before the next synopsis still to write
+				if l.Line > line {
+					next = l.Line
+					break
+				}
+			}
+			if next >= 0 {
+				break
+			}
 			continue
 		}
 		next = it.Line
@@ -143,6 +163,39 @@ func newSceneAt(text string, cursor int, starts []string) int {
 		}
 	}
 	return body
+}
+
+// onSynopsisText is newSceneText for a scene put in on a synopsis (at
+// is where it starts): the heading above it, the cursor after it.
+func onSynopsisText(text string, at int, heading string) (insert string, cursor int) {
+	insert, _ = newSceneText(text, at, heading)
+	insert = insert[:strings.Index(insert, heading)] + heading + "\n\n" // the heading, a blank line, the synopsis
+	cursor = len([]rune(insert))
+	al := strings.Split(string([]rune(text)[at:]), "\n")
+	for _, l := range al[:synopsisEnd(al, 0)] {
+		cursor += len([]rune(l)) + 1
+	}
+	return insert, cursor - 1
+}
+
+// onLooseSynopsis tells whether a new scene at at is put in on a
+// synopsis the cursor is on (newSceneAt's: at the paragraph's start).
+func onLooseSynopsis(text string, at, cursor int) bool {
+	r := []rune(text)
+	if at >= len(r) || r[at] != '=' || cursor < at {
+		return false
+	}
+	return !strings.Contains(string(r[at:cursor]), "\n\n")
+}
+
+// synopsisEnd is the line after the synopsis paragraph starting at
+// line from.
+func synopsisEnd(lines []string, from int) int {
+	i := from
+	for i < len(lines) && isSynopsisLine(strings.TrimSpace(lines[i])) {
+		i++
+	}
+	return i
 }
 
 // newSceneText is what goes in at at for a scene with heading: the blank
@@ -431,6 +484,9 @@ func (w *MainWindow) insertScene(at int, heading string) {
 	text := w.textEditor.Text()
 	at = min(at, len([]rune(text)))
 	ins, cur := newSceneText(text, at, heading)
+	if onLooseSynopsis(text, at, w.textEditor.CursorOffset()) {
+		ins, cur = onSynopsisText(text, at, heading)
+	}
 	w.holdingStep(func() {
 		w.textEditor.Edit(func(b *buffer.Buffer) {
 			b.Group(func() {

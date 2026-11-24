@@ -363,7 +363,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))))))) // the moves write Linux keys too
+		want := templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -1080,6 +1080,27 @@ func numberScenesMoves(name, golden string) string {
 func mergeMoves(name, golden string) string {
 	if strings.HasPrefix(name, "menu-") {
 		return strings.Replace(golden, "  Import as Markdown…\n", "  Merge Changes…\n  Import as Markdown…\n", 1)
+	}
+	return golden
+}
+
+// templateMoves: File > New from Structure before Merge Changes…, and a
+// screenplay's Format > Insert Structure after New Scene…, each with the
+// structures (structure_templates.go).
+func templateMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-") {
+		return golden
+	}
+	sub := func(label string) string {
+		s := "  " + label + "\n"
+		for _, t := range structureTemplates {
+			s += "    " + t.name + "\n"
+		}
+		return s
+	}
+	golden = strings.Replace(golden, "  Merge Changes…\n", sub("New from Structure")+"  Merge Changes…\n", 1)
+	if strings.HasPrefix(name, "menu-screenplay") {
+		golden = strings.Replace(golden, "  New Scene…\n", "  New Scene…\n"+sub("Insert Structure"), 1)
 	}
 	return golden
 }

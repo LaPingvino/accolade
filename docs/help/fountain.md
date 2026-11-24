@@ -201,7 +201,7 @@ A scene that did not make it.
 
 ## Sections
 
-Lines starting with `#` are sections: acts, sequences, chapters. More `#` signs make a deeper level. They show in the outline and the cards, never in print.
+Lines starting with `#` are sections: acts, sequences, chapters. More `#` signs make a deeper level. They show in the outline and the cards, never in print. [Structure](structure.md) shows how to plan with them.
 
 ```
 # ACT ONE
@@ -211,7 +211,7 @@ Lines starting with `#` are sections: acts, sequences, chapters. More `#` signs 
 
 ## Synopses
 
-A line starting with `=` is a synopsis of the section or scene above it. Not printed.
+A line starting with `=` is a synopsis. The first under a section or scene heading is that heading's own; one standing on its own further down is a beat or a planned moment, a line of its own in the outline and a card of its own (see [Structure](structure.md)). Not printed.
 
 ```
 = Anna decides to leave.

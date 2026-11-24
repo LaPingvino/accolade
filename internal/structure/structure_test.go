@@ -359,3 +359,51 @@ func TestExpand(t *testing.T) {
 		}
 	}
 }
+
+// A section's own blocks (synopses, notes, action written before its
+// scenes) go into the section before or after with Alt+Shift+Up and
+// Down: at the end of its own blocks, or the start of them; a scene's
+// still go into scenes.
+func TestIntoSectionBlocks(t *testing.T) {
+	const s = "Title: T\n\n# One\n\n= a\n\n= b\n\nINT. X - DAY\n\nAction.\n\n# Two\n\n= c\n\n= d\n\n# Three\n\n= e\n"
+	for _, c := range []struct {
+		name   string
+		op     Op
+		at     string
+		want   string
+		refuse string
+	}{
+		{name: "the first of Two into One, after its own", op: IntoPrev, at: "= c",
+			want: "Title: T\n\n# One\n\n= a\n\n= b\n\n= c\n\nINT. X - DAY\n\nAction.\n\n# Two\n\n= d\n\n# Three\n\n= e\n"},
+		{name: "the last of Two into Three, after its own synopsis", op: IntoNext, at: "= d",
+			want: "Title: T\n\n# One\n\n= a\n\n= b\n\nINT. X - DAY\n\nAction.\n\n# Two\n\n= c\n\n# Three\n\n= e\n\n= d\n"},
+		{name: "One's into Two", op: IntoNext, at: "= b",
+			want: "Title: T\n\n# One\n\n= a\n\nINT. X - DAY\n\nAction.\n\n# Two\n\n= c\n\n= b\n\n= d\n\n# Three\n\n= e\n"},
+		{name: "a scene's paragraph: no scene after", op: IntoNext, at: "Action.", refuse: "No scene after"},
+		{name: "none before One", op: IntoPrev, at: "= a", refuse: "No section before"},
+		{name: "none after Three", op: IntoNext, at: "= e", refuse: "No section after"},
+		{name: "a scene's paragraph still into scenes", op: IntoPrev, at: "Action.", refuse: "No scene before"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			l := lineOf(t, s, c.at)
+			got, _, err := do(s, c.op, l, l)
+			if c.refuse != "" {
+				if err == nil || !strings.Contains(err.Error(), c.refuse) {
+					t.Fatalf("want a refusal %q, got %v:\n%s", c.refuse, err, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != c.want {
+				t.Errorf("got:\n%s\nwant:\n%s", got, c.want)
+			}
+		})
+	}
+	// the first block of a section: the hint names the section before
+	l := lineOf(t, s, "= c")
+	if _, _, err := do(s, MoveUp, l, l); err == nil || !strings.Contains(err.Error(), "into the section before") {
+		t.Errorf("the hint: %v", err)
+	}
+}

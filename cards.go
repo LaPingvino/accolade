@@ -199,6 +199,14 @@ func (c *cardsView) update(text string) {
 		grid.Add(k)
 		c.targets = append(c.targets, dropTarget{obj: k, before: i, halves: true})
 	}
+	addLoose := func(i int) { // its loose synopses, a card each after it
+		if c.grouped {
+			return
+		}
+		for _, l := range c.items[i].Loose {
+			grid.Add(newSynopsisCard(c, l))
+		}
+	}
 	if c.grouped {
 		for _, g := range cardGroups(c.w.storyNow(), l.group) {
 			group(newGroupHeader(g))
@@ -225,12 +233,14 @@ func (c *cardsView) update(text string) {
 			h := newSectionHeader(c, i, it)
 			group(h)
 			c.targets = append(c.targets, dropTarget{obj: h, before: i + 1})
+			addLoose(i) // its own, before its scenes
 			continue
 		}
 		if grid == nil {
 			group(nil)
 		}
 		addCard(i)
+		addLoose(i)
 	}
 	if grid == nil {
 		group(nil)
@@ -514,6 +524,38 @@ func (c *cardsView) open(i int) {
 	line := c.items[i].Line
 	w.goToScript(line) // the script's tab in front
 }
+
+// synopsisCard is a loose synopsis's card (a beat, a moment planned: a
+// "= …" paragraph on its own): its text, in italics; tapped, the script
+// at its line, where it is written, moved (Alt+Up and Alt+Down) and grown
+// into a scene (New Scene on it).
+type synopsisCard struct {
+	widget.BaseWidget
+	c    *cardsView
+	line int
+	body fyne.CanvasObject
+}
+
+func newSynopsisCard(c *cardsView, l looseSynopsis) *synopsisCard {
+	text := widget.NewLabel(l.Text)
+	text.TextStyle = fyne.TextStyle{Italic: true}
+	text.Wrapping = fyne.TextWrapWord
+	text.Truncation = fyne.TextTruncateEllipsis
+	mark := widget.NewLabel("=")
+	mark.Importance = widget.LowImportance
+	paper := canvas.NewRectangle(color.Transparent) // not a scene yet: no paper, an outline
+	paper.StrokeColor = theme.Color(theme.ColorNameInputBorder)
+	paper.StrokeWidth = 1
+	paper.CornerRadius = theme.InputRadiusSize()
+	k := &synopsisCard{c: c, line: l.Line, body: container.NewStack(paper, container.NewPadded(container.NewBorder(mark, nil, nil, nil, text)))}
+	k.ExtendBaseWidget(k)
+	fyne.SetAccessibleLabel(k, "Synopsis: "+l.Text)
+	return k
+}
+
+func (k *synopsisCard) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(k.body) }
+
+func (k *synopsisCard) Tapped(*fyne.PointEvent) { k.c.w.goToScript(k.line) }
 
 // sectionHeader heads a section's cards; tapped, it opens the section,
 // dragged, it moves the section with all it holds.

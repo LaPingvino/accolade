@@ -217,3 +217,47 @@ func TestCompletePartial(t *testing.T) {
 		t.Errorf("stopped after the place: %q", e)
 	}
 }
+
+// New Scene on a loose synopsis (one standing on its own, not a
+// heading's): the heading goes right above it, the synopsis becomes the
+// new scene's, the cursor after it. In a section's beats and in a scene
+// alike; a heading's own synopsis still gets its scene after it.
+func TestNewSceneOnLooseSynopsis(t *testing.T) {
+	starts := sceneStarts("en")
+	r := func(s string) int { return len([]rune(s)) }
+	for _, c := range []struct {
+		text, at, want string
+	}{
+		{"# Act\n\n= Own.\n\n= Beat one.\n\n= Beat two.\n", "Beat one",
+			"# Act\n\n= Own.\n\nINT. NEW - NIGHT\n\n= Beat one.\n\n= Beat two.\n"},
+		{"# Act\n\n= Own.\n\nINT. A - DAY\n\nAction.\n\n= Then this.\n\nMore.\n", "Then this",
+			"# Act\n\n= Own.\n\nINT. A - DAY\n\nAction.\n\nINT. NEW - NIGHT\n\n= Then this.\n\nMore.\n"},
+	} {
+		cursor := r(c.text[:strings.Index(c.text, c.at)])
+		at := newSceneAt(c.text, cursor, starts)
+		if !onLooseSynopsis(c.text, at, cursor) {
+			t.Errorf("%q: not on a synopsis", c.at)
+		}
+		ins, cur := onSynopsisText(c.text, at, "INT. NEW - NIGHT")
+		out := string([]rune(c.text)[:at]) + ins + string([]rune(c.text)[at:])
+		if out != c.want {
+			t.Errorf("got\n%q\nwant\n%q", out, c.want)
+			continue
+		}
+		if got := string([]rune(out)[:at+cur]); !strings.HasSuffix(got, c.at+".") {
+			t.Errorf("the cursor is after %q, not after the synopsis", got)
+		}
+	}
+	// in a scene with a beat still to write after it: before that beat
+	text0 := "# Act\n\nINT. A - DAY\n\n= Own.\n\nAction.\n\n= Next beat.\n"
+	at0 := newSceneAt(text0, r(text0[:strings.Index(text0, "Action")]), starts)
+	if got := string([]rune(text0)[:at0]); got != "# Act\n\nINT. A - DAY\n\n= Own.\n\nAction.\n\n" {
+		t.Errorf("before the next beat: before %q", got)
+	}
+	// a heading's own synopsis: after its paragraph, as before
+	text := "# Act\n\n= Own.\n\n= Beat one.\n"
+	at := newSceneAt(text, r(text[:strings.Index(text, "Own")]), starts)
+	if got := string([]rune(text)[:at]); got != "# Act\n\n= Own.\n" {
+		t.Errorf("on the act's own synopsis: before %q", got)
+	}
+}

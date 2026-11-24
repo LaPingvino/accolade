@@ -14,23 +14,24 @@ func synopsisLines(lines []string, items []outlineItem, i int) []int {
 		end = items[i+1].Line
 	}
 	var at []int
-	inBoneyard := false
 	for n := items[i].Line + 1; n < end; n++ {
 		t := strings.TrimSpace(lines[n])
-		if inBoneyard || strings.HasPrefix(t, "/*") {
-			inBoneyard = !strings.Contains(strings.TrimPrefix(t, "/*"), "*/")
-			continue
-		}
-		if strings.HasPrefix(t, "=") && !strings.HasPrefix(t, "==") {
+		switch {
+		case isSynopsisLine(t):
 			at = append(at, n)
+		case len(at) > 0: // its own ends at the first line after it
+			return at
+		case t == "" || isNoteLine(t):
+		default:
+			return at
 		}
 	}
 	return at
 }
 
-// setSynopsis gives item i the synopsis syn: one "= " line right under
-// its heading, in place of the synopsis lines it had (none when syn is
-// empty).
+// setSynopsis gives item i the synopsis syn: one "= " line in place of
+// its own synopsis lines (right under its heading if it had none), the
+// synopses after it left as they are; none when syn is empty.
 func setSynopsis(text string, starts []string, i int, syn string) string {
 	items := outlineOf(text, starts)
 	if i < 0 || i >= len(items) {
@@ -43,17 +44,37 @@ func setSynopsis(text string, starts []string, i int, syn string) string {
 		drop[n] = true
 	}
 	syn = strings.Join(strings.Fields(syn), " ") // one line
+	at := items[i].Line // the new line goes after this one
+	if len(old) > 0 {
+		at = old[0] - 1
+	}
 	var out []string
 	for n, l := range lines {
-		if drop[n] {
-			continue
+		if !drop[n] {
+			out = append(out, l)
 		}
-		out = append(out, l)
-		if n == items[i].Line && syn != "" {
+		if n == at && syn != "" {
 			out = append(out, "= "+syn)
 		}
 	}
+	if len(old) > 0 && syn == "" && old[0] > 0 && old[len(old)-1]+1 < len(lines) &&
+		strings.TrimSpace(lines[old[0]-1]) == "" && strings.TrimSpace(lines[old[len(old)-1]+1]) == "" {
+		// a synopsis between blank lines gone: one blank line left
+		k := old[0] - 1 - countBefore(drop, old[0]-1)
+		out = append(out[:k], out[k+1:]...)
+	}
 	return strings.Join(out, "\n")
+}
+
+// countBefore is how many lines of drop come before line n.
+func countBefore(drop map[int]bool, n int) int {
+	c := 0
+	for k := range drop {
+		if k < n {
+			c++
+		}
+	}
+	return c
 }
 
 // addScene puts a new scene, heading with synopsis syn, before item at (at

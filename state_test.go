@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -176,7 +177,7 @@ func checkViews(t *testing.T, w *MainWindow, when string) {
 	front := w.frontDoc()
 	if w.outline != nil && w.outlineInSight() {
 		want := (&outlinePanel{w: w}).itemsOf(front)
-		if !slices.Equal(w.outline.all, want) {
+		if !reflect.DeepEqual(w.outline.all, want) {
 			t.Errorf("%s: the outline shows %d items %v, the %s in front has %d %v", when, len(w.outline.all),
 				firstItems(w.outline.all), front.kind, len(want), firstItems(want))
 		}
