@@ -40,7 +40,7 @@ func kindOfName(name string) (markdown, known bool) {
 	switch strings.ToLower(filepath.Ext(name)) {
 	case ".md", ".markdown":
 		return true, true
-	case ".fountain", ".spmd", ".txt", ".fdx", ".pdf", ".highland", ".accolade":
+	case ".fountain", ".spmd", ".txt", ".fdx", ".pdf", ".highland", ".accolade", ".opml":
 		return false, true
 	}
 	if _, ok := lexSettings.ExtensionLanguage(name); ok {
@@ -52,8 +52,9 @@ func kindOfName(name string) (markdown, known bool) {
 // baseOpenExtensions are the files Open offers (the browser's file picker
 // too). A bundle folder is a folder: Open goes into it and opens its text
 // (bundleOf), or Open Bundle Folder… opens it; a .textbundle that is a
-// zip is a file like a .textpack.
-var baseOpenExtensions = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", ".highland", ".accolade", ".textpack", ".textbundle", ".fdx", ".pdf", ".toml"}
+// zip is a file like a .textpack. An outline (.opml, from Workflowy,
+// OmniOutliner…) opens as a script's sections and synopses (outline_io.go).
+var baseOpenExtensions = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", ".highland", ".accolade", ".textpack", ".textbundle", ".fdx", ".pdf", ".opml", ".toml"}
 
 // openExtensions are baseOpenExtensions and the languages' own
 // ([Extensions]: .hekaya).

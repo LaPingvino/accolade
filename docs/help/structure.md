@@ -32,7 +32,18 @@ Fountain never closes a section or a scene: whatever you write after a heading b
 
 ## Printing
 
-The PDF, Print, Word, ODT, HTML and Final Draft exports leave sections and synopses out, and notes too, so the structure can stay in the script while you write the scenes. To have it on paper or to share it, export Fountain (as written), or one of the text formats made with pandoc (Markdown, RTF, Org…), which keep it; Export Clean Fountain… asks whether to keep the sections and synopses.
+The PDF, Print, Word, ODT, HTML and Final Draft exports leave sections and synopses out, and notes too, so the structure can stay in the script while you write the scenes. To have it on paper or to share it, export a Treatment (PDF or Word: the structure alone, see below), an Outline (OPML), Fountain (as written), or one of the text formats made with pandoc (Markdown, RTF, Org…), which keep it; Export Clean Fountain… asks whether to keep the sections and synopses.
+
+## OPML: Outlines In and Out
+
+OPML is the file outliners such as Workflowy, OmniOutliner and Dynalist export and open. Accolade reads and writes it, so a plan made in an outliner becomes the script's structure, and the structure goes back out to one.
+
+- **Out:** File > Export Outline (OPML) — for Workflowy, OmniOutliner…, or Export… and the format of that name, or `:export opml`. Each section is an item holding what is in it, each scene's heading an item, a heading's own synopsis its note, and each synopsis or note standing on its own an item where it is. The scenes' own text (action, dialogue) stays in the script: an outline holds only the plan.
+- **In:** File > Open an outline (`.opml`; one saved under another name is known by what is in it). It opens as a new script, not yet saved: the items nested as sections (`#`, then `##` inside them), an item's note as its synopsis touching its heading, the items with nothing under them as beats, and an item that reads as a scene heading as a scene. Save keeps it as a script, never over the outline.
+- **Paste as Structure** (Edit menu, the palette): an outline copied from an outliner, as indented lines or as OPML, put into the script at the cursor's section boundary, as Insert Structure puts a structure.
+- **Round trip:** Accolade's own outline, opened again, gives the same sections, synopses and notes, as written.
+
+To read rather than outline: File > Export Treatment (PDF, Word)… writes the same structure as a document: the sections as headings, the scenes' headings under them, each synopsis and beat as a paragraph, the notes in italics.
 
 ## One way to work: from beats to script
 

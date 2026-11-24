@@ -53,7 +53,7 @@ const outsideID = "\x00outside"
 // mergeExtensions are the files Merge Changes… reads: the scripts
 // Accolade opens, without PDF (its text read back is for later).
 func mergeExtensions() []string {
-	return slices.DeleteFunc(openExtensions(), func(e string) bool { return strings.EqualFold(e, ".pdf") })
+	return slices.DeleteFunc(openExtensions(), func(e string) bool { return strings.EqualFold(e, ".pdf") || strings.EqualFold(e, ".opml") })
 }
 
 // readOutside reads a copy of the script from outside as the editor has

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE opml PUBLIC "-//OmniGroup//DTD OPML 1.0//EN" "http://www.omnigroup.com/namespace/OmniOutliner/opml.dtd">
+<opml version="1.0">
+  <head>
+    <title>The Lighthouse</title>
+    <expansionState>0,1,4,7</expansionState>
+    <vertScrollState>0</vertScrollState>
+  </head>
+  <body>
+    <outline text="Act One" _note="The keeper's daughter comes home." _status="unchecked">
+      <outline text="Mara finds her father's letter in the lamp room." _status="checked"/>
+      <outline text="INT. LAMP ROOM - NIGHT" _note="She reads it twice."/>
+    </outline>
+    <outline text="Act Two" _note="The storm, and what it takes.">
+      <outline text="The storm tears the roof from the boathouse."/>
+      <outline text="Tomas goes missing on the water."/>
+    </outline>
+    <outline text="Act Three">
+      <outline text="She finds Tomas on the rocks."/>
+    </outline>
+  </body>
+</opml>

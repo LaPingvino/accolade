@@ -590,6 +590,9 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	case ".fdx", ".pdf":
 		return w.importFile(filePath)
 	}
+	if isOutlineFile(filePath) { // OPML, by its name or its content (outline_io.go)
+		return w.openOutline(filePath)
+	}
 
 	// the text of a .textbundle folder opens the bundle
 	if b, ok := bundleOf(filePath); ok {

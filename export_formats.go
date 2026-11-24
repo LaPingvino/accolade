@@ -36,8 +36,17 @@ func exportFormatList() []exportFormat {
 				exportFormat{id: "txt", label: "Plain text", ext: "txt"})
 		}
 	}
-	return list
+	// the structure alone (outline_io.go, treatment.go): the sections,
+	// scenes' headings, synopses and notes the outline reads
+	return append(list,
+		exportFormat{id: "opml", label: opmlLabel, ext: "opml"},
+		exportFormat{id: "treatment-pdf", label: "Treatment (PDF): sections, synopses, headings and notes", ext: "pdf"},
+		exportFormat{id: "treatment-docx", label: "Treatment (Word, DOCX)", ext: "docx"})
 }
+
+// opmlLabel names the outline export where it is offered, the word OPML
+// and what it is for in one: found by either.
+const opmlLabel = "Outline (OPML) — for Workflowy, OmniOutliner…"
 
 // exportFormats are the formats' labels, in order.
 var exportFormats = func() []string {

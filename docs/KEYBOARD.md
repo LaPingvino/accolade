@@ -35,6 +35,8 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Title Page… | `file.titlePage` | Ctrl+Shift+T | Cmd+Shift+T | Ctrl+Shift+Alt+T | W G | :title-page |
 | Export… | `file.export` | Ctrl+E | Cmd+E | Ctrl+E | F X | :export |
 | Export Clean Fountain… | `file.exportClean` |  |  |  | F C | :export-clean-fountain |
+| Export Outline (OPML) — for Workflowy, OmniOutliner… | `file.exportOutline` |  |  |  |  | :export-outline |
+| Export Treatment (PDF, Word)… | `file.exportTreatment` |  |  |  |  | :export-treatment |
 | Page Setup… | `file.pageSetup` |  |  |  | F G | :page-setup |
 | Print… | `file.print` | Ctrl+P | Cmd+P | Ctrl+P | F 2 | :print |
 | Preferences… | `app.preferences` | Ctrl+, | Cmd+, | Ctrl+, | E 2 | :preferences |
@@ -49,6 +51,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Cut | `edit.cut` | Ctrl+X |  |  | E C | :cut-selection |
 | Copy | `edit.copy` | Ctrl+C |  |  | E O | :copy-selection |
 | Paste | `edit.paste` | Ctrl+V |  |  | E P | :paste |
+| Paste as Structure | `edit.pasteStructure` |  |  |  |  | :paste-structure |
 | Select All | `edit.selectAll` | Ctrl+A |  |  | E S | :select-all |
 | Scene Heading | `format.element.Scene Heading` | Ctrl+1 | Cmd+1 | Ctrl+1 | W S | :element scene-heading |
 | Action | `format.element.Action` | Ctrl+2 | Cmd+2 | Ctrl+2 | W A | :element action |

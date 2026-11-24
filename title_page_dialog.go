@@ -4,6 +4,8 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -363,6 +365,11 @@ func isTitleField(line string, lines []string, i int) bool {
 	}
 	key, value, ok := strings.Cut(line, ":")
 	if !ok || strings.TrimSpace(key) == "" || isSceneHeadingIn(line, nil) {
+		return false
+	}
+	// a key is a word, not Fountain markup (as Lexington reads it): a
+	// [[note: …]], "# Act 1: the kitchen", ".SCENE 1: NIGHT"
+	if r, _ := utf8.DecodeRuneInString(key); !unicode.IsLetter(r) && !unicode.IsDigit(r) {
 		return false
 	}
 	if strings.TrimSpace(value) != "" || key != strings.ToUpper(key) {

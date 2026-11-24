@@ -124,6 +124,8 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:merge-changes** — File > Merge Changes
 - **:export** `[format]` — File > Export
 - **:export-clean-fountain** — File > Export Clean Fountain (screenplay)
+- **:export-outline** — The sections, scenes' headings, synopses and notes as an outline (OPML) for an outliner: Workflowy, OmniOutliner, Dynalist… (File > Export Outline (OPML) — for Workflowy, OmniOutliner) (screenplay)
+- **:export-treatment** — The sections, scenes' headings, synopses and notes as a document to read: PDF or Word (File > Export Treatment (PDF, Word)) (screenplay)
 - **:page-setup** — File > Page Setup
 - **:print** — File > Print
 - **:new-from-structure** `item` — File > New from Structure
@@ -154,6 +156,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:cut-selection** — Edit > Cut
 - **:copy-selection** — Edit > Copy
 - **:paste** — Edit > Paste
+- **:paste-structure** — An outline copied from Workflowy, OmniOutliner… (indented lines or OPML) put in as sections and synopses (Edit > Paste as Structure) (screenplay)
 - **:select-all** — Edit > Select All
 - **:script-language** — Edit > Script Language (screenplay)
 - **:editor-keys** `item` — Edit > Settings > Editor Keys

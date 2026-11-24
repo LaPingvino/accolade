@@ -542,6 +542,12 @@ func (ed *ExportDialog) performExportJob(content, outputPath, format string, job
 		return ed.exportToTXT(content, outputPath)
 	case "text-fountain":
 		return ed.exportToFountain(content, outputPath)
+	case "opml":
+		return writeOutline(content, job.scenes, outputPath)
+	case "treatment-pdf":
+		return exportTreatment(content, job.scenes, outputPath, "pdf", job.page)
+	case "treatment-docx":
+		return exportTreatment(content, job.scenes, outputPath, "docx", job.page)
 	}
 	if _, ok := cli.FormatFor(format); !ok {
 		return fmt.Errorf("unsupported export format: %s", format)

@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<opml version="2.0">
+  <head>
+    <ownerEmail>
+      writer@example.com
+    </ownerEmail>
+  </head>
+  <body>
+    <outline text="The Lighthouse">
+      <outline text="Act One" _note="The keeper's daughter comes home.">
+        <outline text="Mara finds her father's &lt;b&gt;letter&lt;/b&gt; in the lamp room." />
+        <outline text="She decides to stay the winter." _complete="true" />
+      </outline>
+      <outline text="Act Two" _note="The storm, and what it takes.&#10;Nobody sleeps.">
+        <outline text="The storm">
+          <outline text="The storm tears the roof from the boathouse." />
+          <outline text="Tomas goes missing on the water." _note="Is he hiding?" />
+        </outline>
+        <outline text="ext. harbour - night" _note="Mara takes the old boat out alone." />
+      </outline>
+      <outline text="Act Three">
+        <outline text="She finds &lt;i&gt;Tomas&lt;/i&gt; on the rocks &amp;amp; brings him home." />
+        <outline text="" />
+      </outline>
+    </outline>
+  </body>
+</opml>

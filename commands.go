@@ -585,6 +585,13 @@ func newRegistry() *registry {
 		// a copy without Accolade's data, for other apps (clean_fountain.go)
 		&command{id: "file.exportClean", label: "Export Clean Fountain…", tip: "A .fountain without Accolade's data, for other apps",
 			icon: theme.DocumentIcon, when: screenplayOnly, run: (*MainWindow).showCleanFountain},
+		// the structure alone, for an outliner or to read (outline_io.go, treatment.go)
+		&command{id: "file.exportOutline", label: "Export Outline (OPML) — for Workflowy, OmniOutliner…", text: "Export Outline (OPML)", ex: "export-outline",
+			tip:  "The sections, scenes' headings, synopses and notes as an outline (OPML) for an outliner: Workflowy, OmniOutliner, Dynalist…",
+			icon: theme.ListIcon, when: screenplayOnly, run: func(w *MainWindow) { w.reportErr(func() error { return w.exExport("opml") })() }},
+		&command{id: "file.exportTreatment", label: "Export Treatment (PDF, Word)…", ex: "export-treatment",
+			tip:  "The sections, scenes' headings, synopses and notes as a document to read: PDF or Word",
+			icon: theme.DocumentIcon, when: screenplayOnly, run: func(w *MainWindow) { w.reportErr(func() error { return w.exExport("treatment-pdf") })() }},
 		pageSetupCommand(), // how it prints (pagesetup.go)
 		&command{id: "file.print", label: "Print…", icon: theme.DocumentPrintIcon, keys: []fyne.Shortcut{shortcut(fyne.KeyP, 0)}, run: (*MainWindow).print},
 		&command{id: "app.preferences", label: "Preferences…", tip: "Preferences", keys: []fyne.Shortcut{shortcut(fyne.KeyComma, 0)}, icon: theme.SettingsIcon,
@@ -621,6 +628,9 @@ func newRegistry() *registry {
 		&command{id: "edit.cut", label: "Cut", shownKeys: "X", icon: theme.ContentCutIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCut{Clipboard: c} })},
 		&command{id: "edit.copy", label: "Copy", shownKeys: "C", icon: theme.ContentCopyIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutCopy{Clipboard: c} })},
 		&command{id: "edit.paste", label: "Paste", shownKeys: "V", icon: theme.ContentPasteIcon, run: clip(func(c fyne.Clipboard) fyne.Shortcut { return &fyne.ShortcutPaste{Clipboard: c} })},
+		// an outline from an outliner as the script's structure (outline_io.go)
+		&command{id: "edit.pasteStructure", label: "Paste as Structure", ex: "paste-structure", tip: "An outline copied from Workflowy, OmniOutliner… (indented lines or OPML) put in as sections and synopses",
+			icon: theme.ContentPasteIcon, when: screenplayOnly, run: (*MainWindow).pasteStructure},
 		&command{id: "edit.selectAll", label: "Select All", shownKeys: "A", icon: func() fyne.Resource { return selectAllIcon },
 			run: func(w *MainWindow) { w.editShortcut(&fyne.ShortcutSelectAll{}) }},
 	)
@@ -910,12 +920,12 @@ func newRegistry() *registry {
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
 			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.newStructure"), at("file.mergeChanges"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
-			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.pageSetup"), at("file.print"),
+			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.exportOutline"), at("file.exportTreatment"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 		}},
 		{title: "Edit", homes: []home{
 			at("edit.undo"), at("edit.redo"),
-			sep(), at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll"),
+			sep(), at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.pasteStructure"), at("edit.selectAll"),
 			sep(), at("edit.find"), at("edit.replace"), at("edit.findNext"), at("edit.findPrevious"),
 			at("edit.fixLines"),
 			// the script's own: its title page and its language
