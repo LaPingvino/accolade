@@ -187,7 +187,7 @@ func (t *Tree) step(r run, down bool) (Result, error) {
 	what := r.kind().String()
 	if !down {
 		if r.i == lo {
-			return Result{}, Refusal(fmt.Sprintf("Nothing to move it past: the first %s here%s", what, crossHint(r, false)))
+			return Result{}, Refusal(fmt.Sprintf("Nothing to move it past: the first %s here%s", what, t.crossHint(r, false)))
 		}
 		p := r.parent.Kids[r.i-1]
 		a0, a1 := r.lines()
@@ -197,7 +197,7 @@ func (t *Tree) step(r run, down bool) (Result, error) {
 		return res, nil
 	}
 	if r.j == hi {
-		return Result{}, Refusal(fmt.Sprintf("Nothing to move it past: the last %s here%s", what, crossHint(r, true)))
+		return Result{}, Refusal(fmt.Sprintf("Nothing to move it past: the last %s here%s", what, t.crossHint(r, true)))
 	}
 	nx := r.parent.Kids[r.j+1]
 	a0, a1 := r.lines()
@@ -209,12 +209,13 @@ func (t *Tree) step(r run, down bool) (Result, error) {
 
 // crossHint says how a block goes on into the scene beside (a
 // section's own block: the section beside).
-func crossHint(r run, down bool) string {
+func (t *Tree) crossHint(r run, down bool) string {
 	k := r.kind()
+	plan := k == Block && r.parent.Kind == Section && t.planning(r)
 	switch {
-	case k == Block && r.parent.Kind == Section && down:
+	case plan && down:
 		return " (Alt+Shift+Down takes it into the next section)"
-	case k == Block && r.parent.Kind == Section:
+	case plan:
 		return " (Alt+Shift+Up takes it into the section before)"
 	case k == Block && down:
 		return " (Alt+Shift+Down takes it into the next scene)"
@@ -284,6 +285,9 @@ func (t *Tree) promote(r run, a, b int) (Result, error) {
 				}
 			}
 			return t.raise(bl, lo, hi)
+		}
+		if t.planning(r) {
+			return Result{}, Refusal(planHint)
 		}
 		return Result{}, Refusal("Action already: Alt+Right makes it a line of the speech beside it")
 	case Line:
@@ -404,7 +408,7 @@ func (t *Tree) into(r run, next bool) (Result, error) {
 	}
 	a0, a1 := r.lines()
 	own := r.parent
-	if own.Kind == Section {
+	if own.Kind == Section && t.planning(r) {
 		return t.intoSection(r, next)
 	}
 	if next {
@@ -427,8 +431,7 @@ func (t *Tree) into(r run, next bool) (Result, error) {
 	return t.moveTo(r, prev.Last, true, fmt.Sprintf("Into %s, at its end", t.Name(prev)))
 }
 
-// intoSection takes a section's own blocks (a synopsis, a note, action
-// before its scenes) into the section before it in the text (next: after
+// intoSection takes a section's own synopses and notes into the section before it in the text (next: after
 // it), among that one's own blocks: at their end, or their start (after
 // its own synopsis, which stays the first). A
 // section's blocks stay a section's, as a scene's go into scenes.
@@ -484,6 +487,22 @@ func (t *Tree) intoSection(r run, next bool) (Result, error) {
 		return t.moveTo(r, to.Kids[0].First, false, msg)
 	}
 	return t.moveTo(r, to.HeadEnd, true, msg)
+}
+
+// planHint is what Alt+Left and Alt+Right say on a synopsis or a note.
+const planHint = "A synopsis or a note moves with Alt+Up and Alt+Down, and into the section or scene beside with Shift+Alt+Up and Shift+Alt+Down"
+
+// planning tells whether blocks r are all a section's plan: synopses
+// and notes, which go from section to section (the rest, as FADE IN:,
+// goes into scenes).
+func (t *Tree) planning(r run) bool {
+	for _, n := range r.nodes() {
+		l := strings.TrimSpace(t.S.Lines[n.First])
+		if !t.synopsis(n) && !(strings.HasPrefix(l, "[[") && strings.HasSuffix(strings.TrimSpace(t.S.Lines[n.Last]), "]]")) {
+			return false
+		}
+	}
+	return true
 }
 
 // synopsis tells whether block n is a synopsis paragraph ("= …").
@@ -693,6 +712,9 @@ func (t *Tree) lower(r run) (Result, error) {
 	bl := r.first()
 	if t.bone[bl.First] {
 		return Result{}, Refusal("A boneyard (/* … */) is no speech's")
+	}
+	if t.planning(r) {
+		return Result{}, Refusal(planHint)
 	}
 	for l := bl.First; l <= bl.Last; l++ {
 		if k := t.S.Kinds[l]; k != syntax.Action && k != syntax.Note {

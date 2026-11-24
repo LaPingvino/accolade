@@ -94,8 +94,8 @@ func (d sceneDraft) reads() bool {
 }
 
 // newSceneAt is where a new scene goes, in runes: after the scene the
-// cursor is in (before the next heading or section, or before the next
-// synopsis standing on its own in it: a beat still to write); on such a
+// cursor is in (before the next heading or section, or before the
+// synopses standing on their own at its end: beats still to write); on such a
 // synopsis, right before it (the synopsis is the new scene's); between scenes at
 // the cursor's line if it is blank, else after its paragraph; after the
 // title page on it; before the blocks at the end after them.
@@ -127,15 +127,19 @@ func newSceneAt(text string, cursor int, starts []string) int {
 		}
 	}
 	in, next := false, -1
-	for _, it := range items {
+	for k, it := range items {
 		if lineStart(it.Line) >= body {
 			break
 		}
 		if it.Line <= line {
 			in = it.Scene
 			next = -1
-			for _, l := range it.Loose { // before the next synopsis still to write
-				if l.Line > line {
+			end := len(lines)
+			if k+1 < len(items) {
+				end = items[k+1].Line
+			}
+			for _, l := range it.Loose { // before the synopses still to write at its end
+				if l.Line > line && onlyPlans(lines[l.Line:end]) {
 					next = l.Line
 					break
 				}
@@ -186,6 +190,21 @@ func onLooseSynopsis(text string, at, cursor int) bool {
 		return false
 	}
 	return !strings.Contains(string(r[at:cursor]), "\n\n")
+}
+
+// onlyPlans tells whether lines hold nothing but synopses, notes and
+// blank lines (the end blocks too: they are not the scene's).
+func onlyPlans(lines []string) bool {
+	for _, l := range lines {
+		t := strings.TrimSpace(l)
+		if strings.HasPrefix(t, "/*") {
+			return true
+		}
+		if t != "" && !isSynopsisLine(t) && !isNoteLine(t) {
+			return false
+		}
+	}
+	return true
 }
 
 // synopsisEnd is the line after the synopsis paragraph starting at

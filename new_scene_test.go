@@ -254,6 +254,12 @@ func TestNewSceneOnLooseSynopsis(t *testing.T) {
 	if got := string([]rune(text0)[:at0]); got != "# Act\n\nINT. A - DAY\n\n= Own.\n\nAction.\n\n" {
 		t.Errorf("before the next beat: before %q", got)
 	}
+	// a synopsis with more of the scene after it is the scene's: after the scene
+	text1 := "INT. A - DAY\n\nAction.\n\n= A moment in it.\n\nMore.\n\nINT. B - DAY\n\nB.\n"
+	at1 := newSceneAt(text1, r(text1[:strings.Index(text1, "Action")]), starts)
+	if got := string([]rune(text1)[:at1]); got != "INT. A - DAY\n\nAction.\n\n= A moment in it.\n\nMore.\n\n" {
+		t.Errorf("past a mid-scene synopsis: before %q", got)
+	}
 	// a heading's own synopsis: after its paragraph, as before
 	text := "# Act\n\n= Own.\n\n= Beat one.\n"
 	at := newSceneAt(text, r(text[:strings.Index(text, "Own")]), starts)

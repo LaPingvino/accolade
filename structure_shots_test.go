@@ -128,14 +128,15 @@ func TestStructureBeatsToScript(t *testing.T) {
 	comboShot(t, w, "structure-5-grown-cards")
 	w.showMiddle("")
 
-	// the PDF: the scenes, no sections, synopses or notes
+	// the PDF: the scenes, no sections, synopses or notes (a structure's
+	// note on how to use it among them)
 	out := filepath.Join(t.TempDir(), "b.pdf")
-	if err := exportAs(text(), out, "pdf", exportJob{format: "default"}); err != nil {
+	if err := exportAs(structureText(structureTemplates[0])+"\n"+text(), out, "pdf", exportJob{format: "default"}); err != nil {
 		t.Fatal(err)
 	}
 	if b, err := exec.Command("pdftotext", "-layout", out, "-").Output(); err == nil {
 		pdf := string(b)
-		if !strings.Contains(pdf, "HARBOUR") || strings.Contains(pdf, "Act One") || strings.Contains(pdf, "Mara finds") {
+		if !strings.Contains(pdf, "HARBOUR") || strings.Contains(pdf, "Act One") || strings.Contains(pdf, "Mara finds") || strings.Contains(pdf, "Help > Structure") {
 			t.Errorf("the PDF:\n%s", pdf)
 		}
 	}

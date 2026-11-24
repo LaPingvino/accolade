@@ -401,6 +401,26 @@ func TestIntoSectionBlocks(t *testing.T) {
 			}
 		})
 	}
+	// other paragraphs of a section (FADE IN:, action before its first
+	// scene) still go into the scene beside
+	const f = "Title: T\n\n# Act\n\nFADE IN:\n\nINT. A - DAY\n\nRain.\n"
+	l0 := lineOf(t, f, "FADE IN:")
+	if got, _, err := do(f, IntoNext, l0, l0); err != nil || got != "Title: T\n\n# Act\n\nINT. A - DAY\n\nFADE IN:\n\nRain.\n" {
+		t.Errorf("FADE IN: into the next scene: %v\n%s", err, got)
+	}
+	// a note goes as a synopsis does
+	const n = "Title: T\n\n# One\n\n[[ask Anna]]\n\n# Two\n\n= c\n"
+	l1 := lineOf(t, n, "[[ask Anna]]")
+	if got, _, err := do(n, IntoNext, l1, l1); err != nil || got != "Title: T\n\n# One\n\n# Two\n\n= c\n\n[[ask Anna]]\n" {
+		t.Errorf("a note into the next section: %v\n%q", err, got)
+	}
+	// Alt+Left and Alt+Right on a synopsis say what moves it
+	for _, op := range []Op{Promote, Demote} {
+		l := lineOf(t, s, "= c")
+		if _, _, err := do(s, op, l, l); err == nil || !strings.Contains(err.Error(), "A synopsis or a note moves with") {
+			t.Errorf("%v on a synopsis: %v", op, err)
+		}
+	}
 	// the first block of a section: the hint names the section before
 	l := lineOf(t, s, "= c")
 	if _, _, err := do(s, MoveUp, l, l); err == nil || !strings.Contains(err.Error(), "into the section before") {

@@ -32,7 +32,7 @@ Fountain never closes a section or a scene: whatever you write after a heading b
 
 ## Printing
 
-Sections, synopses and notes are left out of the PDF and the other exports, so the structure can stay in the script while you write the scenes, and come out again whenever you want to look at it.
+The PDF, Print, Word, ODT, HTML and Final Draft exports leave sections and synopses out, and notes too, so the structure can stay in the script while you write the scenes. To have it on paper or to share it, export Fountain (as written), or one of the text formats made with pandoc (Markdown, RTF, Org…), which keep it; Export Clean Fountain… asks whether to keep the sections and synopses.
 
 ## One way to work: from beats to script
 

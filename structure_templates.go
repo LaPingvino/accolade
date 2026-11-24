@@ -155,32 +155,32 @@ var structureTemplates = []structureTemplate{
 = The known world: wanting, and setting out.
 
 ## 1. You
-= Someone in their comfort zone.
+= Someone at ease in the world they know.
 
 ## 2. Need
-= They want something.
+= Something is missing, and they want it.
 
 ## 3. Go
-= They enter an unfamiliar situation.
+= They cross into a place they do not know.
 
 ## 4. Search
-= They adapt to it.
+= They struggle there, and learn its ways.
 
 # Chaos
 
 = The unknown: getting, paying, coming back changed.
 
 ## 5. Find
-= They get what they wanted.
+= They find what they were after.
 
 ## 6. Take
-= They pay a heavy price for it.
+= It costs them dearly.
 
 ## 7. Return
-= They go back to where they started.
+= They come back to where they began.
 
 ## 8. Change
-= Having changed.
+= They are not who they were.
 `},
 	{name: "Kishōtenketsu", body: `# Ki: Introduction
 
@@ -203,7 +203,7 @@ var structureTemplates = []structureTemplate{
 = The world before, and the push out of it.
 
 ## Opening Image
-= A snapshot of the hero's world before.
+= The first picture: the hero's world as it is.
 
 ## Theme Stated
 = Someone says what the story is really about.
@@ -228,13 +228,13 @@ var structureTemplates = []structureTemplate{
 = A second story, often a relationship, that carries the theme.
 
 ## Fun and Games
-= The promise of the premise: what the story is for.
+= The premise played out: the scenes the audience came for.
 
 ## Midpoint
-= A false victory or a false defeat; the stakes go up.
+= Things look won, or lost, and the stakes go up.
 
 ## Bad Guys Close In
-= Enemies outside and doubts inside press on.
+= Pressure grows from outside and from within.
 
 ## All Is Lost
 = The lowest moment; something or someone is lost.
