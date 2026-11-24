@@ -3,6 +3,7 @@ package main
 import (
 	"image/png"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,6 +27,17 @@ func TestMain(m *testing.M) {
 	// nor the settings: a test that saves them (a ribbon toggle, Preferences)
 	// with no folder of its own writes here, never the user's settings.json
 	realHome, _ = os.UserHomeDir()
+	// Go's own folders stay where they are: a test that runs `go list -m`
+	// (lexingtonSamples) finds the module cache under the real home
+	for _, k := range []string{"GOPATH", "GOMODCACHE", "GOCACHE", "GOENV"} {
+		if os.Getenv(k) == "" {
+			if v, err := exec.Command("go", "env", k).Output(); err == nil {
+				if s := strings.TrimSpace(string(v)); s != "" {
+					os.Setenv(k, s)
+				}
+			}
+		}
+	}
 	home, err := os.MkdirTemp("", "accolade-home-")
 	if err != nil {
 		panic(err)
