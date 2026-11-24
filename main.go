@@ -353,22 +353,31 @@ func (app *Application) applySettingsToWindows() {
 }
 
 func (app *Application) setColorScheme(scheme string) {
-	if app.schemeSet && scheme == app.scheme { // a new window: the theme is set already
+	s := GetSettings()
+	// the variant and the custom theme are part of what is shown: a
+	// change to either applies again under the same name
+	key := scheme + "|" + s.GetString(themeVariantPref)
+	if scheme == customThemeID {
+		key += "|" + s.GetString(themeCustomPref)
+	}
+	if app.schemeSet && key == app.scheme { // a new window: the theme is set already
 		return
 	}
-	app.scheme, app.schemeSet = scheme, true
-	log.Printf("Setting color scheme to: %s", scheme)
-
-	switch scheme {
-	case "light":
-		app.fyneApp.Settings().SetTheme(&LightTheme{})
-	case "dark":
-		app.fyneApp.Settings().SetTheme(&DarkTheme{})
-	case "sepia":
-		app.fyneApp.Settings().SetTheme(&SepiaTheme{})
-	default:
-		// Fyne's own theme follows the system's light/dark preference
-		app.fyneApp.Settings().SetTheme(theme.DefaultTheme())
+	app.scheme, app.schemeSet = key, true
+	log.Printf("Setting color scheme to: %s", key)
+	app.fyneApp.Settings().SetTheme(newAccoladeTheme(scheme, s.GetString(themeVariantPref), loadCustomTheme(s)))
+	for _, w := range app.windows { // the marks hold their colours: again in the new ones
+		if w.ribbon != nil {
+			w.ribbon.build() // its captions (Slate's capitals)
+		}
+		if w.notes != nil {
+			w.notes.list.Refresh()
+		}
+		if w.textEditor != nil {
+			w.updateOpen()
+			w.revisions.key = ""
+			w.scheduleRevisionMarks()
+		}
 	}
 }
 

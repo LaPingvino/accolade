@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/theme"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/accolade/internal/scriptdiff"
@@ -460,6 +461,7 @@ func (w *MainWindow) updateRevisionMarks() {
 		return
 	}
 	text, all, key := w.textEditor.Text(), w.marksAll(), w.revisions.key
+	bg := theme.Color(theme.ColorNameBackground) // the inks fit the theme (theme_contrast.go)
 	w.revisionRun++
 	run := w.revisionRun
 	type shown struct {
@@ -472,7 +474,7 @@ func (w *MainWindow) updateRevisionMarks() {
 		ink := map[int]color.Color{}
 		for i, m := range marks {
 			if m != "" {
-				ink[i] = revisionInk(m)
+				ink[i] = fitInk(revisionInk(m), bg)
 			}
 		}
 		return shown{marks, ink, current}

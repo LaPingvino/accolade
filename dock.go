@@ -1055,20 +1055,7 @@ func (t *dockTab) CreateRenderer() fyne.WidgetRenderer {
 	}
 	r.refresh = func() {
 		text.Text = t.title
-		text.TextStyle.Bold = t.selected
-		text.Color = theme.Color(theme.ColorNameForeground)
-		switch {
-		case t.focused:
-			bg.FillColor = theme.Color(theme.ColorNameFocus)
-		case t.hovered:
-			bg.FillColor = theme.Color(theme.ColorNameHover)
-		default:
-			bg.FillColor = color.Transparent
-		}
-		line.FillColor = color.Transparent
-		if t.selected {
-			line.FillColor = theme.Color(theme.ColorNamePrimary)
-		}
+		paintTab(bg, line, text, t.selected, t.focused, t.hovered)
 		bg.Refresh()
 		line.Refresh()
 		text.Refresh()

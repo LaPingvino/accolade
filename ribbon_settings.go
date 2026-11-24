@@ -27,9 +27,6 @@ const (
 	maxFontSize = 32
 )
 
-// themeChoices are the themes, as Preferences names them, and their labels.
-var themeChoices = [][2]string{{"system", "System"}, {"light", "Light"}, {"dark", "Dark"}, {"sepia", "Sepia"}}
-
 // changeSetting runs set on the settings, saves them, and applies them to
 // every window (and to an open Preferences window: key).
 func (w *MainWindow) changeSetting(key string, set func(s *Settings)) {
@@ -152,7 +149,12 @@ func settingCommands() []*command {
 			w.setStatus("Toolbar hidden: View > Toolbar shows it again")
 		}
 	})
-	return append(cs, editorKeysCommand(), fontCommand(), newLanguageCommand(), defaultLanguageCommand(), toolbar, numbers, draftsSideBySideCommand())
+	variant := choiceSetting("set.themeVariant", "Light or Dark", themeVariantPref, themeIcon, themeVariantChoices, func(w *MainWindow, _ string) {
+		if w.app != nil {
+			w.app.setColorScheme(w.settings.GetString("theme"))
+		}
+	})
+	return append(cs, editorKeysCommand(), fontCommand(), newLanguageCommand(), defaultLanguageCommand(), toolbar, numbers, draftsSideBySideCommand(), variant)
 }
 
 // editorKeysChoices are the editor's keys, as Preferences names them, and
@@ -390,7 +392,9 @@ func (pd *PreferencesDialog) followSetting(key string) {
 	case "script-format":
 		machineLex().selectFormat(pd.scriptFormatSelect, s.GetString("script-format"))
 	case "theme":
-		pd.themeSelect.SetSelected(s.GetString("theme"))
+		pd.themeSelect.SetSelected(themeLabel(s.GetString("theme")))
+	case themeVariantPref:
+		pd.variantSelect.SetSelected(choiceLabel(themeVariantChoices, s.GetString(themeVariantPref)))
 	case lookPref:
 		pd.lookSelect.SetSelected(lookChoices[0])
 		if s.GetString(lookPref) == "ribbon" {

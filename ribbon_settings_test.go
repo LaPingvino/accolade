@@ -90,7 +90,7 @@ func TestRibbonSettings(t *testing.T) {
 	s.SetInt("font-size", size)
 
 	pressMenuItem(t, w, "set.theme", "Dark")
-	if s.GetString("theme") != "dark" || pd.themeSelect.Selected != "dark" {
+	if s.GetString("theme") != "dark" || pd.themeSelect.Selected != "Dark" {
 		t.Errorf("Theme: %q, Preferences %q", s.GetString("theme"), pd.themeSelect.Selected)
 	}
 

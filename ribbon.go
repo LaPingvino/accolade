@@ -578,9 +578,10 @@ func (r *ribbonBar) build() {
 		if r.env.markdown && g.mdTitle != "" {
 			caption = g.mdTitle
 		}
-		title := widget.NewLabel(caption)
+		title := widget.NewLabel(capsLabel(caption))
 		title.SizeName = theme.SizeNameCaptionText
 		title.Importance = widget.LowImportance
+		title.TextStyle.Bold = themeTraits().caps
 		title.Alignment = fyne.TextAlignCenter
 		fyne.SetAccessibleLabel(title, caption+" group")
 		r.groupBox.Add(container.NewBorder(nil, title, nil, nil, content))
@@ -1312,20 +1313,7 @@ func (t *ribbonTabButton) CreateRenderer() fyne.WidgetRenderer {
 	}
 	r.refresh = func() {
 		text.Text = t.title
-		text.TextStyle.Bold = t.selected
-		text.Color = theme.Color(theme.ColorNameForeground)
-		switch {
-		case t.focused:
-			bg.FillColor = theme.Color(theme.ColorNameFocus)
-		case t.hovered:
-			bg.FillColor = theme.Color(theme.ColorNameHover)
-		default:
-			bg.FillColor = color.Transparent
-		}
-		line.FillColor = color.Transparent
-		if t.selected {
-			line.FillColor = theme.Color(theme.ColorNamePrimary)
-		}
+		paintTab(bg, line, text, t.selected, t.focused, t.hovered)
 		badge.show(t.tip)
 		bg.Refresh()
 		line.Refresh()

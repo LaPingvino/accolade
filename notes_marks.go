@@ -104,10 +104,17 @@ func (w *MainWindow) updateOpen() {
 }
 
 // marginColor is a kind's mark in the margin: its colour faded, not to
-// be taken for a revision's.
+// be taken for a revision's, yet standing out of the background as a
+// mark must (3:1, theme_contrast.go).
 func marginColor(k openKind) color.Color {
-	r, g, b, _ := kindColor(k).RGBA()
-	return color.NRGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), 0x60}
+	return marginColorOf(fyne.CurrentApp().Settings().Theme(), fyne.CurrentApp().Settings().ThemeVariant(), k)
+}
+
+func marginColorOf(th fyne.Theme, v fyne.ThemeVariant, k openKind) color.Color {
+	bg := th.Color(theme.ColorNameBackground, v)
+	n := color.NRGBAModel.Convert(kindColorOf(th, v, k)).(color.NRGBA)
+	n.A = 0x90
+	return fitInk(over(n, bg), bg)
 }
 
 // marksShown are the editor's margin marks: the revisions' colours

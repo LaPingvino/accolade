@@ -31,7 +31,8 @@ func NewSettings() *Settings {
 func (s *Settings) loadDefaults() {
 	defaults := map[string]interface{}{
 		// Theme settings
-		"theme": "system",
+		"theme":         "system",
+		"theme-variant": "system", // light or dark: the system's, or one (themes.go)
 
 		// Editor settings
 		"font-family":       "monospace",

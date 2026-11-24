@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
@@ -214,19 +215,25 @@ func layoutSpacer() fyne.CanvasObject {
 
 // kindColor is the colour a kind is marked in: in the pane, the margin.
 func kindColor(k openKind) color.Color {
+	return kindColorOf(fyne.CurrentApp().Settings().Theme(), fyne.CurrentApp().Settings().ThemeVariant(), k)
+}
+
+// kindColorOf is kindColor in a theme: to-dos amber, cuts in the accent,
+// beats green, notes the theme's notes' edge (Slate's blue).
+func kindColorOf(th fyne.Theme, v fyne.ThemeVariant, k openKind) color.Color {
 	switch k {
 	case openTodo:
-		return theme.Color(theme.ColorNameWarning)
+		return th.Color(theme.ColorNameWarning, v)
 	case openCut:
-		return theme.Color(theme.ColorNamePrimary)
+		return th.Color(theme.ColorNamePrimary, v)
 	case openBeat:
-		return theme.Color(theme.ColorNameSuccess)
-	case openRevision:
-		return revisionNoteColor
+		return th.Color(theme.ColorNameSuccess, v)
+	case openRevision: // its violet, standing out of the theme's background
+		return fitInk(revisionNoteColor, th.Color(theme.ColorNameBackground, v))
 	case openCheck:
-		return theme.Color(theme.ColorNameError)
+		return th.Color(theme.ColorNameError, v)
 	}
-	return theme.Color(theme.ColorNameDisabled)
+	return editor.Themed(th, colorNameNoteMark, v, th.Color(theme.ColorNameDisabled, v))
 }
 
 // revisionNoteColor is a kept finding's: a violet, neither a to-do's
@@ -257,7 +264,8 @@ func (p *notesPanel) showRow(id int, row *fyne.Container) {
 		case it.Kind == openTodo && it.Done:
 			label = "Done"
 		}
-		what.SetText(fmt.Sprintf("%s · line %d", label, it.Line+1))
+		what.TextStyle.Bold = themeTraits().caps
+		what.SetText(capsLabel(fmt.Sprintf("%s · line %d", label, it.Line+1)))
 		text.TextStyle = fyne.TextStyle{}
 		text.SizeName = theme.SizeNameText
 		t := it.Text

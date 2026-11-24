@@ -93,7 +93,7 @@ func TestResetToDefaultsWaitsForOK(t *testing.T) {
 	defaults := &Settings{data: map[string]interface{}{}}
 	defaults.loadDefaults()
 	pd.loadFrom(defaults) // what the confirmed reset does
-	if pd.themeSelect.Selected != "system" {
+	if pd.themeSelect.Selected != "System" {
 		t.Errorf("shown theme %q", pd.themeSelect.Selected)
 	}
 	if w.settings.GetString("theme") != "dark" {
@@ -165,10 +165,10 @@ func TestNewWindowTakesTheSavedTheme(t *testing.T) {
 	app := &Application{fyneApp: a}
 	w := NewMainWindow(app)
 	t.Cleanup(w.stopTimers)
-	if _, ok := a.Settings().Theme().(*DarkTheme); !ok {
+	if shownThemeID() != "dark" {
 		t.Fatalf("the new window's theme: %T", a.Settings().Theme())
 	}
-	other := &LightTheme{}
+	other := newAccoladeTheme("light", "", nil)
 	a.Settings().SetTheme(other) // (not through setColorScheme: what a second window would undo)
 	w2 := NewMainWindow(app)
 	t.Cleanup(w2.stopTimers)
@@ -177,7 +177,7 @@ func TestNewWindowTakesTheSavedTheme(t *testing.T) {
 	}
 	app.setColorScheme("light")
 	app.setColorScheme("dark")
-	if _, ok := a.Settings().Theme().(*DarkTheme); !ok {
+	if shownThemeID() != "dark" {
 		t.Errorf("a changed scheme is not applied: %T", a.Settings().Theme())
 	}
 }

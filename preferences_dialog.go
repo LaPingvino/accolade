@@ -35,6 +35,8 @@ type PreferencesDialog struct {
 	roleSelect            *widget.Select // Writer or Production (role.go)
 	productionCard        *widget.Card   // the Script tab's production settings: Production's only
 	themeSelect           *widget.Select
+	variantSelect         *widget.Select // light or dark (theme-variant)
+	themeModes            *widget.Label  // what the chosen theme has: light and dark, or one
 	lookSelect            *widget.Select // the header's rows or the ribbon
 	toolbarVisibleCheck   *widget.Check
 	statusbarVisibleCheck *widget.Check
@@ -100,7 +102,9 @@ func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDial
 
 func (pd *PreferencesDialog) createWidgets() {
 	pd.roleSelect = widget.NewSelect(roleLabels, func(string) { pd.showRole() })
-	pd.themeSelect = widget.NewSelect([]string{"system", "light", "dark", "sepia"}, nil)
+	pd.themeSelect = widget.NewSelect(themeLabels(), func(string) { pd.showThemeModes() })
+	pd.variantSelect = widget.NewSelect(choiceLabels(themeVariantChoices), nil)
+	pd.themeModes = hint("")
 	pd.lookSelect = widget.NewSelect(lookChoices, nil)
 	pd.toolbarVisibleCheck = widget.NewCheck("Show toolbar", nil)
 	pd.statusbarVisibleCheck = widget.NewCheck("Show status bar", nil)
@@ -211,6 +215,9 @@ func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
 		)),
 		widget.NewCard("Appearance", "", container.NewVBox(
 			labelled("Theme:", pd.themeSelect),
+			labelled("Light or dark:", pd.variantSelect),
+			pd.themeModes,
+			container.NewHBox(widget.NewButtonWithIcon("Customize Colours…", theme.ColorPaletteIcon(), pd.customizeTheme)),
 			labelled("Look:", pd.lookSelect),
 			hint("Menus: the menu bar and the toolbar's two rows. Ribbon: tabs of large buttons in their place, the menus under ☰ at the tab row's end (a Mac keeps its menu bar); F10, or Alt pressed alone, shows their keys."),
 			pd.toolbarVisibleCheck,
@@ -320,7 +327,8 @@ func (pd *PreferencesDialog) loadCurrentSettings() { pd.loadFrom(pd.settings) }
 // loadFrom shows the settings of s in the window.
 func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.roleSelect.SetSelected(roleLabel(s.GetString(rolePref)))
-	pd.themeSelect.SetSelected(s.GetString("theme"))
+	pd.themeSelect.SetSelected(themeLabel(s.GetString("theme")))
+	pd.variantSelect.SetSelected(choiceLabel(themeVariantChoices, s.GetString(themeVariantPref)))
 	pd.lookSelect.SetSelected(lookChoices[0])
 	if s.GetString(lookPref) == "ribbon" {
 		pd.lookSelect.SetSelected(lookChoices[1])
@@ -365,9 +373,12 @@ func (pd *PreferencesDialog) saveSettings() {
 	if pd.roleSelect.Selected != "" {
 		s.SetString(rolePref, roleOfLabel(pd.roleSelect.Selected))
 	}
+	if pd.variantSelect.Selected != "" {
+		s.SetString(themeVariantPref, choiceID(themeVariantChoices, pd.variantSelect.Selected))
+	}
 	if pd.themeSelect.Selected != "" {
-		s.SetString("theme", pd.themeSelect.Selected)
-		pd.app.setColorScheme(pd.themeSelect.Selected)
+		s.SetString("theme", themeIDOf(pd.themeSelect.Selected))
+		pd.app.setColorScheme(themeIDOf(pd.themeSelect.Selected))
 	}
 	s.SetString(lookPref, "menus")
 	if pd.lookSelect.Selected == lookChoices[1] {

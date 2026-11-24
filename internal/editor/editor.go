@@ -244,6 +244,7 @@ type drawing struct {
 	th                                       fyne.Theme
 	v                                        fyne.ThemeVariant
 	selected, cursor, highlight, number      *widget.CustomTextGridStyle
+	fold                                     *widget.CustomTextGridStyle // the fold marks and a folded block's summary
 	chip, chipWarn                           *widget.CustomTextGridStyle // a chip's label; a warning chip's
 	flash                                    color.Color
 	selStart, selEnd, curRow, curCol, gutter int
@@ -580,12 +581,13 @@ func (e *ScriptEditor) relayout() {
 	highlight := &widget.CustomTextGridStyle{BGColor: th.Color(theme.ColorNameHover, v)}
 	if c := th.Color(theme.ColorNameWarning, v); c != nil {
 		r, g, b, _ := c.RGBA()
-		highlight.BGColor = color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0x60}
+		highlight.BGColor = color.NRGBA{R: uint8(r >> 8), G: uint8(g >> 8), B: uint8(b >> 8), A: 0x48}
 	}
 	selStart, selEnd := e.buf.Selection()
 	curRow, curCol := e.layout.RowCol(e.buf.Cursor())
 
 	number := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNamePlaceHolder, v)}
+	fold := &widget.CustomTextGridStyle{FGColor: Themed(th, ColorNameFold, v, number.FGColor)}
 	others := e.buf.Spans()[1:]
 	var otherCursors map[int][]int
 	for _, o := range others {
@@ -603,7 +605,7 @@ func (e *ScriptEditor) relayout() {
 	chipWarn := &widget.CustomTextGridStyle{FGColor: th.Color(theme.ColorNameWarning, v),
 		BGColor: color.NRGBA{R: uint8(wr >> 8), G: uint8(wg >> 8), B: uint8(wb >> 8), A: 0x28}}
 	e.draw = drawing{chip: chip, chipWarn: chipWarn, flash: flash, text: text, kinds: kinds, inline: inline, lineStart: lineStart, th: th, v: v, selected: selected, cursor: cursor,
-		highlight: highlight, number: number, selStart: selStart, selEnd: selEnd,
+		highlight: highlight, number: number, fold: fold, selStart: selStart, selEnd: selEnd,
 		curRow: curRow, curCol: curCol, gutter: g, others: others, otherCursors: otherCursors, peers: e.drawPeers()}
 	e.drawRows()
 }
@@ -864,7 +866,7 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, _ []cellCol, from,
 	d := &e.draw
 	text, kinds, th, v, g := d.text, d.kinds, d.th, d.v, d.gutter
 	selStart, selEnd, curRow, curCol := d.selStart, d.selEnd, d.curRow, d.curCol
-	selected, cursor, highlight, number := d.selected, d.cursor, d.highlight, d.number
+	selected, cursor, highlight, number, fold := d.selected, d.cursor, d.highlight, d.number, d.fold
 	highlighted := func(off int) bool {
 		for _, h := range e.highlights {
 			if off >= h[0] && off < h[1] {
@@ -896,7 +898,7 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, _ []cellCol, from,
 			mark = "▾ "
 		}
 		for _, ch := range mark {
-			b.plain(ch, number)
+			b.plain(ch, fold)
 		}
 		if m := e.marks[r.Line]; m != nil { // the mark's bar, on each of the line's rows
 			b.cells[len(b.cells)-1] = widget.TextGridCell{Rune: markBar, Style: m}
@@ -914,7 +916,7 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, _ []cellCol, from,
 	}
 	if first && e.blockAt[r.Line] { // a folded block: its summary, quiet
 		at := len(b.cells)
-		e.labelCells(&b, r, number)
+		e.labelCells(&b, r, fold)
 		return widget.TextGridRow{Cells: b.cells}, b.cols, at, at
 	}
 	from = len(b.cells)
@@ -1220,9 +1222,11 @@ func (e *ScriptEditor) Refresh() {
 func kindStyle(k syntax.Kind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGridStyle {
 	fg := th.Color(theme.ColorNameForeground, v)
 	dim := mix(fg, th.Color(theme.ColorNameBackground, v), 0.45)
+	heading := Themed(th, ColorNameSceneHeading, v, th.Color(theme.ColorNamePrimary, v))
+	note := Themed(th, ColorNameNote, v, dim)
 	switch k {
 	case syntax.SceneHeading:
-		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: th.Color(theme.ColorNamePrimary, v)}
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: heading}
 	case syntax.Character:
 		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: fg}
 	case syntax.Parenthetical:
@@ -1232,16 +1236,16 @@ func kindStyle(k syntax.Kind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGri
 	case syntax.Transition, syntax.TitlePage, syntax.PageBreak:
 		return &widget.CustomTextGridStyle{FGColor: dim}
 	case syntax.Note, syntax.Section, syntax.Synopsis:
-		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: dim}
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: note}
 	// Markdown: headings are its landmarks, as scene headings are a script's
 	case syntax.MdHeading:
-		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: th.Color(theme.ColorNamePrimary, v)}
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: heading}
 	case syntax.MdQuote:
 		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: fg}
 	case syntax.MdCode, syntax.MdCodeFence, syntax.MdRule, syntax.MdFrontMatter:
 		return &widget.CustomTextGridStyle{FGColor: dim}
 	case syntax.MdComment:
-		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: dim}
+		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: note}
 	}
 	return nil
 }
