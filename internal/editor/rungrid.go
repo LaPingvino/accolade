@@ -124,6 +124,7 @@ func (r *runRenderer) Refresh() {
 	fg := th.Color(theme.ColorNameForeground, v)
 	size := th.Size(theme.SizeNameText)
 	cw, ch := r.g.e.cellWidth(), r.g.e.cellHeight()
+	mono := th.Font(fyne.TextStyle{Monospace: true})
 	nt, nr, ni := 0, 0, 0
 	for y, row := range r.g.Rows {
 		cells, cc := row.Cells, r.g.Cols[y]
@@ -182,7 +183,7 @@ func (r *runRenderer) Refresh() {
 			// (one cut off from its letters by a style or a wide character
 			// stands alone)
 			alone := inText && bd.level(i) > 0 && !leads(cells[i].Rune, int8(bd.level(i)))
-			for j < len(cells) && narrow(cells[j].Rune, cc[j].W) && cells[j].Rune != wideFill &&
+			for j < len(cells) && narrow(mono, cells[j].Rune, cc[j].W) && cells[j].Rune != wideFill &&
 				(j > i && cc[j].Join || // a cluster is drawn whole (क्ष, कि), in its first cell's style
 					(j == i || !boundary(j) && !alone) && (!inText || j == i || joins[j]) &&
 						styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col)) {
@@ -321,9 +322,10 @@ func (r *runRenderer) rect(i int) *canvas.Rectangle {
 // narrow: a character as wide as a cell, or one taking no column of its
 // own (w, its cellCol's: a mark, a cluster's sign), that the editor's font
 // has (wider ones, from the CJK ranges on, and those the font lacks, drawn
-// in another, are drawn one by one, each in its cells).
-func narrow(r rune, w int8) bool {
-	return w == 0 || (r < 0x1100 && (r < 0x250 || inFont(r)))
+// in another, are drawn one by one, each in its cells). font is the one the
+// row is drawn in (the editor theme's monospace one).
+func narrow(font fyne.Resource, r rune, w int8) bool {
+	return w == 0 || (r < 0x1100 && (r < 0x250 || inFont(font, r)))
 }
 
 var (
@@ -333,15 +335,13 @@ var (
 	fontRunesMu sync.Mutex
 )
 
-// inFont reports whether the editor's font (the theme's monospace one)
-// has a character.
-func inFont(r rune) bool {
+// inFont reports whether a font (the editor theme's monospace one, not
+// the app theme's: that is Fyne's, without Devanagari, and a cluster of a
+// word drawn apart from the next lost the font's joins, the headline
+// between them) has a character.
+func inFont(res fyne.Resource, r rune) bool {
 	fontRunesMu.Lock()
 	defer fontRunesMu.Unlock()
-	res := theme.TextMonospaceFont()
-	if app := fyne.CurrentApp(); app != nil {
-		res = app.Settings().Theme().Font(fyne.TextStyle{Monospace: true})
-	}
 	if res != fontOf {
 		fontOf, fontParsed = res, nil
 		clear(fontRunes)

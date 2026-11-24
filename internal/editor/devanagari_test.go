@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 
@@ -269,5 +270,30 @@ func TestDevanagariBidiRows(t *testing.T) {
 				t.Errorf("%q: click at column %v lands inside a cluster (%d)", line, x, off)
 			}
 		}
+	}
+}
+
+// A Devanagari line is drawn as one text, in the font the editor is
+// drawn in (Accolade's: a theme override on the editor; the app's theme,
+// Fyne's, has no Devanagari): its clusters shaped together, so the font's
+// joins (the headline from cluster to cluster, Courier Badi's .h pads)
+// are drawn. Drawn a cluster at a time, each headline stopped short of
+// the next.
+func TestDevanagariWordDrawnWhole(t *testing.T) {
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	e := New("मगरमच्छ जामुन")
+	w := test.NewWindow(container.NewThemeOverride(e, courierTheme{theme.DefaultTheme()}))
+	t.Cleanup(w.Close)
+	e.Resize(fyne.NewSize(e.cellWidth()*40+1, 300))
+	e.changed(false)
+	var got []string
+	for _, o := range test.WidgetRenderer(e.grid).(*runRenderer).Objects() {
+		if tx, ok := o.(*canvas.Text); ok && tx.Text != "" && tx.Visible() {
+			got = append(got, tx.Text)
+		}
+	}
+	if len(got) != 1 || got[0] != "मगरमच्छ जामुन" {
+		t.Errorf("drawn as %q, want the line whole", got)
 	}
 }
