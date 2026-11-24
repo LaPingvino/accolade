@@ -1974,3 +1974,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   notes marked to do, checks' findings) is read from the text itself, never a separate list. One place shows it all
   — a "What's open" step-through (and its count as a quiet call to action in the status bar), filterable by kind,
   each item moving the cursor there; done means the text changed so the item is gone (or the note removed).
+  Joop 2026-11-24: "TODO notes are already a common note type anyway, right? we might want to have a TODO ribbon
+  that goes over all TODO notes and otherwise undealt with elements. maybe that's a natural part of the Revision
+  ribbon idea." / "We could enable opening that as a side bar too". Today `[[todo: …]]` is only a convention
+  (Lexington's parser knows the shape; Accolade has no note kind for it) and the Source pane has its own passage
+  status "to do". So: recognise `[[todo: …]]` / `[[TODO …]]` notes (and the source pane's to-do passages) as to-do
+  items; the Revision ribbon's step-through covers them with the other open items; and the same list docks as a
+  side pane ("What's open"), like the other dock panes — one list, two places (ribbon to step, pane to browse/filter).
