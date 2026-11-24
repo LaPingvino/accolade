@@ -1950,3 +1950,14 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   on many at once where the action is mechanical (e.g. fix every flagged transition). Kept notes are picked up later
   like any note. One mechanism for the screenplay and for Markdown prose (the source pane's checks). Built on the
   existing notes/linter/annotations, no parallel store (falls out naturally, fewer odd bugs).
+- 2026-11-24 (Joop: "All proposals sound great 🙂 for the outline export, maybe also allow import and support opml.
+  Software like Workflowy also support this." / "If you look for it, you need to be able to recognize it, don't hide
+  it too well"): STRUCTURE FOLLOW-UPS (branch structure2), after beats: (1) Outline export (OPML) and a Treatment export
+  (PDF/Word: sections, synopses, headings, notes); OPML import through File › Open (recognised by content, the dialog's
+  filter "Outline (.opml)") and pasting indented text from outliners (Paste as Structure); round-trip lossless; menu
+  "Outline (OPML) — for Workflowy, OmniOutliner…", palette and :export opml find it, a help section titled OPML.
+  (2) synopsis cards draggable (the same structure move); (3) a scene-less section gets a compact add row, not empty
+  "New scene" cards; (4) a heading's own synopsis only when it touches the heading (the first beat stays a beat);
+  (5) a section's synopsis at the same weight as its beats; (6) the breakdown sheets read a scene's synopsis as the
+  outline does (Lexington's report); (7) Insert Structure at the cursor's section boundary; rename "Into the Scene
+  Before/Next" to "Into the One Before/Next".
