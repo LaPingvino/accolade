@@ -918,7 +918,7 @@ func newRegistry() *registry {
 	headings = append(headings, at("md.heading0"))
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
-			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"),
+			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"), at("set.newLanguage"),
 			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.newStructure"), at("file.mergeChanges"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
 			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.exportOutline"), at("file.exportTreatment"), at("file.pageSetup"), at("file.print"),
@@ -930,7 +930,7 @@ func newRegistry() *registry {
 			sep(), at("edit.find"), at("edit.replace"), at("edit.findNext"), at("edit.findPrevious"),
 			at("edit.fixLines"),
 			// the script's own: its title page and its language
-			sep(), at("file.titlePage"), at("format.language"),
+			sep(), at("file.titlePage"), at("format.language"), at("set.defaultLanguage"),
 			sep(), at("app.preferences"),
 		}},
 		{title: "Format", homes: append(append(elements,

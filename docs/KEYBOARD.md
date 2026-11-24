@@ -232,6 +232,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Editor Keys | `set.editorKeys` |  |  |  | E K | :editor-keys |
 | Font | `set.font` |  |  |  | V 6 | :font |
 | Language for New Scripts | `set.newLanguage` |  |  |  | F I | :language-for-new-scripts |
+| Script's Language for New Scripts by Default | `set.defaultLanguage` |  |  |  |  | :scripts-language-for-new-scripts-by-default |
 | Toolbar | `set.toolbar` |  |  |  |  | :toolbar |
 | Number the Scenes in Exports | `set.sceneNumbers` |  |  |  | P 1 | :number-scenes-in-exports |
 | Compare Drafts Side by Side | `set.draftsSide` |  |  |  | C B | :compare-drafts-side-by-side |

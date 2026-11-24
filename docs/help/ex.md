@@ -129,7 +129,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:page-setup** — File > Page Setup
 - **:print** — File > Print
 - **:new-from-structure** `item` — File > New from Structure
-- **:language-for-new-scripts** `item` — File > New > Language for New Scripts
+- **:language-for-new-scripts** `item` — File > Language for New Scripts
 - **:export-writer** — The writer's draft as locked, without production's layers (File > Export Writer's Version) (screenplay)
 - **:export-shooting** — The shooting script: scene numbers, OMITTED, revisions (File > Export Shooting Version) (screenplay)
 
@@ -160,6 +160,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:select-all** — Edit > Select All
 - **:script-language** — Edit > Script Language (screenplay)
 - **:editor-keys** `item` — Edit > Settings > Editor Keys
+- **:scripts-language-for-new-scripts-by-default** — Edit > Script's Language for New Scripts by Default (screenplay)
 
 ### Elsewhere
 

@@ -363,7 +363,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := notesMoves(base, templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))))))))) // the moves write Linux keys too
+		want := languageDefaultMoves(base, notesMoves(base, templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -1142,6 +1142,34 @@ func sampleMoves(name, golden string) string {
 		sub += "    " + languageName(lang) + ": " + langSamples()[lang].title + "\n"
 	}
 	return strings.Replace(golden, "  Open Sample\n", sub, 1)
+}
+
+// languageDefaultMoves: File's Language for New Scripts (New in:, its
+// languages with the default marked and Use for New Scripts by Default),
+// and Edit's Script's Language for New Scripts by Default after Script
+// Language… (ribbon_settings.go).
+func languageDefaultMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-") {
+		return golden
+	}
+	sub := "  New Markdown Document\n  Language for New Scripts\n"
+	shown, hidden := shownLanguages(scriptLanguages(), "en")
+	for _, l := range shown {
+		if l == "en" {
+			sub += "    " + languageLabel(l) + " (default) (checked)\n"
+		} else {
+			sub += "    " + languageLabel(l) + "\n"
+		}
+	}
+	if len(hidden) > 0 {
+		sub += "    ---\n    " + moreVariants + "\n"
+		for _, l := range hidden {
+			sub += "      " + languageLabel(l) + "\n"
+		}
+	}
+	sub += "    ---\n    " + useByDefault + " (checked)\n"
+	golden = strings.Replace(golden, "  New Markdown Document\n", sub, 1)
+	return strings.Replace(golden, "  Script Language…\n", "  Script Language…\n  Script's Language for New Scripts by Default (checked)\n", 1)
 }
 
 // writerMoves is a Production golden as a writer sees it (role.go): the

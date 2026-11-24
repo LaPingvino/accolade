@@ -311,8 +311,12 @@ func TestRibbonMoreSettings(t *testing.T) {
 		t.Fatalf("New in: %+v", b)
 	}
 	pressMenuItem(t, w, "set.newLanguage", languageLabel("nl"))
+	if s.GetString("script-language") != "en" {
+		t.Errorf("New in Dutch changed the default: %q", s.GetString("script-language"))
+	}
+	pressMenuItem(t, w, "set.newLanguage", useByDefault) // the default too
 	if s.GetString("script-language") != "nl" || pd.languageSelect.Selected != "nl" {
-		t.Errorf("New in Dutch: %q, Preferences %q", s.GetString("script-language"), pd.languageSelect.Selected)
+		t.Errorf("New in Dutch by default: %q, Preferences %q", s.GetString("script-language"), pd.languageSelect.Selected)
 	}
 	if b := buttonOf(r, "set.newLanguage"); b == nil || b.label != "New in: "+languageName("nl") {
 		t.Errorf("the button does not say Dutch: %+v", b)

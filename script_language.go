@@ -303,7 +303,38 @@ func (w *MainWindow) pickLanguage() {
 		}
 		return ""
 	}
+	// the toggle: the language chosen as the default for new scripts, at
+	// once, whether the script changes or not; off, the default goes back
+	// to what it was (English if it was this one)
+	before := w.preferredLanguage()
+	defaultNote := widget.NewLabel("")
+	showDefault := func() {
+		defaultNote.SetText("New scripts are in " + languageLabel(w.preferredLanguage()) + " by default.")
+	}
+	showDefault()
+	asDefault := widget.NewCheck(useByDefault, nil)
+	seatDefault := func() { // as it is, without acting
+		asDefault.Checked = chosen() != "" && chosen() == w.preferredLanguage()
+		asDefault.Refresh()
+	}
+	asDefault.OnChanged = func(on bool) {
+		lang := chosen()
+		switch {
+		case lang == "":
+		case on:
+			w.setDefaultLanguage(lang)
+		case lang == w.preferredLanguage():
+			back := before
+			if back == lang {
+				back = "en"
+			}
+			w.setDefaultLanguage(back)
+		}
+		seatDefault()
+		showDefault()
+	}
 	choose.OnChanged = func(string) {
+		seatDefault()
 		lang, text := chosen(), w.textEditor.Text()
 		if lang == "" || lang == w.language {
 			info.SetText("The script is in " + languageLabel(w.language) + ".")
@@ -339,7 +370,7 @@ func (w *MainWindow) pickLanguage() {
 	cancel := widget.NewButton("Cancel", func() { d.Hide() })
 	content := container.NewVBox(
 		widget.NewLabel("The script is in "+languageLabel(w.language)+". Change it to:"),
-		choose, info,
+		choose, asDefault, info, defaultNote,
 		container.NewHBox(cancel, mark, form, translate),
 	)
 	d = dialog.NewCustomWithoutButtons("Script Language", content, w.fyneWindow)

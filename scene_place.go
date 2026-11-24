@@ -62,6 +62,9 @@ func (w *MainWindow) pickPlace(at fyne.CanvasObject) {
 		items = append(items, fyne.NewMenuItemSeparator())
 	}
 	items = append(items, fyne.NewMenuItem("Script language: "+languageLabel(w.language)+"…", w.pickLanguage))
+	def := fyne.NewMenuItem(useByDefault, func() { w.toggleDefaultLanguage(w.language) })
+	def.Checked = w.language == w.preferredLanguage()
+	items = append(items, def)
 	widget.ShowPopUpMenuAtPosition(fyne.NewMenu("", items...), w.fyneWindow.Canvas(), w.menuBelow(at))
 }
 

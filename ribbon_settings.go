@@ -152,7 +152,7 @@ func settingCommands() []*command {
 			w.setStatus("Toolbar hidden: View > Toolbar shows it again")
 		}
 	})
-	return append(cs, editorKeysCommand(), fontCommand(), newLanguageCommand(), toolbar, numbers, draftsSideBySideCommand())
+	return append(cs, editorKeysCommand(), fontCommand(), newLanguageCommand(), defaultLanguageCommand(), toolbar, numbers, draftsSideBySideCommand())
 }
 
 // editorKeysChoices are the editor's keys, as Preferences names them, and
@@ -266,10 +266,13 @@ func newLanguageCommand() *command {
 			return "New in: " + string(name)
 		},
 		submenu: func(w *MainWindow) *fyne.Menu {
+			// a language picked is New's next here, only (window.go);
+			// the default changes with the toggle below it
 			item := func(l string) *fyne.MenuItem {
-				it := fyne.NewMenuItem(languageLabel(l), func() {
-					w.newLanguage = l // New's next, here (window.go); before the ribbon shows it
-					w.changeSetting("script-language", func(s *Settings) { s.SetString("script-language", l) })
+				it := fyne.NewMenuItem(defaultLanguageLabel(w, l), func() {
+					w.newLanguage = l
+					w.ribbonRefresh()
+					w.refreshMenu()
 				})
 				it.Checked = w.newFileLanguage() == l
 				return it
@@ -288,8 +291,53 @@ func newLanguageCommand() *command {
 				it.ChildMenu = fyne.NewMenu(moreVariants, more...)
 				items = append(items, fyne.NewMenuItemSeparator(), it)
 			}
+			lang := w.newFileLanguage()
+			def := fyne.NewMenuItem(useByDefault, func() { w.toggleDefaultLanguage(lang) })
+			def.Checked = lang == w.preferredLanguage()
+			items = append(items, fyne.NewMenuItemSeparator(), def)
 			return fyne.NewMenu("Language for New Scripts", items...)
 		}}
+}
+
+// useByDefault is the toggle making a language picked the preferences'
+// (Preferences > Script: Language), next to the pick: New in:'s, Script
+// Language's.
+const useByDefault = "Use for New Scripts by Default"
+
+// defaultLanguageLabel is language l's label in a list to pick from,
+// saying when it is the preferences' language.
+func defaultLanguageLabel(w *MainWindow, l string) string {
+	if l == w.preferredLanguage() {
+		return languageLabel(l) + " (default)"
+	}
+	return languageLabel(l)
+}
+
+// toggleDefaultLanguage makes lang the preferences' language for new
+// scripts; if it is already, the default goes back to English.
+func (w *MainWindow) toggleDefaultLanguage(lang string) {
+	if lang == w.preferredLanguage() {
+		lang = "en"
+	}
+	w.setDefaultLanguage(lang)
+}
+
+// setDefaultLanguage makes lang the preferences' language for new scripts.
+func (w *MainWindow) setDefaultLanguage(lang string) {
+	if lang == "" || lang == w.preferredLanguage() {
+		return
+	}
+	w.changeSetting("script-language", func(s *Settings) { s.SetString("script-language", lang) })
+	w.setStatus("New scripts are in " + languageLabel(lang) + " by default")
+}
+
+// defaultLanguageCommand makes the script's language the default for new
+// scripts (or English again, when it is), for the palette and menus.
+func defaultLanguageCommand() *command {
+	return &command{id: "set.defaultLanguage", label: "Script's Language for New Scripts by Default", icon: res(languageIcon),
+		when:    screenplayOnly,
+		checked: func(w *MainWindow) bool { return w.language == w.preferredLanguage() },
+		run:     func(w *MainWindow) { w.toggleDefaultLanguage(w.language) }}
 }
 
 // draftsSidePref is Compare's side by side, remembered.

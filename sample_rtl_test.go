@@ -260,7 +260,7 @@ func TestNewInEveryLanguage(t *testing.T) {
 func pickNewIn(t *testing.T, w *MainWindow, lang string) {
 	t.Helper()
 	for _, it := range flatItems(newLanguageCommand().submenu(w).Items) { // a variant's under More variants…
-		if it.Label == languageLabel(lang) {
+		if strings.TrimSuffix(it.Label, " (default)") == languageLabel(lang) {
 			it.Action()
 			return
 		}
@@ -276,8 +276,8 @@ func newInShown(t *testing.T, w *MainWindow, lang, what string) {
 	label := newLanguageCommand().ribbonLabelFor(w)
 	checked := ""
 	for _, it := range flatItems(newLanguageCommand().submenu(w).Items) {
-		if it.Checked {
-			checked += it.Label
+		if it.Checked && it.Label != useByDefault { // the languages' check, not the default's
+			checked += strings.TrimSuffix(it.Label, " (default)")
 		}
 	}
 	_, _, place, _ := placeWords(w.lex().headers(lang))
