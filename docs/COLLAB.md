@@ -427,3 +427,58 @@ cost, and the guesses and the links' model would still be made again over the wh
 source now costs what this window's own key does; what is left of it is the source editor's relayout of the novel
 (`ScriptEditor.relayout`, `wrap.WrapSpans`), which the own key pays too, even with the editor not in sight: a
 place to look next, for both. A peer's key in the script needed nothing (it is debounced as one's own).
+
+### The source editor out of sight (2026-11-24)
+
+Why (pprof): the window's source document, opened to follow the source's Doc, had its own editor laid out at every
+key, its own or a peer's, though it was nowhere on the screen. Worse than one in sight: an editor in no scroll has
+no view, so it drew every row of the novel into its grid (39 MB a key, against 16 MB for the same editor shown in
+the middle). `wrap.WrapSpans` was the other half: each row of a line asked how many columns the whole rest of the
+line takes, quadratic in a paragraph's length.
+
+The fix, two parts:
+
+- **Lazy, out of sight.** The documents' editors (source, notes) are offstage unless in sight, with the mechanism the
+  middle's tabs already used for the script (`SetOffstage`: an edit marks the layout stale; it is made when the
+  editor comes back in sight or when something reads it). `docsOnStage` (document.go) decides: in front of the
+  middle, or the source edited in the Source pane with that pane in front of its place and not folded under a
+  phone's board. It runs wherever what is shown changes: the window laid out again, a middle tab to the front, a
+  dock pane to the front of its place (`showFront`), the pane's Edit/Done. A new document starts offstage.
+- **Wrap in one pass per line.** `fits` stops counting at the row's room; the spaces kept at a break count on; rows
+  are appended in place. The rows are the same: `TestWrapAsBefore` checks them against the old code (kept in the
+  test) on random texts, plain and with clusters, wide characters, right-to-left letters, spans, indents past half
+  the width and widths down to 1.
+
+Incremental relayout (re-wrapping only the lines an edit touched) was not taken. With the wrap linear, the wrap is
+about a quarter of a key in the shown source; the rest is a dozen other passes over the whole text (the text as a
+string and its lines, each line's direction, the Markdown kinds and inline emphasis, the headings for the folds,
+the status bar's counts), and the formats depend on the kinds, which depend on the cursor's line. A re-wrap of the
+touched lines alone would save a few milliseconds of 47; making every pass incremental is the next step if a key
+in a shown novel must fit in a frame.
+
+The readers of a hidden editor's layout, audited: every exported one (cursor position, rows, chips, tags, fold
+marks, peers' bars and lines, accessibility's lines, `MinSize`, a click's offset, motion keys) lays the editor out
+first if it is stale (`fresh`). `TypingKinds`/`MarkdownKinds` report "not laid out" instead: the status line's
+element already classifies itself then; cite completion now does too (stale, it would have offered a key inside a code block).
+Collab cursors are the script editor's only (buffer marks, drawn at layout). Find highlights the editor in front.
+The source pane's row estimates measure its passages, not the editor. The page view reads the text.
+`TestDocsOffstage` walks the window's tree through the pane's Edit, panes put in front of it and away, the middle,
+back to the side, and a phone's sheet folded down: an editor in sight is never offstage, one out of sight always is,
+and one shown again shows the text typed while it was away.
+
+`BenchmarkPeerKey` gains the source in front of the middle (`-shown`), where it is laid out at each key. 3 runs
+each, the medians, before and after back to back, this VPS:
+
+| a key, taken in by the window | before | after |
+|---|---|---|
+| own key in the source, out of sight | 88 ms, 39 MB, 31k allocs | 8.4 ms, 2.8 MB, 0.8k allocs |
+| a peer's key in the source, out of sight | 92 ms, 40 MB, 32k allocs | 12 ms, 3.6 MB, 2.3k allocs |
+| own key in the source, in sight (the middle) | 51 ms, 16 MB, 42k allocs | 47 ms, 13 MB, 32k allocs |
+| a peer's key in the source, in sight | 53 ms, 17 MB, 42k allocs | 53 ms, 14 MB, 32k allocs |
+| own key in the script (the pane shown) | 33 ms, 6.7 MB, 23k allocs | 29 ms, 5.5 MB, 16k allocs |
+| a peer's key in the script | 27 ms, 6.8 MB, 18k allocs | 27 ms, 5.6 MB, 11k allocs |
+
+`BenchmarkScriptKey` (3 runs, medians): the novel's screenplay with the novel kept in it 86 → 78 ms (23 → 18 MB,
+36k → 19k allocs); sample 3.6 / 3.8 ms, sample-strip 3.6 / 3.3, hi-Deva 6.8 / 6.3, hi-Deva-drawn 7.7 / 7.2,
+novel-move 20 / 16 (its allocations the same: run-to-run spread). In sight, a key in the novel source is now the
+dozen whole-text passes above, the status bar's counts among them (~5 ms).
