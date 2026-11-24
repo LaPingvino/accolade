@@ -1961,3 +1961,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (5) a section's synopsis at the same weight as its beats; (6) the breakdown sheets read a scene's synopsis as the
   outline does (Lexington's report); (7) Insert Structure at the cursor's section boundary; rename "Into the Scene
   Before/Next" to "Into the One Before/Next".
+- 2026-11-24 (Joop: "This way, the beats stand out on the card view. We might even want to add synopses away from any
+  header somehow to the cards as something you might want to access and work with... e.g. a little to do markup that
+  is like 'under this header we still have several unhandled synopses without a scene or section header'"):
+  UNHANDLED BEATS, after structure2: a section's or scene's header (card and outline) carries a small to-do mark,
+  "3 beats without a scene", when loose synopses under it have no scene of their own; the mark is a call to action:
+  it steps to the first such beat (and through them, like Find), with New Scene there in one key. Synopses before the
+  first header of the script show as cards too (an "Unplaced" group at the top). Part of the revision tools idea
+  (a check whose notes you step through), read from the outline's own parse — no state of its own.
