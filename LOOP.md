@@ -1918,3 +1918,9 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   static TTFs grow from 1.75 MB to 4.0–4.8 MB a style (the wasm from 80.2 to 90.4 MB); go-text shapes Devanagari
   about 2.6x slower. Not done: the Text Terminal WG / Monotty note (Joop's to post); the typewriter paragraph is
   from the brief, not checked against a source.
+- 2026-11-24: COLLAB step 8, a peer's key measured in a window on the novel (branch collabcost, not merged;
+  BenchmarkPeerKey, docs/COLLAB.md step 8). A peer's key in the shared source cost the receiving window 600 ms,
+  113 MB, 489k allocs (2.3 s with the rows all measured): every message read the Source pane anew (passages, rows,
+  the links' model, the scene guesses). Now the pane reads it again once the peer pauses (followPause, as for one's
+  own typing): 89 ms a key, as one's own (77 ms), plus 511 ms once a pause. A peer's script key: 24 ms, nothing to
+  do. Left: the hidden source editor relays out the novel on every key, one's own too.

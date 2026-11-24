@@ -193,9 +193,9 @@ pick as a setting that lost (`Session.OnLost`, a peer's value older than its own
 keeps or sends it; the loser (the window that made the Doc, `shared.madeSource`) is told on the status line who
 picked theirs and that Choose Source… again shares its own instead. The file it picked is never touched (Choose
 Source keeps a copy); its window follows the shared one from then on. `TestSourcePickRace` (it failed before: the
-winner kept the lost Doc). The cost
-of a peer's key in a window was not measured: the numbers above are the Doc's, and each peer's message re-reads
-the source pane's passages (in the background past 64 KiB). The breakdown and the schedule are step 4.
+winner kept the lost Doc). What a
+peer's key costs the window it reaches is measured in step 8 below: each message used to read the source pane's
+passages again; now the pane reads them once the peer pauses. The breakdown and the schedule are step 4.
 
 Benchmarks (internal/collab/bench_test.go, ~100k words, 572k runes; "edited" is that after 3000 scattered edits by
 two replicas, key by key; 3 runs each, this VPS):
@@ -387,4 +387,43 @@ Note what differs (with the device and browser) in LOOP.md.
    docs/help/together.md ("Writing Together").
 6. ~~Presence: each peer's cursor shown in the others' editors, with their name.~~ Done (presence above).
 7. The two-device run above, by Joop, and what it finds.
-8. Measure a peer's edit's cost in a window on the novel (each message re-reads the source pane's passages).
+8. ~~Measure a peer's edit's cost in a window on the novel (each message re-reads the source pane's passages).~~
+   Done (step 8 below).
+
+## Step 8: what a peer's key costs a window (measured 2026-11-24)
+
+`BenchmarkPeerKey` (collab_cost_bench_test.go): two windows sharing the PERF-SOURCE bench script (200 scenes
+linking a ~100k-word novel, the fixture of question 2's benchmark) with the novel beside it, their sessions linked
+in-process by queues (as presence_test.go links two sessions, but delivered one message at a time). The receiving
+window has the Source pane shown and its passages read. A peer types a key (one message); what is timed is the
+receiving window taking it in: `Receive` (unsealing, the Doc's apply), the source document following the Doc, the
+pane, and the layout and refreshes they make (Fyne's test driver lays out but draws nothing, so "redraws" here is
+the editors' relayout and the widgets' refreshes). Background work runs at once and is counted (in the browser it
+shares the one thread); what waits for a pause (the pane's follow, the kept state, the rows' measuring after its
+first stretch) is cancelled. 10 runs each, this VPS:
+
+| a key, taken in by the window | before | after |
+|---|---|---|
+| the window's own key in its source (the Doc's `SetText`, the editor) | 88 ms, 39 MB, 31k allocs | 77 ms, 39 MB, 31k allocs |
+| a peer's key in the source | **600 ms, 113 MB, 489k allocs** | 89 ms, 40 MB, 32k allocs |
+| the pane reading the source again, once the peer pauses | (each message) | 511 ms, 74 MB, 456k allocs |
+| the window's own key in the script (the pane shown) | 62 ms, 6.7 MB, 23k allocs | 34 ms, 6.7 MB, 23k allocs |
+| a peer's key in the script (the pane shown) | 28 ms, 6.8 MB, 18k allocs | 24 ms, 6.8 MB, 18k allocs |
+
+(The own-key rows changed nothing in the code; they vary between runs.) A first run with every put-off thing run
+at once too, the rows all measured, gave 2.3 s and 285 MB for a peer's source key: that is the upper bound of the
+old per-message cost, the 600 ms its share before the rows' measuring.
+
+Why (pprof): `bindSource` called the pane's `loadSource` on every message of the source's Doc. On the novel that is
+the whole pane anew, as when a source is opened: the passages parted again (`passagesOf`, ≈100 ms), the rows
+estimated and measured again, the links' model made again, then `follow`, whose scene guesses (`guessScenes` and
+`alignScenes`, ≈330 ms) are most of it. The writer's own typing in the source never paid this per key: the pane
+follows the text after a pause (`followPause`).
+
+The fix: a peer's message brings the source document up to the Doc at once, as before, and the pane reads the
+source again once the peer's messages pause (`followPause`, 200 ms; `sourcePane.peerRead`), as it follows the
+writer's own typing. Re-reading only the passages an edit touched was not taken: the parting is a fifth of the
+cost, and the guesses and the links' model would still be made again over the whole novel. A peer's key in the
+source now costs what this window's own key does; what is left of it is the source editor's relayout of the novel
+(`ScriptEditor.relayout`, `wrap.WrapSpans`), which the own key pays too, even with the editor not in sight: a
+place to look next, for both. A peer's key in the script needed nothing (it is debounced as one's own).

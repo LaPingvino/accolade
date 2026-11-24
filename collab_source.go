@@ -125,7 +125,11 @@ func (w *MainWindow) adoptSource(name string) {
 }
 
 // bindSource opens the source document of a shared source (it stays open
-// while it is shared) and brings it up to the Doc.
+// while it is shared) and brings it up to the Doc. The pane reads its
+// passages again once the peers' edits pause, as it follows this
+// writer's own typing: reading a novel again is the whole pane anew (its
+// passages, rows, links and guesses: ≈0.5 s on the novel), and a peer's
+// message is one key (docs/COLLAB.md, step 8).
 func (w *MainWindow) bindSource() {
 	if w.sharedSource() == "" {
 		return
@@ -136,7 +140,11 @@ func (w *MainWindow) bindSource() {
 	}
 	d.followShared()
 	if p := w.source; p != nil && !p.editing {
-		p.loadSource(true)
+		w.debounce(&p.peerRead, followPause, func() {
+			if !p.editing {
+				p.loadSource(true)
+			}
+		})
 	}
 	w.updateTitle()
 	w.updateStatusBar()

@@ -101,6 +101,7 @@ type sourcePane struct {
 	measuring        int                         // the measuring under way (a new one stops it)
 	scanned          int                         // rows before it are measured, in the measuring's order
 	measureT, widthT *uiTimer                    // the measuring's next stretch; a width change waited out
+	peerRead         *uiTimer                    // a peer's edit of the shared source: read again once they pause (collab_source.go)
 	shownMD          map[*widget.RichText]string // what each row shows (rowKey)
 	full             map[int]bool                // rows shown in full (Show All)
 	measureRow       *fyne.Container
