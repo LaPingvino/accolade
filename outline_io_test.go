@@ -87,7 +87,7 @@ func TestOpenOutline(t *testing.T) {
 		t.Errorf("file %q, changes %v, name %q", w.currentFile, w.hasChanges, w.suggestedName)
 	}
 	items := w.outlineItems(got)
-	if len(items) != 6 || items[1].Synopsis != "The keeper's daughter comes home." || len(items[1].Loose) != 2 {
+	if len(items) != 6 || items[1].Synopsis != "The keeper's daughter comes home." || len(items[1].Loose) != 3 {
 		t.Errorf("the outline: %+v", items)
 	}
 }
@@ -203,5 +203,57 @@ func TestOutlineIOScreenshots(t *testing.T) {
 	comboShot(t, w, "outline-opened-cards")
 	if err := exportTreatment(structureBeats+"\nINT. LAMP ROOM - NIGHT\n= Mara reads the letter twice.\n\n[[ask: is the letter enough?]]\n", sceneStarts("en"), filepath.Join(dir, "treatment.pdf"), "pdf", ""); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// Every beat the outline shows is in the outline exported, in a
+// paragraph of its own or not: a beat with a note touching it, a note
+// before a beat, a beat touching action.
+func TestOutlineKeepsEveryBeat(t *testing.T) {
+	starts := sceneStarts("en")
+	text := "# Act One\n= Home.\n\n= A beat\n[[with a note]]\n\n[[a note]]\n= then a beat\n\nINT. A - DAY\n\nAction.\n= a beat touching action\n\n= Last.\n"
+	data, err := outlineOPML(text, starts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range outlineOf(text, starts) {
+		for _, l := range it.Loose {
+			if !strings.Contains(string(data), l.Text) {
+				t.Errorf("beat %q not in the outline:\n%s", l.Text, data)
+			}
+		}
+	}
+	md, _, _ := treatmentMarkdown(text, starts)
+	for _, want := range []string{"A beat\n\n*with a note*", "then a beat", "a beat touching action"} {
+		if !strings.Contains(md, want) {
+			t.Errorf("treatment without %q:\n%s", want, md)
+		}
+	}
+}
+
+// Opened again end to end: the Export dialog's job writes the outline,
+// File > Open reads it back, the editor holds the same text; the
+// treatment's PDF and Word through the same job.
+func TestOutlineExportOpenEndToEnd(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.textEditor.SetText(structureBeats)
+	ed := NewExportDialog(w)
+	dir := t.TempDir()
+	out := filepath.Join(dir, "lighthouse.opml")
+	if err := ed.performExportJob(structureBeats, out, "opml", ed.job()); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{"treatment-pdf", "treatment-docx"} {
+		p := filepath.Join(dir, f)
+		if err := ed.performExportJob(structureBeats, p, f, ed.job()); err != nil {
+			t.Fatalf("%s: %v", f, err)
+		}
+	}
+	w2, _ := newDialogTestWindow(t)
+	if err := w2.LoadFile(out); err != nil {
+		t.Fatal(err)
+	}
+	if got := w2.textEditor.Text(); got != structureBeats {
+		t.Errorf("opened again:\n%q\nwas\n%q", got, structureBeats)
 	}
 }

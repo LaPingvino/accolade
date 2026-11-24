@@ -211,10 +211,13 @@ Lines starting with `#` are sections: acts, sequences, chapters. More `#` signs 
 
 ## Synopses
 
-A line starting with `=` is a synopsis. The first under a section or scene heading is that heading's own; one standing on its own further down is a beat or a planned moment, a line of its own in the outline and a card of its own (see [Structure](structure.md)). Not printed.
+A line starting with `=` is a synopsis. One right under a section or scene heading, touching it (no blank line between), is that heading's own; one after a blank line stands on its own: a beat or a planned moment, a line of its own in the outline and a card of its own (see [Structure](structure.md)). Not printed.
 
 ```
+INT. STATION - NIGHT
 = Anna decides to leave.
+
+= She buys the ticket.
 ```
 
 ## Accolade's own markup

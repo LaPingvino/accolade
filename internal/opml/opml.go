@@ -206,28 +206,6 @@ func indentOf(l string) int {
 	return n
 }
 
-// Looks reports whether text reads as an outline pasted from an
-// outliner: OPML, or more than one line with some of them indented under
-// others or bulleted.
-func Looks(text string) bool {
-	if Sniff([]byte(text)) {
-		return true
-	}
-	lines := 0
-	shaped := false
-	for _, l := range strings.Split(text, "\n") {
-		t := strings.TrimSpace(l)
-		if t == "" {
-			continue
-		}
-		lines++
-		if indentOf(l) > 0 || bullet.MatchString(t) {
-			shaped = true
-		}
-	}
-	return lines > 1 && shaped
-}
-
 // Fountain is outline d as a script's structure: sections, scene
 // headings, synopses and notes, a blank line between paragraphs, a
 // heading's own synopsis touching it. isScene tells whether a line is a
@@ -294,7 +272,7 @@ func guess(n *Node, inScene bool, isScene func(string) bool) (kind, text string,
 	text = clean(n.Text)
 	t := strings.TrimSpace(text)
 	switch {
-	case strings.HasPrefix(t, "#"):
+	case IsHeading(t): // "# Act One", not a #tag
 		l := len(t) - len(strings.TrimLeft(t, "#"))
 		return KindSection, strings.TrimSpace(t[l:]), l
 	case strings.HasPrefix(t, "[[") && strings.HasSuffix(t, "]]"):
@@ -308,6 +286,13 @@ func guess(n *Node, inScene bool, isScene func(string) bool) (kind, text string,
 	}
 	return KindSynopsis, t, 0
 }
+
+// heading is a section heading written as one: #s, then a space.
+var heading = regexp.MustCompile(`^#+\s`)
+
+// IsHeading tells whether an item's text t is a section heading written
+// as one ("# Act One", "## Part"), not a tag (Workflowy's "#todo").
+func IsHeading(t string) bool { return heading.MatchString(strings.TrimSpace(t)) }
 
 // markup is an outliner's inline HTML (Workflowy's <b>, <i>, <u>,
 // <span class="colored">, links).

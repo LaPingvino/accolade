@@ -10,6 +10,7 @@
       <outline text="Act One" _note="The keeper's daughter comes home.">
         <outline text="Mara finds her father's &lt;b&gt;letter&lt;/b&gt; in the lamp room." />
         <outline text="She decides to stay the winter." _complete="true" />
+        <outline text="#todo check the lamp's dates" />
       </outline>
       <outline text="Act Two" _note="The storm, and what it takes.&#10;Nobody sleeps.">
         <outline text="The storm">

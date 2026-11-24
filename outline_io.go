@@ -123,7 +123,7 @@ func outlineDoc(text string, starts []string) opml.Doc {
 			i = j + 1
 			continue
 		}
-		if p := planParagraph(lines[i : j+1]); p != nil {
+		for _, p := range planItems(lines[i : j+1]) {
 			add(p)
 		}
 		i = j + 1
@@ -131,31 +131,55 @@ func outlineDoc(text string, starts []string) opml.Doc {
 	return d
 }
 
-// planParagraph is a paragraph standing on its own as an outline item:
-// a synopsis (each line "= …") or a note ([[…]]), its first line the
-// item's text and the others its note; nil for any other (the scene's
-// own text).
-func planParagraph(ls []string) *opml.Node {
+// planItems are a paragraph's synopses and notes as outline items: a
+// paragraph that is a note ([[…]], over lines too) one item; else each run
+// of synopsis lines ("= …") an item, its first line the item's text and
+// the others (notes touching it too) its note, and each note line not in
+// such a run an item of its own. Other lines (the scene's own text) are
+// left out: a synopsis touching action is a beat still.
+func planItems(ls []string) []*opml.Node {
 	first := strings.TrimSpace(ls[0])
 	last := strings.TrimSpace(ls[len(ls)-1])
-	var rest []string
-	switch {
-	case isSynopsisLine(first):
+	if strings.HasPrefix(first, "[[") && strings.HasSuffix(last, "]]") && !isSynopsisLine(first) {
+		all := true // a note alone, over its lines
 		for _, l := range ls {
-			t := strings.TrimSpace(l)
-			if !isSynopsisLine(t) {
-				return nil
+			if isSynopsisLine(strings.TrimSpace(l)) {
+				all = false
 			}
-			rest = append(rest, strings.TrimSpace(t[1:]))
 		}
-		return &opml.Node{Kind: opml.KindSynopsis, Text: rest[0], Note: strings.Join(rest[1:], "\n")}
-	case strings.HasPrefix(first, "[[") && strings.HasSuffix(last, "]]"):
-		for _, l := range ls[1:] {
-			rest = append(rest, strings.TrimSpace(l))
+		if all {
+			var rest []string
+			for _, l := range ls[1:] {
+				rest = append(rest, strings.TrimSpace(l))
+			}
+			return []*opml.Node{{Kind: opml.KindNote, Text: first, Note: strings.Join(rest, "\n")}}
 		}
-		return &opml.Node{Kind: opml.KindNote, Text: first, Note: strings.Join(rest, "\n")}
 	}
-	return nil
+	var out []*opml.Node
+	var cur *opml.Node // the synopsis whose run goes on
+	more := func(n *opml.Node, l string) {
+		if n.Note != "" {
+			n.Note += "\n"
+		}
+		n.Note += l
+	}
+	for _, l := range ls {
+		t := strings.TrimSpace(l)
+		switch {
+		case isSynopsisLine(t) && cur != nil:
+			more(cur, strings.TrimSpace(t[1:]))
+		case isSynopsisLine(t):
+			cur = &opml.Node{Kind: opml.KindSynopsis, Text: strings.TrimSpace(t[1:])}
+			out = append(out, cur)
+		case isNoteLine(t) && cur != nil:
+			more(cur, t)
+		case isNoteLine(t):
+			out = append(out, &opml.Node{Kind: opml.KindNote, Text: t})
+		default:
+			cur = nil
+		}
+	}
+	return out
 }
 
 // scriptTitleOf is the title page's Title, its lines joined.
@@ -225,7 +249,7 @@ func withTitleSection(d opml.Doc) opml.Doc {
 		return d
 	}
 	for _, n := range d.Nodes {
-		if n.Kind != "" || len(n.Kids) > 0 || strings.HasPrefix(strings.TrimSpace(n.Text), "#") {
+		if n.Kind != "" || len(n.Kids) > 0 || opml.IsHeading(n.Text) {
 			return d
 		}
 	}

@@ -43,6 +43,8 @@ func TestWorkflowy(t *testing.T) {
 
 = She decides to stay the winter.
 
+= #todo check the lamp's dates
+
 ## Act Two
 = The storm, and what it takes.
 = Nobody sleeps.
@@ -140,9 +142,6 @@ func TestParseIndented(t *testing.T) {
 	want = "# Act One\n\n## Mara finds the letter.\n\n= A detail of it.\n\n# Act Two\n\n= The storm.\n"
 	if got != want {
 		t.Errorf("tabs:\n%q\nwant\n%q", got, want)
-	}
-	if !Looks(wf) || !Looks(tabs) || Looks("INT. HOUSE - DAY\n\nAnna waits.") || Looks("one line") {
-		t.Error("Looks")
 	}
 }
 

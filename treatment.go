@@ -71,8 +71,8 @@ func treatmentMarkdown(text string, starts []string) (md, title string, titlePag
 				if t := treatmentNote(n.Text + " " + n.Note); t != "" {
 					para("*" + treatmentEscape(t) + "*")
 				}
-			default:
-				para(treatmentEscape(lex.StripNotes(strings.Join(strings.Fields(n.Text+" "+n.Note), " "))))
+			default: // a beat: its lines one paragraph, a note touching it in italics
+				own(n.Text + "\n" + n.Note)
 			}
 		}
 	}

@@ -2009,3 +2009,24 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Joop: "Prose can be a valid action block 😉 err on the side of allowing :)" — so Restore is offered on every
   boneyard (plain prose restores as action); the parse only decides the mark and label (clearly script → "Cut" with
   its heading; otherwise "Note"), never whether Restore is allowed.
+- 2026-11-24: STRUCTURE FOLLOW-UPS done (branch structure2, not merged). (4) A heading's own synopsis is the one
+  touching it (no blank line; a note may come between); after a blank line the first beat stays a beat: outline,
+  cards, setSynopsis, New Scene on a beat (the heading now touches it), Shift+Alt+Down into a section, the
+  structures' acts. NB the Fountain spec's own example writes "INT. X\n\n= synopsis": such a scene's synopsis now
+  shows as a beat card after the scene's card, and Lexington's report would leave its sheet's synopsis empty.
+  (7) Insert Structure at the cursor's section boundary (before the next # section, else the body's end: nothing
+  reparented); Shift+Alt+Up/Down are Into the One Before / Into the Next One. (2) Synopsis cards drag (structure.Place:
+  before/after a beat, before a scene or into it, first in a section, where New Scene goes). (3) A scene-less section
+  ends with a compact New scene row. (5) A section's synopsis at its beats' weight (header, outline). (1) OPML out
+  (File › Export Outline (OPML) — for Workflowy, OmniOutliner…, the palette, :export opml / :export-outline, the
+  Export dialog) and in (Open: .opml, or sniffed by content; Edit › Paste as Structure: indented text or OPML),
+  internal/opml; Accolade's own items carry _kind, so its export opened again gives the same text (tested on every
+  structure, the beats example, a script with scenes); others by shape (nesting → # ##, _note → synopsis, leaves →
+  beats, scene headings → scenes, a flat list in one section). Treatment (PDF, Word) through the Markdown export.
+  Help: Structure › OPML: Outlines In and Out. Also: a title page key must start with a letter or digit, as Lexington
+  reads it ([[note: …]] at a script's start was read as a title field). (6) In Lexington, branch report-synopsis
+  (worktree ~/Projects/lexington-synopsis, not tagged): report.Scene.Synopsis is the scene's own, touching its
+  heading, joined; and FDX import puts a scene's summary (and a Summary after an Outline heading) touching its
+  heading, where a blank line made it a beat under (4). Accolade follows both once tagged and bumped; until then
+  an FDX import's scene summaries show as beats. Left: the Export dialog still shows
+  Page Setup and Part of the Script for the outline and treatment (they use neither); the treatment ignores tags.
