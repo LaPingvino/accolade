@@ -275,7 +275,9 @@ func (p *notesPanel) showRow(id int, row *fyne.Container) {
 		text.SetText(shortNote(t))
 	}
 	bar.Refresh()
+	what.Refresh()
 	text.Refresh()
+	box.Refresh() // a recycled row: the kind's label shown or hidden, laid out again
 	p.list.SetItemHeight(id, row.MinSize().Height)
 }
 

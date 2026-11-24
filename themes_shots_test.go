@@ -32,6 +32,7 @@ func TestThemeScreenshots(t *testing.T) {
 		s.SetString(themeVariantPref, "system")
 	})
 	w.applyLook()
+	w.textEditor.SetText(themeShotScript)
 	w.togglePane("notes")
 	w.textEditor.SetCursorOffset(len([]rune(w.textEditor.Text())) / 4)
 	snap := func(c fyne.Canvas, name string) {
@@ -78,3 +79,43 @@ func TestThemeScreenshots(t *testing.T) {
 	te.show()
 	snap(pd.win.Canvas(), "theme-editor-warnings")
 }
+
+const themeShotScript = `Title: The Barn
+Author: Mara Lind
+
+# Act One
+
+= Mara comes home to claim the farm.
+
+INT. BARN - DAY
+
+Rain hammers the roof. MARA (30s) drags the door open. [[todo: is the barn hers yet?]]
+
+MARA
+(to herself)
+It was always ours.
+
+[[Mother's letter goes here, unread.]]
+
+/* EXT. ROAD - NIGHT
+
+A cut scene: the drive in. */
+
+EXT. FIELD - NIGHT
+
+= She finds the deed.
+
+Wind in the wheat. Mara walks the fence line with a torch.
+
+TOM (O.S.)
+You came back.
+
+MARA
+For the land. Not for you.
+
+CUT TO:
+
+INT. KITCHEN - CONTINUOUS
+
+The kettle screams. [[todo: give Tom a reason to stay]]
+`
