@@ -249,15 +249,16 @@ func leads(r rune, level int8) bool {
 	return c == bidi.L || c == bidi.EN || c == bidi.AN
 }
 
-// drawnCols are the columns each cell of a row is drawn at (marks take
-// none), and the column after the last: cells in a reordered text where
-// the order puts them, after a right-to-left row's text left of it.
-func drawnCols(cells []widget.TextGridCell, b rowBidi) []int {
-	x := make([]int, len(cells)+1)
-	for i, c := range cells {
-		x[i+1] = x[i] + cellWidth(c.Rune)
+// drawnCols are the columns each cell of a row is drawn at (cols, the
+// columns each takes: marks and a cluster's signs none), and the column
+// after the last: cells in a reordered text where the order puts them,
+// after a right-to-left row's text left of it.
+func drawnCols(cols []cellCol, b rowBidi) []int {
+	x := make([]int, len(cols)+1)
+	for i, c := range cols {
+		x[i+1] = x[i] + int(c.W)
 	}
-	from, end := b.From, min(b.From+len(b.Levels), len(cells))
+	from, end := b.From, min(b.From+len(b.Levels), len(cols))
 	if from >= end && !b.reordered() {
 		return x
 	}
@@ -272,10 +273,10 @@ func drawnCols(cells []widget.TextGridCell, b rowBidi) []int {
 		}
 	}
 	if b.RTL && from < end {
-		for i := end; i < len(cells); i++ {
+		for i := end; i < len(cols); i++ {
 			at[i] = x[from] - (x[i+1] - x[end])
 		}
 	}
-	at[len(cells)] = x[len(cells)]
+	at[len(cols)] = x[len(cols)]
 	return at
 }

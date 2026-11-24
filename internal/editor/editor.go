@@ -5,8 +5,10 @@
 package editor
 
 import (
-	"github.com/LaPingvino/lexington/fountain"
 	"image"
+	"slices"
+
+	"github.com/LaPingvino/lexington/fountain"
 
 	"fmt"
 	"image/color"
@@ -23,6 +25,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/lexington/lekhan"
 	"github.com/LaPingvino/lexington/lex"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
@@ -732,10 +735,7 @@ func (l *laidOut) chipSpans(chips []Chip, raw int, lines []string) []wrap.Span {
 		if line < len(l.rtl) && l.rtl[line] {
 			continue
 		}
-		cols := 0
-		for _, r := range c.Label {
-			cols += wrap.Width(r)
-		}
+		cols := lekhan.Width(c.Label)
 		if l.chipAt == nil {
 			l.chipAt = map[int]int{}
 		}
@@ -784,24 +784,26 @@ func (e *ScriptEditor) drawRows() {
 	}
 	rows := make([]widget.TextGridRow, end-first)
 	order := make([]rowBidi, end-first)
+	cols := make([][]cellCol, end-first)
 	for i := first; i < end; i++ {
-		row, from, to := e.rowCells(i)
-		rows[i-first], order[i-first] = row, newRowBidi(row.Cells, from, to, e.rowRTL(i))
+		row, cc, from, to := e.rowCells(i)
+		rows[i-first], cols[i-first], order[i-first] = row, cc, newRowBidi(row.Cells, from, to, e.rowRTL(i))
 	}
 	e.gridFirst, e.gridEnd = first, end
-	e.grid.Rows, e.grid.Bidi = rows, order
+	e.grid.Rows, e.grid.Bidi, e.grid.Cols = rows, order, cols
 	e.BaseWidget.Refresh()
 }
 
 // row is the grid row of the wrapped row i.
 func (e *ScriptEditor) row(i int) widget.TextGridRow {
-	row, _, _ := e.rowCells(i)
+	row, _, _, _ := e.rowCells(i)
 	return row
 }
 
-// rowCells is the grid row of the wrapped row i, and its text's cells
-// [from, end) (none for a folded block's summary).
-func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, from, end int) {
+// rowCells is the grid row of the wrapped row i, the columns its cells
+// take, and its text's cells [from, end) (none for a folded block's
+// summary).
+func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, _ []cellCol, from, end int) {
 	d := &e.draw
 	text, kinds, th, v, g := d.text, d.kinds, d.th, d.v, d.gutter
 	selStart, selEnd, curRow, curCol := d.selStart, d.selEnd, d.curRow, d.curCol
@@ -815,7 +817,8 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, from, end int) {
 		return false
 	}
 	r := e.layout.Rows[i]
-	cells := make([]widget.TextGridCell, 0, g+r.Indent+r.End-r.Start+1)
+	size := g + r.Indent + r.End - r.Start + 1
+	b := rowBuilder{cells: make([]widget.TextGridCell, 0, size), cols: make([]cellCol, 0, size)}
 	first := i == 0 || e.layout.Rows[i-1].Line != r.Line // the line's first row
 	if n := e.numbersWidth(); n > 0 {
 		label := ""
@@ -824,7 +827,7 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, from, end int) {
 		}
 		label = fmt.Sprintf("%*s ", n-1, label)
 		for _, ch := range label {
-			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
+			b.plain(ch, number)
 		}
 	}
 	if e.foldWidth() > 0 {
@@ -836,26 +839,28 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, from, end int) {
 			mark = "▾ "
 		}
 		for _, ch := range mark {
-			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
+			b.plain(ch, number)
 		}
 		if m := e.marks[r.Line]; m != nil { // the mark's bar, on each of the line's rows
-			cells[len(cells)-1] = widget.TextGridCell{Rune: markBar, Style: m}
+			b.cells[len(b.cells)-1] = widget.TextGridCell{Rune: markBar, Style: m}
 		}
 	}
 	if bar := d.peers.bar[r.Line]; bar != nil && g > 0 { // a co-writer's line: their bar, over a revision mark's
-		cells[g-1] = widget.TextGridCell{Rune: markBar, Style: bar}
+		b.cells[g-1] = widget.TextGridCell{Rune: markBar, Style: bar}
 	}
 	for c := 0; c < r.Indent; c++ {
-		cells = append(cells, widget.TextGridCell{Rune: ' '})
+		b.plain(' ', nil)
 	}
 	var lineStyle widget.TextGridStyle
 	if r.Line < len(kinds) {
 		lineStyle = kindStyle(kinds[r.Line], th, v)
 	}
 	if first && e.blockAt[r.Line] { // a folded block: its summary, quiet
-		return widget.TextGridRow{Cells: e.labelCells(cells, r, number)}, len(cells), len(cells)
+		at := len(b.cells)
+		e.labelCells(&b, r, number)
+		return widget.TextGridRow{Cells: b.cells}, b.cols, at, at
 	}
-	from = len(cells)
+	from = len(b.cells)
 	spans := d.inline[r.Line]
 	inks := e.inks[r.Line]
 	for off := r.Start; off < r.End; off++ {
@@ -868,16 +873,19 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, from, end int) {
 			if off >= selStart && off < selEnd {
 				style = withBackground(style, selected.BGColor)
 			}
-			for k, ch := range []rune(c.Label) {
-				if k < c.ImageCols && c.Image != nil {
-					cells = append(cells, widget.TextGridCell{Rune: ' ', Style: &pictureCell{TextGridStyle: style, img: c.Image, lead: k == 0}})
-					continue
-				}
-				cells = append(cells, widget.TextGridCell{Rune: ch, Style: style})
-				if wrap.Width(ch) == 2 {
-					cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: style})
+			label := []rune(c.Label)
+			if c.Image != nil && c.ImageCols > 0 { // the picture over its first cells
+				label = slices.Clone(label)
+				for k := range min(c.ImageCols, len(label)) {
+					label[k] = ' '
 				}
 			}
+			b.label(label, func(k int) widget.TextGridStyle {
+				if k < c.ImageCols && c.Image != nil {
+					return &pictureCell{TextGridStyle: style, img: c.Image, lead: k == 0}
+				}
+				return style
+			})
 			off = min(c.End, r.End) - 1
 			continue
 		}
@@ -902,35 +910,29 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, from, end int) {
 		case len(d.peers.sels) > 0 && d.peers.peerSelAt(off) != nil: // a co-writer's selection
 			cell.Style = withBackground(cell.Style, d.peers.peerSelAt(off))
 		}
-		cells = append(cells, cell)
-		if wrap.Width(cell.Rune) == 2 { // a wide character's second column
-			cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: cell.Style})
-		}
+		// its columns in its cluster (a wide character's two, a
+		// Devanagari cluster's sign none); a row starts a cluster
+		b.add(cell, e.layout.RuneCols(off), off > r.Start && !lekhan.Boundary(text, off))
 	}
-	end = len(cells)
+	end = len(b.cells)
 	if r.Last && e.foldAt[r.Line] { // a folded heading: what it holds is hidden
 		for _, ch := range " …" {
-			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
+			b.plain(ch, number)
 		}
 	}
 	if _, label, ok := e.tagOf(i); ok { // a tag after the line: faint, not text
-		cells = append(cells, widget.TextGridCell{Rune: ' '})
-		for _, ch := range label {
-			cells = append(cells, widget.TextGridCell{Rune: ch, Style: number})
-			if wrap.Width(ch) == 2 {
-				cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: number})
-			}
-		}
+		b.plain(' ', nil)
+		b.label([]rune(label), func(int) widget.TextGridStyle { return number })
 	}
 	if e.focused && i == curRow {
-		setCursor(&cells, g+curCol, cursor)
+		b.setCursor(g+curCol, cursor)
 	}
 	for _, c := range d.otherCursors[i] {
 		if e.focused {
-			setCursor(&cells, g+c, cursor)
+			b.setCursor(g+c, cursor)
 		}
 	}
-	return widget.TextGridRow{Cells: cells}, from, end
+	return widget.TextGridRow{Cells: b.cells}, b.cols, from, end
 }
 
 // tagOf is the tag drawn after row i, if one is, and the label drawn:
@@ -947,7 +949,7 @@ func (e *ScriptEditor) tagOf(i int) (Tag, string, bool) {
 	}
 	room := e.columns - 1 - e.tagStart(i) - 1 // the last column clear (a scroll bar over it)
 	for _, l := range []string{t.Label, t.Short} {
-		if l != "" && labelWidth(l) <= room {
+		if l != "" && lekhan.Width(l) <= room {
 			return t, l, true
 		}
 	}
@@ -965,14 +967,6 @@ func (e *ScriptEditor) tagStart(i int) int {
 	return c
 }
 
-func labelWidth(s string) int {
-	n := 0
-	for _, r := range s {
-		n += wrap.Width(r)
-	}
-	return n
-}
-
 // tagAt is the line whose tag is drawn at p, its tag, and its first
 // cell's place.
 func (e *ScriptEditor) tagAt(p fyne.Position) (int, Tag, fyne.Position, bool) {
@@ -986,7 +980,7 @@ func (e *ScriptEditor) tagAt(p fyne.Position) (int, Tag, fyne.Position, bool) {
 		return 0, Tag{}, fyne.Position{}, false
 	}
 	start := e.tagStart(row) + 1
-	if col < start || col >= start+labelWidth(label) {
+	if col < start || col >= start+lekhan.Width(label) {
 		return 0, Tag{}, fyne.Position{}, false
 	}
 	return e.layout.Rows[row].Line, t, fyne.NewPos(float32(start)*e.cellWidth(), float32(row)*e.cellHeight()), true
@@ -1008,9 +1002,9 @@ func (e *ScriptEditor) TagRect(line int) (fyne.Position, fyne.Size, bool) {
 	return fyne.Position{}, fyne.Size{}, false
 }
 
-// labelCells are a folded block's row: its label (FoldLabel) after the
-// gutter's cells, cut to the row's width.
-func (e *ScriptEditor) labelCells(cells []widget.TextGridCell, r wrap.Row, style widget.TextGridStyle) []widget.TextGridCell {
+// labelCells puts a folded block's row in b after the gutter's cells: its
+// label (FoldLabel), cut to the row's width (between clusters).
+func (e *ScriptEditor) labelCells(b *rowBuilder, r wrap.Row, style widget.TextGridStyle) {
 	label := "…"
 	if e.FoldLabel != nil {
 		label = e.FoldLabel(r.Line)
@@ -1022,28 +1016,30 @@ func (e *ScriptEditor) labelCells(cells []widget.TextGridCell, r wrap.Row, style
 		}
 	}
 	runes := []rune(label)
-	if w := wrap.Width; len(runes) > 0 {
+	if len(runes) > 0 {
+		ws := lekhan.Cells(runes)
 		used, n := 0, 0
-		for n < len(runes) && used+w(runes[n]) <= room {
-			used += w(runes[n])
-			n++
+		for n < len(runes) {
+			end, w := lekhan.ClusterEnd(runes, n), 0
+			for _, c := range ws[n:end] {
+				w += c
+			}
+			if used+w > room {
+				break
+			}
+			used, n = used+w, end
 		}
-		if n < len(runes) {
-			n = max(n-1, 0)
+		if n < len(runes) { // its last cluster gives way to "…"
+			for n = max(n-1, 0); n > 0 && !lekhan.Boundary(runes, n); n-- {
+			}
 			runes = append(runes[:n:n], '…')
 		}
 	}
 	quiet := &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Italic: true}, FGColor: style.TextColor()}
 	for c := 0; c < r.Indent; c++ {
-		cells = append(cells, widget.TextGridCell{Rune: ' '})
+		b.plain(' ', nil)
 	}
-	for _, ch := range runes {
-		cells = append(cells, widget.TextGridCell{Rune: ch, Style: quiet})
-		if wrap.Width(ch) == 2 {
-			cells = append(cells, widget.TextGridCell{Rune: wideFill, Style: quiet})
-		}
-	}
-	return cells
+	b.label(runes, func(int) widget.TextGridStyle { return quiet })
 }
 
 // markBar is a marked line's bar (Marks).
@@ -1052,41 +1048,30 @@ const markBar = '┃'
 // wideFill is the cell after a wide character, which it is drawn over.
 const wideFill = rune(0)
 
-// setCursor shows the cursor at column col (both columns of a wide
-// character), past the row's end in a space.
-func setCursor(cells *[]widget.TextGridCell, col int, cursor widget.TextGridStyle) {
-	i := cellAt(*cells, col)
-	for len(*cells) <= i {
-		*cells = append(*cells, widget.TextGridCell{Rune: ' '})
+// setCursor shows the cursor at column col (on all of a cluster's cells:
+// a wide character's two, a conjunct's), past the row's end in a space.
+func (b *rowBuilder) setCursor(col int, cursor widget.TextGridStyle) {
+	i := cellAt(b.cols, col)
+	for len(b.cells) <= i {
+		b.plain(' ', nil)
 	}
-	c := *cells
-	c[i].Style = cursor
-	if i+1 < len(c) && c[i+1].Rune == wideFill {
-		c[i+1].Style = cursor
+	for k := i; k < clusterCells(b.cols, i); k++ {
+		b.cells[k].Style = cursor
 	}
 }
 
-// cellAt is the cell shown at column col: marks drawn on the character
-// before them (wrap.Width 0) take no column of their own.
-func cellAt(cells []widget.TextGridCell, col int) int {
+// cellAt is the cell shown at column col (cols: the columns each cell
+// takes): marks and a cluster's signs take no column of their own.
+func cellAt(cols []cellCol, col int) int {
 	i, c := 0, 0
-	for ; i < len(cells); i++ {
-		w := cellWidth(cells[i].Rune)
+	for ; i < len(cols); i++ {
+		w := int(cols[i].W)
 		if c+w > col && w > 0 {
 			return i
 		}
 		c += w
 	}
 	return i + (col - c)
-}
-
-// cellWidth is how many columns a cell takes (the wide character's second
-// column is its own cell).
-func cellWidth(r rune) int {
-	if r == wideFill {
-		return 1
-	}
-	return min(wrap.Width(r), 1)
 }
 
 // fold leaves the folded lines out of the layout (one the cursor is in
@@ -1413,13 +1398,13 @@ func (e *ScriptEditor) charAt(p fyne.Position) (int, fyne.Position) {
 		return -1, fyne.Position{}
 	}
 	r := e.layout.Rows[row]
-	if b, cells := e.order(row); b.reordered() || b.RTL {
-		k, _, ok := e.cellDrawnAt(row, b, cells, float32(col)+0.5)
+	if b, cells, cols := e.order(row); b.reordered() || b.RTL {
+		k, _, ok := e.cellDrawnAt(b, cells, cols, float32(col)+0.5)
 		if !ok {
 			return -1, fyne.Position{}
 		}
-		at := drawnCols(cells, b)[k]
-		return e.layout.Offset(row, e.logicalCol(cells, k)), fyne.NewPos(float32(at)*e.cellWidth(), float32(row)*e.cellHeight())
+		at := drawnCols(cols, b)[k]
+		return e.layout.Offset(row, e.logicalCol(cols, k)), fyne.NewPos(float32(at)*e.cellWidth(), float32(row)*e.cellHeight())
 	}
 	if col < r.Indent || col >= r.Indent+e.layout.RowWidth(row) {
 		return -1, fyne.Position{}
@@ -1427,18 +1412,18 @@ func (e *ScriptEditor) charAt(p fyne.Position) (int, fyne.Position) {
 	return e.layout.Offset(row, col), fyne.NewPos(float32(e.gutter()+col)*e.cellWidth(), float32(row)*e.cellHeight())
 }
 
-// order is how row's text is drawn, and its cells (none when it is drawn
-// as written).
-func (e *ScriptEditor) order(row int) (rowBidi, []widget.TextGridCell) {
+// order is how row's text is drawn, its cells and the columns they take
+// (none when it is drawn as written).
+func (e *ScriptEditor) order(row int) (rowBidi, []widget.TextGridCell, []cellCol) {
 	if row < 0 || row >= len(e.layout.Rows) {
-		return rowBidi{}, nil
+		return rowBidi{}, nil, nil
 	}
 	rtl := e.rowRTL(row)
 	if !rtl && !e.mayReorder(row) {
-		return rowBidi{}, nil
+		return rowBidi{}, nil, nil
 	}
-	gr, from, end := e.rowCells(row)
-	return newRowBidi(gr.Cells, from, end, rtl), gr.Cells
+	gr, cols, from, end := e.rowCells(row)
+	return newRowBidi(gr.Cells, from, end, rtl), gr.Cells, cols
 }
 
 // mayReorder: row's text (or a chip's label shown in it) has a character
@@ -1462,33 +1447,39 @@ func (e *ScriptEditor) mayReorder(row int) bool {
 	return false
 }
 
-// cellDrawnAt is the text cell of row drawn at column x (from the text
-// area's left, fractions within a cell kept), and how far into it x is
-// (0 at its left edge, 1 at its right): a wide character's second cell
-// is its first's.
-func (e *ScriptEditor) cellDrawnAt(row int, b rowBidi, cells []widget.TextGridCell, x float32) (k int, frac float32, ok bool) {
-	at := drawnCols(cells, b)
+// cellDrawnAt is the text cell of a row (drawn as b orders it, its cells
+// taking cols) drawn at column x (from the text area's left, fractions
+// within a cell kept), and how far into its cluster x is (0 at its left
+// edge, 1 at its right): a cell of a cluster (a wide character's second,
+// a conjunct's second consonant) is its cluster's first.
+func (e *ScriptEditor) cellDrawnAt(b rowBidi, cells []widget.TextGridCell, cols []cellCol, x float32) (k int, frac float32, ok bool) {
+	at := drawnCols(cols, b)
 	x += float32(e.gutter())
-	for i := b.From; i < min(b.From+len(b.Levels), len(cells)); i++ {
-		w := float32(cellWidth(cells[i].Rune))
+	end := min(b.From+len(b.Levels), len(cells))
+	for i := b.From; i < end; i++ {
+		w := float32(cols[i].W)
 		if w == 0 || x < float32(at[i]) || x >= float32(at[i])+w {
 			continue
 		}
-		frac = x - float32(at[i])
-		if cells[i].Rune == wideFill && i > b.From {
-			l := min(at[i], at[i-1])
-			return i - 1, (x - float32(l)) / 2, true
+		s := i
+		for s > b.From && cols[s].Join {
+			s--
 		}
-		return i, frac, true
+		l, r := at[s], at[s]
+		for k := s; k < min(clusterCells(cols, s), end); k++ {
+			l, r = min(l, at[k]), max(r, at[k]+int(cols[k].W))
+		}
+		return s, (x - float32(l)) / float32(max(r-l, 1)), true
 	}
 	return 0, 0, false
 }
 
-// logicalCol is the layout column of cell k of a row (the gutter left out).
-func (e *ScriptEditor) logicalCol(cells []widget.TextGridCell, k int) int {
+// logicalCol is the layout column of cell k of a row whose cells take
+// cols (the gutter left out).
+func (e *ScriptEditor) logicalCol(cols []cellCol, k int) int {
 	c := 0
-	for _, cell := range cells[:k] {
-		c += cellWidth(cell.Rune)
+	for _, cc := range cols[:k] {
+		c += int(cc.W)
 	}
 	return c - e.gutter()
 }
@@ -1513,27 +1504,48 @@ func (e *ScriptEditor) offsetAt(p fyne.Position) int {
 	if row >= len(e.layout.Rows) {
 		return e.buf.Len()
 	}
-	if b, cells := e.order(max(row, 0)); b.reordered() || b.RTL {
-		return e.offsetDrawnAt(max(row, 0), b, cells, p.X/e.cellWidth()-float32(e.gutter()))
+	if b, cells, cols := e.order(max(row, 0)); b.reordered() || b.RTL {
+		return e.offsetDrawnAt(max(row, 0), b, cells, cols, p.X/e.cellWidth()-float32(e.gutter()))
 	}
-	off := e.layout.Offset(max(row, 0), max(col, 0))
-	if e.isClusterEdge(off) {
-		return off
+	row = max(row, 0)
+	// a click on a cluster wider than a column (a conjunct, a wide
+	// character): its nearer edge
+	x := p.X/e.cellWidth() - float32(e.gutter())
+	if start := e.layout.Offset(row, max(int(x), 0)); start < e.buf.Len() {
+		end := e.clusterAfter(start)
+		r1, cs := e.layout.RowCol(start)
+		r2, ce := e.layout.RowCol(end)
+		if r1 == row && r2 == row && ce-cs > 1 && x >= float32(cs) && x < float32(ce) {
+			if x-float32(cs) < float32(ce)-x {
+				return start
+			}
+			return end
+		}
 	}
-	// inside a cluster (drawn whole): its nearer edge
-	start, end := e.clusterEdge(off, false), e.clusterEdge(off, true)
-	_, cs := e.layout.RowCol(start)
-	_, ce := e.layout.RowCol(end)
-	if r, _ := e.layout.RowCol(end); r != max(row, 0) || col-cs <= ce-col {
-		return start
-	}
-	return end
+	return e.layout.Offset(row, max(col, 0)) // Offset gives a cluster's edge
 }
 
 // isClusterEdge tells whether the cursor can stand at an offset: not
-// inside a cluster (wrap.JoinsBefore), which is drawn whole.
+// inside a cluster (lekhan.Boundary), which is drawn whole.
 func (e *ScriptEditor) isClusterEdge(off int) bool {
-	return off <= 0 || off >= e.buf.Len() || !wrap.JoinsBefore(e.buf.At(off-1), e.buf.At(off))
+	if off <= 0 || off >= e.buf.Len() {
+		return true
+	}
+	if !lekhan.Joins(e.buf.At(off-1), e.buf.At(off)) {
+		return true // the quick answer, for most text
+	}
+	// the runes before off back to its cluster's start: a line's at most,
+	// and maxCluster (a longer cluster is cut there)
+	const maxCluster = 64
+	s := off - 1
+	for s > 0 && off-s < maxCluster && e.buf.At(s) != '\n' {
+		s--
+	}
+	rs := make([]rune, off+1-s)
+	for k := range rs {
+		rs[k] = e.buf.At(s + k)
+	}
+	return lekhan.Boundary(rs, off-s)
 }
 
 // clusterEdge is the edge of the cluster at off: its start, or with after
@@ -1559,25 +1571,23 @@ func (e *ScriptEditor) clusterAfter(off int) int {
 // offsetDrawnAt is the offset nearest to column x of a reordered row:
 // before the character clicked or after it, by the half clicked and the
 // way it reads; past the text, its start or end by the side.
-func (e *ScriptEditor) offsetDrawnAt(row int, b rowBidi, cells []widget.TextGridCell, x float32) int {
+func (e *ScriptEditor) offsetDrawnAt(row int, b rowBidi, cells []widget.TextGridCell, cols []cellCol, x float32) int {
 	r := e.layout.Rows[row]
-	if k, frac, ok := e.cellDrawnAt(row, b, cells, x); ok {
-		col := e.logicalCol(cells, k)
+	if k, frac, ok := e.cellDrawnAt(b, cells, cols, x); ok {
+		col := e.logicalCol(cols, k)
 		after := frac >= 0.5
 		if b.level(k)%2 == 1 {
 			after = !after
 		}
-		if after {
-			w := cellWidth(cells[k].Rune)
-			if k+1 < len(cells) && cells[k+1].Rune == wideFill {
-				w++
+		if after { // past its cluster
+			for _, c := range cols[k:clusterCells(cols, k)] {
+				col += int(c.W)
 			}
-			col += w
 		}
 		return e.layout.Offset(row, col)
 	}
 	start, end := r.Indent, r.Indent+e.layout.RowWidth(row)
-	at := drawnCols(cells, b)
+	at := drawnCols(cols, b)
 	lo := at[min(b.From, len(cells))] - e.gutter()
 	for i := b.From; i < min(b.From+len(b.Levels), len(cells)); i++ {
 		lo = min(lo, at[i]-e.gutter())
@@ -1639,13 +1649,13 @@ func (e *ScriptEditor) rowRTL(row int) bool {
 // visualCol is where column col of a row is drawn: where the bidi
 // algorithm puts its cell (a right-to-left row's end left of its text).
 func (e *ScriptEditor) visualCol(row, col int) int {
-	b, cells := e.order(row)
+	b, cells, cols := e.order(row)
 	if !b.reordered() && !b.RTL {
 		return col
 	}
 	g := e.gutter()
-	at := drawnCols(cells, b)
-	if i := cellAt(cells, g+col); i < len(cells) {
+	at := drawnCols(cols, b)
+	if i := cellAt(cols, g+col); i < len(cells) {
 		return at[i] - g
 	}
 	end := min(b.From+len(b.Levels), len(cells))

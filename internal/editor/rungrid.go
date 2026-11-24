@@ -12,7 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"golang.org/x/image/font/sfnt"
 
-	"github.com/LaPingvino/accolade/internal/editor/wrap"
+	"github.com/LaPingvino/lexington/lekhan"
 )
 
 // runGrid draws rows of styled cells as runs: a text for each stretch of
@@ -26,7 +26,60 @@ type runGrid struct {
 	// Bidi is how each row's text is ordered (right-to-left text, and
 	// left-to-right runs in it)
 	Bidi []rowBidi
+	// Cols are the columns each row's cells take (rowCells)
+	Cols [][]cellCol
 	e    *ScriptEditor // its theme and cell size
+}
+
+// cellCol is what a grid cell's rune does not tell by itself: the columns
+// the cell takes, 0 or 1 (a mark none; a Devanagari cluster, by Lekhan
+// monospace, its first rune one and a conjunct's second consonant one,
+// its other runes none; a wide character one, its wideFill the other),
+// and whether it is drawn in one piece with the cell before it (a rune
+// in the cluster of the one before, a wideFill).
+type cellCol struct {
+	W    int8
+	Join bool
+}
+
+// rowBuilder makes a grid row: its cells and their columns.
+type rowBuilder struct {
+	cells []widget.TextGridCell
+	cols  []cellCol
+}
+
+// add puts a cell for a rune taking w columns (2: a wide character, its
+// second column a wideFill), join: in the cluster of the cell before.
+func (b *rowBuilder) add(c widget.TextGridCell, w int, join bool) {
+	b.cells = append(b.cells, c)
+	b.cols = append(b.cols, cellCol{W: int8(min(w, 1)), Join: join})
+	if w == 2 {
+		b.cells = append(b.cells, widget.TextGridCell{Rune: wideFill, Style: c.Style})
+		b.cols = append(b.cols, cellCol{W: 1, Join: true})
+	}
+}
+
+// plain puts a cell of one column, apart (a gutter's, a space).
+func (b *rowBuilder) plain(r rune, style widget.TextGridStyle) {
+	b.add(widget.TextGridCell{Rune: r, Style: style}, 1, false)
+}
+
+// label puts a label's runes, each in its cluster's cells (lekhan.Cells),
+// in the style styleAt gives each.
+func (b *rowBuilder) label(rs []rune, styleAt func(k int) widget.TextGridStyle) {
+	for k, w := range lekhan.Cells(rs) {
+		b.add(widget.TextGridCell{Rune: rs[k], Style: styleAt(k)}, w, k > 0 && !lekhan.Boundary(rs, k))
+	}
+}
+
+// clusterCells is where the cells of the cluster that starts at cell i
+// end (the cells after it drawn in one piece with it).
+func clusterCells(cols []cellCol, i int) int {
+	j := i + 1
+	for j < len(cols) && cols[j].Join {
+		j++
+	}
+	return j
 }
 
 func newRunGrid(e *ScriptEditor) *runGrid {
@@ -73,16 +126,16 @@ func (r *runRenderer) Refresh() {
 	cw, ch := r.g.e.cellWidth(), r.g.e.cellHeight()
 	nt, nr, ni := 0, 0, 0
 	for y, row := range r.g.Rows {
-		cells := row.Cells
+		cells, cc := row.Cells, r.g.Cols[y]
 		top := float32(y) * ch
 		var bd rowBidi
 		if y < len(r.g.Bidi) {
 			bd = r.g.Bidi[y]
 		}
-		cols := drawnCols(cells, bd) // where each cell is drawn
+		cols := drawnCols(cc, bd) // where each cell is drawn
 		end := min(bd.From+len(bd.Levels), len(cells))
 		left := func(i int) float32 { return float32(cols[i]) * cw }
-		width := func(i int) float32 { return float32(cellWidth(cells[i].Rune)) * cw }
+		width := func(i int) float32 { return float32(cc[i].W) * cw }
 		span := func(i, j int) (float32, float32) { // where cells [i, j) are drawn
 			l, rt := left(i), left(i)+width(i)
 			for k := i + 1; k < j; k++ {
@@ -129,8 +182,8 @@ func (r *runRenderer) Refresh() {
 			// (one cut off from its letters by a style or a wide character
 			// stands alone)
 			alone := inText && bd.level(i) > 0 && !leads(cells[i].Rune, int8(bd.level(i)))
-			for j < len(cells) && narrow(cells[j].Rune) && cells[j].Rune != wideFill &&
-				(j > i && inCluster(cells, j) || // a cluster is drawn whole (क्ष, कि), in its first cell's style
+			for j < len(cells) && narrow(cells[j].Rune, cc[j].W) && cells[j].Rune != wideFill &&
+				(j > i && cc[j].Join || // a cluster is drawn whole (क्ष, कि), in its first cell's style
 					(j == i || !boundary(j) && !alone) && (!inText || j == i || joins[j]) &&
 						styleOf(cells[j].Style) == style && sameColor(colorOf(cells[j].Style, fg), col)) {
 				b.WriteRune(cells[j].Rune)
@@ -141,19 +194,17 @@ func (r *runRenderer) Refresh() {
 					b.WriteRune(cells[i].Rune)
 				}
 				j++
-				// with its marks (a variation selector), what a joiner joins
-				// to it (👩‍💻) and a flag's second letter: one picture
-				prev := cells[i].Rune
+				// with its cluster: its marks (a variation selector), what a
+				// joiner joins to it (👩‍💻), a script's signs (in a font that
+				// lacks the script), and a flag's second letter: one picture
 				for j < len(cells) {
 					c := cells[j].Rune
-					joined := prev == 0x200D || (isFlagLetter(prev) && isFlagLetter(c) && j == i+1) ||
-						wrap.JoinsBefore(prev, c) // a cluster (in a font that lacks its script)
-					if c != wideFill && cellWidth(c) != 0 && !joined {
+					flag := j == i+1 && isFlagLetter(cells[i].Rune) && isFlagLetter(c)
+					if !cc[j].Join && cc[j].W != 0 && !flag {
 						break
 					}
 					if c != wideFill {
 						b.WriteRune(c)
-						prev = c
 					}
 					j++
 				}
@@ -191,7 +242,7 @@ func (r *runRenderer) Refresh() {
 		for i := 0; i < len(row.Cells); i++ {
 			pc, ok := row.Cells[i].Style.(*pictureCell)
 			if !ok || !pc.lead {
-				x += float32(cellWidth(row.Cells[i].Rune)) * cw
+				x += float32(r.g.Cols[y][i].W) * cw
 				continue
 			}
 			j, w := i, float32(0)
@@ -221,14 +272,6 @@ func (r *runRenderer) Refresh() {
 	for _, o := range r.images[:ni] {
 		r.objects = append(r.objects, o)
 	}
-}
-
-// inCluster tells whether cell j belongs to the cluster of the cell
-// before it (wrap.JoinsBefore): a text run goes on over it, whatever its
-// style, as the shaper draws a cluster only whole (Devanagari's
-// conjuncts, the i-matra before its consonant, the reph over the next).
-func inCluster(cells []widget.TextGridCell, j int) bool {
-	return j > 0 && wrap.JoinsBefore(cells[j-1].Rune, cells[j].Rune)
 }
 
 // wideGlyph, when set, draws a wide character as a picture w by h of
@@ -275,11 +318,12 @@ func (r *runRenderer) rect(i int) *canvas.Rectangle {
 	return r.rects[i]
 }
 
-// narrow: a character as wide as a cell, or a mark on one, that the
-// editor's font has (wider ones, from the CJK ranges on, and those the
-// font lacks, drawn in another, are drawn one by one, each in its cells).
-func narrow(r rune) bool {
-	return wrap.Width(r) == 0 || (r < 0x1100 && (r < 0x250 || inFont(r)))
+// narrow: a character as wide as a cell, or one taking no column of its
+// own (w, its cellCol's: a mark, a cluster's sign), that the editor's font
+// has (wider ones, from the CJK ranges on, and those the font lacks, drawn
+// in another, are drawn one by one, each in its cells).
+func narrow(r rune, w int8) bool {
+	return w == 0 || (r < 0x1100 && (r < 0x250 || inFont(r)))
 }
 
 var (

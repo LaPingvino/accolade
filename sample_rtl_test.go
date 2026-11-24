@@ -442,12 +442,15 @@ func TestLanguageSampleScreenshots(t *testing.T) {
 		}
 	}
 	// the others in the editor
-	for _, lang := range []string{"eo", "zh", "de", "ru", "ja", "hi-Latn", "hi-Deva"} {
+	for _, lang := range []string{"eo", "zh", "de", "ru", "ja", "hi-Latn"} {
 		w := langSampleWindow(t, lang)
 		w.fyneWindow.Resize(fyne.NewSize(1100, 750))
 		shot(w, "sample-"+lang+"-editor")
 	}
-	for _, lang := range []string{"he", "ar"} {
+	// and with their page views and PDFs: the right-to-left ones, and
+	// Devanagari in Lekhan monospace (a conjunct two cells, a simple
+	// cluster one)
+	for _, lang := range []string{"he", "ar", "hi-Deva"} {
 		w := langSampleWindow(t, lang)
 		w.fyneWindow.Resize(fyne.NewSize(1100, 750))
 		shot(w, "sample-"+lang+"-editor")

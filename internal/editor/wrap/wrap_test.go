@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/LaPingvino/lexington/lekhan"
 )
 
 // rows renders a layout as the rows would look on screen.
@@ -137,9 +139,6 @@ func TestWide(t *testing.T) {
 	if off := l.Offset(0, 3); off != 1 { // the right half of 本
 		t.Errorf("column 3 is offset %d", off)
 	}
-	if Width('a') != 1 || Width('語') != 2 || Width('한') != 2 {
-		t.Error("widths")
-	}
 }
 
 // A span is one piece of Cols columns: rows break around it, never in it,
@@ -183,16 +182,38 @@ func TestWrapSpans(t *testing.T) {
 	}
 }
 
-func TestJoinsBefore(t *testing.T) {
-	for _, c := range []struct {
-		a, b rune
-		want bool
-	}{
-		{'क', '्', true}, {'्', 'ष', true}, {'क', 'ि', true}, {'र', '‍', true}, {'‍', 'य', true},
-		{'य', ' ', false}, {' ', 'क', false}, {'क', 'क', false}, {'\n', 'ि', false}, {'e', '̂', true},
-	} {
-		if got := JoinsBefore(c.a, c.b); got != c.want {
-			t.Errorf("JoinsBefore(%q, %q) = %v", c.a, c.b, got)
+// Devanagari takes Lekhan monospace's columns: a simple cluster one, a
+// conjunct two; a row never breaks inside a cluster, at any width, and a
+// column on a conjunct's second cell gives its start.
+func TestWrapClusters(t *testing.T) {
+	text := []rune("क्षत्रिय स्क्री कि धर्म\nर्यर्यर्य आ")
+	for width := 1; width <= 12; width++ {
+		for _, l := range []Layout{Wrap(text, width), WrapFormatted(text, width, []Format{{Indent: 1}, {Align: 'R'}})} {
+			for i, r := range l.Rows {
+				if !lekhan.Boundary(text, r.Start) || !lekhan.Boundary(text, r.End) {
+					t.Errorf("width %d: row %d %q breaks inside a cluster", width, i, l.RowText(text, i))
+				}
+				w := lekhan.Width(string(text[r.Start:r.End]))
+				if l.RowWidth(i) != w {
+					t.Errorf("width %d: row %d %q is %d columns, lekhan %d", width, i, l.RowText(text, i), l.RowWidth(i), w)
+				}
+				shown := lekhan.Width(strings.TrimRight(string(text[r.Start:r.End]), " ")) // a break's spaces may hang
+				if shown+r.Indent > width && lekhan.ClusterEnd(text, r.Start) < r.End {
+					t.Errorf("width %d: row %d %q overflows", width, i, l.RowText(text, i))
+				}
+			}
 		}
+	}
+	l := Wrap(text, 40)
+	if w := l.RowWidth(0); w != 2+2+1+1+2+1+1+1+1+2 { // क्ष त्रि य ␠ स्क्री ␠ कि ␠ ध र्म
+		t.Errorf("first row %d columns", w)
+	}
+	for col, want := range []int{0, 0, 3, 3, 7, 8, 9} {
+		if off := l.Offset(0, col); off != want {
+			t.Errorf("column %d is offset %d, want %d", col, off, want)
+		}
+	}
+	if _, c := l.RowCol(9); c != 6 { // before स्क्री: क्ष त्रि य ␠
+		t.Errorf("स्क्री at column %d", c)
 	}
 }

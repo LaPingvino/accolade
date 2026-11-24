@@ -4,6 +4,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 
 	"slices"
 	"strings"
@@ -54,10 +55,10 @@ func TestRTLMirrored(t *testing.T) {
 	e.FocusGained()
 	e.Buffer().SetCursor(5, false) // before ל
 	e.changed(false)
-	if b, _ := e.order(1); b.From != e.gutter() || len(b.Levels) != 4 || !b.RTL || !slices.Equal(b.Order, []int{3, 2, 1, 0}) {
+	if b, _, _ := e.order(1); b.From != e.gutter() || len(b.Levels) != 4 || !b.RTL || !slices.Equal(b.Order, []int{3, 2, 1, 0}) {
 		t.Errorf("right-to-left row ordered %+v", b)
 	}
-	if b, _ := e.order(0); b.reordered() || b.RTL {
+	if b, _, _ := e.order(0); b.reordered() || b.RTL {
 		t.Error("left-to-right row reordered")
 	}
 	if c := e.visualCol(1, 1); c != 2 { // ל: second from the right of 4
@@ -130,14 +131,16 @@ func TestLTRJoins(t *testing.T) {
 
 // shown is row i as drawn: its cells' runes placed at their columns.
 func shown(e *ScriptEditor, i int) string {
-	b, cells := e.order(i)
+	b, cells, cols := e.order(i)
 	if cells == nil {
-		cells = e.row(i).Cells
+		var row widget.TextGridRow
+		row, cols, _, _ = e.rowCells(i)
+		cells = row.Cells
 	}
-	at := drawnCols(cells, b)
+	at := drawnCols(cols, b)
 	out := []rune(strings.Repeat(" ", at[len(cells)]+2))
 	for k, c := range cells {
-		if c.Rune != wideFill && cellWidth(c.Rune) > 0 && at[k] >= 0 && at[k] < len(out) {
+		if c.Rune != wideFill && cols[k].W > 0 && at[k] >= 0 && at[k] < len(out) {
 			r := c.Rune
 			if b.level(k)%2 == 1 {
 				r = []rune(mirrorBracket(string(r)))[0]
@@ -178,8 +181,8 @@ func TestBidiCursorAndClicks(t *testing.T) {
 		e.FocusGained()
 		e.changed(false)
 		rs := []rune(line)
-		b, cells := e.order(0)
-		at := drawnCols(cells, b)
+		b, _, cols := e.order(0)
+		at := drawnCols(cols, b)
 		for off := range rs {
 			e.Buffer().SetCursor(off, false)
 			e.changed(false)

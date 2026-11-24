@@ -1903,3 +1903,18 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   external-program formats (htmlpdf, latexpdf, Calibre's) now print the template. Tests: TestTitleTemplatePerScript,
   TestTitleTemplateTravels (with Lexington's cli.Convert on the bundle), TestTitleTemplateTravelsLater,
   TestAddTitleTemplateToMySettings; shots TestTitleChoiceScreenshots (tplchoice-*.png). Rough: a plain script opened and never saved keeps following the default.
+- 2026-11-23: LEKHAN MONOSPACE done (branch lekhan, not merged). Courier Badi 1.105 (v1.105) draws Devanagari to it
+  (1.106 only redraws the headline pads left of their origin: made for gaps that, measured at 600 dpi, were not
+  there, only in downscaled previews); docs/LEKHAN.md (CC0: the story, the typewriter lineage, the rule as
+  extended grapheme clusters with GB9c, vectors in docs/lekhan-vectors.txt, the reference function) in courier-badi.
+  The font: each cluster the donor's proportional drawing scaled across to fill one cell or, a conjunct, two (levels
+  0.72–2.9, stems kept), worked out per syllable in psts with counter marks (consonants counted back by a reverse
+  chaining lookup, widths added, a level chosen, the glyphs swapped, the rest as headline pads); check-devanagari.py
+  (0 wrong in all four styles; no conjunct with more than 500 units of pads), make lekhan-specimen
+  (documentation/lekhan-specimen.pdf). Lexington 1.54.0 (package lekhan: the one width function; the PDF wraps by it),
+  1.55.0 (1.106; cellWidth by Lekhan too; every vector shaped by go-text in the tests) and 1.56.0 (the embedded
+  font's cmap: its first record pointed at the cmap's header). The editor counts
+  columns by lekhan (wrap's per-rune shares, the grid's cell columns, cursor stops by lekhan.Boundary). Costs: the
+  static TTFs grow from 1.75 MB to 4.0–4.8 MB a style (the wasm from 80.2 to 90.4 MB); go-text shapes Devanagari
+  about 2.6x slower. Not done: the Text Terminal WG / Monotty note (Joop's to post); the typewriter paragraph is
+  from the brief, not checked against a source.
