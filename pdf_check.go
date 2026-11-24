@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/LaPingvino/lexington/cli"
 	"github.com/LaPingvino/lexington/fountain"
+	"github.com/LaPingvino/lexington/pdf"
 )
 
 // pdfWarning says what the PDF writer cannot print of a script ("" if
@@ -17,14 +18,21 @@ func pdfWarning(content string, lang rules.Language) string {
 	return cli.PDFWarning(fountain.ParseIn(lang, strings.NewReader(content)))
 }
 
+// unshapedScripts are the scripts of a script whose joining letters the
+// PDF writer cannot shape (Lexington's names: "Syriac", "Nko"), none if
+// it shapes all.
+func unshapedScripts(content string, lang rules.Language) []string {
+	return pdf.Unshaped(fountain.ParseIn(lang, strings.NewReader(content)))
+}
+
 // pdfOrPrint makes a PDF with makePDF, unless the script has text the
-// PDF cannot print as written (CJK: boxes; joining letters it does not shape, as Syriac: unjoined; Arabic it shapes): then it offers to print instead, through the browser,
-// whose fonts and layout have them, or to make the PDF anyway. With a
-// Chromium browser on the computer there is no need to ask: exportAs has
-// it make the PDF.
+// PDF cannot print as written (letters that join that it cannot shape,
+// as Syriac; a character no font on the computer has): then it offers to
+// print instead, through the browser, whose fonts and shaping have them,
+// or to make the PDF anyway.
 func (w *MainWindow) pdfOrPrint(content string, makePDF func()) {
 	warning := pdfWarning(content, w.lex().Language(w.language))
-	if warning == "" || localBrowser() != "" { // a browser makes it (exportAs)
+	if warning == "" {
 		makePDF()
 		return
 	}

@@ -834,8 +834,8 @@ imported ones on lines nothing changed since). A mark whose line's text is not w
 Rough: a deletion next to a changed line has no mark of its own; a dual dialogue is marked whole (both columns'
 lines) when either speech changed; Lexington's command line has no revision flags yet; the editor's bar is the fold column's second cell
 (no column of its own); the title page does not list the issued sets yet; locked pages and A-pages are step 5, so
-"changed pages" are by the current pagination; the browser's PDF export of a script the PDF writer cannot print
-(right to left, CJK) goes through HTML and has no marks.
+"changed pages" are by the current pagination; the browser's PDF of a script the PDF writer cannot shape
+(Syriac, N'Ko…: Make the PDF with the Browser) goes through HTML and has no marks.
 
 ## 11. Step 5, built: locked pages, A-pages and CONTINUEDs (2026-11-20)
 

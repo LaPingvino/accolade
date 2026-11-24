@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -14,7 +13,6 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/LaPingvino/lexington/cli"
 	"github.com/LaPingvino/lexington/pdf"
 )
 
@@ -131,31 +129,96 @@ var openInSystem = func(path string) { systemOpen(path) }
 // at a time.
 func previewTemp() (string, error) { return os.MkdirTemp("", "accolade-preview-") }
 
-// browserNote says why the pages shown are not the PDF's: a browser
-// made the PDF (scripts the PDF writer cannot print as written).
-const browserNote = "Your browser made this PDF, for the scripts Lexington's PDF cannot print as written (its letters " +
-	"joined, or CJK): the pages shown are Lexington's own. Open in Viewer shows the browser's."
-
 // drawScript prints the script as the job says to out (a PDF), and gives
-// its pages as drawn. A PDF a browser made (exportAs) has none of its
-// own: Lexington's pages are drawn then, and note says so.
-func drawScript(content, out string, job exportJob) (d pdf.Drawing, note string, err error) {
+// its pages as drawn.
+func drawScript(content, out string, job exportJob) (d pdf.Drawing, err error) {
 	job.record = &d
-	if err := exportAs(content, out, "pdf", job); err != nil {
-		return d, "", err
+	err = exportAs(content, out, "pdf", job)
+	return d, err
+}
+
+// shapingNote is the note over a script's pages when the PDF cannot shape
+// the joining letters of some of its scripts (Syriac, N'Ko…: Lexington's
+// Unshaped, unshapedScripts), "" when it shapes all: the pages are the
+// best the PDF can do; the actions make the PDF through a browser on the
+// computer instead, or open the script as HTML, in which the browser
+// shapes them.
+func (w *MainWindow) shapingNote(scripts []string, content string, job exportJob) (string, []fyne.CanvasObject) {
+	if len(scripts) == 0 {
+		return "", nil
 	}
-	if len(d.Pages) > 0 {
-		return d, "", nil
+	note := fmt.Sprintf("Shaping for %s is missing in the PDF: its letters print unjoined. These pages are the best the PDF can do.",
+		joinNames(scripts))
+	var acts []fyne.CanvasObject
+	if b := localBrowser(); b != "" {
+		acts = append(acts, noteLink("Make the PDF with the Browser", func() { w.browserPDFOf(content, job, b) }))
 	}
-	own := out + ".lexington.pdf"
-	defer os.Remove(own)
-	job = withLockedPages(content, "pdf", job)
-	o := job.options("pdf", own)
-	o.Record = &d
-	if err := cli.Write(context.Background(), job.script(content), o); err != nil {
-		return d, "", err
+	acts = append(acts, noteLink("Open as HTML", func() { w.htmlOf(content, job) }))
+	return note, acts
+}
+
+// joinNames is scripts' Unicode names as a list in prose ("Syriac",
+// "N'Ko and Syriac", "Mongolian, N'Ko and Syriac").
+func joinNames(names []string) string {
+	names = slices.Clone(names)
+	for i, n := range names {
+		if n == "Nko" {
+			n = "N'Ko"
+		}
+		names[i] = strings.ReplaceAll(n, "_", " ") // Hanifi_Rohingya
 	}
-	return d, browserNote, nil
+	if len(names) < 2 {
+		return strings.Join(names, "")
+	}
+	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
+}
+
+// noteLink is an action in a note over the pages.
+func noteLink(label string, act func()) *widget.Button {
+	b := widget.NewButton(label, act)
+	b.Importance = widget.LowImportance
+	return b
+}
+
+// browserPDFOf makes the script's PDF with a browser on the computer
+// from Lexington's HTML, and opens it in the system's viewer.
+func (w *MainWindow) browserPDFOf(content string, job exportJob, browser string) {
+	dir, err := os.MkdirTemp("", "accolade-pdf-")
+	if err != nil {
+		w.showPDFError(err)
+		return
+	}
+	page, out := filepath.Join(dir, "script.html"), filepath.Join(dir, w.pdfName())
+	w.setStatus("Making the PDF with the browser...")
+	inBackground(func() error {
+		if err := exportAs(content, page, "html", job); err != nil {
+			return err
+		}
+		return browserPDF(browser, page, out)
+	}, func(err error) {
+		w.setStatus("")
+		if err != nil {
+			w.showPDFError(err)
+			return
+		}
+		openInSystem(out)
+	})
+}
+
+// htmlOf opens the script as Lexington's HTML (in the browser, which
+// shapes every script).
+func (w *MainWindow) htmlOf(content string, job exportJob) {
+	dir, err := os.MkdirTemp("", "accolade-html-")
+	if err != nil {
+		dialog.ShowError(err, w.fyneWindow)
+		return
+	}
+	page := filepath.Join(dir, strings.TrimSuffix(w.pdfName(), ".pdf")+".html")
+	if err := exportAs(content, page, "html", job); err != nil {
+		dialog.ShowError(err, w.fyneWindow)
+		return
+	}
+	openFile(page)
 }
 
 // pdfName is the name of the script's (or document's) PDF.

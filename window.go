@@ -1589,7 +1589,7 @@ var elementNames = map[syntax.Kind]string{
 // setup, and shows its pages in the page view, with the page setup
 // they are made with: a change in it makes them again.
 func (w *MainWindow) previewPDF() {
-	w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
+	w.makePreviewPDF()
 }
 
 func (w *MainWindow) makePreviewPDF() {
@@ -1611,7 +1611,8 @@ func (w *MainWindow) makePreviewPDF() {
 	previewsMaking.Add(1)
 	go func() {
 		defer previewsMaking.Add(-1)
-		d, note, err := drawScript(content, out, job)
+		d, err := drawScript(content, out, job)
+		scripts := unshapedScripts(content, job.lang())
 		uiDo(func() { // the UI's turn: in the tests this runs beside them
 			if gen != w.previewGen { // made again since
 				os.RemoveAll(dir)
@@ -1629,9 +1630,10 @@ func (w *MainWindow) makePreviewPDF() {
 			w.pagesPreview = true
 			v.remake = func() {
 				line.refresh()
-				w.pdfOrPrint(w.textEditor.Text(), w.makePreviewPDF)
+				w.makePreviewPDF()
 			}
-			v.setNote(note)
+			note, acts := w.shapingNote(scripts, content, job)
+			v.setNote(note, acts...)
 			v.setupLine = line
 			v.followLook()
 			newPageFollow(w, v, content, d)

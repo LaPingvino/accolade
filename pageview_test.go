@@ -12,6 +12,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
+	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/pdf"
 	"github.com/LaPingvino/lexington/pdfin"
 	lexreport "github.com/LaPingvino/lexington/report"
@@ -79,6 +81,85 @@ func firstText(p pdf.DrawnPage) string {
 }
 
 const pageViewScript = "Title: The Barn\nAuthor: Someone\n\nINT. BARN - DAY\n\nRain falls on the roof, steady, for a long while.\n\nANNA\nHello there. Is anyone in?\n\nEXT. FIELD - NIGHT\n\nThe moon.\n"
+
+const cjkPagesScript = "Title: パリ症候群\nAuthor: Someone\n\nINT. CAFÉ - DAY\n\nRain on the glass. 東京 is far.\n\nYUKI\nパリは遠い。\n"
+
+// A title in Japanese, which Courier Badi has none of, shows in the page
+// view: its mark on the title page paints dark pixels in its box (the
+// glyphs from a font on the computer, as the PDF prints them).
+func TestPageViewDrawsCJK(t *testing.T) {
+	if m, _ := pdf.Unsupported(fountain.Parse(nil, strings.NewReader(cjkPagesScript))); len(m) > 0 {
+		t.Skipf("no font on this computer has %s", string(m))
+	}
+	w := newTestWindow(t, cjkPagesScript)
+	w.fyneWindow.Resize(fyne.NewSize(1100, 760))
+	v := previewAndWait(t, w)
+	var title pdf.Text
+	found := false
+	for _, m := range v.d.Pages[0].Marks {
+		if tx, ok := m.(pdf.Text); ok && strings.Contains(tx.Text, "パリ症候群") {
+			title, found = tx, true
+		}
+	}
+	if !found {
+		t.Fatalf("no mark of the title on the title page: %q", firstText(v.d.Pages[0]))
+	}
+	if title.Width < 9*7.2 {
+		t.Errorf("the title is %.1fpt wide: not two cells a character", title.Width)
+	}
+	img := painted(t, v, 0)
+	scale := float64(img.Bounds().Dx()) / v.d.Pages[0].Width
+	ink := 0
+	for y := int((title.Y - 11) * scale); y < int((title.Y+2)*scale); y++ {
+		for x := int(title.X * scale); x < int((title.X+title.Width)*scale); x++ {
+			if r, _, _, _ := img.At(x, y).RGBA(); r < 0x8000 {
+				ink++
+			}
+		}
+	}
+	if ink < 20 {
+		t.Errorf("the title paints %d dark pixels in its box: not drawn", ink)
+	}
+	if v.note.Visible() {
+		t.Errorf("a note over pages the PDF prints as written: %q", v.note.Text)
+	}
+}
+
+// A script with letters the PDF cannot shape (Syriac) shows Lexington's
+// pages with a note naming the script, and the ways to the browser's
+// shaping: Open as HTML, and with a browser on the computer, Make the PDF
+// with the Browser.
+func TestPageViewShapingNote(t *testing.T) {
+	w := newTestWindow(t, "INT. ROOM - DAY\n\nShe writes: ܫܠܡܐ ܥܠܡܐ\n")
+	w.fyneWindow.Resize(fyne.NewSize(1100, 760))
+	v := previewAndWait(t, w)
+	var text string
+	var labels []string
+	fyne.DoAndWait(func() {
+		if v.note.Visible() {
+			text = v.note.Text
+		}
+		if v.noteActs.Visible() {
+			for _, o := range v.noteActs.Objects {
+				labels = append(labels, o.(*widget.Button).Text)
+			}
+		}
+	})
+	if !strings.Contains(text, "Shaping for Syriac is missing in the PDF") {
+		t.Errorf("the note: %q", text)
+	}
+	want := []string{"Open as HTML"}
+	if localBrowser() != "" {
+		want = append([]string{"Make the PDF with the Browser"}, want...)
+	}
+	if !slices.Equal(labels, want) {
+		t.Errorf("the note's actions %q, want %q", labels, want)
+	}
+	if dir := os.Getenv("SHOT_DIR"); dir != "" {
+		painted(t, v, 0)
+		capture(t, w.fyneWindow.Canvas(), "pageview-shaping-note.png")
+	}
+}
 
 // The page view shows the PDF's pages: as many as the PDF has, the first
 // lines the PDF's, the pages painted in the window.
@@ -269,6 +350,8 @@ func TestPageViewScreenshots(t *testing.T) {
 		{"phone", pageViewScript, fyne.NewSize(380, 800)},
 		{"hebrew-desktop", hebrew, fyne.NewSize(1200, 800)},
 		{"hebrew-phone", hebrew, fyne.NewSize(380, 800)},
+		{"cjk-desktop", cjkPagesScript, fyne.NewSize(1200, 800)},
+		{"cjk-phone", cjkPagesScript, fyne.NewSize(380, 800)},
 	} {
 		w, _ := newDialogTestWindow(t)
 		w.textEditor.SetText(c.text)
@@ -278,7 +361,7 @@ func TestPageViewScreenshots(t *testing.T) {
 		w.fyneWindow.Resize(c.size)
 		v := previewAndWait(t, w)
 		painted(t, v, 0)
-		if len(v.d.Pages) > 1 {
+		if len(v.d.Pages) > 1 && !strings.HasPrefix(c.name, "cjk") { // (CJK's: its title page)
 			v.area.TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
 			painted(t, v, 1)
 		}

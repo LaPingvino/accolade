@@ -224,23 +224,6 @@ func withoutTitlePage(s lex.Screenplay) lex.Screenplay {
 // Lexington's command line's options: what "accolade -to ..." makes.
 func exportAs(content, outputPath, to string, job exportJob) error {
 	job = withLockedPages(content, to, job)
-	if to == "pdf" {
-		// a script the PDF writer cannot print as written (CJK; Arabic,
-		// whose letters it does not join): a browser on the computer prints Lexington's
-		// HTML (browser_pdf.go)
-		if b := localBrowser(); b != "" && pdfWarning(content, job.lang()) != "" {
-			dir, err := os.MkdirTemp("", "accolade-pdf-")
-			if err != nil {
-				return err
-			}
-			defer os.RemoveAll(dir)
-			page := filepath.Join(dir, "script.html")
-			if err := exportAs(content, page, "html", job); err != nil {
-				return err
-			}
-			return browserPDF(b, page, outputPath)
-		}
-	}
 	return writeViaTemp(outputPath, func(tmp string) (err error) {
 		defer func() {
 			if r := recover(); r != nil {

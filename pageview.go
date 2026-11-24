@@ -95,7 +95,9 @@ type pageView struct {
 	head  *fyne.Container // the title, the count, Close
 	count *widget.Label
 	note  *widget.Label
-	extra *fyne.Container // the caller's: a page setup line, Back
+	// noteActs are the note's actions (shapingNote's)
+	noteActs *fyne.Container
+	extra    *fyne.Container // the caller's: a page setup line, Back
 	// setupLine is the page setup line in extra, if it is one (Preview
 	// PDF's: the Preview tab's Setup has it in the Ribbon look)
 	setupLine *pageSetupLine
@@ -153,6 +155,8 @@ func newPageView(w *MainWindow) *pageView {
 	v.note.Wrapping = fyne.TextWrapWord
 	v.note.Importance = widget.WarningImportance
 	v.note.Hide()
+	v.noteActs = container.New(layout.NewRowWrapLayout())
+	v.noteActs.Hide()
 	v.extra = container.NewVBox()
 	v.column = container.New(&pagesLayout{v: v})
 	v.scroll = container.NewScroll(v.column)
@@ -213,7 +217,7 @@ func newPageView(w *MainWindow) *pageView {
 		v.tools = container.NewHBox(zoomOut, fit, actual, zoomIn, v.refreshB, layout.NewSpacer(), files)
 	}
 	v.head = container.NewBorder(nil, nil, nil, right, v.title)
-	v.top = container.NewVBox(v.head, v.tools, v.extra, v.note)
+	v.top = container.NewVBox(v.head, v.tools, v.extra, v.note, v.noteActs)
 	v.box = container.NewBorder(v.top, nil, nil, nil, v.area)
 	fyne.SetAccessibleLabel(v.area, "Pages")
 	return v
@@ -242,6 +246,19 @@ func (v *pageView) show(d pdf.Drawing, title, pdfPath, name string) {
 	v.setDrawing(d, -1)
 }
 
+// pageFallback draws a character the drawing's fonts have no glyph for
+// (pdf.Rasterizer's Fallback): the browser's fonts in the web version
+// (pageview_js.go); none on the desktop, where the PDF's font has the
+// computer's glyphs already, as the page view shows the PDF's pages.
+var pageFallback func(s string, size, w float64) *image.Alpha
+
+// newRasterizer paints d's pages, with pageFallback.
+func newRasterizer(d *pdf.Drawing) *pdf.Rasterizer {
+	r := pdf.NewRasterizer(d)
+	r.Fallback = pageFallback
+	return r
+}
+
 // setDrawing shows d's pages, those from dimFrom on dimmed (-1: none):
 // the place in them (the page, and how far down it) and the zoom kept;
 // a page that looks as it did keeps its painting, the others are painted
@@ -251,13 +268,13 @@ func (v *pageView) setDrawing(d pdf.Drawing, dimFrom int) {
 	page, frac := v.anchor()
 	old := v.d
 	if v.r == nil || old == nil || !sameFonts(old.Fonts, d.Fonts) {
-		v.r = pdf.NewRasterizer(&d)
+		v.r = newRasterizer(&d)
 		old = nil // painted with other fonts
 	} else if !sameImages(old.Images, d.Images) {
 		// the rasterizer paints its drawing's pictures: one that came (a
 		// title page's, a storyboard frame's) or changed needs the new
 		// drawing's, and the pages showing it painted again
-		v.r = pdf.NewRasterizer(&d)
+		v.r = newRasterizer(&d)
 		old = nil
 	}
 	v.d = &d
@@ -392,10 +409,13 @@ func (v *pageView) refresh() {
 	}
 }
 
-// setNote shows a line over the pages ("" none).
-func (v *pageView) setNote(s string) {
+// setNote shows a line over the pages ("" none), with actions after it.
+func (v *pageView) setNote(s string, acts ...fyne.CanvasObject) {
 	v.note.SetText(s)
 	setVisible(v.note, s != "")
+	v.noteActs.Objects = acts
+	setVisible(v.noteActs, s != "" && len(acts) > 0)
+	v.noteActs.Refresh()
 	v.fitTop()
 }
 

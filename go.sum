@@ -10,8 +10,8 @@ github.com/LaPingvino/fyne/v2 v2.8.2-0.20261123113214-bd9edc8a9607 h1:2A0oK0OWz4
 github.com/LaPingvino/fyne/v2 v2.8.2-0.20261123113214-bd9edc8a9607/go.mod h1:VzPfCFW/BNpw/B4LxARIBWZaSEvQxdsqrv0LpWRo+mM=
 github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4 h1:XJ17HVrIMw5b2nAP5/mOSNdqHN6zwuElaUJ0sxlb580=
 github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4/go.mod h1:SDchsFZh4n7nVuBoiowOhOgIBdz+qUQVeC1w9fe2yVU=
-github.com/LaPingvino/lexington v1.59.0 h1:fKvp9wS/TfumrKR6CiuIJ/E5ygwOREMI2gmTbCPxX4w=
-github.com/LaPingvino/lexington v1.59.0/go.mod h1:kshAXmFYPU0cLS2Dfgm3S6IYVEL6vb/hJ+qVRZsFLzQ=
+github.com/LaPingvino/lexington v1.60.0 h1:E6Obnkq3G/ZSJLwsEZQaq9XyGbdnV85maZGy5SNd7+k=
+github.com/LaPingvino/lexington v1.60.0/go.mod h1:kshAXmFYPU0cLS2Dfgm3S6IYVEL6vb/hJ+qVRZsFLzQ=
 github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3 h1:0pb1fCiKDeV86cIiHBKI67y1tiIAKiFoEojc384GoEs=
 github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3/go.mod h1:ydoIgOjNEF8pHdgWfCX68l+XfHSV5CfNzyKUGLfAvGA=
 github.com/anthonynsimon/bild v0.14.0 h1:IFRkmKdNdqmexXHfEU7rPlAmdUZ8BDZEGtGHDnGWync=

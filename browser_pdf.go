@@ -14,10 +14,11 @@ import (
 )
 
 // On the desktop, a script the PDF writer cannot print as written
-// (CJK: letters no font of its has) is printed by a browser on the computer
-// from Lexington's HTML: its fonts and layout have every script. Print
-// opens the browser's print dialog; a PDF is made by a Chromium browser
-// (Chrome, Chromium, Edge, Brave) without showing it.
+// (letters that join that it cannot shape, as Syriac) can be printed by a
+// browser on the computer from Lexington's HTML, whose shaping has every
+// script: Print opens the browser's print dialog; Make the PDF with the
+// Browser (the page view's note) has a Chromium browser (Chrome,
+// Chromium, Edge, Brave) make it without showing it.
 
 func init() { printFile = printInBrowser }
 

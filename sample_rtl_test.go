@@ -18,6 +18,7 @@ import (
 	lexfont "github.com/LaPingvino/lexington/font"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
+	"github.com/LaPingvino/lexington/pdf"
 )
 
 // What each language's sample reads as: its headings, cues and
@@ -100,8 +101,16 @@ var langSampleWants = map[string]struct{ scenes, cues, transitions []string }{
 }
 
 // noPDFFont are the samples whose letters Lexington's PDF font (Courier
-// Badi) lacks: the PDF says so, and HTML prints them.
+// Badi) lacks: the PDF takes them from a font on the computer, and says
+// so only when none has them (cjkOnComputer).
 var noPDFFont = map[string]bool{"zh": true, "ja": true}
+
+// cjkOnComputer tells whether a font on the computer has Chinese and
+// Japanese, which the PDF then prints.
+func cjkOnComputer() bool {
+	m, _ := pdf.Unsupported(fountain.Parse(nil, strings.NewReader("你好。パリ")))
+	return len(m) == 0
+}
 
 // langSampleWindow is a window with lang's sample opened by its File
 // menu item.
@@ -201,7 +210,7 @@ func TestLanguageSamplesRead(t *testing.T) {
 			t.Errorf("%s transitions: %q", lang, transitions)
 		}
 		// printed by Lexington's PDF writer, not a browser
-		if msg := pdfWarning(w.textEditor.Text(), w.lex().Language(lang)); (msg != "") != noPDFFont[lang] {
+		if msg := pdfWarning(w.textEditor.Text(), w.lex().Language(lang)); (msg != "") != (noPDFFont[lang] && !cjkOnComputer()) {
 			t.Errorf("%s PDF warning: %q", lang, msg)
 		}
 	}

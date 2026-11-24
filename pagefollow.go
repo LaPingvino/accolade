@@ -261,7 +261,7 @@ func (f *pageFollow) stop() {
 func (f *pageFollow) refresh() {
 	f.stop()
 	f.gen++
-	f.w.pdfOrPrint(f.w.textEditor.Text(), f.w.makePreviewPDF)
+	f.w.makePreviewPDF()
 }
 
 // freshPDF makes the PDF of the pages shown (the text as it is), then
@@ -283,7 +283,7 @@ func (f *pageFollow) freshPDF(then func()) {
 		err error
 	}
 	inBackground(func() got {
-		d, _, err := drawScript(text, out, job)
+		d, err := drawScript(text, out, job)
 		return got{d, err}
 	}, func(g got) {
 		w.setStatus("")

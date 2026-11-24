@@ -369,19 +369,20 @@ func (ed *ExportDialog) previewExport() {
 	ed.statusLabel.SetText("Preparing the preview...")
 	job := ed.jobFor(content) // read on the UI thread
 	type made struct {
-		d    pdf.Drawing
-		note string
-		err  error
+		d       pdf.Drawing
+		scripts []string // those the PDF cannot shape
+		err     error
 	}
 	inBackground(func() (r made) {
 		if format == "pdf" {
-			r.d, r.note, r.err = drawScript(content, out, job)
+			r.d, r.err = drawScript(content, out, job)
+			r.scripts = unshapedScripts(content, job.lang())
 		} else {
 			r.err = ed.performExportJob(content, out, format, job)
 		}
 		return r
 	}, func(r made) {
-		d, note, err := r.d, r.note, r.err
+		d, err := r.d, r.err
 		if err != nil {
 			ed.statusLabel.SetText("Preview failed")
 			w.showPDFError(err)
@@ -401,7 +402,8 @@ func (ed *ExportDialog) previewExport() {
 			w.hidePages()
 			ed.dialog.Show()
 		}))
-		v.setNote(note)
+		note, acts := w.shapingNote(r.scripts, content, job)
+		v.setNote(note, acts...)
 		pagesShown(v)
 	})
 }

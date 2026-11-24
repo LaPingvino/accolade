@@ -9,6 +9,8 @@ import (
 
 	"github.com/LaPingvino/lexington/cli"
 	"github.com/LaPingvino/lexington/fountain"
+	"github.com/LaPingvino/lexington/pdf"
+	"github.com/LaPingvino/lexington/pdfin"
 )
 
 func TestPDFWarning(t *testing.T) {
@@ -29,16 +31,45 @@ func TestPDFWarning(t *testing.T) {
 	}
 }
 
-// A Chinese script's PDF is made by a browser on the computer, when there
-// is one: Courier Badi has no CJK. (Arabic no longer goes there: the PDF
-// writer shapes it.)
+// A Chinese script's PDF is Lexington's own, not a browser's: its
+// characters from a font on the computer, its text the script's.
+func TestChinesePDF(t *testing.T) {
+	const script = "内景 咖啡馆 夜\n\n张三坐在窗边。\n"
+	if m, _ := pdf.Unsupported(fountain.Parse(nil, strings.NewReader(script))); len(m) > 0 {
+		t.Skipf("no font on this computer has %s", string(m))
+	}
+	out := filepath.Join(t.TempDir(), "zh.pdf")
+	job := exportJob{scenes: sceneHeaders("zh")}
+	if err := exportAs(script, out, "pdf", job); err != nil {
+		t.Fatal(err)
+	}
+	pages, err := pdfin.Pages(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var text strings.Builder
+	for _, p := range pages {
+		for _, l := range p {
+			text.WriteString(l.Text + "\n")
+		}
+	}
+	if !strings.Contains(text.String(), "张三坐在窗边") {
+		t.Errorf("the PDF's text: %q", text.String())
+	}
+}
+
+// Make the PDF with the Browser (a script the PDF cannot shape): a
+// Chromium browser on the computer prints Lexington's HTML.
 func TestBrowserPDF(t *testing.T) {
 	if localBrowser() == "" || testing.Short() {
 		t.Skip("no Chromium browser")
 	}
-	out := filepath.Join(t.TempDir(), "zh.pdf")
-	job := exportJob{scenes: sceneHeaders("zh")}
-	if err := exportAs("内景 咖啡馆 夜\n\n张三坐在窗边。\n", out, "pdf", job); err != nil {
+	dir := t.TempDir()
+	page, out := filepath.Join(dir, "syr.html"), filepath.Join(dir, "syr.pdf")
+	if err := exportAs("INT. HOUSE - DAY\n\nܫܠܡܐ\n", page, "html", exportJob{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := browserPDF(localBrowser(), page, out); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(out)

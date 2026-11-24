@@ -112,7 +112,7 @@ func TestHighlandRoundTrip(t *testing.T) {
 		t.Errorf("page setup: %q %q", ps.headerEntry.Text, ps.footerEntry.Text)
 	}
 	// printed: the included scene, the header (the section, the page), the footer
-	d, _, err := drawScript(text, filepath.Join(dir, "out.pdf"), w.layoutJob())
+	d, err := drawScript(text, filepath.Join(dir, "out.pdf"), w.layoutJob())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,7 +148,7 @@ func TestPageSetupHeaderFooter(t *testing.T) {
 		p.header, p.footer = "", ""
 		w.setPageSetup(p)
 	})
-	d, _, err := drawScript(w.textEditor.Text(), filepath.Join(t.TempDir(), "a.pdf"), w.layoutJob())
+	d, err := drawScript(w.textEditor.Text(), filepath.Join(t.TempDir(), "a.pdf"), w.layoutJob())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,7 +263,7 @@ func TestHighlandScreenshots(t *testing.T) {
 	w.showInclude(inc)
 	shot("include-shown.png")
 	w.includeShown.Hide()
-	if _, _, err := drawScript(text, filepath.Join(dir, "highland-directives.pdf"), w.layoutJob()); err != nil {
+	if _, err := drawScript(text, filepath.Join(dir, "highland-directives.pdf"), w.layoutJob()); err != nil {
 		t.Fatal(err)
 	}
 }

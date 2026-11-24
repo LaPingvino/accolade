@@ -37,6 +37,21 @@ func browserGlyph(s string, c color.Color, bold bool, size, w, h float32) image.
 	if ratio <= 0 {
 		ratio = 1
 	}
+	img := drawGlyph(key, ratio)
+	glyphs[key] = img
+	return img
+}
+
+// PixelGlyph draws s in the browser's fonts, in black, centred in a
+// picture w by h pixels, size pixels to the em: the page view's
+// characters the PDF's font has none of (pageview_js.go).
+func PixelGlyph(s string, size, w, h float64) image.Image {
+	return drawGlyph(glyphKey{s, color.NRGBA{A: 255}, false, float32(size), float32(w), float32(h)}, 1)
+}
+
+// drawGlyph draws a glyph's key at a pixel ratio.
+func drawGlyph(key glyphKey, ratio float64) image.Image {
+	s, w, h, size, bold := key.s, key.w, key.h, key.size, key.bold
 	pw, ph := int(math.Ceil(float64(w)*ratio)), int(math.Ceil(float64(h)*ratio))
 	if !glyphCanvas.Truthy() {
 		glyphCanvas = js.Global().Get("document").Call("createElement", "canvas")
@@ -58,6 +73,5 @@ func browserGlyph(s string, c color.Color, bold bool, size, w, h float32) image.
 	data := ctx.Call("getImageData", 0, 0, pw, ph).Get("data")
 	img := image.NewNRGBA(image.Rect(0, 0, pw, ph))
 	js.CopyBytesToGo(img.Pix, js.Global().Get("Uint8Array").New(data.Get("buffer")))
-	glyphs[key] = img
 	return img
 }
