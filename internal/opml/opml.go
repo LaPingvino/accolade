@@ -41,6 +41,9 @@ type Node struct {
 	// Level is a section's number of #s when it is not its depth (a ##
 	// with no # above it); 0: its depth
 	Level int
+	// Apart: a heading's own synopsis (its note) comes after a blank
+	// line, not touching it (_apart); both read as its own
+	Apart bool
 	Kids  []*Node
 }
 
@@ -56,6 +59,7 @@ type xmlOutline struct {
 	Note  string       `xml:"_note,attr,omitempty"`
 	Kind  string       `xml:"_kind,attr,omitempty"`
 	Level string       `xml:"_level,attr,omitempty"`
+	Apart string       `xml:"_apart,attr,omitempty"`
 	Kids  []xmlOutline `xml:"outline"`
 }
 
@@ -98,6 +102,7 @@ func Read(r io.Reader) (Doc, error) {
 				n.Text = o.Title
 			}
 			n.Level, _ = strconv.Atoi(o.Level)
+			n.Apart = o.Apart == "true"
 			out = append(out, n)
 		}
 		return out
@@ -114,6 +119,9 @@ func Write(w io.Writer, d Doc) error {
 			o := xmlOutline{Text: n.Text, Note: n.Note, Kind: n.Kind, Kids: conv(n.Kids)}
 			if n.Level > 0 {
 				o.Level = strconv.Itoa(n.Level)
+			}
+			if n.Apart {
+				o.Apart = "true"
 			}
 			out = append(out, o)
 		}
@@ -233,14 +241,14 @@ func Fountain(d Doc, isScene func(string) bool) string {
 				if level <= 0 {
 					level = depth + 1
 				}
-				paras = append(paras, own(strings.Repeat("#", level)+" "+oneLine(text), n.Note))
+				paras = append(paras, own(strings.Repeat("#", level)+" "+oneLine(text), n.Note, n.Apart))
 				walk(n.Kids, level, false)
 			case KindScene:
 				h := oneLine(text)
 				if n.Kind == "" && !isScene(h) {
 					h = "." + h
 				}
-				paras = append(paras, own(h, n.Note))
+				paras = append(paras, own(h, n.Note, n.Apart))
 				walk(n.Kids, depth, true)
 			case KindNote:
 				p := strings.TrimSpace(text)
@@ -320,10 +328,13 @@ func clean(s string) string {
 // oneLine is s on one line: its lines joined by a space.
 func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
 
-// own is a heading with its note as its own lines, touching it: each
-// line a synopsis, a note ([[…]]) as it is.
-func own(head, note string) string {
+// own is a heading with its note as its own lines, touching it (apart:
+// after a blank line): each line a synopsis, a note ([[…]]) as it is.
+func own(head, note string, apart bool) string {
 	lines := []string{head}
+	if apart && strings.TrimSpace(note) != "" {
+		lines = append(lines, "")
+	}
 	for _, l := range strings.Split(note, "\n") {
 		if t := strings.TrimSpace(l); t != "" {
 			lines = append(lines, synopsisLine(t))

@@ -17,6 +17,7 @@ import (
 const structureBeats = `Title: The Lighthouse
 
 # Act One
+
 = The keeper's daughter comes home.
 
 = Mara finds her father's letter in the lamp room.
@@ -24,6 +25,7 @@ const structureBeats = `Title: The Lighthouse
 = She decides to stay the winter.
 
 # Act Two
+
 = The storm, and what it takes.
 
 = The storm tears the roof from the boathouse.
@@ -33,6 +35,7 @@ const structureBeats = `Title: The Lighthouse
 = Mara takes the old boat out alone.
 
 # Act Three
+
 = Bringing him back.
 
 = She finds Tomas on the rocks.

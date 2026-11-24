@@ -45,13 +45,13 @@ func TestAddScene(t *testing.T) {
 	}
 }
 
-// A heading's synopsis is the synopsis touching it (no blank line
-// between); the synopses after a blank line or other lines are loose ones
-// of their own (a beat, a planned moment), the first one too: each its
-// own, in the item's Loose, never joined into the heading's.
+// A heading's synopsis is the first synopsis under it (blank lines may
+// stand between); the synopses after it, after other lines or a blank
+// line, are loose ones of their own (a beat, a planned moment): each
+// its own, in the item's Loose, never joined into the heading's.
 func TestLooseSynopses(t *testing.T) {
 	starts := []string{"INT.", "EXT."}
-	text := "# Act One\n= What the act does\n= in two lines\n\n= Mara finds the letter.\n\n= She stays.\n\nINT. BARN - DAY\n= The barn.\n\nRain.\n\n= Later: the roof goes.\n"
+	text := "# Act One\n\n= What the act does\n= in two lines\n\n= Mara finds the letter.\n\n= She stays.\n\nINT. BARN - DAY\n\n= The barn.\n\nRain.\n\n= Later: the roof goes.\n"
 	items := outlineOf(text, starts)
 	if len(items) != 2 {
 		t.Fatalf("items: %+v", items)
@@ -59,18 +59,12 @@ func TestLooseSynopses(t *testing.T) {
 	if items[0].Synopsis != "What the act does in two lines" || items[1].Synopsis != "The barn." {
 		t.Errorf("own synopses: %q, %q", items[0].Synopsis, items[1].Synopsis)
 	}
-	want := []looseSynopsis{{Line: 4, Text: "Mara finds the letter."}, {Line: 6, Text: "She stays."}}
+	want := []looseSynopsis{{Line: 5, Text: "Mara finds the letter."}, {Line: 7, Text: "She stays."}}
 	if len(items[0].Loose) != 2 || items[0].Loose[0] != want[0] || items[0].Loose[1] != want[1] {
 		t.Errorf("the act's loose ones: %+v", items[0].Loose)
 	}
-	if len(items[1].Loose) != 1 || items[1].Loose[0] != (looseSynopsis{Line: 13, Text: "Later: the roof goes."}) {
+	if len(items[1].Loose) != 1 || items[1].Loose[0] != (looseSynopsis{Line: 15, Text: "Later: the roof goes."}) {
 		t.Errorf("the scene's loose ones: %+v", items[1].Loose)
-	}
-	// after a blank line, the first beat stays a beat: the act has none of
-	// its own; a note touching the heading may stand before its own
-	items = outlineOf("# Act Two\n\n= The storm.\n\n= Tomas goes missing.\n\nINT. BOAT - NIGHT\n[[blue]]\n= Mara alone.\n", starts)
-	if len(items) != 2 || items[0].Synopsis != "" || len(items[0].Loose) != 2 || items[1].Synopsis != "Mara alone." {
-		t.Errorf("a blank line first: %+v", items)
 	}
 }
 
@@ -78,15 +72,9 @@ func TestLooseSynopses(t *testing.T) {
 // loose synopses after it (the beats under an act were joined into one).
 func TestSetSynopsisKeepsLoose(t *testing.T) {
 	starts := []string{"INT.", "EXT."}
-	text := "# Act One\n= Mara finds the letter.\n\n= She stays.\n\n= The storm.\n"
+	text := "# Act One\n\n= Mara finds the letter.\n\n= She stays.\n\n= The storm.\n"
 	got := setSynopsis(text, starts, 0, "Mara finds the letter!")
-	if want := "# Act One\n= Mara finds the letter!\n\n= She stays.\n\n= The storm.\n"; got != want {
+	if want := "# Act One\n\n= Mara finds the letter!\n\n= She stays.\n\n= The storm.\n"; got != want {
 		t.Errorf("got\n%q\nwant\n%q", got, want)
-	}
-	// an act with beats only: its own goes in touching the heading, the
-	// first beat stays a beat
-	text = "# Act Two\n\n= The storm.\n\n= Tomas goes missing.\n"
-	if got, want := setSynopsis(text, starts, 0, "What it takes."), "# Act Two\n= What it takes.\n\n= The storm.\n\n= Tomas goes missing.\n"; got != want {
-		t.Errorf("beats only: got\n%q\nwant\n%q", got, want)
 	}
 }

@@ -102,6 +102,40 @@ func outlineDoc(text string, starts []string) opml.Doc {
 					break
 				}
 			}
+			hasSyn := false
+			for _, l := range note {
+				hasSyn = hasSyn || !isNoteLine(l)
+			}
+			if !hasSyn && k > j { // its own synopsis may come after a blank line: the next paragraph's
+				a := j + 1
+				for a < end && strings.TrimSpace(lines[a]) == "" {
+					a++
+				}
+				_, head := heads[a]
+				if a < end && !head && isSynopsisLine(strings.TrimSpace(lines[a])) {
+					b := a
+					for b+1 < end && strings.TrimSpace(lines[b+1]) != "" {
+						if _, h := heads[b+1]; h {
+							break
+						}
+						b++
+					}
+					var own []string
+					for _, l := range lines[a : b+1] {
+						lt := strings.TrimSpace(l)
+						if isSynopsisLine(lt) {
+							own = append(own, strings.TrimSpace(lt[1:]))
+						} else if isNoteLine(lt) {
+							own = append(own, lt)
+						} else {
+							break // the scene's own text after it
+						}
+					}
+					if len(note) == 0 && a == j+2 { // one blank line, as Fountain() writes it
+						note, n.Apart, j = own, true, b
+					}
+				}
+			}
 			n.Note = strings.Join(note, "\n")
 			if it.Scene {
 				n.Kind, n.Text = opml.KindScene, t

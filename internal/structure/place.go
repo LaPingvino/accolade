@@ -1,6 +1,9 @@
 package structure
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // Where is where Place puts a paragraph, by the unit it is put by.
 type Where int
@@ -58,7 +61,9 @@ func (t *Tree) Place(from, to int, where Where, read Reader) (Result, error) {
 		line, after, msg = target.Last, true, "After "+name
 	case Start:
 		msg = fmt.Sprintf("Into %s, at its start", name)
-		if len(target.Kids) > 0 {
+		if k := target.Kids; len(k) > 0 && k[0].Kind == Block && t.synopsis(k[0]) && !t.headSynopsis(target) && k[0] != n {
+			line, after = k[0].Last, true // its own synopsis (the first) stays its own
+		} else if len(target.Kids) > 0 {
 			line, after = target.Kids[0].First, false
 		} else {
 			line, after = target.HeadEnd, true
@@ -94,4 +99,21 @@ func (t *Tree) Place(from, to int, where Where, read Reader) (Result, error) {
 		return Result{}, err
 	}
 	return res, nil
+}
+
+// headSynopsis tells whether container c's heading lines (those touching
+// it) hold a synopsis: its own, else its first synopsis paragraph is.
+func (t *Tree) headSynopsis(c *Node) bool {
+	for l := c.First + 1; l <= c.HeadEnd; l++ {
+		if isSynopsisText(t.S.Lines[l]) {
+			return true
+		}
+	}
+	return false
+}
+
+// isSynopsisText tells whether line l is a synopsis line ("= …").
+func isSynopsisText(l string) bool {
+	l = strings.TrimSpace(l)
+	return strings.HasPrefix(l, "=") && !strings.HasPrefix(l, "==")
 }

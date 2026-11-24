@@ -15,9 +15,11 @@ import (
 const outlineScript = `Title: T
 
 # ACT ONE
+
 = Anna wants the biscuit.
 
 INT. KITCHEN - DAY #1#
+
 = She finds the tin empty.
 
 Anna looks.
@@ -55,8 +57,8 @@ func TestOutlinePanelGoesToTheScene(t *testing.T) {
 		t.Fatalf("outline: %v, %d items", w.paneShown("outline"), len(w.outline.items))
 	}
 	w.outline.list.Select(1) // INT. KITCHEN
-	if line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset()); line != 5 {
-		t.Errorf("cursor on line %d, want 5", line)
+	if line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset()); line != 6 {
+		t.Errorf("cursor on line %d, want 6", line)
 	}
 	w.textEditor.SetText(outlineScript + "\nINT. HALL - DAY\n")
 	if len(w.outline.items) != 6 {

@@ -61,3 +61,17 @@ func TestPlace(t *testing.T) {
 		})
 	}
 }
+
+// A section's own synopsis after a blank line (its first synopsis) stays
+// its own: a synopsis put at the section's start goes after it.
+func TestPlaceAfterOwnApart(t *testing.T) {
+	const s = "Title: T\n\n# One\n\n= own one\n\n= a\n\n# Two\n\n= own two\n\n= c\n"
+	tr := Parse(Plain(Lines(s)))
+	res, err := tr.Place(lineOf(t, s, "= a"), lineOf(t, s, "# Two"), Start, Plain)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := Text(res.Lines), "Title: T\n\n# One\n\n= own one\n\n# Two\n\n= own two\n\n= a\n\n= c\n"; got != want {
+		t.Errorf("got:\n%q\nwant\n%q", got, want)
+	}
+}

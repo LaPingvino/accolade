@@ -2014,6 +2014,11 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   cards, setSynopsis, New Scene on a beat (the heading now touches it), Shift+Alt+Down into a section, the
   structures' acts. NB the Fountain spec's own example writes "INT. X\n\n= synopsis": such a scene's synopsis now
   shows as a beat card after the scene's card, and Lexington's report would leave its sheet's synopsis empty.
+- 2026-11-24: STRUCTURE FOLLOW-UPS done (branch structure2, not merged). (4) Tried "own synopsis only
+  when touching the heading", then reverted on Joop's word ("Blank lines are allowed anyway. I think beats becoming
+  the synopsis is an expected and desired side effect of the planning process."): a heading's own synopsis is its
+  first synopsis paragraph, blank lines allowed, as before; the first beat becoming the act's synopsis, or a beat the
+  scene's when New Scene grows it, is intended. Dropping a synopsis at a section's start keeps its own first.
   (7) Insert Structure at the cursor's section boundary (before the next # section, else the body's end: nothing
   reparented); Shift+Alt+Up/Down are Into the One Before / Into the Next One. (2) Synopsis cards drag (structure.Place:
   before/after a beat, before a scene or into it, first in a section, where New Scene goes). (3) A scene-less section
@@ -2025,8 +2030,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   beats, scene headings → scenes, a flat list in one section). Treatment (PDF, Word) through the Markdown export.
   Help: Structure › OPML: Outlines In and Out. Also: a title page key must start with a letter or digit, as Lexington
   reads it ([[note: …]] at a script's start was read as a title field). (6) In Lexington, branch report-synopsis
-  (worktree ~/Projects/lexington-synopsis, not tagged): report.Scene.Synopsis is the scene's own, touching its
-  heading, joined; and FDX import puts a scene's summary (and a Summary after an Outline heading) touching its
-  heading, where a blank line made it a beat under (4). Accolade follows both once tagged and bumped; until then
-  an FDX import's scene summaries show as beats. Left: the Export dialog still shows
+  (worktree ~/Projects/lexington-synopsis, not tagged): report.Scene.Synopsis is the scene's own as the outline
+  reads it: its first synopsis paragraph (blank lines and notes may come before), its lines joined, not a synopsis
+  after the scene's action. Accolade follows it once tagged and bumped. Left: the Export dialog still shows
   Page Setup and Part of the Script for the outline and treatment (they use neither); the treatment ignores tags.
