@@ -1,12 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"slices"
 	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2"
+
+	"github.com/LaPingvino/accolade/internal/editor/syntax"
 )
 
 // The checks' findings: the writing's heuristics (not the lock's) and the
@@ -268,4 +271,73 @@ func TestRevisionTabScreenshots(t *testing.T) {
 	w.fyneWindow.Resize(fyne.NewSize(380, 800))
 	w.ribbonRefresh()
 	snap("3-phone")
+}
+
+// F8 through the window's keys steps; Restore Cuts in This Scene brings
+// an omitted scene back with its number and a plain cut, one undo step.
+func TestRevisionKeysAndRestoreCuts(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	text := "INT. A - DAY #1#\n\n/* INT. X - DAY\n\nOne.\n*/\n\n.OMITTED #2#\n\n/* Omitted 2\nINT. CELLAR - DAY #2#\n\nDark.\n*/\n\nINT. B - DAY #3#\n\nHi. [[todo: x]]\n"
+	w.textEditor.SetText(text)
+	w.fyneWindow.Canvas().Focus(w.textEditor)
+	w.textEditor.SetCursorOffset(0)
+	if !w.keyPreview(fyne.KeyF8, 0) {
+		t.Fatal("F8 not taken")
+	}
+	items := w.shownOpenItems()
+	if i := currentOpen(items, w.textEditor.CursorOffset()); i < 0 || items[i].Kind != openCut || items[i].Title != "INT. X - DAY" {
+		t.Fatalf("F8 went to %d", w.textEditor.CursorOffset())
+	}
+	w.textEditor.SetCursorOffset(3)
+	cuts := sceneCuts(w.openItems(), text, 3, w.sceneStarts(), false)
+	if len(cuts) != 1 { // the omitted scene has its own heading: not A's
+		t.Fatalf("A's cuts: %+v", cuts)
+	}
+	at := strings.Index(text, ".OMITTED")
+	cuts = sceneCuts(w.openItems(), text, at+2, w.sceneStarts(), false)
+	if len(cuts) != 1 || !cuts[0].Kept {
+		t.Fatalf("the omitted scene's: %+v", cuts)
+	}
+	var edits []textEdit
+	for _, c := range append(sceneCuts(w.openItems(), text, 3, w.sceneStarts(), false), cuts...) {
+		e, ok := c.restore(text, false)
+		if !ok {
+			t.Fatalf("restore %+v", c)
+		}
+		edits = append(edits, e)
+	}
+	w.applyTextEdits(edits)
+	got := w.textEditor.Text()
+	if strings.Contains(got, "/*") || !strings.Contains(got, "INT. CELLAR - DAY #2#") || !strings.Contains(got, "INT. X - DAY") || strings.Contains(got, "OMITTED") {
+		t.Errorf("restored: %q", got)
+	}
+	w.undo()
+	if w.textEditor.Text() != text {
+		t.Errorf("not one undo step: %q", w.textEditor.Text())
+	}
+}
+
+// Keep is offered only where a note on the line leaves the line as it is.
+func TestKeepOnlyWhereTheLineStays(t *testing.T) {
+	en := sceneStarts("en")
+	for _, s := range []string{"INT. A - DAY #12#\n\nHi.\n\nINT. B #13#\n\nHo.\n", "INT. A - DAY\n\n@\nHi.\n",
+		"INT. A - DAY\n\nMRS. BENNET\nHi.\n\nMRS BENNET\nHo.\n\nMRS. BENNET\nAgain.\n", "INT. A - DAY\n\nHi. ]]\n\nHo.\n"} {
+		for _, f := range checkItemsOf(s, en) {
+			if !f.keepable() {
+				continue
+			}
+			k := f.keepEdit().apply(s)
+			if a, b := fmt.Sprint(syntax.ClassifyIn(strings.Split(s, "\n"), en, dialectForStarts(en))), fmt.Sprint(syntax.ClassifyIn(strings.Split(k, "\n"), en, dialectForStarts(en))); a != b {
+				t.Errorf("%s: Keep changed the lines' kinds", f.Text)
+			}
+			for _, g := range checkItemsOf(k, en) {
+				if g.Text == f.Text {
+					t.Errorf("%s: still found after Keep", f.Text)
+				}
+			}
+		}
+	}
+	if (openItem{Kind: openCheck, Check: checkCue}).keepable() {
+		t.Error("a cue's finding keepable")
+	}
 }

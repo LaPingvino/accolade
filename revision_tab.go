@@ -32,6 +32,7 @@ type revEnv struct {
 	on                                     bool // an item at the cursor
 	kind                                   openKind
 	finding, todo, restorable, beat, notes bool
+	keepable, dismissable                  bool
 	doneTodos, sceneCuts                   int
 	any                                    bool // items to step through
 }
@@ -52,14 +53,20 @@ func (w *MainWindow) revisionEnv(e *cmdEnv) {
 		r.restorable = it.restorable()
 		r.beat = it.Kind == openBeat && !w.markdown
 		r.notes = !r.finding
+		r.keepable = it.keepable()
+		r.dismissable = r.finding || it.Shape == shapeNote
 	}
 	all := w.openItems()
+	cuts := false
 	for _, it := range all {
 		if it.Kind == openTodo && it.Done {
 			r.doneTodos++
 		}
+		cuts = cuts || it.Kind == openCut
 	}
-	r.sceneCuts = len(sceneCuts(all, w.textEditor.Text(), cur, w.sceneStarts(), w.markdown))
+	if cuts {
+		r.sceneCuts = len(sceneCuts(all, w.textEditor.Text(), cur, w.sceneStarts(), w.markdown))
+	}
 	e.rev = r
 }
 
@@ -99,11 +106,12 @@ func (w *MainWindow) stepOpen(dir int) {
 	}
 	cur := w.textEditor.CursorOffset()
 	from := cur
-	if i := currentOpen(items, cur); i >= 0 {
-		from = items[i].Start
-	}
 	k, round := -1, false
-	if dir > 0 {
+	if i := currentOpen(items, cur); i >= 0 { // from it by its place in the list: one at the same place is not skipped
+		k = i + dir
+		round = k < 0 || k >= len(items)
+		k = (k + len(items)) % len(items)
+	} else if dir > 0 {
 		for i, it := range items {
 			if it.Start > from {
 				k = i
@@ -197,6 +205,10 @@ func (w *MainWindow) keepFinding(it openItem) {
 		w.setStatus("Keep is for a check's finding: a note is in the script already")
 		return
 	}
+	if !it.keepable() {
+		w.setStatus("This one is fixed in the text, not kept: a note on its line would change it")
+		return
+	}
 	text := w.textEditor.Text()
 	if !it.still(text) {
 		w.setStatus("That line has changed since: nothing written")
@@ -238,11 +250,11 @@ func (w *MainWindow) dismissCurrent() {
 		w.dismissFinding(it)
 		return
 	}
-	text := w.textEditor.Text()
-	e := it.removal(text)
-	if it.Kind == openUnsorted {
-		e = removeUnsorted(text, it, w.notesMarks())
+	if it.Shape != shapeNote { // a cut has Restore, a beat New Scene: the Notes pane's bin takes them out
+		w.setStatus("Dismiss takes out a [[note]], a to-do or a revision note; a cut or a beat goes with the Notes pane's bin")
+		return
 	}
+	e := it.removal(w.textEditor.Text())
 	w.applyTextEdit(e, -1)
 	w.setStatus(it.Kind.String() + " taken out (Undo brings it back)")
 	w.openChanged()
@@ -493,7 +505,6 @@ func (w *MainWindow) revisionNamed() string {
 // revisionCommands are the Revision tab's.
 func revisionCommands() []*command {
 	script := func(e cmdEnv) bool { return !e.away }
-	onItem := func(e cmdEnv) bool { return e.rev.on }
 	cmds := []*command{
 		{id: "revision.next", label: "Next Open Item", ribbonLabel: "Next", ex: "next-item", icon: theme.NavigateNextIcon,
 			tip:  "The next to-do, cut, note, beat, revision note or finding of the kinds shown, from the cursor (round at the end)",
@@ -506,7 +517,7 @@ func revisionCommands() []*command {
 			nameFor: (*MainWindow).revisionNamed, run: (*MainWindow).showNotes},
 		{id: "revision.keep", label: "Keep as Revision Note", ribbonLabel: "Keep", ex: "keep-finding", icon: theme.DocumentSaveIcon,
 			tip:  "The finding at the cursor written into the script as [[revision: …]] at its line's end: saved with it, picked up later",
-			when: script, enabled: func(e cmdEnv) bool { return e.rev.finding },
+			when: script, enabled: func(e cmdEnv) bool { return e.rev.keepable },
 			run: func(w *MainWindow) {
 				if it, ok := w.currentItem("Keep"); ok {
 					w.keepFinding(it)
@@ -514,7 +525,7 @@ func revisionCommands() []*command {
 			}},
 		{id: "revision.dismiss", label: "Dismiss Item", ribbonLabel: "Dismiss", ex: "dismiss-item", icon: theme.VisibilityOffIcon,
 			tip:  "A finding out of sight until the window closes (nothing written); a note, to-do or revision note taken out of the script (Undo brings it back)",
-			when: script, enabled: onItem, run: (*MainWindow).dismissCurrent},
+			when: script, enabled: func(e cmdEnv) bool { return e.rev.dismissable }, run: (*MainWindow).dismissCurrent},
 		{id: "revision.done", label: "Mark To-do Done", ribbonLabel: "Done", ex: "todo-done", icon: theme.ConfirmIcon,
 			tip:  "The to-do at the cursor written as done, [[done: …]] (again: to do again)",
 			when: script, enabled: func(e cmdEnv) bool { return e.rev.todo }, run: (*MainWindow).markDone},

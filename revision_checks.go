@@ -141,7 +141,8 @@ func findingItems(text string, starts []string) []openItem {
 	}
 	clean := withoutLineNotes(body)
 	var checks []prodCheck
-	for _, c := range preLockChecks(clean, starts) {
+	// the whole text: the cue check reads the learned names at its end
+	for _, c := range preLockChecks(withoutLineNotes(text), starts) {
 		if writingCheck(c) {
 			checks = append(checks, c)
 		}
@@ -209,6 +210,14 @@ func keptRevisions(body string) map[int]map[string]bool {
 		}
 	}
 	return out
+}
+
+// keepable tells whether Keep can write the finding on its line without
+// changing what the line is: not a cue's (a note after a cue makes it
+// action), nor an unclosed /* or [[ (the note would be inside it) nor a
+// stray */ or ]] (it would close the note): those are fixed in the text.
+func (it openItem) keepable() bool {
+	return it.Kind == openCheck && it.Check != checkCue && it.Check != checkBoneyard && it.Check != checkNote
 }
 
 // keepEdit is the edit that keeps a finding as a revision note: at the
