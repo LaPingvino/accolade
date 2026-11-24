@@ -1939,3 +1939,14 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   placement, counts, the status bar, the Characters view) says what it means for the writing and offers the step:
   e.g. "Act one runs 38 pages, most films 25–30 — its longest scenes →", each link moving the cursor there. A
   number with nothing to do about it is left out or folded away.
+  Joop 2026-11-24, the form of it: "Maybe provide those as different colored in-work comments you can skip through
+  and save, pick up whenever you want and sort through the type etc, with possibly mass-appliable actions. It's
+  always good to always have tools available that help you figure out where your screenplay might be lacking. Could
+  be a new ribbon (Revision tools)." / "I guess such an approach also works for the Markdown/source part?" / "That
+  would really turn it into a writing tool rather than simply an editor." So: REVISION TOOLS — the findings (beat
+  placement, the call-to-action statistics, the linter's and the heuristics' hints) become revision notes in the
+  text's margin, coloured by kind; a Revision tools ribbon tab: run a check, step through its notes (next/previous,
+  like Find), keep one (it becomes an ordinary note, saved with the script), dismiss, filter and sort by kind, and act
+  on many at once where the action is mechanical (e.g. fix every flagged transition). Kept notes are picked up later
+  like any note. One mechanism for the screenplay and for Markdown prose (the source pane's checks). Built on the
+  existing notes/linter/annotations, no parallel store (falls out naturally, fewer odd bugs).
