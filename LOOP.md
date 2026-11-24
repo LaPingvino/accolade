@@ -1981,3 +1981,9 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   status "to do". So: recognise `[[todo: …]]` / `[[TODO …]]` notes (and the source pane's to-do passages) as to-do
   items; the Revision ribbon's step-through covers them with the other open items; and the same list docks as a
   side pane ("What's open"), like the other dock panes — one list, two places (ribbon to step, pane to browse/filter).
+  Joop 2026-11-24: "that might work better than the notes thing we have now. You kinda want to be able to add and see
+  notes in context." Today's notepad (View > Notes, notes.go) is one block at the script's end, away from what it is
+  about. So the side pane becomes the notes place: every inline [[note]] in script order with its context (scene,
+  the line), filter by kind (to do, other, revision); Add Note at the cursor (one key) writes an inline note there;
+  the notepad's end block stays as the pane's "General" section for notes about the whole script. Notes in the text
+  get a quiet margin mark in the editor so they are seen in context without cluttering the line.
