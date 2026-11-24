@@ -1995,3 +1995,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   undo step). Existing files lose nothing: their end notes block is a boneyard section like any other and shows up in
   the list by itself. Recognised kinds (to do, revision, beats, colour/marker notes) keep their own tools and filters
   in the same pane.
+  Joop: "We could still allow those as 'unsorted notes' to technically keep the old functionality. But I don't think
+  we need compatibility with any other software for that one..." So the pane keeps an "Unsorted notes" entry: notes
+  not tied to a place, stored as Accolade likes (the end boneyard block is fine; no other app needs to read them as
+  notes), added from the pane with one action; the old block's content shows there.
