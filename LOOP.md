@@ -1969,3 +1969,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   it steps to the first such beat (and through them, like Find), with New Scene there in one key. Synopses before the
   first header of the script show as cards too (an "Unplaced" group at the top). Part of the revision tools idea
   (a check whose notes you step through), read from the outline's own parse — no state of its own.
+  Joop 2026-11-24: "Together with the stats/revision things, that means that the whole app always also kinda works
+  like a todo list." So the script is its own to-do list: what's open (beats without a scene, kept revision notes,
+  notes marked to do, checks' findings) is read from the text itself, never a separate list. One place shows it all
+  — a "What's open" step-through (and its count as a quiet call to action in the status bar), filterable by kind,
+  each item moving the cursor there; done means the text changed so the item is gone (or the note removed).
