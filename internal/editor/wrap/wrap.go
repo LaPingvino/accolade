@@ -1,15 +1,16 @@
 // Package wrap lays the lines of a text out in rows of a fixed number of
 // columns, for Accolade's grid-based editor (docs/EDITOR_WIDGET.md, step
 // 2). The editor's font is monospace, and a text takes the cells Lekhan
-// monospace gives it (lexington/lekhan): a character one column, a wide
-// one (CJK, emoji) two, a mark none, a Devanagari cluster one, a conjunct
-// two. A row never breaks inside a cluster.
+// monospace gives it (lexington/lekhan, through cluster): a character one
+// column, a wide one (CJK, emoji) two, a mark none, a Devanagari cluster
+// one, a conjunct two, an Arabic lam-alef one. A row never breaks inside a
+// cluster.
 package wrap
 
 import (
 	"sort"
 
-	"github.com/LaPingvino/lexington/lekhan"
+	"github.com/LaPingvino/accolade/internal/editor/cluster"
 )
 
 // Span is a stretch of the text, [Start, End) in runes, shown as Cols
@@ -20,7 +21,7 @@ type Span struct {
 }
 
 // cellsOf are the columns each rune of text takes in its cluster
-// (lekhan.Cells), nil for a text all of whose runes are below U+0300 (one
+// (cluster.Cells), nil for a text all of whose runes are below U+0300 (one
 // column each, every rune its own cluster).
 func cellsOf(text []rune) []int8 {
 	plain := true
@@ -42,7 +43,7 @@ func cellsOf(text []rune) []int8 {
 			end++
 		}
 		if hard {
-			for k, c := range lekhan.Cells(text[start:end]) {
+			for k, c := range cluster.Cells(text[start:end]) {
 				out[start+k] = int8(c)
 			}
 		} else {
@@ -138,7 +139,7 @@ func (l line) fits(a, b, room int) bool {
 // boundary tells whether a cluster starts at rune i (a row may break
 // there, spans aside).
 func (l line) boundary(i int) bool {
-	return l.cells == nil || lekhan.Boundary(l.r, i)
+	return l.cells == nil || cluster.Boundary(l.r, i)
 }
 
 // next is where the cluster at rune i ends.
@@ -146,7 +147,7 @@ func (l line) next(i int) int {
 	if l.cells == nil {
 		return i + 1
 	}
-	return lekhan.ClusterEnd(l.r, i)
+	return cluster.End(l.r, i)
 }
 
 // inside reports whether a row may not break before rune i: it is inside
@@ -433,8 +434,9 @@ func (l Layout) width(off int) int {
 }
 
 // RuneCols is how many columns the rune at off takes in its cluster
-// (lekhan.Cells: a Devanagari cluster's first rune and a conjunct's
-// second consonant one each, its other runes none), spans aside.
+// (cluster.Cells: a Devanagari cluster's first rune and a conjunct's
+// second consonant one each, its other runes none; a lam-alef's lam one,
+// its alef none), spans aside.
 func (l Layout) RuneCols(off int) int {
 	if l.cells == nil {
 		return 1 // a text all below U+0300: a column each
@@ -450,7 +452,7 @@ func (l Layout) clusterEnd(off int, r Row) int {
 	if l.cells == nil {
 		return off + 1
 	}
-	return min(lekhan.ClusterEnd(l.text, off), r.End)
+	return min(cluster.End(l.text, off), r.End)
 }
 
 // SpanAt is the span that holds the rune at off, if one does.
@@ -495,7 +497,7 @@ func (l Layout) Offset(row, col int) int {
 		// start of the row's last cluster
 		end--
 		if l.text != nil && l.cells != nil {
-			for end > r.Start && !lekhan.Boundary(l.text, end) {
+			for end > r.Start && !cluster.Boundary(l.text, end) {
 				end--
 			}
 		}

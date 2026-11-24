@@ -25,7 +25,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/LaPingvino/lexington/lekhan"
+	"github.com/LaPingvino/accolade/internal/editor/cluster"
 	"github.com/LaPingvino/lexington/lex"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
@@ -792,7 +792,7 @@ func (l *laidOut) chipSpans(chips []Chip, raw int, lines []string) []wrap.Span {
 		if line < len(l.rtl) && l.rtl[line] {
 			continue
 		}
-		cols := lekhan.Width(c.Label)
+		cols := cluster.Width(c.Label)
 		if l.chipAt == nil {
 			l.chipAt = map[int]int{}
 		}
@@ -969,7 +969,7 @@ func (e *ScriptEditor) rowCells(i int) (_ widget.TextGridRow, _ []cellCol, from,
 		}
 		// its columns in its cluster (a wide character's two, a
 		// Devanagari cluster's sign none); a row starts a cluster
-		b.add(cell, e.layout.RuneCols(off), off > r.Start && !lekhan.Boundary(text, off))
+		b.add(cell, e.layout.RuneCols(off), off > r.Start && !cluster.Boundary(text, off))
 	}
 	end = len(b.cells)
 	if r.Last && e.foldAt[r.Line] { // a folded heading: what it holds is hidden
@@ -1006,7 +1006,7 @@ func (e *ScriptEditor) tagOf(i int) (Tag, string, bool) {
 	}
 	room := e.columns - 1 - e.tagStart(i) - 1 // the last column clear (a scroll bar over it)
 	for _, l := range []string{t.Label, t.Short} {
-		if l != "" && lekhan.Width(l) <= room {
+		if l != "" && cluster.Width(l) <= room {
 			return t, l, true
 		}
 	}
@@ -1037,7 +1037,7 @@ func (e *ScriptEditor) tagAt(p fyne.Position) (int, Tag, fyne.Position, bool) {
 		return 0, Tag{}, fyne.Position{}, false
 	}
 	start := e.tagStart(row) + 1
-	if col < start || col >= start+lekhan.Width(label) {
+	if col < start || col >= start+cluster.Width(label) {
 		return 0, Tag{}, fyne.Position{}, false
 	}
 	return e.layout.Rows[row].Line, t, fyne.NewPos(float32(start)*e.cellWidth(), float32(row)*e.cellHeight()), true
@@ -1074,10 +1074,10 @@ func (e *ScriptEditor) labelCells(b *rowBuilder, r wrap.Row, style widget.TextGr
 	}
 	runes := []rune(label)
 	if len(runes) > 0 {
-		ws := lekhan.Cells(runes)
+		ws := cluster.Cells(runes)
 		used, n := 0, 0
 		for n < len(runes) {
-			end, w := lekhan.ClusterEnd(runes, n), 0
+			end, w := cluster.End(runes, n), 0
 			for _, c := range ws[n:end] {
 				w += c
 			}
@@ -1087,7 +1087,7 @@ func (e *ScriptEditor) labelCells(b *rowBuilder, r wrap.Row, style widget.TextGr
 			used, n = used+w, end
 		}
 		if n < len(runes) { // its last cluster gives way to "…"
-			for n = max(n-1, 0); n > 0 && !lekhan.Boundary(runes, n); n-- {
+			for n = max(n-1, 0); n > 0 && !cluster.Boundary(runes, n); n-- {
 			}
 			runes = append(runes[:n:n], '…')
 		}
@@ -1583,12 +1583,12 @@ func (e *ScriptEditor) offsetAt(p fyne.Position) int {
 }
 
 // isClusterEdge tells whether the cursor can stand at an offset: not
-// inside a cluster (lekhan.Boundary), which is drawn whole.
+// inside a cluster (cluster.Boundary), which is drawn whole.
 func (e *ScriptEditor) isClusterEdge(off int) bool {
 	if off <= 0 || off >= e.buf.Len() {
 		return true
 	}
-	if !lekhan.Joins(e.buf.At(off-1), e.buf.At(off)) {
+	if !cluster.Joins(e.buf.At(off-1), e.buf.At(off)) {
 		return true // the quick answer, for most text
 	}
 	// the runes before off back to its cluster's start: a line's at most,
@@ -1602,7 +1602,7 @@ func (e *ScriptEditor) isClusterEdge(off int) bool {
 	for k := range rs {
 		rs[k] = e.buf.At(s + k)
 	}
-	return lekhan.Boundary(rs, off-s)
+	return cluster.Boundary(rs, off-s)
 }
 
 // clusterEdge is the edge of the cluster at off: its start, or with after

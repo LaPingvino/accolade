@@ -12,7 +12,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"golang.org/x/image/font/sfnt"
 
-	"github.com/LaPingvino/lexington/lekhan"
+	"github.com/LaPingvino/accolade/internal/editor/cluster"
 )
 
 // runGrid draws rows of styled cells as runs: a text for each stretch of
@@ -64,11 +64,11 @@ func (b *rowBuilder) plain(r rune, style widget.TextGridStyle) {
 	b.add(widget.TextGridCell{Rune: r, Style: style}, 1, false)
 }
 
-// label puts a label's runes, each in its cluster's cells (lekhan.Cells),
+// label puts a label's runes, each in its cluster's cells (cluster.Cells),
 // in the style styleAt gives each.
 func (b *rowBuilder) label(rs []rune, styleAt func(k int) widget.TextGridStyle) {
-	for k, w := range lekhan.Cells(rs) {
-		b.add(widget.TextGridCell{Rune: rs[k], Style: styleAt(k)}, w, k > 0 && !lekhan.Boundary(rs, k))
+	for k, w := range cluster.Cells(rs) {
+		b.add(widget.TextGridCell{Rune: rs[k], Style: styleAt(k)}, w, k > 0 && !cluster.Boundary(rs, k))
 	}
 }
 

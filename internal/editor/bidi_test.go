@@ -42,8 +42,8 @@ func TestRTLLayout(t *testing.T) {
 	if r := e.layout.Rows[0]; r.Indent != 0 {
 		t.Errorf("English row indent %d", r.Indent)
 	}
-	if r := e.layout.Rows[2]; r.Indent != 26 {
-		t.Errorf("Arabic row indent %d, want 26", r.Indent)
+	if r := e.layout.Rows[2]; r.Indent != 27 { // سلام three columns, its lam-alef one
+		t.Errorf("Arabic row indent %d, want 27", r.Indent)
 	}
 }
 
