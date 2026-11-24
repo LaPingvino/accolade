@@ -3,6 +3,7 @@ package main
 import (
 	"image/png"
 	"os"
+	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2"
@@ -83,4 +84,71 @@ func synopsisOf(t *testing.T, k *card) *synopsisEntry {
 		t.Fatal("the card has no synopsis entry")
 	}
 	return found
+}
+
+// cardsOf are the cards view's cards of type T, in order.
+func cardsOf[T fyne.CanvasObject](c *cardsView) []T {
+	var out []T
+	for _, g := range c.list.Objects {
+		if k, ok := g.(T); ok {
+			out = append(out, k)
+		}
+		if grid, ok := g.(*fyne.Container); ok {
+			for _, o := range grid.Objects {
+				if k, ok := o.(T); ok {
+					out = append(out, k)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// dragOnto drags d (its middle) onto target, at fx of its width.
+func dragOnto(d *dragged, target fyne.CanvasObject, fx float32) {
+	to := fyne.CurrentApp().Driver().AbsolutePositionForObject(target).Add(fyne.NewPos(target.Size().Width*fx, target.Size().Height/2))
+	m := d.middle()
+	d.Dragged(&fyne.DragEvent{Dragged: fyne.NewDelta(to.X-m.X, to.Y-m.Y)})
+	d.DragEnd()
+}
+
+// A synopsis card is dragged as a scene's card is (the same move of
+// units as Alt+Up and Shift+Alt+Down): after another beat, into another
+// act's start. A section with no scenes ends with a compact New Scene row,
+// not an empty card; one with scenes with the card.
+func TestSynopsisCardsDrag(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.fyneWindow.Resize(fyne.NewSize(900, 700))
+	w.textEditor.SetText("# Act One\n= What it does.\n\n= Beat a.\n\n= Beat b.\n\n# Act Two\n= Two's.\n\n= Beat c.\n\nINT. BOAT - NIGHT\n\nWater.\n")
+	w.toggleCards()
+	c := w.cards
+	if rows, adds := cardsOf[*addRow](c), cardsOf[*addCard](c); len(rows) != 1 || len(adds) != 1 || rows[0].at != 1 {
+		t.Fatalf("Act One without scenes: %d rows (at %v), Act Two with one: %d cards", len(rows), rows, len(adds))
+	}
+	syn := cardsOf[*synopsisCard](c)
+	if len(syn) != 3 {
+		t.Fatalf("%d synopsis cards", len(syn))
+	}
+	dragOnto(&syn[0].dragged, syn[1], 0.75) // Beat a after Beat b
+	if got, want := w.textEditor.Text(), "# Act One\n= What it does.\n\n= Beat b.\n\n= Beat a.\n\n# Act Two\n= Two's.\n\n= Beat c.\n\nINT. BOAT - NIGHT\n\nWater.\n"; got != want {
+		t.Fatalf("after Beat b:\n%q\nwant\n%q", got, want)
+	}
+	syn = cardsOf[*synopsisCard](c)
+	headers := cardsOf[*sectionHeader](c)
+	dragOnto(&syn[2].dragged, headers[0], 0.5) // Beat c first in Act One, after its own
+	if got, want := w.textEditor.Text(), "# Act One\n= What it does.\n\n= Beat c.\n\n= Beat b.\n\n= Beat a.\n\n# Act Two\n= Two's.\n\nINT. BOAT - NIGHT\n\nWater.\n"; got != want {
+		t.Fatalf("into Act One:\n%q\nwant\n%q", got, want)
+	}
+	w.textEditor.Undo()
+	if got := w.textEditor.Text(); !strings.Contains(got, "= Two's.\n\n= Beat c.") {
+		t.Errorf("one undo step: %q", got)
+	}
+	// on the boat scene's right half: into the scene, at its end
+	syn = cardsOf[*synopsisCard](c)
+	boat := cardsOf[*card](c)[0]
+	dragOnto(&syn[0].dragged, boat, 0.75)
+	if got := w.textEditor.Text(); !strings.HasSuffix(got, "INT. BOAT - NIGHT\n\nWater.\n\n= Beat b.\n") {
+		t.Errorf("into the boat scene:\n%q", got)
+	}
+	comboShot(t, w, "structure-drag-cards")
 }

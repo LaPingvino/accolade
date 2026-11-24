@@ -11,7 +11,7 @@ Everything below works on these lines. There is no separate board to keep in ste
 ## Seeing it
 
 - **Outline** (Ctrl+Shift+O): sections and scenes, each with its own synopsis under it. A synopsis standing on its own is a line of its own, `= …`, under the section or scene it is in. The filter finds words in synopses too. Tap a row to go there.
-- **Cards** (Ctrl+Shift+D): a group for each section, with its synopsis on the header. A section's own synopses come first, as outlined cards marked `=`, then its scenes as index cards, then a card for a new scene. A synopsis standing on its own inside a scene gets a card after that scene's. Tap a card to go to its line.
+- **Cards** (Ctrl+Shift+D): a group for each section, with its synopsis on the header. A section's own synopses come first, as outlined cards marked `=`, then its scenes as index cards, then a card for a new scene (a New scene row while it has no scenes). A synopsis standing on its own inside a scene gets a card after that scene's. Tap a card to go to its line.
 - **Folding**: Fold or Unfold Here (Ctrl+Shift+., or Tab at a heading's start) folds the section or scene at the cursor; Shift+Tab goes from the sections alone, to all headings, to everything. `:fold-sections`, `:headings-only` and `:unfold-all` do the same from the `:` line, and in vim mode so do `za`, `zM` and `zR`.
 
 ## Moving it
@@ -22,7 +22,7 @@ The moves take what is at the cursor as one unit: a section with all it holds, a
 - **Shift+Alt+Up / Shift+Alt+Down** (`:into-previous`, `:into-next`): a paragraph into the section or scene beside it. A section's own synopsis goes into the section before, after that section's own; or into the next one, before its own. A scene's paragraph goes into the scene before or after.
 - **Alt+Left / Alt+Right** (`:promote`, `:demote`): a section a level up or down, a scene out of its section or into the next one.
 - **Move… and Swap…** (`:move 3..5 after 9`, `:swap`): runs of scenes, and whole sections, by name.
-- On the cards, drag a scene's card or a section's header.
+- On the cards, drag a scene's card, a section's header, or a synopsis card: a synopsis dropped on another goes before it (on its right half, after it); on a scene's card, before the scene (on its right half, into it); on a section's header, first in that section.
 
 ## Growing it into scenes
 

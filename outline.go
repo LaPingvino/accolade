@@ -202,9 +202,9 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 		func() fyne.CanvasObject {
 			title := widget.NewLabel("")
 			title.Truncation = fyne.TextTruncateEllipsis
-			syn := widget.NewLabel("")
+			syn := widget.NewLabel("") // its own synopsis, at the weight of the beats under it
 			syn.SizeName = theme.SizeNameCaptionText
-			syn.Importance = widget.LowImportance
+			syn.TextStyle = fyne.TextStyle{Italic: true}
 			syn.Truncation = fyne.TextTruncateEllipsis
 			fold := widget.NewButtonWithIcon("", theme.MenuDropDownIcon(), nil)
 			fold.Importance = widget.LowImportance

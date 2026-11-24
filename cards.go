@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
+	"github.com/LaPingvino/accolade/internal/structure"
 )
 
 // The card view (View > Cards, or the outline's Cards button): the outline
@@ -56,13 +57,28 @@ type cardsView struct {
 	lit     int
 }
 
-// dropTarget is a card or header something can be dropped on: before
-// item before, or after it when dropped on the right half of a card.
+// dropTarget is a card or header something can be dropped on: a scene
+// or section goes before item before, or after it when dropped on the
+// right half of a card (halves). A synopsis card dropped on it goes by
+// what it is (kind): its item's, or a synopsis card's line.
 type dropTarget struct {
 	obj    fyne.CanvasObject
 	before int
 	halves bool
+	kind   dropKind
+	item   int // a card's or header's item
+	line   int // a synopsis card's line
 }
+
+// dropKind is what a drop target is.
+type dropKind int
+
+const (
+	dropCard     dropKind = iota // a scene's card
+	dropHeader                   // a section's header
+	dropAdd                      // a group's New Scene card or row (before item before)
+	dropSynopsis                 // a synopsis card
+)
 
 func newCardsView(w *MainWindow) *cardsView {
 	c := &cardsView{w: w, list: container.NewVBox(), lit: -1}
@@ -187,8 +203,10 @@ func (c *cardsView) update(text string) {
 		size = foldedCardSize
 	}
 	var grid *fyne.Container
+	scenes := 0 // scene cards in the group
 	group := func(header fyne.CanvasObject) {
 		grid = container.NewGridWrap(size)
+		scenes = 0
 		if header != nil {
 			c.list.Add(header)
 		}
@@ -197,14 +215,18 @@ func (c *cardsView) update(text string) {
 	addCard := func(i int) {
 		k := newCard(c, i, c.items[i], cardPreview(lines, c.items, i), folded)
 		grid.Add(k)
-		c.targets = append(c.targets, dropTarget{obj: k, before: i, halves: true})
+		c.targets = append(c.targets, dropTarget{obj: k, before: i, halves: true, kind: dropCard, item: i})
+		scenes++
 	}
 	addLoose := func(i int) { // its loose synopses, a card each after it
 		if c.grouped {
 			return
 		}
 		for _, l := range c.items[i].Loose {
-			grid.Add(newSynopsisCard(c, l))
+			k := newSynopsisCard(c, l)
+			grid.Add(k)
+			// a scene or section dropped on it goes after its item
+			c.targets = append(c.targets, dropTarget{obj: k, before: i + 1, kind: dropSynopsis, item: i, line: l.Line})
 		}
 	}
 	if c.grouped {
@@ -221,9 +243,15 @@ func (c *cardsView) update(text string) {
 		return
 	}
 	end := func(at int) { // the group's add card: a new scene before item at
+		if scenes == 0 { // a group with no scenes yet: a compact row, not an empty card
+			row := newAddRow(c, at)
+			c.list.Add(row)
+			c.targets = append(c.targets, dropTarget{obj: row, before: at, kind: dropAdd})
+			return
+		}
 		add := newAddCard(c, at)
 		grid.Add(add)
-		c.targets = append(c.targets, dropTarget{obj: add, before: at})
+		c.targets = append(c.targets, dropTarget{obj: add, before: at, kind: dropAdd})
 	}
 	for i, it := range c.items {
 		if !it.Scene {
@@ -232,7 +260,7 @@ func (c *cardsView) update(text string) {
 			}
 			h := newSectionHeader(c, i, it)
 			group(h)
-			c.targets = append(c.targets, dropTarget{obj: h, before: i + 1})
+			c.targets = append(c.targets, dropTarget{obj: h, before: i + 1, kind: dropHeader, item: i})
 			addLoose(i) // its own, before its scenes
 			continue
 		}
@@ -531,6 +559,7 @@ func (c *cardsView) open(i int) {
 // into a scene (New Scene on it).
 type synopsisCard struct {
 	widget.BaseWidget
+	dragged
 	c    *cardsView
 	line int
 	body fyne.CanvasObject
@@ -548,6 +577,8 @@ func newSynopsisCard(c *cardsView, l looseSynopsis) *synopsisCard {
 	paper.StrokeWidth = 1
 	paper.CornerRadius = theme.InputRadiusSize()
 	k := &synopsisCard{c: c, line: l.Line, body: container.NewStack(paper, container.NewPadded(container.NewBorder(mark, nil, nil, nil, text)))}
+	// dragged, it moves as Alt+Up and Shift+Alt+Down move it (synopsisDrop)
+	k.dragged = dragged{board: synopsisDrop{c: c, line: l.Line}, i: -1, self: k}
 	k.ExtendBaseWidget(k)
 	fyne.SetAccessibleLabel(k, "Synopsis: "+l.Text)
 	return k
@@ -572,11 +603,10 @@ func newSectionHeader(c *cardsView, i int, it outlineItem) *sectionHeader {
 	title.Importance = widget.HighImportance
 	title.Truncation = fyne.TextTruncateEllipsis
 	rows := []fyne.CanvasObject{widget.NewSeparator(), withSwatch(title, it.Color)}
-	if it.Synopsis != "" {
+	if it.Synopsis != "" { // at the weight of its beats' cards: what it does is as much the plan
 		syn := widget.NewLabel(it.Synopsis)
 		syn.TextStyle = fyne.TextStyle{Italic: true}
-		syn.Importance = widget.LowImportance
-		syn.Truncation = fyne.TextTruncateEllipsis
+		syn.Wrapping = fyne.TextWrapWord
 		rows = append(rows, syn)
 	}
 	var indent fyne.CanvasObject // nested sections a little in
@@ -693,4 +723,152 @@ func withColorName(label, name string) string {
 		return label + ", " + n
 	}
 	return label
+}
+
+// addRow is a section's New Scene while it has no scenes: a compact row
+// under its beats, not an empty card the size of a scene's; tapped, it
+// asks for the scene as the card does.
+type addRow struct {
+	widget.BaseWidget
+	c    *cardsView
+	at   int
+	body fyne.CanvasObject
+}
+
+func newAddRow(c *cardsView, at int) *addRow {
+	label := widget.NewLabel("New scene")
+	label.Importance = widget.LowImportance
+	icon := widget.NewIcon(theme.ContentAddIcon())
+	a := &addRow{c: c, at: at, body: container.NewHBox(icon, label)}
+	a.ExtendBaseWidget(a)
+	fyne.SetAccessibleLabel(a, "New scene")
+	return a
+}
+
+func (a *addRow) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(a.body) }
+
+func (a *addRow) Tapped(*fyne.PointEvent) { a.c.w.askNewScene(a.at) }
+
+// synopsisDrop is where a synopsis card dragged goes: by the card,
+// header or synopsis card its middle is on (synopsisAt), the same move of
+// units as Alt+Up and Shift+Alt+Down (structure.Place).
+type synopsisDrop struct {
+	c    *cardsView
+	line int
+}
+
+func (s synopsisDrop) dragging(_ int, self fyne.CanvasObject, pos fyne.Position) {
+	if to, where, ok := s.c.synopsisAt(self, pos); ok {
+		s.c.w.setStatus(s.c.placeSaying(to, where))
+	}
+}
+
+func (s synopsisDrop) dropped(_ int, self fyne.CanvasObject, pos fyne.Position) {
+	c := s.c
+	old := c.w.textEditor.Text()
+	if c.grouped {
+		c.w.setStatus("Grouped, the cards are a view: group by section to drag them")
+	} else if to, where, ok := c.synopsisAt(self, pos); ok {
+		c.w.placeSynopsis(s.line, to, where)
+	}
+	if c.w.textEditor.Text() == old {
+		c.update(old) // nothing moved: back in its place
+	}
+}
+
+// synopsisAt is where a synopsis card dragged to pos goes: the line it
+// goes by and how (structure.Place), ok false when not on a card,
+// header or row. On a synopsis card: before it or, on its right half,
+// after it; on a scene's card: before the scene, or on its right half
+// first among the scene's synopses (at its end if it has none); on a
+// section's header: first in the section; on a New Scene: where the
+// scene would go.
+func (c *cardsView) synopsisAt(moving fyne.CanvasObject, pos fyne.Position) (to int, where structure.Where, ok bool) {
+	d := fyne.CurrentApp().Driver()
+	for _, t := range c.targets {
+		if t.obj == moving {
+			continue
+		}
+		at, size := d.AbsolutePositionForObject(t.obj), t.obj.Size()
+		if pos.X < at.X || pos.Y < at.Y || pos.X >= at.X+size.Width || pos.Y >= at.Y+size.Height {
+			continue
+		}
+		right := pos.X >= at.X+size.Width/2
+		switch t.kind {
+		case dropSynopsis:
+			if right {
+				return t.line, structure.After, true
+			}
+			return t.line, structure.Before, true
+		case dropCard:
+			it := c.items[t.item]
+			switch {
+			case !right:
+				return it.Line, structure.Before, true
+			case len(it.Loose) > 0:
+				return it.Loose[0].Line, structure.Before, true
+			}
+			return it.Line, structure.End, true
+		case dropHeader:
+			return c.items[t.item].Line, structure.Start, true
+		case dropAdd:
+			if t.before < len(c.items) {
+				return c.items[t.before].Line, structure.Before, true
+			}
+			return -1, structure.End, true
+		}
+	}
+	return 0, 0, false
+}
+
+// placeSaying says where a synopsis dropped would go.
+func (c *cardsView) placeSaying(to int, where structure.Where) string {
+	name := "the end"
+	for _, it := range c.items {
+		if it.Line == to {
+			name = it.Text
+		}
+		for _, l := range it.Loose {
+			if l.Line == to {
+				name = "“" + l.Text + "”"
+			}
+		}
+	}
+	switch where {
+	case structure.After:
+		return "Move after " + name
+	case structure.Start:
+		return "Move into " + name + ", first"
+	case structure.End:
+		if to < 0 {
+			return "Move to the end"
+		}
+		return "Move into " + name + ", at its end"
+	}
+	return "Move before " + name
+}
+
+// placeSynopsis moves the synopsis or note paragraph at line from by
+// the unit at line to (structure.Place: a dragged synopsis card), one
+// undo step, the cursor kept.
+func (w *MainWindow) placeSynopsis(from, to int, where structure.Where) {
+	e := w.textEditor
+	if e == nil {
+		return
+	}
+	text := e.Text()
+	tr, read := w.structTree(text)
+	res, err := tr.Place(from, to, where, read)
+	if err == structure.InPlace {
+		return
+	}
+	if err != nil {
+		w.setStatus(err.Error())
+		return
+	}
+	cur, col := -1, 0
+	if c := e.CursorOffset(); c >= 0 {
+		cur, col = e.Buffer().Position(c)
+	}
+	w.applyStruct(text, res, false, cur, col)
 }
