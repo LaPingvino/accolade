@@ -146,6 +146,25 @@ func TestLamAlefCursor(t *testing.T) {
 	if got := e.Buffer().Text(); !strings.HasPrefix(got, " إله إل ") {
 		t.Errorf("Backspace: %q, want إلا's alef gone", got)
 	}
+	// with vowel marks on its lam (Courier Badi 1.109) a lam-alef is
+	// still one cluster: the cursor never stands between a harakah and
+	// its alef; after a tatweel the alef is its own
+	e = newDevaEditor(t, "فَلَّا لَا لَـا", 60)
+	e.FocusGained()
+	for off := range 16 {
+		inside := off == 1 || off >= 3 && off <= 5 || off == 8 || off == 9 || off == 12
+		if e.isClusterEdge(off) == inside {
+			t.Errorf("فَلَّا لَا لَـا: the cursor at %d: an edge %v, want %v", off, inside, !inside)
+		}
+	}
+	got = got[:0]
+	for range 7 {
+		key(e, fyne.KeyLeft)
+		got = append(got, e.CursorOffset())
+	}
+	if want := []int{2, 6, 7, 10, 11, 13, 14}; !equalInts(got, want) {
+		t.Errorf("Left over فَلَّا لَا لَـا: %v, want %v", got, want)
+	}
 }
 
 // No row starts inside a lam-alef, and each row's cells take the columns

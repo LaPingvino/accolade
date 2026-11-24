@@ -1,15 +1,20 @@
 // Package cluster counts the columns a text takes in the editor's grid
 // and where its clusters (drawn whole, the cursor round them) start: by
 // Lekhan monospace (lekhan), and Arabic's lam-alef one cluster of one
-// column, as Courier Badi draws it (one glyph a cell wide) and the PDF,
-// shaped first, prints it. Counted as two (lekhan's), lam-alef left a
-// blank cell beside its glyph, a gap in the word.
+// column, also with vowel marks on the lam (لَا, لّا, لّٰا), as Courier
+// Badi draws it (one glyph a cell wide, from 1.109 over the marks) and the
+// PDF, shaped first, prints it. Counted as two, lam-alef left a blank cell
+// beside its glyph, a gap in the word.
 //
 // Every count of the editor's columns and clusters goes through here, so
 // the wrap, the drawing and the cursor agree.
 package cluster
 
-import "github.com/LaPingvino/lexington/lekhan"
+import (
+	"unicode"
+
+	"github.com/LaPingvino/lexington/lekhan"
+)
 
 const lam = 0x0644
 
@@ -18,16 +23,31 @@ const lam = 0x0644
 // wasla (ٱ) nor the extended ones, which the font draws apart.
 func alef(r rune) bool { return r == 0x0627 || r == 0x0622 || r == 0x0623 || r == 0x0625 }
 
-// LamAlef tells whether rs[i] is the alef of a lam-alef: right after a
-// lam, nothing between (a mark, a tatweel or a joiner there and the font
-// draws the two apart).
+// LamAlef tells whether rs[i] is the alef of a lam-alef: the first
+// character before it that is no combining mark (Mn, Me) a lam. The font
+// ligates over the marks (لَا); a tatweel or a joiner between ends the
+// look-back, and the font draws the two apart (لـا, ل‍ا).
 func LamAlef(rs []rune, i int) bool {
-	return i > 0 && i < len(rs) && rs[i-1] == lam && alef(rs[i])
+	if i <= 0 || i >= len(rs) || !alef(rs[i]) {
+		return false
+	}
+	for k := i - 1; k >= 0; k-- {
+		if !combining(rs[k]) {
+			return rs[k] == lam
+		}
+	}
+	return false
 }
 
+// combining tells whether r is a combining mark a lam-alef's look-back
+// passes over: nonspacing or enclosing.
+func combining(r rune) bool { return unicode.In(r, unicode.Mn, unicode.Me) }
+
 // Joins tells whether b belongs to the cluster of a, the character before
-// it, judged by the two alone (lekhan.Joins, and an alef after a lam).
-func Joins(a, b rune) bool { return a == lam && alef(b) || lekhan.Joins(a, b) }
+// it, judged by the two alone: lekhan.Joins, or an alef after a lam or a
+// mark (a lam-alef's if a lam is before the marks: Boundary decides). It
+// is a quick filter: false is exact, true asks Boundary.
+func Joins(a, b rune) bool { return alef(b) && (a == lam || combining(a)) || lekhan.Joins(a, b) }
 
 // Boundary tells whether a cluster starts at rs[i].
 func Boundary(rs []rune, i int) bool { return !LamAlef(rs, i) && lekhan.Boundary(rs, i) }
