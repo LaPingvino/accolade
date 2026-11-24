@@ -31,7 +31,7 @@ import (
 type outlineItem struct {
 	Line     int    // where it is
 	Text     string // the heading, without markers, notes or scene number
-	Synopsis string // its own synopsis: the first "= ..." lines under it
+	Synopsis string // its own synopsis: the "= ..." lines right under it, touching it
 	Color    string // the heading's color note, as lex.NoteColor reads it
 	Level    int    // a section's level (# 1, ## 2); scenes are one deeper
 	Scene    bool
@@ -53,8 +53,9 @@ func outlineOf(text string, starts []string) []outlineItem {
 	section := 0
 	lines := strings.Split(text, "\n")
 	inBoneyard := false // notes and other /* ... */ are not the script
-	// own: the item's own synopsis can still come (only blank lines and
-	// notes since its heading); inSyn: the line before was a synopsis
+	// own: the item's own synopsis can still come (it touches the heading:
+	// only notes since it, no blank line); inSyn: the line before was a
+	// synopsis
 	own, inSyn := false, false
 	for i, l := range lines {
 		t := strings.TrimSpace(l)
@@ -88,10 +89,7 @@ func outlineOf(text string, starts []string) []outlineItem {
 			}
 			inSyn = true
 		case t == "":
-			if inSyn {
-				own = false // its own synopsis has ended
-			}
-			inSyn = false
+			own, inSyn = false, false // a blank line ends the heading's own lines
 		case isNoteLine(t):
 			inSyn = false
 		default:

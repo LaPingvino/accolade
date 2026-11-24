@@ -228,10 +228,10 @@ func TestNewSceneOnLooseSynopsis(t *testing.T) {
 	for _, c := range []struct {
 		text, at, want string
 	}{
-		{"# Act\n\n= Own.\n\n= Beat one.\n\n= Beat two.\n", "Beat one",
-			"# Act\n\n= Own.\n\nINT. NEW - NIGHT\n\n= Beat one.\n\n= Beat two.\n"},
-		{"# Act\n\n= Own.\n\nINT. A - DAY\n\nAction.\n\n= Then this.\n\nMore.\n", "Then this",
-			"# Act\n\n= Own.\n\nINT. A - DAY\n\nAction.\n\nINT. NEW - NIGHT\n\n= Then this.\n\nMore.\n"},
+		{"# Act\n= Own.\n\n= Beat one.\n\n= Beat two.\n", "Beat one",
+			"# Act\n= Own.\n\nINT. NEW - NIGHT\n= Beat one.\n\n= Beat two.\n"},
+		{"# Act\n= Own.\n\nINT. A - DAY\n\nAction.\n\n= Then this.\n\nMore.\n", "Then this",
+			"# Act\n= Own.\n\nINT. A - DAY\n\nAction.\n\nINT. NEW - NIGHT\n= Then this.\n\nMore.\n"},
 	} {
 		cursor := r(c.text[:strings.Index(c.text, c.at)])
 		at := newSceneAt(c.text, cursor, starts)
@@ -249,9 +249,9 @@ func TestNewSceneOnLooseSynopsis(t *testing.T) {
 		}
 	}
 	// in a scene with a beat still to write after it: before that beat
-	text0 := "# Act\n\nINT. A - DAY\n\n= Own.\n\nAction.\n\n= Next beat.\n"
+	text0 := "# Act\n\nINT. A - DAY\n= Own.\n\nAction.\n\n= Next beat.\n"
 	at0 := newSceneAt(text0, r(text0[:strings.Index(text0, "Action")]), starts)
-	if got := string([]rune(text0)[:at0]); got != "# Act\n\nINT. A - DAY\n\n= Own.\n\nAction.\n\n" {
+	if got := string([]rune(text0)[:at0]); got != "# Act\n\nINT. A - DAY\n= Own.\n\nAction.\n\n" {
 		t.Errorf("before the next beat: before %q", got)
 	}
 	// a synopsis with more of the scene after it is the scene's: after the scene
@@ -261,9 +261,9 @@ func TestNewSceneOnLooseSynopsis(t *testing.T) {
 		t.Errorf("past a mid-scene synopsis: before %q", got)
 	}
 	// a heading's own synopsis: after its paragraph, as before
-	text := "# Act\n\n= Own.\n\n= Beat one.\n"
+	text := "# Act\n= Own.\n\n= Beat one.\n"
 	at := newSceneAt(text, r(text[:strings.Index(text, "Own")]), starts)
-	if got := string([]rune(text)[:at]); got != "# Act\n\n= Own.\n" {
+	if got := string([]rune(text)[:at]); got != "# Act\n= Own.\n" {
 		t.Errorf("on the act's own synopsis: before %q", got)
 	}
 }

@@ -14,7 +14,7 @@ import (
 func TestCards(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
 	w.fyneWindow.Resize(fyne.NewSize(900, 600))
-	w.textEditor.SetText("# ACT ONE\n\nINT. BARN - DAY\n\n= Anna finds the tin.\n\nRain on the roof. Anna lifts the lid of the biscuit tin.\n\nEXT. FIELD - DAY\n\nWind.\n")
+	w.textEditor.SetText("# ACT ONE\n\nINT. BARN - DAY\n= Anna finds the tin.\n\nRain on the roof. Anna lifts the lid of the biscuit tin.\n\nEXT. FIELD - DAY\n\nWind.\n")
 	w.toggleCards()
 	c := w.cards
 	if !w.cardsShown() || len(c.list.Objects) != 2 {
@@ -43,14 +43,14 @@ func TestCards(t *testing.T) {
 	m := barn.middle()
 	barn.Dragged(&fyne.DragEvent{Dragged: fyne.NewDelta(to.X-m.X, to.Y-m.Y)})
 	barn.DragEnd()
-	if got := w.textEditor.Text(); got != "# ACT ONE\n\nEXT. FIELD - DAY\n\nWind.\n\nINT. BARN - DAY\n\n= Anna finds the tin.\n\nRain on the roof. Anna lifts the lid of the biscuit tin.\n" {
+	if got := w.textEditor.Text(); got != "# ACT ONE\n\nEXT. FIELD - DAY\n\nWind.\n\nINT. BARN - DAY\n= Anna finds the tin.\n\nRain on the roof. Anna lifts the lid of the biscuit tin.\n" {
 		t.Fatalf("dragged: %q", got)
 	}
 
 	// a synopsis written on the field's card, now the first
 	grid = c.list.Objects[1].(*fyne.Container)
 	synopsisOf(t, grid.Objects[0].(*card)).SetText("The wind turns")
-	if got := w.textEditor.Text(); got != "# ACT ONE\n\nEXT. FIELD - DAY\n= The wind turns\n\nWind.\n\nINT. BARN - DAY\n\n= Anna finds the tin.\n\nRain on the roof. Anna lifts the lid of the biscuit tin.\n" {
+	if got := w.textEditor.Text(); got != "# ACT ONE\n\nEXT. FIELD - DAY\n= The wind turns\n\nWind.\n\nINT. BARN - DAY\n= Anna finds the tin.\n\nRain on the roof. Anna lifts the lid of the biscuit tin.\n" {
 		t.Fatalf("synopsis: %q", got)
 	}
 

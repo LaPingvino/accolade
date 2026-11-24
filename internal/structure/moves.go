@@ -432,8 +432,8 @@ func (t *Tree) into(r run, next bool) (Result, error) {
 }
 
 // intoSection takes a section's own synopses and notes into the section before it in the text (next: after
-// it), among that one's own blocks: at their end, or their start (after
-// its own synopsis, which stays the first). A
+// it), among that one's own blocks: at their end, or their start (its
+// own synopsis, touching its heading, is the heading's and stays). A
 // section's blocks stay a section's, as a scene's go into scenes.
 func (t *Tree) intoSection(r run, next bool) (Result, error) {
 	own := r.parent
@@ -468,9 +468,6 @@ func (t *Tree) intoSection(r run, next bool) (Result, error) {
 	}
 	if next {
 		msg := fmt.Sprintf("Into %s, at its start", t.Name(to))
-		if firstOwn != nil && t.synopsis(firstOwn) { // its own synopsis stays first
-			return t.moveTo(r, firstOwn.Last, true, msg)
-		}
 		if firstOwn != nil {
 			return t.moveTo(r, firstOwn.First, false, msg)
 		}

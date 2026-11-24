@@ -3,7 +3,7 @@
 A script's structure is written in the script itself, in three kinds of lines that never print:
 
 - **Sections**, lines starting with `#`: acts, sequences, chapters, whatever parts you think in. `##` is a part inside a part.
-- **Synopses**, lines starting with `=`: what happens. The first synopsis under a heading (blank lines may come between) is that heading's own. Every other synopsis paragraph stands on its own: a beat, a moment you are planning.
+- **Synopses**, lines starting with `=`: what happens. A synopsis right under a heading, touching it (no blank line between), is that heading's own. Every other synopsis paragraph stands on its own: a beat, a moment you are planning. So the first beat after a blank line stays a beat.
 - **Notes**, `[[like this]]`: questions, reminders, anything for you alone. A longer note goes in the Notes pane, or in a `/* … */` boneyard.
 
 Everything below works on these lines. There is no separate board to keep in step with the script: the outline and the cards are views of the text, and each change you make in them is an edit of the text, undone in one step.
@@ -42,7 +42,6 @@ This is Accolade's answer to a beat board: the beats are lines in the script, an
 
    ```
    # Act One
-
    = The world before, and what is missing.
 
    = Mara finds her father's letter in the lamp room.
@@ -50,11 +49,12 @@ This is Accolade's answer to a beat board: the beats are lines in the script, an
    = She decides to stay the winter.
 
    # Act Two
+   = The storm, and what it takes.
 
    = The storm tears the roof from the boathouse.
    ```
 
-   The first synopsis under each act says what the act does; the ones after it are the beats.
+   The synopsis touching each act's heading says what the act does; the ones after a blank line are the beats.
 2. **See them** in the outline and on the cards.
 3. **Rearrange** with Alt+Up and Alt+Down; take a beat into the next act with Shift+Alt+Down; move whole acts with Alt+Up and Alt+Down on their heading.
 4. **Fold** the acts you are not working on.

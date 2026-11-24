@@ -173,7 +173,7 @@ func newSceneAt(text string, cursor int, starts []string) int {
 // is where it starts): the heading above it, the cursor after it.
 func onSynopsisText(text string, at int, heading string) (insert string, cursor int) {
 	insert, _ = newSceneText(text, at, heading)
-	insert = insert[:strings.Index(insert, heading)] + heading + "\n\n" // the heading, a blank line, the synopsis
+	insert = insert[:strings.Index(insert, heading)] + heading + "\n" // the heading, the synopsis touching it (its own)
 	cursor = len([]rune(insert))
 	al := strings.Split(string([]rune(text)[at:]), "\n")
 	for _, l := range al[:synopsisEnd(al, 0)] {

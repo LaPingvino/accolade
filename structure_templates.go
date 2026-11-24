@@ -37,7 +37,6 @@ type structureTemplate struct {
 // structureTemplates are the structures, in the menus' order.
 var structureTemplates = []structureTemplate{
 	{name: "Three Acts", body: `# Act One
-
 = Who, where, and what is wrong in their world.
 
 ## Inciting Incident
@@ -47,7 +46,6 @@ var structureTemplates = []structureTemplate{
 = The hero commits, and there is no going back.
 
 # Act Two
-
 = Trying, failing, and the stakes rising.
 
 ## Midpoint
@@ -57,7 +55,6 @@ var structureTemplates = []structureTemplate{
 = Everything falls apart; the hero has to choose.
 
 # Act Three
-
 = The last confrontation, and what it costs.
 
 ## Climax
@@ -67,7 +64,6 @@ var structureTemplates = []structureTemplate{
 = The world after, and who the hero has become.
 `},
 	{name: "Sequences", after: "Frank Daniel", body: `# Act One
-
 = Two sequences: the world, and the problem that comes into it.
 
 ## Sequence 1: The World
@@ -77,7 +73,6 @@ var structureTemplates = []structureTemplate{
 = The problem arrives; the hero is drawn in.
 
 # Act Two
-
 = Four sequences: the struggle, turning at the midpoint.
 
 ## Sequence 3: First Steps
@@ -93,7 +88,6 @@ var structureTemplates = []structureTemplate{
 = The plan fails; the lowest point.
 
 # Act Three
-
 = Two sequences: the last push, and what it leaves.
 
 ## Sequence 7: The Final Push
@@ -103,7 +97,6 @@ var structureTemplates = []structureTemplate{
 = The outcome, and the new balance.
 `},
 	{name: "Hero's Journey", after: "Joseph Campbell and Christopher Vogler", body: `# Departure
-
 = Leaving the known world.
 
 ## The Ordinary World
@@ -122,7 +115,6 @@ var structureTemplates = []structureTemplate{
 = The hero leaves the known world.
 
 # Initiation
-
 = Trials in the unknown, and what they change.
 
 ## Tests, Allies, Enemies
@@ -138,7 +130,6 @@ var structureTemplates = []structureTemplate{
 = What was won by surviving.
 
 # Return
-
 = Coming home, changed.
 
 ## The Road Back
@@ -151,7 +142,6 @@ var structureTemplates = []structureTemplate{
 = Home again, bringing something that changes it.
 `},
 	{name: "Story Circle", after: "Dan Harmon", body: `# Order
-
 = The known world: wanting, and setting out.
 
 ## 1. You
@@ -167,7 +157,6 @@ var structureTemplates = []structureTemplate{
 = They struggle there, and learn its ways.
 
 # Chaos
-
 = The unknown: getting, paying, coming back changed.
 
 ## 5. Find
@@ -183,23 +172,18 @@ var structureTemplates = []structureTemplate{
 = They are not who they were.
 `},
 	{name: "Kishōtenketsu", body: `# Ki: Introduction
-
 = The characters and their world, as they are.
 
 # Shō: Development
-
 = The same world followed further; nothing breaks yet.
 
 # Ten: Twist
-
 = Something unexpected, perhaps unrelated, comes in.
 
 # Ketsu: Reconciliation
-
 = The parts brought together: the twist makes sense of what came before.
 `},
 	{name: "Beat Sheet (15 Beats)", after: "Blake Snyder", body: `# Act One
-
 = The world before, and the push out of it.
 
 ## Opening Image
@@ -218,7 +202,6 @@ var structureTemplates = []structureTemplate{
 = Should the hero go? Doubt, a last chance to stay.
 
 # Act Two
-
 = The new world, its promise, and its cost.
 
 ## Break into Two
@@ -243,7 +226,6 @@ var structureTemplates = []structureTemplate{
 = The hero takes in the loss.
 
 # Act Three
-
 = The answer, acted on.
 
 ## Break into Three
@@ -256,7 +238,6 @@ var structureTemplates = []structureTemplate{
 = The world after: the opening image, changed.
 `},
 	{name: "Beats First", body: `# Act One
-
 = What this act does.
 
 = …
@@ -266,7 +247,6 @@ var structureTemplates = []structureTemplate{
 = …
 
 # Act Two
-
 = What this act does.
 
 = …
@@ -276,7 +256,6 @@ var structureTemplates = []structureTemplate{
 = …
 
 # Act Three
-
 = What this act does.
 
 = …

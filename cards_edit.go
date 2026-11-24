@@ -6,8 +6,9 @@ import (
 
 // Planning on the cards: a synopsis written on a card, and new scenes.
 
-// synopsisLines are the lines of item i's synopsis ("= ..." under it, up
-// to the next item), as outlineOf reads them.
+// synopsisLines are the lines of item i's own synopsis ("= ..." right
+// under its heading, touching it: notes may come between, no blank
+// line), as outlineOf reads them.
 func synopsisLines(lines []string, items []outlineItem, i int) []int {
 	end := len(lines)
 	if i+1 < len(items) {
@@ -21,8 +22,8 @@ func synopsisLines(lines []string, items []outlineItem, i int) []int {
 			at = append(at, n)
 		case len(at) > 0: // its own ends at the first line after it
 			return at
-		case t == "" || isNoteLine(t):
-		default:
+		case isNoteLine(t):
+		default: // a blank line too: its own lines have ended
 			return at
 		}
 	}

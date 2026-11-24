@@ -365,7 +365,9 @@ func TestExpand(t *testing.T) {
 // Down: at the end of its own blocks, or the start of them; a scene's
 // still go into scenes.
 func TestIntoSectionBlocks(t *testing.T) {
-	const s = "Title: T\n\n# One\n\n= a\n\n= b\n\nINT. X - DAY\n\nAction.\n\n# Two\n\n= c\n\n= d\n\n# Three\n\n= e\n"
+	// each section's own synopsis touches its heading (its heading's);
+	// the synopses after a blank line are its beats, which move
+	const s = "Title: T\n\n# One\n= a\n\n= b\n\nINT. X - DAY\n\nAction.\n\n# Two\n= c\n\n= d\n\n# Three\n= e\n\n= f\n"
 	for _, c := range []struct {
 		name   string
 		op     Op
@@ -373,15 +375,15 @@ func TestIntoSectionBlocks(t *testing.T) {
 		want   string
 		refuse string
 	}{
-		{name: "the first of Two into One, after its own", op: IntoPrev, at: "= c",
-			want: "Title: T\n\n# One\n\n= a\n\n= b\n\n= c\n\nINT. X - DAY\n\nAction.\n\n# Two\n\n= d\n\n# Three\n\n= e\n"},
-		{name: "the last of Two into Three, after its own synopsis", op: IntoNext, at: "= d",
-			want: "Title: T\n\n# One\n\n= a\n\n= b\n\nINT. X - DAY\n\nAction.\n\n# Two\n\n= c\n\n# Three\n\n= e\n\n= d\n"},
+		{name: "the first beat of Two into One, after its own", op: IntoPrev, at: "= d",
+			want: "Title: T\n\n# One\n= a\n\n= b\n\n= d\n\nINT. X - DAY\n\nAction.\n\n# Two\n= c\n\n# Three\n= e\n\n= f\n"},
+		{name: "the last of Two into Three, before its beats, its synopsis staying", op: IntoNext, at: "= d",
+			want: "Title: T\n\n# One\n= a\n\n= b\n\nINT. X - DAY\n\nAction.\n\n# Two\n= c\n\n# Three\n= e\n\n= d\n\n= f\n"},
 		{name: "One's into Two", op: IntoNext, at: "= b",
-			want: "Title: T\n\n# One\n\n= a\n\nINT. X - DAY\n\nAction.\n\n# Two\n\n= c\n\n= b\n\n= d\n\n# Three\n\n= e\n"},
+			want: "Title: T\n\n# One\n= a\n\nINT. X - DAY\n\nAction.\n\n# Two\n= c\n\n= b\n\n= d\n\n# Three\n= e\n\n= f\n"},
 		{name: "a scene's paragraph: no scene after", op: IntoNext, at: "Action.", refuse: "No scene after"},
-		{name: "none before One", op: IntoPrev, at: "= a", refuse: "No section before"},
-		{name: "none after Three", op: IntoNext, at: "= e", refuse: "No section after"},
+		{name: "none before One", op: IntoPrev, at: "= b", refuse: "No section before"},
+		{name: "none after Three", op: IntoNext, at: "= f", refuse: "No section after"},
 		{name: "a scene's paragraph still into scenes", op: IntoPrev, at: "Action.", refuse: "No scene before"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -409,20 +411,20 @@ func TestIntoSectionBlocks(t *testing.T) {
 		t.Errorf("FADE IN: into the next scene: %v\n%s", err, got)
 	}
 	// a note goes as a synopsis does
-	const n = "Title: T\n\n# One\n\n[[ask Anna]]\n\n# Two\n\n= c\n"
+	const n = "Title: T\n\n# One\n\n[[ask Anna]]\n\n# Two\n= c\n"
 	l1 := lineOf(t, n, "[[ask Anna]]")
-	if got, _, err := do(n, IntoNext, l1, l1); err != nil || got != "Title: T\n\n# One\n\n# Two\n\n= c\n\n[[ask Anna]]\n" {
+	if got, _, err := do(n, IntoNext, l1, l1); err != nil || got != "Title: T\n\n# One\n\n# Two\n= c\n\n[[ask Anna]]\n" {
 		t.Errorf("a note into the next section: %v\n%q", err, got)
 	}
 	// Alt+Left and Alt+Right on a synopsis say what moves it
 	for _, op := range []Op{Promote, Demote} {
-		l := lineOf(t, s, "= c")
+		l := lineOf(t, s, "= d")
 		if _, _, err := do(s, op, l, l); err == nil || !strings.Contains(err.Error(), "A synopsis or a note moves with") {
 			t.Errorf("%v on a synopsis: %v", op, err)
 		}
 	}
 	// the first block of a section: the hint names the section before
-	l := lineOf(t, s, "= c")
+	l := lineOf(t, s, "= d")
 	if _, _, err := do(s, MoveUp, l, l); err == nil || !strings.Contains(err.Error(), "into the section before") {
 		t.Errorf("the hint: %v", err)
 	}
