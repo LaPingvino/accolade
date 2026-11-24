@@ -69,8 +69,8 @@ func (w *MainWindow) updateOpen() {
 		case openBeat:
 			beats++
 		}
-		if it.Kind != openBeat && it.Kind != openUnsorted {
-			marks[it.Line] = kindColor(it.Kind)
+		if it.Kind != openBeat && it.Kind != openUnsorted && !it.Kept { // an omitted scene's block folds: its fold mark there
+			marks[it.Line] = marginColor(it.Kind)
 		}
 	}
 	if n := todos + beats; n > 0 {
@@ -96,6 +96,13 @@ func (w *MainWindow) updateOpen() {
 	}
 }
 
+// marginColor is a kind's mark in the margin: its colour faded, not to
+// be taken for a revision's.
+func marginColor(k openKind) color.Color {
+	r, g, b, _ := kindColor(k).RGBA()
+	return color.NRGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), 0x60}
+}
+
 // marksShown are the editor's margin marks: the revisions' colours
 // (revisions.go), and where there is none, the notes' quiet ones.
 func (w *MainWindow) marksShown() map[int]color.Color {
@@ -116,8 +123,7 @@ func (w *MainWindow) marksShown() map[int]color.Color {
 // cards' to-do marks.
 func sectionBeats(text string, starts []string, items []outlineItem) map[int][]int {
 	lines := strings.Split(text, "\n")
-	end := strings.Count(text[:fountainBodyEnd(text)], "\n") + 1
-	return beatsBySection(beatsOf(lines, items, titlePageEnd(lines), end))
+	return beatsBySection(beatsOf(lines, items, titlePageEnd(lines), endLine(text, fountainBodyEnd(text))))
 }
 
 // beatsMark is a header's mark for n beats ("" none).

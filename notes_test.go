@@ -189,7 +189,7 @@ func TestOpenCallsToAction(t *testing.T) {
 	if !w.openLabel.Visible() || w.openLabel.Text != "3 open" {
 		t.Fatalf("the count: %q shown %v", w.openLabel.Text, w.openLabel.Visible())
 	}
-	if c, ok := w.marksShown()[10]; !ok || c != kindColor(openTodo) {
+	if c, ok := w.marksShown()[10]; !ok || c != marginColor(openTodo) {
 		t.Errorf("the margin: %v", w.marksShown())
 	}
 	w.openLabel.Tapped(nil)
@@ -273,8 +273,10 @@ The lake scene could open the film.
 	p := w.notesPane()
 	p.pick(3, true) // the to-do
 	snap("2-picked")
+	w.togglePane("notes")
 	w.togglePane("outline")
 	snap("3-outline-marks")
+	w.togglePane("notes")
 	w.toggleCards()
 	snap("4-cards-marks")
 	w.showMiddle("")
@@ -282,4 +284,45 @@ The lake scene could open the film.
 	w.togglePane("outline")
 	w.showPane("notes", false)
 	snap("5-phone")
+	p.cancel()
+	w.showPane("notes", false)
+	snap("6-phone-list")
+}
+
+// Two edits in a row of one of two notes alike: the second goes to the
+// same note, not its twin, and the script's cursor stays.
+func TestNotesPaneEditTwice(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.textEditor.SetText("INT. A - DAY\n\nOne. [[todo: fix]]\n\nTwo. [[todo: fix]]\n")
+	w.togglePane("notes")
+	p := w.notesPane()
+	p.pick(1, false)
+	w.textEditor.SetCursorOffset(len("INT. A - DAY\n\nOn"))
+	p.entry.SetText("fix two")
+	p.commit()
+	p.entry.SetText("fix it twice")
+	p.commit()
+	if got := w.textEditor.Text(); got != "INT. A - DAY\n\nOne. [[todo: fix]]\n\nTwo. [[todo: fix it twice]]\n" {
+		t.Errorf("edited twice: %q", got)
+	}
+	if c := w.textEditor.CursorOffset(); c != len("INT. A - DAY\n\nOn") {
+		t.Errorf("the cursor moved to %d", c)
+	}
+}
+
+// A beat on the script's last line, or right before the notes block, is
+// in the pane and on its section's mark alike.
+func TestBeatAtTheEnd(t *testing.T) {
+	for _, text := range []string{"# One\n\n= Own.\n\n= Last beat", "# One\n\n= Own.\n\n= Last beat\n\n/* Notes\nx\n*/\n"} {
+		n := 0
+		for _, it := range openItemsOf(text, nil, false) {
+			if it.Kind == openBeat {
+				n++
+			}
+		}
+		marks := sectionBeats(text, nil, outlineOf(text, nil))
+		if n != 1 || len(marks[0]) != 1 {
+			t.Errorf("%q: %d beats in the pane, %v on the mark", text, n, marks)
+		}
+	}
 }

@@ -70,6 +70,7 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Marker** — Ctrl+M (screenplay; on a Mac Control+M)
 - **Next Marker** — Ctrl+Alt+M (screenplay; on a Mac Control+Option+M)
 - **Previous Marker** — Ctrl+Shift+Alt+M (screenplay; on a Mac Control+Shift+Option+M)
+- **Add Note** — Ctrl+Shift+K
 - **Link** — Ctrl+L (Markdown)
 
 ## Adaptation menu
@@ -99,7 +100,6 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Expand Selection** — Alt+O (screenplay)
 - **Shrink Selection** — Alt+I (screenplay)
 - **Outline** — Ctrl+Shift+O
-- **Notes** — Ctrl+Shift+K
 - **Cards** — Ctrl+Shift+D (screenplay)
 - **Changes** — Ctrl+Shift+H
 - **Next Middle Tab** — Ctrl+PgDn (in the browser Alt+PgDn)

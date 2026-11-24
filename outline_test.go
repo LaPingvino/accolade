@@ -106,9 +106,10 @@ func TestFullscreenWithoutDistractions(t *testing.T) {
 		t.Error("the outline closed")
 	}
 	w.fyneWindow.Canvas().Focus(w.textEditor)
-	w.textEditor.TypedShortcut(shortcut(fyne.KeyK, fyne.KeyModifierShift)) // Notes
-	if !w.paneShown("notes") {
-		t.Error("the Notes shortcut did nothing in full screen")
+	before := w.textEditor.Text()
+	w.textEditor.TypedShortcut(shortcut(fyne.KeyK, fyne.KeyModifierShift)) // Add Note
+	if !strings.Contains(w.textEditor.Text(), "[[]]") || w.textEditor.Text() == before {
+		t.Error("Add Note's shortcut did nothing in full screen")
 	}
 	leave := findButton(w.fyneWindow.Content(), "Leave full screen")
 	if leave == nil {

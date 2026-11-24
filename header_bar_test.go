@@ -32,7 +32,7 @@ func TestHeaderButtonsHaveTips(t *testing.T) {
 		"new": hb.button("file.new").Tip, "open": hb.button("file.open").Tip, "save": hb.button("file.save").Tip,
 		"undo": hb.button("edit.undo").Tip, "redo": hb.button("edit.redo").Tip, "find": hb.button("edit.findReplace").Tip,
 		"preview": hb.button("view.preview").Tip, "export": hb.button("file.export").Tip, "preferences": hb.button("app.preferences").Tip,
-		"outline": hb.button("view.outline").Tip, "cards": hb.button("view.cards").Tip, "notes": hb.button("view.notes").Tip,
+		"outline": hb.button("view.outline").Tip, "cards": hb.button("view.cards").Tip, // Notes has none: Ctrl+Shift+K is Add Note
 	} {
 		if !strings.Contains(tip, "(") {
 			t.Errorf("%s button tip %q has no shortcut", name, tip)

@@ -249,7 +249,7 @@ func fountainOpenItems(text string, starts []string) []openItem {
 		}
 		items = append(items, it)
 	}
-	for _, b := range beatsOf(lines, outline, tp, lineAt(end)) {
+	for _, b := range beatsOf(lines, outline, tp, endLine(text, end)) {
 		items = append(items, beatItem(lines, b.from, b.to))
 	}
 	slices.SortStableFunc(items, func(a, b openItem) int { return a.Start - b.Start })
@@ -315,6 +315,16 @@ func beatsBySection(beats []beatAt) map[int][]int {
 		out[b.section] = append(out[b.section], b.from)
 	}
 	return out
+}
+
+// endLine is the first line not before byte end: a line end stops
+// short of (a beat on the script's last line, the blocks after it) is in.
+func endLine(text string, end int) int {
+	n := strings.Count(text[:end], "\n")
+	if end > 0 && text[end-1] != '\n' {
+		n++
+	}
+	return n
 }
 
 // lineIndex gives the line of a byte offset (offsets asked in any order).

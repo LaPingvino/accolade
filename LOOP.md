@@ -2034,3 +2034,20 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   reads it: its first synopsis paragraph (blank lines and notes may come before), its lines joined, not a synopsis
   after the scene's action. Accolade follows it once tagged and bumped. Left: the Export dialog still shows
   Page Setup and Part of the Script for the outline and treatment (they use neither); the treatment ignores tags.
+- 2026-11-24: NOTES PANE phase 1 done (branch notespane, not merged). The notepad is gone (notesPanel, docNotes,
+  its middle document); View > Notes is a pane over one item model read from the text (open_items.go, memoised;
+  open_edits.go for the edits): to-dos ([[todo: …]], [[TODO …]], "to do:"), cuts (a boneyard Lexington parses as
+  script: a heading, a speech or a transition; titled by its first heading), notes (other [[notes]] no tool claims:
+  colours, from: links, board frames, dataPath, heading tags are left out; prose boneyards), beats no scene grew from
+  (beatsOf: before the first heading, a section's after its own, a scene's trailing ones as newSceneAt reads them),
+  unsorted notes (the paragraphs of the /* Notes */ end block, its store still). Markdown: <!-- comments -->, TODO
+  ones as to-dos, <!-- Notes --> as unsorted. Pane: grouped under the scene/section, filters with counts, a tap goes
+  there; edit below the list (Save, Ctrl/Shift+Enter, focus out; checked against the text first), Restore on every
+  boneyard (an OMITTED scene's block under its heading through fountain.RestoreScene, the number kept; others
+  uncommented with blank lines around), New Scene on a beat, Remove; Add Note Ctrl+Shift+K / :note (the old notes
+  key; the pane's toggle has none now), New Unsorted Note / :unsorted-note. Status bar "N open" (to-dos + beats),
+  tap opens the pane; outline and cards section headers "⚑ N beats without a scene", a tap steps through them;
+  margin marks for notes, cuts, to-dos, faded, under the revision colours (BenchmarkScriptKey 200x under load ~34,
+  main → branch: sample 15.8 → 16.8 ms, hi-Deva 23.1 → 25.0, novel 335 → 326, novel-move 63.8 → 65.0: noise).
+  Left for phase 2: the Revision ribbon (next/previous, bulk actions) on the same openItem list; cards pane (one
+  column) and the "Unplaced" cards group have no beats mark; Markdown inline comments mid-line are not listed.

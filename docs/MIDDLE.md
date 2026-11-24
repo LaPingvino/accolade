@@ -248,7 +248,7 @@ what waits for the pause (the Script tab) ≈3 ms.
   screenplay's commands back with the source kept open; Back to the Side writes it and puts the pane back.
 - `TestMiddleSourceInsideScript`: three edits are one script undo step; a change to the block made in the script
   comes into the source outside its Undo; the script's Undo takes the source's writing back as one step.
-- `TestMiddleNotes`: Fountain's notes block, the Notes pane following, and a Markdown document's HTML comment.
+- `TestMiddleNotes`: the Notes pane as a middle tab (a list, no document of its own) and back; a Markdown document's unsorted notes.
   Markdown has no source or cards for the middle.
 - `TestMiddleBlocked` (the menu item greyed), `TestMiddleLeftForAnotherDocument` (Open closes the document tabs,
   keeps the outline's; the document type closes the cards'), `TestMiddleAutoSave` (the source behind the
@@ -266,7 +266,7 @@ what waits for the pause (the Script tab) ≈3 ms.
 - `TestCardsPane`: View > Cards opens the middle tab, not the pane; the pane's cards, the cursor's card lit, a
   synopsis written, a drag, the passage's cards lit with the source in the middle; the full view, a card opened
   from it bringing the script's tab forward, the View command closing it.
-- `TestMiddleTogether`, `TestMiddleNotesTogether`, `TestMiddleTypingTogether`: two windows over the loopback.
+- `TestMiddleTogether`, `TestMiddleTypingTogether`: two windows over the loopback.
 - `TestCharactersInTheMiddle`, `TestAdaptScriptAway` (the → to a scene brings the script's tab forward and
   flashes it), `TestKeepSourceInsideWhileOpen`, `TestMiddleRenameAndJoin`, `TestMiddleExVimPreview`,
   `TestMiddleFolds`, `TestMiddleSpanWrite`, `TestPassageLines`.

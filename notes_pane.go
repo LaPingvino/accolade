@@ -490,9 +490,31 @@ func (p *notesPanel) commit() {
 	} else {
 		e = it.editTo(nw, text, w.markdown)
 	}
-	p.item.Text = nw // written: no second commit when the focus goes
-	w.applyTextEdit(e, -1)
+	kind := it.Kind
+	p.sel = -1 // not found again by its old text: by where the edit put it
+	w.applyTextEdit(e, keptCursor(w.textEditor.CursorOffset(), e, text))
 	p.read()
+	for i, n := range p.all {
+		if n.Start == e.Start && n.Kind == kind {
+			p.sel, p.item = i, n
+			p.entry.SetText(n.Text)
+			return
+		}
+	}
+	p.close() // gone (emptied) or no longer of its kind
+}
+
+// keptCursor is where a cursor at c is after edit e of text: before it,
+// as it was; after it, moved by what the edit took or added; in it, at
+// its start.
+func keptCursor(c int, e textEdit, text string) int {
+	switch {
+	case c <= e.Start:
+		return c
+	case c >= e.End:
+		return c + len([]rune(e.Text)) - (e.End - e.Start)
+	}
+	return e.Start
 }
 
 // removeItem takes the item out of the script.
@@ -628,7 +650,7 @@ func (w *MainWindow) newUnsortedNote() {
 func notesCommands() []*command {
 	anyDoc := func(e cmdEnv) bool { return !e.away }
 	return []*command{
-		&command{id: "write.note", label: "Add Note", ex: "note", text: "Note", ribbonLabel: "Note",
+		&command{id: "write.note", label: "Add Note", ex: "note", text: "Note", ribbonLabel: "Note", editing: true,
 			tip:  "A note at the cursor, never printed: [[…]] (Markdown: <!-- … -->); [[todo: …]] makes it a to-do",
 			keys: []fyne.Shortcut{shortcut(fyne.KeyK, fyne.KeyModifierShift)}, icon: theme.DocumentCreateIcon,
 			when: anyDoc, run: (*MainWindow).addNoteAtCursor},

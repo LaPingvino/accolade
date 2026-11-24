@@ -61,6 +61,7 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **Ctrl+M** Marker
 - **Ctrl+Alt+M** Next Marker
 - **Ctrl+Shift+Alt+M** Previous Marker
+- **Ctrl+Shift+K** Add Note
 - **Ctrl+L** Link
 
 ## Adaptation
@@ -90,7 +91,6 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **Alt+O** Expand Selection
 - **Alt+I** Shrink Selection
 - **Ctrl+Shift+O** Outline
-- **Ctrl+Shift+K** Notes
 - **Ctrl+Shift+D** Cards
 - **Ctrl+Shift+H** Changes
 - **Ctrl+PgDn** Next Middle Tab
