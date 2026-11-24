@@ -1924,3 +1924,12 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the links' model, the scene guesses). Now the pane reads it again once the peer pauses (followPause, as for one's
   own typing): 89 ms a key, as one's own (77 ms), plus 511 ms once a pause. A peer's script key: 24 ms, nothing to
   do. Left: the hidden source editor relays out the novel on every key, one's own too.
+- 2026-11-24 (Joop: "Go for it! I think for 2 you can integrate that with the cards timeline view etc."): NEXT after the
+  beats branch (tools + structure templates: three acts, sequences, hero's journey, story circle, kishōtenketsu, a
+  15-beat sheet after Snyder, plus variants as films bend them). (A) Where the beats land: measure where each section /
+  synopsis falls (page and % of the script) and show it in the cards, the timeline strip and the outline beside a
+  structure's typical range — a general tool for any structure, also one of the writer's own; it shows, never forces.
+  (B) Real-film ranges: per structure and genre, the median and spread of where beats fall, from public-domain
+  screenplays analysed here and published timing analyses quoted as facts with their source; never scraped
+  copyrighted scripts; the writer's own files only privately. Joop's principle: tools that compose, workflows offered
+  as templates on top ("those same tools also provide for less common working styles").
