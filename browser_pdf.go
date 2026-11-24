@@ -82,6 +82,7 @@ func browserPDF(browser, htmlPath, pdfPath string) error {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, browser, "--headless=new", "--disable-gpu", "--no-pdf-header-footer",
 		"--user-data-dir="+profile, "--print-to-pdf="+pdfPath, "file://"+filepath.ToSlash(abs))
+	cmd.Env = browserEnv()
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("%s could not print the script: %v: %s", filepath.Base(browser), err, strings.TrimSpace(string(out)))
 	}
@@ -90,3 +91,8 @@ func browserPDF(browser, htmlPath, pdfPath string) error {
 	}
 	return nil
 }
+
+// browserEnv is the browser's environment: the program's own (nil). Tests
+// move HOME to a folder of their own, where Chrome on macOS will not start;
+// they give it the user's home back (role_test.go).
+var browserEnv = func() []string { return nil }

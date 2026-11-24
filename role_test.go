@@ -43,6 +43,17 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	os.Setenv("HOME", home)
+	// the browser that prints PDFs keeps the real home: Chrome on macOS
+	// does not start in an empty one (its own profile is a temp folder)
+	browserEnv = func() []string {
+		env := os.Environ()
+		for i, kv := range env {
+			if strings.HasPrefix(kv, "HOME=") {
+				env[i] = "HOME=" + realHome
+			}
+		}
+		return env
+	}
 	os.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	code := m.Run()
 	os.RemoveAll(data)
