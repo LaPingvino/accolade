@@ -387,10 +387,10 @@ func templateMenu(label string, do func(t structureTemplate)) *fyne.Menu {
 func templateCommands() []*command {
 	return []*command{
 		{id: "file.newStructure", label: "New from Structure", icon: theme.DocumentCreateIcon,
-			tip: "A new script laid out as a structure: three acts, sequences, a beat sheet…, its parts as sections and synopses",
+			tip:     "A new script laid out as a structure: three acts, sequences, a beat sheet…, its parts as sections and synopses",
 			submenu: func(w *MainWindow) *fyne.Menu { return templateMenu("New from Structure", w.newFromStructure) }},
 		{id: "write.insertStructure", label: "Insert Structure", ex: "structure", icon: theme.ListIcon, when: screenplayOnly,
-			tip: "A structure's sections and synopses put in at the end of this script, one undo step",
+			tip:     "A structure's sections and synopses put in at the end of this script, one undo step",
 			submenu: func(w *MainWindow) *fyne.Menu { return templateMenu("Insert Structure", w.insertStructure) }},
 	}
 }

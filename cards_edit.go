@@ -44,7 +44,7 @@ func setSynopsis(text string, starts []string, i int, syn string) string {
 		drop[n] = true
 	}
 	syn = strings.Join(strings.Fields(syn), " ") // one line
-	at := items[i].Line // the new line goes after this one
+	at := items[i].Line                          // the new line goes after this one
 	if len(old) > 0 {
 		at = old[0] - 1
 	}
