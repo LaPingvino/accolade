@@ -2051,3 +2051,24 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   main → branch: sample 15.8 → 16.8 ms, hi-Deva 23.1 → 25.0, novel 335 → 326, novel-move 63.8 → 65.0: noise).
   Left for phase 2: the Revision ribbon (next/previous, bulk actions) on the same openItem list; cards pane (one
   column) and the "Unplaced" cards group have no beats mark; Markdown inline comments mid-line are not listed.
+- 2026-11-24: REVISION TAB, notes phase 2 done (branch revision, not merged). The Notes pane's items plus two kinds:
+  Revision ([[revision: …]], a finding kept; open, counted in the status bar) and Check (revision_checks.go: the
+  pre-lock heuristics about the writing — no INT./EXT., no time, /* or [[ not closed, two cues for one character, a
+  very long scene; not the numbers or the title page — and Lexington's linter, whose row count is replayed to find
+  the row and its Source line; computed after a pause, memoised, never stored; notes on a line are left out before
+  checking so a kept note does not change the heading the check names). To-dos have a done form: [[done: …]] (the
+  colon needed) and [[todo: [x] …]]. Ribbon tab Revision (after Adaptation): Next/Previous Open Item (F8, Shift+F8,
+  :next-item), the current item the one the cursor is in (no index kept); Show = the pane's filters, one array on the
+  window for both and the margin marks; Keep (finding → [[revision: …]] at its line's end; a finding whose line has
+  that note is left out), Dismiss (a finding hidden until the window closes, a session map, nothing written; a note
+  taken out), Done, Restore, New Scene, Edit (in the pane). All at Once: Remove Done To-dos, Restore Cuts in This
+  Scene (confirm with the count, one undo step, edits last-first in one Group). Beats (beat_place.go): each # section's
+  page (its next printed line's, DrawnPage.First/Last of drawer's layout, or the Preview's base when it is this text;
+  title page not counted) and %, laid out in the background while the tab shows; matched to a structure template by
+  section names; structureRanges on the templates are conventional ranges (manuals, Snyder's page guide), NOT measured
+  on films — (B) is to replace them. Readout of the cursor's section, its list as a menu of links, Next Off/Previous
+  Off with the advice ("Midpoint comes late: page 72 of 110 (65%), usually 45–55%: what before it could go…").
+  Left out: "selected beats into scenes" in bulk (a scene needs a heading from New Scene's form, and a guessed or
+  placeholder heading would write a guess into the script); placement in the cards/timeline/outline (only the ribbon);
+  Markdown's source checks (the Check kind is a screenplay's); dismissals are per window, not kept; the ribbon's Notes
+  Pane button left out for width (the readout opens the pane).

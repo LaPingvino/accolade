@@ -1,9 +1,12 @@
 package main
 
 import (
+	"os"
 	"slices"
 	"strings"
 	"testing"
+
+	"fyne.io/fyne/v2"
 )
 
 // The checks' findings: the writing's heuristics (not the lock's) and the
@@ -224,4 +227,45 @@ func TestBeatPlaces(t *testing.T) {
 	if w.scriptCursorLine() != mid.line {
 		t.Errorf("Next Off went to line %d", w.scriptCursorLine())
 	}
+}
+
+// TestRevisionTabScreenshots renders the Revision tab (SHOT_DIR): on a
+// finding with the Notes pane beside, the beats' readout, and on a phone.
+func TestRevisionTabScreenshots(t *testing.T) {
+	if os.Getenv("SHOT_DIR") == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	w := newTestWindow(t, "")
+	keepDockSettings(t, w)
+	r := ribbonOnFor(t, w)
+	var b strings.Builder
+	b.WriteString("Title: The Long Rain\n\n# Act One\n\n= Anna waits for a letter.\n\nINT. KITCHEN\n\nAnna stands at the window. [[todo: why does she not go out?]]\n\n")
+	for range 40 {
+		b.WriteString("The rain goes on, and Anna watches the road for the postman.\n\n")
+	}
+	b.WriteString("# Act Two\n\n= Bram brings the letter himself.\n\nEXT. ROAD - DAY\n\nBram drives. [[done: name the car]]\n\n/* INT. GARDEN - NIGHT\n\nANNA\nGoodbye, then.\n*/\n\n")
+	for range 30 {
+		b.WriteString("The wipers beat, the road shines, Bram does not slow down.\n\n")
+	}
+	b.WriteString("# Midpoint\n\nINT. HALL - NIGHT\n\nThe letter on the mat.\n\n# Act Three\n\nEXT. LAKE - DAWN\n\nThey read it together.\n")
+	w.textEditor.SetText(b.String())
+	w.fyneWindow.Resize(fyne.NewSize(1200, 720))
+	r.selectTab("Revision")
+	w.togglePane("notes")
+	w.textEditor.SetCursorOffset(0)
+	w.stepOpen(1) // the finding: INT. KITCHEN has no time
+	waitFor(t, "the layout", func() bool { _, _, ok := w.beatPlaces(); return ok })
+	w.ribbonRefresh()
+	snap := func(name string) {
+		t.Helper()
+		w.fyneWindow.Content().Refresh()
+		capture(t, w.fyneWindow.Canvas(), "revision-"+name+".png")
+	}
+	snap("1-finding")
+	w.goToLine(strings.Count(b.String()[:strings.Index(b.String(), "# Midpoint")], "\n"))
+	w.ribbonRefresh()
+	snap("2-beats")
+	w.fyneWindow.Resize(fyne.NewSize(380, 800))
+	w.ribbonRefresh()
+	snap("3-phone")
 }
