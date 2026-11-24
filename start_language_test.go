@@ -1,6 +1,7 @@
 package main
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -60,3 +61,12 @@ func TestFreshSettingsAreEnglish(t *testing.T) {
 		t.Errorf("Preferences saved untouched: %q", l)
 	}
 }
+
+// The tests keep their settings to themselves: none written where the
+// user's are (TestMain's folders, not the real home's).
+func TestSettingsNotTheUsers(t *testing.T) {
+	if realHome == "" || strings.HasPrefix(getConfigDir(), realHome+string(filepath.Separator)) {
+		t.Errorf("the tests' settings are the user's: %s (home %q)", getConfigDir(), realHome)
+	}
+}
+

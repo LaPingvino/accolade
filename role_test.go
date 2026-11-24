@@ -23,10 +23,23 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 	os.Setenv("XDG_DATA_HOME", data)
+	// nor the settings: a test that saves them (a ribbon toggle, Preferences)
+	// with no folder of its own writes here, never the user's settings.json
+	realHome, _ = os.UserHomeDir()
+	home, err := os.MkdirTemp("", "accolade-home-")
+	if err != nil {
+		panic(err)
+	}
+	os.Setenv("HOME", home)
+	os.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
 	code := m.Run()
 	os.RemoveAll(data)
+	os.RemoveAll(home)
 	os.Exit(code)
 }
+
+// realHome is the user's home before TestMain moved it.
+var realHome string
 
 // lockedScript is a script locked for production and issued Blue.
 const lockedScript = "INT. BARN - DAY #1#\n\nRain.\n\n/* Production\nscene numbers: locked, 10A\nrevision: Blue, 2026-11-20\n*/\n"
