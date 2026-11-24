@@ -107,6 +107,8 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - **F6** Next Pane
 - **Shift+F6** Previous Pane
 - **F10** Ribbon Key Tips
+- **F8** Next Open Item
+- **Shift+F8** Previous Open Item
 
 ## Vim mode
 

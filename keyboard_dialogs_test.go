@@ -284,7 +284,8 @@ func TestDialogTabOrder(t *testing.T) {
 // front …) or show a bar or pane the window's own tests check.
 var openedNothing = []string{"edit.find", "edit.replace", "source.adapt", "source.linkUp", "source.linkGuess", "source.learned",
 	"production.tag", "production.breakdown", "production.schedule", "preview.pageSetup", "strips.moveTo", "strips.editDay",
-	"view.topRowAdd", "fixup.applyRules", "fixup.ocrAgain", "chars.rename", "chars.merge", "chars.alias", "source.relinkFromHere"}
+	"view.topRowAdd", "fixup.applyRules", "fixup.ocrAgain", "chars.rename", "chars.merge", "chars.alias",
+	"revision.removeDone", "revision.restoreScene", "source.relinkFromHere"}
 
 // openedNothingWhy says why, for docs/KEYBOARD.md.
 var openedNothingWhy = map[string]string{
@@ -297,6 +298,7 @@ var openedNothingWhy = map[string]string{
 	"view.topRowAdd": "the palette's picker, a layer of the window (TestPalette)", "fixup.applyRules": "an imported script with fix-up rules",
 	"fixup.ocrAgain": "a script read from a PDF", "chars.rename": "a character opened in the Characters pane",
 	"chars.merge": "a character opened in the Characters pane", "chars.alias": "a character opened in the Characters pane",
+	"revision.removeDone": "done to-dos in the script ([[done: …]])", "revision.restoreScene": "cuts in the cursor's scene",
 	"source.relinkFromHere": "a source changed since its lock",
 }
 

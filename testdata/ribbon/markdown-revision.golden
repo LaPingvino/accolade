@@ -1,0 +1,22 @@
+tabs: File Write Edit Adaptation [Revision] Collaboration View
+## Step
+  L Next icon=foreground_arrow-forward.svg name=Next Open Item
+  S Previous icon=foreground_arrow-back.svg name=Previous Open Item
+  S None Open icon=foreground_list.svg name=Open Items: 0 items of the kinds shown (the Notes pane lists them)
+## Show
+  S To do icon=- (checked) name=Show To-dos
+  S Cut icon=- (checked) name=Show Cuts
+  S Note icon=- (checked) name=Show Notes
+  S Beats icon=- (checked) name=Show Beats
+  S Revision icon=- (checked) name=Show Revision Notes
+  S Checks icon=- (checked) name=Show Findings
+## Item
+  L Keep icon=foreground_document-save.svg (disabled) name=Keep as Revision Note
+  S Dismiss icon=foreground_visibility-off.svg (disabled) name=Dismiss Item
+  S Done icon=foreground_check.svg (disabled) name=Mark To-do Done
+  S Restore icon=foreground_content-undo.svg (disabled) name=Restore Cut
+  S Edit icon=foreground_document-create.svg (disabled) name=Edit Item
+## All at Once
+  S Remove Done icon=foreground_delete.svg (disabled) name=Remove Done To-dos…
+## Notes
+  L Notes Pane icon=foreground_file-text.svg name=Notes Pane

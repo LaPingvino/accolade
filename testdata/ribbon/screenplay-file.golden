@@ -1,4 +1,4 @@
-tabs: [File] Write Edit Production Collaboration View
+tabs: [File] Write Edit Revision Production Collaboration View
 ## New
   L New icon=foreground_document-create.svg name=New (Ctrl+N)
   S Empty icon=foreground_file.svg name=New Empty (Ctrl+Alt+N)

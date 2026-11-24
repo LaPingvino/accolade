@@ -337,6 +337,11 @@ type MainWindow struct {
 	openLabel *linkLabel
 	openTimer *uiTimer
 	noteMarks map[int]color.Color
+	// openHide are the kinds of open item the Notes pane and the Revision
+	// tab leave out (their filters, one for both); dismissed the checks'
+	// findings put out of sight until the window closes (revision_checks.go)
+	openHide  [openKinds]bool
+	dismissed map[string]bool
 
 	// Lexington integration
 	lexParser *LexingtonParser
@@ -1520,7 +1525,10 @@ func (w *MainWindow) onCursorChanged() {
 	if w.cardsDock != nil && w.paneInSight("cards") {
 		w.cardsDock.follow() // the scene's card
 	}
-	w.stripCursor()  // the timeline strip's lit scene
+	w.stripCursor() // the timeline strip's lit scene
+	if w.ribbon != nil && w.ribbon.selected == "Revision" {
+		w.ribbonFollow() // the item at the cursor (revision_tab.go)
+	}
 	w.sayHere(false) // the line the others see this side on (session_tab.go)
 	if w.cards != nil && w.cardsShown() {
 		w.cards.follow() // the current card

@@ -1,4 +1,4 @@
-tabs: [File] Write Edit Adaptation Collaboration View
+tabs: [File] Write Edit Adaptation Revision Collaboration View
 ## New
   L New Screenplay icon=foreground_document-create.svg name=New Screenplay (Ctrl+N)
   S Empty icon=foreground_file.svg name=New Empty Screenplay (Ctrl+Alt+N)

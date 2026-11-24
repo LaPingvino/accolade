@@ -100,13 +100,13 @@ func TestTodoNote(t *testing.T) {
 	for in, want := range map[string]string{
 		"todo: fix": "fix", "TODO fix it": "fix it", "To do: x": "x", "todo": "", " TODO:  y ": "y",
 	} {
-		_, rest, ok := todoNote(in)
+		_, rest, _, ok := todoNote(in)
 		if !ok || rest != want {
 			t.Errorf("%q: %q %v, want %q", in, rest, ok, want)
 		}
 	}
 	for _, in := range []string{"todos are many", "a todo", "toddler"} {
-		if _, _, ok := todoNote(in); ok {
+		if _, _, _, ok := todoNote(in); ok {
 			t.Errorf("%q read as a to-do", in)
 		}
 	}

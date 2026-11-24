@@ -116,6 +116,8 @@ Ctrl is Cmd on a Mac. This page is made from Accolade's own list of commands, so
 - **Next Pane** — F6
 - **Previous Pane** — Shift+F6
 - **Ribbon Key Tips** — F10
+- **Next Open Item** — F8
+- **Previous Open Item** — Shift+F8
 
 ## The command palette and the ribbon
 

@@ -39,10 +39,9 @@ type notesRow struct {
 
 type notesPanel struct {
 	w     *MainWindow
-	all   []openItem // the text's, as read last
-	rows  []notesRow // shown: what the filters let through, under their headings
-	hide  [openKinds]bool
-	kinds [4]*widget.Button // the filters: To do, Cut, Note, Beats
+	all   []openItem                       // the text's, as read last
+	rows  []notesRow                       // shown: what the filters let through, under their headings
+	kinds [len(noteFilters)]*widget.Button // the filters: To do, Cut, Note, Beats, Revision, Checks
 	list  *widget.List
 	empty *widget.Label
 	timer *uiTimer
@@ -55,6 +54,8 @@ type notesPanel struct {
 	where   *widget.Label
 	entry   *noteEntry
 	save    *widget.Button
+	keep    *widget.Button
+	dismiss *widget.Button
 	restore *widget.Button
 	scene   *widget.Button
 	remove  *widget.Button
@@ -111,8 +112,10 @@ func (w *MainWindow) notesPane() *notesPanel {
 	return w.notes
 }
 
-// The filters' kinds, in their order.
-var noteFilters = [4][]openKind{{openTodo}, {openCut}, {openNote, openUnsorted}, {openBeat}}
+// The filters' kinds, in their order, and their names; the Revision
+// tab's kind toggles are the same (revision_tab.go).
+var noteFilters = [...][]openKind{{openTodo}, {openCut}, {openNote, openUnsorted}, {openBeat}, {openRevision}, {openCheck}}
+var noteFilterNames = [len(noteFilters)]string{"To do", "Cut", "Note", "Beats", "Revision", "Checks"}
 
 func newNotesPanel(w *MainWindow) *notesPanel {
 	p := &notesPanel{w: w, sel: -1}
@@ -172,6 +175,11 @@ func newNotesPanel(w *MainWindow) *notesPanel {
 	fyne.SetAccessibleLabel(p.entry, "The note's text")
 	p.save = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), p.commit)
 	p.save.Importance = widget.HighImportance
+	p.keep = widget.NewButtonWithIcon("Keep", theme.DocumentSaveIcon(), func() { p.w.keepFinding(p.item) })
+	p.keep.Importance = widget.HighImportance
+	fyne.SetAccessibleLabel(p.keep, "Keep it as a revision note in the script")
+	p.dismiss = widget.NewButtonWithIcon("Dismiss", theme.VisibilityOffIcon(), func() { p.w.dismissFinding(p.item) })
+	fyne.SetAccessibleLabel(p.dismiss, "Dismiss it until the window closes")
 	p.restore = widget.NewButtonWithIcon("Restore", theme.ContentUndoIcon(), p.restoreItem)
 	p.scene = widget.NewButtonWithIcon("New Scene", theme.ContentAddIcon(), p.newScene)
 	p.remove = widget.NewButtonWithIcon("", theme.DeleteIcon(), p.removeItem)
@@ -181,12 +189,16 @@ func newNotesPanel(w *MainWindow) *notesPanel {
 	fyne.SetAccessibleLabel(done, "Close")
 	p.detail = container.NewVBox(widget.NewSeparator(),
 		container.NewBorder(nil, nil, nil, done, p.where), p.entry,
-		container.NewHBox(p.save, p.restore, p.scene, layoutSpacer(), p.remove))
+		container.NewHBox(p.save, p.keep, p.dismiss, p.restore, p.scene, layoutSpacer(), p.remove))
 	p.detail.Hide()
 
 	width := canvas.NewRectangle(color.Transparent)
 	width.SetMinSize(fyne.NewSize(260, 0))
-	top := container.NewVBox(container.NewGridWithColumns(4, p.kinds[0], p.kinds[1], p.kinds[2], p.kinds[3]),
+	filters := make([]fyne.CanvasObject, len(p.kinds))
+	for i, b := range p.kinds {
+		filters[i] = b
+	}
+	top := container.NewVBox(container.NewGridWithColumns(3, filters...),
 		container.NewHBox(add, unsorted))
 	// in the order Tab goes: the filters, the list, the editor
 	body := container.New(layout.NewBorderLayout(top, p.detail, nil, nil), top, container.NewStack(p.list, container.NewVBox(p.empty)), p.detail)
@@ -209,9 +221,17 @@ func kindColor(k openKind) color.Color {
 		return theme.Color(theme.ColorNamePrimary)
 	case openBeat:
 		return theme.Color(theme.ColorNameSuccess)
+	case openRevision:
+		return revisionNoteColor
+	case openCheck:
+		return theme.Color(theme.ColorNameError)
 	}
 	return theme.Color(theme.ColorNameDisabled)
 }
+
+// revisionNoteColor is a kept finding's: a violet, neither a to-do's
+// amber nor a finding's red.
+var revisionNoteColor = color.NRGBA{0x8e, 0x5c, 0xd0, 0xff}
 
 // showRow fills a row of the list.
 func (p *notesPanel) showRow(id int, row *fyne.Container) {
@@ -234,6 +254,8 @@ func (p *notesPanel) showRow(id int, row *fyne.Container) {
 			label = "Cut · scene " + it.Omitted + " omitted"
 		case it.Kind == openNote && it.Shape == shapeBoneyard:
 			label = "Note · boneyard"
+		case it.Kind == openTodo && it.Done:
+			label = "Done"
 		}
 		what.SetText(fmt.Sprintf("%s · line %d", label, it.Line+1))
 		text.TextStyle = fyne.TextStyle{}
@@ -272,7 +294,7 @@ func (p *notesPanel) read() {
 	if w.textEditor == nil {
 		return
 	}
-	p.all = openItemsOf(w.textEditor.Text(), w.sceneStarts(), w.markdown)
+	p.all = w.openItems()
 	p.show()
 	p.refind()
 }
@@ -292,14 +314,14 @@ func (p *notesPanel) show() {
 	for _, it := range p.all {
 		counts[it.Kind]++
 	}
-	names := [4]string{"To do", "Cut", "Note", "Beats"}
+	names := noteFilterNames
 	for k, b := range p.kinds {
 		n := 0
 		for _, kind := range noteFilters[k] {
 			n += counts[kind]
 		}
 		b.SetText(fmt.Sprintf("%s %d", names[k], n))
-		if p.hide[noteFilters[k][0]] {
+		if p.w.openHide[noteFilters[k][0]] {
 			b.Importance = widget.LowImportance
 		} else {
 			b.Importance = widget.MediumImportance
@@ -309,7 +331,7 @@ func (p *notesPanel) show() {
 	p.rows = p.rows[:0]
 	head := "\x00"
 	for i, it := range p.all {
-		if p.hide[it.Kind] {
+		if p.w.openHide[it.Kind] {
 			continue
 		}
 		h := it.Ctx
@@ -340,13 +362,21 @@ func (p *notesPanel) show() {
 	p.list.Refresh()
 }
 
-// toggle shows or hides a filter's kinds.
-func (p *notesPanel) toggle(k int) {
-	h := !p.hide[noteFilters[k][0]]
+// toggle shows or hides a filter's kinds (the Revision tab's too).
+func (p *notesPanel) toggle(k int) { p.w.toggleOpenKind(k) }
+
+// toggleOpenKind shows or hides filter k's kinds, in the Notes pane and
+// the Revision tab's stepping alike.
+func (w *MainWindow) toggleOpenKind(k int) {
+	h := !w.openHide[noteFilters[k][0]]
 	for _, kind := range noteFilters[k] {
-		p.hide[kind] = h
+		w.openHide[kind] = h
 	}
-	p.show()
+	if w.notes != nil {
+		w.notes.show()
+	}
+	w.updateOpen() // the margin's marks of the kinds shown
+	w.ribbonRefresh()
 }
 
 // pick picks item i: the script's cursor goes there (go), the item into
@@ -367,6 +397,15 @@ func (p *notesPanel) pick(i int, goThere bool) {
 	p.where.SetText(fmt.Sprintf("%s · line %d", where, it.Line+1))
 	p.entry.SetText(it.Text)
 	p.entry.SetPlaceHolder("")
+	finding := it.Kind == openCheck
+	setVisible(p.save, !finding)
+	setVisible(p.keep, finding)
+	setVisible(p.dismiss, finding)
+	if finding { // computed: nothing of it to edit
+		p.entry.Disable()
+	} else {
+		p.entry.Enable()
+	}
 	setVisible(p.restore, it.restorable())
 	if it.Kept {
 		p.restore.SetText("Restore Scene " + it.Omitted)
@@ -374,7 +413,7 @@ func (p *notesPanel) pick(i int, goThere bool) {
 		p.restore.SetText("Restore")
 	}
 	setVisible(p.scene, it.Kind == openBeat && !p.w.markdown)
-	p.remove.Show()
+	setVisible(p.remove, !finding)
 	p.detail.Show()
 	if goThere {
 		p.w.goToOffset(it.Start)
@@ -589,6 +628,10 @@ func (p *notesPanel) newUnsorted() {
 	p.where.SetText("New unsorted note: kept at the script's end")
 	p.entry.SetText("")
 	p.entry.SetPlaceHolder("A note about the whole script")
+	p.entry.Enable()
+	p.save.Show()
+	p.keep.Hide()
+	p.dismiss.Hide()
 	p.restore.Hide()
 	p.scene.Hide()
 	p.remove.Hide()

@@ -387,6 +387,26 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:their-scenes** `item` — The scenes the character speaks in: one to go to (Characters > Places > Their Scenes) (while the Characters tab is there)
 - **:close-characters** — Characters > Close > Close Characters (while the Characters tab is there)
 
+### Revision
+
+- **:next-item** — The next to-do, cut, note, beat, revision note or finding of the kinds shown, from the cursor (round at the end) (Revision > Step > Next Open Item)
+- **:previous-item** — The open item before the cursor's, of the kinds shown (Revision > Step > Previous Open Item)
+- **:open-items** — Where the cursor is among the open items: the Notes pane lists them (Revision > Step > Open Items)
+- **:keep-finding** — The finding at the cursor written into the script as [[revision: …]] at its line's end: saved with it, picked up later (Revision > Item > Keep as Revision Note)
+- **:dismiss-item** — A finding out of sight until the window closes (nothing written); a note, to-do or revision note taken out of the script (Undo brings it back) (Revision > Item > Dismiss Item)
+- **:todo-done** — The to-do at the cursor written as done, [[done: …]] (again: to do again) (Revision > Item > Mark To-do Done)
+- **:restore-cut** — The boneyard at the cursor back in the script: its /* */ taken away (an omitted scene with its number) (Revision > Item > Restore Cut)
+- **:beat-scene** — The beat at the cursor grown into a scene: New Scene's form, the beat its synopsis (Revision > Item > New Scene from Beat) (screenplay)
+- **:edit-item** — The note, to-do or cut at the cursor in the Notes pane, its text to type in (Revision > Item > Edit Item)
+- **:remove-done** — Every done to-do taken out of the script, one undo step (Revision > All at Once > Remove Done To-dos)
+- **:restore-scene-cuts** — Every cut in the cursor's scene back in the script, one undo step (Revision > All at Once > Restore Cuts in This Scene) (screenplay)
+- **:show-to-dos** — Step through to-dos too: the Notes pane's filter, the same (Revision > Show > Show To-dos)
+- **:show-cuts** — Step through cuts too: the Notes pane's filter, the same (Revision > Show > Show Cuts)
+- **:show-notes** — Step through notes too: the Notes pane's filter, the same (Revision > Show > Show Notes)
+- **:show-beats** — Step through beats too: the Notes pane's filter, the same (Revision > Show > Show Beats)
+- **:show-revision-notes** — Step through revision notes too: the Notes pane's filter, the same (Revision > Show > Show Revision Notes)
+- **:show-findings** — Step through findings too: the Notes pane's filter, the same (Revision > Show > Show Findings)
+
 ### Session
 
 - **:follow** `item` — Session > Follow (while the Session tab is there)

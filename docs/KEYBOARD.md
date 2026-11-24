@@ -174,7 +174,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | New from Structure | `file.newStructure` |  |  |  |  | :new-from-structure |
 | Insert Structure | `write.insertStructure` |  |  |  |  | :structure |
 | Outline | `view.outline` | Ctrl+Shift+O | Cmd+Shift+O | Ctrl+Shift+O | V O | :outline |
-| Notes | `view.notes` |  |  |  | V N | :notes |
+| Notes | `view.notes` |  |  |  | R E | :notes |
 | Characters | `view.characters` |  |  |  | V C | :characters |
 | Cards | `view.cards` | Ctrl+Shift+D | Cmd+Shift+D | Ctrl+Shift+D | V A | :cards |
 | Source | `view.source` |  |  |  | A S | :source |
@@ -302,6 +302,23 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Previous Cue | `chars.previousCue` |  |  |  |  | :previous-cue |
 | Their Scenes | `chars.scenes` |  |  |  |  | :their-scenes |
 | Close Characters | `chars.close` |  |  |  |  | :close-characters |
+| Next Open Item | `revision.next` | F8 | F8 | F8 | R N | :next-item |
+| Previous Open Item | `revision.previous` | Shift+F8 | Shift+F8 | Shift+F8 | R P | :previous-item |
+| Open Items | `revision.where` |  |  |  | R 4 | :open-items |
+| Keep as Revision Note | `revision.keep` |  |  |  |  | :keep-finding |
+| Dismiss Item | `revision.dismiss` |  |  |  |  | :dismiss-item |
+| Mark To-do Done | `revision.done` |  |  |  |  | :todo-done |
+| Restore Cut | `revision.restore` |  |  |  |  | :restore-cut |
+| New Scene from Beat | `revision.newScene` |  |  |  |  | :beat-scene |
+| Edit Item | `revision.edit` |  |  |  |  | :edit-item |
+| Remove Done To-dos… | `revision.removeDone` |  |  |  |  | :remove-done |
+| Restore Cuts in This Scene… | `revision.restoreScene` |  |  |  |  | :restore-scene-cuts |
+| Show To-dos | `revision.show.todo` |  |  |  | R T | :show-to-dos |
+| Show Cuts | `revision.show.cut` |  |  |  | R C | :show-cuts |
+| Show Notes | `revision.show.note` |  |  |  | R O | :show-notes |
+| Show Beats | `revision.show.beats` |  |  |  | R B | :show-beats |
+| Show Revision Notes | `revision.show.revision` |  |  |  | R R | :show-revision-notes |
+| Show Findings | `revision.show.checks` |  |  |  | R H | :show-findings |
 | Follow | `session.follow` |  |  |  |  | :follow |
 | Stop Following | `session.stopFollowing` |  |  |  |  | :stop-following |
 | Copy the Link | `session.copyLink` |  |  |  |  | :copy-link |
@@ -386,6 +403,8 @@ These open nothing over the window on the sample as it opens, so their Tab order
 - Rename Everywhere (`chars.rename`): it needs a character opened in the Characters pane
 - Merge Into (`chars.merge`): it needs a character opened in the Characters pane
 - Add Alias (`chars.alias`): it needs a character opened in the Characters pane
+- Remove Done To-dos (`revision.removeDone`): it needs done to-dos in the script ([[done: …]])
+- Restore Cuts in This Scene (`revision.restoreScene`): it needs cuts in the cursor's scene
 - Relink From Here (`source.relinkFromHere`): it needs a source changed since its lock
 
 TestDialogsFocusVisible checks pixel by pixel that the focus shows on every control Tab reaches in production.renumber, production.unlockNumbers, production.issue, production.reports, file.drafts, file.titlePage, structure.swap, write.newScene, view.tableRead, view.stages on a desktop, and in production.renumber, file.drafts, structure.swap, file.titlePage, view.tableRead on a phone too (Tab scrolls as the window does: TestTabScrollsToFocus goes through the window's key preview). The views and panes are TestFocusIsVisible's, TestDockFocusVisible's, TestStripboardFocusVisible's, TestRibbonFocusVisible's, TestPageViewFocusVisible's and the Characters', Adapt and Save As tests'.

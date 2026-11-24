@@ -1,4 +1,4 @@
-tabs: File Write Edit Production Collaboration View [Stripboard]
+tabs: File Write Edit Revision Production Collaboration View [Stripboard]
 ## Move
   L Move To icon=foreground_mail-forward.svg (disabled) name=Move Strip To…
   S Up icon=foreground_arrow-up.svg (disabled) name=Move Strip Up

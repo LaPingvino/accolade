@@ -128,7 +128,7 @@ func ribbonGolden(t *testing.T, name, got string) {
 func TestRibbonGolden(t *testing.T) {
 	w := newTestWindow(t, "INT. BARN - DAY\n\nRain.\n")
 	r := ribbonOnFor(t, w)
-	for _, tab := range []string{"File", "Write", "Edit", "Production", "Collaboration", "View"} {
+	for _, tab := range []string{"File", "Write", "Edit", "Revision", "Production", "Collaboration", "View"} {
 		r.selectTab(tab)
 		ribbonGolden(t, "screenplay-"+strings.ToLower(tab), dumpRibbon(r))
 	}
@@ -152,7 +152,7 @@ func TestRibbonGolden(t *testing.T) {
 	ribbonGolden(t, "screenplay-source-adaptation", dumpRibbon(rs))
 
 	w.setDocumentType(true)
-	for _, tab := range []string{"File", "Write", "Edit", "Adaptation", "Collaboration", "View"} {
+	for _, tab := range []string{"File", "Write", "Edit", "Adaptation", "Revision", "Collaboration", "View"} {
 		r.selectTab(tab)
 		ribbonGolden(t, "markdown-"+strings.ToLower(tab), dumpRibbon(r))
 	}
@@ -221,7 +221,7 @@ func TestRibbonEnablement(t *testing.T) {
 	for _, tb := range r.shownTabs() {
 		tabs = append(tabs, tb.title)
 	}
-	if !slices.Equal(tabs, []string{"File", "Write", "Edit", "Adaptation", "Collaboration", "View"}) {
+	if !slices.Equal(tabs, []string{"File", "Write", "Edit", "Adaptation", "Revision", "Collaboration", "View"}) {
 		t.Errorf("Markdown's tabs %q", tabs)
 	}
 	w.setDocumentType(false)

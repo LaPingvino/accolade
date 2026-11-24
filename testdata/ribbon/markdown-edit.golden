@@ -1,4 +1,4 @@
-tabs: File Write [Edit] Adaptation Collaboration View
+tabs: File Write [Edit] Adaptation Revision Collaboration View
 ## Undo
   S Undo icon=foreground_content-undo.svg name=Undo (Ctrl+Z)
   S Redo icon=foreground_content-redo.svg name=Redo (Ctrl+Shift+Z)

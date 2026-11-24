@@ -1,4 +1,4 @@
-tabs: File [Write] Edit Production Collaboration View
+tabs: File [Write] Edit Revision Production Collaboration View
 ## Element
   S Scene Heading mark=. keys (Ctrl+1) name=Scene Heading (Ctrl+1)
   S Action mark=! keys (Ctrl+2) name=Action (Ctrl+2)

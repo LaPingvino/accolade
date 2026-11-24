@@ -59,21 +59,25 @@ func (w *MainWindow) updateOpen() {
 	if w.textEditor == nil || w.openLabel == nil {
 		return
 	}
-	items := openItemsOf(w.textEditor.Text(), w.sceneStarts(), w.markdown)
-	todos, beats := 0, 0
+	items := w.openItems()
+	todos, beats, revisions := 0, 0, 0
 	marks := map[int]color.Color{}
 	for _, it := range items {
-		switch it.Kind {
-		case openTodo:
-			todos++
-		case openBeat:
-			beats++
+		if it.open() {
+			switch it.Kind {
+			case openTodo:
+				todos++
+			case openBeat:
+				beats++
+			case openRevision:
+				revisions++
+			}
 		}
-		if it.Kind != openBeat && it.Kind != openUnsorted && !it.Kept { // an omitted scene's block folds: its fold mark there
+		if it.Kind != openBeat && it.Kind != openUnsorted && !it.Kept && !w.openHide[it.Kind] { // an omitted scene's block folds: its fold mark there
 			marks[it.Line] = marginColor(it.Kind)
 		}
 	}
-	if n := todos + beats; n > 0 {
+	if n := todos + beats + revisions; n > 0 {
 		w.openLabel.SetText(fmt.Sprintf("%d open", n))
 		var parts []string
 		if todos > 0 {
@@ -81,6 +85,9 @@ func (w *MainWindow) updateOpen() {
 		}
 		if beats > 0 {
 			parts = append(parts, plural(beats, "beat")+" without a scene")
+		}
+		if revisions > 0 {
+			parts = append(parts, plural(revisions, "revision note"))
 		}
 		fyne.SetAccessibleLabel(w.openLabel, strings.Join(parts, ", ")+": the Notes pane")
 		w.openLabel.Show()

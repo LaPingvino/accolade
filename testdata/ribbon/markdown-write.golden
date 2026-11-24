@@ -1,4 +1,4 @@
-tabs: File [Write] Edit Adaptation Collaboration View
+tabs: File [Write] Edit Adaptation Revision Collaboration View
 ## Heading
   S H1 icon=foreground_heading.svg keys (Ctrl+1) name=Heading 1 (Ctrl+1)
   S H2 icon=foreground_heading.svg keys (Ctrl+2) name=Heading 2 (Ctrl+2)

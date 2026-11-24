@@ -97,6 +97,8 @@ type cmdEnv struct {
 	// editorKeys: the editor's keys (standard, vim, helix) for the help
 	// pages made for the window (helpPage); "" elsewhere
 	editorKeys string
+	// rev: the Revision tab's (revision_tab.go)
+	rev revEnv
 }
 
 // cmdEnv is the window's.
@@ -131,6 +133,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	w.charactersEnv(&e)
 	w.sessionEnv(&e)
 	w.compareEnv(&e)
+	w.revisionEnv(&e)
 	w.tableReadEnv(&e)
 	w.stagesEnv(&e)
 	return e
@@ -901,6 +904,7 @@ func newRegistry() *registry {
 	add(topRowCommands()...)     // the top row's own (toprow.go)
 	add(contextCommands()...)    // the Fix-Up and Title Page tabs' (contextual.go)
 	add(charactersCommands()...) // the Characters tab's (characters_tab.go)
+	add(revisionCommands()...)   // the Revision tab's (revision_tab.go)
 	add(sessionCommands()...)    // the Session tab's (session_tab.go)
 	add(compareCommands()...)    // the Compare tab's (compare_tab.go)
 	add(stageCommands()...)      // the locked stages, the two versions (stages.go)
@@ -1327,6 +1331,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Start", homes: []home{big("file.startScreenplay")}},
 		}},
 		// the stage's actions first, as the Production pane has them
+		revisionTab(), // what is open, stepped through (revision_tab.go)
 		{title: "Production", when: screenplayOnly, role: productionRole, groups: []ribbonGroup{
 			{title: "Lock", stage: 1 + stageLock, homes: []home{big("production.lockNumbers"), at("production.unlockNumbers"), at("production.renumber"),
 				big("production.lockPages"), big("production.issue")}},

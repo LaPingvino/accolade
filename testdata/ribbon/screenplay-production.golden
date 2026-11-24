@@ -1,4 +1,4 @@
-tabs: File Write Edit [Production] Collaboration View
+tabs: File Write Edit Revision [Production] Collaboration View
 ## Lock
   L Lock Numbers icon=foreground_lock.svg name=Lock Scene Numbers
   S Unlock icon=foreground_unlock.svg (disabled) name=Unlock Scene Numbers…

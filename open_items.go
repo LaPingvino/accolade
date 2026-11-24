@@ -32,17 +32,28 @@ const (
 	openNote                     // a note [[…]], or a boneyard of prose
 	openBeat                     // a synopsis no scene grew from yet
 	openUnsorted                 // a paragraph of the notes block at the end
+	openRevision                 // [[revision: …]]: a finding kept, to come back to
+	openCheck                    // a check's finding: computed, never stored (revision_checks.go)
 	openKinds
 )
 
 // String is the kind's name, as the pane's filters and rows say it.
 func (k openKind) String() string {
-	return [...]string{"To do", "Cut", "Note", "Beat", "Unsorted"}[k]
+	return [...]string{"To do", "Cut", "Note", "Beat", "Unsorted", "Revision", "Check"}[k]
 }
 
-// open tells whether an item of the kind is still to be dealt with: the
-// status bar's count (a note or a cut is kept, not open).
-func (k openKind) open() bool { return k == openTodo || k == openBeat }
+// open tells whether the item is still to be dealt with: the status
+// bar's count (a note or a cut is kept, not open; a done to-do is done;
+// a check's finding is counted by the Revision tab, not the status bar).
+func (it openItem) open() bool {
+	switch it.Kind {
+	case openTodo:
+		return !it.Done
+	case openBeat, openRevision:
+		return true
+	}
+	return false
+}
 
 // openShape is how an item is written in the text, for writing it again.
 type openShape int
@@ -52,6 +63,7 @@ const (
 	shapeBoneyard                  // /* … */ (Markdown: <!-- … -->)
 	shapeSynopsis                  // = … lines
 	shapePara                      // a paragraph of the notes block
+	shapeFinding                   // a check's finding: its line, nothing written
 )
 
 // openItem is one item: where it is in the text (runes), what it says,
@@ -85,6 +97,11 @@ type openItem struct {
 	HeadStart int
 	// Single: a boneyard on one line, /* … */
 	Single bool
+	// Done: a to-do written as done ([[done: …]], [[todo: [x] …]])
+	Done bool
+	// Check is a finding's check (checkPlace …, checkLint); its Start and
+	// End are its line's, Raw the line as it was read
+	Check string
 }
 
 // openMemo is the last text's items (the pane, the status bar, the
@@ -240,12 +257,17 @@ func fountainOpenItems(text string, starts []string) []openItem {
 		at = c + 2
 		inside := text[o+2 : c]
 		line := lineAt(o)
+		it := openItem{Kind: openNote, Shape: shapeNote, Start: o, End: c + 2, Line: line, Text: strings.TrimSpace(inside)}
+		if p, rest, ok := revisionNote(inside); ok { // kept on a heading too: a finding's there
+			it.Kind, it.Prefix, it.Text = openRevision, p, rest
+			items = append(items, it)
+			continue
+		}
 		if headings[line] || claimedNote(inside) {
 			continue
 		}
-		it := openItem{Kind: openNote, Shape: shapeNote, Start: o, End: c + 2, Line: line, Text: strings.TrimSpace(inside)}
-		if p, rest, ok := todoNote(inside); ok {
-			it.Kind, it.Prefix, it.Text = openTodo, p, rest
+		if p, rest, done, ok := todoNote(inside); ok {
+			it.Kind, it.Prefix, it.Text, it.Done = openTodo, p, rest, done
 		}
 		items = append(items, it)
 	}
@@ -408,11 +430,50 @@ func claimedNote(inside string) bool {
 }
 
 // todoNote reads a note's inside as a to-do: "todo: …", "TODO …",
-// "to do: …" (any case); its prefix as written, and the rest.
-func todoNote(inside string) (prefix, rest string, ok bool) {
+// "to do: …" (any case); its prefix as written, and the rest. done: it
+// is written as done, "done: …" (the colon needed: "done with it" is a
+// note) or "todo: [x] …" (its prefix then the whole of that).
+func todoNote(inside string) (prefix, rest string, done, ok bool) {
+	if p, r, ok := notePrefixed(inside, "to do", "todo", "to-do"); ok {
+		if p2, r2, ok2 := cutCheckbox(r); ok2 {
+			return p + p2, r2, true, true
+		}
+		return p, r, false, true
+	}
+	if p, r, ok := notePrefixed(inside, "done"); ok && strings.Contains(p, ":") {
+		return p, r, true, true
+	}
+	return "", "", false, false
+}
+
+// cutCheckbox cuts a ticked box, "[x] ", from the start of a to-do's
+// text: what it cut, the rest.
+func cutCheckbox(r string) (cut, rest string, ok bool) {
+	for _, b := range []string{"[x]", "[X]"} {
+		if strings.HasPrefix(r, b) {
+			rest = strings.TrimLeft(r[len(b):], " \t")
+			return r[:len(r)-len(rest)], rest, true
+		}
+	}
+	return "", r, false
+}
+
+// revisionNote reads a note's inside as a revision note, a finding kept
+// ("revision: …", any case): its prefix as written, and the rest.
+func revisionNote(inside string) (prefix, rest string, ok bool) {
+	p, r, ok := notePrefixed(inside, "revision")
+	if !ok || !strings.Contains(p, ":") { // "revision" alone, or "revisions to…": a note
+		return "", "", false
+	}
+	return p, r, true
+}
+
+// notePrefixed reads a note's inside as starting with one of words (any
+// case), then a colon or a space: its prefix as written, and the rest.
+func notePrefixed(inside string, words ...string) (prefix, rest string, ok bool) {
 	t := strings.TrimLeft(inside, " \t\n")
 	lead := len(inside) - len(t)
-	for _, w := range []string{"todo", "to do", "to-do"} {
+	for _, w := range words {
 		if len(t) >= len(w) && strings.EqualFold(t[:len(w)], w) {
 			after := t[len(w):]
 			r := strings.TrimLeft(after, " \t")
@@ -621,8 +682,8 @@ func markdownOpenItems(text string) []openItem {
 		inner := strings.TrimSuffix(strings.TrimPrefix(raw, "<!--"), "-->")
 		it := openItem{Kind: openNote, Shape: shapeBoneyard, Start: s, End: e, Line: i, Single: !strings.Contains(raw, "\n"),
 			Text: strings.ReplaceAll(strings.TrimSpace(inner), "-- >", "-->")}
-		if p, rest, ok := todoNote(inner); ok {
-			it.Kind, it.Prefix, it.Text = openTodo, strings.TrimLeft(p, " \t\n"), rest
+		if p, rest, done, ok := todoNote(inner); ok {
+			it.Kind, it.Prefix, it.Text, it.Done = openTodo, strings.TrimLeft(p, " \t\n"), rest, done
 		}
 		items = append(items, it)
 		for at < e && i+1 < len(lines) { // past its lines

@@ -1,4 +1,4 @@
-tabs: File Write Edit [Production] Collaboration View
+tabs: File Write Edit Revision [Production] Collaboration View
 ## Break Down
   L Next Scene icon=foreground_arrow-forward.svg name=Next Scene to Break Down
   L Tag icon=foreground_tag.svg name=Tag Selection… (Ctrl+Shift+B)
