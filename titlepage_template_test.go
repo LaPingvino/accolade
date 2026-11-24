@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"image"
 	"image/color"
 	"image/png"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -98,6 +100,54 @@ func TestTitlePageImage(t *testing.T) {
 	}
 	if same {
 		t.Error("the bold template draws as the standard one")
+	}
+}
+
+// needJPSC skips a test where fontconfig lists no Japanese and no
+// Simplified Chinese face (Noto Sans CJK JP and SC, as Lexington's
+// tests): a Japanese and a Chinese script's Han then print alike.
+func needJPSC(t *testing.T) {
+	t.Helper()
+	for _, fam := range []string{"Noto Sans CJK JP", "Noto Sans CJK SC"} {
+		out, err := exec.Command("fc-list", fam+":", "family").Output()
+		if err != nil || len(bytes.TrimSpace(out)) == 0 {
+			t.Skip("Noto Sans CJK JP and SC are not both installed (or no fontconfig)")
+		}
+	}
+}
+
+// A title page in the script's language: パリ症候群 in a Japanese script
+// takes the characters Courier Prime lacks from the computer's fonts
+// asked in Japanese (pdf.PDFWriter.Language; Lexington's tests check
+// that "ja" picks a Japanese face, Noto Sans CJK JP here), as the export
+// does, not a Chinese script's (a Chinese face). (An English or a Korean
+// script's take Noto Sans CJK KR here, whose glyphs for these five are
+// the JP face's, so the fonts made of them are the same: ja vs zh is the
+// comparison that tells.)
+func TestTitlePageLanguage(t *testing.T) {
+	needJPSC(t)
+	const script = "Title: パリ症候群\nAuthor: Ann\n\nINT. HOUSE - DAY\n\nRain.\n"
+	w, _ := scriptWindow(t, script)
+	font := func(lang string) []byte {
+		w.language = lang
+		d, err := w.titlePageDrawing(script, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range d.Pages[0].Marks {
+			if tx, ok := m.(pdf.Text); ok && strings.Contains(tx.Text, "症") {
+				return d.Fonts[tx.Font]
+			}
+		}
+		t.Fatalf("%s: no 症 drawn", lang)
+		return nil
+	}
+	ja, zh := font("ja"), font("zh")
+	if len(ja) == 0 {
+		t.Fatal("ja: 症 in a font without a file")
+	}
+	if bytes.Equal(ja, zh) {
+		t.Error("the Japanese script's title page font is the Chinese one's")
 	}
 }
 

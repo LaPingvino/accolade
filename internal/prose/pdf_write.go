@@ -59,7 +59,9 @@ import (
 // paragraph's direction from its first letter, its characters' levels
 // over the whole paragraph (UAX #9), each line wrapped in logical order
 // and then shown in visual order, its right-to-left runs turned around
-// with their marks placed by the font's GPOS. A paragraph read right to
+// with their marks placed by the font's GPOS as the text as written
+// shapes (pdf.Shaper.ComposeMarks: the fatha of لَا on the lam's half of
+// the ligature, cut with the text). A paragraph read right to
 // left is set from the right: its lines right-aligned, its indents, list
 // marks and note numbers on the right. Hebrew is in Noto Sans Hebrew,
 // Arabic in Courier Badi, unless the text's face has them (scriptFaces).
@@ -782,6 +784,40 @@ type piece struct {
 	ph    float64 //
 	off   int     // where its text starts in its paragraph's (in characters: hangingLines)
 	rtl   bool    // printed right to left (a line's run at an odd level)
+	// where its composed marks go (pdf.Shaper.ComposeMarks: the fatha of
+	// لَا on the lam), one for each character of text; nil: not known
+	marks []pdf.MarkPlace
+}
+
+// cut is the piece's characters a..b (of its text), its marks' places
+// with them.
+func (pc piece) cut(a, b int) piece {
+	rs := []rune(pc.text)
+	pc.text = string(rs[a:b])
+	if len(pc.marks) == len(rs) {
+		pc.marks = pc.marks[a:b:b]
+	} else {
+		pc.marks = nil
+	}
+	return pc
+}
+
+// join is the piece with next's text after its own, the marks' places
+// of both (a new slice: neither's is written to).
+func (pc piece) join(next piece) piece {
+	a, b := utf8.RuneCountInString(pc.text), utf8.RuneCountInString(next.text)
+	var marks []pdf.MarkPlace
+	if pc.marks != nil || next.marks != nil {
+		marks = make([]pdf.MarkPlace, a+b) // (a piece's not known: its zero places)
+		if len(pc.marks) == a {
+			copy(marks, pc.marks)
+		}
+		if len(next.marks) == b {
+			copy(marks[a:], next.marks)
+		}
+	}
+	pc.text, pc.marks = pc.text+next.text, marks
+	return pc
 }
 
 // pieces are spans as runs: words and spaces, each in the face that has
@@ -984,7 +1020,7 @@ func (p *pdfWriter) runs(word string, st style) []piece {
 	}
 	for k := range out {
 		if strings.IndexFunc(out[k].text, rtlLetter) >= 0 {
-			out[k].text = p.shaper(out[k].face, st).Compose(out[k].text)
+			out[k].text, out[k].marks = p.shaper(out[k].face, st).ComposeMarks(out[k].text)
 		}
 	}
 	return out
@@ -1111,17 +1147,17 @@ func (p *pdfWriter) hangingLines(ps []piece, first, rest float64) [][]piece {
 				w += pc.w
 				continue
 			}
-			off := pc.off
+			off, at := pc.off, 0
 			for _, cluster := range clusters(pc.text) {
-				c := pc
-				c.text, c.off = cluster, off
-				off += utf8.RuneCountInString(cluster)
+				size := utf8.RuneCountInString(cluster)
+				c := pc.cut(at, at+size)
+				c.off = off
+				off, at = off+size, at+size
 				c.w = p.width(c)
 				n := len(line)
 				joins := n > 0 && line[n-1].face == c.face && line[n-1].st == c.st && line[n-1].note == c.note && !line[n-1].space
 				if joins {
-					merged := line[n-1]
-					merged.text += c.text
+					merged := line[n-1].join(c)
 					merged.w = p.width(merged)
 					if w-line[n-1].w+merged.w <= width {
 						w += merged.w - line[n-1].w
@@ -1207,8 +1243,8 @@ func (p *pdfWriter) visual(line []piece, lv []pdf.Level) []piece {
 			}
 			part := pc
 			if pc.pic == nil && (a > pc.off || b < pc.off+n) {
-				rs := []rune(pc.text)
-				part.text, part.off = string(rs[a-pc.off:b-pc.off]), a
+				part = pc.cut(a-pc.off, b-pc.off)
+				part.off = a
 				part.w = p.width(part)
 			}
 			part.rtl = r.RTL && pc.pic == nil
@@ -1368,7 +1404,7 @@ func (p *pdfWriter) draw(pc piece, x, y, lh float64) {
 	d.SetXY(x, y-pc.st.rise)
 	// shaped, its text read back as written; right to left turned around
 	if sh := p.shaper(pc.face, pc.st); pc.rtl {
-		sh.CellRTL(d, pc.face, pc.st.fontStyle(), pc.st.size, pc.w, lh, pc.text, "L")
+		sh.CellRTLMarks(d, pc.face, pc.st.fontStyle(), pc.st.size, pc.w, lh, pc.text, pc.marks, "L")
 	} else {
 		sh.Cell(d, pc.face, pc.st.fontStyle(), pc.st.size, pc.w, lh, pc.text, "L")
 	}

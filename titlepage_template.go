@@ -259,6 +259,18 @@ func (r *ribbonBar) titleTemplateKeyButtons() []*ribbonButton {
 // at scale pixels a point: what the Title Page dialog previews. It reads
 // no files and makes no PDF file (the browser too).
 func (w *MainWindow) titlePageImage(text, key string, scale float64) (image.Image, error) {
+	d, err := w.titlePageDrawing(text, key)
+	if err != nil {
+		return nil, err
+	}
+	return d.Image(0, scale), nil
+}
+
+// titlePageDrawing is the drawing titlePageImage shows: in the script's
+// language, its direction and the computer's fonts asked in it for what
+// Courier Prime lacks (a Japanese script's Han in a Japanese face), as
+// the export prints it.
+func (w *MainWindow) titlePageDrawing(text, key string) (pdf.Drawing, error) {
 	conf := w.lex()
 	lang := conf.Language(w.language)
 	s := fountain.ParseIn(lang, strings.NewReader(strings.TrimRight(text, "\n")+"\n\n.THE SCRIPT\n"))
@@ -267,12 +279,13 @@ func (w *MainWindow) titlePageImage(text, key string, scale float64) (image.Imag
 	j.titleTemplate = key
 	var d pdf.Drawing
 	pw := &pdf.PDFWriter{Elements: conf.formatElements(w.scriptFormatKey()), Page: w.paperOf(w.pageSetup().paper),
-		TitlePage: &tpl, TitlePictures: w.titlePictures(text, j), Record: &d, RTL: lang.RTL()}
+		TitlePage: &tpl, TitlePictures: w.titlePictures(text, j), Record: &d, RTL: lang.RTL(),
+		Language: fontLanguage(w.language)}
 	if _, err := pw.Render(s); err != nil {
-		return nil, err
+		return d, err
 	}
 	if len(d.Pages) == 0 {
-		return nil, errors.New("no title page to show")
+		return d, errors.New("no title page to show")
 	}
-	return d.Image(0, scale), nil
+	return d, nil
 }

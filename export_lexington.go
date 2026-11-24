@@ -99,6 +99,17 @@ type exportJob struct {
 	conf lexConf
 }
 
+// fontLanguage is the language the computer's fonts are asked in for
+// what the PDF's font lacks (pdf.PDFWriter.Language), for a script in
+// lang: as Lexington takes it from the export's SceneIn (English, the
+// default, is none: the computer's own).
+func fontLanguage(lang string) string {
+	if lang == "en" {
+		return ""
+	}
+	return lang
+}
+
 // options are Lexington's options for the job, writing as to to output.
 func (j exportJob) options(to, output string) cli.Options {
 	o := cli.Options{

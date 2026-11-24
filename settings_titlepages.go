@@ -440,15 +440,17 @@ func (s *titleSample) show(conf rules.TOMLConf, key string) {
 }
 
 // titleSampleImage is text's title page printed with the template key
-// of conf (in English, on Letter), its first page as an image.
+// of conf (in English, on Letter), its first page as an image; the
+// computer's fonts are asked for what Courier Prime lacks in English too.
 func titleSampleImage(conf rules.TOMLConf, key, text string, pictures map[string][]byte) (image.Image, error) {
-	tpl, ok := titlepage.For(conf, key, "en")
+	const lang = "en"
+	tpl, ok := titlepage.For(conf, key, lang)
 	if !ok {
 		return nil, fmt.Errorf("no title page template %q", key)
 	}
-	s := fountain.ParseIn(conf.Language("en"), strings.NewReader(strings.TrimRight(text, "\n")+"\n\n.THE SCRIPT\n"))
+	s := fountain.ParseIn(conf.Language(lang), strings.NewReader(strings.TrimRight(text, "\n")+"\n\n.THE SCRIPT\n"))
 	var d pdf.Drawing
-	pw := &pdf.PDFWriter{Elements: rules.Default, TitlePage: &tpl, TitlePictures: pictures, Record: &d}
+	pw := &pdf.PDFWriter{Elements: rules.Default, TitlePage: &tpl, TitlePictures: pictures, Record: &d, Language: fontLanguage(lang)}
 	if _, err := pw.Render(s); err != nil {
 		return nil, err
 	}
