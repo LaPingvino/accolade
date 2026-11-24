@@ -12,6 +12,8 @@ github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4 h1:XJ17HVrIMw
 github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4/go.mod h1:SDchsFZh4n7nVuBoiowOhOgIBdz+qUQVeC1w9fe2yVU=
 github.com/LaPingvino/lexington v1.56.0 h1:y6r+KWw60pWfl0/IQ83N9BRXf26Pyg7/l1Tj37CxsFY=
 github.com/LaPingvino/lexington v1.56.0/go.mod h1:kshAXmFYPU0cLS2Dfgm3S6IYVEL6vb/hJ+qVRZsFLzQ=
+github.com/LaPingvino/lexington v1.57.0 h1:BDiZPCMPvYd15ToizZ1QGpSeWqS2ns6CKrx9W+PE/Mk=
+github.com/LaPingvino/lexington v1.57.0/go.mod h1:kshAXmFYPU0cLS2Dfgm3S6IYVEL6vb/hJ+qVRZsFLzQ=
 github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3 h1:0pb1fCiKDeV86cIiHBKI67y1tiIAKiFoEojc384GoEs=
 github.com/LaPingvino/lexington/ocrwasm v0.0.0-20261008232415-4b30b71d68d3/go.mod h1:ydoIgOjNEF8pHdgWfCX68l+XfHSV5CfNzyKUGLfAvGA=
 github.com/anthonynsimon/bild v0.14.0 h1:IFRkmKdNdqmexXHfEU7rPlAmdUZ8BDZEGtGHDnGWync=

@@ -11,6 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/test"
 )
 
 func BenchmarkScriptKey(b *testing.B) {
@@ -41,6 +44,54 @@ func BenchmarkScriptKey(b *testing.B) {
 		e.SetCursorOffset(strings.Index(e.Text(), "Noon heat."))
 		for b.Loop() {
 			e.TypedRune('x')
+		}
+	})
+	// the Devanagari sample (Lekhan monospace: its clusters shaped by
+	// go-text with Courier Badi's psts width lookups), a letter typed in
+	// a line of dialogue
+	b.Run("hi-Deva", func(b *testing.B) {
+		w, _ := newBenchWindow(b)
+		sample, err := os.ReadFile(filepath.Join("examples", "sample.hi-Deva.fountain"))
+		if err != nil {
+			b.Fatal(err)
+		}
+		w.setLanguage("hi-Deva")
+		w.textEditor.SetText(string(sample))
+		realTimers(b)
+		e := w.textEditor
+		w.fyneWindow.Canvas().Focus(e)
+		e.SetCursorOffset(len([]rune(e.Text()[:strings.Index(e.Text(), "वह मेरा दोस्त है!")])))
+		for b.Loop() {
+			e.TypedRune('क')
+		}
+	})
+	// the same, with the editor's texts measured after each key as a
+	// painter measures and draws them: Fyne keeps both by the text, so
+	// what is shaped is what the key changed (the test driver paints
+	// nothing, so without this the grid's Devanagari is never shaped)
+	b.Run("hi-Deva-drawn", func(b *testing.B) {
+		w, _ := newBenchWindow(b)
+		sample, err := os.ReadFile(filepath.Join("examples", "sample.hi-Deva.fountain"))
+		if err != nil {
+			b.Fatal(err)
+		}
+		w.setLanguage("hi-Deva")
+		w.textEditor.SetText(string(sample))
+		realTimers(b)
+		e := w.textEditor
+		w.fyneWindow.Canvas().Focus(e)
+		e.SetCursorOffset(len([]rune(e.Text()[:strings.Index(e.Text(), "वह मेरा दोस्त है!")])))
+		measure := func() {
+			for _, o := range test.LaidOutObjects(e) {
+				if t, ok := o.(*canvas.Text); ok && t.Visible() && t.Text != "" {
+					t.MinSize() // the driver measures it in its FontSource (the editor theme's)
+				}
+			}
+		}
+		measure()
+		for b.Loop() {
+			e.TypedRune('क')
+			measure()
 		}
 	})
 	// the novel's screenplay, its 200 links, the novel kept in it
