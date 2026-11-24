@@ -18,5 +18,3 @@ tabs: File Write Edit Adaptation [Revision] Collaboration View
   S Edit icon=foreground_document-create.svg (disabled) name=Edit Item
 ## All at Once
   S Remove Done icon=foreground_delete.svg (disabled) name=Remove Done To-dos…
-## Notes
-  L Notes Pane icon=foreground_file-text.svg name=Notes Pane

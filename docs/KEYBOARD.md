@@ -174,7 +174,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | New from Structure | `file.newStructure` |  |  |  |  | :new-from-structure |
 | Insert Structure | `write.insertStructure` |  |  |  |  | :structure |
 | Outline | `view.outline` | Ctrl+Shift+O | Cmd+Shift+O | Ctrl+Shift+O | V O | :outline |
-| Notes | `view.notes` |  |  |  | R E | :notes |
+| Notes | `view.notes` |  |  |  | V N | :notes |
 | Characters | `view.characters` |  |  |  | V C | :characters |
 | Cards | `view.cards` | Ctrl+Shift+D | Cmd+Shift+D | Ctrl+Shift+D | V A | :cards |
 | Source | `view.source` |  |  |  | A S | :source |
@@ -319,6 +319,9 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Show Beats | `revision.show.beats` |  |  |  | R B | :show-beats |
 | Show Revision Notes | `revision.show.revision` |  |  |  | R R | :show-revision-notes |
 | Show Findings | `revision.show.checks` |  |  |  | R H | :show-findings |
+| Where the Beats Land | `revision.beats` |  |  |  | R S | :where-beats-land |
+| Next Section Off Its Range | `revision.nextOff` |  |  |  | R E | :next-off-range |
+| Previous Section Off Its Range | `revision.previousOff` |  |  |  | R V | :previous-off-range |
 | Follow | `session.follow` |  |  |  |  | :follow |
 | Stop Following | `session.stopFollowing` |  |  |  |  | :stop-following |
 | Copy the Link | `session.copyLink` |  |  |  |  | :copy-link |

@@ -342,6 +342,7 @@ type MainWindow struct {
 	// findings put out of sight until the window closes (revision_checks.go)
 	openHide  [openKinds]bool
 	dismissed map[string]bool
+	beats     beatLayout // where the beats land, as last laid out (beat_place.go)
 
 	// Lexington integration
 	lexParser *LexingtonParser

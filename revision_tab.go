@@ -559,6 +559,7 @@ func revisionTab() ribbonTab {
 		{title: "Item", homes: []home{big("revision.keep"), at("revision.dismiss"), at("revision.done"),
 			at("revision.restore"), at("revision.newScene"), at("revision.edit")}},
 		{title: "All at Once", homes: []home{at("revision.removeDone"), at("revision.restoreScene")}},
-		{title: "Notes", homes: []home{bigAs("view.notes", "Notes Pane")}},
+		// a statistic with its call to action (beat_place.go)
+		{title: "Beats", when: func(e cmdEnv) bool { return !e.markdown }, homes: []home{big("revision.beats"), at("revision.nextOff"), at("revision.previousOff")}},
 	}}
 }

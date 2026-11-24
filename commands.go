@@ -905,6 +905,7 @@ func newRegistry() *registry {
 	add(contextCommands()...)    // the Fix-Up and Title Page tabs' (contextual.go)
 	add(charactersCommands()...) // the Characters tab's (characters_tab.go)
 	add(revisionCommands()...)   // the Revision tab's (revision_tab.go)
+	add(beatCommands()...)       // its Beats group's: where the beats land (beat_place.go)
 	add(sessionCommands()...)    // the Session tab's (session_tab.go)
 	add(compareCommands()...)    // the Compare tab's (compare_tab.go)
 	add(stageCommands()...)      // the locked stages, the two versions (stages.go)

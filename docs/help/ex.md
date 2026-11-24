@@ -406,6 +406,9 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:show-beats** — Step through beats too: the Notes pane's filter, the same (Revision > Show > Show Beats)
 - **:show-revision-notes** — Step through revision notes too: the Notes pane's filter, the same (Revision > Show > Show Revision Notes)
 - **:show-findings** — Step through findings too: the Notes pane's filter, the same (Revision > Show > Show Findings)
+- **:where-beats-land** `item` — Each section's page and place in the script, beside its structure's usual range; each goes there (Revision > Beats > Where the Beats Land) (screenplay)
+- **:next-off-range** — The next section landing outside its structure's usual range, and what to do about it (Revision > Beats > Next Section Off Its Range) (screenplay)
+- **:previous-off-range** — The section before the cursor's landing outside its usual range (Revision > Beats > Previous Section Off Its Range) (screenplay)
 
 ### Session
 

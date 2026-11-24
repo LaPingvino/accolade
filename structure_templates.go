@@ -32,6 +32,57 @@ type structureTemplate struct {
 	name  string // as the menus list it
 	after string // whose method it follows ("" for none)
 	body  string // its sections and synopses, after the note
+	// ranges are where its sections usually start, in % of the script's
+	// pages, by sectionKey (beat_place.go): structureRanges
+	ranges map[string][2]float64
+}
+
+// structureRanges are where the structures' sections usually start, in
+// % of a feature's pages, by their names. NB: these are the conventional
+// ranges the methods and the screenwriting manuals give (a page count on
+// a 110-page script, or a share of it), widened a little; not yet
+// measured on films (LOOP.md (B): real-film ranges, with their sources,
+// are to replace them). A section not here gets its page and place
+// without a range.
+var structureRanges = map[string]map[string][2]float64{
+	"Three Acts": {
+		"Inciting Incident": {8, 15}, "First Turning Point": {20, 30}, "Act Two": {20, 30},
+		"Midpoint": {45, 55}, "Second Turning Point": {70, 80}, "Act Three": {72, 85},
+		"Climax": {82, 95}, "Resolution": {90, 100},
+	},
+	"Sequences": { // eight of about an eighth each
+		"Sequence 2: The Push": {9, 16}, "Act Two": {20, 30}, "Sequence 3: First Steps": {20, 30},
+		"Sequence 4: Complications": {33, 42}, "Sequence 5: New Direction": {45, 55}, "Sequence 6: The Fall": {58, 67},
+		"Act Three": {70, 80}, "Sequence 7: The Final Push": {70, 80}, "Sequence 8: Aftermath": {84, 95},
+	},
+	"Hero's Journey": {
+		"The Call": {5, 14}, "Refusing the Call": {8, 18}, "Meeting the Mentor": {12, 22},
+		"Crossing the Threshold": {20, 30}, "Initiation": {20, 30}, "Tests, Allies, Enemies": {22, 40},
+		"Approaching the Cave": {38, 50}, "The Ordeal": {45, 60}, "The Reward": {55, 70},
+		"Return": {70, 80}, "The Road Back": {70, 80}, "Resurrection": {80, 92}, "Return with the Elixir": {90, 100},
+	},
+	"Story Circle": { // eight steps, the second half's Chaos from the middle
+		"2. Need": {8, 18}, "3. Go": {20, 30}, "4. Search": {30, 42},
+		"Chaos": {45, 55}, "5. Find": {45, 55}, "6. Take": {58, 70}, "7. Return": {70, 82}, "8. Change": {84, 95},
+	},
+	"Kishōtenketsu": {"Shō: Development": {20, 30}, "Ten: Twist": {45, 60}, "Ketsu: Reconciliation": {72, 85}},
+	"Beat Sheet (15 Beats)": { // after Blake Snyder's page guide for 110 pages
+		"Theme Stated": {3, 7}, "Set-Up": {0, 9}, "Catalyst": {9, 13}, "Debate": {10, 20},
+		"Act Two": {20, 27}, "Break into Two": {20, 27}, "B Story": {25, 32}, "Fun and Games": {25, 32},
+		"Midpoint": {47, 53}, "Bad Guys Close In": {48, 56}, "All Is Lost": {65, 72},
+		"Dark Night of the Soul": {66, 77}, "Act Three": {75, 82}, "Break into Three": {75, 82},
+		"Finale": {75, 85}, "Final Image": {95, 100},
+	},
+}
+
+func init() {
+	for i, t := range structureTemplates {
+		r := map[string][2]float64{}
+		for name, v := range structureRanges[t.name] {
+			r[sectionKey(name)] = v
+		}
+		structureTemplates[i].ranges = r
+	}
 }
 
 // structureTemplates are the structures, in the menus' order.

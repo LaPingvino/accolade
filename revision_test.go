@@ -183,3 +183,45 @@ func TestSceneCuts(t *testing.T) {
 		t.Errorf("B's cuts: %+v", got)
 	}
 }
+
+// Where the beats land: each section on the page its next printed line
+// is on, its place over the script's pages (the title page not counted),
+// a structure's ranges matched by the sections' names.
+func TestBeatPlaces(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	var b strings.Builder
+	b.WriteString("Title: X\n\n# Act One\n\nINT. A - DAY\n\n")
+	for range 120 {
+		b.WriteString("Anna waits and waits, a long line of action here.\n\n")
+	}
+	b.WriteString("# Midpoint\n\nINT. B - DAY\n\nHi.\n\n# Act Three\n\nINT. C - DAY\n\nBye.\n")
+	text := b.String()
+	j := w.outputJob(w.pageSetup(), "pdf", text, nil)
+	d, err := drawer(text, j)(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	places, structure := placesOf(text, sceneStarts("en"), d)
+	if structure != "Three Acts" || len(places) != 3 {
+		t.Fatalf("%q: %+v", structure, places)
+	}
+	if p := places[0]; p.page != 1 || p.pct != 0 || p.has {
+		t.Errorf("Act One: %+v", p)
+	}
+	mid := places[1]
+	if mid.page != mid.pages || !mid.has || mid.lo != 45 || !mid.off() || !strings.Contains(mid.advice(), "late") {
+		t.Errorf("the Midpoint, on the last page: %+v %s", mid, mid.advice())
+	}
+	// the window's: the layout in the background, then the readout
+	w.textEditor.SetText(text)
+	w.goToLine(strings.Count(text[:strings.Index(text, "# Midpoint")], "\n"))
+	waitFor(t, "the layout", func() bool { _, _, ok := w.beatPlaces(); return ok })
+	if got := w.beatsReadout(); !strings.HasPrefix(got, "Midpoint · p. ") || !strings.HasSuffix(got, "⚑") {
+		t.Errorf("readout %q", got)
+	}
+	w.goToLine(0)
+	w.stepOff(1)
+	if w.scriptCursorLine() != mid.line {
+		t.Errorf("Next Off went to line %d", w.scriptCursorLine())
+	}
+}

@@ -20,5 +20,7 @@ tabs: File Write Edit [Revision] Production Collaboration View
 ## All at Once
   S Remove Done icon=foreground_delete.svg (disabled) name=Remove Done To-dos…
   S Restore Scene's Cuts icon=foreground_content-undo.svg (disabled) name=Restore Cuts in This Scene…
-## Notes
-  L Notes Pane icon=foreground_file-text.svg name=Notes Pane
+## Beats
+  L No Sections icon=foreground_list.svg name=Where the Beats Land: each section's page and place in the script (# sections)
+  S Next Off icon=foreground_arrow-forward.svg name=Next Section Off Its Range
+  S Previous Off icon=foreground_arrow-back.svg name=Previous Section Off Its Range

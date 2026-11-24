@@ -18,10 +18,12 @@ Everything below works on these lines. There is no separate board to keep in ste
 
 The script is its own to-do list. **View > Notes** lists, in the script's order and under the scene or section each is in:
 
-- **To do**: every `[[todo: …]]` (or `[[TODO …]]`) note.
+- **To do**: every `[[todo: …]]` (or `[[TODO …]]`) note; `[[done: …]]` and `[[todo: [x] …]]` are done ones.
 - **Cut**: a `/* … */` boneyard that reads as script (a scene heading, a speech, a transition), named by its first heading. A scene omitted in a locked script is one too.
 - **Note**: every other `[[note]]`, and a boneyard of prose. Notes another tool reads (a colour, a link to the source, a storyboard frame, a heading's tags) are left to it.
 - **Beats**: a synopsis no scene grew from yet: one in a section before its scenes, one at a scene's end, one before the first heading (Unplaced).
+- **Revision**: a finding kept, `[[revision: …]]` (Keep writes it; see below).
+- **Checks**: what the checks find, worked out from the text after each pause and never stored: a heading without INT./EXT. or a time of day, a `/*` or `[[` not closed, one character under two cues, a very long scene, and Lexington's linter (a parenthetical with no speech, a cue without a name, a dual dialogue gone wrong). Fix the text and the finding is gone.
 - **Unsorted notes**, last: notes about the whole script, kept in the notes block at its end.
 
 Tap one to go there. Below the list you edit it, and Save (Ctrl+Enter, or leaving the field) writes it into the text, one undo step; emptied, or with the bin, it goes. A boneyard has **Restore**: its marks go and its inside is script again (prose comes back as action; a scene omitted in a locked script comes back with its number, as Production > Restore Scene does). A beat has **New Scene**, which grows it into a scene there.
@@ -29,6 +31,14 @@ Tap one to go there. Below the list you edit it, and Save (Ctrl+Enter, or leavin
 **Add Note** (Ctrl+Shift+K, `:note`) writes `[[ ]]` at the cursor to type in; **Unsorted** (`:unsorted-note`) adds a note about the whole script. The filters at the top show or hide each kind, with how many there are. The status bar's **N open** counts the to-dos and the beats without a scene; tap it for the pane. The outline's and the cards' section headers say **N beats without a scene** when they have some: tap it to step through them. Notes, cuts and to-dos have a quiet mark in the editor's margin.
 
 Nothing of this is kept apart from the text: an item is done when the text no longer has it.
+
+## Going through it: the Revision tab
+
+The ribbon's **Revision** tab steps through the same items as Find steps through matches: **Next** (F8, `:next-item`) and **Previous** (Shift+F8) go from the cursor, round at the ends, and the status bar says what each one is. The item the cursor is in is the current one; the readout beside them says which of how many. **Show** is the pane's filters (one for both, and for the margin's marks): turn Checks off to write without them.
+
+The current item's actions: **Keep** writes a finding into the script as `[[revision: …]]` at its line's end, saved with it and listed as a revision note (the finding it was is then left out); **Dismiss** puts a finding out of sight until the window closes, writing nothing, and takes a note, to-do or revision note out of the text; **Done** turns `[[todo: …]]` into `[[done: …]]` and back; **Restore** brings a cut back; **New Scene** grows a beat into one; **Edit** opens it in the Notes pane. **All at Once**: **Remove Done To-dos** and **Restore Cuts in This Scene**, each asking with the count first and each one undo step.
+
+**Beats: where they land.** For every `#` section: the page it lands on (the next printed line's, in the layout the PDF and the page numbers use, the title page not counted) and its place in the script, as a percentage of the pages. When the sections are a structure's (by their names: Three Acts, Sequences, Hero's Journey, Story Circle, Kishōtenketsu, the 15 beats), each gets that structure's usual range, and **Next Off** / **Previous Off** step to the ones outside it with what to do: "Midpoint comes late: page 72 of 110 (65%), usually 45–55%: what before it could go or be shorter?". The list under the readout goes to any of them. The ranges are the conventional ones the methods and manuals give, not yet measured on films; your own structure gets the pages and percentages without a range.
 
 ## Moving it
 
