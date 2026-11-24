@@ -121,9 +121,23 @@ func underline(t string) bool {
 }
 
 // rule: three or more of the same *, - or _, spaces between allowed.
+// It looks at t in place: a copy of every line without its spaces was
+// most of classifying a novel at each key.
 func rule(t string) bool {
-	s := strings.ReplaceAll(strings.ReplaceAll(t, " ", ""), "\t", "")
-	return len(s) >= 3 && strings.Trim(s, s[:1]) == "" && strings.Contains("*-_", s[:1])
+	var c byte
+	n := 0
+	for i := 0; i < len(t); i++ {
+		switch b := t[i]; {
+		case b == ' ' || b == '\t':
+		case n == 0 && (b == '*' || b == '-' || b == '_'):
+			c, n = b, 1
+		case n > 0 && b == c:
+			n++
+		default:
+			return false
+		}
+	}
+	return n >= 3
 }
 
 // listItem: - + * and a space, or a number with . or ) and a space.

@@ -431,10 +431,11 @@ place to look next, for both. A peer's key in the script needed nothing (it is d
 ### The source editor out of sight (2026-11-24)
 
 Why (pprof): the window's source document, opened to follow the source's Doc, had its own editor laid out at every
-key, its own or a peer's, though it was nowhere on the screen. Worse than one in sight: an editor in no scroll has
-no view, so it drew every row of the novel into its grid (39 MB a key, against 16 MB for the same editor shown in
-the middle). `wrap.WrapSpans` was the other half: each row of a line asked how many columns the whole rest of the
-line takes, quadratic in a paragraph's length.
+key, its own or a peer's, though it was nowhere on the screen. Worse than one in sight: never shown, it was never
+given a width, and wrapped the novel to 10 columns (its MinSize; 74 in the middle), seven times the rows, and with
+no scroll's view its grid is built for all of them (`viewRows`): 39 MB a key, against 16 MB for the same editor in
+the middle. The narrow width hit `wrap.WrapSpans` hardest: each row of a line asked how many columns the whole rest
+of the line takes, quadratic in a paragraph's length (that alone: 93 → 59 ms out of sight, one run).
 
 The fix, two parts:
 
@@ -449,12 +450,15 @@ The fix, two parts:
   test) on random texts, plain and with clusters, wide characters, right-to-left letters, spans, indents past half
   the width and widths down to 1.
 
-Incremental relayout (re-wrapping only the lines an edit touched) was not taken. With the wrap linear, the wrap is
-about a quarter of a key in the shown source; the rest is a dozen other passes over the whole text (the text as a
-string and its lines, each line's direction, the Markdown kinds and inline emphasis, the headings for the folds,
-the status bar's counts), and the formats depend on the kinds, which depend on the cursor's line. A re-wrap of the
-touched lines alone would save a few milliseconds of 47; making every pass incremental is the next step if a key
-in a shown novel must fit in a frame.
+Incremental relayout (re-wrapping only the lines an edit touched) was not taken. A key in the source in sight
+(profiled alone, after the two fixes): ≈50 ms, of it the editor's relayout ≈29 ms and the status bar's Markdown
+counts (`markdownStats`, outside the editor) ≈13 ms. In the relayout, `ClassifyMarkdown` was ≈15 ms, nearly all of
+it `rule` copying every line without its spaces to see whether it is a thematic break; it now looks at the line in
+place (`TestRuleAsBefore` against the old one), which took 8k of the key's 32k allocations. What is left of the
+relayout is the wrap (≈8 ms), the inline emphasis (≈7 ms), and the text as a string and its lines; a re-wrap of the
+touched lines alone would save the 8 ms, and the formats depend on the kinds, which depend on the cursor's line. Each
+of those passes would have to be made incremental together; that, and the status bar's counts, are the next step if
+a key in a shown novel must fit in a frame.
 
 The readers of a hidden editor's layout, audited: every exported one (cursor position, rows, chips, tags, fold
 marks, peers' bars and lines, accessibility's lines, `MinSize`, a click's offset, motion keys) lays the editor out
@@ -475,6 +479,9 @@ each, the medians, before and after back to back, this VPS:
 | a peer's key in the source, out of sight | 92 ms, 40 MB, 32k allocs | 12 ms, 3.6 MB, 2.3k allocs |
 | own key in the source, in sight (the middle) | 51 ms, 16 MB, 42k allocs | 47 ms, 13 MB, 32k allocs |
 | a peer's key in the source, in sight | 53 ms, 17 MB, 42k allocs | 53 ms, 14 MB, 32k allocs |
+
+With `rule` in place too (a run of its own afterwards, the machine busier, load 4–5): own key in sight 45 ms (35,
+45, 87), 11.6 MB, 24k allocs; a peer's 38 ms, 12.2 MB, 24k allocs. The allocations are the steady measure here.
 | own key in the script (the pane shown) | 33 ms, 6.7 MB, 23k allocs | 29 ms, 5.5 MB, 16k allocs |
 | a peer's key in the script | 27 ms, 6.8 MB, 18k allocs | 27 ms, 5.6 MB, 11k allocs |
 
