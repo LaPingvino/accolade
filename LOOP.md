@@ -1933,3 +1933,9 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   screenplays analysed here and published timing analyses quoted as facts with their source; never scraped
   copyrighted scripts; the writer's own files only privately. Joop's principle: tools that compose, workflows offered
   as templates on top ("those same tools also provide for less common working styles").
+  Joop 2026-11-24: "If it falls out naturally, we also are less likely to have weird bugs" — (A) reads the page
+  layout the PDF and page numbers already use, and the sections/synopses the outline and cards already parse; no
+  state of its own. And: "We need statistics that come with a call to action" — every number Accolade shows (beat
+  placement, counts, the status bar, the Characters view) says what it means for the writing and offers the step:
+  e.g. "Act one runs 38 pages, most films 25–30 — its longest scenes →", each link moving the cursor there. A
+  number with nothing to do about it is left out or folded away.
