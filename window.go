@@ -383,8 +383,11 @@ func (w *MainWindow) setupUI() {
 	w.textEditor.OnCursorChanged = w.onCursorChanged
 	w.textEditor.OnHover = w.noteHover
 
-	// Add some initial content - start with a title page
-	w.textEditor.SetText(defaultScript(time.Now()))
+	// the first text is New's in the preferences' language (its sample,
+	// or the template in its words), put in before OnChanged is attached:
+	// the window starts unchanged
+	w.setLanguage("")
+	w.textEditor.SetText(w.newScriptText(w.language))
 	w.filledWith = w.textEditor.Text()
 
 	// Apply Courier Prime font for screenplay formatting
@@ -1184,36 +1187,7 @@ func (w *MainWindow) sceneStarts() []string {
 
 // newScriptTemplate is what a new script starts with: a title page and
 // a scene to write over.
-func newScriptTemplate() string {
-	return strings.Join([]string{
-		"Title: UNTITLED SCREENPLAY",
-		"Credit: Written by",
-		"Author: Your Name",
-		"Draft date: " + time.Now().Format("January 2, 2006"),
-		"Contact:",
-		"    Your Name",
-		"    Your Address",
-		"    Your Phone",
-		"    Your Email",
-		"",
-		"FADE IN:",
-		"",
-		"INT. LIVING ROOM - DAY",
-		"",
-		"A simple room with basic furniture. Light streams through the windows.",
-		"",
-		"JOHN sits at a desk, typing on a laptop. He looks frustrated.",
-		"",
-		"JOHN",
-		"(sighing)",
-		"This screenplay isn't writing itself.",
-		"",
-		"He takes a sip of coffee and continues typing.",
-		"",
-		"> FADE OUT.",
-		"",
-	}, "\n")
-}
+func newScriptTemplate() string { return defaultScript(time.Now()) }
 
 func (w *MainWindow) createNewFile(empty bool) {
 	// the views follow at the end (state.go)
@@ -2067,8 +2041,8 @@ func isCharacterName(line string) bool {
 	return false
 }
 
-// defaultScript is the text a new window starts with: a title page to fill
-// in and the first lines of a script.
+// defaultScript is the English template, its draft date now: a title
+// page to fill in and the first lines of a script (newScriptTemplate).
 func defaultScript(now time.Time) string {
 	return strings.Join([]string{
 		"Title: UNTITLED SCREENPLAY",
@@ -2096,6 +2070,7 @@ func defaultScript(now time.Time) string {
 		"He takes a sip of coffee and continues typing.",
 		"",
 		"> FADE OUT.",
+		"",
 	}, "\n")
 }
 
