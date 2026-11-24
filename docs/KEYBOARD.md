@@ -174,7 +174,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | New from Structure | `file.newStructure` |  |  |  |  | :new-from-structure |
 | Insert Structure | `write.insertStructure` |  |  |  |  | :structure |
 | Outline | `view.outline` | Ctrl+Shift+O | Cmd+Shift+O | Ctrl+Shift+O | V O | :outline |
-| Notes | `view.notes` | Ctrl+Shift+K | Cmd+Shift+K | Ctrl+Shift+K | V N | :notes |
+| Notes | `view.notes` |  |  |  | V N | :notes |
 | Characters | `view.characters` |  |  |  | V C | :characters |
 | Cards | `view.cards` | Ctrl+Shift+D | Cmd+Shift+D | Ctrl+Shift+D | V A | :cards |
 | Source | `view.source` |  |  |  | A S | :source |
@@ -189,6 +189,8 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Middle Tab Back to the Side | `view.paneSide` |  |  |  |  | :move-pane-side |
 | Next Middle Tab | `view.midNext` | Ctrl+PgDn | Cmd+PgDn | Alt+PgDn |  | :next-middle-tab |
 | Previous Middle Tab | `view.midPrev` | Ctrl+PgUp | Cmd+PgUp | Alt+PgUp |  | :previous-middle-tab |
+| Add Note | `write.note` | Ctrl+Shift+K | Cmd+Shift+K | Ctrl+Shift+K |  | :note |
+| New Unsorted Note | `write.unsortedNote` |  |  |  |  | :unsorted-note |
 | Help Contents | `help.page.index` |  |  |  |  | :help index |
 | Fountain Reference | `help.page.fountain` |  |  |  |  | :help fountain |
 | Structure: Sections, Synopses and Notes | `help.page.structure` |  |  |  |  | :help structure |

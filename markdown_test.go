@@ -211,7 +211,9 @@ func TestMarkdownNotes(t *testing.T) {
 	w.setMarkdown(true)
 	w.textEditor.SetText("# One\n\nText.\n")
 	w.togglePane("notes")
+	w.notesPane().newUnsorted()
 	test.Type(w.notesPane().entry, "Call Bram.")
+	w.notesPane().commit()
 	if got := w.textEditor.Text(); got != "# One\n\nText.\n\n<!-- Notes\nCall Bram.\n-->\n" {
 		t.Fatalf("with notes: %q", got)
 	}

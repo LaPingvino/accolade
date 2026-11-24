@@ -123,6 +123,7 @@ func TestFormatMenuNeedsTheEditor(t *testing.T) {
 		}
 	}
 	w.togglePane("notes")
+	w.notesPane().newUnsorted() // its editor
 	w.fyneWindow.Canvas().Focus(w.notesPane().entry)
 	bold()
 	if w.textEditor.Text() != "INT. A - DAY\n" {

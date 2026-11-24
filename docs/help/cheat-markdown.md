@@ -39,7 +39,7 @@ Each writes plain Markdown on the selection or the cursor's lines; again takes i
 
 ## Accolade
 
-- **Notes** — the notepad is kept at the end in `<!-- Notes` … `-->`
+- **Notes** — Ctrl+Shift+K writes `<!--  -->` at the cursor; the Notes pane lists every comment (`<!-- TODO: …` as a to-do) and the unsorted notes, kept at the end in `<!-- Notes` … `-->`
 - **Front matter** — a `---` block at the top is left out of the preview and the word count
 - **Command palette** — Ctrl+K or F1: every command by name
 - **Preview** — Ctrl+Shift+P shows the document formatted beside the editor; its Pages are the PDF's, links clickable (Tab goes through them)

@@ -363,7 +363,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))))))))) // the moves write Linux keys too
+		want := notesMoves(base, templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -981,6 +981,28 @@ func fixLinesMoves(name, golden string) string {
 		return strings.Replace(golden, "  What Accolade Learned…\n", "  What Accolade Learned…\n  "+item, 1)
 	case strings.HasPrefix(name, "context-screenplay"):
 		return strings.TrimSuffix(golden, "\n") + "\n---\n" + item
+	}
+	return golden
+}
+
+// notesMoves: the notepad gone for the Notes pane (notes_pane.go): its
+// toggle without a key and with a tip of its own; Ctrl+Shift+K is Add
+// Note now, in Format with New Unsorted Note.
+func notesMoves(name, golden string) string {
+	const add = "  Add Note [Primary+Shift+K]\n  New Unsorted Note\n"
+	switch {
+	case strings.HasPrefix(name, "menu-"):
+		golden = strings.Replace(golden, "  Notes [Primary+Shift+K]\n", "  Notes\n", 1)
+		if strings.HasPrefix(name, "menu-screenplay") {
+			return strings.Replace(golden, "# Adaptation\n", add+"# Adaptation\n", 1)
+		}
+		return strings.Replace(golden, "  Link… [Primary+L]\n", add+"  Link… [Primary+L]\n", 1)
+	case strings.HasPrefix(name, "shortcuts-"):
+		return strings.Replace(golden, "Primary+Shift+K = Notes\n", "Primary+Shift+K = Add Note\n", 1)
+	case strings.HasPrefix(name, "header-"):
+		tip := "Notes: the script's notes, cuts, to-dos and beats in its order, and its unsorted notes"
+		golden = strings.Replace(golden, "tip=Notes (Ctrl+Shift+K)\n", "tip="+tip+"\n", 1)
+		return strings.Replace(golden, "    menu:Notes icon=foreground_file-text.svg\n", "    menu:"+tip+" icon=foreground_file-text.svg\n", 1)
 	}
 	return golden
 }

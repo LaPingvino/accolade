@@ -11,7 +11,7 @@ Notes is always last; Accolade reads the others in any order. In the editor each
 - **Characters** — `/* Characters` … `*/`: the character list and its notes (a Markdown document: `<!-- Characters` … `-->`, before its `<!-- Notes`)
 - **Fix-Up** — `/* Fix-Up` … `*/`: Fix Lines Like This rules, to apply again after a re-import
 - **Source** — `/* Source` … `*/`: the story, when kept in the script
-- **Notes** — `/* Notes` … `*/`: the notepad (Ctrl+Shift+K)
+- **Notes** — `/* Notes` … `*/`: the unsorted notes, a paragraph each (the Notes pane's Unsorted)
 
 ## Inside the blocks
 

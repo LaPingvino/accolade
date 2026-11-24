@@ -195,6 +195,7 @@ func (c *cardsView) update(text string) {
 		c.hint.SetText("Tap a card to open its scene; drag it to move it; write its synopsis on it.")
 	}
 	lines := strings.Split(text, "\n")
+	beats := sectionBeats(text, c.w.sceneStarts(), c.items) // a header's to-do mark (notes_marks.go)
 	c.list.RemoveAll()
 	c.targets = nil
 	size := cardSize
@@ -258,7 +259,7 @@ func (c *cardsView) update(text string) {
 			if grid != nil {
 				end(i)
 			}
-			h := newSectionHeader(c, i, it)
+			h := newSectionHeader(c, i, it, beats[it.Line])
 			group(h)
 			c.targets = append(c.targets, dropTarget{obj: h, before: i + 1, kind: dropHeader, item: i})
 			addLoose(i) // its own, before its scenes
@@ -597,7 +598,7 @@ type sectionHeader struct {
 	body fyne.CanvasObject
 }
 
-func newSectionHeader(c *cardsView, i int, it outlineItem) *sectionHeader {
+func newSectionHeader(c *cardsView, i int, it outlineItem, beats []int) *sectionHeader {
 	title := widget.NewLabel(it.Text)
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Importance = widget.HighImportance
@@ -608,6 +609,12 @@ func newSectionHeader(c *cardsView, i int, it outlineItem) *sectionHeader {
 		syn.TextStyle = fyne.TextStyle{Italic: true}
 		syn.Wrapping = fyne.TextWrapWord
 		rows = append(rows, syn)
+	}
+	if len(beats) > 0 { // the beats no scene grew from yet: a tap steps through them
+		mark := newLinkLabel(func() { c.w.stepToBeat(beats) })
+		mark.SetText(beatsMark(len(beats)))
+		mark.Importance = widget.WarningImportance
+		rows = append(rows, mark)
 	}
 	var indent fyne.CanvasObject // nested sections a little in
 	if it.Level > 1 {

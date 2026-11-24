@@ -10,13 +10,12 @@ import (
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
-// Typing in a document kept in the script (the source inside it, the
-// notes) writes the changed span alone into the script (spanInto): after
+// Typing in a document kept in the script (the source inside it) writes the changed span alone into the script (spanInto): after
 // every kind of edit the script holds what writing the whole stretch
 // would have made, the home as last seen is the home, and the script's
 // cursor stays where it was.
 func TestMiddleSpanWrite(t *testing.T) {
-	for _, kind := range []string{"source", "notes"} {
+	for _, kind := range []string{"source"} {
 		t.Run(kind, func(t *testing.T) {
 			var w *MainWindow
 			if kind == "source" {

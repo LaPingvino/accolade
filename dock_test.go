@@ -60,7 +60,7 @@ func TestDockToggles(t *testing.T) {
 	if !w.paneInSight("notes") || !w.paneShown("help") {
 		t.Errorf("Notes not brought to the front (help still in: %v)", w.paneShown("help"))
 	}
-	if c := w.fyneWindow.Canvas().Focused(); c != w.notes.entry {
+	if c := w.fyneWindow.Canvas().Focused(); c != w.notes.focusTarget() {
 		t.Errorf("the keyboard on %T, not the notes", c)
 	}
 	run("view.notes") // in sight: out
@@ -209,11 +209,11 @@ func TestDockPhoneSheet(t *testing.T) {
 		t.Errorf("Right: notes in sight %v, focus %T", w.paneInSight("notes"), w.fyneWindow.Canvas().Focused())
 	}
 	w.dock.tabs["notes"].TypedKey(&fyne.KeyEvent{Name: fyne.KeyDown})
-	if w.fyneWindow.Canvas().Focused() != w.notes.entry {
+	if w.fyneWindow.Canvas().Focused() != w.notes.focusTarget() {
 		t.Errorf("Down: focus %T", w.fyneWindow.Canvas().Focused())
 	}
 	// F6: the editor, the pane in front
-	if got := w.panes(); len(got) != 2 || got[1] != w.notes.entry {
+	if got := w.panes(); len(got) != 2 || got[1] != w.notes.focusTarget() {
 		t.Errorf("F6 goes to %d panes", len(got))
 	}
 }
@@ -225,7 +225,7 @@ func TestDockKeyboard(t *testing.T) {
 	w.textEditor.SetText(outlineScript)
 	w.togglePane("outline")
 	w.togglePane("notes")
-	if got := w.panes(); len(got) != 3 || got[1] != w.outline.list || got[2] != w.notes.entry {
+	if got := w.panes(); len(got) != 3 || got[1] != w.outline.list || got[2] != w.notes.focusTarget() {
 		t.Fatalf("F6's panes: %d", len(got))
 	}
 	c := w.fyneWindow.Canvas()

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"image/color"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -111,7 +112,7 @@ type MainWindow struct {
 	pagesPreview bool
 	// the window's documents (document.go): the script as one, the
 	// source and the notes once opened
-	script, srcDoc, notesDoc *document
+	script, srcDoc *document
 	// passageSeen are the source's passages' lines as found last, for the
 	// main cursor (source_passage_lines.go)
 	passageSeen linesSeen
@@ -331,6 +332,11 @@ type MainWindow struct {
 	statusHint  string   // the "Tab: …" hint shown, "" none (status_hint.go)
 	tabChip     *tabChip // before it: a tap is Tab
 	statsLabel  *widget.Label
+	// openLabel is the status bar's count of what is open, openTimer its
+	// pause; noteMarks the margin's marks of the notes (notes_marks.go)
+	openLabel *linkLabel
+	openTimer *uiTimer
+	noteMarks map[int]color.Color
 
 	// Lexington integration
 	lexParser *LexingtonParser
@@ -417,9 +423,12 @@ func (w *MainWindow) setupUI() {
 	w.statsLabel = small("")
 	w.statsLabel.Alignment = fyne.TextAlignTrailing
 	w.statsLabel.Truncation = fyne.TextTruncateEllipsis // a narrow window shows what fits
+	w.openLabel = newLinkLabel(w.showNotes)             // what is open: the Notes pane (notes_marks.go)
+	w.openLabel.Importance = widget.WarningImportance
+	w.openLabel.Hide()
 	w.statusBar = container.NewVBox(
 		widget.NewSeparator(),
-		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel),
+		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel, w.openLabel),
 	)
 	w.bottom = container.NewVBox(w.newLooseNotice(), w.statusBar)
 
@@ -1269,7 +1278,12 @@ func chipWidth(chip fyne.CanvasObject) float32 {
 }
 
 func (r *statusRow) Layout(objs []fyne.CanvasObject, size fyne.Size) {
-	chip, msg, stats := objs[0], objs[1].(*widget.Label), objs[2]
+	chip, msg, stats, open := objs[0], objs[1].(*widget.Label), objs[2], objs[3]
+	if ow := chipWidth(open); ow > 0 { // what is open, at the end: the stats in what is left
+		open.Resize(open.MinSize())
+		open.Move(fyne.NewPos(size.Width-ow, 0))
+		size.Width -= ow
+	}
 	r.width = size.Width
 	cw := chipWidth(chip)
 	chip.Move(fyne.NewPos(0, 0))
@@ -1287,10 +1301,13 @@ func (r *statusRow) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 }
 
 func (r *statusRow) MinSize(objs []fyne.CanvasObject) fyne.Size {
-	chip, msg, stats := objs[0], objs[1].(*widget.Label), objs[2]
+	chip, msg, stats, open := objs[0], objs[1].(*widget.Label), objs[2], objs[3]
 	h := stats.MinSize().Height
 	if cw := chipWidth(chip); cw > 0 {
 		h = max(h, chip.MinSize().Height)
+	}
+	if chipWidth(open) > 0 {
+		h = max(h, open.MinSize().Height)
 	}
 	if msg.Text != "" {
 		if r.width > 0 {
@@ -1397,6 +1414,7 @@ func (w *MainWindow) onTextChanged(text string) {
 	w.scheduleSceneNumbers()
 	w.scheduleRevisionMarks()
 	w.scheduleBreakdown()
+	w.scheduleOpen()    // what is open: the status bar's count, the margin's marks (notes_marks.go)
 	w.dock.edited(text) // the panes in the dock (dock.go)
 	if w.cardsShown() {
 		w.cards.update(text)

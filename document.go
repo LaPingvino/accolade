@@ -20,7 +20,7 @@ import (
 // The documents a window edits (docs/MIDDLE.md). A window has one script,
 // its file (w.textEditor, saved by File > Save, shared when editing
 // together); beside it, documents of their own the main editor can hold
-// instead (a middle tab, middle.go): the script's source and its notes.
+// instead (a middle tab, middle.go): the script's source.
 // Whatever needs to know what the writer is typing in asks the main
 // document (w.mainDoc) rather than taking the script's editor for it.
 //
@@ -30,12 +30,11 @@ import (
 //
 //	kind    home                                    collab Doc
 //	script  the window's file                       the session's (named "script")
-//	notes   the notes block at the script's end     the script's (it is in its text)
 //	source  in the script (/* Source */)            the script's
 //	        in the bundle, a kept copy, beside it   its own, the one the setting "source" names (collab_source.go)
 //
 // A document kept in the script is a stretch of the script's text: each
-// change is written into the script at once, as the Notes pane does, and
+// change is written into the script at once, and
 // a change to that stretch made in the script (Undo there, a co-writer's
 // edit) comes into the document's editor as Buffer.Remote edits, outside
 // its undo history. A source kept elsewhere is written to its home when
@@ -49,15 +48,12 @@ type docKind int
 const (
 	docScript docKind = iota
 	docSource
-	docNotes
 )
 
 func (k docKind) String() string {
 	switch k {
 	case docSource:
 		return "Source"
-	case docNotes:
-		return "Notes"
 	}
 	return "Script"
 }
@@ -67,8 +63,6 @@ func paneOfKind(k docKind) string {
 	switch k {
 	case docSource:
 		return "source"
-	case docNotes:
-		return "notes"
 	}
 	return ""
 }
@@ -198,7 +192,7 @@ func (d *document) markdown() bool {
 // inScript reports whether the document is a stretch of the script's
 // text: saved with it, shared with it.
 func (d *document) inScript() bool {
-	return d.kind == docNotes || d.kind == docSource && d.ref.Origin == sourceInside
+	return d.kind == docSource && d.ref.Origin == sourceInside
 }
 
 // sharedAs is the Doc of the session the document is shared through:
@@ -217,8 +211,6 @@ func (d *document) sharedAs() string {
 // where is where the document is kept, as the status line says it.
 func (d *document) where() string {
 	switch d.kind {
-	case docNotes:
-		return "kept at the script's end"
 	case docSource:
 		return d.ref.describe()
 	}
@@ -239,8 +231,6 @@ func (d *document) title() string {
 			return path.Base(d.ref.Entry)
 		}
 		return "Source"
-	case docNotes:
-		return "Notes"
 	}
 	return d.w.scriptName()
 }
@@ -263,8 +253,6 @@ func (d *document) dirty() bool {
 func (d *document) home() (string, error) {
 	w := d.w
 	switch d.kind {
-	case docNotes:
-		return w.notesMarks().of(w.textEditor.Text()), nil
 	case docSource:
 		return w.homeSourceText(d.ref)
 	}
@@ -321,11 +309,6 @@ func (d *document) store() error {
 		}
 	}
 	switch d.kind {
-	case docNotes:
-		var from int
-		var block string
-		d.intoScript(func() { from, block = w.writeNotesAt(text) })
-		d.spanFrom(from, block, w.notesMarks())
 	case docSource:
 		switch d.ref.Origin {
 		case sourceInside: // into the script's block
@@ -358,9 +341,6 @@ func (d *document) store() error {
 
 // marks are the marks of the block a document kept in the script is in.
 func (d *document) marks() notesMarks {
-	if d.kind == docNotes {
-		return d.w.notesMarks()
-	}
 	return sourceMarks
 }
 
@@ -563,7 +543,7 @@ func (d *document) followHome() {
 // docWriting reports whether an open document is writing into the
 // script just now: the script's change is its own.
 func (w *MainWindow) docWriting() bool {
-	for _, d := range []*document{w.srcDoc, w.notesDoc} {
+	for _, d := range []*document{w.srcDoc} {
 		if d != nil && d.writing {
 			return true
 		}
@@ -574,7 +554,7 @@ func (w *MainWindow) docWriting() bool {
 // openDocs are the documents open besides the script.
 func (w *MainWindow) openDocs() []*document {
 	var out []*document
-	for _, d := range []*document{w.srcDoc, w.notesDoc} {
+	for _, d := range []*document{w.srcDoc} {
 		if d != nil {
 			out = append(out, d)
 		}
@@ -625,14 +605,6 @@ func (w *MainWindow) docInSight(d *document) bool {
 		w.dock.inSight("source") && !(w.narrow && w.sheetDown)
 }
 
-// notesDoc is the script's notes as a document, opened at the first need.
-func (w *MainWindow) notesDocument() *document {
-	if w.notesDoc == nil {
-		w.notesDoc = newDoc(w, docNotes)
-	}
-	return w.notesDoc
-}
-
 // closeDoc stores a document and lets it go (it is read again when next
 // opened); the source pane's Edit with it.
 func (w *MainWindow) closeDoc(d *document) error {
@@ -648,8 +620,6 @@ func (w *MainWindow) closeDoc(d *document) error {
 		if w.source != nil && w.source.editing {
 			w.source.endEdit()
 		}
-	case w.notesDoc:
-		w.notesDoc = nil
 	}
 	return nil
 }

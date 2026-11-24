@@ -202,35 +202,23 @@ func TestMiddleSourceInsideScript(t *testing.T) {
 	}
 }
 
-// The notes in the middle: written into the script's notes block, the
-// Notes pane following when back; in a Markdown document as its HTML
-// comment.
+// The Notes pane in the middle: its list there, no document of its own
+// (it reads the script); back beside the script, the same.
 func TestMiddleNotes(t *testing.T) {
-	w := newTestWindow(t, "INT. BARN - DAY\n\nRain.\n\n/* Notes\nfirst\n*/\n")
+	w := newTestWindow(t, "INT. BARN - DAY\n\nRain. [[todo: more rain]]\n\n/* Notes\nfirst\n*/\n")
 	w.showPane("notes", false)
 	w.openMiddle("notes")
-	d := w.midDoc()
-	if d == nil || d.kind != docNotes || d.Text() != "first" || midTitles(w) != "Script [Notes]" || w.paneShown("notes") {
-		t.Fatalf("notes %v, tabs %q", d, midTitles(w))
-	}
-	d.ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert(" and more") })
-	if notesOf(w.textEditor.Text()) != "first and more" {
-		t.Errorf("the script's notes %q", notesOf(w.textEditor.Text()))
+	if w.midDoc() != nil || midTitles(w) != "Script [Notes]" || w.paneShown("notes") || len(w.notesPane().all) != 2 {
+		t.Fatalf("tabs %q, items %d", midTitles(w), len(w.notesPane().all))
 	}
 	w.backToSide("notes")
-	if w.notesPane().entry.Text != "first and more" {
-		t.Errorf("the Notes pane %q", w.notesPane().entry.Text)
+	if !w.paneShown("notes") || w.mid.has("notes") {
+		t.Errorf("back to the side: %q", midTitles(w))
 	}
-
 	m := mdWindow(t, "# Story\n\nText.\n\n<!-- Notes\nmine\n-->\n", 0, 0)
 	m.showPane("notes", false)
-	m.openMiddle("notes")
-	if m.midDoc() == nil || m.midDoc().Text() != "mine" {
-		t.Fatal("the Markdown document's notes")
-	}
-	m.midDoc().ed.Edit(func(b *buffer.Buffer) { b.SetCursor(b.Len(), false); b.Insert("!") })
-	if !strings.HasSuffix(m.textEditor.Text(), "<!-- Notes\nmine!\n-->\n") {
-		t.Errorf("Markdown's notes block %q", m.textEditor.Text())
+	if its := m.notesPane().all; len(its) != 1 || its[0].Kind != openUnsorted || its[0].Text != "mine" {
+		t.Errorf("the Markdown document's notes: %+v", its)
 	}
 	if m.middleBlocked("source") == "" || m.middleBlocked("cards") == "" {
 		t.Error("a Markdown document has no source or cards to put in the middle")
@@ -298,7 +286,6 @@ func TestMiddleLeftForAnotherDocument(t *testing.T) {
 		t.Error("a Writer kept Production's middle tab")
 	}
 	n.openMiddle("cards")
-	n.openMiddle("notes")
 	n.setDocumentType(true)
 	if !n.scriptInMain() || len(n.mid.tabs) != 0 || !strings.HasSuffix(n.textEditor.Text(), "<!-- Notes\nkept\n-->\n") {
 		t.Errorf("middle %v, %q", n.mid.tabs, n.textEditor.Text())
@@ -562,8 +549,8 @@ func TestMiddleCommands(t *testing.T) {
 		t.Errorf("Right on the Script tab: %q", midTitles(w))
 	}
 	w.mid.tabW["notes"].TypedKey(&fyne.KeyEvent{Name: fyne.KeyDown})
-	if w.fyneWindow.Canvas().Focused() != w.midDoc().ed {
-		t.Error("Down on the Notes tab: not in its editor")
+	if w.fyneWindow.Canvas().Focused() != w.notes.focusTarget() {
+		t.Errorf("Down on the Notes tab: the focus on %T", w.fyneWindow.Canvas().Focused())
 	}
 }
 
@@ -693,7 +680,6 @@ func TestMiddleScreenshots(t *testing.T) {
 		d.ed.SetCursorOffset(runeAt(t, d.Text(), "The next morning"))
 		snap("5-relinked")
 		w.openMiddle("notes")
-		w.midDoc().SetText("Anna's door: does it open inward?\n\n- the frost scene moves to the morning\n")
 		snap("6-notes")
 		w.openMiddle("outline")
 		snap("7-outline")
@@ -782,8 +768,8 @@ func TestMiddleRenameAndJoin(t *testing.T) {
 	b.showPane("notes", false)
 	b.openMiddle("notes")
 	b.startSharing(key, true)
-	if !b.scriptInMain() || b.mid.has("notes") || b.notesDoc != nil {
-		t.Error("a join left the notes in the middle")
+	if !b.scriptInMain() {
+		t.Error("a join left the notes in front in the middle")
 	}
 }
 
@@ -847,20 +833,6 @@ func TestMiddleExVimPreview(t *testing.T) {
 }
 
 func richText(r interface{ String() string }) string { return r.String() }
-
-// The notes in a shared session go both ways while in the middle.
-func TestMiddleNotesTogether(t *testing.T) {
-	a, b, _ := sharedPair(t, "INT. BARN - DAY\n\n/* Notes\nshared\n*/\n")
-	connect(t, a, b)
-	textIs(t, b, "b", "INT. BARN - DAY\n\n/* Notes\nshared\n*/\n")
-	a.showPane("notes", false)
-	a.openMiddle("notes")
-	d := a.midDoc()
-	d.ed.Edit(func(e *buffer.Buffer) { e.SetCursor(e.Len(), false); e.Insert(" by a") })
-	waitFor(t, "b has a's notes", func() bool { return notesOf(b.textEditor.Text()) == "shared by a" })
-	b.writeNotes("b first; shared by a")
-	waitFor(t, "a's notes follow b", func() bool { return d.Text() == "b first; shared by a" })
-}
 
 // The stripboard is a middle tab (docs/MIDDLE.md): opened by its command,
 // one tab among the others, the side panes beside it, the ribbon's

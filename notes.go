@@ -4,16 +4,15 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
-
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 	"github.com/LaPingvino/lexington/fountain"
 )
 
-// The notepad (View > Notes) keeps notes with the script: at its end, in
-// a Fountain boneyard block, which no Fountain app prints (in Markdown, an
-// HTML comment: <!-- Notes ... -->):
+// The notes block keeps the unsorted notes (the Notes pane's, for notes
+// not tied to a place: notes_pane.go) with the script: at its end, in a
+// Fountain boneyard block, which no Fountain app prints (in Markdown, an
+// HTML comment: <!-- Notes ... -->); the other blocks at the end come
+// before it, and the marks here are theirs too (endMarks):
 //
 //	/* Notes
 //	...
@@ -94,35 +93,7 @@ func (w *MainWindow) notesMarks() notesMarks {
 	return fountainNotes
 }
 
-// notesPanel is the script's notepad, a pane of the side dock (dock.go).
-type notesPanel struct {
-	w        *MainWindow
-	entry    *widget.Entry
-	updating bool // the entry is being set from the script
-}
-
-func newNotesPanel(w *MainWindow) *notesPanel {
-	n := &notesPanel{w: w}
-	n.entry = widget.NewMultiLineEntry()
-	fyne.SetAccessibleLabel(n.entry, "Notes")
-	n.entry.Wrapping = fyne.TextWrapWord
-	n.entry.SetPlaceHolder("Notes on this script: kept at its end, never printed.")
-	n.entry.OnChanged = func(notes string) {
-		if !n.updating {
-			n.save(notes)
-		}
-	}
-	return n
-}
-
 // The dock's panes, each made at its first need.
-
-func (w *MainWindow) notesPane() *notesPanel {
-	if w.notes == nil {
-		w.notes = newNotesPanel(w)
-	}
-	return w.notes
-}
 
 func (w *MainWindow) outlinePane() *outlinePanel {
 	if w.outline == nil {
@@ -152,26 +123,6 @@ func (w *MainWindow) changesPane() *changesPanel {
 	return w.changesPanel
 }
 
-// update shows the script's notes, unless they are being typed.
-func (n *notesPanel) update(text string) {
-	notes := n.w.notesMarks().of(text)
-	if notes == n.entry.Text {
-		return
-	}
-	n.updating = true
-	n.entry.SetText(notes)
-	n.updating = false
-}
-
-// save writes the notes into the script's notes block.
-func (n *notesPanel) save(notes string) { n.w.writeNotes(notes) }
-
-// writeNotes writes notes into the script's notes block (the Notes pane,
-// the notes in the main editor: document.go).
-func (w *MainWindow) writeNotes(notes string) {
-	w.writeNotesAt(notes)
-}
-
 // edit is the edit that writes notes into text's notes block: from
 // where (runes) to the end, what.
 func (m notesMarks) edit(text, notes string) (from int, block string) {
@@ -185,6 +136,10 @@ func (m notesMarks) edit(text, notes string) (from int, block string) {
 	}
 	return from, block
 }
+
+// writeNotes writes the script's whole notes block (the unsorted notes:
+// notes_pane.go), "" taking it out.
+func (w *MainWindow) writeNotes(notes string) { w.writeNotesAt(notes) }
 
 // writeNotesAt is writeNotes, saying where the block went: from, what.
 func (w *MainWindow) writeNotesAt(notes string) (from int, block string) {

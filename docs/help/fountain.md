@@ -331,7 +331,7 @@ Ask Tom about the ending.
 - **Characters** is the character list (View > Characters): a name at the start of a line, its note after a colon, and under it, indented, the fields `age:`, `look:`, `arc:`, `actor:` and `photo:` (the cast photo: **Choose Photo…** in the character's page keeps the picture with the script, and the Characters list shows it beside the name) and more lines of the note. A name alone is a character with nothing written yet. Names keep the case they are written in, so a list of names in small letters works too; a cue matches its entry in any case.
 - **Fix-Up** holds the rules Edit > Fix Lines Like This… applied to an imported script, one a line (`heading: Scene <number> - <text> → <text> #<number>#`), to apply again after a re-import ([Fixing an Imported Script](fixing-imports.md)).
 - **Source** holds the story itself, when you choose Adaptation > Keep Source in the Script. Otherwise the source lives beside the script or in the bundle.
-- **Notes** is the notepad (View > Notes, Ctrl+Shift+K).
+- **Notes** holds the unsorted notes: notes about the whole script, not tied to a place. The Notes pane (View > Notes) lists them last, a paragraph each; its **Unsorted** button adds one.
 
 Notes always comes last. Accolade puts a new Production, Adaptation, Characters or Fix-Up block straight after the script and the Source block just before Notes, and it reads the others in any order. You can read and edit the blocks by hand; lines Accolade does not know are kept.
 

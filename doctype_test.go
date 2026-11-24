@@ -211,8 +211,9 @@ func TestDocumentTypeCarriesNotes(t *testing.T) {
 	if want := body + "\n\n<!-- Notes\nCall Bram.\n-- > not the end\n-->\n"; got != want {
 		t.Fatalf("notes in Markdown:\n%q, want\n%q", got, want)
 	}
-	if markdownNotes.of(got) != "Call Bram.\n-- > not the end" || w.notesPane().entry.Text != markdownNotes.of(got) {
-		t.Errorf("the notepad shows %q", w.notesPane().entry.Text)
+	w.notesPane().read()
+	if its := w.notesPane().all; markdownNotes.of(got) != "Call Bram.\n-- > not the end" || len(its) != 1 || its[0].Text != "Call Bram.\n--> not the end" {
+		t.Errorf("the Notes pane shows %+v", its)
 	}
 	if !w.hasChanges {
 		t.Error("the notes moved, and the document is not changed")

@@ -193,6 +193,9 @@ type outlinePanel struct {
 	list     *widget.List
 	box      fyne.CanvasObject
 	dots     map[int][]color.Color // who is in which item, by index (collab_cursors.go)
+	// beats are the beats no scene grew from by section line (the
+	// script's: notes_marks.go)
+	beats map[int][]int
 
 	oneLine, twoLines float32 // row heights without and with a synopsis
 }
@@ -218,7 +221,11 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			dots := container.NewCenter(newPeerDots()) // the co-writers in it (collab_cursors.go)
 			dots.Hide()
 			loose := container.NewVBox() // the loose synopses in it, a line each
-			return newDragRow(o, container.NewBorder(nil, nil, container.NewStack(room, fold), container.NewHBox(dots, swatch), container.NewVBox(title, syn, loose)))
+			beats := newLinkLabel(nil)   // a section's beats without a scene: a tap steps through them (notes_marks.go)
+			beats.Importance = widget.WarningImportance
+			beats.Truncation = fyne.TextTruncateEllipsis
+			beats.Hide()
+			return newDragRow(o, container.NewBorder(nil, nil, container.NewStack(room, fold), container.NewHBox(dots, swatch), container.NewVBox(title, syn, loose, beats)))
 		},
 		func(id widget.ListItemID, obj fyne.CanvasObject) {
 			if id >= len(o.items) {
@@ -244,6 +251,7 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 				syn.Show()
 			}
 			showLoose(box.Objects[2].(*fyne.Container), it)
+			o.showBeats(box.Objects[3].(*linkLabel), it)
 			box.Refresh() // laid out again: the rows are reused
 		},
 	)
@@ -280,11 +288,15 @@ func (o *outlinePanel) refresh() {
 	d := w.frontDoc()
 	o.of, o.doc = w.frontKey(), d
 	o.all = o.itemsOf(d)
+	o.beats = nil
+	if d.kind == docScript && !w.markdown {
+		o.beats = sectionBeats(d.Text(), w.sceneStarts(), o.all)
+	}
 	switch {
 	case d.kind == docSource:
 		o.filter.SetPlaceHolder("Filter chapters and passages")
 		o.cards.Hide()
-	case d.kind == docNotes || w.markdown: // headings only: no scenes, no cards
+	case w.markdown: // headings only: no scenes, no cards
 		o.filter.SetPlaceHolder("Filter headings")
 		o.cards.Hide()
 	default:
@@ -301,8 +313,6 @@ func (o *outlinePanel) itemsOf(d *document) []outlineItem {
 	switch d.kind {
 	case docSource:
 		return o.sourceItems(d.Text())
-	case docNotes:
-		return markdownOutline(d.Text())
 	}
 	return o.w.outlineItems(d.Text())
 }
@@ -376,6 +386,7 @@ func (o *outlinePanel) show() {
 	if o.oneLine == 0 {
 		row := o.list.CreateItem().(*dragRow).content
 		row.Objects[0].(*fyne.Container).Objects[2].Hide() // no loose synopses
+		row.Objects[0].(*fyne.Container).Objects[3].Hide() // no beats' mark
 		o.twoLines = row.MinSize().Height
 		row.Objects[0].(*fyne.Container).Objects[1].Hide()
 		o.oneLine = row.MinSize().Height
@@ -554,7 +565,22 @@ func (o *outlinePanel) rowHeight(id int) float32 {
 	if it.Synopsis != "" {
 		h += o.twoLines - o.oneLine
 	}
+	if !it.Scene && len(o.beats[it.Line]) > 0 {
+		h += o.twoLines - o.oneLine
+	}
 	return h
+}
+
+// showBeats shows a section's mark of its beats without a scene.
+func (o *outlinePanel) showBeats(l *linkLabel, it outlineItem) {
+	lines := o.beats[it.Line]
+	if it.Scene || len(lines) == 0 {
+		l.Hide()
+		return
+	}
+	l.SetText(strings.Repeat("  ", max(0, it.Level-1)) + beatsMark(len(lines)))
+	l.onTap = func() { o.w.stepToBeat(lines) }
+	l.Show()
 }
 func (o *outlinePanel) tapRow(id int) { o.list.Select(id) }
 func (o *outlinePanel) moveRow(from, to int) {

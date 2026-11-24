@@ -231,11 +231,11 @@ func TestRenameAlsoBlocks(t *testing.T) {
 		t.Fatal("Undo left it renamed")
 	}
 	p.read()
-	src, notesDoc := w.sourceDoc(), w.notesDocument() // open as documents: they follow
+	src := w.sourceDoc() // open as a document: it follows
 	p.renameIn("ANNA", "Hanna", renameEverywhere, renameAlso{notes: true, source: true})
 	got = w.textEditor.Text()
-	if !strings.Contains(src.Text(), "Hanna opened the door.") || !strings.Contains(notesDoc.Text(), "Hanna should be older") {
-		t.Errorf("the open documents did not follow: %q, %q", src.Text(), notesDoc.Text())
+	if !strings.Contains(src.Text(), "Hanna opened the door.") || !strings.Contains(notesOf(w.textEditor.Text()), "Hanna should be older") {
+		t.Errorf("the open source or the notes did not follow: %q, %q", src.Text(), notesOf(w.textEditor.Text()))
 	}
 	for _, want := range []string{"Hanna reads.", "text=Hanna opened the door]]", "text=Hanna sat down", "\nHanna opened the door.", "Hanna sat down and wept", "Hanna should be older"} {
 		if !strings.Contains(got, want) {

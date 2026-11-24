@@ -892,6 +892,7 @@ func newRegistry() *registry {
 	add(structureCommands()...)  // the structural moves (structure_window.go)
 	add(templateCommands()...)   // New from Structure, Insert Structure (structure_templates.go)
 	add(dockCommands()...)       // the side dock's panes and its own (dock.go)
+	add(notesCommands()...)      // Add Note, New Unsorted Note (notes_pane.go)
 	add(helpCommands()...)       // help_pane.go
 	add(settingCommands()...)    // ribbon_settings.go
 	add(previewCommands()...)    // the Preview tab's (previewtab.go)
@@ -936,7 +937,7 @@ func newRegistry() *registry {
 			at("format.rtl"), at("format.color"),
 			sep(), at("format.bold"), at("format.italic"), at("format.underline"), at("md.strike"), at("md.code"),
 			sep()), append(headings,
-			sep(), at("write.newScene"), at("write.insertStructure"), at("format.numberScenes"), at("write.storyboardFrame"), at("write.include"), at("write.marker"), at("write.nextMarker"), at("write.previousMarker"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
+			sep(), at("write.newScene"), at("write.insertStructure"), at("format.numberScenes"), at("write.storyboardFrame"), at("write.include"), at("write.marker"), at("write.nextMarker"), at("write.previousMarker"), at("write.note"), at("write.unsortedNote"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
 			sep(), at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote"),
 			sep(), at("md.codeBlock"), at("md.rule"), at("md.table"),
 		)...)},

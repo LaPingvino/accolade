@@ -4,7 +4,7 @@ A script's structure is written in the script itself, in three kinds of lines th
 
 - **Sections**, lines starting with `#`: acts, sequences, chapters, whatever parts you think in. `##` is a part inside a part.
 - **Synopses**, lines starting with `=`: what happens. The first synopsis under a heading (blank lines may come between) is that heading's own. Every other synopsis paragraph stands on its own: a beat, a moment you are planning.
-- **Notes**, `[[like this]]`: questions, reminders, anything for you alone. A longer note goes in the Notes pane, or in a `/* … */` boneyard.
+- **Notes**, `[[like this]]`: questions, reminders, anything for you alone; `[[todo: …]]` is one still to do. A longer note goes in a `/* … */` boneyard, one about the whole script in the unsorted notes.
 
 Everything below works on these lines. There is no separate board to keep in step with the script: the outline and the cards are views of the text, and each change you make in them is an edit of the text, undone in one step.
 
@@ -13,6 +13,22 @@ Everything below works on these lines. There is no separate board to keep in ste
 - **Outline** (Ctrl+Shift+O): sections and scenes, each with its own synopsis under it. A synopsis standing on its own is a line of its own, `= …`, under the section or scene it is in. The filter finds words in synopses too. Tap a row to go there.
 - **Cards** (Ctrl+Shift+D): a group for each section, with its synopsis on the header. A section's own synopses come first, as outlined cards marked `=`, then its scenes as index cards, then a card for a new scene (a New scene row while it has no scenes). A synopsis standing on its own inside a scene gets a card after that scene's. Tap a card to go to its line.
 - **Folding**: Fold or Unfold Here (Ctrl+Shift+., or Tab at a heading's start) folds the section or scene at the cursor; Shift+Tab goes from the sections alone, to all headings, to everything. `:fold-sections`, `:headings-only` and `:unfold-all` do the same from the `:` line, and in vim mode so do `za`, `zM` and `zR`.
+
+## What is still open: the Notes pane
+
+The script is its own to-do list. **View > Notes** lists, in the script's order and under the scene or section each is in:
+
+- **To do**: every `[[todo: …]]` (or `[[TODO …]]`) note.
+- **Cut**: a `/* … */` boneyard that reads as script (a scene heading, a speech, a transition), named by its first heading. A scene omitted in a locked script is one too.
+- **Note**: every other `[[note]]`, and a boneyard of prose. Notes another tool reads (a colour, a link to the source, a storyboard frame, a heading's tags) are left to it.
+- **Beats**: a synopsis no scene grew from yet: one in a section before its scenes, one at a scene's end, one before the first heading (Unplaced).
+- **Unsorted notes**, last: notes about the whole script, kept in the notes block at its end.
+
+Tap one to go there. Below the list you edit it, and Save (Ctrl+Enter, or leaving the field) writes it into the text, one undo step; emptied, or with the bin, it goes. A boneyard has **Restore**: its marks go and its inside is script again (prose comes back as action; a scene omitted in a locked script comes back with its number, as Production > Restore Scene does). A beat has **New Scene**, which grows it into a scene there.
+
+**Add Note** (Ctrl+Shift+K, `:note`) writes `[[ ]]` at the cursor to type in; **Unsorted** (`:unsorted-note`) adds a note about the whole script. The filters at the top show or hide each kind, with how many there are. The status bar's **N open** counts the to-dos and the beats without a scene; tap it for the pane. The outline's and the cards' section headers say **N beats without a scene** when they have some: tap it to step through them. Notes, cuts and to-dos have a quiet mark in the editor's margin.
+
+Nothing of this is kept apart from the text: an item is done when the text no longer has it.
 
 ## Moving it
 

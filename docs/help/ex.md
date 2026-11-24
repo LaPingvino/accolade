@@ -199,6 +199,8 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:go-note** — Format > Go to Note or Reference (Markdown)
 - **:renumber-notes** — Format > Renumber Notes (Markdown)
 - **:structure** `item` — A structure's sections and synopses put in after the cursor's section (before the next # section), one undo step (Format > Insert Structure) (screenplay)
+- **:note** — A note at the cursor, never printed: [[…]] (Markdown: <!-- … -->); [[todo: …]] makes it a to-do (Format > Add Note)
+- **:unsorted-note** — A note about the whole script, not tied to a place: kept at its end, listed in the Notes pane (Format > New Unsorted Note)
 
 ### Write
 

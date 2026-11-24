@@ -13,7 +13,7 @@ import (
 func TestMiddlePreviewFollowsShownTab(t *testing.T) {
 	kinds := []string{"", "source", "notes", "cards", "outline"}
 	name := map[string]string{"": "script", "source": "source", "notes": "notes", "cards": "cards", "outline": "outline"}
-	editorTab := func(id string) bool { return id == "" || id == "source" || id == "notes" }
+	editorTab := func(id string) bool { return id == "" || id == "source" } // the notes are a view: a list
 	for _, from := range kinds {
 		if !editorTab(from) {
 			continue // a view has no preview to start from

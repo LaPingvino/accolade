@@ -1,7 +1,7 @@
 tabs: File Write Edit Adaptation Collaboration [View]
 ## Panes
   L Outline icon=foreground_list.svg name=Outline (Ctrl+Shift+O)
-  L Notes icon=foreground_file-text.svg name=Notes (Ctrl+Shift+K)
+  L Notes icon=foreground_file-text.svg name=Notes
   S Characters icon=foreground_account.svg name=Characters
   S References icon=foreground_document.svg name=References
   S Help icon=foreground_help.svg name=Help
