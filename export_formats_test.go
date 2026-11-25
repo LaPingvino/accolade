@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/LaPingvino/lexington/cli"
@@ -55,5 +56,40 @@ func TestExportKindle(t *testing.T) {
 	}
 	if info, err := os.Stat(out); err != nil || info.Size() == 0 {
 		t.Errorf("no book: %v", err)
+	}
+}
+
+// The Export dialog's Page Setup card as the format uses the page setup:
+// gone for the outline (OPML), the paper alone for a treatment (no line,
+// no Page Setup…), the line again for a script's format.
+func TestExportPageSectionPerFormat(t *testing.T) {
+	w := newTestWindow(t, accoladeScript)
+	ed := NewExportDialog(w)
+	for _, c := range []struct {
+		id                 string
+		card, line, noting bool
+	}{
+		{"pdf", true, true, false},
+		{"opml", false, false, false},
+		{"treatment-pdf", true, false, true},
+		{"treatment-docx", true, false, true},
+		{"fdx", true, true, false},
+	} {
+		ed.formatSelect.SetSelected(exportFormatLabel(c.id))
+		if got := ed.pageSection.Visible(); got != c.card {
+			t.Errorf("%s: card shown %v", c.id, got)
+		}
+		if !c.card {
+			continue
+		}
+		if got := ed.pageLine.box.Visible(); got != c.line {
+			t.Errorf("%s: page setup line shown %v", c.id, got)
+		}
+		if got := ed.treatmentNote.Visible(); got != c.noting {
+			t.Errorf("%s: treatment note shown %v", c.id, got)
+		}
+		if c.noting && !strings.Contains(ed.treatmentNote.Text, paperName(w.paperOf(w.pageSetup().paper))) {
+			t.Errorf("%s: the note does not name the paper: %q", c.id, ed.treatmentNote.Text)
+		}
 	}
 }

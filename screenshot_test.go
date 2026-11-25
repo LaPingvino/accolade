@@ -196,6 +196,34 @@ func TestImportExportScreenshots(t *testing.T) {
 	shot(w, "accolade-markdown-export-no-pandoc.png")
 }
 
+// TestExportStructureScreenshots renders the Export dialog for the outline
+// (OPML: no Page Setup card) and a treatment (the paper alone), SHOT_DIR
+// as above.
+func TestExportStructureScreenshots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct{ id, name string }{{"opml", "outline"}, {"treatment-pdf", "treatment"}} {
+		w, _ := newDialogTestWindow(t)
+		w.fyneWindow.Resize(fyne.NewSize(1000, 760))
+		ed := NewExportDialog(w)
+		ed.formatSelect.SetSelected(exportFormatLabel(c.id))
+		ed.Show()
+		f, err := os.Create(filepath.Join(dir, "accolade-export-"+c.name+".png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := png.Encode(f, w.fyneWindow.Canvas().Capture()); err != nil {
+			t.Fatal(err)
+		}
+		f.Close()
+	}
+}
+
 // TestSourceScreenshots renders a script with its source beside it, the
 // cursor in a scene whose linked passage is lit, another picked, in the
 // light and dark schemes (SHOT_DIR as above).

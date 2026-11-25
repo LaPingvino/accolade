@@ -37,6 +37,10 @@ type ExportDialog struct {
 	// revised pages (Production's Revised Pages PDF…), not saved
 	pageLine     *pageSetupLine
 	revisedPages bool
+	// the card the line is in, and what it says instead for a treatment
+	// (updatePageSection); the outline has none
+	pageSection   *widget.Card
+	treatmentNote *widget.Label
 
 	// Filters (export_filters.go)
 	tagChecks        []*widget.Check // one per tag, its Text the tag
@@ -155,7 +159,11 @@ func (ed *ExportDialog) createContent() fyne.CanvasObject {
 	ed.formatSelect.SetSelected("")
 	ed.formatSelect.SetSelected(format)
 
-	pageSection := widget.NewCard("Page Setup", "", container.NewVBox(ed.formatSettingsContainer, ed.pageLine.box))
+	ed.treatmentNote = widget.NewLabel("")
+	ed.treatmentNote.Wrapping = fyne.TextWrapWord
+	ed.pageSection = widget.NewCard("Page Setup", "", container.NewVBox(ed.formatSettingsContainer, ed.pageLine.box, ed.treatmentNote))
+	pageSection := ed.pageSection
+	ed.updatePageSection()
 	filterSection := widget.NewCard("Part of the Script", "", ed.filterContent())
 
 	// Progress section
@@ -227,6 +235,7 @@ func (ed *ExportDialog) updateFormatSettings() {
 	if ed.pageLine != nil {
 		ed.pageLine.refresh()
 	}
+	ed.updatePageSection()
 	if ed.exportButton != nil {
 		if available {
 			ed.exportButton.Enable()
@@ -236,6 +245,30 @@ func (ed *ExportDialog) updateFormatSettings() {
 	}
 
 	ed.formatSettingsContainer.Refresh()
+}
+
+// updatePageSection shows the Page Setup card as the format uses the page
+// setup: the outline (OPML) none, so no card; a treatment only the paper,
+// so that instead of the line and its Page Setup… (which would show it
+// nothing); the other formats the line.
+func (ed *ExportDialog) updatePageSection() {
+	if ed.pageSection == nil {
+		return
+	}
+	switch ed.format() {
+	case "opml":
+		ed.pageSection.Hide()
+	case "treatment-pdf", "treatment-docx":
+		ed.pageLine.box.Hide()
+		ed.treatmentNote.SetText("A treatment is prose: it takes only the paper of the page setup (" +
+			paperName(ed.window.paperOf(ed.pageSetup().paper)) + "), with a title page from the script's.")
+		ed.treatmentNote.Show()
+		ed.pageSection.Show()
+	default:
+		ed.treatmentNote.Hide()
+		ed.pageLine.box.Show()
+		ed.pageSection.Show()
+	}
 }
 
 func (ed *ExportDialog) onFormatChanged(format string) {

@@ -2033,7 +2033,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   (worktree ~/Projects/lexington-synopsis, not tagged): report.Scene.Synopsis is the scene's own as the outline
   reads it: its first synopsis paragraph (blank lines and notes may come before), its lines joined, not a synopsis
   after the scene's action. Accolade follows it once tagged and bumped. Left: the Export dialog still shows
-  Page Setup and Part of the Script for the outline and treatment (they use neither); the treatment ignores tags.
+  Part of the Script for the outline and treatment (they use neither); the treatment ignores tags. (Page Setup:
+  done 2026-11-25, branch exportdlg: no card for the outline, the paper alone as a note for a treatment.)
 - 2026-11-24: NOTES PANE phase 1 done (branch notespane, not merged). The notepad is gone (notesPanel, docNotes,
   its middle document); View > Notes is a pane over one item model read from the text (open_items.go, memoised;
   open_edits.go for the edits): to-dos ([[todo: …]], [[TODO …]], "to do:"), cuts (a boneyard Lexington parses as
