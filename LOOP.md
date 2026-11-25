@@ -2076,16 +2076,20 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
 - 2026-11-25: REVISION TAB for prose, and dismissals kept (branch mdrev, not merged). prose_checks.go: a Markdown
   document's and the source's findings as the Check kind, the same ribbon, stepping, pane and margin: a word twice
   within 6 words in one sentence (4+ letters, English function words not), the longest sentence of a paragraph over
-  45 words, and in English text only (15% of its words the commonest English ones) 3+ filter words or 3+ passives in
+  45 words (sentences end on . ! ? and । 。 ！ ？ ؟ ۔ too; outside English a text's commonest words, over 1 in 100 in
+  300+ words, are not repetitions), and in English text only (15% of its words the commonest English ones) 3+ filter words or 3+ passives in
   a paragraph; at most one of each per paragraph, each on its span with what to try ("“road” twice in 4 words: another
   word, or one less?"). Chekhov's A Chameleon (1400 words) gets 2. Keep in Markdown writes <!-- revision: … --> on its
   own line under the paragraph (markdownOpenItems lists it as a Revision; the note stands for the finding). Dismiss
   writes a line into the document's notes block ("Dismissed findings …: - <what it says> · <its first 60 chars>"), the
   set read from the text (w.dismissed gone): kept on reload, one undo step, lines no finding says pruned at the next
-  Dismiss; it shows as an Unsorted note (not hidden). The source: in front in the middle, or typed in in the Source
-  pane (its editor focused), the tab steps through its findings and Dismiss keeps them in the script's notes; Keep
-  and the note actions say they are the script's (a comment in the source would be read as passage text). Shot:
-  TestMarkdownRevisionScreenshot (revision-markdown.png). Not done: a window test of the source in the middle.
+  Dismiss (not while the source has one and is not open: its findings unknown then); it shows as an Unsorted note in
+  the pane (so the pane's rewrites keep it), not stepped to. A Markdown revision note or to-do (a comment) Dismiss
+  takes out, as a screenplay's. The source: in front in the middle tab (not the Source pane's Edit: a ribbon tap
+  takes the focus to the script), the tab steps through its findings and Dismiss keeps them in the script's notes;
+  Keep and the note actions say they are the script's (a comment in the source would be read as passage text).
+  Tests: prose_checks_test.go (Chameleon count, Keep/Dismiss, Esperanto, Hindi, the source in the middle, an
+  unclosed [[ dismissed). Shot: TestMarkdownRevisionScreenshot (revision-markdown.png).
 - 2026-11-25: STATUS of the 2026-11-22 … 11-24 queue entries, read against main (f81609b) and its log. Done = built and
   merged; partly = what is still missing; waits = needs Joop's file, device or decision.
 

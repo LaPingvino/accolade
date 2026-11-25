@@ -167,6 +167,20 @@ func proseFindings(text string) []proseFinding {
 		all = append(all, words[i]...)
 	}
 	english := englishText(all)
+	// in another language the commonest words (more than 1 in 100, in a
+	// text long enough to tell) are its function words: not repetitions
+	common := map[string]bool{}
+	if !english && len(all) >= 300 {
+		n := map[string]int{}
+		for _, w := range all {
+			n[w.low]++
+		}
+		for w, c := range n {
+			if c >= 3 && c*100 > len(all) {
+				common[w] = true
+			}
+		}
+	}
 	var out []proseFinding
 	for i, p := range paras {
 		ws := words[i]
@@ -177,7 +191,7 @@ func proseFindings(text string) []proseFinding {
 		// a word twice close together (the first such pair)
 		for k := range ws {
 			w := ws[k]
-			if utf8.RuneCountInString(w.low) < 4 || (english && englishStop[w.low]) {
+			if utf8.RuneCountInString(w.low) < 4 || englishStop[w.low] || common[w.low] {
 				continue
 			}
 			for j := k + 1; j < len(ws) && j-k <= proseNear; j++ {
@@ -236,9 +250,13 @@ func participle(w string) bool {
 	return participles[w] || (strings.HasSuffix(w, "ed") && utf8.RuneCountInString(w) > 4)
 }
 
+// sentenceEnds end a sentence: Latin, Devanagari's danda, CJK's, Arabic's
+// and Urdu's.
+const sentenceEnds = ".!?।॥。！？؟۔"
+
 // sentenceBetween tells whether a sentence ends in s (the text between two words).
 func sentenceBetween(s string) bool {
-	return strings.ContainsAny(s, ".!?;") || strings.Contains(s, "\n\n")
+	return strings.ContainsAny(s, sentenceEnds+";") || strings.Contains(s, "\n\n")
 }
 
 // forSentences calls f with each sentence of a paragraph's words: its
@@ -246,7 +264,7 @@ func sentenceBetween(s string) bool {
 func forSentences(text string, ws []proseWord, f func(s, e, n int)) {
 	from := 0
 	for k := range ws {
-		if k+1 == len(ws) || strings.ContainsAny(text[ws[k].end:ws[k+1].start], ".!?") {
+		if k+1 == len(ws) || strings.ContainsAny(text[ws[k].end:ws[k+1].start], sentenceEnds) {
 			f(ws[from].start, ws[k].end, k-from+1)
 			from = k + 1
 		}

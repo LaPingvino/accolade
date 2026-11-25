@@ -74,3 +74,87 @@ func TestProseNotEnglish(t *testing.T) {
 		}
 	}
 }
+
+// TestProseRepeatsOtherLanguage: in Esperanto prose its common words
+// (estis, sed, kiam…) are not repetitions.
+func TestProseRepeatsOtherLanguage(t *testing.T) {
+	para := "Kiam la vespero venis, la virino estis ankoraŭ en la ĝardeno, kaj ŝi estis laca sed kontenta. " +
+		"La infanoj estis en la domo, kaj kiam ili vokis ŝin, ŝi ne respondis, ĉar ŝi estis aŭskultanta la birdojn. " +
+		"Poste ŝia frato venis el la urbo kun leteroj, sed neniu el ili estis por ŝi, kaj tio ŝin ne surprizis.\n\n"
+	text := strings.Repeat(para, 6)
+	for _, it := range proseItemsOf(text) {
+		t.Errorf("a finding in plain Esperanto: %s [%s]", it.Text, it.Raw)
+	}
+	// a Hindi paragraph's dandas end its sentences: none of them long
+	hi := strings.Repeat("वह बगीचे में बैठी रही और शाम को देखती रही। ", 12) + "\n"
+	for _, it := range proseItemsOf(hi) {
+		if it.Check == checkSentence {
+			t.Errorf("one long sentence across dandas: %s", it.Text)
+		}
+	}
+}
+
+// TestRevisionSourceInMiddle: the source in front in the middle gets
+// the prose checks, stepped through in its own editor; Dismiss keeps the
+// finding in the script's notes; a Dismiss in the script, the source not
+// open, lets none of the source's go.
+func TestRevisionSourceInMiddle(t *testing.T) {
+	story := sourceStory + "\nThe rain fell on the roof, the rain on the road.\n"
+	w, _ := sourceWindow(t, sourceScript, story)
+	w.openMiddle("source")
+	d := w.midDoc()
+	if ed, src := w.revEditor(); !src || ed != d.ed {
+		t.Fatal("the Revision tab is not in the source")
+	}
+	d.ed.SetCursorOffset(0)
+	w.stepOpen(1)
+	it, ok := w.currentItem("test")
+	if !ok || it.Check != checkRepeat || d.ed.CursorOffset() != it.Start {
+		t.Fatalf("not on the source's repeat: %+v; items %+v; status %q; text %q", it, w.revItems(), w.statusText(), d.Text())
+	}
+	script := w.textEditor.Text()
+	w.dismissCurrent()
+	if got := w.textEditor.Text(); !strings.Contains(got, "- "+it.dismissKey()) || d.Text() != story {
+		t.Fatalf("dismissed into the script's notes:\n%s", got)
+	}
+	for _, f := range w.revItems() {
+		if f.Kind == openCheck && f.Check == checkRepeat {
+			t.Errorf("still listed: %+v", f)
+		}
+	}
+	// the source closed, a script finding dismissed: the source's stays
+	w.textEditor.SetText(script + "\nINT. SHED\n\nDark.\n")
+	w.textEditor.SetText(w.textEditor.Text() + "\n/* Notes\n" + dismissedHead + "\n- " + it.dismissKey() + "\n*/\n")
+	w.srcDoc = nil
+	w.mid.shown = ""
+	for _, f := range w.openItems() {
+		if f.Kind == openCheck {
+			w.dismissFinding(f)
+			break
+		}
+	}
+	if !w.dismissedOf()[it.dismissKey()] {
+		t.Errorf("the source's dismissal let go:\n%s", w.textEditor.Text())
+	}
+}
+
+// TestDismissUnclosedNote: a finding about an unclosed [[ dismissed
+// leaves no finding behind in the notes block.
+func TestDismissUnclosedNote(t *testing.T) {
+	w := newTestWindow(t, "INT. A - DAY\n\nHi. [[ oops\n\nINT. B - DAY\n\nBye.\n")
+	var f openItem
+	for _, it := range w.openItems() {
+		if it.Kind == openCheck {
+			f = it
+		}
+	}
+	if f.Kind != openCheck {
+		t.Fatal("no finding")
+	}
+	w.dismissFinding(f)
+	for _, it := range w.openItems() {
+		if it.Kind == openCheck {
+			t.Errorf("after Dismiss: %+v in\n%s", it, w.textEditor.Text())
+		}
+	}
+}

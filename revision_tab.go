@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 
@@ -58,7 +59,7 @@ func (w *MainWindow) revisionEnv(e *cmdEnv) {
 		r.beat = it.Kind == openBeat && !w.markdown && mine
 		r.notes = !r.finding && mine
 		r.keepable = it.keepable() && mine
-		r.dismissable = r.finding || (it.Shape == shapeNote && mine)
+		r.dismissable = r.finding || (it.noteLike() && mine)
 	}
 	if src {
 		e.rev = r
@@ -82,7 +83,7 @@ func (w *MainWindow) revisionEnv(e *cmdEnv) {
 func (w *MainWindow) shownOpenItems() []openItem {
 	var out []openItem
 	for _, it := range w.revItems() {
-		if !w.openHide[it.Kind] {
+		if !w.openHide[it.Kind] && !(it.Kind == openUnsorted && strings.HasPrefix(it.Text, dismissedHead)) { // the dismissed: the pane's
 			out = append(out, it)
 		}
 	}
@@ -203,6 +204,12 @@ func (w *MainWindow) currentItem(what string) (openItem, bool) {
 	return items[i], true
 }
 
+// noteLike tells whether Dismiss takes the item out of the text: a note,
+// a to-do, a revision note (in Markdown a comment).
+func (it openItem) noteLike() bool {
+	return it.Shape == shapeNote || it.Kind == openTodo || it.Kind == openRevision
+}
+
 // revAway is the editor the Revision tab works in (revEditor), and
 // whether it is the source's; nil (said in the status bar) when neither
 // the script nor the source is in front.
@@ -273,6 +280,9 @@ func (w *MainWindow) dismissFinding(it openItem) {
 	text := w.textEditor.Text()
 	gone, rest := dismissedIn(strings.ReplaceAll(m.of(text), m.escaped, m.close))
 	now := map[string]bool{it.dismissKey(): true}
+	if w.sourceRef().Origin != sourceNone && w.srcEditor() == nil { // the source's not read now: none let go
+		maps.Copy(now, gone)
+	}
 	for _, ed := range []*editor.ScriptEditor{w.textEditor, w.srcEditor()} {
 		if ed == nil {
 			continue
@@ -331,7 +341,7 @@ func (w *MainWindow) dismissCurrent() {
 	if w.inSource("Dismiss of a note") {
 		return
 	}
-	if it.Shape != shapeNote { // a cut has Restore, a beat New Scene: the Notes pane's bin takes them out
+	if !it.noteLike() { // a cut has Restore, a beat New Scene: the Notes pane's bin takes them out
 		w.setStatus("Dismiss takes out a [[note]], a to-do or a revision note; a cut or a beat goes with the Notes pane's bin")
 		return
 	}

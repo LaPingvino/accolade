@@ -5,8 +5,6 @@ import (
 	"strings"
 	"sync"
 
-	"fyne.io/fyne/v2"
-
 	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
@@ -356,13 +354,11 @@ func (w *MainWindow) itemsIn(ed *editor.ScriptEditor, markdown bool) []openItem 
 }
 
 // revEditor is the editor the Revision tab works in, and whether it is
-// the source's: the source in front in the middle, or typed in in the
-// Source pane; else the script's.
+// the source's: the source in front in the middle (the Source pane's
+// Edit is beside the script, whose ribbon a tap takes the focus to);
+// else the script's.
 func (w *MainWindow) revEditor() (*editor.ScriptEditor, bool) {
 	if d := w.midDoc(); d != nil && d.kind == docSource {
-		return d.ed, true
-	}
-	if d := w.srcDoc; d != nil && w.source != nil && w.source.editing && w.fyneWindow != nil && w.fyneWindow.Canvas().Focused() == fyne.Focusable(d.ed) {
 		return d.ed, true
 	}
 	return w.textEditor, false
