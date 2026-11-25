@@ -15,7 +15,7 @@ import (
 // (MORE) left in its text); spConverted the same script after a rough
 // conversion: a cue with (CONT'D), a speech wrapped over lines with a
 // word broken at a line's end, a page number left in, a line cut short,
-// a word garbled, the last scene lost.
+// a word garbled, a speech broken by a blank line, the last scene lost.
 const spOriginal = `Title: The Ferry
 
 INT. FERRY CABIN - NIGHT
@@ -70,7 +70,9 @@ Rain on the rail. Jonas lights a cigarette.
 12.
 
 JONAS
-Tell me the truth about the money.
+Tell me the truth
+
+about the money.
 
 MARTA (CONT'D)
 The truth is that there never was any mo-
@@ -152,7 +154,7 @@ func TestScreenplaySourceLeavesScript(t *testing.T) {
 	if w.textEditor.Text() != spConverted || w.textEditor.Buffer().CanUndo() || w.hasChanges {
 		t.Errorf("the script changed (changes %v)", w.hasChanges)
 	}
-	if got, want := s.count.Text, "1 scene match · 1 differ · 1 missing"; got != want {
+	if got, want := s.count.Text, "1 scene matches · 1 differs · 1 missing"; got != want {
 		t.Errorf("summary %q, want %q", got, want)
 	}
 	spCursorTo(t, w, "INT. FERRY CABIN")
@@ -170,11 +172,15 @@ func TestScreenplaySourceTake(t *testing.T) {
 	spCursorTo(t, w, "EXT. FERRY DECK")
 	sc := s.sp.current()
 	ids, _ := s.sp.inScene(sc, lineWith(t, w, "EXT. FERRY DECK"))
-	if len(ids) != 4 {
+	if len(ids) != 6 {
 		for _, id := range ids {
 			t.Logf("%+v", sc.m.Changes[id])
 		}
-		t.Fatalf("%d differences in the deck scene, want 4 (the cigarette, the page number, the money, the lost scene after it)", len(ids))
+		t.Fatalf("%d differences in the deck scene, want 6 (the cigarette, the page number, the speech in two pieces, the money, the lost scene after it)", len(ids))
+	}
+	hs := sc.hunks(ids)
+	if len(hs) != 5 || len(hs[2]) != 2 {
+		t.Fatalf("hunks %v, want the speech's two pieces as one", hs)
 	}
 	comboShot(t, w, "spsource-differ")
 	s.sp.take(ids[0])
@@ -189,6 +195,12 @@ func TestScreenplaySourceTake(t *testing.T) {
 	if w.textEditor.Text() != spConverted {
 		t.Errorf("undo:\n%s", w.textEditor.Text())
 	}
+	// the speech in two pieces: taken whole, its words once
+	s.sp.take(hs[2]...)
+	if after := w.textEditor.Text(); !strings.Contains(after, "JONAS\nTell me the truth about the money.\n") || strings.Count(after, "about the money") != 1 {
+		t.Errorf("pieces taken as:\n%s", after)
+	}
+	w.textEditor.Undo()
 	// the speech: the source's words, no "mo-ney", no (CONT'D)
 	s.follow()
 	sc = s.sp.current()
@@ -211,7 +223,7 @@ func TestScreenplaySourceTake(t *testing.T) {
 	s.follow()
 	sc = s.sp.current()
 	ids, _ = s.sp.inScene(sc, lineWith(t, w, "EXT. FERRY DECK"))
-	s.sp.keepMine(sc.m.Changes[ids[0]])
+	s.sp.keepMine(sc, ids[:1])
 	if w.textEditor.Text() != spConverted {
 		t.Error("Keep Mine wrote")
 	}

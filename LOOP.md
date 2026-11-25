@@ -2079,7 +2079,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   |---|---|
   | Quick tab, Smart/Fixed | done |
   | Source pane jump, Next/Previous, Adapt… | done |
-  | Page view in a real browser / Android / Fyne mobile | waits (Joop's devices); the rtl/CJK/images PDF parts done since (prosertl, previewcjk, pictures) |
+  | Page view in a real browser / Android / Fyne mobile | waits (Joop's devices); the rtl/CJK/images PDF parts done since (prosertl, previewcjk, pictures); the 380-wide Live Preview widening to ~429 not checked (testable headless) |
   | Preview tab, Refresh, Follow Edits, dirty pages | done |
   | PDF links; page footnotes (jump, renumber, hover) | done |
   | Citations (bibtex-like) | phase 1 + phase 2's style done; numeric style, CSL left — low priority, skipped |
@@ -2090,7 +2090,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | Release v0.7.0 | done (now 0.11.0) |
   | Lexington settings / format TOML editors | done |
   | Shortest unique links, relinking | done |
-  | Table Read / cast | levels 1–2 done; partly: Storyboarder durations, a "beside" frame layout; level 3 (Cast button) waits on Joop's registration |
+  | Table Read / cast | levels 1–2 done (Joop's ask); partly: Storyboarder durations, a "beside" frame layout — the agent's own leftovers, so not taken as "first not done"; level 3 (Cast button) waits on Joop's registration |
   | Link up a free adaptation | done |
   | Adaptation benchmark | done (Gutenberg pairs, invented scenes); partly: merged/reworded synthetic pairs; cross-language stretch not started |
   | SCREENPLAY SOURCES | partly: pattern fixer + Fix-Up tab + garbled-text OCR offer done; NOT built: a screenplay chosen as the source, compared scene to scene with Take the Source's / Keep Mine and a match/differ/missing summary; layout learning per document; per-page "looks right" tick |
@@ -2123,11 +2123,13 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   bundle like any source. Recognised by shape, not extension (screenplayShaped: ≥2 headings, ≥3 cues, headings +
   speech ≥ ¼ of the lines, by the editor's ClassifyIn), wherever the source is kept (beside, bundle, inside); a
   novel's PDF stays passages. Then the Source pane compares instead of adapting: no passages, links, guesses or
-  cut offers; a summary line ("1 scene match · 1 differ · 1 missing · 2 only in yours · 1 difference kept as
+  cut offers; a summary line ("1 scene matches · 1 differs · 1 missing · 2 only in yours · 1 difference kept as
   yours"); the cursor's scene's differences beside the script (the words marked, Merge's diffRow), each Take the
   Source's (one undo step through applyStruct, the extras following; Merge's carry keeps the script's links, notes,
-  locked number) or Keep Mine (hidden for this source while the window is open, nothing written); Take All in This
-  Scene; Next/Previous (Ctrl+Alt+J/K, the pane's buttons) go to the scenes that differ, round at the ends. One
+  locked number) or Keep Mine (hidden for this source while the window is open, nothing written); pieces of one paragraph or speech (the script's split by a blank line where the source has it whole, or the
+  other way round: touching, and the piece's words in the other side's text word for word) shown and taken as one,
+  never half (one piece alone would write its words twice); at most 12 shown a scene ("…and N more"); Take All in
+  This Scene; Next/Previous (Ctrl+Alt+J/K, the pane's buttons) go to the scenes that differ, round at the ends. One
   engine: scriptdiff.NewMerge(script, script, source) — every difference is the source's. The source is read
   without its pages' debris (page numbers, (MORE), CONTINUED, a cue's (CONT'D), words hyphenated over a line); the
   script's own debris is a difference to fix. Key: Merge's, plus wrapped lines as one, forcing marks off, a
@@ -2139,9 +2141,17 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   combo-spsource-{match,differ}-{wide,phone}. Timing: Jane Eyre's play against itself with every 7th line
   touched, 135 differences, ~0.1–0.25 s in the background.
   Local measurement on Joop's Hope Talks (counts only): the 2011 PDF against the earlier conversion — headings pair
-  59 of 62 once numbers and case are out (10 before), but the PDF's reading groups that script's elements otherwise,
-  so nearly every scene differs (≈2 500 differences): the importer's reading of that layout, not the comparison, is
-  the bottleneck there (the layout-learning part). Against the 2026 fix only 3 headings are shared.
+  59 of 62 once numbers and case are out (10 before), but nearly every scene differs (2 510 differences, 2 241 of
+  them "only in yours"). Checked: 2 105 of those 2 241 are in the source word for word, only 343 as a whole element:
+  the PDF's reading has 2 246 elements against the script's 2 797 (several of the script's joined into one, with
+  no blank line between), and they do not sit next to each other in the element diff, so the piece folding
+  catches 51 hunks only. Next for this file: the importer's element breaks on that layout (layout learning), or
+  comparing below the element (lines) when the two sides' element counts differ this much. The 12-row cap keeps
+  the pane usable meanwhile (most in one scene: 178). Against the 2026 fix only 3 headings are shared.
+  screenplayShaped checked against every configured language's starts on comboStory, both bench sources, a short
+  numbered Markdown list and (privately) Kredu's source: no false positive. Its cost is up to ~250 ms on a novel in
+  hi/hi-Deva (the dialect's patterns), so a long source's shape is read in the background with its passages, and at
+  most its first 1 500 lines.
   Left: per-document layout learning ("these are cues"), the per-page "looks right" tick, the PDF page image beside
   the script; Keep Mine is not kept across sessions; wrapping differences inside a speech are not offered; a
   screenplay source in the middle (Source in the Middle) and the source's outline still read it as passages.

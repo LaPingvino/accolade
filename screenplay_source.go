@@ -46,8 +46,8 @@ func screenplayShaped(text string, starts []string) bool {
 		return false
 	}
 	lines := strings.Split(text, "\n")
-	if len(lines) > 4000 { // a long novel: its opening tells
-		lines = lines[:4000]
+	if len(lines) > 1500 { // a long novel: its opening tells
+		lines = lines[:1500]
 	}
 	var headings, cues, speech, other int
 	for i, k := range syntax.ClassifyIn(lines, starts, dialectForStarts(starts)) {
@@ -250,9 +250,15 @@ func (sc *screenplayCompare) summary(kept map[string]bool) string {
 		}
 	}
 	match := max(sc.scenes-len(differ)-extra-moved, 0)
-	parts := []string{plural(match, "scene") + " match"}
+	verb := func(n int, one, many string) string {
+		if n == 1 {
+			return one
+		}
+		return many
+	}
+	parts := []string{plural(match, "scene") + verb(match, " matches", " match")}
 	if len(differ) > 0 {
-		parts = append(parts, fmt.Sprintf("%d differ", len(differ)))
+		parts = append(parts, fmt.Sprintf("%d %s", len(differ), verb(len(differ), "differs", "differ")))
 	}
 	if missing > 0 {
 		parts = append(parts, fmt.Sprintf("%d missing", missing))
@@ -385,30 +391,120 @@ func (v *screenplayView) show() {
 	case len(ids) == 0:
 		s.setInfo(where + ": matches the source. Next goes to the next scene that differs.")
 	default:
-		s.setInfo(where + ": " + plural(len(ids), "difference") + " from the source")
+		s.setInfo(where + ": " + plural(len(sc.hunks(ids)), "difference") + " from the source")
 	}
 	key := fmt.Sprintf("%p %v %d", sc, ids, len(v.kept))
 	if key == v.shown && len(v.rows.Objects) > 0 {
 		return
 	}
 	v.shown = key
+	hs := sc.hunks(ids)
 	var objs []fyne.CanvasObject
-	if len(ids) > 1 {
+	if len(hs) > 1 {
 		all := widget.NewButtonWithIcon("Take All in This Scene", theme.ContentPasteIcon(), func() { v.take(ids...) })
 		all.Importance = widget.LowImportance
 		objs = append(objs, all)
 	}
-	for _, id := range ids {
-		objs = append(objs, v.row(sc.m.Changes[id]), widget.NewSeparator())
+	for i, h := range hs {
+		if i == maxSourceRows {
+			objs = append(objs, muted(fmt.Sprintf("…and %s more here: take or keep these first, or Take All", plural(len(hs)-i, "difference"))))
+			break
+		}
+		objs = append(objs, v.row(sc, h), widget.NewSeparator())
 	}
 	v.rows.Objects = objs
 	v.rows.Refresh()
 }
 
-// row is a difference as shown: what it is, the words, the two choices.
-func (v *screenplayView) row(c scriptdiff.Change) fyne.CanvasObject {
-	var text fyne.CanvasObject
+// maxSourceRows is how many differences a scene shows at once: a badly
+// read source can differ everywhere, and a long list helps nobody.
+const maxSourceRows = 12
+
+// hunks groups ids (in the script's order) into the differences as
+// shown: a paragraph or speech the script has in two pieces where the
+// source has one (or the other way round) is one difference, shown and
+// taken whole, never half (taking one piece alone would write its words
+// twice). Pieces are told by touching (no element between them) and by
+// words: the piece only one side has is in the other side's neighbour,
+// word for word.
+func (sc *screenplayCompare) hunks(ids []int) [][]int {
+	var hs [][]int
+	end := -1 // the line after the last difference's text in the script, and its blank line
+	for _, id := range ids {
+		c := sc.m.Changes[id]
+		at := sc.at[id]
+		if len(hs) > 0 && at <= end && sc.piece(hs[len(hs)-1], c) {
+			hs[len(hs)-1] = append(hs[len(hs)-1], id)
+		} else {
+			hs = append(hs, []int{id})
+		}
+		end = at + linesOf(c.Ours) + 1
+	}
+	return hs
+}
+
+// piece reports whether c, touching the difference h, is a piece of it:
+// c is only on one side (a piece cut off, or one the other side joined)
+// and its words are in h's text on the other side, word for word; or h
+// is such a piece of c.
+func (sc *screenplayCompare) piece(h []int, c scriptdiff.Change) bool {
+	if c.Kind != scriptdiff.ChangeEdit || sc.m.Changes[h[0]].Kind != scriptdiff.ChangeEdit {
+		return false
+	}
+	norm := func(s string) string { return strings.Join(strings.Fields(strings.ToLower(s)), " ") }
+	in := func(piece, whole string) bool {
+		p := norm(piece)
+		return p != "" && strings.Contains(norm(whole), p)
+	}
+	ours, theirs := sc.joined(h)
 	switch {
+	case c.Row == scriptdiff.Removed:
+		return in(c.Ours, theirs) || ours == "" && in(theirs, c.Ours)
+	case c.Row == scriptdiff.Added:
+		return in(c.Theirs, ours) || theirs == "" && in(ours, c.Theirs)
+	}
+	// a changed one after pieces only one side has: theirs held them
+	return theirs == "" && in(ours, c.Theirs) || ours == "" && in(theirs, c.Ours)
+}
+
+// linesOf is how many lines a text holds ("" none).
+func linesOf(s string) int {
+	if s == "" {
+		return 0
+	}
+	return strings.Count(s, "\n") + 1
+}
+
+// joined are a hunk's texts, the script's and the source's, elements
+// with a blank line between.
+func (sc *screenplayCompare) joined(h []int) (ours, theirs string) {
+	var o, t []string
+	for _, id := range h {
+		c := sc.m.Changes[id]
+		if c.Ours != "" {
+			o = append(o, c.Ours)
+		}
+		if c.Theirs != "" {
+			t = append(t, c.Theirs)
+		}
+	}
+	return strings.Join(o, "\n\n"), strings.Join(t, "\n\n")
+}
+
+// row is a difference as shown (a hunk: one or more that touch): what
+// it is, the words, the two choices.
+func (v *screenplayView) row(sc *screenplayCompare, h []int) fyne.CanvasObject {
+	c := sc.m.Changes[h[0]]
+	what := sourceWhat(c)
+	var text fyne.CanvasObject
+	ours, theirs := sc.joined(h)
+	switch {
+	case len(h) > 1:
+		what = "The source reads:"
+		if strings.Count(ours, "\n\n") != strings.Count(theirs, "\n\n") {
+			what = "The source has this in other pieces:"
+		}
+		text = diffRow(scriptdiff.Row{Kind: scriptdiff.Changed, Old: ours, New: theirs, Words: scriptdiff.Words(ours, theirs)}, false)
 	case c.Kind == scriptdiff.SceneMoved:
 	case c.Kind == scriptdiff.SceneCut || c.Row == scriptdiff.Removed:
 		text = diffRow(scriptdiff.Row{Kind: scriptdiff.Removed, Old: c.Ours}, false)
@@ -417,12 +513,12 @@ func (v *screenplayView) row(c scriptdiff.Change) fyne.CanvasObject {
 	default:
 		text = diffRow(scriptdiff.Row{Kind: scriptdiff.Changed, Old: c.Ours, New: c.Theirs, Words: c.Words}, false)
 	}
-	take := widget.NewButtonWithIcon("Take the Source's", theme.ConfirmIcon(), func() { v.take(c.ID) })
+	take := widget.NewButtonWithIcon("Take the Source's", theme.ConfirmIcon(), func() { v.take(h...) })
 	take.Importance = widget.HighImportance
-	fyne.SetAccessibleLabel(take, "Take the source's: "+strings.TrimSuffix(sourceWhat(c), ":"))
-	keep := widget.NewButtonWithIcon("Keep Mine", theme.CancelIcon(), func() { v.keepMine(c) })
+	fyne.SetAccessibleLabel(take, "Take the source's: "+strings.TrimSuffix(what, ":"))
+	keep := widget.NewButtonWithIcon("Keep Mine", theme.CancelIcon(), func() { v.keepMine(sc, h) })
 	keep.Importance = widget.LowImportance
-	box := container.NewVBox(muted(sourceWhat(c)))
+	box := container.NewVBox(muted(what))
 	if text != nil {
 		box.Add(text)
 	}
@@ -463,10 +559,12 @@ func (v *screenplayView) take(ids ...int) {
 	v.follow()
 }
 
-// keepMine leaves a difference as the script has it: not shown again
-// while the window has this source.
-func (v *screenplayView) keepMine(c scriptdiff.Change) {
-	v.kept[changeKey(c)] = true
+// keepMine leaves a difference (its hunk) as the script has it: not
+// shown again while the window has this source.
+func (v *screenplayView) keepMine(sc *screenplayCompare, h []int) {
+	for _, id := range h {
+		v.kept[changeKey(sc.m.Changes[id])] = true
+	}
 	v.s.w.setStatus("Kept yours")
 	v.show()
 }

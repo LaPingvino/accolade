@@ -668,13 +668,13 @@ func (s *sourcePane) loadSource(background bool) {
 		disk = true
 	}
 	r := &sourceRead{ref: ref, modTime: mod, size: size, src: src, err: err, disk: disk}
-	if err == nil && screenplayShaped(src, s.w.sceneStarts()) {
-		s.loading = nil
-		s.useScreenplay(r)
-		return
-	}
+	starts := s.w.sceneStarts()
 	if !background || len(src) < backgroundSource {
 		s.loading = nil
+		if err == nil && screenplayShaped(src, starts) { // compared, not adapted (screenplay_source.go)
+			s.useScreenplay(r)
+			return
+		}
 		s.use(r, passagesOf(src))
 		return
 	}
@@ -682,12 +682,25 @@ func (s *sourcePane) loadSource(background bool) {
 		return // being read
 	}
 	s.loading = r
-	inBackground(func() []passage { return passagesOf(r.src) }, func(ps []passage) {
+	type parted struct {
+		ps         []passage
+		screenplay bool
+	}
+	inBackground(func() parted { // a long source's shape is read here too: a novel takes a while in some languages
+		if err == nil && screenplayShaped(r.src, starts) {
+			return parted{screenplay: true}
+		}
+		return parted{ps: passagesOf(r.src)}
+	}, func(p parted) {
 		if s.loading != r {
 			return // another one since
 		}
 		s.loading = nil
-		s.use(r, ps)
+		if p.screenplay {
+			s.useScreenplay(r)
+		} else {
+			s.use(r, p.ps)
+		}
 		s.follow()
 	})
 }
