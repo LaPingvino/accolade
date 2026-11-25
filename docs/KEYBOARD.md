@@ -236,7 +236,6 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Toolbar | `set.toolbar` |  |  |  |  | :toolbar |
 | Number the Scenes in Exports | `set.sceneNumbers` |  |  |  | P 1 | :number-scenes-in-exports |
 | Compare Drafts Side by Side | `set.draftsSide` |  |  |  | C B | :compare-drafts-side-by-side |
-| Light or Dark | `set.themeVariant` |  |  |  | V K | :light-or-dark |
 | Fit Width | `preview.fit` |  |  |  |  | :fit-width |
 | Actual Size | `preview.actual` |  |  |  |  | :actual-size |
 | Zoom In | `preview.zoomIn` |  |  |  |  | :zoom-in |

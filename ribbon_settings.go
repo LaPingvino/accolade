@@ -120,11 +120,7 @@ func settingCommands() []*command {
 	}
 	lettering := [][2]string{{lex.NumberAfter.String(), sceneLetterings[0]}, {lex.NumberBefore.String(), sceneLetterings[1]}}
 	cs := []*command{
-		choiceSetting("set.theme", "Theme", "theme", themeIcon, themeChoices, func(w *MainWindow, v string) {
-			if w.app != nil {
-				w.app.setColorScheme(v)
-			}
-		}),
+		themeCommand(),
 		textSize("set.textLarger", "Larger Text", 1, textLargerIcon),
 		textSize("set.textSmaller", "Smaller Text", -1, textSmallerIcon),
 		toggleSetting("set.lineNumbers", "Line Numbers", "show-line-numbers", lineNumbersIcon, nil),
@@ -149,12 +145,7 @@ func settingCommands() []*command {
 			w.setStatus("Toolbar hidden: View > Toolbar shows it again")
 		}
 	})
-	variant := choiceSetting("set.themeVariant", "Light or Dark", themeVariantPref, themeIcon, themeVariantChoices, func(w *MainWindow, _ string) {
-		if w.app != nil {
-			w.app.setColorScheme(w.settings.GetString("theme"))
-		}
-	})
-	return append(cs, editorKeysCommand(), fontCommand(), newLanguageCommand(), defaultLanguageCommand(), toolbar, numbers, draftsSideBySideCommand(), variant)
+	return append(cs, editorKeysCommand(), fontCommand(), newLanguageCommand(), defaultLanguageCommand(), toolbar, numbers, draftsSideBySideCommand())
 }
 
 // editorKeysChoices are the editor's keys, as Preferences names them, and
@@ -428,4 +419,32 @@ func (pd *PreferencesDialog) followSetting(key string) {
 	case "toolbar-visible":
 		pd.toolbarVisibleCheck.SetChecked(s.GetBoolean(key))
 	}
+}
+
+// themeCommand chooses the theme, and under them light or dark: one
+// dropdown for both (the View tab has room for one).
+func themeCommand() *command {
+	c := choiceSetting("set.theme", "Theme", "theme", themeIcon, themeChoices, func(w *MainWindow, v string) {
+		if w.app != nil {
+			w.app.setColorScheme(v)
+		}
+	})
+	themes := c.submenu
+	c.submenu = func(w *MainWindow) *fyne.Menu {
+		m := themes(w)
+		m.Items = append(m.Items, fyne.NewMenuItemSeparator())
+		for _, ch := range [][2]string{{"system", "Light or Dark as the System"}, {"light", "Always Light"}, {"dark", "Always Dark"}} {
+			value := ch[0]
+			it := fyne.NewMenuItem(ch[1], func() { // (not "Light": that is a theme)
+				w.changeSetting(themeVariantPref, func(s *Settings) { s.SetString(themeVariantPref, value) })
+				if w.app != nil {
+					w.app.setColorScheme(w.settings.GetString("theme"))
+				}
+			})
+			it.Checked = w.settings != nil && w.settings.GetString(themeVariantPref) == value
+			m.Items = append(m.Items, it)
+		}
+		return m
+	}
+	return c
 }

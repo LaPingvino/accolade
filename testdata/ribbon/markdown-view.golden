@@ -20,7 +20,6 @@ tabs: File Write Edit Adaptation Revision Collaboration [View]
   S Document Type icon=foreground_file.svg name=Document Type
   S Ribbon icon=foreground_ribbon.svg (checked) name=Ribbon
   S Theme icon=foreground_theme.svg name=Theme
-  S Light or Dark icon=foreground_theme.svg name=Light or Dark
   T Smaller Text icon=foreground_text-smaller.svg name=Smaller Text
   T Larger Text icon=foreground_text-larger.svg name=Larger Text
   T Font icon=foreground_font.svg name=Font

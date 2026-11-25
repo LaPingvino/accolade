@@ -306,7 +306,6 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:ribbon** — View > Window > Ribbon
 - **:font** `item` — View > Window > Font
 - **:toolbar** — View > Toolbar
-- **:light-or-dark** `item` — View > Window > Light or Dark
 - **:add-to-top-row** — View > Add to the Top Row
 - **:reset-top-row** — View > Reset the Top Row
 - **:stages** — The script's locked stages: the source, the writer's draft, the issues (View > Stages) (screenplay)
