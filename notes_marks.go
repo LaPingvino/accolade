@@ -136,8 +136,39 @@ func (w *MainWindow) marksShown() map[int]color.Color {
 // the section's line (-1: before the first): the outline's and the
 // cards' to-do marks.
 func sectionBeats(text string, starts []string, items []outlineItem) map[int][]int {
+	return beatsBySection(scriptBeats(text, items))
+}
+
+// scriptBeats are the script's beats no scene grew from (beatsOf).
+func scriptBeats(text string, items []outlineItem) []beatAt {
 	lines := strings.Split(text, "\n")
-	return beatsBySection(beatsOf(lines, items, titlePageEnd(lines), endLine(text, fountainBodyEnd(text))))
+	return beatsOf(lines, items, titlePageEnd(lines), endLine(text, fountainBodyEnd(text)))
+}
+
+// unplacedBeats are the beats before the first heading, as the cards
+// show them (their text without the =).
+func unplacedBeats(lines []string, beats []beatAt) []looseSynopsis {
+	var out []looseSynopsis
+	for _, b := range beats {
+		if b.under != -1 {
+			continue
+		}
+		var parts []string
+		for _, l := range lines[b.from:b.to] {
+			parts = append(parts, strings.TrimSpace(strings.TrimSpace(l)[1:]))
+		}
+		out = append(out, looseSynopsis{Line: b.from, Text: strings.TrimSpace(strings.Join(parts, " "))})
+	}
+	return out
+}
+
+// unplacedLines are the Unplaced beats' first lines.
+func unplacedLines(u []looseSynopsis) []int {
+	out := make([]int, len(u))
+	for i, l := range u {
+		out[i] = l.Line
+	}
+	return out
 }
 
 // beatsMark is a header's mark for n beats ("" none).

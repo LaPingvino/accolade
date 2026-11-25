@@ -195,7 +195,8 @@ func (c *cardsView) update(text string) {
 		c.hint.SetText("Tap a card to open its scene; drag it to move it; write its synopsis on it.")
 	}
 	lines := strings.Split(text, "\n")
-	beats := sectionBeats(text, c.w.sceneStarts(), c.items) // a header's to-do mark (notes_marks.go)
+	all := scriptBeats(text, c.items)
+	beats := beatsByItem(all) // a card's to-do mark: its own beats no scene grew from (notes_marks.go)
 	c.list.RemoveAll()
 	c.targets = nil
 	size := cardSize
@@ -214,7 +215,7 @@ func (c *cardsView) update(text string) {
 		c.list.Add(grid)
 	}
 	addCard := func(i int) {
-		k := newCard(c, i, c.items[i], cardPreview(lines, c.items, i), folded)
+		k := newCard(c, i, c.items[i], cardPreview(lines, c.items, i), folded, beats[c.items[i].Line])
 		grid.Add(k)
 		c.targets = append(c.targets, dropTarget{obj: k, before: i, halves: true, kind: dropCard, item: i})
 		scenes++
@@ -253,6 +254,14 @@ func (c *cardsView) update(text string) {
 		add := newAddCard(c, at)
 		grid.Add(add)
 		c.targets = append(c.targets, dropTarget{obj: add, before: at, kind: dropAdd})
+	}
+	if u := unplacedBeats(lines, all); len(u) > 0 { // the beats before the first heading: at the top, to grow into scenes
+		group(newUnplacedHeader(c.w, unplacedLines(u)))
+		for _, l := range u {
+			grid.Add(newSynopsisCard(c, l))
+		}
+		end(0)
+		grid = nil
 	}
 	for i, it := range c.items {
 		if !it.Scene {
@@ -328,6 +337,25 @@ func (c *cardsView) showDots() {
 			}
 		}
 	}
+}
+
+// beatsLink is a card's mark of its beats without a scene (lines): a
+// tap steps through them, as the outline's does.
+func beatsLink(w *MainWindow, lines []int) *linkLabel {
+	mark := newLinkLabel(func() { w.stepToBeat(lines) })
+	mark.SetText(beatsMark(len(lines)))
+	mark.Importance = widget.WarningImportance
+	mark.Truncation = fyne.TextTruncateEllipsis
+	return mark
+}
+
+// newUnplacedHeader heads the beats before the first heading: Unplaced,
+// with their mark.
+func newUnplacedHeader(w *MainWindow, lines []int) fyne.CanvasObject {
+	title := widget.NewLabel("Unplaced")
+	title.TextStyle = fyne.TextStyle{Bold: true}
+	title.Importance = widget.HighImportance
+	return container.NewVBox(title, beatsLink(w, lines))
 }
 
 // newGroupHeader heads a group of the grouped cards: its name and colour.
@@ -460,7 +488,7 @@ type synopsisEntry struct {
 	i int // the card's item
 }
 
-func newCard(c *cardsView, i int, it outlineItem, preview string, folded bool) *card {
+func newCard(c *cardsView, i int, it outlineItem, preview string, folded bool, beats []int) *card {
 	title := widget.NewLabel(it.Text)
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Truncation = fyne.TextTruncateEllipsis
@@ -490,7 +518,10 @@ func newCard(c *cardsView, i int, it outlineItem, preview string, folded bool) *
 	paper := canvasCard()
 	dots := container.NewCenter(newPeerDots())
 	dots.Hide()
-	head := container.NewBorder(nil, nil, nil, dots, withSwatch(title, it.Color))
+	var head fyne.CanvasObject = container.NewBorder(nil, nil, nil, dots, withSwatch(title, it.Color))
+	if len(beats) > 0 { // its beats no scene grew from yet: a tap steps through them
+		head = container.NewVBox(head, beatsLink(c.w, beats))
+	}
 	var inside fyne.CanvasObject = container.NewBorder(head, bottom, nil, nil, syn)
 	if folded { // its heading and how it starts
 		if bottom == nil {
@@ -611,10 +642,7 @@ func newSectionHeader(c *cardsView, i int, it outlineItem, beats []int) *section
 		rows = append(rows, syn)
 	}
 	if len(beats) > 0 { // the beats no scene grew from yet: a tap steps through them
-		mark := newLinkLabel(func() { c.w.stepToBeat(beats) })
-		mark.SetText(beatsMark(len(beats)))
-		mark.Importance = widget.WarningImportance
-		rows = append(rows, mark)
+		rows = append(rows, beatsLink(c.w, beats))
 	}
 	var indent fyne.CanvasObject // nested sections a little in
 	if it.Level > 1 {

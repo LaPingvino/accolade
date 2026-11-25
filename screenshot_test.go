@@ -4,6 +4,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"fyne.io/fyne/v2"
@@ -273,4 +274,90 @@ func TestSourceScreenshots(t *testing.T) {
 	}
 	defer g.Close()
 	png.Encode(g, w.fyneWindow.Canvas().Capture())
+}
+
+// cardBeatsText has beats before the first heading, a section's own and
+// a scene's at its end: the cards' marks (cards.go, cards_pane.go).
+const cardBeatsText = `= Anna finds the key.
+
+= The key fits no door.
+
+# Act One
+
+= Bram leaves town.
+
+= Anna stays behind.
+
+INT. KITCHEN - DAY
+
+Anna waits.
+
+= She hears a car.
+
+INT. ROAD - DAY
+
+Bram drives.
+`
+
+// The cards mark their beats without a scene, a tap stepping through
+// them, and the beats before the first heading are an Unplaced group.
+func TestCardsBeats(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	keepDockSettings(t, w)
+	w.textEditor.SetText(cardBeatsText)
+	w.showPane("cards", false)
+	p := w.cardsPane()
+	p.update(w.textEditor.Text())
+	if got := p.beats; len(got[-1]) != 2 || len(got[4]) != 1 || len(got[10]) != 1 || len(got[16]) != 0 {
+		t.Fatalf("the pane's beats: %v", got)
+	}
+	if !p.unplaced.Visible() || len(p.unplaced.Objects) != 4 {
+		t.Fatalf("the pane's Unplaced: %d rows", len(p.unplaced.Objects))
+	}
+	if p.rowHeight(1) <= p.rowHeight(2) {
+		t.Error("a card with beats is no taller than one without")
+	}
+	w.textEditor.SetCursorOffset(len([]rune(cardBeatsText)) - 1)
+	p.unplaced.Objects[1].(*linkLabel).Tapped(nil)
+	if line := strings.Count(string([]rune(w.textEditor.Text())[:w.textEditor.CursorOffset()]), "\n"); line != 0 {
+		t.Errorf("the Unplaced mark stepped to line %d", line)
+	}
+	w.toggleCards()
+	var marks []string
+	found := false
+	walk(w.cards.list, func(o fyne.CanvasObject) {
+		if l, ok := o.(*linkLabel); ok {
+			marks = append(marks, l.Text)
+		}
+		if l, ok := o.(*widget.Label); ok && l.Text == "Unplaced" {
+			found = true
+		}
+	})
+	if !found || len(marks) != 3 {
+		t.Errorf("the cards: Unplaced %v, marks %q", found, marks)
+	}
+	w.textEditor.SetText("INT. A - DAY\n\nHi.\n")
+	p.update(w.textEditor.Text())
+	if p.unplaced.Visible() {
+		t.Error("no beats, and still Unplaced")
+	}
+}
+
+// TestCardsBeatsScreenshot renders the Cards pane and the full cards
+// with their beats' marks and the Unplaced group (SHOT_DIR as above).
+func TestCardsBeatsScreenshot(t *testing.T) {
+	if os.Getenv("SHOT_DIR") == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	w, _ := newDialogTestWindow(t)
+	keepDockSettings(t, w)
+	w.textEditor.SetText(cardBeatsText)
+	w.fyneWindow.Resize(fyne.NewSize(1200, 720))
+	w.showPane("cards", false)
+	w.cardsPane().update(w.textEditor.Text())
+	w.fyneWindow.Content().Refresh()
+	capture(t, w.fyneWindow.Canvas(), "cards-beats-pane.png")
+	w.toggleCards()
+	w.fyneWindow.Content().Refresh()
+	capture(t, w.fyneWindow.Canvas(), "cards-beats-full.png")
 }

@@ -21,15 +21,18 @@ import (
 // which View > Cards opens.
 
 type cardsPane struct {
-	w     *MainWindow
-	of    docKey // the script it shows (state.go)
-	items []outlineItem
-	lit   map[int]bool
-	seen  linesSeen
-	list  *widget.List
-	box   fyne.CanvasObject
-	row   float32               // a card's height
-	dots  map[int][]color.Color // who is in which card, by index (collab_cursors.go)
+	w        *MainWindow
+	of       docKey // the script it shows (state.go)
+	items    []outlineItem
+	lit      map[int]bool
+	seen     linesSeen
+	list     *widget.List
+	box      fyne.CanvasObject
+	row      float32               // a card's height
+	rowB     float32               // a card's with its beats' mark
+	beats    map[int][]int         // each card's beats without a scene, by its line (notes_marks.go)
+	unplaced *fyne.Container       // the beats before the first heading, above the cards
+	dots     map[int][]color.Color // who is in which card, by index (collab_cursors.go)
 }
 
 func (w *MainWindow) cardsPane() *cardsPane {
@@ -63,7 +66,11 @@ func newCardsPane(w *MainWindow) *cardsPane {
 			swatch := container.NewCenter(newSwatch())
 			dots := container.NewCenter(newPeerDots()) // the co-writers in it (collab_cursors.go)
 			dots.Hide()
-			body := container.NewBorder(nil, nil, swatch, dots, container.NewVBox(title, syn))
+			beats := newLinkLabel(nil) // its beats without a scene: a tap steps through them
+			beats.Importance = widget.WarningImportance
+			beats.Truncation = fyne.TextTruncateEllipsis
+			beats.Hide()
+			body := container.NewBorder(nil, nil, swatch, dots, container.NewVBox(title, syn, beats))
 			return newDragRow(c, container.NewStack(bg, container.NewPadded(body)))
 		},
 		func(id widget.ListItemID, o fyne.CanvasObject) {
@@ -87,17 +94,19 @@ func newCardsPane(w *MainWindow) *cardsPane {
 	hint.SizeName = theme.SizeNameCaptionText
 	hint.Importance = widget.LowImportance
 	hint.Truncation = fyne.TextTruncateEllipsis
-	c.box = container.NewStack(width, container.NewBorder(container.NewBorder(nil, nil, nil, full, hint), nil, nil, nil, c.list))
+	c.unplaced = container.NewVBox()
+	c.unplaced.Hide()
+	c.box = container.NewStack(width, container.NewBorder(container.NewVBox(container.NewBorder(nil, nil, nil, full, hint), c.unplaced), nil, nil, nil, c.list))
 	return c
 }
 
 // rowParts are a card row's parts.
-func cardRowParts(r *dragRow) (bg *canvas.Rectangle, title *widget.Label, syn *paneSynopsis, swatch *canvas.Rectangle) {
+func cardRowParts(r *dragRow) (bg *canvas.Rectangle, title *widget.Label, syn *paneSynopsis, swatch *canvas.Rectangle, beats *linkLabel) {
 	stack := r.content
 	bg = stack.Objects[0].(*canvas.Rectangle)
 	body := stack.Objects[1].(*fyne.Container).Objects[0].(*fyne.Container)
 	box := body.Objects[0].(*fyne.Container)
-	title, syn = box.Objects[0].(*widget.Label), box.Objects[1].(*paneSynopsis)
+	title, syn, beats = box.Objects[0].(*widget.Label), box.Objects[1].(*paneSynopsis), box.Objects[2].(*linkLabel)
 	swatch = body.Objects[1].(*fyne.Container).Objects[0].(*canvas.Rectangle)
 	return
 }
@@ -106,8 +115,17 @@ func cardRowParts(r *dragRow) (bg *canvas.Rectangle, title *widget.Label, syn *p
 func (c *cardsPane) show(r *dragRow, id int) {
 	it := c.items[id]
 	r.id = id
-	bg, title, syn, swatch := cardRowParts(r)
-	title.SetText(strings.Repeat("  ", max(0, it.Level-1)) + it.Text)
+	bg, title, syn, swatch, beats := cardRowParts(r)
+	indent := strings.Repeat("  ", max(0, it.Level-1))
+	title.SetText(indent + it.Text)
+	if lines := c.beats[it.Line]; len(lines) > 0 {
+		beats.SetText(indent + beatsMark(len(lines)))
+		beats.onTap = func() { c.w.stepToBeat(lines) }
+		beats.Show()
+	} else {
+		beats.Hide()
+	}
+	r.content.Objects[1].(*fyne.Container).Objects[0].(*fyne.Container).Objects[0].(*fyne.Container).Refresh() // laid out again: the mark shown or not
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	if !it.Scene {
 		title.Importance = widget.HighImportance
@@ -135,14 +153,49 @@ func (c *cardsPane) update(text string) {
 	c.of = c.w.scriptKey()
 	c.items = c.w.outlineItems(text)
 	c.dots = c.w.peersInScenes(c.items) // who is in which (collab_cursors.go)
+	all := scriptBeats(text, c.items)
+	c.beats = beatsByItem(all)
+	c.showUnplaced(unplacedBeats(strings.Split(text, "\n"), all))
 	if c.row == 0 {
-		c.row = c.list.CreateItem().MinSize().Height
+		r := c.list.CreateItem().(*dragRow)
+		c.row = r.MinSize().Height
+		_, _, _, _, b := cardRowParts(r)
+		b.SetText(beatsMark(1))
+		b.Show()
+		c.rowB = r.MinSize().Height
 	}
 	for id := range c.items {
-		c.list.SetItemHeight(id, c.row)
+		c.list.SetItemHeight(id, c.rowHeight(id))
 	}
 	c.follow()
 	c.list.Refresh()
+}
+
+// showUnplaced shows the beats before the first heading above the cards:
+// Unplaced, their mark, and each beat, a tap going to it.
+func (c *cardsPane) showUnplaced(u []looseSynopsis) {
+	c.unplaced.Objects = nil
+	if len(u) == 0 {
+		c.unplaced.Hide()
+		return
+	}
+	title := widget.NewLabel("Unplaced")
+	title.TextStyle = fyne.TextStyle{Bold: true}
+	title.Importance = widget.HighImportance
+	c.unplaced.Add(title)
+	c.unplaced.Add(beatsLink(c.w, unplacedLines(u)))
+	for _, l := range u {
+		line := l.Line
+		b := newLinkLabel(func() { c.w.goToScript(line) })
+		b.SizeName = theme.SizeNameText
+		b.TextStyle = fyne.TextStyle{Italic: true}
+		b.Truncation = fyne.TextTruncateEllipsis
+		b.SetText("= " + l.Text)
+		fyne.SetAccessibleLabel(b, "Unplaced beat: "+l.Text)
+		c.unplaced.Add(b)
+	}
+	c.unplaced.Show()
+	c.unplaced.Refresh()
 }
 
 // follow lights the cards that go with the main cursor.
@@ -176,7 +229,12 @@ func (c *cardsPane) setSynopsis(id int, s string) {
 // The pane as a dragList (outline.go).
 func (c *cardsPane) rowItems() []outlineItem { return c.items }
 func (c *cardsPane) colours() bool           { return true }
-func (c *cardsPane) rowHeight(int) float32   { return c.row }
+func (c *cardsPane) rowHeight(id int) float32 {
+	if id < len(c.items) && len(c.beats[c.items[id].Line]) > 0 {
+		return c.rowB
+	}
+	return c.row
+}
 func (c *cardsPane) listWindow() *MainWindow { return c.w }
 func (c *cardsPane) moveRow(from, to int)    { c.w.moveOutlineItem(from, to) }
 func (c *cardsPane) tapRow(id int) {

@@ -282,9 +282,10 @@ func fountainOpenItems(text string, starts []string) []openItem {
 	return items
 }
 
-// beatAt is a beat no scene grew from yet: its lines [from, to), and
-// the line of the section it is under (-1 none).
-type beatAt struct{ from, to, section int }
+// beatAt is a beat no scene grew from yet: its lines [from, to), the
+// line of the section it is under and of the outline item it is loose
+// under (-1 none: before the first heading).
+type beatAt struct{ from, to, section, under int }
 
 // beatsOf are the script's beats no scene grew from: the synopses before
 // the first heading (outside the title page, before tp), a section's
@@ -306,7 +307,7 @@ func beatsOf(lines []string, outline []outlineItem, tp, end int) []beatAt {
 		}
 		if isSynopsisLine(t) {
 			e := synopsisEnd(lines, i)
-			out = append(out, beatAt{i, e, -1})
+			out = append(out, beatAt{i, e, -1, -1})
 			i = e - 1
 		}
 	}
@@ -323,7 +324,7 @@ func beatsOf(lines []string, outline []outlineItem, tp, end int) []beatAt {
 			if l.Line >= end || it.Scene && !onlyPlans(lines[l.Line:next]) {
 				continue
 			}
-			out = append(out, beatAt{l.Line, synopsisEnd(lines, l.Line), section})
+			out = append(out, beatAt{l.Line, synopsisEnd(lines, l.Line), section, it.Line})
 		}
 	}
 	return out
@@ -335,6 +336,17 @@ func beatsBySection(beats []beatAt) map[int][]int {
 	out := map[int][]int{}
 	for _, b := range beats {
 		out[b.section] = append(out[b.section], b.from)
+	}
+	return out
+}
+
+// beatsByItem are the beats' first lines by the item they are loose
+// under (-1: before the first heading): the cards' marks, each card its
+// own.
+func beatsByItem(beats []beatAt) map[int][]int {
+	out := map[int][]int{}
+	for _, b := range beats {
+		out[b.under] = append(out[b.under], b.from)
 	}
 	return out
 }

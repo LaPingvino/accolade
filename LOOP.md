@@ -2113,7 +2113,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | Beats: (B) real-film ranges | not started (templates carry conventional ranges) |
   | Revision tools / Revision tab | done; partly: Markdown's source checks, dismissals not kept |
   | Structure follow-ups (structure2, OPML, treatment) | done; left: the Export dialog shows Page Setup for outline/treatment |
-  | Unhandled beats | done; partly: no beats mark on the one-column Cards pane and the "Unplaced" group |
+  | Unhandled beats | done (the cards: each its own beats' mark, the Unplaced group at the top, pane and middle alike) |
   | What's open / TODO notes / notes pane / boneyard sidebar / unsorted notes / Restore | done |
 
   First not done in queue order, not waiting on Joop: SCREENPLAY SOURCES' screenplay-as-source comparison. Built next
