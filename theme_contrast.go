@@ -19,8 +19,9 @@ import (
 // on the colours being set.
 
 const (
-	contrastText = 4.5 // normal text (WCAG 1.4.3 AA)
-	contrastUI   = 3.0 // large text, and marks, focus and edges (1.4.11)
+	contrastSmall = 7.0 // small or thin text: hints, captions, kind labels, the status bar, line numbers, dimmed script text (1.4.6 AAA)
+	contrastText  = 4.5 // body-sized text (WCAG 1.4.3 AA)
+	contrastUI    = 3.0 // large text, and marks, focus and edges (1.4.11)
 )
 
 // contrastPair is one colour drawn on another.
@@ -90,12 +91,26 @@ func contrastPairs(th fyne.Theme, v fyne.ThemeVariant) []contrastPair {
 	add("search highlight", "text,warning", fg, tinted(theme.ColorNameWarning, 0x48), contrastText)
 	// secondary text: low-importance labels (hints, the notes pane's kinds), placeholders
 	muted := c(theme.ColorNameDisabled)
+	// (one colour, Fyne's disabled one, for hints, captions and kind
+	// labels at caption size: small text, held to 7:1 wherever it is)
 	for _, s := range surfaces {
-		add("secondary text on "+s.name, "muted,"+s.keys, muted, s.c, contrastText)
+		add("secondary text on "+s.name, "muted,"+s.keys, muted, s.c, contrastSmall)
 	}
-	add("a note's kind label (Notes pane)", "muted,background", muted, window, contrastText)
-	add("placeholder in an entry", "muted,surface", c(theme.ColorNamePlaceHolder), on(theme.ColorNameInputBackground), contrastText)
-	add("line numbers", "muted,background", c(theme.ColorNamePlaceHolder), window, contrastText)
+	panel := over(editor.Themed(th, colorNamePanel, v, window), window) // the side panes
+	card := over(editor.Themed(th, colorNameRaised, v, window), panel)  // a Notes item over them
+	add("secondary text on a side pane", "muted,surface", muted, panel, contrastSmall)
+	add("a note's kind label (on its card)", "muted,raised", muted, card, contrastSmall)
+	add("a note's text (on its card)", "text,raised", fg, card, contrastText)
+	add("a Notes heading (on the side pane)", "text,surface", fg, panel, contrastSmall)
+	add("a Notes heading, hovered", "text,surface", fg, over(c(theme.ColorNameHover), panel), contrastSmall)
+	add("a note's kind label, hovered", "muted,raised", muted, over(c(theme.ColorNameHover), card), contrastSmall)
+	add("a ribbon group's caption", "muted,background", muted, window, contrastSmall)
+	add("a ribbon button's shortcut", "muted,background", c(theme.ColorNamePlaceHolder), window, contrastSmall)
+	add("the status bar", "muted,background", muted, window, contrastSmall)
+	add("the status bar's open count", "warning,background", c(theme.ColorNameWarning), window, contrastSmall)
+	add("secondary text at body size (hints)", "muted,background", muted, window, contrastText)
+	add("placeholder in an entry", "muted,surface", c(theme.ColorNamePlaceHolder), on(theme.ColorNameInputBackground), contrastSmall)
+	add("line numbers", "muted,background", c(theme.ColorNamePlaceHolder), window, contrastSmall)
 	// the ribbon and the tabs
 	add("a ribbon key tip", "text,background", window, opaque(fg), contrastText)
 	if a := editor.Themed(th, colorNameActive, v, nil); a != nil {
@@ -115,17 +130,17 @@ func contrastPairs(th fyne.Theme, v fyne.ThemeVariant) []contrastPair {
 	heading, note, dim := editor.ElementColors(th, v) // as the editor draws them
 	add("scene headings", "scene,background", heading, window, contrastText)
 	add("scene headings, selected", "scene,accent", heading, over(c(theme.ColorNameSelection), window), contrastText)
-	add("notes in the script", "note,background", note, window, contrastText)
-	add("dimmed script text (parentheticals, transitions, title page)", "muted,background", dim, window, contrastText)
+	add("notes in the script (italic)", "note,background", note, window, contrastSmall)
+	add("dimmed script text (parentheticals, transitions, title page)", "muted,background", dim, window, contrastSmall)
 	add("dimmed script text, selected", "muted,accent", dim, over(c(theme.ColorNameSelection), window), contrastText)
 	add("text on a disabled button", "muted,surface", muted, on(theme.ColorNameDisabledButton), contrastText)
-	add("a folded block's summary", "muted,background", editor.Themed(th, editor.ColorNameFold, v, c(theme.ColorNamePlaceHolder)), window, contrastText)
+	add("a folded block's summary", "muted,background", editor.Themed(th, editor.ColorNameFold, v, c(theme.ColorNamePlaceHolder)), window, contrastSmall)
 	add("a chip's label", "accent,background", c(theme.ColorNamePrimary), tinted(theme.ColorNamePrimary, 0x28), contrastText)
 	add("a warning chip's label", "warning,background", c(theme.ColorNameWarning), tinted(theme.ColorNameWarning, 0x28), contrastText)
 	add("cut text (drafts, merge)", "error,background", c(theme.ColorNameError), window, contrastText)
 	add("added text (drafts, merge)", "success,background", c(theme.ColorNameSuccess), window, contrastText)
 	add("a citation", "success,text", blend(opaque(c(theme.ColorNameSuccess)), opaque(fg), 0.35), window, contrastText)
-	add("a source warning", "warning,background", c(theme.ColorNameWarning), window, contrastText)
+	add("a source warning (small italic)", "warning,background", c(theme.ColorNameWarning), window, contrastSmall)
 	// marks and edges
 	add("focus ring (accent)", "accent,background", c(theme.ColorNamePrimary), window, contrastUI)
 	add("focus ring in an entry", "accent,surface", c(theme.ColorNamePrimary), on(theme.ColorNameInputBackground), contrastUI)

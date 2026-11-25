@@ -104,15 +104,15 @@ var themeDefs = []*themeDef{
 		// the board game's colours (sidenote-wargame's setup.gml)
 		dark: &themePalette{dark: true,
 			Background: rgb(27, 34, 48), Surface: rgb(37, 46, 64), Raised: rgb(52, 64, 88),
-			Text: rgb(238, 234, 224), Muted: rgb(164, 172, 186), Accent: rgb(184, 150, 228),
+			Text: rgb(238, 234, 224), Muted: hexColor("#d7dae1"), Accent: rgb(184, 150, 228),
 			Active: rgb(238, 234, 224), Link: rgb(150, 200, 255),
 			Success: rgb(92, 190, 132), Warning: rgb(226, 176, 80), Error: rgb(226, 112, 76),
 			Violet: rgb(124, 162, 226), Line: rgb(78, 92, 118)},
 		light: &themePalette{
 			Background: hexColor("#dfe3ea"), Surface: hexColor("#eceff4"), Raised: hexColor("#f8f9fb"),
-			Text: hexColor("#1b2230"), Muted: hexColor("#3f4a5e"), Accent: hexColor("#5f429a"),
-			Active: hexColor("#252e40"), Link: hexColor("#2c5ea8"), Note: hexColor("#525d72"),
-			Success: hexColor("#1f6c44"), Warning: hexColor("#734f00"), Error: hexColor("#a33c20"),
+			Text: hexColor("#1b2230"), Muted: hexColor("#374153"), Accent: hexColor("#5f429a"),
+			Active: hexColor("#252e40"), Link: hexColor("#2c5ea8"), Note: hexColor("#374153"),
+			Success: hexColor("#1f6c44"), Warning: hexColor("#573c00"), Error: hexColor("#a33c20"),
 			Violet: hexColor("#4a6fb0"), Line: hexColor("#b4bccb")},
 	},
 	{id: "contrast", label: "High Contrast", round: -1,
@@ -120,7 +120,7 @@ var themeDefs = []*themeDef{
 			Background: hexColor("#ffffff"), Surface: hexColor("#ffffff"), Raised: hexColor("#f0f0f0"),
 			Text: hexColor("#000000"), Muted: hexColor("#262626"), Accent: hexColor("#0033b3"),
 			Active: hexColor("#000000"), Link: hexColor("#0033b3"),
-			Success: hexColor("#006b2d"), Warning: hexColor("#8a5300"), Error: hexColor("#b00020"),
+			Success: hexColor("#006b2d"), Warning: hexColor("#6a4000"), Error: hexColor("#b00020"),
 			Violet: hexColor("#5b1fa6"), Line: hexColor("#000000")},
 		dark: &themePalette{dark: true,
 			Background: hexColor("#000000"), Surface: hexColor("#000000"), Raised: hexColor("#1c1c1c"),
@@ -132,16 +132,16 @@ var themeDefs = []*themeDef{
 	{id: "pastel", label: "Pastel", round: 10,
 		light: &themePalette{
 			Background: hexColor("#f8f4fc"), Surface: hexColor("#efe8f8"), Raised: hexColor("#ffffff"),
-			Text: hexColor("#3a3350"), Muted: hexColor("#5f5778"), Accent: hexColor("#6c4aab"),
-			Active: hexColor("#cfeadd"), Link: hexColor("#33609e"), Note: hexColor("#6a6380"),
-			Success: hexColor("#2f7a58"), Warning: hexColor("#7d5208"), Error: hexColor("#ae3f57"),
+			Text: hexColor("#2a2440"), Muted: hexColor("#413b52"), Accent: hexColor("#6c4aab"),
+			Active: hexColor("#cfeadd"), Link: hexColor("#33609e"), Note: hexColor("#413b52"),
+			Success: hexColor("#2f7a58"), Warning: hexColor("#553805"), Error: hexColor("#ae3f57"),
 			Violet: hexColor("#8f70d0"), Line: hexColor("#dcd2ea"),
 			Scene: hexColor("#8e3a6c")},
 	},
 	{id: "terminal", label: "Terminal", mono: true, sizes: 0.85, round: -1,
 		dark: &themePalette{dark: true,
 			Background: hexColor("#0b0f0a"), Surface: hexColor("#10160e"), Raised: hexColor("#172015"),
-			Text: hexColor("#b6f2a4"), Muted: hexColor("#6fa663"), Accent: hexColor("#f2c14e"),
+			Text: hexColor("#b6f2a4"), Muted: hexColor("#9dc295"), Accent: hexColor("#f2c14e"),
 			Active: hexColor("#b6f2a4"), Link: hexColor("#7fd3e8"),
 			Success: hexColor("#6ee07a"), Warning: hexColor("#f2c14e"), Error: hexColor("#ff6e5a"),
 			Violet: hexColor("#c792ea"), Line: hexColor("#2c3b28")},
@@ -154,8 +154,8 @@ var themeDefs = []*themeDef{
 func systemLight() *themePalette {
 	return &themePalette{
 		Background: hexColor("#ffffff"), Surface: hexColor("#f5f5f5"), Raised: hexColor("#f5f5f5"),
-		Text: hexColor("#565656"), Muted: hexColor("#5c5c5c"), Accent: hexColor("#1a56c4"),
-		Success: hexColor("#1e7e34"), Warning: hexColor("#8a5900"), Error: hexColor("#c62828"), Line: hexColor("#e3e3e3"),
+		Text: hexColor("#333333"), Muted: hexColor("#444444"), Accent: hexColor("#1a56c4"),
+		Success: hexColor("#1e7e34"), Warning: hexColor("#5f3d00"), Error: hexColor("#c62828"), Line: hexColor("#e3e3e3"),
 		exact: map[fyne.ThemeColorName]color.Color{
 			theme.ColorNameInputBackground:     hexColor("#f3f3f3"),
 			theme.ColorNameOverlayBackground:   hexColor("#ffffff"),
@@ -172,7 +172,7 @@ func systemLight() *themePalette {
 func systemDark() *themePalette {
 	return &themePalette{dark: true,
 		Background: hexColor("#171718"), Surface: hexColor("#28292e"), Raised: hexColor("#28292e"),
-		Text: hexColor("#f3f3f3"), Muted: hexColor("#b2b2b2"), Accent: hexColor("#76a6f8"),
+		Text: hexColor("#f3f3f3"), Muted: hexColor("#d3d3d3"), Accent: hexColor("#76a6f8"),
 		Success: hexColor("#43f436"), Warning: hexColor("#ff9800"), Error: hexColor("#f65a4e"), Line: hexColor("#39393a"),
 		exact: map[fyne.ThemeColorName]color.Color{
 			theme.ColorNameInputBackground:     hexColor("#202023"),
@@ -192,8 +192,8 @@ func systemDark() *themePalette {
 func oldLight() *themePalette {
 	return &themePalette{
 		Background: rgb(255, 255, 255), Surface: rgb(255, 255, 255), Raised: rgb(248, 249, 250),
-		Text: rgb(0, 0, 0), Muted: rgb(90, 90, 90), Accent: rgb(52, 96, 140),
-		Success: rgb(30, 126, 52), Warning: rgb(138, 89, 0), Error: rgb(220, 53, 69), Line: rgb(200, 200, 200),
+		Text: rgb(0, 0, 0), Muted: rgb(64, 64, 64), Accent: rgb(52, 96, 140),
+		Success: rgb(30, 126, 52), Warning: rgb(102, 66, 0), Error: rgb(220, 53, 69), Line: rgb(200, 200, 200),
 		exact: map[fyne.ThemeColorName]color.Color{
 			theme.ColorNameHover:           rgb(240, 240, 240),
 			theme.ColorNamePressed:         rgb(220, 220, 220),
@@ -209,7 +209,7 @@ func oldLight() *themePalette {
 func oldDark() *themePalette {
 	return &themePalette{dark: true,
 		Background: rgb(35, 35, 35), Surface: rgb(40, 40, 40), Raised: rgb(50, 50, 50),
-		Text: rgb(240, 240, 240), Muted: rgb(170, 170, 170), Accent: rgb(140, 176, 214),
+		Text: rgb(240, 240, 240), Muted: rgb(209, 209, 209), Accent: rgb(140, 176, 214),
 		Success: rgb(100, 220, 130), Warning: rgb(255, 220, 100), Error: rgb(255, 100, 120), Line: rgb(80, 80, 80),
 		exact: map[fyne.ThemeColorName]color.Color{
 			theme.ColorNameHover:           rgb(60, 60, 60),
@@ -226,8 +226,8 @@ func oldDark() *themePalette {
 func oldSepia() *themePalette {
 	return &themePalette{
 		Background: rgb(252, 248, 227), Surface: rgb(250, 245, 225), Raised: rgb(248, 242, 220),
-		Text: rgb(92, 80, 65), Muted: rgb(100, 87, 68), Accent: rgb(132, 83, 34),
-		Success: rgb(82, 106, 26), Warning: rgb(122, 86, 0), Violet: rgb(150, 120, 160), Note: rgb(118, 104, 84), Error: rgb(180, 65, 47), Line: rgb(220, 200, 160),
+		Text: rgb(63, 54, 43), Muted: rgb(76, 66, 52), Accent: rgb(132, 83, 34),
+		Success: rgb(82, 106, 26), Warning: rgb(89, 63, 0), Violet: rgb(150, 120, 160), Note: rgb(76, 66, 52), Error: rgb(180, 65, 47), Line: rgb(220, 200, 160),
 		exact: map[fyne.ThemeColorName]color.Color{
 			theme.ColorNameHover:           rgb(245, 240, 215),
 			theme.ColorNamePressed:         rgb(235, 225, 195),
@@ -482,6 +482,9 @@ func (p *themePalette) color(n fyne.ThemeColorName) color.Color {
 		}
 		return alpha(blend(p.Accent, p.Background, 0.3), 0x60)
 	case theme.ColorNameHover:
+		if p.dark { // darker, not lighter: small secondary text on a card keeps its 7:1
+			return color.NRGBA{0, 0, 0, 0x40}
+		}
 		return alpha(ink, 0x18)
 	case theme.ColorNamePressed:
 		return alpha(ink, 0x30)
