@@ -2173,3 +2173,16 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Left: per-document layout learning ("these are cues"), the per-page "looks right" tick, the PDF page image beside
   the script; Keep Mine is not kept across sessions; wrapping differences inside a speech are not offered; a
   screenplay source in the middle (Source in the Middle) and the source's outline still read it as passages.
+- 2026-11-25 (Joop, after the Markdown revision checks merged): REVISION FOLLOW-UPS, next Accolade turn.
+  (1) Where dismissed findings are kept: "support both options and enable keeping it clean". A setting:
+      - "beside the document" (default: a sidecar next to a loose file, or inside the .accolade bundle);
+      - "in the document" (today's line in the notes block).
+      Switching moves the existing dismissals.
+  (2) The "same word twice" check (Joop: "as a dutch speaker with a fair bit of 'je je' in texts, that has kinda annoyed
+      me growing up with Word correction"):
+      - the proximity echo counts content words only, never function words (per-language stopword lists: nl je/die/dat/
+        het/er…, de die/das/sie…, en the/that/had…);
+      - a separate doubled-word typo check knows each language's valid doubles (nl je je, die die, dat dat, er er…;
+        de die die, das das, sie sie; en had had, that that);
+      - a language without a list flags content words only.
+      Tests in nl/de/en.
