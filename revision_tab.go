@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 
+	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/accolade/internal/editor/buffer"
 )
 
@@ -35,26 +36,33 @@ type revEnv struct {
 	keepable, dismissable                  bool
 	doneTodos, sceneCuts                   int
 	any                                    bool // items to step through
+	src                                    bool // in the source (revEditor)
 }
 
 // revisionEnv fills e's Revision part from the script and its cursor.
 func (w *MainWindow) revisionEnv(e *cmdEnv) {
-	if w.textEditor == nil || e.away {
+	ed, src := w.revEditor()
+	if ed == nil || (e.away && !src) {
 		return
 	}
 	items := w.shownOpenItems()
-	r := revEnv{any: len(items) > 0}
-	cur := w.textEditor.CursorOffset()
+	r := revEnv{any: len(items) > 0, src: src}
+	cur := ed.CursorOffset()
 	if i := currentOpen(items, cur); i >= 0 {
 		it := items[i]
 		r.on, r.kind = true, it.Kind
 		r.finding = it.Kind == openCheck
-		r.todo = it.Kind == openTodo
-		r.restorable = it.restorable()
-		r.beat = it.Kind == openBeat && !w.markdown
-		r.notes = !r.finding
-		r.keepable = it.keepable()
-		r.dismissable = r.finding || it.Shape == shapeNote
+		mine := !src // the source's notes are its own text's: written there
+		r.todo = it.Kind == openTodo && mine
+		r.restorable = it.restorable() && mine
+		r.beat = it.Kind == openBeat && !w.markdown && mine
+		r.notes = !r.finding && mine
+		r.keepable = it.keepable() && mine
+		r.dismissable = r.finding || (it.Shape == shapeNote && mine)
+	}
+	if src {
+		e.rev = r
+		return
 	}
 	all := w.openItems()
 	cuts := false
@@ -73,7 +81,7 @@ func (w *MainWindow) revisionEnv(e *cmdEnv) {
 // shownOpenItems are the open items of the kinds shown.
 func (w *MainWindow) shownOpenItems() []openItem {
 	var out []openItem
-	for _, it := range w.openItems() {
+	for _, it := range w.revItems() {
 		if !w.openHide[it.Kind] {
 			out = append(out, it)
 		}
@@ -96,7 +104,8 @@ func currentOpen(items []openItem, cur int) int {
 // stepOpen goes to the next (dir 1) or previous (-1) item shown from the
 // cursor's, round at the ends, and says what it is.
 func (w *MainWindow) stepOpen(dir int) {
-	if w.textEditor == nil || w.scriptAway("Next Open Item") {
+	ed, src := w.revAway("Next Open Item")
+	if ed == nil {
 		return
 	}
 	items := w.shownOpenItems()
@@ -104,7 +113,7 @@ func (w *MainWindow) stepOpen(dir int) {
 		w.setStatus("Nothing open of the kinds shown: no to-dos, cuts, notes, beats without a scene, revision notes or findings")
 		return
 	}
-	cur := w.textEditor.CursorOffset()
+	cur := ed.CursorOffset()
 	from := cur
 	k, round := -1, false
 	if i := currentOpen(items, cur); i >= 0 { // from it by its place in the list: one at the same place is not skipped
@@ -133,8 +142,13 @@ func (w *MainWindow) stepOpen(dir int) {
 		}
 	}
 	it := items[k]
-	w.goToOffset(it.Start)
-	if w.notes != nil && w.paneOn("notes") { // the pane shows it too: one list, two places
+	if src {
+		ed.Navigate(func(b *buffer.Buffer) { b.SetCursor(max(0, min(it.Start, b.Len())), false) })
+		w.fyneWindow.Canvas().Focus(ed)
+	} else {
+		w.goToOffset(it.Start)
+	}
+	if w.notes != nil && w.paneOn("notes") && !src { // the pane shows it too: one list, two places
 		p := w.notes
 		p.read()
 		for i, a := range p.all {
@@ -176,16 +190,38 @@ func firstLine(s string) string {
 // currentItem is the item at the cursor, of the kinds shown; false (said
 // in the status bar) if there is none.
 func (w *MainWindow) currentItem(what string) (openItem, bool) {
-	if w.textEditor == nil || w.scriptAway(what) {
+	ed, _ := w.revAway(what)
+	if ed == nil {
 		return openItem{}, false
 	}
 	items := w.shownOpenItems()
-	i := currentOpen(items, w.textEditor.CursorOffset())
+	i := currentOpen(items, ed.CursorOffset())
 	if i < 0 {
 		w.setStatus(what + ": the cursor is on no open item (Next Open Item, F8, goes to one)")
 		return openItem{}, false
 	}
 	return items[i], true
+}
+
+// revAway is the editor the Revision tab works in (revEditor), and
+// whether it is the source's; nil (said in the status bar) when neither
+// the script nor the source is in front.
+func (w *MainWindow) revAway(what string) (*editor.ScriptEditor, bool) {
+	ed, src := w.revEditor()
+	if ed == nil || (!src && w.scriptAway(what)) {
+		return nil, false
+	}
+	return ed, src
+}
+
+// inSource tells (in the status bar) that what works on the script's
+// own notes, not the source's: true when the Revision tab is in the source.
+func (w *MainWindow) inSource(what string) bool {
+	if _, src := w.revEditor(); src {
+		w.setStatus(what + " works on the script's notes: in the source, Next steps through its findings and Dismiss puts one away")
+		return true
+	}
+	return false
 }
 
 // openChanged reads the items again where they show: the pane, the
@@ -209,6 +245,9 @@ func (w *MainWindow) keepFinding(it openItem) {
 		w.setStatus("This one is fixed in the text, not kept: a note on its line would change it")
 		return
 	}
+	if w.inSource("Keep") { // a note in the source would be read as its passages' text
+		return
+	}
 	text := w.textEditor.Text()
 	if !it.still(text) {
 		w.setStatus("That line has changed since: nothing written")
@@ -221,21 +260,60 @@ func (w *MainWindow) keepFinding(it openItem) {
 	w.openChanged()
 }
 
-// dismissFinding puts a finding out of sight until the window closes:
-// nothing is written.
+// dismissFinding puts a finding out of sight: a line in the notes block
+// of the window's document (the script's for its source's findings too),
+// so it stays dismissed when the file is opened again; one undo step
+// (Undo brings it back). The dismissed lines no finding says any more
+// are let go then.
 func (w *MainWindow) dismissFinding(it openItem) {
-	if it.Kind != openCheck {
+	if it.Kind != openCheck || w.textEditor == nil {
 		return
 	}
-	if w.dismissed == nil {
-		w.dismissed = map[string]bool{}
+	m := w.notesMarks()
+	text := w.textEditor.Text()
+	gone, rest := dismissedIn(strings.ReplaceAll(m.of(text), m.escaped, m.close))
+	now := map[string]bool{it.dismissKey(): true}
+	for _, ed := range []*editor.ScriptEditor{w.textEditor, w.srcEditor()} {
+		if ed == nil {
+			continue
+		}
+		md := w.markdown || ed != w.textEditor
+		all := proseItemsOf
+		if !md {
+			all = func(t string) []openItem { return checkItemsOf(t, w.sceneStarts()) }
+		}
+		for _, f := range all(ed.Text()) {
+			if k := f.dismissKey(); gone[k] {
+				now[k] = true
+			}
+		}
 	}
-	w.dismissed[it.dismissKey()] = true
-	w.setStatus("Dismissed until the window closes: " + firstLine(it.Text))
+	keys := make([]string, 0, len(now))
+	for k := range now {
+		keys = append(keys, k)
+	}
+	from, block := m.edit(text, withDismissed(rest, keys))
+	w.textEditor.Edit(func(b *buffer.Buffer) {
+		cursor := b.Cursor()
+		b.Group(func() {
+			replaceLeast(b, from, b.Len(), block)
+			b.SetCursor(min(cursor, from), false)
+		})
+	})
+	w.setStatus("Dismissed (kept in the notes at the end, where deleting its line brings it back): " + firstLine(it.Text))
 	if w.notes != nil {
 		w.notes.close()
 	}
 	w.openChanged()
+}
+
+// srcEditor is the source's editor, when the source is open as a
+// document (nil: it is not).
+func (w *MainWindow) srcEditor() *editor.ScriptEditor {
+	if w.srcDoc != nil {
+		return w.srcDoc.ed
+	}
+	return nil
 }
 
 // dismissCurrent dismisses the item at the cursor: a finding out of sight
@@ -248,6 +326,9 @@ func (w *MainWindow) dismissCurrent() {
 	}
 	if it.Kind == openCheck {
 		w.dismissFinding(it)
+		return
+	}
+	if w.inSource("Dismiss of a note") {
 		return
 	}
 	if it.Shape != shapeNote { // a cut has Restore, a beat New Scene: the Notes pane's bin takes them out
@@ -277,6 +358,9 @@ func (it openItem) doneEdit(markdown bool) textEdit {
 
 // markDone marks the to-do at the cursor done, or a done one to do again.
 func (w *MainWindow) markDone() {
+	if w.inSource("Done") {
+		return
+	}
 	it, ok := w.currentItem("Done")
 	if !ok {
 		return
@@ -297,6 +381,9 @@ func (w *MainWindow) markDone() {
 
 // restoreCurrent restores the cut (any boneyard) at the cursor.
 func (w *MainWindow) restoreCurrent() {
+	if w.inSource("Restore") {
+		return
+	}
 	it, ok := w.currentItem("Restore")
 	if !ok {
 		return
@@ -317,6 +404,9 @@ func (w *MainWindow) restoreCurrent() {
 
 // sceneOfBeat grows the beat at the cursor into a scene: New Scene there.
 func (w *MainWindow) sceneOfBeat() {
+	if w.inSource("New Scene") {
+		return
+	}
 	it, ok := w.currentItem("New Scene")
 	if !ok {
 		return
@@ -332,6 +422,9 @@ func (w *MainWindow) sceneOfBeat() {
 // editCurrent opens the item at the cursor in the Notes pane, its text
 // to type in.
 func (w *MainWindow) editCurrent() {
+	if w.inSource("Edit") {
+		return
+	}
 	it, ok := w.currentItem("Edit")
 	if !ok {
 		return
@@ -477,14 +570,15 @@ func (w *MainWindow) restoreSceneCuts() {
 // revisionReadout is the Step group's readout: where the cursor is among
 // the items shown ("Check 3 of 12"), else how many there are.
 func (w *MainWindow) revisionReadout() string {
-	if w.textEditor == nil {
+	ed, _ := w.revEditor()
+	if ed == nil {
 		return "Open Items"
 	}
 	items := w.shownOpenItems()
 	if len(items) == 0 {
 		return "None Open"
 	}
-	if i := currentOpen(items, w.textEditor.CursorOffset()); i >= 0 {
+	if i := currentOpen(items, ed.CursorOffset()); i >= 0 {
 		return fmt.Sprintf("%s %d of %d", items[i].Kind, i+1, len(items))
 	}
 	return plural(len(items), "Item")
@@ -492,11 +586,12 @@ func (w *MainWindow) revisionReadout() string {
 
 // revisionNamed is the readout's tooltip: what the item at the cursor says.
 func (w *MainWindow) revisionNamed() string {
-	if w.textEditor == nil {
+	ed, _ := w.revEditor()
+	if ed == nil {
 		return "Open items"
 	}
 	items := w.shownOpenItems()
-	if i := currentOpen(items, w.textEditor.CursorOffset()); i >= 0 {
+	if i := currentOpen(items, ed.CursorOffset()); i >= 0 {
 		return "Open Items: " + items[i].Kind.String() + ", " + firstLine(itemWords(items[i])) + " (the Notes pane lists them all)"
 	}
 	return "Open Items: " + plural(len(items), "item") + " of the kinds shown (the Notes pane lists them)"
@@ -504,7 +599,7 @@ func (w *MainWindow) revisionNamed() string {
 
 // revisionCommands are the Revision tab's.
 func revisionCommands() []*command {
-	script := func(e cmdEnv) bool { return !e.away }
+	script := func(e cmdEnv) bool { return !e.away || e.rev.src }
 	cmds := []*command{
 		{id: "revision.next", label: "Next Open Item", ribbonLabel: "Next", ex: "next-item", icon: theme.NavigateNextIcon,
 			tip:  "The next to-do, cut, note, beat, revision note or finding of the kinds shown, from the cursor (round at the end)",
@@ -516,7 +611,7 @@ func revisionCommands() []*command {
 			tip: "Where the cursor is among the open items: the Notes pane lists them", ribbonLabelFor: (*MainWindow).revisionReadout,
 			nameFor: (*MainWindow).revisionNamed, run: (*MainWindow).showNotes},
 		{id: "revision.keep", label: "Keep as Revision Note", ribbonLabel: "Keep", ex: "keep-finding", icon: theme.DocumentSaveIcon,
-			tip:  "The finding at the cursor written into the script as [[revision: …]] at its line's end: saved with it, picked up later",
+			tip:  "The finding at the cursor written into the text as a revision note ([[revision: …]] at its line's end; in Markdown <!-- revision: … --> under its paragraph): saved with it, picked up later",
 			when: script, enabled: func(e cmdEnv) bool { return e.rev.keepable },
 			run: func(w *MainWindow) {
 				if it, ok := w.currentItem("Keep"); ok {
@@ -524,7 +619,7 @@ func revisionCommands() []*command {
 				}
 			}},
 		{id: "revision.dismiss", label: "Dismiss Item", ribbonLabel: "Dismiss", ex: "dismiss-item", icon: theme.VisibilityOffIcon,
-			tip:  "A finding out of sight until the window closes (nothing written); a note, to-do or revision note taken out of the script (Undo brings it back)",
+			tip:  "A finding out of sight, a line in the notes at the end (opening the file again keeps it so; Undo or deleting the line brings it back); a note, to-do or revision note taken out of the script (Undo brings it back)",
 			when: script, enabled: func(e cmdEnv) bool { return e.rev.dismissable }, run: (*MainWindow).dismissCurrent},
 		{id: "revision.done", label: "Mark To-do Done", ribbonLabel: "Done", ex: "todo-done", icon: theme.ConfirmIcon,
 			tip:  "The to-do at the cursor written as done, [[done: …]] (again: to do again)",

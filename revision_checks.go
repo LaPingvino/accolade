@@ -5,6 +5,9 @@ import (
 	"strings"
 	"sync"
 
+	"fyne.io/fyne/v2"
+
+	"github.com/LaPingvino/accolade/internal/editor"
 	"github.com/LaPingvino/lexington/fountain"
 	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/linter"
@@ -22,8 +25,9 @@ import (
 // a finding is gone when the text no longer gives it. Keep writes one
 // into the text as a revision note, [[revision: …]] at the end of its
 // line, which is then listed (and the finding it was, which the note now
-// stands for, is not); Dismiss puts one out of sight until the window
-// closes, writing nothing.
+// stands for, is not); Dismiss puts one out of sight, a line in the
+// document's notes block (dismissedIn), so it stays dismissed when the
+// script is opened again.
 
 // checkLint is a finding of Lexington's linter.
 const checkLint = "lint"
@@ -221,8 +225,13 @@ func (it openItem) keepable() bool {
 }
 
 // keepEdit is the edit that keeps a finding as a revision note: at the
-// end of its line, [[revision: …]].
+// end of its line, [[revision: …]]; a prose finding's on a line of its
+// own under its paragraph, <!-- revision: … --> (in the paragraph it
+// would split it in two).
 func (it openItem) keepEdit() textEdit {
+	if it.KeepAt > 0 {
+		return textEdit{it.KeepAt, it.KeepAt, "\n<!-- revision: " + strings.ReplaceAll(it.Text, "-->", "-- >") + " -->"}
+	}
 	note := " [[revision: " + strings.ReplaceAll(it.Text, "]]", "] ]") + "]]"
 	if strings.TrimSpace(it.Raw) == "" {
 		note = note[1:]
@@ -231,32 +240,132 @@ func (it openItem) keepEdit() textEdit {
 	return textEdit{end, it.End, note}
 }
 
-// dismissKey is what a dismissed finding is known by while the window
-// is open: its check, what it says and its line's text (not its place,
-// which moves with every edit before it).
+// dismissKey is what a dismissed finding is known by, as its line in the
+// notes block says it: what it says and the start of what it is about
+// (its line, or a prose finding's words), not its place, which moves
+// with every edit before it.
 func (it openItem) dismissKey() string {
-	return it.Check + "\x00" + it.Text + "\x00" + strings.TrimSpace(it.Raw)
+	about := strings.Join(strings.Fields(it.Raw), " ")
+	if r := []rune(about); len(r) > 60 {
+		about = string(r[:60]) + "…"
+	}
+	return it.Text + " · " + about
+}
+
+// dismissedHead starts the notes block's paragraph of dismissed
+// findings (the document's own notes keep them: notes.go): one line each.
+const dismissedHead = "Dismissed findings (the Revision tab leaves these out; delete a line to see it again):"
+
+// dismissedIn are the dismissed findings the notes inside a notes block
+// keep (as dismissKey says them), and the notes without that paragraph.
+func dismissedIn(notes string) (map[string]bool, string) {
+	i := strings.Index(notes, dismissedHead)
+	if i < 0 || (i > 0 && notes[i-1] != '\n') {
+		return nil, notes
+	}
+	e := strings.Index(notes[i:], "\n\n")
+	if e < 0 {
+		e = len(notes)
+	} else {
+		e += i
+	}
+	out := map[string]bool{}
+	for _, l := range strings.Split(notes[i+len(dismissedHead):e], "\n") {
+		if k, ok := strings.CutPrefix(strings.TrimSpace(l), "- "); ok {
+			out[k] = true
+		}
+	}
+	rest := strings.TrimRight(notes[:i], "\n")
+	if tail := strings.TrimLeft(notes[e:], "\n"); tail != "" {
+		if rest != "" {
+			rest += "\n\n"
+		}
+		rest += tail
+	}
+	return out, rest
+}
+
+// withDismissed are notes with the dismissed findings' paragraph (keys,
+// sorted) at their end; none: without it.
+func withDismissed(rest string, keys []string) string {
+	if len(keys) == 0 {
+		return rest
+	}
+	slices.Sort(keys)
+	p := dismissedHead + "\n- " + strings.Join(keys, "\n- ")
+	if strings.TrimSpace(rest) == "" {
+		return p
+	}
+	return strings.TrimRight(rest, "\n") + "\n\n" + p
+}
+
+// dismissedOf are the findings the window's document keeps dismissed in
+// its notes block (the script's for its source's findings too).
+func (w *MainWindow) dismissedOf() map[string]bool {
+	if w.textEditor == nil {
+		return nil
+	}
+	m := w.notesMarks()
+	notes := m.of(w.textEditor.Text())
+	if !strings.Contains(notes, dismissedHead) {
+		return nil
+	}
+	d, _ := dismissedIn(strings.ReplaceAll(notes, m.escaped, m.close))
+	return d
 }
 
 // openItems are the script's open items with its checks' findings among
 // them (in their places, the unsorted notes still last), the findings
-// dismissed in this window left out.
+// dismissed left out: the Notes pane's and the margin's.
 func (w *MainWindow) openItems() []openItem {
-	if w.textEditor == nil {
+	return w.itemsIn(w.textEditor, w.markdown)
+}
+
+// revItems are the open items of the document the Revision tab works in
+// (revEditor): the script's, or the source's.
+func (w *MainWindow) revItems() []openItem {
+	ed, src := w.revEditor()
+	return w.itemsIn(ed, w.markdown || src)
+}
+
+// itemsIn are an editor's open items and findings: a screenplay's
+// checks, or prose's (prose_checks.go).
+func (w *MainWindow) itemsIn(ed *editor.ScriptEditor, markdown bool) []openItem {
+	if ed == nil {
 		return nil
 	}
-	text := w.textEditor.Text()
-	items := openItemsOf(text, w.sceneStarts(), w.markdown)
-	if w.markdown {
+	text := ed.Text()
+	starts := w.sceneStarts()
+	items := openItemsOf(text, starts, markdown)
+	found := proseItemsOf
+	if !markdown {
+		found = func(text string) []openItem { return checkItemsOf(text, starts) }
+	}
+	all := found(text)
+	if len(all) == 0 {
 		return items
 	}
-	var found []openItem
-	for _, f := range checkItemsOf(text, w.sceneStarts()) {
-		if !w.dismissed[f.dismissKey()] {
-			found = append(found, f)
+	gone := w.dismissedOf()
+	var kept []openItem
+	for _, f := range all {
+		if !gone[f.dismissKey()] {
+			kept = append(kept, f)
 		}
 	}
-	return mergeFindings(items, found)
+	return mergeFindings(items, kept)
+}
+
+// revEditor is the editor the Revision tab works in, and whether it is
+// the source's: the source in front in the middle, or typed in in the
+// Source pane; else the script's.
+func (w *MainWindow) revEditor() (*editor.ScriptEditor, bool) {
+	if d := w.midDoc(); d != nil && d.kind == docSource {
+		return d.ed, true
+	}
+	if d := w.srcDoc; d != nil && w.source != nil && w.source.editing && w.fyneWindow != nil && w.fyneWindow.Canvas().Focused() == fyne.Focusable(d.ed) {
+		return d.ed, true
+	}
+	return w.textEditor, false
 }
 
 // mergeFindings puts findings among items by their place (a note on a

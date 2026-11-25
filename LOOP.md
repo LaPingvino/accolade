@@ -2073,6 +2073,19 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   placeholder heading would write a guess into the script); placement in the cards/timeline/outline (only the ribbon);
   Markdown's source checks (the Check kind is a screenplay's); dismissals are per window, not kept; the ribbon's Notes
   Pane button left out for width (the readout opens the pane).
+- 2026-11-25: REVISION TAB for prose, and dismissals kept (branch mdrev, not merged). prose_checks.go: a Markdown
+  document's and the source's findings as the Check kind, the same ribbon, stepping, pane and margin: a word twice
+  within 6 words in one sentence (4+ letters, English function words not), the longest sentence of a paragraph over
+  45 words, and in English text only (15% of its words the commonest English ones) 3+ filter words or 3+ passives in
+  a paragraph; at most one of each per paragraph, each on its span with what to try ("“road” twice in 4 words: another
+  word, or one less?"). Chekhov's A Chameleon (1400 words) gets 2. Keep in Markdown writes <!-- revision: … --> on its
+  own line under the paragraph (markdownOpenItems lists it as a Revision; the note stands for the finding). Dismiss
+  writes a line into the document's notes block ("Dismissed findings …: - <what it says> · <its first 60 chars>"), the
+  set read from the text (w.dismissed gone): kept on reload, one undo step, lines no finding says pruned at the next
+  Dismiss; it shows as an Unsorted note (not hidden). The source: in front in the middle, or typed in in the Source
+  pane (its editor focused), the tab steps through its findings and Dismiss keeps them in the script's notes; Keep
+  and the note actions say they are the script's (a comment in the source would be read as passage text). Shot:
+  TestMarkdownRevisionScreenshot (revision-markdown.png). Not done: a window test of the source in the middle.
 - 2026-11-25: STATUS of the 2026-11-22 … 11-24 queue entries, read against main (f81609b) and its log. Done = built and
   merged; partly = what is still missing; waits = needs Joop's file, device or decision.
 
@@ -2111,7 +2124,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | COLLAB step 8 | done (two-device run waits on Joop) |
   | Beats: (A) where they land | done (branch beatsland, not merged): Revision ribbon; Cards section headers (✓ p. N / ⚑ Late · p. N · usually a–b%, a tap there with the advice), timeline bands, outline rows (⚑ only), the strip's act ticks in the warning colour; the outline and strip read the last layout, the Cards and timeline ask for one |
   | Beats: (B) real-film ranges | not started (templates carry conventional ranges) |
-  | Revision tools / Revision tab | done; partly: Markdown's source checks, dismissals not kept |
+  | Revision tools / Revision tab | done (prose checks and kept dismissals: branch mdrev) |
   | Structure follow-ups (structure2, OPML, treatment) | done; left: the Export dialog shows Page Setup for outline/treatment |
   | Unhandled beats | done (the cards: each its own beats' mark, the Unplaced group at the top, pane and middle alike) |
   | What's open / TODO notes / notes pane / boneyard sidebar / unsorted notes / Restore | done |

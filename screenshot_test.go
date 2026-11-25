@@ -447,3 +447,51 @@ func TestBeatsLandScreenshot(t *testing.T) {
 	w.fyneWindow.Content().Refresh()
 	capture(t, w.fyneWindow.Canvas(), "beats-land-timeline.png")
 }
+
+// TestMarkdownRevisionScreenshot renders the Revision tab on a Markdown
+// document's prose finding, the Notes pane beside (SHOT_DIR as above);
+// it checks too that Dismiss writes the finding into the notes block,
+// which alone keeps it out when the file is opened again.
+func TestMarkdownRevisionScreenshot(t *testing.T) {
+	w := newTestWindow(t, "")
+	keepDockSettings(t, w)
+	r := ribbonOnFor(t, w)
+	md := filepath.Join(t.TempDir(), "story.md")
+	text := "# The Letter\n\nAnna stands at the window and watches the road, the empty road. The postman is late again.\n\n" +
+		"She felt the cold through the glass. She saw the gate move. She noticed the dog had gone quiet, and she wondered why.\n\n" +
+		"Bram comes up the hill at last.\n"
+	if err := os.WriteFile(md, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.LoadFile(md); err != nil {
+		t.Fatal(err)
+	}
+	w.fyneWindow.Resize(fyne.NewSize(1200, 720))
+	r.selectTab("Revision")
+	w.togglePane("notes")
+	w.textEditor.SetCursorOffset(0)
+	w.stepOpen(1)
+	it, ok := w.currentItem("test")
+	if !ok || it.Check != checkRepeat {
+		t.Fatalf("not on the repeat: %+v", it)
+	}
+	w.ribbonRefresh()
+	w.fyneWindow.Content().Refresh()
+	capture(t, w.fyneWindow.Canvas(), "revision-markdown.png")
+	w.dismissFinding(it)
+	if !strings.Contains(w.textEditor.Text(), "- "+it.dismissKey()) {
+		t.Fatalf("not in the notes:\n%s", w.textEditor.Text())
+	}
+	again := newTestWindow(t, "")
+	again.markdown = true
+	again.textEditor.SetText(w.textEditor.Text())
+	for _, f := range again.revItems() {
+		if f.Check == checkRepeat {
+			t.Errorf("dismissed, back after a reload: %+v", f)
+		}
+	}
+	w.textEditor.Undo()
+	if _, ok := w.dismissedOf()[it.dismissKey()]; ok {
+		t.Error("Undo did not bring it back")
+	}
+}

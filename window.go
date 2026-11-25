@@ -338,11 +338,10 @@ type MainWindow struct {
 	openTimer *uiTimer
 	noteMarks map[int]color.Color
 	// openHide are the kinds of open item the Notes pane and the Revision
-	// tab leave out (their filters, one for both); dismissed the checks'
-	// findings put out of sight until the window closes (revision_checks.go)
-	openHide  [openKinds]bool
-	dismissed map[string]bool
-	beats     beatLayout // where the beats land, as last laid out (beat_place.go)
+	// tab leave out (their filters, one for both); the findings dismissed
+	// are in the notes block (revision_checks.go)
+	openHide [openKinds]bool
+	beats    beatLayout // where the beats land, as last laid out (beat_place.go)
 
 	// Lexington integration
 	lexParser *LexingtonParser

@@ -146,16 +146,20 @@ func TestRevisionStepping(t *testing.T) {
 	if w.textEditor.Text() != text {
 		t.Fatalf("Keep not one undo step: %q", w.textEditor.Text())
 	}
-	// Dismiss it: nothing written, out of sight
+	// Dismiss it: a line in the notes block, out of sight; one undo step
 	w.textEditor.SetCursorOffset(strings.Index(text, "INT. B"))
 	w.dismissCurrent()
-	if w.textEditor.Text() != text {
-		t.Error("Dismiss wrote")
+	if got := w.textEditor.Text(); !strings.HasPrefix(got, text) || !strings.Contains(got, "/* Notes\n"+dismissedHead+"\n- No time of day") {
+		t.Errorf("Dismiss wrote: %q", got)
 	}
 	for _, it := range w.openItems() {
 		if it.Kind == openCheck {
 			t.Error("a dismissed finding still listed")
 		}
+	}
+	w.undo()
+	if w.textEditor.Text() != text {
+		t.Fatalf("Dismiss not one undo step: %q", w.textEditor.Text())
 	}
 	// Remove Done To-dos, one undo step
 	if e := w.cmdEnv(); e.rev.doneTodos != 2 {

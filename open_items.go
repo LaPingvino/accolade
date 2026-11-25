@@ -100,8 +100,11 @@ type openItem struct {
 	// Done: a to-do written as done ([[done: …]], [[todo: [x] …]])
 	Done bool
 	// Check is a finding's check (checkPlace …, checkLint); its Start and
-	// End are its line's, Raw the line as it was read
-	Check string
+	// End are its line's, Raw the line as it was read (a prose check's:
+	// what it is about); KeepAt where Keep writes it (runes; 0: at its
+	// line's end), a prose finding's paragraph's end
+	Check  string
+	KeepAt int
 }
 
 // openMemo is the last text's items (the pane, the status bar, the
@@ -696,6 +699,8 @@ func markdownOpenItems(text string) []openItem {
 			Text: strings.ReplaceAll(strings.TrimSpace(inner), "-- >", "-->")}
 		if p, rest, done, ok := todoNote(inner); ok {
 			it.Kind, it.Prefix, it.Text, it.Done = openTodo, strings.TrimLeft(p, " \t\n"), rest, done
+		} else if p, rest, ok := revisionNote(inner); ok { // a finding kept (prose_checks.go)
+			it.Kind, it.Prefix, it.Text = openRevision, strings.TrimLeft(p, " \t\n"), strings.ReplaceAll(rest, "-- >", "-->")
 		}
 		items = append(items, it)
 		for at < e && i+1 < len(lines) { // past its lines
