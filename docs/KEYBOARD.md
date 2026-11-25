@@ -313,6 +313,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Edit Item | `revision.edit` |  |  |  |  | :edit-item |
 | Remove Done To-dos… | `revision.removeDone` |  |  |  |  | :remove-done |
 | Restore Cuts in This Scene… | `revision.restoreScene` |  |  |  |  | :restore-scene-cuts |
+| Keep Dismissed Findings in the Document | `revision.dismissInDoc` |  |  |  | R D | :dismissed-in-document |
 | Show To-dos | `revision.show.todo` |  |  |  | R T | :show-to-dos |
 | Show Cuts | `revision.show.cut` |  |  |  | R C | :show-cuts |
 | Show Notes | `revision.show.note` |  |  |  | R O | :show-notes |
