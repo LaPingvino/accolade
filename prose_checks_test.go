@@ -101,6 +101,7 @@ func TestProseRepeatsOtherLanguage(t *testing.T) {
 func TestRevisionSourceInMiddle(t *testing.T) {
 	story := sourceStory + "\nThe rain fell on the roof, the rain on the road.\n"
 	w, _ := sourceWindow(t, sourceScript, story)
+	dismissInDocFor(t, w) // in the script's notes block
 	w.openMiddle("source")
 	d := w.midDoc()
 	if ed, src := w.revEditor(); !src || ed != d.ed {

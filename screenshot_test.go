@@ -455,6 +455,7 @@ func TestBeatsLandScreenshot(t *testing.T) {
 func TestMarkdownRevisionScreenshot(t *testing.T) {
 	w := newTestWindow(t, "")
 	keepDockSettings(t, w)
+	dismissInDocFor(t, w) // the notes block's way
 	r := ribbonOnFor(t, w)
 	md := filepath.Join(t.TempDir(), "story.md")
 	text := "# The Letter\n\nAnna stands at the window and watches the road, the empty road. The postman is late again.\n\n" +

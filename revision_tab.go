@@ -267,18 +267,16 @@ func (w *MainWindow) keepFinding(it openItem) {
 	w.openChanged()
 }
 
-// dismissFinding puts a finding out of sight: a line in the notes block
-// of the window's document (the script's for its source's findings too),
-// so it stays dismissed when the file is opened again; one undo step
-// (Undo brings it back). The dismissed lines no finding says any more
-// are let go then.
+// dismissFinding puts a finding out of sight: a line beside the window's
+// document or in its notes block, as the setting says (dismissed_place.go;
+// the script's for its source's findings too), so it stays dismissed when
+// the file is opened again (in the notes, one undo step). The dismissed
+// lines no finding says any more are let go then.
 func (w *MainWindow) dismissFinding(it openItem) {
 	if it.Kind != openCheck || w.textEditor == nil {
 		return
 	}
-	m := w.notesMarks()
-	text := w.textEditor.Text()
-	gone, rest := dismissedIn(strings.ReplaceAll(m.of(text), m.escaped, m.close))
+	gone := w.allDismissed()
 	now := map[string]bool{it.dismissKey(): true}
 	if w.sourceRef().Origin != sourceNone && w.srcEditor() == nil { // the source's not read now: none let go
 		maps.Copy(now, gone)
@@ -302,15 +300,14 @@ func (w *MainWindow) dismissFinding(it openItem) {
 	for k := range now {
 		keys = append(keys, k)
 	}
-	from, block := m.edit(text, withDismissed(rest, keys))
-	w.textEditor.Edit(func(b *buffer.Buffer) {
-		cursor := b.Cursor()
-		b.Group(func() {
-			replaceLeast(b, from, b.Len(), block)
-			b.SetCursor(min(cursor, from), false)
-		})
-	})
-	w.setStatus("Dismissed (kept in the notes at the end, where deleting its line brings it back): " + firstLine(it.Text))
+	switch err := w.storeDismissed(keys); {
+	case err != nil:
+		w.setStatus("Could not keep the dismissal beside the document: " + err.Error())
+	case w.dismissInDocument():
+		w.setStatus("Dismissed (kept in the notes at the end, where deleting its line brings it back): " + firstLine(it.Text))
+	default:
+		w.setStatus("Dismissed (kept beside the document, where deleting its line brings it back): " + firstLine(it.Text))
+	}
 	if w.notes != nil {
 		w.notes.close()
 	}
@@ -629,7 +626,7 @@ func revisionCommands() []*command {
 				}
 			}},
 		{id: "revision.dismiss", label: "Dismiss Item", ribbonLabel: "Dismiss", ex: "dismiss-item", icon: theme.VisibilityOffIcon,
-			tip:  "A finding out of sight, a line in the notes at the end (opening the file again keeps it so; Undo or deleting the line brings it back); a note, to-do or revision note taken out of the script (Undo brings it back)",
+			tip:  "A finding out of sight, a line beside the document or in its notes, as Dismissed in Document says (opening the file again keeps it so; deleting the line brings it back); a note, to-do or revision note taken out of the script (Undo brings it back)",
 			when: script, enabled: func(e cmdEnv) bool { return e.rev.dismissable }, run: (*MainWindow).dismissCurrent},
 		{id: "revision.done", label: "Mark To-do Done", ribbonLabel: "Done", ex: "todo-done", icon: theme.ConfirmIcon,
 			tip:  "The to-do at the cursor written as done, [[done: …]] (again: to do again)",
@@ -650,6 +647,7 @@ func revisionCommands() []*command {
 			tip:  "Every cut in the cursor's scene back in the script, one undo step",
 			when: func(e cmdEnv) bool { return !e.away && !e.markdown }, enabled: func(e cmdEnv) bool { return e.rev.sceneCuts > 0 }, run: (*MainWindow).restoreSceneCuts},
 	}
+	cmds = append(cmds, dismissedPlaceCommand())
 	for k := range noteFilters {
 		name, what := noteFilterNames[k], noteFilterLabels[k]
 		cmds = append(cmds, &command{id: "revision.show." + strings.ToLower(strings.ReplaceAll(name, " ", "")), label: "Show " + what,
@@ -674,7 +672,7 @@ func revisionTab() ribbonTab {
 			at("revision.show.beats"), at("revision.show.revision"), at("revision.show.checks")}},
 		{title: "Item", homes: []home{big("revision.keep"), at("revision.dismiss"), at("revision.done"),
 			at("revision.restore"), at("revision.newScene"), at("revision.edit")}},
-		{title: "All at Once", homes: []home{at("revision.removeDone"), at("revision.restoreScene")}},
+		{title: "All at Once", homes: []home{at("revision.removeDone"), at("revision.restoreScene"), at("revision.dismissInDoc")}},
 		// a statistic with its call to action (beat_place.go)
 		{title: "Beats", when: func(e cmdEnv) bool { return !e.markdown }, homes: []home{big("revision.beats"), at("revision.nextOff"), at("revision.previousOff")}},
 	}}

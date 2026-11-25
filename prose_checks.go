@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"regexp"
 	"slices"
 	"strings"
@@ -16,7 +17,11 @@ import (
 // a Markdown document and of the source, as the screenplay's checks are a
 // script's (revision_checks.go), the same items, the same Revision tab.
 // Kept modest, and at most one of each check per paragraph: a word
-// twice close together, a very long sentence, and in English text a
+// twice close together (a content word: a language's function words, je,
+// die, the, are no repetition: Joop 2026-11-25, "as a dutch speaker with
+// a fair bit of 'je je' in texts, that has kinda annoyed me growing up
+// with Word correction"), a word doubled (the the), but not a language's
+// valid doubles (je je, die die, had had), a very long sentence, and in English text a
 // paragraph leaning on filter words (felt, saw, noticed…) or on the
 // passive. Each finding's place is what it is about (the sentence, the
 // two words), its message ends with what to try. Keep writes the finding
@@ -26,6 +31,7 @@ import (
 // The prose checks' kinds.
 const (
 	checkRepeat   = "repeat"
+	checkDouble   = "double"
 	checkSentence = "sentence"
 	checkFilter   = "filter"
 	checkPassive  = "passive"
@@ -43,11 +49,10 @@ var (
 	proseMaskRe = regexp.MustCompile(`\]\([^)]*\)|\[\^[^\]]*\]|<!--.*?-->|<[^>]+>`)
 )
 
-// englishCommon are the words that tell English text; englishStop the
-// short words a repetition of which is not one.
+// englishStop are English's longer function words (proseLangs has the
+// short ones), a repetition of which is not one.
 var (
-	englishCommon = setOf("the", "and", "of", "to", "a", "in", "is", "was", "it", "that", "he", "she", "with", "for", "his", "her", "you", "i", "on", "at")
-	englishStop   = setOf("that", "this", "with", "from", "have", "were", "would", "could", "should", "there", "their", "they", "them", "then", "than",
+	englishStop = setOf("that", "this", "with", "from", "have", "were", "would", "could", "should", "there", "their", "they", "them", "then", "than",
 		"what", "when", "which", "while", "will", "your", "about", "into", "only", "some", "very", "just", "been", "said", "says", "like", "also",
 		"more", "much", "here", "where", "after", "before", "over", "under", "again", "even", "upon", "such", "each", "other", "these", "those")
 	filterWords = setOf("felt", "feel", "feels", "saw", "sees", "heard", "hears", "noticed", "notices", "realized", "realised", "realizes",
@@ -64,6 +69,88 @@ func setOf(words ...string) map[string]bool {
 		m[w] = true
 	}
 	return m
+}
+
+// proseLang is what the prose checks know of a language: the common
+// words that tell it, its function words (never a repetition), and the
+// words that may stand twice in a row (Dutch "dat dat", English "had
+// had": no typo).
+type proseLang struct {
+	common, stop, doubles map[string]bool
+}
+
+// proseLangs are the languages the checks tell, by code.
+var proseLangs = map[string]proseLang{
+	"en": {
+		common:  setOf("the", "and", "of", "to", "a", "in", "is", "was", "it", "that", "he", "she", "with", "for", "his", "her", "you", "i", "on", "at"),
+		stop:    englishStop,
+		doubles: setOf("had", "that", "is"),
+	},
+	"nl": {
+		common: setOf("de", "het", "een", "en", "van", "ik", "je", "dat", "die", "niet", "is", "op", "te", "er", "zijn", "met", "voor", "maar", "hij", "ze", "was", "naar", "ook", "wat"),
+		stop: setOf("aan", "alle", "alles", "als", "altijd", "andere", "want", "toch", "toen", "tegen", "door", "over", "omdat", "zodat", "terwijl", "nadat", "voordat",
+			"maar", "niet", "niets", "niemand", "iets", "iemand", "veel", "weer", "wel", "zich", "zelf", "zelfs", "zijn", "haar", "hun", "hen", "hem", "mijn", "jouw",
+			"onze", "jullie", "deze", "dit", "dat", "die", "daar", "hier", "waar", "wat", "wie", "welke", "hoe", "naar", "voor", "achter", "onder", "boven", "tussen",
+			"zonder", "binnen", "buiten", "bij", "uit", "met", "tot", "sinds", "heeft", "hebben", "had", "hadden", "was", "waren", "wordt", "worden", "werd", "werden",
+			"zal", "zullen", "zou", "zouden", "kan", "kunnen", "kon", "konden", "moet", "moeten", "moest", "wil", "willen", "wilde", "mag", "mogen", "mocht",
+			"geweest", "geen", "nog", "ook", "dan", "toe", "even", "heel", "erg", "meer", "meest", "zeer", "zo", "nu", "al", "pas", "eens", "ooit", "nooit"),
+		doubles: setOf("je", "die", "dat", "er", "ze", "haar", "wat", "zij"),
+	},
+	"de": {
+		common: setOf("der", "die", "und", "das", "ist", "nicht", "ich", "sie", "es", "ein", "eine", "zu", "den", "mit", "auf", "sich", "dem", "auch", "war", "er"),
+		stop: setOf("aber", "alle", "alles", "als", "also", "auch", "auf", "aus", "bei", "bin", "bis", "dann", "darum", "dass", "dein", "deine", "denn", "dessen",
+			"diese", "dieser", "dieses", "doch", "dort", "durch", "eine", "einem", "einen", "einer", "eines", "etwas", "gegen", "habe", "haben", "hatte", "hatten",
+			"hier", "ihre", "ihren", "ihrem", "ihrer", "immer", "jetzt", "kann", "kein", "keine", "konnte", "können", "mein", "meine", "mich", "mir", "muss",
+			"musste", "nach", "nicht", "nichts", "noch", "nun", "oder", "ohne", "schon", "sehr", "sein", "seine", "seinem", "seinen", "seiner", "sich", "sind",
+			"soll", "sollte", "über", "unter", "viel", "vom", "von", "vor", "war", "waren", "warum", "was", "weil", "wenn", "werden", "wird", "wieder", "will",
+			"wir", "wird", "wollte", "wurde", "wurden", "zum", "zur", "zwischen", "während", "einmal", "selbst", "euch", "uns", "unser", "unsere", "welche"),
+		doubles: setOf("die", "das", "sie", "der"),
+	},
+	"fr": {
+		common: setOf("le", "la", "les", "de", "et", "un", "une", "est", "que", "il", "elle", "je", "ne", "pas", "en", "du", "des", "dans", "qui", "pour"),
+		stop: setOf("avec", "dans", "pour", "mais", "elle", "elles", "nous", "vous", "leur", "leurs", "cette", "cela", "comme", "tout", "tous", "toute", "toutes",
+			"sans", "sous", "était", "étaient", "avait", "avaient", "sont", "être", "avoir", "fait", "plus", "très", "aussi", "encore", "quand", "alors", "donc",
+			"puis", "même", "dont", "entre", "vers", "chez", "depuis", "pendant", "avant", "après", "rien", "jamais", "toujours", "quelque", "notre", "votre"),
+		doubles: setOf("nous", "vous"),
+	},
+	"es": {
+		common: setOf("el", "la", "los", "las", "de", "y", "que", "en", "un", "una", "es", "no", "se", "por", "con", "su", "para", "lo", "del", "al"),
+		stop: setOf("como", "pero", "para", "porque", "cuando", "donde", "este", "esta", "esto", "estos", "estas", "ese", "esa", "eso", "todo", "toda", "todos",
+			"todas", "muy", "más", "también", "sobre", "entre", "hasta", "desde", "sin", "había", "habían", "estaba", "estaban", "era", "eran", "fue", "ser",
+			"estar", "tiene", "tenía", "ella", "ellos", "ellas", "nosotros", "nada", "nunca", "siempre", "ahora", "entonces", "después", "antes", "sus"),
+		doubles: setOf(),
+	},
+	"eo": {
+		common: setOf("la", "kaj", "estas", "estis", "de", "en", "al", "mi", "li", "ŝi", "ne", "ke", "kun", "por", "el", "sed", "tio", "ĉu", "ili", "ni"),
+		stop: setOf("estas", "estis", "estos", "kiam", "ankaŭ", "ankoraŭ", "ĉar", "tiam", "kiu", "kiuj", "kio", "kiel", "kie", "tio", "tiu", "tiuj", "ĉiuj",
+			"nur", "tre", "post", "antaŭ", "inter", "sur", "sub", "pri", "ŝin", "lin", "ilin", "ŝia", "ŝiaj", "lia", "liaj", "ilia", "iliaj", "nia", "via",
+			"mia", "neniu", "ĉiu", "oni", "povas", "povis", "devas", "devis", "havas", "havis", "jam", "ankoraŭ", "eĉ", "ĉiam", "neniam", "nun", "poste"),
+		doubles: setOf(),
+	},
+}
+
+// proseLangOf is the language words read as (its code, "" for none told):
+// the one whose common words are most among them, enough of them.
+func proseLangOf(words []proseWord) string {
+	if len(words) < 8 {
+		return ""
+	}
+	best, bestN := "", 0
+	for _, code := range slices.Sorted(maps.Keys(proseLangs)) {
+		n := 0
+		for _, w := range words {
+			if proseLangs[code].common[w.low] {
+				n++
+			}
+		}
+		if n > bestN {
+			best, bestN = code, n
+		}
+	}
+	if bestN*100 < len(words)*15 {
+		return ""
+	}
+	return best
 }
 
 // proseWord is a word of a paragraph: where it is (bytes, in the text)
@@ -136,18 +223,6 @@ func proseWords(text string, p prosePara) []proseWord {
 	return out
 }
 
-// englishText tells whether words read as English: enough of its most
-// common words among them.
-func englishText(words []proseWord) bool {
-	n := 0
-	for _, w := range words {
-		if englishCommon[w.low] {
-			n++
-		}
-	}
-	return len(words) >= 20 && n*100 >= len(words)*15
-}
-
 // proseFinding is a finding in bytes: from, to, the check, what it says,
 // the paragraph it is in.
 type proseFinding struct {
@@ -166,9 +241,12 @@ func proseFindings(text string) []proseFinding {
 		words[i] = proseWords(text, p)
 		all = append(all, words[i]...)
 	}
-	english := englishText(all)
-	// in another language the commonest words (more than 1 in 100, in a
-	// text long enough to tell) are its function words: not repetitions
+	lang := proseLangOf(all)
+	english := lang == "en" && len(all) >= 20
+	known := proseLangs[lang] // none: no lists
+	// the commonest words (more than 1 in 100, in a text long enough to
+	// tell) are its function words too: not repetitions (in a language
+	// without a list, all it knows of them)
 	common := map[string]bool{}
 	if !english && len(all) >= 300 {
 		n := map[string]int{}
@@ -188,19 +266,35 @@ func proseFindings(text string) []proseFinding {
 		add := func(s, e int, check, msg string) {
 			found = append(found, proseFinding{s, e, check, msg, p})
 		}
-		// a word twice close together (the first such pair)
+		function := func(w string) bool { return known.stop[w] || known.common[w] || common[w] }
+		// a word doubled, a typo (the first): not a valid double of the
+		// language; in one without a list, a content word only
+		for k := 0; k+1 < len(ws); k++ {
+			w, n := ws[k], ws[k+1]
+			if n.low != w.low || strings.TrimSpace(text[w.end:n.start]) != "" || known.doubles[w.low] ||
+				(known.common == nil && (utf8.RuneCountInString(w.low) < 4 || function(w.low))) {
+				continue
+			}
+			add(w.start, n.end, checkDouble, fmt.Sprintf("“%s %s”: the word twice in a row, one too many?", text[w.start:w.end], text[n.start:n.end]))
+			break
+		}
+		// a content word twice close together (the first such pair; one
+		// right after the other is the doubled word's)
 		for k := range ws {
 			w := ws[k]
-			if utf8.RuneCountInString(w.low) < 4 || englishStop[w.low] || common[w.low] {
+			if utf8.RuneCountInString(w.low) < 4 || function(w.low) {
 				continue
 			}
 			for j := k + 1; j < len(ws) && j-k <= proseNear; j++ {
+				if j == k+1 && strings.TrimSpace(text[w.end:ws[j].start]) == "" {
+					continue
+				}
 				if ws[j].low == w.low && !sentenceBetween(text[w.end:ws[j].start]) {
 					add(w.start, ws[j].end, checkRepeat, fmt.Sprintf("“%s” twice in %d words: another word, or one less?", w.low, j-k+1))
 					break
 				}
 			}
-			if len(found) > 0 {
+			if slices.ContainsFunc(found, func(f proseFinding) bool { return f.check == checkRepeat }) {
 				break
 			}
 		}

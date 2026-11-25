@@ -181,7 +181,7 @@ func newNotesPanel(w *MainWindow) *notesPanel {
 	p.keep.Importance = widget.HighImportance
 	fyne.SetAccessibleLabel(p.keep, "Keep it as a revision note in the script")
 	p.dismiss = widget.NewButtonWithIcon("Dismiss", theme.VisibilityOffIcon(), func() { p.w.dismissFinding(p.item) })
-	fyne.SetAccessibleLabel(p.dismiss, "Dismiss it until the window closes")
+	fyne.SetAccessibleLabel(p.dismiss, "Dismiss it: out of sight, kept beside the document or in its notes")
 	p.restore = widget.NewButtonWithIcon("Restore", theme.ContentUndoIcon(), p.restoreItem)
 	p.scene = widget.NewButtonWithIcon("New Scene", theme.ContentAddIcon(), p.newScene)
 	p.remove = widget.NewButtonWithIcon("", theme.DeleteIcon(), p.removeItem)

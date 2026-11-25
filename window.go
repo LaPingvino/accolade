@@ -216,8 +216,9 @@ type MainWindow struct {
 	// it was, back as the board goes (middle.go: sheetFollow)
 	sheetDown     bool
 	sheetBefore   float64
-	unsavedSource string // the source chosen for a script not saved yet (source.go)
-	unsavedExtras string // the kept extras of a script not saved yet (extras.go)
+	unsavedSource string        // the source chosen for a script not saved yet (source.go)
+	unsavedExtras string        // the kept extras of a script not saved yet (extras.go)
+	dismissed     *dismissCache // the findings dismissed beside the document, as read (dismissed_place.go)
 	// flattenTo is where a bundle's extras go when it is saved as a plain
 	// file, as asked (flatten.go); then back to the kept copy
 	flattenTo flattenChoice

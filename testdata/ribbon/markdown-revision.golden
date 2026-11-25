@@ -18,3 +18,4 @@ tabs: File Write Edit Adaptation [Revision] Collaboration View
   S Edit icon=foreground_document-create.svg (disabled) name=Edit Item
 ## All at Once
   S Remove Done icon=foreground_delete.svg (disabled) name=Remove Done To-dos…
+  S Dismissed in Document icon=foreground_visibility-off.svg name=Keep Dismissed Findings in the Document

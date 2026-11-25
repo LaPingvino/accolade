@@ -104,6 +104,7 @@ func TestMergeFindings(t *testing.T) {
 // actions are each one undo step.
 func TestRevisionStepping(t *testing.T) {
 	w, _ := newDialogTestWindow(t)
+	dismissInDocFor(t, w) // Dismiss in the notes block, one undo step
 	text := "INT. A - DAY\n\nHi. [[todo: call Bram]]\n\nINT. B\n\nBye. [[done: write it]] [[done: and this]]\n\n/* INT. C - NIGHT\n\nGone.\n*/\n"
 	w.textEditor.SetText(text)
 	w.textEditor.SetCursorOffset(0)

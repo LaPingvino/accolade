@@ -2186,3 +2186,10 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
         de die die, das das, sie sie; en had had, that that);
       - a language without a list flags content words only.
       Tests in nl/de/en.
+  DONE 2026-11-25 (branch revfu): (1) Revision > All at Once > Dismissed in Document (off by default): beside = a bundle's
+      assets/production/dismissed.txt, a loose file's Name.fountain.dismissed, an unsaved/browser document's kept extras;
+      both places are read, a dismissal writes the chosen one and empties the other, switching moves every open window's;
+      the sidecar follows a rename/Save As (into a bundle once written); dismissed.txt alone does not make Save offer a
+      bundle (dismissed_place.go). (2) prose_checks.go: language told by common words (en/nl/de/fr/es/eo lists), the echo
+      skips their function words (plus the frequency fallback), new checkDouble for "the the" with each language's valid
+      doubles; no list: content words (4+ letters, not common) only. Tests: dismissed_place_test.go.

@@ -283,8 +283,10 @@ func (w *MainWindow) plainExtrasHome(script string) extrasHome {
 // cannot hold: extras, or a production block with a lock (Save then
 // offers .accolade). Asked when saving, never per key.
 func (w *MainWindow) hasProductionData() bool {
-	if len(w.extrasHome().names()) > 0 {
-		return true
+	for _, n := range w.extrasHome().names() {
+		if n != dismissedExtra { // dismissed findings alone: a plain file's sidecar does
+			return true
+		}
 	}
 	return !w.markdown && sceneLockOf(w.textEditor.Text()).locked
 }

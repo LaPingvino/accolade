@@ -23,9 +23,9 @@ import (
 // a finding is gone when the text no longer gives it. Keep writes one
 // into the text as a revision note, [[revision: …]] at the end of its
 // line, which is then listed (and the finding it was, which the note now
-// stands for, is not); Dismiss puts one out of sight, a line in the
-// document's notes block (dismissedIn), so it stays dismissed when the
-// script is opened again.
+// stands for, is not); Dismiss puts one out of sight, a line beside the
+// document or in its notes block (dismissed_place.go), so it stays
+// dismissed when the script is opened again.
 
 // checkLint is a finding of Lexington's linter.
 const checkLint = "lint"
@@ -297,19 +297,14 @@ func withDismissed(rest string, keys []string) string {
 	return strings.TrimRight(rest, "\n") + "\n\n" + p
 }
 
-// dismissedOf are the findings the window's document keeps dismissed in
-// its notes block (the script's for its source's findings too).
+// dismissedOf are the findings the window's document keeps dismissed,
+// in its notes block or beside it (dismissed_place.go); the script's for
+// its source's findings too.
 func (w *MainWindow) dismissedOf() map[string]bool {
 	if w.textEditor == nil {
 		return nil
 	}
-	m := w.notesMarks()
-	notes := m.of(w.textEditor.Text())
-	if !strings.Contains(notes, dismissedHead) {
-		return nil
-	}
-	d, _ := dismissedIn(strings.ReplaceAll(notes, m.escaped, m.close))
-	return d
+	return w.allDismissed()
 }
 
 // openItems are the script's open items with its checks' findings among
