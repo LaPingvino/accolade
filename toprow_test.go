@@ -161,7 +161,7 @@ func TestTopRowSearch(t *testing.T) {
 }
 
 // On a phone the name keeps its place before the icons, which go into
-// the … menu; narrower still, the name goes too, its editor in the menu
+// the … menu where there is too little room for them; narrower still, the name goes too, its editor in the menu
 // and on the Script middle tab.
 func TestTopRowPhoneName(t *testing.T) {
 	holdUI(t)
@@ -173,6 +173,16 @@ func TestTopRowPhoneName(t *testing.T) {
 	r.end.Layout(r.end.Objects, r.end.Size())
 	if !r.title.Visible() || r.title.Size().Width < 80 {
 		t.Fatalf("the phone's name: shown %v, %v wide (end %v)", r.title.Visible(), r.title.Size().Width, r.end.Size())
+	}
+	// the ribbon's switcher (not its tabs) leaves the end room for its
+	// icons at 380 px; with less, they go into the … and the name stays
+	if r.end.more.Visible() {
+		t.Errorf("a … at 380 px: end %v of %v natural", r.end.Size().Width, r.end.natural())
+	}
+	r.end.Resize(fyne.NewSize(r.end.natural()-60, r.end.Size().Height))
+	r.end.Layout(r.end.Objects, r.end.Size())
+	if !r.title.Visible() || r.title.Size().Width < 80 {
+		t.Errorf("the name with less room: shown %v, %v wide", r.title.Visible(), r.title.Size().Width)
 	}
 	if !r.end.more.Visible() {
 		t.Error("no … for the icons")
