@@ -16,6 +16,8 @@ Adaptation > Choose Source… takes a story as Markdown (.md, .markdown), plain 
 
 A story you have as PDF, EPUB or another format: open it with File > Import as Markdown… (or Import with pandoc… on the desktop), save it as .md, then choose that.
 
+A screenplay is a source too, when the script was made from it (a conversion to fix up): Choose Source… takes a Fountain file, a Final Draft file (.fdx) or a screenplay's PDF, and the Source pane then compares instead of adapting. See Fixing an Imported Script, "Against its source".
+
 ### Where the source is kept
 
 Accolade looks for a script's source in this order and uses the first it finds. The pane names the one in use.

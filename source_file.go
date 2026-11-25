@@ -128,10 +128,14 @@ func keptSourcesDir() string {
 }
 
 // keepSourceCopy keeps md as a source in Accolade's folder, as name
-// (its extension made .md), in a folder of its own so the name stays
-// what it was (Save Source As offers it).
+// (its extension made .md, a screenplay's .fountain), in a folder of its
+// own so the name stays what it was (Save Source As offers it).
 func keepSourceCopy(name, md string) (string, error) {
-	name = strings.TrimSuffix(filepath.Base(name), filepath.Ext(name)) + ".md"
+	ext := ".md"
+	if strings.EqualFold(filepath.Ext(name), ".fountain") {
+		ext = ".fountain"
+	}
+	name = strings.TrimSuffix(filepath.Base(name), filepath.Ext(name)) + ext
 	dir := filepath.Join(keptSourcesDir(), strconv.FormatInt(time.Now().UnixNano(), 36))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err

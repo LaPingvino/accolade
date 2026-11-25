@@ -2072,3 +2072,76 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   placeholder heading would write a guess into the script); placement in the cards/timeline/outline (only the ribbon);
   Markdown's source checks (the Check kind is a screenplay's); dismissals are per window, not kept; the ribbon's Notes
   Pane button left out for width (the readout opens the pane).
+- 2026-11-25: STATUS of the 2026-11-22 … 11-24 queue entries, read against main (f81609b) and its log. Done = built and
+  merged; partly = what is still missing; waits = needs Joop's file, device or decision.
+
+  | entry | status |
+  |---|---|
+  | Quick tab, Smart/Fixed | done |
+  | Source pane jump, Next/Previous, Adapt… | done |
+  | Page view in a real browser / Android / Fyne mobile | waits (Joop's devices); the rtl/CJK/images PDF parts done since (prosertl, previewcjk, pictures) |
+  | Preview tab, Refresh, Follow Edits, dirty pages | done |
+  | PDF links; page footnotes (jump, renumber, hover) | done |
+  | Citations (bibtex-like) | phase 1 + phase 2's style done; numeric style, CSL left — low priority, skipped |
+  | State-change audit (docs/STATE.md, mainDocChanged) | done |
+  | Cards scrolling | done (Fyne fork) |
+  | Middle tabs | done |
+  | A New Hope import details | waits (Joop's file) |
+  | Release v0.7.0 | done (now 0.11.0) |
+  | Lexington settings / format TOML editors | done |
+  | Shortest unique links, relinking | done |
+  | Table Read / cast | levels 1–2 done; partly: Storyboarder durations, a "beside" frame layout; level 3 (Cast button) waits on Joop's registration |
+  | Link up a free adaptation | done |
+  | Adaptation benchmark | done (Gutenberg pairs, invented scenes); partly: merged/reworded synthetic pairs; cross-language stretch not started |
+  | SCREENPLAY SOURCES | partly: pattern fixer + Fix-Up tab + garbled-text OCR offer done; NOT built: a screenplay chosen as the source, compared scene to scene with Take the Source's / Keep Mine and a match/differ/missing summary; layout learning per document; per-page "looks right" tick |
+  | Structural moves | done |
+  | Timeline (cards variant + strip) | done |
+  | Stripboard / phone Pages as middle tabs; phone stripboard ribbon | done |
+  | Hindi preset (hi, hi-Latn, hi-Deva); Hindi samples; Lekhan / Devanagari in Courier Badi | done |
+  | Ex mode completion | done |
+  | New by language and format (Hebrew first) | done |
+  | Garbled text layer → OCR offer | done |
+  | Hebrew/Arabic samples' rtl fixes (1)–(4) | done; (5)–(6) are Courier Badi's |
+  | Contextual ribbon tabs (Cards, Fix-Up, Title Page, Session, Characters, Compare; Top Row pins, search, name) | done |
+  | Auto-numbered headings | done |
+  | Bundle follow-ups; FDX apostrophes | done |
+  | Courier Badi refit (1.104) | done |
+  | Title page templates + follow-ups | done |
+  | COLLAB step 8 | done (two-device run waits on Joop) |
+  | Beats: (A) where they land | partly: Revision ribbon readout only, not in the cards, timeline strip or outline |
+  | Beats: (B) real-film ranges | not started (templates carry conventional ranges) |
+  | Revision tools / Revision tab | done; partly: Markdown's source checks, dismissals not kept |
+  | Structure follow-ups (structure2, OPML, treatment) | done; left: the Export dialog shows Page Setup for outline/treatment |
+  | Unhandled beats | done; partly: no beats mark on the one-column Cards pane and the "Unplaced" group |
+  | What's open / TODO notes / notes pane / boneyard sidebar / unsorted notes / Restore | done |
+
+  First not done in queue order, not waiting on Joop: SCREENPLAY SOURCES' screenplay-as-source comparison. Built next
+  (branch next).
+- 2026-11-25: SCREENPLAY SOURCES, the comparison done (branch next, not merged; screenplay_source.go). Adaptation ›
+  Choose Source… also takes .fountain, .fdx (readOutside, as Merge Changes) and a screenplay's .pdf (readPDFAsking +
+  importPDF, as File › Import: scans asked about, Cancel), kept as `<name>.fountain` in Accolade's folder or the
+  bundle like any source. Recognised by shape, not extension (screenplayShaped: ≥2 headings, ≥3 cues, headings +
+  speech ≥ ¼ of the lines, by the editor's ClassifyIn), wherever the source is kept (beside, bundle, inside); a
+  novel's PDF stays passages. Then the Source pane compares instead of adapting: no passages, links, guesses or
+  cut offers; a summary line ("1 scene match · 1 differ · 1 missing · 2 only in yours · 1 difference kept as
+  yours"); the cursor's scene's differences beside the script (the words marked, Merge's diffRow), each Take the
+  Source's (one undo step through applyStruct, the extras following; Merge's carry keeps the script's links, notes,
+  locked number) or Keep Mine (hidden for this source while the window is open, nothing written); Take All in This
+  Scene; Next/Previous (Ctrl+Alt+J/K, the pane's buttons) go to the scenes that differ, round at the ends. One
+  engine: scriptdiff.NewMerge(script, script, source) — every difference is the source's. The source is read
+  without its pages' debris (page numbers, (MORE), CONTINUED, a cue's (CONT'D), words hyphenated over a line); the
+  script's own debris is a difference to fix. Key: Merge's, plus wrapped lines as one, forcing marks off, a
+  heading's scene number off, case folded; forced ".ACT I SCENE II" headings count as scenes. Help: Fixing an
+  Imported Script › Against its source; adapting.md points there. Tests (synthetic only): TestScreenplayShaped,
+  TestSourceKeyDebris, TestScreenplaySourceLeavesScript (byte for byte, no undo, no changes flag),
+  TestScreenplaySourceTake (one line, one undo; the speech without "mo-ney"/(CONT'D); Keep Mine), …Step (round,
+  the lost scene taken whole), TestChooseScreenplaySourcePDF (Lexington's own print read back). Shots
+  combo-spsource-{match,differ}-{wide,phone}. Timing: Jane Eyre's play against itself with every 7th line
+  touched, 135 differences, ~0.1–0.25 s in the background.
+  Local measurement on Joop's Hope Talks (counts only): the 2011 PDF against the earlier conversion — headings pair
+  59 of 62 once numbers and case are out (10 before), but the PDF's reading groups that script's elements otherwise,
+  so nearly every scene differs (≈2 500 differences): the importer's reading of that layout, not the comparison, is
+  the bottleneck there (the layout-learning part). Against the 2026 fix only 3 headings are shared.
+  Left: per-document layout learning ("these are cues"), the per-page "looks right" tick, the PDF page image beside
+  the script; Keep Mine is not kept across sessions; wrapping differences inside a speech are not offered; a
+  screenplay source in the middle (Source in the Middle) and the source's outline still read it as passages.

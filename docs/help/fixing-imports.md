@@ -24,6 +24,16 @@ The parts a pattern can have: `<number>` (12, 12A), `<int/ext>` (INT, EXT, INT./
 
 Under **Pattern parts, regular expression** the pattern is shown as a regular expression; written by hand, it is used instead (its groups go in Result as `<1>`, `<2>`, or by their names). One that does not read says so and changes nothing.
 
+## Against its source
+
+When the script was converted from another (a PDF read by an older tool, a Fountain made elsewhere), make the original its source: **Adaptation > Choose Source…** and pick the Fountain, Final Draft or PDF file. Accolade sees it is a screenplay (scene headings, cues and speeches) and the Source pane compares it with the script instead of showing passages to adapt:
+
+- The first line sums it up: how many scenes match the source, how many differ, how many it has that the script lost ("missing"), and how many only the script has.
+- The pane follows the cursor: the scene you are in lists what the source has otherwise, the words that differ marked. **Take the Source's** writes the source's form there (one Undo takes it back; the script's notes, links and a locked scene number stay); **Keep Mine** leaves it as it is and stops showing it while the window is open. **Take All in This Scene** takes every difference of the scene at once.
+- **Next** and **Previous** in the pane (Adaptation > Next and Previous Source Passage, Ctrl+Alt+J and Ctrl+Alt+K) go to the scenes that differ, round from the end.
+
+What the source's pages leave in its text is not counted: page numbers, (MORE), CONTINUED, a cue's (CONT'D), a word broken over a line. The same in the script is a difference, to fix. A speech wrapped over lines, capitals against small letters, the scenes' numbers and Fountain's forcing marks are no difference. Nothing is written until you take it.
+
 ## The rules stay with the script
 
 With **Keep the rule with the script** ticked (as it starts), each rule applied is kept in the script's `/* Fix-Up */` block at its end, one a line:

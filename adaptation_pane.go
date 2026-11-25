@@ -332,6 +332,10 @@ func (s *sourcePane) stepPassage(dir int) {
 		w.setStatus("No source: Adaptation > Choose Source…")
 		return
 	}
+	if s.screenplay { // the scenes that differ from it (screenplay_source.go)
+		s.sp.step(dir)
+		return
+	}
 	m := s.current()
 	if s.prompt.wrap == dir && s.prompt.box.Visible() { // pressed again on the offer: round
 		s.prompt.hide()

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"image/color"
 	"math"
@@ -88,6 +89,9 @@ type sourcePane struct {
 	fresh                  bool          // the source just read: the list not scrolled yet
 	offered                int           // the passage Next showed last (-1 none)
 	offeredWords           []string      // its words, to find it again
+
+	screenplay bool            // the source reads as a screenplay: compared, not adapted (screenplay_source.go)
+	sp         *screenplayView // its body
 
 	reading    *storyread.Reading // what the source shows (source_reading.go)
 	readingFor string
@@ -192,6 +196,7 @@ func newSourcePane(w *MainWindow) *sourcePane {
 	s.tools = container.NewVBox(container.NewBorder(nil, nil, nil, container.NewHBox(s.prev, s.next, s.adapt), s.count), s.anchorLine)
 	s.view = newReadingView(s)
 	s.learned = newLearnedView(s)
+	s.sp = newScreenplayView(s)
 	top := container.NewVScroll(container.NewVBox(head, s.tools, s.prompt.box, s.info, s.learned.box))
 	s.box = container.New(sourcePaneLayout{}, top, container.New(bodyReadingLayout{}, s.body, s.view.box))
 	return s
@@ -663,6 +668,11 @@ func (s *sourcePane) loadSource(background bool) {
 		disk = true
 	}
 	r := &sourceRead{ref: ref, modTime: mod, size: size, src: src, err: err, disk: disk}
+	if err == nil && screenplayShaped(src, s.w.sceneStarts()) {
+		s.loading = nil
+		s.useScreenplay(r)
+		return
+	}
 	if !background || len(src) < backgroundSource {
 		s.loading = nil
 		s.use(r, passagesOf(src))
@@ -685,6 +695,7 @@ func (s *sourcePane) loadSource(background bool) {
 // use shows a source read, parted into passages.
 func (s *sourcePane) use(r *sourceRead, ps []passage) {
 	defer s.relinkRead(r, s.ref, s.src, ps) // the links looked at again for the source as it is now (relink.go)
+	s.screenplay = false
 	if (r.ref.Origin == sourceInside) != (s.ref.Origin == sourceInside) {
 		s.w.refreshMenu() // Keep Source in the Script (an undo can change it)
 	}
@@ -753,6 +764,10 @@ func (s *sourcePane) showBody() {
 		o = s.empty
 	case s.editing && s.w.srcDoc != nil:
 		o = s.w.srcDoc.view
+	case s.screenplay:
+		s.edit.Show()
+		s.title.SetText(s.ref.describe() + " · a screenplay")
+		o = s.sp.box
 	case !slices.ContainsFunc(s.passages, passage.linkable) && s.err == nil:
 		s.edit.Show()
 		o = s.blank
@@ -825,6 +840,15 @@ func (s *sourcePane) follow() {
 		s.title.SetText(s.loading.ref.describe())
 		s.setInfo("Reading the source…")
 		return
+	}
+	if s.screenplay { // compared with the script, not adapted (screenplay_source.go)
+		s.followScreenplay()
+		return
+	}
+	if !s.adapt.Visible() { // a story again after a screenplay
+		s.adapt.Show()
+		fyne.SetAccessibleLabel(s.next, "Next passage to adapt (picks it; nothing is written)")
+		fyne.SetAccessibleLabel(s.prev, "Previous passage to adapt")
 	}
 	s.relinkAgain() // a look at the links dropped (relink.go)
 	if s.ref.Origin == sourceNone {
@@ -1298,13 +1322,18 @@ func (w *MainWindow) sourcePane() *sourcePane {
 // chooseSource is Adaptation > Choose Source…: a story to be the script's
 // source, kept by Accolade (source_file.go) and remembered for it.
 func (w *MainWindow) chooseSource() {
-	exts := []string{".md", ".markdown", ".txt", ".docx", ".odt", ".html", ".htm", ".xhtml"}
+	exts := append([]string{".md", ".markdown", ".txt", ".docx", ".odt", ".html", ".htm", ".xhtml"}, screenplaySourceExts...)
 	w.chooseFile(exts, func(path string) { w.chooseSourceFile(path) })
 }
 
+// screenplaySourceExts are the screenplays Choose Source reads as one
+// (screenplay_source.go): the script being fixed up was made from it.
+var screenplaySourceExts = []string{".fountain", ".fdx", ".pdf"}
+
 // chooseSourceFile makes path the script's source: converted in the
 // background (a Word novel took seconds in the browser), then kept for
-// the script it was chosen for, if the window still has that one.
+// the script it was chosen for, if the window still has that one. A
+// screenplay (Fountain, Final Draft, a PDF) is read as one.
 func (w *MainWindow) chooseSourceFile(path string) {
 	type read struct {
 		md  string
@@ -1312,12 +1341,8 @@ func (w *MainWindow) chooseSourceFile(path string) {
 	}
 	w.sourceGen++
 	gen, script, bundle := w.sourceGen, w.currentFile, w.bundle
-	w.setStatus("Reading " + filepath.Base(path) + "…")
-	inBackground(func() read {
-		md, _, _, err := toMarkdown(path)
-		return read{md, err}
-	}, func(r read) {
-		if w.takeChosenSource(gen, script, bundle, path, r.md, r.err) {
+	took := func(path, md string, err error) {
+		if w.takeChosenSource(gen, script, bundle, path, md, err) {
 			w.showSource()
 			if w.bundle != nil {
 				w.setStatus("Source: " + filepath.Base(path) + ", put in " + filepath.Base(w.bundle.Path))
@@ -1325,7 +1350,52 @@ func (w *MainWindow) chooseSourceFile(path string) {
 				w.setStatus("Source: " + filepath.Base(path) + ", kept by Accolade")
 			}
 		}
-	})
+	}
+	ext := strings.ToLower(filepath.Ext(path))
+	switch {
+	case ext == ".pdf": // a screenplay's PDF, as File > Import reads one (its scans asked about)
+		lang := languageOf(path)
+		readAs := func(chosen string, ocrText bool) {
+			scenes := allSceneHeaders()
+			if chosen != "" {
+				scenes = sceneHeaders(chosen)
+			}
+			w.readPDFInBackground(path, "the source", func(ctx context.Context, progress func(done, pages int)) (string, []string, error) {
+				return importPDF(ctx, path, scenes, chosen, ocrText, progress)
+			}, func(text string) { took(fountainName(path), screenplaySourceText(w, text, path), nil) })
+		}
+		w.readPDFAsking(path, lang, readAs, func() { readAs(lang, false) })
+		return
+	case slices.Contains(screenplaySourceExts, ext):
+		oc, err := w.readOutside(path)
+		if err != nil {
+			took(path, "", err)
+			return
+		}
+		took(fountainName(path), screenplaySourceText(w, oc.text, path), nil)
+		return
+	}
+	w.setStatus("Reading " + filepath.Base(path) + "…")
+	inBackground(func() read {
+		md, _, _, err := toMarkdown(path)
+		return read{md, err}
+	}, func(r read) { took(path, r.md, r.err) })
+}
+
+// fountainName is a screenplay source's name as Accolade keeps it.
+func fountainName(path string) string {
+	return strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)) + ".fountain"
+}
+
+// screenplaySourceText is a screenplay read to be a source, as the
+// editor has a script's text; one that does not read as a screenplay
+// (a novel's PDF) is said so.
+func screenplaySourceText(w *MainWindow, text, path string) string {
+	text = withoutIndents(text, w.sceneStarts())
+	if !screenplayShaped(text, w.sceneStarts()) {
+		w.setStatus(filepath.Base(path) + " does not read as a screenplay: its text is the source, as passages")
+	}
+	return text
 }
 
 // takeChosenSource makes what Choose Source read the script's source, if
