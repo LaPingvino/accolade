@@ -861,3 +861,95 @@ func TestRibbonFitsDesktop(t *testing.T) {
 	w.setCardsLook(cardsLook{})
 	w.showMiddle("")
 }
+
+// On a phone the row of tabs is one switcher (the tab chosen, ▾) whose
+// menu holds every tab that applies, the contextual ones after a line;
+// the switcher and the row's end both fit, the script's name not cut
+// away; the keys still go round the tabs and the key tips open the menu.
+// SHOT_DIR: the phone's row, its menu open, and the desktop's unchanged.
+func TestRibbonFitsPhone(t *testing.T) {
+	holdUI(t)
+	w := suggestWindow(t, suggestScript)
+	r := ribbonOnFor(t, w)
+	c := w.fyneWindow.Canvas()
+	shot := func(name string) {
+		if os.Getenv("SHOT_DIR") != "" {
+			shotTo(t, w, name)
+		}
+	}
+	w.fyneWindow.Resize(fyne.NewSize(1000, 700))
+	c.Capture()
+	if r.phone || !r.tabRow.Objects[0].Visible() || r.switcher.Visible() {
+		t.Fatalf("desktop: phone %v, tabs %v, switcher %v", r.phone, r.tabRow.Objects[0].Visible(), r.switcher.Visible())
+	}
+	shot("ribbon_desktop")
+	for _, width := range []float32{380, 320} {
+		w.fyneWindow.Resize(fyne.NewSize(width, 800))
+		c.Capture()
+		if !r.phone || r.tabRow.Objects[0].Visible() || !r.switcher.Visible() {
+			t.Fatalf("%v: phone %v, tabs %v, switcher %v", width, r.phone, r.tabRow.Objects[0].Visible(), r.switcher.Visible())
+		}
+		row, sw, end := r.tabRow.Size().Width, r.switcher, r.end.Container
+		if sw.Size().Width < sw.MinSize().Width || end.Position().X < sw.Size().Width || end.Position().X+end.Size().Width > row+0.5 {
+			t.Errorf("%v: switcher %v of %v, end at %v %v wide, in %v", width, sw.Size().Width, sw.MinSize().Width, end.Position().X, end.Size().Width, row)
+		}
+		if !r.title.Visible() || r.title.Size().Width < 40 {
+			t.Errorf("%v: the name %v, %v wide", width, r.title.Visible(), r.title.Size().Width)
+		}
+	}
+	if want := r.selected + " ▾"; r.switcher.title != want {
+		t.Errorf("switcher %q, want %q", r.switcher.title, want)
+	}
+	shot("ribbon_phone")
+	// ← → go round the tabs
+	first := r.selected
+	r.switcher.TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
+	if r.selected == first || r.switcher.title != r.selected+" ▾" {
+		t.Errorf("→: %s chosen, switcher %q", r.selected, r.switcher.title)
+	}
+	r.switcher.TypedKey(&fyne.KeyEvent{Name: fyne.KeyLeft})
+	if r.selected != first {
+		t.Errorf("←: %s chosen, want %s", r.selected, first)
+	}
+	// a contextual tab: in the menu after a line, chosen and checked
+	w.toggleCards()
+	r.refresh()
+	defer w.showMiddle("")
+	m := r.tabMenu(false)
+	var names []string
+	sep := -1
+	for i, it := range m.Items {
+		if it.IsSeparator {
+			sep = i
+			continue
+		}
+		names = append(names, it.Label)
+		if it.Checked != (it.Label == r.selected) {
+			t.Errorf("%s checked %v, %s chosen", it.Label, it.Checked, r.selected)
+		}
+	}
+	if len(names) != len(r.shownTabs()) || sep < 0 || m.Items[sep+1].Label != "Cards" || r.selected != "Cards" {
+		t.Errorf("menu %v (line at %d), %s chosen", names, sep, r.selected)
+	}
+	m.Items[0].Action()
+	if r.selected != names[0] {
+		t.Errorf("menu's first: %s chosen, want %s", r.selected, names[0])
+	}
+	r.selectTab("Cards")
+	// the key tips: the switcher's one opens the menu
+	r.showKeyTips()
+	if c.Focused() != fyne.Focusable(r.switcher) || r.switcher.tip == "" {
+		t.Fatalf("key tips: focus %T, switcher's tip %q", c.Focused(), r.switcher.tip)
+	}
+	before := len(c.Overlays().List())
+	for _, ch := range r.switcher.tip {
+		r.keyTipTyped(ch)
+	}
+	if len(c.Overlays().List()) != before+1 || r.tipsOn {
+		t.Errorf("the switcher's tip: %d overlays, %d before; tips on %v", len(c.Overlays().List()), before, r.tipsOn)
+	}
+	c.Capture()
+	shot("ribbon_phone_menu")
+	c.Overlays().Top().Hide()
+	c.Overlays().Remove(c.Overlays().Top())
+}

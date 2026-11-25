@@ -154,6 +154,9 @@ type ribbonBar struct {
 
 	tabBox  *fyne.Container // the tabs
 	tabs    []*ribbonTabButton
+	// a phone's one switcher in the tabs' place: the tab chosen, ▾, its
+	// menu every tab that applies (the contextual ones too)
+	switcher *ribbonTabButton
 	title   *scriptTitle
 	palette *ribbonButton // the command palette's, at the tab row's end
 	order   *ribbonButton // the lock: Smart or Fixed (quick.go)
@@ -211,6 +214,8 @@ func newRibbon(w *MainWindow) *ribbonBar {
 		r.tabs = append(r.tabs, tb)
 		r.tabBox.Add(tb)
 	}
+	r.switcher = newRibbonTabButton(r, "", func() { r.showTabMenu(false) })
+	r.switcher.switcher, r.switcher.selected = true, true
 	r.title = newScriptTitle("Untitled", w.renameScript)
 	r.title.Alignment = fyne.TextAlignCenter
 	r.title.TextStyle = fyne.TextStyle{Bold: true}
@@ -241,25 +246,39 @@ func newRibbon(w *MainWindow) *ribbonBar {
 	r.quickRowBox.Hide()
 	r.phone = w.narrow
 	r.buildEnd()
-	r.tabRow = container.New(&tabRowLayout{r: r}, container.NewHScroll(r.tabBox), r.end.Container)
+	r.tabRow = container.New(&tabRowLayout{r: r}, container.NewHScroll(r.tabBox), r.end.Container, r.switcher)
 	r.box = container.NewVBox(r.tabRow, widget.NewSeparator(), r.groups, r.quickRowBox)
 	return r
 }
 
-// tabRowLayout puts the tabs at the left (scrolling sideways where the
-// row is too narrow for them: a phone), the row's end at the right: the
-// script's name, then the icons; where there is too little room the tabs
-// scroll in less than half the row and the end keeps the name before
-// its less used icons (toprow.go).
+// tabRowLayout puts the tabs at the left (on a phone the one switcher in
+// their place), the row's end at the right: the script's name, then the
+// icons; where there is too little room the tabs scroll in less than
+// half the row and the end keeps the name before its less used icons
+// (toprow.go).
 type tabRowLayout struct{ r *ribbonBar }
 
 func (l *tabRowLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
 	h := max(objects[0].MinSize().Height, l.r.tabBox.MinSize().Height, objects[1].MinSize().Height)
+	if l.r.phone {
+		h = max(objects[1].MinSize().Height, objects[2].MinSize().Height)
+		return fyne.NewSize(objects[1].MinSize().Width+objects[2].MinSize().Width, h)
+	}
 	return fyne.NewSize(objects[1].MinSize().Width+2*ribbonPhoneHeight, h)
 }
 
 func (l *tabRowLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
-	tabs, end := objects[0], objects[1]
+	tabs, end, sw := objects[0], objects[1], objects[2]
+	setVisible(tabs, !l.r.phone)
+	setVisible(sw, l.r.phone)
+	if l.r.phone { // the switcher as wide as its name, the end the rest
+		tw := min(sw.MinSize().Width, max(size.Width-end.MinSize().Width, 0))
+		sw.Move(fyne.NewPos(0, 0))
+		sw.Resize(fyne.NewSize(tw, size.Height))
+		end.Move(fyne.NewPos(tw, 0))
+		end.Resize(fyne.NewSize(size.Width-tw, size.Height))
+		return
+	}
 	tabsWant := l.r.tabBox.MinSize().Width
 	endWant := l.r.end.natural()
 	tw := tabsWant
@@ -467,6 +486,11 @@ func (r *ribbonBar) refresh() {
 	}
 	for _, tb := range r.tabs {
 		tb.setSelected(tb.title == r.selected)
+	}
+	r.phone = phone
+	if title := r.selected + " ▾"; r.switcher.title != title {
+		r.switcher.title = title
+		r.switcher.Refresh()
 	}
 	r.tabInSight()
 	stage := -1
@@ -844,6 +868,47 @@ func (r *ribbonBar) move(o fyne.Focusable, step int) {
 	}
 }
 
+// tabMenu is the switcher's menu: every tab that applies, the chosen one
+// checked; keys: chosen by the keyboard, the focus then on its buttons.
+func (r *ribbonBar) tabMenu(keys bool) *fyne.Menu {
+	var items, ctx []*fyne.MenuItem // the contextual ones after a line
+	for _, tb := range r.shownTabs() {
+		title := tb.title
+		it := fyne.NewMenuItem(title, func() {
+			r.selectTab(title)
+			if keys {
+				r.down()
+			}
+		})
+		it.Checked = title == r.selected
+		if t, _ := tabOf(title); t.contextual {
+			ctx = append(ctx, it)
+		} else {
+			items = append(items, it)
+		}
+	}
+	if len(ctx) > 0 {
+		items = append(append(items, fyne.NewMenuItemSeparator()), ctx...)
+	}
+	return fyne.NewMenu("", items...)
+}
+
+// showTabMenu opens the switcher's menu under it.
+func (r *ribbonBar) showTabMenu(keys bool) {
+	widget.ShowPopUpMenuAtPosition(r.tabMenu(keys), r.w.fyneWindow.Canvas(), r.w.menuBelow(r.switcher))
+}
+
+// stepTab chooses the tab step from the chosen one (the switcher's ← →).
+func (r *ribbonBar) stepTab(step int) {
+	tabs := r.shownTabs()
+	for i, t := range tabs {
+		if t.title == r.selected {
+			r.selectTab(tabs[(i+step+len(tabs))%len(tabs)].title)
+			return
+		}
+	}
+}
+
 // down and up go between the tab row and the group row.
 func (r *ribbonBar) down() {
 	for _, b := range r.buttons {
@@ -855,6 +920,10 @@ func (r *ribbonBar) down() {
 }
 
 func (r *ribbonBar) up() {
+	if r.phone {
+		r.w.fyneWindow.Canvas().Focus(r.switcher)
+		return
+	}
 	for _, t := range r.shownTabs() {
 		if t.title == r.selected {
 			r.w.fyneWindow.Canvas().Focus(t)
@@ -940,15 +1009,15 @@ func (r *ribbonBar) showKeyTips() {
 // takes the other level's away).
 func (r *ribbonBar) assignTips(level int) {
 	r.tipLevel, r.typed = level, ""
-	for _, t := range r.tabs {
-		t.setTip("")
-	}
 	r.clearTips()
 	if level == 1 {
 		tabs := r.shownTabs()
+		if r.phone { // the switcher's one tip opens its menu
+			tabs = []*ribbonTabButton{r.switcher}
+		}
 		labels := make([]string, 0, len(tabs)+3+len(r.rowButtons))
 		for _, t := range tabs {
-			labels = append(labels, t.title)
+			labels = append(labels, strings.TrimSuffix(t.title, " ▾"))
 		}
 		ends := r.tipEnds()
 		for _, b := range ends {
@@ -992,7 +1061,7 @@ func (r *ribbonBar) assignTips(level int) {
 
 // clearTips takes every key tip away.
 func (r *ribbonBar) clearTips() {
-	for _, t := range r.tabs {
+	for _, t := range append([]*ribbonTabButton{r.switcher}, r.tabs...) {
 		t.setTip("")
 	}
 	for _, b := range append(append(append([]*ribbonButton{r.palette, r.menus, r.order}, r.pinned...), r.buttons...), r.rowButtons...) {
@@ -1040,6 +1109,12 @@ func (r *ribbonBar) keyTipTyped(ch rune) bool {
 				}
 			} else if strings.HasPrefix(t.tip, typed) {
 				prefix = true
+			}
+		}
+		if r.phone && r.switcher.tip == typed {
+			match = func() {
+				r.leaveKeyTips(false)
+				r.showTabMenu(true)
 			}
 		}
 		if r.palette.tip == typed {
@@ -1181,6 +1256,7 @@ type ribbonTabButton struct {
 	onTap                      func()
 	selected, hovered, focused bool
 	tip                        string
+	switcher                   bool // a phone's switcher (r.switcher)
 }
 
 func newRibbonTabButton(r *ribbonBar, title string, tap func()) *ribbonTabButton {
@@ -1253,6 +1329,23 @@ func (t *ribbonTabButton) TypedRune(ch rune) {
 	t.r.keyTipTyped(ch)
 }
 func (t *ribbonTabButton) TypedKey(k *fyne.KeyEvent) {
+	if t.switcher {
+		switch k.Name {
+		case fyne.KeyLeft:
+			t.r.stepTab(-1)
+		case fyne.KeyRight:
+			t.r.stepTab(1)
+		case fyne.KeyDown:
+			t.r.down()
+		case fyne.KeyReturn, fyne.KeyEnter:
+			t.r.showTabMenu(true)
+		case fyne.KeyEscape:
+			if !t.r.keyTipEscape() {
+				t.r.w.focusMain()
+			}
+		}
+		return
+	}
 	switch k.Name {
 	case fyne.KeyLeft:
 		t.r.move(t, -1)
@@ -1271,10 +1364,20 @@ func (t *ribbonTabButton) TypedKey(k *fyne.KeyEvent) {
 	}
 }
 
-func (t *ribbonTabButton) AccessibilityLabel() string             { return t.title + " tab" }
-func (t *ribbonTabButton) AccessibilityRole() fyne.AccessibleRole { return fyne.AccessibleRoleTab }
+func (t *ribbonTabButton) AccessibilityLabel() string {
+	if t.switcher {
+		return "Ribbon tab: " + t.r.selected
+	}
+	return t.title + " tab"
+}
+func (t *ribbonTabButton) AccessibilityRole() fyne.AccessibleRole {
+	if t.switcher {
+		return fyne.AccessibleRoleButton
+	}
+	return fyne.AccessibleRoleTab
+}
 func (t *ribbonTabButton) AccessibilityStates() []fyne.AccessibleState {
-	if t.selected {
+	if t.selected && !t.switcher {
 		return []fyne.AccessibleState{fyne.AccessibleStateSelected}
 	}
 	return nil
