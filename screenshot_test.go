@@ -4,6 +4,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -360,4 +361,89 @@ func TestCardsBeatsScreenshot(t *testing.T) {
 	w.toggleCards()
 	w.fyneWindow.Content().Refresh()
 	capture(t, w.fyneWindow.Canvas(), "cards-beats-full.png")
+}
+
+// beatsLandText is a Three Acts script whose Midpoint comes late: on the
+// last of its pages.
+func beatsLandText() string {
+	var b strings.Builder
+	b.WriteString("Title: The Long Rain\n\n# Act One\n\n= Anna waits for a letter.\n\nINT. KITCHEN - DAY\n\n")
+	for range 60 {
+		b.WriteString("The rain goes on, and Anna watches the road for the postman.\n\n")
+	}
+	b.WriteString("# Act Two\n\nEXT. ROAD - DAY\n\n")
+	for range 60 {
+		b.WriteString("The wipers beat, the road shines, Bram does not slow down.\n\n")
+	}
+	b.WriteString("# Midpoint\n\nINT. HALL - NIGHT\n\nThe letter on the mat.\n\n# Act Three\n\nEXT. LAKE - DAWN\n\nThey read it together.\n")
+	return b.String()
+}
+
+// Where the beats land shows on the Cards' section headers, the
+// timeline's bands and the outline's rows: a flag on the late Midpoint,
+// its tap going there with what to do.
+func TestBeatsLandInCards(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	text := beatsLandText()
+	w.textEditor.SetText(text)
+	waitFor(t, "the layout", func() bool { _, _, ok := w.beatPlaces(); return ok && !w.beats.busy })
+	items := w.outlineItems(text)
+	lands := w.landings(items, true)
+	mid := strings.Count(text[:strings.Index(text, "# Midpoint")], "\n")
+	p, ok := lands[mid]
+	if !ok || !p.off() || p.landWord() != "Late" {
+		t.Fatalf("the Midpoint: %+v %v (%v)", p, ok, lands)
+	}
+	w.toggleCards()
+	var marks []*linkLabel
+	walk(w.cards.list, func(o fyne.CanvasObject) {
+		if l, ok := o.(*linkLabel); ok && strings.Contains(l.Text, "p. ") {
+			marks = append(marks, l)
+		}
+	})
+	var late *linkLabel
+	for _, l := range marks {
+		if strings.HasPrefix(l.Text, "⚑ Late") {
+			late = l
+		}
+	}
+	if late == nil {
+		t.Fatalf("no Late mark on the cards: %d marks", len(marks))
+	}
+	w.textEditor.SetCursorOffset(0)
+	late.Tapped(nil)
+	if w.scriptCursorLine() != mid {
+		t.Errorf("the mark went to line %d, not %d", w.scriptCursorLine(), mid)
+	}
+	w.setCardsLook(cardsLook{timeline: true})
+	tl := w.cards.tl
+	if q, ok := tl.lands[slices.IndexFunc(tl.m.items, func(it outlineItem) bool { return it.Line == mid })]; !ok || !q.off() {
+		t.Errorf("the timeline's Midpoint: %+v %v", q, ok)
+	}
+	o := w.outlinePane()
+	o.refresh()
+	if q, ok := o.lands[mid]; !ok || !q.off() {
+		t.Errorf("the outline's Midpoint: %+v %v", q, ok)
+	}
+}
+
+// TestBeatsLandScreenshot renders where the beats land on the cards and
+// on the timeline (SHOT_DIR as above).
+func TestBeatsLandScreenshot(t *testing.T) {
+	if os.Getenv("SHOT_DIR") == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	w, _ := newDialogTestWindow(t)
+	keepDockSettings(t, w)
+	w.textEditor.SetText(beatsLandText())
+	w.fyneWindow.Resize(fyne.NewSize(1200, 720))
+	waitFor(t, "the layout", func() bool { _, _, ok := w.beatPlaces(); return ok && !w.beats.busy })
+	w.togglePane("outline")
+	w.toggleCards()
+	w.fyneWindow.Content().Refresh()
+	capture(t, w.fyneWindow.Canvas(), "beats-land-cards.png")
+	w.setCardsLook(cardsLook{timeline: true})
+	w.cards.tl.update()
+	w.fyneWindow.Content().Refresh()
+	capture(t, w.fyneWindow.Canvas(), "beats-land-timeline.png")
 }

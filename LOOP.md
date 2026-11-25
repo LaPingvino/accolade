@@ -2109,7 +2109,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | Courier Badi refit (1.104) | done |
   | Title page templates + follow-ups | done |
   | COLLAB step 8 | done (two-device run waits on Joop) |
-  | Beats: (A) where they land | partly: Revision ribbon readout only, not in the cards, timeline strip or outline |
+  | Beats: (A) where they land | done (branch beatsland, not merged): Revision ribbon; Cards section headers (✓ p. N / ⚑ Late · p. N · usually a–b%, a tap there with the advice), timeline bands, outline rows (⚑ only), the strip's act ticks in the warning colour; the outline and strip read the last layout, the Cards and timeline ask for one |
   | Beats: (B) real-film ranges | not started (templates carry conventional ranges) |
   | Revision tools / Revision tab | done; partly: Markdown's source checks, dismissals not kept |
   | Structure follow-ups (structure2, OPML, treatment) | done; left: the Export dialog shows Page Setup for outline/treatment |

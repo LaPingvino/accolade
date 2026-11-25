@@ -44,7 +44,8 @@ type timelineView struct {
 	widget.BaseWidget
 	w      *MainWindow
 	m      storyModel
-	zoom   float32 // 1: the story fits the width (a phone: an eighth is 10 px)
+	lands  map[int]beatPlace // where the sections land, by outline item (beat_place.go)
+	zoom   float32           // 1: the story fits the width (a phone: an eighth is 10 px)
 	scroll *zoomScroll
 	area   *fyne.Container // the drawing
 	labels *fyne.Container // the lanes' names (left to right)
@@ -94,6 +95,14 @@ func (t *timelineView) Resize(s fyne.Size) {
 // update reads the story again and draws it.
 func (t *timelineView) update() {
 	t.m = t.w.storyNow()
+	t.lands = map[int]beatPlace{} // by band item
+	if l := t.w.landings(t.m.items, true); l != nil {
+		for i, it := range t.m.items {
+			if p, ok := l[it.Line]; ok {
+				t.lands[i] = p
+			}
+		}
+	}
 	t.w.measureStoryLater()
 	t.draw()
 }
@@ -259,7 +268,28 @@ func (t *timelineView) addBand(b storyBand, x, y, w, h float32) {
 	bg.Move(fyne.NewPos(x, y))
 	bg.Resize(fyne.NewSize(max(w-2, 2), h))
 	t.area.Add(bg)
-	title := canvas.NewText(fitText(b.title, w-8, theme.CaptionTextSize(), true), theme.Color(theme.ColorNameForeground))
+	room := w - 8
+	if p, ok := t.lands[b.item]; ok { // where it lands, at the band's end; a tap goes there and says what to do
+		word := "✓"
+		col := theme.Color(theme.ColorNameDisabled)
+		if p.off() {
+			word, col = "⚑ "+p.landWord(), theme.Color(theme.ColorNameWarning)
+		}
+		mark := canvas.NewText(word, col)
+		mark.TextSize = theme.CaptionTextSize()
+		mark.TextStyle = fyne.TextStyle{Bold: p.off()}
+		mw := mark.MinSize().Width
+		if mw+24 < room { // a band too narrow for it keeps its title
+			mark.Move(fyne.NewPos(x+w-6-mw, y+2))
+			t.area.Add(mark)
+			room -= mw + 6
+		}
+		zone := newTapZone(func() { t.w.goToLanding(p) })
+		zone.Move(fyne.NewPos(x, y))
+		zone.Resize(fyne.NewSize(max(w-2, 2), h))
+		defer t.area.Add(zone)
+	}
+	title := canvas.NewText(fitText(b.title, room, theme.CaptionTextSize(), true), theme.Color(theme.ColorNameForeground))
 	title.TextSize = theme.CaptionTextSize()
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Move(fyne.NewPos(x+4, y+2))

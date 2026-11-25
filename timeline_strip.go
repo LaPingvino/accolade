@@ -159,9 +159,16 @@ func (s *storyStrip) draw(width, h float32) {
 	total := float32(max(1, m.total))
 	x := float32(0)
 	starts := map[int]int{} // a band's first scene: its level (the top one)
+	off := map[int]bool{}   // a band's first scene: a section there lands off its range (beat_place.go), its tick flagged
+	lands := s.w.landings(m.items, false)
 	for _, b := range m.bands {
 		if lv, ok := starts[b.first]; !ok || b.level < lv {
 			starts[b.first] = b.level
+		}
+		if b.item < len(m.items) {
+			if p, ok := lands[m.items[b.item].Line]; ok && p.off() {
+				off[b.first] = true
+			}
 		}
 	}
 	neutral := tint(theme.ColorNameForeground, 0x30)
@@ -169,6 +176,9 @@ func (s *storyStrip) draw(width, h float32) {
 		bw := float32(sc.eighths) / total * width
 		if lv, ok := starts[k]; ok && k > 0 { // an act's start: a tick
 			tick := canvas.NewRectangle(theme.Color(theme.ColorNameForeground))
+			if off[k] {
+				tick.FillColor = theme.Color(theme.ColorNameWarning)
+			}
 			th := h
 			if lv > 1 {
 				th = h * 0.6

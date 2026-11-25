@@ -196,6 +196,7 @@ type outlinePanel struct {
 	// beats are the beats no scene grew from by section line (the
 	// script's: notes_marks.go)
 	beats map[int][]int
+	lands map[int]beatPlace // where the sections land (beat_place.go), as last laid out
 
 	oneLine, twoLines float32 // row heights without and with a synopsis
 }
@@ -241,7 +242,11 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			right := row.Objects[2].(*fyne.Container)
 			showSwatch(right.Objects[1].(*fyne.Container).Objects[0].(*canvas.Rectangle), it.Color)
 			showRowDots(right.Objects[0].(*fyne.Container), o.dots[id])
-			title.SetText(strings.Repeat("  ", max(0, it.Level-1)) + it.Text)
+			label := strings.Repeat("  ", max(0, it.Level-1)) + it.Text
+			if p, ok := o.lands[it.Line]; ok && p.off() { // off its range: a flag (the row goes there; the Cards say more)
+				label += "  ⚑ " + p.landWord()
+			}
+			title.SetText(label)
 			title.TextStyle = fyne.TextStyle{Bold: !it.Scene}
 			title.Refresh()
 			syn.SetText(strings.Repeat("  ", max(0, it.Level-1)) + it.Synopsis)
@@ -258,6 +263,9 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 	o.list.OnSelected = func(id widget.ListItemID) {
 		if id < len(o.items) {
 			o.goTo(o.items[id].Line)
+			if p, ok := o.lands[o.items[id].Line]; ok && p.off() { // its flag's call to action
+				o.w.setStatus(p.advice())
+			}
 		}
 		o.list.UnselectAll()
 	}
@@ -288,9 +296,10 @@ func (o *outlinePanel) refresh() {
 	d := w.frontDoc()
 	o.of, o.doc = w.frontKey(), d
 	o.all = o.itemsOf(d)
-	o.beats = nil
+	o.beats, o.lands = nil, nil
 	if d.kind == docScript && !w.markdown {
 		o.beats = sectionBeats(d.Text(), w.sceneStarts(), o.all)
+		o.lands = w.landings(o.all, false)
 	}
 	switch {
 	case d.kind == docSource:

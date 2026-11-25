@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"strings"
 	"unicode"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/lexington/pdf"
 )
@@ -186,7 +190,7 @@ func (w *MainWindow) beatPlaces() ([]beatPlace, string, bool) {
 			}, func(g got) {
 				l.busy = false
 				l.text, l.places, l.structure, l.ok = text, g.places, g.structure, true
-				w.ribbonRefresh()
+				w.beatsLanded()
 			})
 		}
 	}
@@ -367,3 +371,126 @@ func beatCommands() []*command {
 			when: script, run: func(w *MainWindow) { w.stepOff(-1) }},
 	}
 }
+
+// Where the beats land in the views that show the sections (Joop
+// 2026-11-24: "integrated with the cards timeline view etc."): a section
+// with a range gets a quiet mark on its Cards header, its timeline band
+// and its outline row (on target, early, late; the strip over the script
+// flags an off one's tick), a tap going there with
+// what to do about it. The places are beatPlaces' (the layout the
+// Revision ribbon reads); while a new one is made the last stays, each
+// matched to its section by order and name, so typing does not blink.
+
+// landings are the places of items' sections with a range, by the
+// section's line (none in Markdown, or before a layout). lay asks for a
+// layout of the text now if the last is stale (the Cards and the
+// timeline, which follow the typing after a pause); the outline, which
+// follows each key, takes the last as it is and is shown the next.
+func (w *MainWindow) landings(items []outlineItem, lay bool) map[int]beatPlace {
+	if w.textEditor == nil || w.markdown {
+		return nil
+	}
+	places := w.beats.places
+	if lay {
+		places, _, _ = w.beatPlaces()
+	}
+	if !anyHas(places) {
+		return nil
+	}
+	out := map[int]beatPlace{}
+	k := 0
+	for _, it := range items {
+		if it.Scene {
+			continue
+		}
+		if k < len(places) && sectionKey(places[k].name) == sectionKey(it.Text) && places[k].has {
+			out[it.Line] = places[k]
+		}
+		k++
+	}
+	return out
+}
+
+// landWord is a place's state in a word: on target, early, late.
+func (b beatPlace) landWord() string {
+	switch {
+	case !b.off():
+		return "On target"
+	case b.pct < b.lo:
+		return "Early"
+	}
+	return "Late"
+}
+
+// landMark is a place's mark: "⚑ Late · p. 60 · usually 45–55%", or,
+// on target, "✓ p. 31".
+func (b beatPlace) landMark() string {
+	if !b.off() {
+		return fmt.Sprintf("✓ p. %d", b.page)
+	}
+	return fmt.Sprintf("⚑ %s · p. %d · usually %.0f–%.0f%%", b.landWord(), b.page, b.lo, b.hi)
+}
+
+// goToLanding goes to the section and says where it lands, with what to
+// do about it if it is off.
+func (w *MainWindow) goToLanding(b beatPlace) {
+	w.goToScript(b.line)
+	if b.off() {
+		w.setStatus(b.advice())
+		return
+	}
+	w.setStatus(fmt.Sprintf("%s lands on target: page %d of %d (%.0f%%), usually %.0f–%.0f%%", b.name, b.page, b.pages, b.pct, b.lo, b.hi))
+}
+
+// landLink is a Cards header's mark of where its section lands.
+func landLink(w *MainWindow, b beatPlace) *linkLabel {
+	l := newLinkLabel(func() { w.goToLanding(b) })
+	l.SetText(b.landMark())
+	l.Importance = widget.LowImportance
+	if b.off() {
+		l.Importance = widget.WarningImportance
+	}
+	return l
+}
+
+// beatsLanded shows a layout made in the background where the sections
+// are shown: the cards (and timeline) in the middle and in the dock, the
+// outline, the strip over the script (an off section's tick flagged).
+func (w *MainWindow) beatsLanded() {
+	w.ribbonRefresh()
+	if w.textEditor == nil {
+		return
+	}
+	if w.cards != nil && w.cardsShown() {
+		w.cards.update(w.textEditor.Text())
+	}
+	if w.cardsDock != nil && w.paneInSight("cards") {
+		w.cardsDock.update(w.textEditor.Text())
+	}
+	if w.outline != nil && w.outlineInSight() {
+		w.outline.refresh()
+	}
+	if w.strip != nil && w.stripShown() {
+		w.strip.update()
+	}
+}
+
+// tapZone is a timeline band's tap: a transparent area over it.
+type tapZone struct {
+	widget.BaseWidget
+	onTap func()
+}
+
+func newTapZone(onTap func()) *tapZone {
+	z := &tapZone{onTap: onTap}
+	z.ExtendBaseWidget(z)
+	return z
+}
+
+func (z *tapZone) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(canvas.NewRectangle(color.Transparent))
+}
+
+func (z *tapZone) Tapped(*fyne.PointEvent) { z.onTap() }
+
+func (z *tapZone) Cursor() desktop.Cursor { return desktop.PointerCursor }

@@ -196,7 +196,8 @@ func (c *cardsView) update(text string) {
 	}
 	lines := strings.Split(text, "\n")
 	all := scriptBeats(text, c.items)
-	beats := beatsByItem(all) // a card's to-do mark: its own beats no scene grew from (notes_marks.go)
+	beats := beatsByItem(all)            // a card's to-do mark: its own beats no scene grew from (notes_marks.go)
+	lands := c.w.landings(c.items, true) // where a section lands against its structure's range (beat_place.go)
 	c.list.RemoveAll()
 	c.targets = nil
 	size := cardSize
@@ -268,7 +269,8 @@ func (c *cardsView) update(text string) {
 			if grid != nil {
 				end(i)
 			}
-			h := newSectionHeader(c, i, it, beats[it.Line])
+			land, landed := lands[it.Line]
+			h := newSectionHeader(c, i, it, beats[it.Line], land, landed)
 			group(h)
 			c.targets = append(c.targets, dropTarget{obj: h, before: i + 1, kind: dropHeader, item: i})
 			addLoose(i) // its own, before its scenes
@@ -629,12 +631,16 @@ type sectionHeader struct {
 	body fyne.CanvasObject
 }
 
-func newSectionHeader(c *cardsView, i int, it outlineItem, beats []int) *sectionHeader {
+func newSectionHeader(c *cardsView, i int, it outlineItem, beats []int, land beatPlace, landed bool) *sectionHeader {
 	title := widget.NewLabel(it.Text)
 	title.TextStyle = fyne.TextStyle{Bold: true}
 	title.Importance = widget.HighImportance
 	title.Truncation = fyne.TextTruncateEllipsis
-	rows := []fyne.CanvasObject{widget.NewSeparator(), withSwatch(title, it.Color)}
+	head := withSwatch(title, it.Color)
+	if landed { // where it lands, at the title's end: quiet on target, a flag off it
+		head = container.NewBorder(nil, nil, nil, landLink(c.w, land), head)
+	}
+	rows := []fyne.CanvasObject{widget.NewSeparator(), head}
 	if it.Synopsis != "" { // at the weight of its beats' cards: what it does is as much the plan
 		syn := widget.NewLabel(it.Synopsis)
 		syn.TextStyle = fyne.TextStyle{Italic: true}
