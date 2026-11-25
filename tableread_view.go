@@ -47,6 +47,9 @@ type trTheme struct {
 }
 
 func (t trTheme) Color(n fyne.ThemeColorName, _ fyne.ThemeVariant) color.Color {
+	if _, ok := t.Theme.(*accoladeTheme); ok { // the theme's own dark (or System's)
+		t.Theme = inVariant(t.Theme, theme.VariantDark)
+	}
 	if n == trNarratorColor {
 		return trNarratorInk
 	}

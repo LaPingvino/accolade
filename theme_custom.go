@@ -54,6 +54,7 @@ type themeEditor struct {
 	pd      *PreferencesDialog
 	custom  *customTheme
 	dark    bool // the variant being edited
+	narrow  bool // a phone's width
 	base    *widget.Select
 	variant *widget.RadioGroup
 	rows    *fyne.Container
@@ -86,6 +87,12 @@ func (te *themeEditor) shownDark() bool {
 	}
 	if d.light == nil {
 		return true
+	}
+	switch te.pd.settings.GetString(themeVariantPref) {
+	case "dark":
+		return true
+	case "light":
+		return false
 	}
 	return fyne.CurrentApp().Settings().ThemeVariant() == theme.VariantDark
 }
@@ -152,14 +159,25 @@ func (te *themeEditor) show() {
 		labelled("Variant:", te.variant),
 		hint("Change a colour by its swatch or its #rrggbb. A ⚠ marks a colour that reads too faintly somewhere (WCAG AA: 4.5:1 for text, 3:1 for marks and edges)."),
 	)
-	list := container.NewVScroll(te.rows)
-	list.SetMinSize(fyne.NewSize(360, 380))
-	left := container.NewBorder(controls, container.NewVBox(te.summary, container.NewHBox(reset)), nil, nil, list)
-	body := container.NewHSplit(left, container.NewPadded(te.preview))
-	body.SetOffset(0.5)
-
 	parent := te.pd.win
-	d := dialog.NewCustomConfirm("Customize Colours", "Use as Custom Theme", "Close", body, func(ok bool) {
+	narrow := parent.Canvas().Size().Width < 640 // a phone: the preview over the list
+	te.narrow = narrow
+	list := container.NewVScroll(te.rows)
+	list.SetMinSize(fyne.NewSize(300, 200))
+	left := container.NewBorder(controls, container.NewVBox(te.summary, container.NewHBox(reset)), nil, nil, list)
+	var body fyne.CanvasObject
+	if narrow {
+		controls.Objects = controls.Objects[:2] // the hint is in the warnings
+		split := container.NewVSplit(container.NewPadded(te.preview), left)
+		split.SetOffset(0.4)
+		body = split
+	} else {
+		split := container.NewHSplit(left, container.NewPadded(te.preview))
+		split.SetOffset(0.5)
+		body = split
+	}
+
+	d := dialog.NewCustomConfirm("Customize Colours", "Apply", "Close", body, func(ok bool) {
 		if !ok {
 			return
 		}
@@ -198,7 +216,7 @@ func (te *themeEditor) refresh() {
 
 	at, p, v := te.working()
 	pairs := contrastPairs(at, v)
-	low := lowKeys(pairs)
+	low := lowKeys(pairs, te.changes())
 	te.rows.RemoveAll()
 	for _, k := range customKeys {
 		te.rows.Add(te.row(k, keyColor(p, k.id), low[k.id]))
@@ -208,7 +226,7 @@ func (te *themeEditor) refresh() {
 	} else {
 		te.summary.SetText(fmt.Sprintf("Every pair of colours reads at WCAG AA or better (%d checked).", len(pairs)))
 	}
-	te.preview.Objects = []fyne.CanvasObject{themePreview(at, v)}
+	te.preview.Objects = []fyne.CanvasObject{themePreview(at, v, te.narrow)}
 	te.preview.Refresh()
 }
 
@@ -281,7 +299,7 @@ func validHex(s string) bool {
 // themePreview is a small picture of Accolade in a theme: the ribbon's
 // tabs, the script with a scene heading, a note, a fold and the margin's
 // marks, the Notes pane's cards with their edges, and a dialog.
-func themePreview(th fyne.Theme, v fyne.ThemeVariant) fyne.CanvasObject {
+func themePreview(th fyne.Theme, v fyne.ThemeVariant, narrow bool) fyne.CanvasObject {
 	c := func(n fyne.ThemeColorName) color.Color { return th.Color(n, v) }
 	text := func(s string, n fyne.ThemeColorName, bold, italic, mono bool, size float32) *canvas.Text {
 		t := canvas.NewText(s, c(n))
@@ -383,6 +401,9 @@ func themePreview(th fyne.Theme, v fyne.ThemeVariant) fyne.CanvasObject {
 	sep := canvas.NewRectangle(c(theme.ColorNameSeparator))
 	sep.SetMinSize(fyne.NewSize(0, 1))
 	middle := container.NewBorder(nil, nil, nil, notes, container.NewPadded(script))
+	if narrow { // a phone: the pane under the script, as there
+		middle = container.NewVBox(container.NewPadded(script), notes)
+	}
 	bg := canvas.NewRectangle(c(theme.ColorNameBackground))
 	return container.NewStack(bg, container.NewBorder(container.NewVBox(ribbon, sep), container.NewPadded(dlg), nil, nil, middle))
 }

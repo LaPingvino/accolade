@@ -731,7 +731,7 @@ func newStripWidget(sb *stripboardView, sc int, st *lexreport.Strip, flag stripF
 		content = container.NewVBox(content, f)
 	}
 	s.body = container.NewStack(paper,
-		container.NewThemeOverride(container.New(&tightPad{}, content), paperTheme{fyne.CurrentApp().Settings().Theme()}),
+		container.NewThemeOverride(container.New(&tightPad{}, content), paperTheme{inVariant(fyne.CurrentApp().Settings().Theme(), theme.VariantLight)}),
 		s.frame)
 	s.label = fmt.Sprintf("Scene %s, %s %s %s, %s, %s pages, cast %s, %s strip", scene.label, ie, loc, dn, scene.heading, length,
 		cmpOr(cast, "none"), colour)

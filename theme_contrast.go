@@ -112,11 +112,13 @@ func contrastPairs(th fyne.Theme, v fyne.ThemeVariant) []contrastPair {
 	add("a link", "link,background", c(theme.ColorNameHyperlink), window, contrastText)
 	add("a link in a dialog", "link,surface", c(theme.ColorNameHyperlink), dialog, contrastText)
 	// the editor
-	heading := editor.Themed(th, editor.ColorNameSceneHeading, v, c(theme.ColorNamePrimary))
-	note := editor.Themed(th, editor.ColorNameNote, v, blend(opaque(fg), window, 0.45))
+	heading, note, dim := editor.ElementColors(th, v) // as the editor draws them
 	add("scene headings", "scene,background", heading, window, contrastText)
 	add("scene headings, selected", "scene,accent", heading, over(c(theme.ColorNameSelection), window), contrastText)
 	add("notes in the script", "note,background", note, window, contrastText)
+	add("dimmed script text (parentheticals, transitions, title page)", "muted,background", dim, window, contrastText)
+	add("dimmed script text, selected", "muted,accent", dim, over(c(theme.ColorNameSelection), window), contrastText)
+	add("text on a disabled button", "muted,surface", muted, on(theme.ColorNameDisabledButton), contrastText)
 	add("a folded block's summary", "muted,background", editor.Themed(th, editor.ColorNameFold, v, c(theme.ColorNamePlaceHolder)), window, contrastText)
 	add("a chip's label", "accent,background", c(theme.ColorNamePrimary), tinted(theme.ColorNamePrimary, 0x28), contrastText)
 	add("a warning chip's label", "warning,background", c(theme.ColorNameWarning), tinted(theme.ColorNameWarning, 0x28), contrastText)
@@ -166,11 +168,23 @@ func lowPairs(ps []contrastPair) []contrastPair {
 	return out
 }
 
-// lowKeys are the custom keys with a pair below its threshold, and what.
-func lowKeys(ps []contrastPair) map[string][]string {
+// lowKeys are the custom keys with a pair below its threshold, and what:
+// of a pair's keys, those changed (the colour the user set), or all of
+// them when none was.
+func lowKeys(ps []contrastPair, changed map[string]string) map[string][]string {
 	out := map[string][]string{}
 	for _, p := range lowPairs(ps) {
-		for _, k := range strings.Split(p.Keys, ",") {
+		keys := strings.Split(p.Keys, ",")
+		var set []string
+		for _, k := range keys {
+			if _, ok := changed[k]; ok {
+				set = append(set, k)
+			}
+		}
+		if len(set) > 0 {
+			keys = set
+		}
+		for _, k := range keys {
 			out[k] = append(out[k], fmt.Sprintf("%s %.1f:1 (needs %.1f)", p.What, p.Ratio, p.Min))
 		}
 	}

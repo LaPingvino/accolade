@@ -1221,9 +1221,7 @@ func (e *ScriptEditor) Refresh() {
 // transitions, the title page and notes are dimmed.
 func kindStyle(k syntax.Kind, th fyne.Theme, v fyne.ThemeVariant) widget.TextGridStyle {
 	fg := th.Color(theme.ColorNameForeground, v)
-	dim := mix(fg, th.Color(theme.ColorNameBackground, v), 0.45)
-	heading := Themed(th, ColorNameSceneHeading, v, th.Color(theme.ColorNamePrimary, v))
-	note := Themed(th, ColorNameNote, v, dim)
+	heading, note, dim := ElementColors(th, v)
 	switch k {
 	case syntax.SceneHeading:
 		return &widget.CustomTextGridStyle{TextStyle: fyne.TextStyle{Bold: true}, FGColor: heading}
@@ -1263,7 +1261,7 @@ func inlineStyle(line widget.TextGridStyle, k syntax.InlineKind, th fyne.Theme, 
 	case syntax.Emphasis:
 		out.TextStyle.Italic = true
 	case syntax.CodeSpan:
-		out.FGColor = mix(th.Color(theme.ColorNameForeground, v), th.Color(theme.ColorNameBackground, v), 0.45)
+		_, _, out.FGColor = ElementColors(th, v)
 	case syntax.Link:
 		out.FGColor = th.Color(theme.ColorNamePrimary, v)
 	case syntax.Cite: // the theme's green, towards the text's colour to be read as text

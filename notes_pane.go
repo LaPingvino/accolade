@@ -135,7 +135,8 @@ func newNotesPanel(w *MainWindow) *notesPanel {
 			what.Truncation = fyne.TextTruncateEllipsis
 			text := widget.NewLabel("")
 			text.Wrapping = fyne.TextWrapWord
-			return container.NewBorder(nil, nil, bar, nil, container.NewVBox(what, text))
+			// a card over the pane (Slate's raised step), its edge the kind's colour
+			return container.NewStack(newThemedFill(colorNameRaised), container.NewBorder(nil, nil, bar, nil, container.NewVBox(what, text)))
 		},
 		func(id widget.ListItemID, o fyne.CanvasObject) {
 			if id >= len(p.rows) {
@@ -243,7 +244,13 @@ var revisionNoteColor = color.NRGBA{0x8e, 0x5c, 0xd0, 0xff}
 // showRow fills a row of the list.
 func (p *notesPanel) showRow(id int, row *fyne.Container) {
 	r := p.rows[id]
-	box, bar := row.Objects[0].(*fyne.Container), row.Objects[1].(*canvas.Rectangle)
+	card, inner := row.Objects[0].(*themedFill), row.Objects[1].(*fyne.Container)
+	box, bar := inner.Objects[0].(*fyne.Container), inner.Objects[1].(*canvas.Rectangle)
+	if r.item < 0 { // a heading: on the pane itself
+		card.Hide()
+	} else {
+		card.Show()
+	}
 	what, text := box.Objects[0].(*widget.Label), box.Objects[1].(*widget.Label)
 	if r.item < 0 { // a heading
 		bar.FillColor = color.Transparent

@@ -1359,7 +1359,7 @@ func ribbonLayout() []ribbonTab {
 			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")}},
 			// the story's shape: its folds, and the timeline strip over the script
 			{title: "Story", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll"), at("view.timelineStrip"), at("view.stages")}},
-			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),
+			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"), at("set.themeVariant"),
 				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")}},
 		}},
 		fixUpTab(),      // after an import until saved (contextual.go)

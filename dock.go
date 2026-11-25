@@ -723,8 +723,8 @@ func (d *dock) slot(slot int) fyne.CanvasObject {
 		tabRow = d.sheetRow.Container
 	}
 	row := container.NewBorder(nil, nil, nil, container.NewHBox(buttons...), tabRow)
-	wide := canvas.NewRectangle(color.Transparent) // a nil colour crashes the painter
-	wide.SetMinSize(fyne.NewSize(width, 0))
+	wide := newThemedFill(colorNamePanel) // the panel's step over the window (Slate's)
+	wide.min = fyne.NewSize(width, 0)
 	body := container.NewStack()
 	d.bodies[slot] = body
 	if slot == dockSheet && d.w.sheetDown { // folded down: the row alone (its tabs bring it up)

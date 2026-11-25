@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/LaPingvino/accolade/internal/editor"
 )
@@ -27,6 +28,7 @@ const (
 	colorNameActive   fyne.ThemeColorName = "accolade-active"    // the active tab's fill (none: an underline)
 	colorNameOnActive fyne.ThemeColorName = "accolade-on-active" // its text
 	colorNameRaised   fyne.ThemeColorName = "accolade-raised"    // cards over the panels
+	colorNamePanel    fyne.ThemeColorName = "accolade-panel"     // the side panes over the window
 	colorNameNoteMark fyne.ThemeColorName = "accolade-note-mark" // a note's edge in the Notes pane
 )
 
@@ -108,7 +110,7 @@ var themeDefs = []*themeDef{
 			Violet: rgb(124, 162, 226), Line: rgb(78, 92, 118)},
 		light: &themePalette{
 			Background: hexColor("#dfe3ea"), Surface: hexColor("#eceff4"), Raised: hexColor("#f8f9fb"),
-			Text: hexColor("#1b2230"), Muted: hexColor("#4a566c"), Accent: hexColor("#5f429a"),
+			Text: hexColor("#1b2230"), Muted: hexColor("#3f4a5e"), Accent: hexColor("#5f429a"),
 			Active: hexColor("#252e40"), Link: hexColor("#2c5ea8"), Note: hexColor("#525d72"),
 			Success: hexColor("#1f6c44"), Warning: hexColor("#734f00"), Error: hexColor("#a33c20"),
 			Violet: hexColor("#4a6fb0"), Line: hexColor("#b4bccb")},
@@ -152,7 +154,7 @@ var themeDefs = []*themeDef{
 func systemLight() *themePalette {
 	return &themePalette{
 		Background: hexColor("#ffffff"), Surface: hexColor("#f5f5f5"), Raised: hexColor("#f5f5f5"),
-		Text: hexColor("#565656"), Muted: hexColor("#6b6b6b"), Accent: hexColor("#1a56c4"),
+		Text: hexColor("#565656"), Muted: hexColor("#5c5c5c"), Accent: hexColor("#1a56c4"),
 		Success: hexColor("#1e7e34"), Warning: hexColor("#8a5900"), Error: hexColor("#c62828"), Line: hexColor("#e3e3e3"),
 		exact: map[fyne.ThemeColorName]color.Color{
 			theme.ColorNameInputBackground:     hexColor("#f3f3f3"),
@@ -190,7 +192,7 @@ func systemDark() *themePalette {
 func oldLight() *themePalette {
 	return &themePalette{
 		Background: rgb(255, 255, 255), Surface: rgb(255, 255, 255), Raised: rgb(248, 249, 250),
-		Text: rgb(0, 0, 0), Muted: rgb(106, 106, 106), Accent: rgb(52, 96, 140),
+		Text: rgb(0, 0, 0), Muted: rgb(90, 90, 90), Accent: rgb(52, 96, 140),
 		Success: rgb(30, 126, 52), Warning: rgb(138, 89, 0), Error: rgb(220, 53, 69), Line: rgb(200, 200, 200),
 		exact: map[fyne.ThemeColorName]color.Color{
 			theme.ColorNameHover:           rgb(240, 240, 240),
@@ -207,12 +209,12 @@ func oldLight() *themePalette {
 func oldDark() *themePalette {
 	return &themePalette{dark: true,
 		Background: rgb(35, 35, 35), Surface: rgb(40, 40, 40), Raised: rgb(50, 50, 50),
-		Text: rgb(240, 240, 240), Muted: rgb(158, 158, 158), Accent: rgb(140, 176, 214),
+		Text: rgb(240, 240, 240), Muted: rgb(170, 170, 170), Accent: rgb(140, 176, 214),
 		Success: rgb(100, 220, 130), Warning: rgb(255, 220, 100), Error: rgb(255, 100, 120), Line: rgb(80, 80, 80),
 		exact: map[fyne.ThemeColorName]color.Color{
 			theme.ColorNameHover:           rgb(60, 60, 60),
 			theme.ColorNamePressed:         rgb(80, 80, 80),
-			theme.ColorNameSelection:       color.NRGBA{140, 176, 214, 50},
+			theme.ColorNameSelection:       color.NRGBA{140, 176, 214, 44},
 			theme.ColorNameScrollBar:       rgb(80, 80, 80),
 			theme.ColorNameShadow:          color.NRGBA{0, 0, 0, 80},
 			theme.ColorNameInputBackground: rgb(45, 45, 45),
@@ -224,7 +226,7 @@ func oldDark() *themePalette {
 func oldSepia() *themePalette {
 	return &themePalette{
 		Background: rgb(252, 248, 227), Surface: rgb(250, 245, 225), Raised: rgb(248, 242, 220),
-		Text: rgb(92, 80, 65), Muted: rgb(112, 98, 78), Accent: rgb(132, 83, 34),
+		Text: rgb(92, 80, 65), Muted: rgb(100, 87, 68), Accent: rgb(132, 83, 34),
 		Success: rgb(82, 106, 26), Warning: rgb(122, 86, 0), Violet: rgb(150, 120, 160), Note: rgb(118, 104, 84), Error: rgb(180, 65, 47), Line: rgb(220, 200, 160),
 		exact: map[fyne.ThemeColorName]color.Color{
 			theme.ColorNameHover:           rgb(245, 240, 215),
@@ -541,12 +543,16 @@ func (p *themePalette) color(n fyne.ThemeColorName) color.Color {
 		return p.onColor(p.Active)
 	case colorNameRaised:
 		return p.Raised
+	case colorNamePanel:
+		return p.Surface
 	case colorNameNoteMark:
 		return or(p.Violet, p.muted())
 	case editor.ColorNameSceneHeading:
 		return or(p.Scene, p.Accent)
 	case editor.ColorNameNote:
 		return or(p.Note, p.muted())
+	case editor.ColorNameDim:
+		return p.muted()
 	case editor.ColorNameFold:
 		return or(p.Muted, blend(p.Text, p.Background, 0.4))
 	}
@@ -763,3 +769,56 @@ func choiceID(cs [][2]string, label string) string {
 func themeLabels() []string         { return choiceLabels(themeChoices) }
 func themeLabel(id string) string   { return choiceLabel(themeChoices, id) }
 func themeIDOf(label string) string { return choiceID(themeChoices, label) }
+
+// inVariant is a theme as seen in variant v, whatever is chosen: a view
+// that is always paper (the stripboard) or always dark (the table read).
+// A theme without that variant gives System's.
+func inVariant(th fyne.Theme, v fyne.ThemeVariant) fyne.Theme {
+	at, ok := th.(*accoladeTheme)
+	if !ok {
+		return th
+	}
+	has := at.light != nil
+	if v == theme.VariantDark {
+		has = at.dark != nil
+	}
+	if !has {
+		at = newAccoladeTheme("system", "", nil).(*accoladeTheme)
+	}
+	out := *at
+	out.forced, out.variant = true, v
+	return &out
+}
+
+// themedFill is a rectangle in a colour of the theme, following a change
+// of theme (a plain rectangle keeps the colour it was made with). A
+// theme without the colour (Fyne's) leaves it clear.
+type themedFill struct {
+	widget.BaseWidget
+	name fyne.ThemeColorName
+	min  fyne.Size
+}
+
+func newThemedFill(n fyne.ThemeColorName) *themedFill {
+	f := &themedFill{name: n}
+	f.ExtendBaseWidget(f)
+	return f
+}
+
+func (f *themedFill) MinSize() fyne.Size { return f.min }
+
+func (f *themedFill) CreateRenderer() fyne.WidgetRenderer {
+	r := canvas.NewRectangle(color.Transparent)
+	rr := &ribbonRenderer{objects: []fyne.CanvasObject{r}}
+	rr.layout = func(s fyne.Size) { r.Resize(s) }
+	rr.min = func() fyne.Size { return f.min }
+	rr.refresh = func() {
+		r.FillColor = color.Transparent
+		if c := editor.Themed(fyne.CurrentApp().Settings().Theme(), f.name, fyne.CurrentApp().Settings().ThemeVariant(), nil); c != nil {
+			r.FillColor = c
+		}
+		r.Refresh()
+	}
+	rr.refresh()
+	return rr
+}

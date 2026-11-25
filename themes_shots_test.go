@@ -78,6 +78,16 @@ func TestThemeScreenshots(t *testing.T) {
 	te := &themeEditor{pd: pd, custom: &customTheme{Base: "slate", Dark: map[string]string{"muted": "#4e5c76", "accent": "#7a6a9a"}}, dark: true}
 	te.show()
 	snap(pd.win.Canvas(), "theme-editor-warnings")
+	// at a phone's width: the preview over the list, no wider than the phone
+	phone := NewPreferencesDialog(app, w.fyneWindow)
+	phone.win.Resize(fyne.NewSize(380, 800))
+	phone.customizeTheme()
+	snap(phone.win.Canvas(), "theme-editor-phone")
+	if top := phone.win.Canvas().Overlays().Top(); top == nil {
+		t.Error("no theme editor at a phone's width")
+	} else if mw := top.MinSize().Width; mw > 380 {
+		t.Errorf("the theme editor is %v wide at a phone's width", mw)
+	}
 }
 
 const themeShotScript = `Title: The Barn

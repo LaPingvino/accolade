@@ -139,3 +139,56 @@ func TestCustomTheme(t *testing.T) {
 		t.Error("the base theme changed with the custom one")
 	}
 }
+
+// :theme takes every theme by its label, two words too.
+func TestExThemeEveryTheme(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	t.Cleanup(func() { w.settings.SetString("theme", "system") })
+	for _, c := range themeChoices {
+		w.runEx("theme " + c[1])
+		if got := w.settings.GetString("theme"); got != c[0] {
+			t.Errorf(":theme %s: the theme is %q", c[1], got)
+		}
+		if got := shownThemeID(); got != c[0] {
+			t.Errorf(":theme %s: shown %q", c[1], got)
+		}
+	}
+}
+
+// The custom theme is kept in the settings, read back the same, and
+// Reset to Base leaves its base's colours.
+func TestCustomThemeKeptAndReset(t *testing.T) {
+	w, app := newDialogTestWindow(t)
+	s := w.settings
+	t.Cleanup(func() {
+		s.SetString("theme", "system")
+		s.SetString(themeCustomPref, "")
+	})
+	c := &customTheme{Base: "pastel", Light: map[string]string{"accent": "#5a2a8a"}}
+	saveCustomTheme(s, c)
+	got := loadCustomTheme(s)
+	if got == nil || got.Base != "pastel" || got.Light["accent"] != "#5a2a8a" {
+		t.Fatalf("read back: %+v", got)
+	}
+	s.SetString("theme", customThemeID)
+	app.setColorScheme(customThemeID)
+	if shownThemeID() != customThemeID || theme.Color(theme.ColorNamePrimary) != hexColor("#5a2a8a") {
+		t.Errorf("shown: %s %v", shownThemeID(), theme.Color(theme.ColorNamePrimary))
+	}
+	// changed again under the same name: shown again
+	saveCustomTheme(s, &customTheme{Base: "pastel", Light: map[string]string{"accent": "#4a1a7a"}})
+	app.setColorScheme(customThemeID)
+	if theme.Color(theme.ColorNamePrimary) != hexColor("#4a1a7a") {
+		t.Errorf("an edited custom theme not shown again: %v", theme.Color(theme.ColorNamePrimary))
+	}
+	pd := NewPreferencesDialog(app, w.fyneWindow)
+	te := &themeEditor{pd: pd, custom: loadCustomTheme(s)}
+	te.show()
+	te.custom = &customTheme{Base: te.custom.Base} // what Reset to Base does
+	te.refresh()
+	at, p, _ := te.working()
+	base := newAccoladeTheme("pastel", "", nil).(*accoladeTheme)
+	if p.Accent != base.light.Accent || at.def.id != "pastel" {
+		t.Errorf("after reset: %v, base %v", p.Accent, base.light.Accent)
+	}
+}
