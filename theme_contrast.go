@@ -19,10 +19,33 @@ import (
 // on the colours being set.
 
 const (
-	contrastSmall = 7.0 // small or thin text: hints, captions, kind labels, the status bar, line numbers, dimmed script text (1.4.6 AAA)
-	contrastText  = 4.5 // body-sized text (WCAG 1.4.3 AA)
-	contrastUI    = 3.0 // large text, and marks, focus and edges (1.4.11)
+	contrastSmall = 7.0  // small or thin text: hints, captions, kind labels, the status bar, line numbers, dimmed script text (1.4.6 AAA)
+	contrastText  = 4.5  // body-sized text (WCAG 1.4.3 AA)
+	contrastUI    = 3.0  // large text, and marks, focus and edges (1.4.11)
+	contrastHint  = 10.5 // a shortcut hint's colour: thin and short (⌘1), it loses up to a third of its contrast to antialiasing, and must still read 7:1 as drawn
 )
+
+// keyHintColor is the colour a ribbon button's shortcut is drawn in: the
+// placeholder's, moved toward the text until it reads contrastHint:1 on
+// the window (or as far as the text itself, if that reads less).
+func keyHintColor(th fyne.Theme, v fyne.ThemeVariant) color.NRGBA {
+	window := over(th.Color(theme.ColorNameBackground, v), hexColor("#ffffff"))
+	ph := over(th.Color(theme.ColorNamePlaceHolder, v), window)
+	fg := over(th.Color(theme.ColorNameForeground, v), window)
+	for i := 0; i <= 20; i++ {
+		c := blend(ph, fg, float64(i)/20)
+		if contrastRatio(c, window) >= contrastHint {
+			return c
+		}
+	}
+	return fg
+}
+
+// keyHint is keyHintColor in the theme shown.
+func keyHint() color.NRGBA {
+	s := fyne.CurrentApp().Settings()
+	return keyHintColor(s.Theme(), s.ThemeVariant())
+}
 
 // contrastPair is one colour drawn on another.
 type contrastPair struct {
@@ -105,7 +128,7 @@ func contrastPairs(th fyne.Theme, v fyne.ThemeVariant) []contrastPair {
 	add("a Notes heading, hovered", "text,surface", fg, over(c(theme.ColorNameHover), panel), contrastSmall)
 	add("a note's kind label, hovered", "muted,raised", muted, over(c(theme.ColorNameHover), card), contrastSmall)
 	add("a ribbon group's caption", "muted,background", muted, window, contrastSmall)
-	add("a ribbon button's shortcut", "muted,background", c(theme.ColorNamePlaceHolder), window, contrastSmall)
+	add("a ribbon button's shortcut", "muted,background", keyHintColor(th, v), window, min(contrastHint, contrastRatio(opaque(fg), window)))
 	add("the status bar", "muted,background", muted, window, contrastSmall)
 	add("the status bar's open count", "warning,background", c(theme.ColorNameWarning), window, contrastSmall)
 	add("secondary text at body size (hints)", "muted,background", muted, window, contrastText)

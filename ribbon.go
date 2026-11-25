@@ -1665,7 +1665,7 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 	mark := canvas.NewText("", theme.Color(theme.ColorNameForeground))
 	mark.TextStyle.Monospace = true
 	mark.TextStyle.Bold = true
-	keyT := canvas.NewText("", theme.Color(theme.ColorNamePlaceHolder))
+	keyT := canvas.NewText("", keyHint())
 	var lines []*canvas.Text
 	badge := newKeyTipBadge()
 	dot := canvas.NewCircle(theme.Color(theme.ColorNamePrimary))
@@ -1817,7 +1817,7 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 		mark.Color = fg
 		keyT.Text = keyShown()
 		keyT.TextSize = keySize()
-		keyT.Color = theme.Color(theme.ColorNamePlaceHolder)
+		keyT.Color = keyHint()
 		if b.disabled {
 			keyT.Color = theme.Color(theme.ColorNameDisabled)
 		}

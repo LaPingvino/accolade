@@ -338,9 +338,13 @@ func gap() fyne.CanvasObject {
 	return container.NewGridWrap(fyne.NewSize(theme.Padding(), 1))
 }
 
+// macKeyLabels: shortcuts are written the Mac's way (⌘S, not Ctrl+S);
+// a variable so the tests can draw the Mac's labels anywhere.
+var macKeyLabels = runtime.GOOS == "darwin"
+
 // keys formats a shortcut for a tooltip: " (Ctrl+S)", or " (⌘S)" on macOS.
 func keys(k string) string {
-	if runtime.GOOS == "darwin" {
+	if macKeyLabels {
 		return " (" + strings.NewReplacer("Shift+", "⇧", "Alt+", "⌥").Replace("⌘"+k) + ")"
 	}
 	return " (Ctrl+" + k + ")"

@@ -23,6 +23,21 @@ import (
 // a theme names; this reads what is on the screen, so a colour that
 // passes on paper and reads faint fails here.
 func TestThemeSmallTextPixels(t *testing.T) {
+	for _, mac := range []bool{false, true} {
+		name := "ctrl"
+		if mac {
+			name = "mac"
+		}
+		t.Run(name, func(t *testing.T) {
+			was := macKeyLabels
+			macKeyLabels = mac // the Mac's ⌘ labels draw thinner than Ctrl+…: both, on every OS
+			t.Cleanup(func() { macKeyLabels = was })
+			smallTextPixels(t)
+		})
+	}
+}
+
+func smallTextPixels(t *testing.T) {
 	w, app := newDialogTestWindow(t)
 	s := w.settings
 	s.SetString(lookPref, "ribbon")
