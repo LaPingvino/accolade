@@ -1,0 +1,11 @@
+The styles in this folder come unchanged from the Citation Style Language
+project's official repositories, under the Creative Commons
+Attribution-ShareAlike 3.0 License (http://creativecommons.org/licenses/by-sa/3.0/):
+
+  apa.csl, chicago-author-date.csl, ieee.csl, nlm-citation-sequence.csl
+    https://github.com/citation-style-language/styles (their authors and
+    contributors are named in each file's <info>)
+  locales-en-US.xml
+    https://github.com/citation-style-language/locales
+
+Accolade offers nlm-citation-sequence.csl as "vancouver" too.

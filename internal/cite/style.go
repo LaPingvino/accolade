@@ -267,6 +267,7 @@ type ref struct {
 	prefix   string // Markdown, as written
 	locator  string // p. 12 as 12, chap. 2 as is
 	suffix   string // what follows that is no locator
+	loc      string // the locator as written (p. 12)
 	suppress bool
 }
 
@@ -283,14 +284,18 @@ func (s *styler) replace(line string, cs []syntax.Citation) string {
 
 // citation is one citation in the style.
 func (s *styler) citation(r []rune, c syntax.Citation) string {
-	if c.InText {
-		k := c.Keys[0]
-		ct := s.ref(k.Key)
-		if c.End > k.End { // @doe99 [p. 12]
-			loc := strings.TrimSpace(string(r[k.End:c.End]))
-			loc = strings.TrimSuffix(strings.TrimPrefix(loc, "["), "]")
-			ct.locator, ct.suffix = locator(loc)
+	parts := splitRefs(r, c)
+	for i := range parts {
+		ct := &parts[i]
+		if e := s.lib.Get(ct.key); e != nil {
+			ct.w = s.of[e]
 		}
+		if ct.loc != "" {
+			ct.locator, ct.suffix = locator(ct.loc)
+		}
+	}
+	if c.InText {
+		ct := parts[0]
 		if ct.w == nil {
 			return "(" + Escape(ct.key) + "?)"
 		}
@@ -299,32 +304,6 @@ func (s *styler) citation(r []rune, c syntax.Citation) string {
 			in += ", " + ct.locator
 		}
 		return ct.w.label + " (" + in + ct.suffix + ")"
-	}
-	// the parts between ;, a key in each (syntax.Citations found them so)
-	var parts []ref
-	start := c.Start + 1
-	ki := 0
-	for p := c.Start + 1; p <= c.End-1 && ki < len(c.Keys); p++ {
-		if p < c.End-1 && r[p] != ';' {
-			continue
-		}
-		k := c.Keys[ki]
-		ki++
-		ct := s.ref(k.Key)
-		ct.suppress = k.Suppress
-		pre := strings.TrimSpace(string(r[start:k.Start]))
-		if k.Suppress {
-			pre = strings.TrimSpace(strings.TrimSuffix(pre, "-"))
-		}
-		ct.prefix = pre
-		after := strings.TrimSpace(string(r[k.End:p]))
-		if rest, ok := strings.CutPrefix(after, ","); ok {
-			ct.locator, ct.suffix = locator(rest)
-		} else if after != "" {
-			ct.suffix = " " + after
-		}
-		parts = append(parts, ct)
-		start = p + 1
 	}
 	var items []string
 	for i := 0; i < len(parts); i++ {
@@ -360,6 +339,46 @@ func (s *styler) citation(r []rune, c syntax.Citation) string {
 	return "(" + strings.Join(items, "; ") + ")"
 }
 
+// splitRefs are a citation's works as written: the parts between ;, a
+// key in each (syntax.Citations found them so); loc is what follows a
+// key's comma (or an in-text key's [brackets]), suffix other text after it.
+func splitRefs(r []rune, c syntax.Citation) []ref {
+	if c.InText {
+		k := c.Keys[0]
+		ct := ref{key: k.Key}
+		if c.End > k.End { // @doe99 [p. 12]
+			loc := strings.TrimSpace(string(r[k.End:c.End]))
+			ct.loc = strings.TrimSuffix(strings.TrimPrefix(loc, "["), "]")
+		}
+		return []ref{ct}
+	}
+	var parts []ref
+	start := c.Start + 1
+	ki := 0
+	for p := c.Start + 1; p <= c.End-1 && ki < len(c.Keys); p++ {
+		if p < c.End-1 && r[p] != ';' {
+			continue
+		}
+		k := c.Keys[ki]
+		ki++
+		ct := ref{key: k.Key, suppress: k.Suppress}
+		pre := strings.TrimSpace(string(r[start:k.Start]))
+		if k.Suppress {
+			pre = strings.TrimSpace(strings.TrimSuffix(pre, "-"))
+		}
+		ct.prefix = pre
+		after := strings.TrimSpace(string(r[k.End:p]))
+		if rest, ok := strings.CutPrefix(after, ","); ok {
+			ct.loc = strings.TrimSpace(rest)
+		} else if after != "" {
+			ct.suffix = " " + after
+		}
+		parts = append(parts, ct)
+		start = p + 1
+	}
+	return parts
+}
+
 func yearLoc(c ref) string {
 	if c.locator != "" {
 		return c.w.year + ", " + c.locator
@@ -372,14 +391,6 @@ func join(prefix, s string) string {
 		return s
 	}
 	return prefix + " " + s
-}
-
-func (s *styler) ref(key string) ref {
-	c := ref{key: key}
-	if e := s.lib.Get(key); e != nil {
-		c.w = s.of[e]
-	}
-	return c
 }
 
 // pageLabel is a locator's page label, which the style leaves out.
@@ -410,8 +421,14 @@ var rangeDash = regexp.MustCompile(`(\d)\s*-{1,2}\s*(\d)`)
 // place puts the bibliography in lines: in the {#refs} div, else at the
 // end of the References section, else after the text.
 func (s *styler) place(lines []string) string {
+	return placeRefs(lines, s.bibliography())
+}
+
+// placeRefs puts the bibliography refs (Markdown) in lines: in the
+// {#refs} div, else at the end of the References section, else after
+// the text.
+func placeRefs(lines []string, refs string) string {
 	kinds := syntax.ClassifyMarkdown(lines)
-	refs := s.bibliography()
 	// ::: {#refs} … :::
 	for i, l := range lines {
 		if kinds[i] == syntax.Action && refsDiv.MatchString(strings.TrimSpace(l)) {

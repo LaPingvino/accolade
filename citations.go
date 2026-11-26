@@ -56,12 +56,13 @@ type citeInputs struct {
 	key    string
 	place  cite.Place
 	bundle *textBundle
+	csl    string // the front matter's csl:
 }
 
 // citeInputsFor gathers where text (the window's document) is.
 func (w *MainWindow) citeInputsFor(text string) citeInputs {
 	front := cite.FrontOf(text)
-	in := citeInputs{place: cite.Place{Front: front.Bibliography}, bundle: w.bundle}
+	in := citeInputs{place: cite.Place{Front: front.Bibliography}, bundle: w.bundle, csl: front.CSL}
 	if w.settings != nil {
 		in.place.Main = strings.TrimSpace(w.settings.GetString(citeLibraryPref))
 	}
@@ -78,7 +79,7 @@ func (w *MainWindow) citeInputsFor(text string) citeInputs {
 	} else if file == "" && w.unsavedDir != "" && !inBrowser {
 		in.place.Dir = w.unsavedDir
 	}
-	in.key = file + "|" + front.Bibliography + "|" + in.place.Main // a bundle saved again is the same (its stamp says if the library changed)
+	in.key = file + "|" + front.Bibliography + "|" + in.place.Main + "|" + front.CSL // a bundle saved again is the same (its stamp says if the library changed)
 	return in
 }
 
@@ -157,12 +158,57 @@ func (in citeInputs) find(prevSrc cite.Source, prevStamp string) citeFound {
 			f.lib, err = cite.Parse(prevSrc.Name, data)
 		}
 		f.err = err
+		in.readStyle(f.lib)
 		return f
 	}
 	in.listed()
 	f.src, f.lib, f.err = cite.Resolve(in.place, in.read)
 	f.stamp = in.stampOf(f.src)
+	in.readStyle(f.lib)
 	return f
+}
+
+// cslSources are where the front matter's csl: file may be: the
+// bundle's, beside the document, under the home folder, as written.
+func (in citeInputs) cslSources(name string) []cite.Source {
+	var tries []cite.Source
+	if in.bundle != nil {
+		tries = append(tries, cite.Source{Bundle: true, Name: name}, cite.Source{Bundle: true, Name: "assets/" + name})
+	}
+	if in.place.Dir != "" && !filepath.IsAbs(name) {
+		tries = append(tries, cite.Source{Name: filepath.Join(in.place.Dir, filepath.FromSlash(name))})
+	}
+	if strings.HasPrefix(name, "~/") && in.place.Home != "" {
+		tries = append(tries, cite.Source{Name: filepath.Join(in.place.Home, name[2:])})
+	}
+	if filepath.IsAbs(name) {
+		tries = append(tries, cite.Source{Name: name})
+	}
+	return tries
+}
+
+// cslFile is the csl: file's bytes, nil when there is none.
+func (in citeInputs) cslFile(name string) []byte {
+	for _, s := range in.cslSources(name) {
+		if d, err := in.read(s); err == nil {
+			return d
+		}
+	}
+	return nil
+}
+
+// readStyle reads the document's csl: file into lib (Accolade's own
+// styles by name need none; one that cannot be read is left out:
+// Accolade's style cites, StyleOf).
+func (in citeInputs) readStyle(lib *cite.Library) {
+	if lib == nil || in.csl == "" {
+		return
+	}
+	if data := in.cslFile(in.csl); data != nil {
+		if st, err := cite.ParseStyle(data); err == nil {
+			lib.Style, lib.StyleFor = st, in.csl
+		}
+	}
 }
 
 // citations is the window's library state, made when first asked for.
@@ -349,13 +395,16 @@ func citedKeys(text string) (cited, nocite []string) {
 }
 
 // citedBody is the part of a Markdown document that is shown and
-// printed (markdownBody), its citations in Accolade's own author-date
-// style and its bibliography added when it has a library (lib; nil:
-// the citations as written) — what the Live Preview, the page view and
-// Accolade's own PDF, Word, ODT and web page show (internal/cite,
-// style.go). Pandoc's exports cite with --citeproc instead.
+// printed (markdownBody), its citations in its style and its
+// bibliography added when it has a library (lib; nil: the citations as
+// written) — what the Live Preview, the page view and Accolade's own
+// PDF, Word, ODT and web page show. The style is the front matter's
+// csl: (a .csl file, or apa, chicago-author-date, ieee, vancouver:
+// internal/cite/csl.go), else Accolade's own author-date one
+// (style.go). Pandoc's exports cite with --citeproc and the same .csl.
 func citedBody(text string, lib *cite.Library) string {
-	return cite.Render(markdownBody(text), lib, cite.FrontOf(text).Nocite)
+	front := cite.FrontOf(text)
+	return cite.RenderWith(markdownBody(text), lib, front.Nocite, cite.StyleOf(front.CSL, lib))
 }
 
 // libraryNow is the document's library, found and read at once (the
@@ -366,6 +415,7 @@ func libraryNow(text string, in citeInputs) *cite.Library {
 	}
 	in.listed()
 	_, lib, _ := cite.Resolve(in.place, in.read)
+	in.readStyle(lib)
 	return lib
 }
 
@@ -407,24 +457,10 @@ func citeExportFor(text string, in citeInputs) (citeExport, error) {
 	c.bibName, c.bib, c.nocite = "library"+filepath.Ext(src.Base()), data, nocite
 	if name := cite.FrontOf(text).CSL; name != "" {
 		c.cslName = name
-		var tries []cite.Source
-		if in.bundle != nil {
-			tries = append(tries, cite.Source{Bundle: true, Name: name}, cite.Source{Bundle: true, Name: "assets/" + name})
-		}
-		if in.place.Dir != "" && !filepath.IsAbs(name) {
-			tries = append(tries, cite.Source{Name: filepath.Join(in.place.Dir, filepath.FromSlash(name))})
-		}
-		if strings.HasPrefix(name, "~/") && in.place.Home != "" {
-			tries = append(tries, cite.Source{Name: filepath.Join(in.place.Home, name[2:])})
-		}
-		if filepath.IsAbs(name) {
-			tries = append(tries, cite.Source{Name: name})
-		}
-		for _, s := range tries {
-			if d, err := in.read(s); err == nil {
-				c.cslName, c.csl = "style.csl", d
-				break
-			}
+		if d := in.cslFile(name); d != nil {
+			c.cslName, c.csl = "style.csl", d
+		} else if d := cite.BuiltinCSL(name); d != nil { // one of Accolade's: Pandoc cites with the same file
+			c.cslName, c.csl = "style.csl", d
 		}
 	}
 	return c, nil

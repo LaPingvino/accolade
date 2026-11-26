@@ -45,6 +45,19 @@ func ParseCSLJSON(data []byte) ([]*Entry, error) {
 		if e.Key == "" {
 			continue
 		}
+		e.setDate("issued", jsonDate(it["issued"]))
+		for k, raw := range it {
+			if jsonUsed[k] {
+				continue
+			}
+			if ns := jsonNames(raw); len(ns) > 0 {
+				e.setNames(k, ns)
+			} else if d := jsonDate(raw); d[0] != 0 {
+				e.setDate(k, d)
+			} else {
+				e.setMore(k, cleanHTML(jsonText(raw)))
+			}
+		}
 		if e.Container == "" {
 			e.Container = cleanHTML(jsonText(it["collection-title"]))
 		}
@@ -132,6 +145,59 @@ func jsonYear(raw json.RawMessage) string {
 		return y
 	}
 	return yearIn(d.Literal)
+}
+
+// jsonUsed are the CSL-JSON fields Entry's own fields hold.
+var jsonUsed = map[string]bool{"id": true, "type": true, "title": true, "author": true, "editor": true,
+	"issued": true, "container-title": true, "publisher": true, "publisher-place": true, "volume": true,
+	"issue": true, "page": true, "edition": true, "genre": true, "DOI": true, "URL": true, "note": true}
+
+// jsonDate is a CSL date as year, month, day: from date-parts, else raw
+// or literal read as an ISO date (or a year in it).
+func jsonDate(raw json.RawMessage) [3]int {
+	var d struct {
+		Parts   [][]json.RawMessage `json:"date-parts"`
+		Raw     string              `json:"raw"`
+		Literal string              `json:"literal"`
+	}
+	if len(raw) == 0 || raw[0] != '{' || json.Unmarshal(raw, &d) != nil {
+		return [3]int{}
+	}
+	var out [3]int
+	if len(d.Parts) > 0 {
+		for i, p := range d.Parts[0] {
+			if i < 3 {
+				out[i], _ = strconv.Atoi(jsonText(p))
+			}
+		}
+		if out[0] != 0 {
+			return out
+		}
+	}
+	return isoDate(cmpOr(d.Raw, d.Literal))
+}
+
+// isoDate reads 1999, 1999-05 or 1999-05-12 (and the year of anything
+// else with one).
+func isoDate(s string) [3]int {
+	var out [3]int
+	parts := strings.Split(strings.TrimSpace(s), "-")
+	if len(parts) <= 3 && len(parts[0]) == 4 {
+		for i, p := range parts {
+			n, err := strconv.Atoi(p)
+			if err != nil {
+				return [3]int{atoiOr(yearIn(s))}
+			}
+			out[i] = n
+		}
+		return out
+	}
+	return [3]int{atoiOr(yearIn(s))}
+}
+
+func atoiOr(s string) int {
+	n, _ := strconv.Atoi(s)
+	return n
 }
 
 // yearIn is the first run of four digits in s.

@@ -15,6 +15,24 @@ type Library struct {
 	byKey   map[string]*Entry
 	// Warning says what was skipped while reading ("" for nothing).
 	Warning string
+	// Style is the document's csl: style file, read with the library
+	// for the document's csl: StyleFor (nil: none found there; a name of
+	// Accolade's own styles needs no file, BuiltinStyle).
+	Style    *Style
+	StyleFor string
+}
+
+// StyleOf is the style a document's csl: names, with lib its library:
+// the file read with it, else one of Accolade's (apa, ieee …, by name
+// or file name), else nil (Accolade's own author-date style).
+func StyleOf(csl string, lib *Library) *Style {
+	if csl == "" {
+		return nil
+	}
+	if lib != nil && lib.Style != nil && lib.StyleFor == csl {
+		return lib.Style
+	}
+	return BuiltinStyle(csl)
 }
 
 // NewLibrary makes a library of entries (the first of a key wins).

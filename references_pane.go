@@ -2,7 +2,9 @@ package main
 
 import (
 	"image/color"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -33,6 +35,7 @@ type referencesPanel struct {
 	items []refItem
 	list  *widget.List
 	note  *widget.Label
+	style *widget.Select // the document's citation style: its front matter's csl:
 	box   fyne.CanvasObject
 	timer *uiTimer
 }
@@ -99,7 +102,20 @@ func newReferencesPanel(w *MainWindow) *referencesPanel {
 	}
 	width := canvas.NewRectangle(color.Transparent) // as wide as the outline and notes
 	width.SetMinSize(fyne.NewSize(240, 0))
-	p.box = container.NewStack(width, container.NewBorder(p.note, nil, nil, nil, p.list))
+	p.style = widget.NewSelect(citeStyleNames(""), func(name string) {
+		if name == "" || citeStyleValue(name) == cite.FrontOf(w.textEditor.Text()).CSL {
+			return
+		}
+		if e, ok := cslEdit(w.textEditor.Text(), citeStyleValue(name)); ok {
+			cur := w.textEditor.CursorOffset() // where it was, the edit before it counted
+			if cur >= e.End {
+				cur += utf8.RuneCountInString(e.Text) - (e.End - e.Start)
+			}
+			w.applyTextEdit(e, max(cur, 0))
+		}
+	})
+	p.style.PlaceHolder = "Citation style"
+	p.box = container.NewStack(width, container.NewBorder(container.NewVBox(p.style, p.note), nil, nil, nil, p.list))
 	return p
 }
 
@@ -134,6 +150,81 @@ func (p *referencesPanel) refresh() {
 	}
 	p.note.SetText(note)
 	p.list.Refresh()
+	csl := cite.FrontOf(p.w.textEditor.Text()).CSL
+	p.style.Options = citeStyleNames(csl)
+	p.style.SetSelected(citeStyleLabel(csl))
+}
+
+// citeStyles are the styles the References pane offers, by their
+// labels: Accolade's own (no csl:) and the CSL ones it has.
+var citeStyles = []struct{ label, csl string }{
+	{"Author-date (Accolade's)", ""},
+	{"APA", "apa"},
+	{"Chicago author-date", "chicago-author-date"},
+	{"IEEE (numbered)", "ieee"},
+	{"Vancouver (numbered)", "vancouver"},
+}
+
+// citeStyleLabel is the label of a csl: value (a file: its name).
+func citeStyleLabel(csl string) string {
+	for _, s := range citeStyles {
+		if s.csl == csl {
+			return s.label
+		}
+	}
+	return csl
+}
+
+// citeStyleValue is the csl: value of a label (a file's name as is).
+func citeStyleValue(label string) string {
+	for _, s := range citeStyles {
+		if s.label == label {
+			return s.csl
+		}
+	}
+	return label
+}
+
+// citeStyleNames are the labels offered, csl (a file of the document's
+// own) among them.
+func citeStyleNames(csl string) []string {
+	var out []string
+	for _, s := range citeStyles {
+		out = append(out, s.label)
+	}
+	if citeStyleLabel(csl) == csl && csl != "" {
+		out = append(out, csl)
+	}
+	return out
+}
+
+// cslEdit sets text's front matter csl: to value ("": the line taken
+// out), the front matter made when there is none; false: nothing to do.
+func cslEdit(text, value string) (textEdit, bool) {
+	lines := strings.Split(text, "\n")
+	kinds := syntax.ClassifyMarkdown(lines)
+	pos := 0 // in runes, the line's start
+	end := -1
+	for i := 0; i < len(kinds) && kinds[i] == syntax.MdFrontMatter; i++ {
+		n := utf8.RuneCountInString(lines[i])
+		if k, _, ok := strings.Cut(lines[i], ":"); ok && i > 0 && strings.EqualFold(strings.TrimSpace(k), "csl") {
+			if value == "" {
+				return textEdit{Start: pos, End: pos + n + 1}, true
+			}
+			return textEdit{Start: pos, End: pos + n, Text: "csl: " + value}, true
+		}
+		if i > 0 && (strings.TrimSpace(lines[i]) == "---" || strings.TrimSpace(lines[i]) == "...") {
+			end = pos
+		}
+		pos += n + 1
+	}
+	switch {
+	case value == "":
+		return textEdit{}, false
+	case end >= 0: // before the front matter's closing line
+		return textEdit{Start: end, End: end, Text: "csl: " + value + "\n"}, true
+	}
+	return textEdit{Text: "---\ncsl: " + value + "\n---\n\n"}, true
 }
 
 // edited follows the text once typing pauses.

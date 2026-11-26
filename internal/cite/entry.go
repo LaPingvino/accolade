@@ -78,6 +78,14 @@ type Entry struct {
 	DOI       string
 	URL       string
 	Note      string
+	// More are the other CSL variables by CSL's names (number,
+	// collection-title, ISBN, title-short …), MoreNames the other name
+	// variables (translator, container-author …) and Dates the dates
+	// (issued, accessed …) as year, month, day (0: not given): what the
+	// CSL styles read beyond the fields above.
+	More      map[string]string
+	MoreNames map[string][]Name
+	Dates     map[string][3]int
 }
 
 // Creators are who the work is cited by: its authors, else its editors.
@@ -182,4 +190,37 @@ func (e *Entry) Tip() string {
 		b.WriteString("\n" + e.URL)
 	}
 	return b.String()
+}
+
+// setMore sets a CSL variable of More ("" leaves it out).
+func (e *Entry) setMore(name, v string) {
+	if v = strings.TrimSpace(v); v == "" {
+		return
+	}
+	if e.More == nil {
+		e.More = map[string]string{}
+	}
+	e.More[name] = v
+}
+
+// setDate sets a date of Dates (a zero year leaves it out).
+func (e *Entry) setDate(name string, d [3]int) {
+	if d[0] == 0 {
+		return
+	}
+	if e.Dates == nil {
+		e.Dates = map[string][3]int{}
+	}
+	e.Dates[name] = d
+}
+
+// setNames sets a name variable of MoreNames.
+func (e *Entry) setNames(name string, ns []Name) {
+	if len(ns) == 0 {
+		return
+	}
+	if e.MoreNames == nil {
+		e.MoreNames = map[string][]Name{}
+	}
+	e.MoreNames[name] = ns
 }

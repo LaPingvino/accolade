@@ -3,6 +3,7 @@ package cite
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"unicode"
 )
@@ -390,6 +391,45 @@ func (r *bibRaw) entry() *Entry {
 	e.DOI = f("doi")
 	e.URL = f("url")
 	e.Note = f("note", "addendum")
+	// what the CSL styles read beyond those, by CSL's names
+	d := isoDate(f("date"))
+	if d[0] == 0 {
+		d[0] = atoiOr(e.Year)
+	}
+	if m := bibMonth(f("month")); m > 0 && d[1] == 0 {
+		d[1] = m
+	}
+	e.setDate("issued", d)
+	if u := isoDate(f("urldate")); u[0] != 0 {
+		e.setDate("accessed", u)
+	}
+	if r.typ != "article" {
+		e.setMore("number", f("number"))
+	}
+	for bib, csl := range map[string]string{"series": "collection-title", "isbn": "ISBN", "issn": "ISSN",
+		"chapter": "chapter-number", "shorttitle": "title-short", "pagetotal": "number-of-pages",
+		"eventtitle": "event-title", "venue": "event-place", "version": "version", "howpublished": "medium"} {
+		e.setMore(csl, f(bib))
+	}
+	// BibTeX's titles are in title case, CSL's in sentence case (its
+	// styles make title case of them where they want it), as Pandoc
+	// reads them: what is in braces, and words with capitals inside
+	// (DNA, iPhone), as written; not for another language (langid)
+	lang := strings.ToLower(f("langid", "language"))
+	english := lang == "" || strings.HasPrefix(lang, "en") || strings.Contains(lang, "english") || strings.Contains(lang, "american") || strings.Contains(lang, "british")
+	if e.Title != "" && english {
+		t := sentenceCase(r.fields["title"])
+		if st := r.fields["subtitle"]; st != "" {
+			t += ": " + sentenceCase(st)
+		}
+		e.setMore("title#sentence", t)
+	}
+	if bt := r.fields["booktitle"]; bt != "" && english && e.Container == f("booktitle") {
+		e.setMore("container-title#sentence", sentenceCase(bt))
+	}
+	for _, role := range []string{"translator"} {
+		e.setNames(role, parseNames(r.fields[role]))
+	}
 	return e
 }
 
@@ -528,4 +568,50 @@ func Keys(es []*Entry) []string {
 	}
 	sort.Strings(ks)
 	return ks
+}
+
+// bibMonth is a BibTeX month (jan, January, 5) as a number, 0 for none.
+func bibMonth(s string) int {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if n, err := strconv.Atoi(s); err == nil && n >= 1 && n <= 12 {
+		return n
+	}
+	for i, m := range []string{"jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"} {
+		if strings.HasPrefix(s, m) {
+			return i + 1
+		}
+	}
+	return 0
+}
+
+// sentenceCase is a BibTeX title in sentence case: its first word and
+// the first after a colon capitalized, the other words lowercase unless
+// in braces or written with capitals after their first letter.
+func sentenceCase(raw string) string {
+	var out []string
+	capNext := true
+	for _, w := range splitTop(strings.Join(strings.Fields(raw), " "), " ") {
+		d := decodeLaTeX(w)
+		switch {
+		case strings.HasPrefix(w, "{") || strings.HasPrefix(w, "\\"):
+		case mixedCase(d):
+		case capNext:
+			d = capFirst(strings.ToLower(d))
+		default:
+			d = strings.ToLower(d)
+		}
+		capNext = strings.HasSuffix(d, ":") || strings.HasSuffix(d, "?") || strings.HasSuffix(d, "!")
+		out = append(out, d)
+	}
+	return strings.Join(out, " ")
+}
+
+// mixedCase: a capital after the first letter.
+func mixedCase(s string) bool {
+	for i, r := range []rune(s) {
+		if i > 0 && unicode.IsUpper(r) {
+			return true
+		}
+	}
+	return false
 }

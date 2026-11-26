@@ -2100,7 +2100,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | Page view in a real browser / Android / Fyne mobile | waits (Joop's devices); the rtl/CJK/images PDF parts done since (prosertl, previewcjk, pictures); the 380-wide Live Preview widening to ~429: confirmed headless (the text and preview side by side asked 421), fixed on branch exportfu: on a phone the preview goes under the text (TestLivePreviewPhoneWidth, livepreview-phone-*.png) |
   | Preview tab, Refresh, Follow Edits, dirty pages | done |
   | PDF links; page footnotes (jump, renumber, hover) | done |
-  | Citations (bibtex-like) | phase 1 + phase 2's style done; numeric style, CSL left — low priority, skipped |
+  | Citations (bibtex-like) | done: phase 1, phase 2's own style, and CSL (branch q4, not merged): APA, Chicago author-date, IEEE, Vancouver built in, a .csl of one's own, numeric styles; left: names/given names to tell works apart, note styles' footnotes |
   | State-change audit (docs/STATE.md, mainDocChanged) | done |
   | Cards scrolling | done (Fyne fork) |
   | Middle tabs | done |
@@ -2228,6 +2228,26 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   TestScreenplaySourcePageTick (Choose Source on a synthetic PDF: pages kept, the page in its layout, tick and
   unmark, the tick beside), TestPageIndexFind; screenshot TestScreenplaySourcePageScreenshot
   (accolade-source-page.png).
+- 2026-11-26: CITATIONS, CSL and numeric styles (branch q4, not merged; no Lexington change: Accolade's own
+  exports are internal/prose's, citations rendered into the Markdown before them). internal/cite/csl.go: a CSL 1.0
+  subset (macros, text/number/label/date/names/group/choose, a choose's branch under its group's delimiter,
+  substitutes, et al. and et-al-use-last, initials, sort keys by variable or macro, citation numbers by first
+  citation and the bibliography's sort, collapse="citation-number" 1–3 and "year", year-suffix disambiguation,
+  page-range formats, ordinals, the en-US locale; quotes, italics, punctuation tidied); csl/ holds apa,
+  chicago-author-date, ieee and nlm-citation-sequence (= vancouver) and locales-en-US unchanged, with CREDITS (CC
+  BY-SA 3.0). csl_render.go RenderWith: citations in reading order, a footnote definition's where its [^mark] is;
+  @key in the text is Doe (1999) in author-date styles and the number alone in numeric ones (as Pandoc). Decided:
+  the style is per document, the front matter's csl: (a name, a file name like apa.csl, or a .csl beside the
+  document / in the bundle, read with the library: Library.Style, the key includes csl:); none keeps Accolade's
+  own author-date style; the References pane has a style list that writes csl: (cslEdit). Pandoc's export gets
+  the built-in .csl for a name, so both exports cite alike. Data: Entry.More/MoreNames/Dates (CSL-JSON keeps every
+  variable and its dates; BibTeX month/date/urldate, series, translator, isbn …); BibTeX titles in sentence case
+  for CSL as Pandoc does ({Braces} and mixed case kept, not with a non-English langid). Checked against pandoc
+  --citeproc with the same four .csl files on a 5-entry fixture: the same text but italics (plain output) and
+  NLM's "In:," (Pandoc "In,"). Tests: internal/cite TestCSLStyles, TestCSLNumbering, TestCSLJSONVariables,
+  TestBuiltinStyleNames; TestCiteStylePicker, TestCiteStyleFile. Left: disambiguate-add-names/givenname, note
+  styles (they cite in the text), other locales' terms, a .csl file edited on disk is read again only when the
+  library is.
 - 2026-11-25 (Joop, after the Markdown revision checks merged): REVISION FOLLOW-UPS, next Accolade turn.
   (1) Where dismissed findings are kept: "support both options and enable keeping it clean". A setting:
       - "beside the document" (default: a sidecar next to a loose file, or inside the .accolade bundle);
