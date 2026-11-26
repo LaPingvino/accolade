@@ -4,3 +4,4 @@ docs/*.md text eol=lf
 examples/*.md text eol=lf
 examples/*.fountain text eol=lf
 examples/*.accolade binary
+testdata/adapt-bench/** text eol=lf

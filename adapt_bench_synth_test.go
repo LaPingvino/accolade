@@ -50,7 +50,7 @@ func TestAdaptBenchSynth(t *testing.T) {
 			continue
 		}
 		b, err := os.ReadFile(path)
-		if err != nil || string(b) != files[name] {
+		if err != nil || strings.ReplaceAll(string(b), "\r\n", "\n") != files[name] {
 			t.Errorf("%s is not what the generator writes (ACCOLADE_WRITE_SYNTH=1 to write it)", path)
 		}
 	}
