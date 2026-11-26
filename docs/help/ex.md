@@ -170,7 +170,6 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:next-pane** — Next Pane
 - **:previous-pane** — Previous Pane
 - **:ribbon-key-tips** — Ribbon Key Tips
-- **:table-read-beside** — Storyboard Beside the Lines (screenplay)
 
 ### Format
 
@@ -436,6 +435,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:table-read-pick** — The panel: the scenes, a character's scenes, a tag's; narrator, storyboard, tints; who to follow (Table Read > Pick What Is Read) (while the Table Read tab is there)
 - **:table-read-narrator** — Headings and action read by one voice, marked NARRATOR (Table Read > Narrator Mode) (while the Table Read tab is there)
 - **:table-read-storyboard** — The scene's storyboard frames between its lines (Table Read > Show Storyboard Frames) (while the Table Read tab is there)
+- **:table-read-beside** — The storyboard's frames beside the lines they follow, each with its time (else between them) (Table Read > Storyboard Beside the Lines) (while the Table Read tab is there)
 - **:table-read-tints** — Each actor's lines in a colour of their own (Table Read > Actor Tints) (while the Table Read tab is there)
 - **:table-read-fullscreen** — The Table Read filling the screen (in the browser, the page: cast it with Chrome's Cast…) (Table Read > Table Read Full Screen) (while the Table Read tab is there)
 - **:table-read-follow** `item` — The Table Read goes where they are reading (the script shared: who is here) (Table Read > Follow in the Table Read) (while the Table Read tab is there)
