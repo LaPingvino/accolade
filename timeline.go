@@ -275,11 +275,14 @@ func (t *timelineView) addBand(b storyBand, x, y, w, h float32) {
 		if p.off() {
 			word, col = "⚑ "+p.landWord(), theme.Color(theme.ColorNameWarning)
 		}
-		word += " · " + p.rng().kind() // measured on films or the convention (beat_films.go)
-		mark := canvas.NewText(word, col)
+		mark := canvas.NewText(word+" · "+p.rng().kind(), col) // measured on films or the convention (beat_films.go), where it fits
 		mark.TextSize = theme.CaptionTextSize()
 		mark.TextStyle = fyne.TextStyle{Bold: p.off()}
 		mw := mark.MinSize().Width
+		if mw+24 >= room {
+			mark.Text = word
+			mw = mark.MinSize().Width
+		}
 		if mw+24 < room { // a band too narrow for it keeps its title
 			mark.Move(fyne.NewPos(x+w-6-mw, y+2))
 			t.area.Add(mark)

@@ -6,7 +6,8 @@ import "fmt"
 // key beats, from published measurements only, each with its source; a
 // beat no study measures keeps its conventional range and says so. The
 // numbers are the papers' own (or computed from their tables, as noted);
-// none is Accolade's. They are % of the running time, Accolade's are %
+// none is Accolade's (the rule that makes a range of them is: two σ,
+// or the lowest to the highest film, and a page of grace: off()). They are % of the running time, Accolade's are %
 // of the pages: about the same thing (a page runs about a minute, a
 // little under; Follows, "Does one page of a screenplay really equal one
 // minute of screen time?", stephenfollows.com, 2026: 2,520 films, about 55 seconds a page). And the
@@ -20,7 +21,7 @@ type filmSource struct {
 }
 
 var (
-	// Kristin Thompson's four large parts in 73 Hollywood films, as
+	// Kristin Thompson's four large parts in 73 four-act films, as
 	// Cutting tabulates them: setup 24.9% of the running time (σ 2.8),
 	// complication 26.5% (σ 3.7), development 25.1% (σ 3.5), climax 23.5%
 	// (σ 3.8); epilogs, in 83% of them, 1.8% (σ 1.6) within the climax.
@@ -54,13 +55,13 @@ type filmMeasure struct {
 
 // sigmaMeasure is a beat at mean ± sd in % (the range two σ either side).
 func sigmaMeasure(as string, mean, sd float64, src filmSource) *filmMeasure {
-	return &filmMeasure{as: as, typ: fmt.Sprintf("%.0f%%, σ %.1f", mean, sd),
+	return &filmMeasure{as: as, typ: fmt.Sprintf("%g%%, σ %g", mean, sd),
 		lo: max(0, mean-2*sd), hi: min(100, mean+2*sd), src: src}
 }
 
 // spanMeasure is a beat with a median and the lowest and highest films.
 func spanMeasure(as string, median, lo, hi float64, src filmSource) *filmMeasure {
-	return &filmMeasure{as: as, typ: fmt.Sprintf("median %.0f%%, %.0f–%.0f%%", median, lo, hi), lo: lo, hi: hi, src: src}
+	return &filmMeasure{as: as, typ: fmt.Sprintf("median %g%%, %g–%g%%", median, lo, hi), lo: lo, hi: hi, src: src}
 }
 
 // The measured beats. A boundary whose part runs from the start or to the
