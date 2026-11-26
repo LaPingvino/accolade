@@ -87,7 +87,9 @@ func (w *MainWindow) openPDFTheOtherWay() {
 		return
 	}
 	w.hideOpenedAs()
-	w.openPDFAs(b.path, !b.asMD)
+	path, asMD := b.path, !b.asMD
+	// this window if the reading is unchanged, else as a new script asks
+	w.withTarget(func(t *MainWindow) { t.openPDFAs(path, asMD) })
 }
 
 // ImportPDFAsScreenplay is File > Import PDF as Screenplay….

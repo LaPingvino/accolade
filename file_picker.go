@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bufio"
+	"context"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -145,6 +146,9 @@ func pickFormats(exts []string) []pickFormat {
 // the index of the preferred kind's "All …" entry (0 if it has none).
 func pickFilters(exts []string, prefer string) (filters []dialog.NamedFilter, kinds []string, first int) {
 	formats := pickFormats(exts)
+	if prefer == "" && len(formats) > 0 { // the kind of the list's first format
+		prefer = formats[0].kind
+	}
 	for _, kind := range pickKinds {
 		var of []pickFormat
 		var union []string
@@ -173,7 +177,7 @@ func pickFilters(exts []string, prefer string) (filters []dialog.NamedFilter, ki
 		if kind != "" {
 			kinds = append(kinds, kind)
 		}
-		if kind == prefer {
+		if kind == prefer && kind != "" {
 			first = len(filters)
 		}
 		indent := ""
@@ -228,10 +232,10 @@ var kindCache = struct {
 // sniffing are as many files as are read for their kinds at once.
 var sniffing = make(chan struct{}, 4)
 
-// sniffLimit is as long as a file's content is read for its kind; one
-// that takes longer is of no kind until its reading ends (then the cache
-// has it for the next look).
-const sniffLimit = 1500 * time.Millisecond
+// sniffLimit is as long as a PDF is read for its kind: a book of some
+// 300 pages took 5 to 8 s (measured on Joop's); one that takes longer is
+// of no kind. The file dialog asks in the background, so nothing waits.
+const sniffLimit = 12 * time.Second
 
 // readsKind: a file with the extension ext is a screenplay's or a
 // novel's by what it holds.
@@ -245,7 +249,8 @@ func readsKind(ext string) bool {
 
 // fileKindOf is the kind of the file at path: by its name where that
 // says it, else by its content (a PDF's first pages, a text's first
-// lines, a bundle's text file).
+// lines, a bundle's text file), which can take seconds: never on the
+// UI goroutine.
 func fileKindOf(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
 	if !readsKind(ext) {
@@ -278,14 +283,10 @@ func fileKindOf(path string) string {
 	if ok {
 		return kind
 	}
-	select {
-	case <-done:
-		kindCache.Lock()
-		defer kindCache.Unlock()
-		return kindCache.m[key]
-	case <-time.After(sniffLimit):
-		return ""
-	}
+	<-done
+	kindCache.Lock()
+	defer kindCache.Unlock()
+	return kindCache.m[key]
 }
 
 // sniffKind reads enough of a file to tell its kind.
@@ -396,7 +397,9 @@ func textIsScreenplay(text string) bool {
 // a script's lines come out as scene headings, names and their speeches;
 // a novel's mostly as action. A PDF with no text (a scan) is of no kind.
 func sniffPDF(path string) string {
-	sp, err := pdfin.ReadFileWith(path, pdfin.Options{Scenes: allSceneHeaders()})
+	ctx, cancel := context.WithTimeout(context.Background(), sniffLimit)
+	defer cancel()
+	sp, err := pdfin.ReadFileWith(path, pdfin.Options{Context: ctx, Scenes: allSceneHeaders()})
 	if err != nil {
 		return ""
 	}

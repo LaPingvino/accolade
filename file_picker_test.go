@@ -65,6 +65,17 @@ func TestPickFiltersOpen(t *testing.T) {
 	if _, _, first := pickFilters(openExtensions(), kindScreenplay); first != 0 {
 		t.Errorf("a screenplay window's Open starts at %d", first)
 	}
+	// no kind preferred: the kind of the list's first format, never "other"
+	for exts, want := range map[*[]string]string{&importExtensions: "All novel formats", &pictureExtensions: "All supported formats"} {
+		filters, _, first := pickFilters(*exts, "")
+		if filters[first].Name != want {
+			t.Errorf("%v starts at %q", *exts, filters[first].Name)
+		}
+	}
+	merge := mergeExtensions()
+	if filters, _, first := pickFilters(merge, ""); filters[first].Name != "All screenplay formats" {
+		t.Errorf("merge starts at %q", filters[first].Name)
+	}
 }
 
 func TestTextIsScreenplay(t *testing.T) {

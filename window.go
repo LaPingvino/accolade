@@ -606,6 +606,7 @@ func (w *MainWindow) applyFontSettings() {
 func (w *MainWindow) LoadFile(filePath string) error {
 	// the views follow at the end (state.go)
 	defer w.scriptChange()()
+	w.hideOpenedAs() // another file: a PDF's shows it again
 	switch strings.ToLower(filepath.Ext(filePath)) {
 	case ".fdx", ".pdf":
 		return w.importFile(filePath)
@@ -1114,6 +1115,7 @@ func (w *MainWindow) NewEmptyFile() { w.newFile(true) }
 // newFile starts a new script, the sample one or an empty one, asking
 // first if the script has unsaved changes.
 func (w *MainWindow) newFile(empty bool) {
+	w.hideOpenedAs()
 	if w.hasChanges {
 		dialog.ShowConfirm(
 			"Unsaved Changes",

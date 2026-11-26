@@ -123,6 +123,7 @@ func (w *MainWindow) setMarkdown(on bool) {
 // NewMarkdownFile starts a Markdown document, asking first if the one
 // open has unsaved changes.
 func (w *MainWindow) NewMarkdownFile() {
+	w.hideOpenedAs()
 	create := func() {
 		defer w.scriptChange()()
 		w.newDocument()
