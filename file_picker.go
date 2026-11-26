@@ -196,12 +196,17 @@ func pickFilters(exts []string, prefer string) (filters []dialog.NamedFilter, ki
 	return filters, kinds, first
 }
 
+// pickerKinds turns on the dialogs' kind toggles and their background
+// classification. Tests turn it off: under Fyne's test driver fyne.Do runs
+// on the classifier's own goroutine, racing the test's rendering.
+var pickerKinds = true
+
 // setPickFilters gives an open dialog its file types and, when they have
 // kinds, the kind toggles, prefer's (or the first's) chosen.
 func setPickFilters(d *dialog.FileDialog, exts []string, prefer string) {
 	filters, kinds, first := pickFilters(exts, prefer)
 	d.SetFilters(filters)
-	if len(kinds) > 0 {
+	if len(kinds) > 0 && pickerKinds {
 		d.SetFileKinds(kinds, func(u fyne.URI) string { return fileKindOf(u.Path()) })
 	}
 	d.SelectFilter(first)

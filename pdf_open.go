@@ -120,7 +120,9 @@ func (w *MainWindow) choosePDF(kind string, then func(path string)) {
 		{Name: "Screenplay (PDF)", Filter: pdf, Kind: kindScreenplay},
 		{Name: "Novel (PDF)", Filter: pdf, Kind: kindNovel},
 	})
-	d.SetFileKinds([]string{kindScreenplay, kindNovel}, func(u fyne.URI) string { return fileKindOf(u.Path()) })
-	d.SelectFileKind(kind)
+	if pickerKinds {
+		d.SetFileKinds([]string{kindScreenplay, kindNovel}, func(u fyne.URI) string { return fileKindOf(u.Path()) })
+		d.SelectFileKind(kind)
+	}
 	showPicker(d, w.fyneWindow)
 }

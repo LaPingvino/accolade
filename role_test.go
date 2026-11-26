@@ -15,6 +15,7 @@ import (
 // TestMain: the tests start as Production, the whole app, as they were
 // written before the role (role.go); the role's own tests choose theirs.
 func TestMain(m *testing.M) {
+	pickerKinds = false // no background classification under the test driver (see pickerKinds)
 	defaultRole = roleProduction
 	defaultLook = "menus"
 	// what Accolade keeps in its data folder (kept sources, the sources
