@@ -69,6 +69,7 @@ type PreferencesDialog struct {
 	revisionDateSelect  *widget.Select // its date's layout
 	suggestCheck        *widget.Check
 	frameEditors        map[string]*widget.Entry // the storyboard frames' programs, by kind (frames.go)
+	framesFold          *widget.Accordion        // folded: set once, the Script page stays short
 }
 
 func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDialog {
@@ -295,7 +296,8 @@ func (pd *PreferencesDialog) frameEditorsCard() fyne.CanvasObject {
 		rows.Add(labelled(frameKindLabel[kind]+":", e))
 	}
 	rows.Add(hint("A command line; {file} is where the frame's file goes (else at the end). Empty: the program found on PATH or as a Flatpak."))
-	card := widget.NewCard("Storyboard Frames", "The programs Edit Frame in… opens a frame in", rows)
+	pd.framesFold = widget.NewAccordion(widget.NewAccordionItem("Programs: Inkscape, Krita, Glaxnimate, Synfig", rows))
+	card := widget.NewCard("Storyboard Frames", "The programs Edit Frame in… opens a frame in", pd.framesFold)
 	if inBrowser {
 		card.Hide()
 	}

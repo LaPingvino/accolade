@@ -695,6 +695,7 @@ func TestStoryboardFramesScreenshot(t *testing.T) {
 	pd := NewPreferencesDialog(app, w.fyneWindow)
 	pd.Show()
 	pd.tabs.SelectIndex(2)
+	pd.framesFold.Open(0)
 	pd.win.Resize(fyne.NewSize(640, 1500))
 	f, _ := os.Create(filepath.Join(dir, "frames-preferences.png"))
 	png.Encode(f, pd.win.Canvas().Capture())

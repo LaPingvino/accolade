@@ -2277,7 +2277,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   timing stays in its [[board:]] note. Write › New Storyboard Frame: a blank SVG (paper + drawing layers) at the
   script's [[aspectRatio:]] (else 16:9), its note under the line, opened. Write › Edit Frame in… (and Edit in <Tool> in
   the frame dialog): Inkscape for SVG, Krita for PNG/.kra, Glaxnimate for Lottie, Synfig Studio for .sif — on PATH, else
-  the Flatpak (`flatpak run --file-forwarding <id> @@ file @@`), else Preferences › Script › Storyboard Frames (a
+  the Flatpak (`flatpak run --file-forwarding <id> @@ file @@`), else Preferences › Script › Storyboard Frames, folded so the page stays short (a
   command line, "quoted" paths, {file} placed). The frames' files are polled every 0.7 s and a change is acted on once it has settled
   for a tick (no import step); a zipped bundle's frame is edited as a working copy in the user cache
   (accolade/frames/<hash>/…) and written back into that bundle on save (never into another the window opened since). internal/images now draws SVG (fyne-io/oksvg),
