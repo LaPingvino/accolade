@@ -34,50 +34,50 @@ type structureTemplate struct {
 	body  string // its sections and synopses, after the note
 	// ranges are where its sections usually start, in % of the script's
 	// pages, by sectionKey (beat_place.go): structureRanges
-	ranges map[string][2]float64
+	ranges map[string]beatRange
 }
 
 // structureRanges are where the structures' sections usually start, in
-// % of a feature's pages, by their names. NB: these are the conventional
-// ranges the methods and the screenwriting manuals give (a page count on
-// a 110-page script, or a share of it), widened a little; not yet
-// measured on films (LOOP.md (B): real-film ranges, with their sources,
-// are to replace them). A section not here gets its page and place
-// without a range.
-var structureRanges = map[string]map[string][2]float64{
+// % of a feature's pages, by their names: measured on films where a
+// published study times that beat (beat_films.go, with its source; the
+// beat taken as the one the method itself equates it with), else the
+// conventional range the method and the manuals give (a page count on a
+// 110-page script, or a share of it), widened a little, and labelled
+// so. A section not here gets its page and place without a range.
+var structureRanges = map[string]map[string]beatRange{
 	"Three Acts": {
-		"Inciting Incident": {8, 15}, "First Turning Point": {20, 30}, "Act Two": {20, 30},
-		"Midpoint": {45, 55}, "Second Turning Point": {70, 80}, "Act Three": {72, 85},
-		"Climax": {82, 95}, "Resolution": {90, 100},
+		"Inciting Incident": films(filmInciting), "First Turning Point": films(filmActOneEnd), "Act Two": films(filmActOneEnd),
+		"Midpoint": films(filmMidpoint), "Second Turning Point": films(filmActTwoEnd), "Act Three": films(filmActTwoEnd),
+		"Climax": films(filmClimax), "Resolution": films(filmEpilog),
 	},
-	"Sequences": { // eight of about an eighth each
-		"Sequence 2: The Push": {9, 16}, "Act Two": {20, 30}, "Sequence 3: First Steps": {20, 30},
-		"Sequence 4: Complications": {33, 42}, "Sequence 5: New Direction": {45, 55}, "Sequence 6: The Fall": {58, 67},
-		"Act Three": {70, 80}, "Sequence 7: The Final Push": {70, 80}, "Sequence 8: Aftermath": {84, 95},
+	"Sequences": { // eight of about an eighth each; the act breaks and the midpoint measured
+		"Sequence 2: The Push": conv(9, 16), "Act Two": films(filmActOneEnd), "Sequence 3: First Steps": films(filmActOneEnd),
+		"Sequence 4: Complications": conv(33, 42), "Sequence 5: New Direction": films(filmMidpoint), "Sequence 6: The Fall": conv(58, 67),
+		"Act Three": films(filmActTwoEnd), "Sequence 7: The Final Push": films(filmActTwoEnd), "Sequence 8: Aftermath": conv(84, 95),
 	},
-	"Hero's Journey": {
-		"The Call": {5, 14}, "Refusing the Call": {8, 18}, "Meeting the Mentor": {12, 22},
-		"Crossing the Threshold": {20, 30}, "Initiation": {20, 30}, "Tests, Allies, Enemies": {22, 40},
-		"Approaching the Cave": {38, 50}, "The Ordeal": {45, 60}, "The Reward": {55, 70},
-		"Return": {70, 80}, "The Road Back": {70, 80}, "Resurrection": {80, 92}, "Return with the Elixir": {90, 100},
+	"Hero's Journey": { // its stages are not timed by any study: convention
+		"The Call": conv(5, 14), "Refusing the Call": conv(8, 18), "Meeting the Mentor": conv(12, 22),
+		"Crossing the Threshold": conv(20, 30), "Initiation": conv(20, 30), "Tests, Allies, Enemies": conv(22, 40),
+		"Approaching the Cave": conv(38, 50), "The Ordeal": conv(45, 60), "The Reward": conv(55, 70),
+		"Return": conv(70, 80), "The Road Back": conv(70, 80), "Resurrection": conv(80, 92), "Return with the Elixir": conv(90, 100),
 	},
-	"Story Circle": { // eight steps, the second half's Chaos from the middle
-		"2. Need": {8, 18}, "3. Go": {20, 30}, "4. Search": {30, 42},
-		"Chaos": {45, 55}, "5. Find": {45, 55}, "6. Take": {58, 70}, "7. Return": {70, 82}, "8. Change": {84, 95},
+	"Story Circle": { // eight steps, the second half's Chaos from the middle; not timed by any study
+		"2. Need": conv(8, 18), "3. Go": conv(20, 30), "4. Search": conv(30, 42),
+		"Chaos": conv(45, 55), "5. Find": conv(45, 55), "6. Take": conv(58, 70), "7. Return": conv(70, 82), "8. Change": conv(84, 95),
 	},
-	"Kishōtenketsu": {"Shō: Development": {20, 30}, "Ten: Twist": {45, 60}, "Ketsu: Reconciliation": {72, 85}},
-	"Beat Sheet (15 Beats)": { // after Blake Snyder's page guide for 110 pages
-		"Theme Stated": {3, 7}, "Set-Up": {0, 9}, "Catalyst": {9, 13}, "Debate": {10, 20},
-		"Act Two": {20, 27}, "Break into Two": {20, 27}, "B Story": {25, 32}, "Fun and Games": {25, 32},
-		"Midpoint": {47, 53}, "Bad Guys Close In": {48, 56}, "All Is Lost": {65, 72},
-		"Dark Night of the Soul": {66, 77}, "Act Three": {75, 82}, "Break into Three": {75, 82},
-		"Finale": {75, 85}, "Final Image": {95, 100},
+	"Kishōtenketsu": {"Shō: Development": conv(20, 30), "Ten: Twist": conv(45, 60), "Ketsu: Reconciliation": conv(72, 85)},
+	"Beat Sheet (15 Beats)": { // after Blake Snyder's page guide for 110 pages; his act breaks, Catalyst, Midpoint and All Is Lost measured
+		"Theme Stated": conv(3, 7), "Set-Up": conv(0, 9), "Catalyst": films(filmInciting), "Debate": conv(10, 20),
+		"Act Two": films(filmActOneEnd), "Break into Two": films(filmActOneEnd), "B Story": conv(25, 32), "Fun and Games": conv(25, 32),
+		"Midpoint": films(filmMidpoint), "Bad Guys Close In": conv(48, 56), "All Is Lost": films(filmLowPoint),
+		"Dark Night of the Soul": conv(66, 77), "Act Three": films(filmActTwoEnd), "Break into Three": films(filmActTwoEnd),
+		"Finale": conv(75, 85), "Final Image": conv(95, 100),
 	},
 }
 
 func init() {
 	for i, t := range structureTemplates {
-		r := map[string][2]float64{}
+		r := map[string]beatRange{}
 		for name, v := range structureRanges[t.name] {
 			r[sectionKey(name)] = v
 		}

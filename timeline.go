@@ -275,6 +275,7 @@ func (t *timelineView) addBand(b storyBand, x, y, w, h float32) {
 		if p.off() {
 			word, col = "⚑ "+p.landWord(), theme.Color(theme.ColorNameWarning)
 		}
+		word += " · " + p.rng().kind() // measured on films or the convention (beat_films.go)
 		mark := canvas.NewText(word, col)
 		mark.TextSize = theme.CaptionTextSize()
 		mark.TextStyle = fyne.TextStyle{Bold: p.off()}

@@ -9,6 +9,7 @@ import (
 
 	"fyne.io/fyne/v2"
 
+	"github.com/LaPingvino/accolade/docs/help"
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
 )
 
@@ -220,7 +221,8 @@ func TestBeatPlaces(t *testing.T) {
 		t.Errorf("Act One: %+v", p)
 	}
 	mid := places[1]
-	if mid.page != mid.pages || !mid.has || mid.lo != 45 || !mid.off() || !strings.Contains(mid.advice(), "late") {
+	if mid.page != mid.pages || !mid.has || mid.lo != 49 || mid.film == nil || !mid.off() || !strings.Contains(mid.advice(), "late") ||
+		!strings.Contains(mid.advice(), "O'Brien 2026") || !strings.Contains(mid.landMark(), "measured") {
 		t.Errorf("the Midpoint, on the last page: %+v %s", mid, mid.advice())
 	}
 	// the window's: the layout in the background, then the readout
@@ -234,6 +236,49 @@ func TestBeatPlaces(t *testing.T) {
 	w.stepOff(1)
 	if w.scriptCursorLine() != mid.line {
 		t.Errorf("Next Off went to line %d", w.scriptCursorLine())
+	}
+}
+
+// The ranges say whether films were measured for them: the measured ones
+// carry their source and its numbers, the others are labelled the
+// convention; a page's grace either side of a range.
+func TestBeatRangesMeasured(t *testing.T) {
+	three, _ := templateNamed("Three Acts")
+	if m, n := three.measuredCount(); m != n || n == 0 {
+		t.Errorf("Three Acts: %d of %d measured", m, n)
+	}
+	if r := three.ranges[sectionKey("First Turning Point")]; r.film != filmActOneEnd || fmt.Sprintf("%.1f–%.1f", r.lo, r.hi) != "19.3–30.5" || !strings.Contains(r.source(), "Thompson 1999, 73 films") {
+		t.Errorf("First Turning Point: %+v %s", r, r.source())
+	}
+	hero, _ := templateNamed("Hero's Journey")
+	if m, _ := hero.measuredCount(); m != 0 || rangesNote(hero.name) != "all convention, none measured on films" {
+		t.Errorf("Hero's Journey: %d measured, %q", m, rangesNote(hero.name))
+	}
+	beats, _ := templateNamed("Beat Sheet (15 Beats)")
+	if r := beats.ranges[sectionKey("All Is Lost")]; r.film != filmLowPoint {
+		t.Errorf("All Is Lost: %+v", r)
+	}
+	if r := beats.ranges[sectionKey("Theme Stated")]; r.film != nil || r.kind() != "convention" || !strings.Contains(r.source(), "convention") {
+		t.Errorf("Theme Stated: %+v", r)
+	}
+	page := ""
+	for _, p := range help.Pages() {
+		if p.Slug == "structure" {
+			page = p.Markdown
+		}
+	}
+	for _, src := range filmSources {
+		if !strings.Contains(page, src.short) {
+			t.Errorf("Help > Structure does not cite %s", src.short)
+		}
+	}
+	// the midpoint at page 54 of 110 (48%): within a page of 49–53%
+	mid := beatPlace{name: "Midpoint", page: 54, pages: 110, pct: 100 * 53.0 / 110, lo: 49, hi: 53, film: filmMidpoint, has: true}
+	if mid.off() {
+		t.Errorf("page 54 of 110 flagged: %s", mid.advice())
+	}
+	if mid.pct = 100 * 50.0 / 110; !mid.off() || !strings.Contains(mid.landMark(), "usually 49–53%, measured") {
+		t.Errorf("page 51 of 110 not flagged: %s", mid.landMark())
 	}
 }
 

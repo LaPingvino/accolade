@@ -2127,7 +2127,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | Title page templates + follow-ups | done |
   | COLLAB step 8 | done (two-device run waits on Joop) |
   | Beats: (A) where they land | done (branch beatsland, not merged): Revision ribbon; Cards section headers (✓ p. N / ⚑ Late · p. N · usually a–b%, a tap there with the advice), timeline bands, outline rows (⚑ only), the strip's act ticks in the warning colour; the outline and strip read the last layout, the Cards and timeline ask for one |
-  | Beats: (B) real-film ranges | not started (templates carry conventional ranges) |
+  | Beats: (B) real-film ranges | done (branch beatsb, not merged): beat_films.go: measured ranges from Thompson 1999 (73 films, via Cutting 2016: act-one break 24.9% σ2.8, act-two break 76.5% σ3.8, epilog 98.2% σ1.6; range ±2σ) and O'Brien 2026 (10 films, median and min–max from its Table 3: inciting 4–17, midpoint 49–53, low point 66–74, climax 82–94); Three Acts all measured, 15 beats' Catalyst/breaks/Midpoint/All Is Lost, Sequences' breaks + Seq 5; Hero's Journey, Story Circle, Kishōtenketsu all convention (nothing measures them); ribbon, Cards, timeline, outline say measured/convention, advice names the source; off = more than a page outside; Help > Structure cites them. Open: a larger timed corpus (genre splits) if one gets published |
   | Revision tools / Revision tab | done (prose checks and kept dismissals: branch mdrev) |
   | Structure follow-ups (structure2, OPML, treatment) | done; left: the Export dialog shows Page Setup for outline/treatment |
   | Unhandled beats | done (the cards: each its own beats' mark, the Unplaced group at the top, pane and middle alike) |

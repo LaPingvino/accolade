@@ -244,7 +244,7 @@ func newOutlinePanel(w *MainWindow) *outlinePanel {
 			showRowDots(right.Objects[0].(*fyne.Container), o.dots[id])
 			label := strings.Repeat("  ", max(0, it.Level-1)) + it.Text
 			if p, ok := o.lands[it.Line]; ok && p.off() { // off its range: a flag (the row goes there; the Cards say more)
-				label += "  ⚑ " + p.landWord()
+				label += "  ⚑ " + p.landWord() + " (" + p.rng().kind() + ")"
 			}
 			title.SetText(label)
 			title.TextStyle = fyne.TextStyle{Bold: !it.Scene}

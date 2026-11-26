@@ -31,20 +31,37 @@ import (
 type beatPlace struct {
 	line, level int
 	name        string
-	page, pages int     // its page (the script's pages counted from 1, the title page not), of how many
-	pct         float64 // where in the pages it starts, 0–100
-	lo, hi      float64 // its typical range, if has
+	page, pages int          // its page (the script's pages counted from 1, the title page not), of how many
+	pct         float64      // where in the pages it starts, 0–100
+	lo, hi      float64      // its typical range, if has
+	film        *filmMeasure // where films put it (beat_films.go), nil: the range is the convention
 	has         bool
 }
 
-// off tells whether the section lands outside its typical range.
-func (b beatPlace) off() bool { return b.has && (b.pct < b.lo || b.pct > b.hi) }
+// rng is the place's range, measured or the convention.
+func (b beatPlace) rng() beatRange { return beatRange{lo: b.lo, hi: b.hi, film: b.film} }
+
+// off tells whether the section lands outside its typical range, give or
+// take a page (its place is counted by the page it is on, so a page's
+// share either side is the layout's, not the writing's).
+func (b beatPlace) off() bool {
+	grace := 0.0
+	if b.pages > 0 {
+		grace = 100 / float64(b.pages)
+	}
+	return b.has && (b.pct < b.lo-grace || b.pct > b.hi+grace)
+}
+
+// usually is its range as the marks say it: "usually 19–31%, measured".
+func (b beatPlace) usually() string {
+	return fmt.Sprintf("usually %.0f–%.0f%%, %s", b.lo, b.hi, b.rng().kind())
+}
 
 // String is how the readout and the list say it.
 func (b beatPlace) String() string {
 	s := fmt.Sprintf("%s · p. %d · %.0f%%", b.name, b.page, b.pct)
 	if b.has {
-		s += fmt.Sprintf(" (usually %.0f–%.0f%%)", b.lo, b.hi)
+		s += " (" + b.usually() + ")"
 	}
 	return s
 }
@@ -55,9 +72,9 @@ func (b beatPlace) advice() string {
 	case !b.off():
 		return b.String()
 	case b.pct < b.lo:
-		return fmt.Sprintf("%s comes early: page %d of %d (%.0f%%), usually %.0f–%.0f%%: what before it could grow?", b.name, b.page, b.pages, b.pct, b.lo, b.hi)
+		return fmt.Sprintf("%s comes early: page %d of %d (%.0f%%), usually %.0f–%.0f%% (%s): what before it could grow?", b.name, b.page, b.pages, b.pct, b.lo, b.hi, b.rng().source())
 	}
-	return fmt.Sprintf("%s comes late: page %d of %d (%.0f%%), usually %.0f–%.0f%%: what before it could go or be shorter?", b.name, b.page, b.pages, b.pct, b.lo, b.hi)
+	return fmt.Sprintf("%s comes late: page %d of %d (%.0f%%), usually %.0f–%.0f%% (%s): what before it could go or be shorter?", b.name, b.page, b.pages, b.pct, b.lo, b.hi, b.rng().source())
 }
 
 // sectionKey is a section's name as names are matched: letters and
@@ -135,7 +152,7 @@ func placesOf(text string, starts []string, d pdf.Drawing) (places []beatPlace, 
 		b := beatPlace{line: o.Line, level: o.Level, name: o.Text, page: k + 1, pages: len(body), pct: 100 * float64(k) / float64(len(body))}
 		if matched {
 			if r, ok := t.ranges[sectionKey(o.Text)]; ok {
-				b.lo, b.hi, b.has = r[0], r[1], true
+				b.lo, b.hi, b.film, b.has = r.lo, r.hi, r.film, true
 			}
 		}
 		places = append(places, b)
@@ -245,7 +262,7 @@ func (w *MainWindow) beatsNamed() string {
 		name += ": " + places[k].String()
 	}
 	if structure != "" {
-		name += " — ranges of " + structure + ", conventional, not measured"
+		name += " — ranges of " + structure + ": " + rangesNote(structure)
 	}
 	return name
 }
@@ -281,7 +298,7 @@ func (w *MainWindow) beatsMenu() *fyne.Menu {
 		none.Disabled = true
 		items = append(items, none)
 	} else if structure != "" {
-		note := fyne.NewMenuItem("Ranges: "+structure+"'s, conventional, not yet measured on films", nil)
+		note := fyne.NewMenuItem("Ranges: "+structure+"'s, "+rangesNote(structure), nil)
 		note.Disabled = true
 		items = append(items, fyne.NewMenuItemSeparator(), note)
 	}
@@ -422,13 +439,14 @@ func (b beatPlace) landWord() string {
 	return "Late"
 }
 
-// landMark is a place's mark: "⚑ Late · p. 60 · usually 45–55%", or,
-// on target, "✓ p. 31".
+// landMark is a place's mark: "⚑ Late · p. 60 · usually 49–53%,
+// measured", or, on target, "✓ p. 31 · measured" ("convention" for a
+// range no study gives).
 func (b beatPlace) landMark() string {
 	if !b.off() {
-		return fmt.Sprintf("✓ p. %d", b.page)
+		return fmt.Sprintf("✓ p. %d · %s", b.page, b.rng().kind())
 	}
-	return fmt.Sprintf("⚑ %s · p. %d · usually %.0f–%.0f%%", b.landWord(), b.page, b.lo, b.hi)
+	return fmt.Sprintf("⚑ %s · p. %d · %s", b.landWord(), b.page, b.usually())
 }
 
 // goToLanding goes to the section and says where it lands, with what to
@@ -439,7 +457,7 @@ func (w *MainWindow) goToLanding(b beatPlace) {
 		w.setStatus(b.advice())
 		return
 	}
-	w.setStatus(fmt.Sprintf("%s lands on target: page %d of %d (%.0f%%), usually %.0f–%.0f%%", b.name, b.page, b.pages, b.pct, b.lo, b.hi))
+	w.setStatus(fmt.Sprintf("%s lands on target: page %d of %d (%.0f%%), usually %.0f–%.0f%% (%s)", b.name, b.page, b.pages, b.pct, b.lo, b.hi, b.rng().source()))
 }
 
 // landLink is a Cards header's mark of where its section lands.
