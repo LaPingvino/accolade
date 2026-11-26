@@ -169,7 +169,7 @@ Dust.
 			ours:   strings.Replace(mergeBase, "Dinner's ready.", "Dinner is ready.", 1),
 			theirs: strings.Replace(mergeBase, "Bram cooks.", "Bram cooks a stew.", 1),
 			kinds:  "edit/changed", kept: 1,
-			all:    strings.Replace(strings.Replace(mergeBase, "Dinner's ready.", "Dinner is ready.", 1), "Bram cooks.", "Bram cooks a stew.", 1)},
+			all: strings.Replace(strings.Replace(mergeBase, "Dinner's ready.", "Dinner is ready.", 1), "Bram cooks.", "Bram cooks a stew.", 1)},
 		{name: "the same change on both sides",
 			ours:   strings.Replace(mergeBase, "Bram cooks.", "Bram cooks a stew.", 1),
 			theirs: strings.Replace(mergeBase, "Bram cooks.", "Bram cooks a stew.", 1),
@@ -291,5 +291,58 @@ func TestSplitAt(t *testing.T) {
 	es := SplitAt(text, nil)
 	if len(es) != 2 || es[0].Text != "A\nB" || es[0].Start != 0 || es[0].TextEnd != 3 || es[0].End != 8 || es[1].Start != 8 || es[1].End != len(text) {
 		t.Errorf("%+v", es)
+	}
+}
+
+// A source that joins the script's elements (a print read back) or runs a
+// heading into the action: re-split at the script's breaks, the same
+// words are no difference, a changed word is one, in its own element.
+func TestMergeResplit(t *testing.T) {
+	o := MergeOptions{IsHeading: func(l string) bool { return mergeHeading(strings.ToUpper(l)) }, Key: strings.ToLower, Resplit: true}
+	script := "INT. A - DAY\n\nBram waits.\n\nBRAM\nHello there.\n\nHe sits.\n\nint. b - night Tom runs.\nHe looks back.\n\nTom falls.\n"
+	joined := "INT. A - DAY\n\nBram waits.\nBRAM\nHello there.\nHe sits.\n\nINT. B - NIGHT\n\nTom runs.\nHe looks back.\nTom falls.\n"
+	plain := o
+	plain.Resplit = false
+	if n := len(NewMerge(script, script, joined, plain).Changes); n == 0 {
+		t.Fatal("element by element the joins should differ")
+	}
+	m := NewMerge(script, script, strings.Replace(joined, "Hello there.", "Hello there, friend.", 1), o)
+	var rows []string
+	for _, c := range m.Changes {
+		rows = append(rows, c.Ours+" → "+c.Theirs)
+	}
+	// the heading run into the action: one change, taken whole
+	want := []string{"BRAM\nHello there. → BRAM\nHello there, friend.", "int. b - night Tom runs.\nHe looks back. → INT. B - NIGHT\n\nTom runs.\nHe looks back."}
+	if strings.Join(rows, " | ") != strings.Join(want, " | ") {
+		t.Fatalf("changes %q,\nwant %q", rows, want)
+	}
+	all := map[int]bool{}
+	for _, c := range m.Changes {
+		all[c.ID] = true
+	}
+	got, _, _ := m.Apply(all, nil)
+	if strings.Count(got, "Tom runs") != 1 || strings.Count(got, "He sits") != 1 || !strings.Contains(got, "BRAM\nHello there, friend.\n\nHe sits.") {
+		t.Errorf("taken:\n%s", got)
+	}
+	if n := len(NewMerge(got, got, joined, o).Changes); n != 1 { // only the friend, now the script's
+		t.Errorf("after taking: %d changes, want 1", n)
+	}
+	if n := len(NewMerge(script, script, joined, o).Changes); n != 1 { // the heading only
+		t.Errorf("the same words: %d changes, want 1 (the heading)", n)
+	}
+	// punctuation is compared
+	for _, p := range [][2]string{{"He sits.", "He sits!"}, {"Bram waits.", "Bram waits"}} {
+		m := NewMerge(got, got, strings.Replace(joined, p[0], p[1], 1), o)
+		found := false
+		for _, c := range m.Changes {
+			found = found || c.Theirs == p[1]
+		}
+		if len(m.Changes) != 2 || !found {
+			var rows []string
+			for _, c := range m.Changes {
+				rows = append(rows, c.Ours+" → "+c.Theirs)
+			}
+			t.Errorf("%q for %q: %q", p[1], p[0], rows)
+		}
 	}
 }

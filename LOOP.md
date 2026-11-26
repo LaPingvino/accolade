@@ -2111,7 +2111,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | Table Read / cast | levels 1–2 done (Joop's ask); partly: Storyboarder durations, a "beside" frame layout — the agent's own leftovers, so not taken as "first not done"; level 3 (Cast button) waits on Joop's registration |
   | Link up a free adaptation | done |
   | Adaptation benchmark | done (Gutenberg pairs, invented scenes); partly: merged/reworded synthetic pairs; cross-language stretch not started |
-  | SCREENPLAY SOURCES | partly: pattern fixer + Fix-Up tab + garbled-text OCR offer done; NOT built: a screenplay chosen as the source, compared scene to scene with Take the Source's / Keep Mine and a match/differ/missing summary; layout learning per document; per-page "looks right" tick |
+  | SCREENPLAY SOURCES | partly: pattern fixer, Fix-Up tab, OCR offer, screenplay as the source (branch next) and re-split (branch srcfix) done; NOT built: layout learning per document; per-page "looks right" tick |
   | Structural moves | done |
   | Timeline (cards variant + strip) | done |
   | Stripboard / phone Pages as middle tabs; phone stripboard ribbon | done |
@@ -2173,6 +2173,32 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   Left: per-document layout learning ("these are cues"), the per-page "looks right" tick, the PDF page image beside
   the script; Keep Mine is not kept across sessions; wrapping differences inside a speech are not offered; a
   screenplay source in the middle (Source in the Middle) and the source's outline still read it as passages.
+- 2026-11-26: SCREENPLAY SOURCES, re-split (branch srcfix, not merged; internal/scriptdiff/resplit.go,
+  MergeOptions.Resplit, set by sourceOptions only). Before the scenes are paired, the source's elements are cut at
+  the script's breaks: the two texts' words and punctuation compared as one run (spaces, line breaks and the > <
+  centring marks aside), each script element given the source's words that match its own plus the unmatched ones
+  of the same source element; so the same words split otherwise are no difference, and what differs is words,
+  written into the script's own element and lines (a speech stays a speech; a line break inside an edit goes,
+  "mo-\nney"), never a word twice. A source element sharing under half its words stays whole (the run re-aligned
+  without it). A source heading the script ran into its action comes back with that element as one change (taken
+  whole: the heading once, the action without it, the script's notes kept), not a scene start, so scenes still
+  pair; a heading where the script has a scene start is a missing scene as before. A script break inside one
+  source line (a speech cut by a blank line) stays a difference, the source's element whole (the pieces folding as
+  before). If under half the script's words match (too unlike, or past the diff's 2 000 edits), element by element
+  as before. Debris: "(con’t)" too. Headings never pair with non-headings in a row. The summary counts scenes as
+  the pane finds them (a heading line, also one run into its action).
+  Hope Talks, 2011 PDF against the earlier conversion (local, counts only): before 2 628 differences (2 337 only in
+  yours, 2 188 of them in the source word for word; "0 match · 53 differ · 41 missing"; the 2026-11-25 note's
+  2 510 / 2 241 / 2 105 were measured on an older main); after 267 (107 only in yours, 71 in the source word for
+  word: the script's own blank-line cuts and page numbers inside a source line, kept as differences on purpose,
+  shown with their piece; 154 changed; "12 match · 50 differ", 0 missing), ~2.6 s (was ~4.4 s). Taking all of
+  them and comparing again leaves 14 (pieces pairs), with no word written twice (41 988 words against the
+  source's 42 004). Against the 2026 fix: 842 differences in ~2 s, no blow-up. Tests: TestMergeResplit (synthetic:
+  joins none, one word one change, a run-in heading one change, taking all leaves one, punctuation compared),
+  TestScreenplaySourceResplit (through sourceOptions: the note kept once, nothing left), TestSourceDebrisCont;
+  the TestScreenplaySource* unchanged.
+  Left: the 14 left after taking all (a glued piece pair that comes back); rebuild tidies spaces across a changed
+  element, not only at the edit; layout learning per document ("these are cues"), the per-page "looks right" tick.
 - 2026-11-25 (Joop, after the Markdown revision checks merged): REVISION FOLLOW-UPS, next Accolade turn.
   (1) Where dismissed findings are kept: "support both options and enable keeping it clean". A setting:
       - "beside the document" (default: a sidecar next to a loose file, or inside the .accolade bundle);

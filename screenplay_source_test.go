@@ -295,3 +295,34 @@ func TestChooseScreenplaySourcePDF(t *testing.T) {
 		t.Errorf("kept as %s", kept)
 	}
 }
+
+// "(con’t)" is a cue's (CONT'D) too.
+func TestSourceDebrisCont(t *testing.T) {
+	if got := withoutDebris("JONAS (con’t)\nHi there.\n"); got != "JONAS\nHi there.\n" {
+		t.Errorf("got %q", got)
+	}
+}
+
+// A print read back joins what the script has apart; the script ran a
+// heading into its action: the same words cut otherwise are no
+// difference, the heading comes back in one change, the script's note
+// kept once.
+func TestScreenplaySourceResplit(t *testing.T) {
+	script := "INT. FERRY CABIN - NIGHT\n\nMarta counts coins.\n\nMARTA\nThree crossings left.\n\nJonas nods.\n\next. ferry deck - night Rain on the rail. [[fix the rail]]\nJonas smokes.\n"
+	src := "INT. FERRY CABIN - NIGHT\n\nMarta counts coins.\nMARTA\nThree crossings left.\nJonas nods.\n\nEXT. FERRY DECK - NIGHT\n\nRain on the rail.\nJonas smokes.\n"
+	w, _ := sourceWindow(t, script, "")
+	sc := compareWithSource(script, src, w.sourceOptions(src))
+	if len(sc.m.Changes) != 1 {
+		for _, c := range sc.m.Changes {
+			t.Logf("%q → %q", c.Ours, c.Theirs)
+		}
+		t.Fatalf("%d differences, want 1 (the heading run into the action)", len(sc.m.Changes))
+	}
+	got, _, _ := sc.m.Apply(map[int]bool{0: true}, nil)
+	if !strings.Contains(got, "\n\nEXT. FERRY DECK - NIGHT\n\nRain on the rail.") || strings.Count(got, "[[fix the rail]]") != 1 || strings.Contains(strings.ToLower(got), "ext. ferry deck - night rain") {
+		t.Errorf("taken as:\n%s", got)
+	}
+	if n := len(compareWithSource(got, src, w.sourceOptions(src)).m.Changes); n != 0 {
+		t.Errorf("after taking: %d differences", n)
+	}
+}

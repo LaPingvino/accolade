@@ -36,16 +36,21 @@ type MergeOptions struct {
 	// Carry is the text for ours' element when theirs is taken: theirs,
 	// with what ours had that the comparison left out (nil: theirs)
 	Carry func(ours, theirs string) string
+	// Resplit: theirs are cut at ours' element breaks first (resplit.go),
+	// so that the same words split otherwise are no difference and what
+	// differs is words. Only where ours is the base (a source compared
+	// with the script made from it: Screenplay sources).
+	Resplit bool
 }
 
 // ChangeKind is what a change does.
 type ChangeKind int
 
 const (
-	ChangeEdit  ChangeKind = iota // elements of a scene changed, cut or added (Row says which)
-	SceneCut                      // they cut a whole scene
-	SceneAdded                    // they added a scene
-	SceneMoved                    // they moved a scene elsewhere
+	ChangeEdit ChangeKind = iota // elements of a scene changed, cut or added (Row says which)
+	SceneCut                     // they cut a whole scene
+	SceneAdded                   // they added a scene
+	SceneMoved                   // they moved a scene elsewhere
 )
 
 // Change is one of their changes, to take or leave.
@@ -93,8 +98,9 @@ type Merge struct {
 type melem struct {
 	Element
 	key        string
-	start, end int // ours': from its first byte to the next element's
-	textEnd    int // the end of its last line
+	inScene    bool // a heading that starts no scene here (resplit.go)
+	start, end int  // ours': from its first byte to the next element's
+	textEnd    int  // the end of its last line
 }
 
 // mslot is a stretch of a scene: ours' elements (the text there) or, if
@@ -125,7 +131,7 @@ type mgroupIn struct {
 func groupsOf(es []melem) []mgroupIn {
 	gs := []mgroupIn{{}}
 	for _, e := range es {
-		if e.Heading {
+		if e.Heading && !e.inScene {
 			gs = append(gs, mgroupIn{heading: e.key})
 		}
 		g := &gs[len(gs)-1]
@@ -185,7 +191,11 @@ func NewMerge(base, ours, theirs string, o MergeOptions) *Merge {
 	if len(m.oe) > 0 {
 		m.firstAt = m.oe[0].start
 	}
-	bg, og, tg := groupsOf(read(base)), groupsOf(m.oe), groupsOf(read(theirs))
+	te := read(theirs)
+	if o.Resplit && base == ours {
+		te = resplit(m.oe, te)
+	}
+	bg, og, tg := groupsOf(read(base)), groupsOf(m.oe), groupsOf(te)
 	// ours' elements by group, as indexes into m.oe
 	oIdx := make([][]int, len(og))
 	at := 0
@@ -403,7 +413,7 @@ func (m *Merge) merge3(b, o []melem, oi []int, t []melem, add func(Change) int, 
 	tk, tat := in(t)
 	mo, mt := matches(bk, ok), matches(bk, tk)
 	var slots []mslot
-	oc := 0 // ours' next element not yet in a slot
+	oc := 0                 // ours' next element not yet in a slot
 	flush := func(to int) { // ours' left-out elements before to
 		for ; oc < to; oc++ {
 			if o[oc].key == "" {
@@ -463,11 +473,11 @@ func (m *Merge) merge3(b, o []melem, oi []int, t []melem, add func(Change) int, 
 		case equal(os, bs): // only theirs changed it: each change on its own
 			oe := make([]Element, len(os))
 			for x := range os {
-				oe[x] = Element{Text: os[x]}
+				oe[x] = Element{Text: os[x], Heading: o[oat[j+x]].Heading} // a heading is never paired with what is none
 			}
 			te := make([]Element, len(ts))
 			for x := range ts {
-				te[x] = Element{Text: ts[x]}
+				te[x] = Element{Text: ts[x], Heading: t[tat[k+x]].Heading}
 			}
 			for _, r := range diffIdx(oe, te) {
 				switch r.kind {

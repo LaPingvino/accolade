@@ -72,7 +72,7 @@ func screenplayShaped(text string, starts []string) bool {
 // What a conversion leaves in the text that is no part of the script.
 var (
 	debrisLineRe = regexp.MustCompile(`(?i)^(\(?more\)?|\(?continued\)?:?|cont(inued|'d|’d)\.?|-?\s*\d+[a-z]?\s*-?\.?|page \d+( of \d+)?)$`)
-	contdRe      = regexp.MustCompile(`(?i)\s*\((cont'd|cont’d|contd|cont\.|continued|continuing)\)`)
+	contdRe      = regexp.MustCompile(`(?i)\s*\((cont'd|cont’d|contd|cont\.|con't|con’t|continued|continuing)\)`)
 	hyphenRe     = regexp.MustCompile(`(\p{L})-\n(\p{Ll})`)
 )
 
@@ -135,6 +135,7 @@ func (w *MainWindow) sourceOptions(src string) scriptdiff.MergeOptions {
 	o.IsHeading = func(l string) bool { return h(l) || forcedHeading(l) } // a stage play's ".ACT I SCENE II" too
 	c := carriedBy(src, false, o.IsHeading)
 	o.Key = sourceKey(c, o.IsHeading) // Carry: Merge Changes' (the script's links, notes and locked number kept)
+	o.Resplit = true                  // a print joins elements: the same words cut otherwise are no difference
 	return o
 }
 
@@ -163,8 +164,8 @@ func compareWithSource(text, src string, o scriptdiff.MergeOptions) *screenplayC
 		after, _, _ := m.Apply(map[int]bool{c.ID: true}, nil)
 		sc.at = append(sc.at, firstDifferentLine(lines, after))
 	}
-	for _, e := range scriptdiff.Split(text, o.IsHeading) {
-		if e.Heading && !strings.HasPrefix(e.Text, "#") {
+	for _, l := range lines { // as the pane finds the cursor's scene (a heading run into its action too)
+		if o.IsHeading(l) && !strings.HasPrefix(l, "#") {
 			sc.scenes++
 		}
 	}
