@@ -44,7 +44,7 @@ func TestCiteStylePicker(t *testing.T) {
 	}
 	lib := libraryNow(text, w.citeInputsFor(text))
 	body := citedBody(text, lib)
-	if !strings.Contains(body, `As \[1\] showed.`) || !strings.Contains(body, `\[1\] K. Gödel, “Über formal unentscheidbare sätze,”`) { // BibTeX's sentence case: {S}ätze keeps its capital
+	if !strings.Contains(body, `As [1] showed.`) || !strings.Contains(body, `[1] K. Gödel, “Über formal unentscheidbare sätze,”`) { // BibTeX's sentence case: {S}ätze keeps its capital
 		t.Errorf("in IEEE:\n%s", body)
 	}
 }
@@ -56,8 +56,13 @@ func TestCiteStyleFile(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "mine.csl"), cite.BuiltinCSL("vancouver"), 0o644)
 	text := "---\ncsl: mine.csl\n---\n\nAs [@goedel31; @knuth84] showed.\n"
 	lib := libraryNow(text, w.citeInputsFor(text))
-	if body := citedBody(text, lib); !strings.Contains(body, `As \(1,2\) showed.`) {
+	if body := citedBody(text, lib); !strings.Contains(body, `As (1,2) showed.`) {
 		t.Errorf("with mine.csl:\n%s", body)
+	}
+	os.WriteFile(filepath.Join(dir, "journal.csl"), []byte(`<style><info><link rel="independent-parent" href="http://www.zotero.org/styles/apa"/></info></style>`), 0o644)
+	dep := strings.Replace(text, "mine.csl", "journal.csl", 1)
+	if lib := libraryNow(dep, w.citeInputsFor(dep)); lib.Style != nil || !strings.Contains(lib.StyleNote, "use its parent, apa") {
+		t.Errorf("a dependent style: %q", lib.StyleNote)
 	}
 	text = strings.Replace(text, "mine.csl", "apa", 1)
 	c, err := citeExportFor(text, w.citeInputsFor(text))
@@ -65,7 +70,7 @@ func TestCiteStyleFile(t *testing.T) {
 		t.Errorf("export: %s %v", c.cslName, err)
 	}
 	lib = libraryNow(text, w.citeInputsFor(text))
-	if body := citedBody(text, lib); !strings.Contains(body, `As \(Gödel, 1931; Knuth, 1984\) showed.`) {
+	if body := citedBody(text, lib); !strings.Contains(body, `As (Gödel, 1931; Knuth, 1984) showed.`) {
 		t.Errorf("in APA:\n%s", body)
 	}
 }

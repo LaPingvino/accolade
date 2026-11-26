@@ -2243,9 +2243,12 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the built-in .csl for a name, so both exports cite alike. Data: Entry.More/MoreNames/Dates (CSL-JSON keeps every
   variable and its dates; BibTeX month/date/urldate, series, translator, isbn …); BibTeX titles in sentence case
   for CSL as Pandoc does ({Braces} and mixed case kept, not with a non-English langid). Checked against pandoc
-  --citeproc with the same four .csl files on a 5-entry fixture: the same text but italics (plain output) and
-  NLM's "In:," (Pandoc "In,"). Tests: internal/cite TestCSLStyles, TestCSLNumbering, TestCSLJSONVariables,
-  TestBuiltinStyleNames; TestCiteStylePicker, TestCiteStyleFile. Left: disambiguate-add-names/givenname, note
+  --citeproc with the same four .csl files on two fixtures (12 entries: no author, editors only, no year, van der,
+  an institution, eight authors, a thesis, a report's number): the same text but italics (plain output), NLM's
+  editor label (both odd), and "Global report... and more" (Pandoc capitalizes after the ellipsis). Substitutes
+  take only the variables they rendered; an empty year-suffix leaves n.d.'s group be; a dependent or broken .csl
+  is said in the References pane's note and Accolade's own style cites; ~12 ms for 200 citations (Chicago). Tests: internal/cite TestCSLStyles, TestCSLNumbering, TestCSLJSONVariables,
+  TestBuiltinStyleNames, TestCSLHarderEntries; TestCiteStylePicker, TestCiteStyleFile. Left: disambiguate-add-names/givenname, note
   styles (they cite in the text), other locales' terms, a .csl file edited on disk is read again only when the
   library is.
 - 2026-11-25 (Joop, after the Markdown revision checks merged): REVISION FOLLOW-UPS, next Accolade turn.

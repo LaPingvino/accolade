@@ -59,11 +59,17 @@ var styleCache sync.Map // string (the style's text) → *Style
 
 // BuiltinStyle is a style Accolade has, read (nil for none).
 func BuiltinStyle(name string) *Style {
+	if v, ok := styleCache.Load("name:" + name); ok {
+		return v.(*Style)
+	}
 	data := BuiltinCSL(name)
 	if data == nil {
 		return nil
 	}
 	st, _ := ParseStyle(data)
+	if st != nil {
+		styleCache.Store("name:"+name, st)
+	}
 	return st
 }
 
@@ -170,6 +176,13 @@ func ParseStyle(data []byte) (*Style, error) {
 		}
 	}
 	if st.cit == nil || st.cit.child("layout") == nil {
+		if info := root.child("info"); info != nil {
+			for _, l := range info.kids {
+				if l.name == "link" && l.attr["rel"] == "independent-parent" {
+					return nil, fmt.Errorf("a dependent style: use its parent, %s", path.Base(l.attr["href"]))
+				}
+			}
+		}
 		return nil, fmt.Errorf("a CSL style without a citation")
 	}
 	styleCache.Store(string(data), st)
@@ -264,8 +277,11 @@ type rctx struct {
 	bib, sort  bool  // the bibliography's; a sort key's (plain text)
 	suppressAu bool  // the first names are left out
 	authorDone bool
-	depth      int    // names within names (a substitute's)
-	author     string // the first names, as rendered
+	depth      int             // names within names (a substitute's)
+	seen       map[string]bool // the variables rendered (in a substitute)
+	testing    bool            // in a choose's test: nothing rendered
+	inherit    *node           // the names a substitute's bare names take their name, et-al, label from
+	author     string          // the first names, as rendered
 	keyOpts    map[string]string
 	used       map[string]bool // the variables a substitute used: not again
 }
@@ -376,12 +392,9 @@ func (c *rctx) text(n *node) res {
 			return r
 		}
 		r = c.kids(m, "")
-		if r.called && !r.filled {
-			r.s = ""
-		}
 	case n.attr["variable"] != "":
 		v := n.attr["variable"]
-		r.called = true
+		r.called = v != "year-suffix" // the processor's own: an empty one leaves its group (n.d.) be
 		s := c.variable(v, n.attr["form"])
 		if s == "" {
 			return r
@@ -412,12 +425,20 @@ func (c *rctx) esc(s string) string {
 	if c.sort {
 		return s
 	}
-	return Escape(s)
+	return cslEscape(s)
 }
 
 // variable is an item's ordinary variable, "" when it has none (or a
 // substitute used it).
 func (c *rctx) variable(name, form string) string {
+	v := c.variable1(name, form)
+	if v != "" && c.seen != nil && !c.testing {
+		c.seen[name] = true
+	}
+	return v
+}
+
+func (c *rctx) variable1(name, form string) string {
 	if c.used[name] {
 		return ""
 	}
@@ -456,6 +477,9 @@ func (c *rctx) variable(name, form string) string {
 	case "volume":
 		return e.Volume
 	case "issue":
+		if e.Issue == e.More["number"] { // BibTeX's number of a report: its number, no issue
+			return ""
+		}
 		return e.Issue
 	case "page":
 		return e.Pages
@@ -471,7 +495,7 @@ func (c *rctx) variable(name, form string) string {
 	case "edition":
 		return e.Edition
 	case "genre":
-		return e.Genre
+		return cmpOr(e.More["genre#csl"], e.Genre)
 	case "DOI":
 		return e.DOI
 	case "URL":
@@ -486,6 +510,9 @@ func (c *rctx) nameVar(name string) []Name {
 	if c.used[name] {
 		return nil
 	}
+	if c.seen != nil && !c.testing {
+		defer func() { c.seen[name] = true }()
+	}
 	switch name {
 	case "author":
 		return c.it.e.Authors
@@ -498,6 +525,9 @@ func (c *rctx) nameVar(name string) []Name {
 func (c *rctx) date(name string) [3]int {
 	if c.used[name] {
 		return [3]int{}
+	}
+	if c.seen != nil && !c.testing {
+		defer func() { c.seen[name] = true }()
 	}
 	if d, ok := c.it.e.Dates[name]; ok {
 		return d
@@ -518,6 +548,8 @@ func (c *rctx) dateLiteral(name string) string {
 
 // test is a choose branch's condition.
 func (c *rctx) test(n *node) bool {
+	c.testing = true
+	defer func() { c.testing = false }()
 	match := cmpOr(n.attr["match"], "all")
 	var results []bool
 	for cond, vals := range n.attr {
@@ -768,6 +800,9 @@ func (c *rctx) names(n *node, inherit *node) res {
 	defer func() { c.depth-- }()
 	r := res{called: true}
 	src := n
+	if inherit == nil {
+		inherit = c.inherit
+	}
 	if inherit != nil && n.child("name") == nil && n.child("et-al") == nil && n.child("label") == nil {
 		src = inherit
 	}
@@ -815,19 +850,15 @@ func (c *rctx) names(n *node, inherit *node) res {
 		r.s = c.format(n, joinParts(parts, cmpOr(n.attr["delimiter"], c.opt(nil, "names-delimiter"))))
 	} else if sub := n.child("substitute"); sub != nil {
 		for _, k := range sub.kids {
-			before := c.usedSet()
-			var kr res
-			if k.name == "names" {
-				kr = c.names(k, src)
-			} else {
-				kr = c.el(k)
-			}
+			outer, outerSeen := c.inherit, c.seen
+			c.inherit = src // a bare names in it, in a choose too, takes these
+			c.seen = map[string]bool{}
+			kr := c.el(k)
+			seen := c.seen
+			c.inherit, c.seen = outer, outerSeen
 			if kr.s != "" {
-				// the variables it used are not used again
-				for _, v := range append(strings.Fields(k.attr["variable"]), substVars(c, k)...) {
-					if !before[v] {
-						c.used[v] = true
-					}
+				for v := range seen { // the variables it rendered are not rendered again
+					c.used[v] = true
 				}
 				r.filled, r.s = true, c.format(n, kr.s)
 				break
@@ -842,39 +873,6 @@ func (c *rctx) names(n *node, inherit *node) res {
 		}
 	}
 	return r
-}
-
-func (c *rctx) usedSet() map[string]bool {
-	m := map[string]bool{}
-	for k, v := range c.used {
-		m[k] = v
-	}
-	return m
-}
-
-// substVars are the variables a substitute's text macro asks for
-// directly (title, container-title), so they are not shown twice.
-func substVars(c *rctx, k *node) []string {
-	var out []string
-	var walk func(n *node, depth int)
-	walk = func(n *node, depth int) {
-		if depth > 8 {
-			return
-		}
-		if v := n.attr["variable"]; v != "" && (n.name == "text" || n.name == "names" || n.name == "date" || n.name == "number") {
-			if c.has(v) {
-				out = append(out, strings.Fields(v)...)
-			}
-		}
-		if m := n.attr["macro"]; m != "" && c.st.macros[m] != nil {
-			walk(c.st.macros[m], depth+1)
-		}
-		for _, kid := range n.kids {
-			walk(kid, depth+1)
-		}
-	}
-	walk(k, 0)
-	return out
 }
 
 // nameList is a list of names as a name element sets it.
@@ -961,7 +959,7 @@ func (c *rctx) nameList(nn, etAlN *node, list []Name) string {
 				} else {
 					b.WriteString(" ")
 				}
-				b.WriteString(Escape(and) + " ")
+				b.WriteString(cslEscape(and) + " ")
 			} else {
 				b.WriteString(delim)
 			}
@@ -975,7 +973,7 @@ func (c *rctx) nameList(nn, etAlN *node, list []Name) string {
 		if etAlN != nil && etAlN.attr["term"] != "" {
 			term = etAlN.attr["term"]
 		}
-		t := Escape(c.st.term(term, "", false))
+		t := cslEscape(c.st.term(term, "", false))
 		if etAlN != nil {
 			t = c.format(etAlN, t)
 		}
@@ -1007,6 +1005,9 @@ func (c *rctx) oneName(nn *node, n Name, form string, inverted bool) string {
 	family := n.Family
 	particle := n.Particle
 	if form == "short" {
+		if n.Drops {
+			return c.esc(family)
+		}
 		return c.esc(strings.TrimSpace(particle + " " + family))
 	}
 	given := n.Given
@@ -1014,7 +1015,10 @@ func (c *rctx) oneName(nn *node, n Name, form string, inverted bool) string {
 		given = initials(given, iw, o("initialize-with-hyphen") != "false")
 	}
 	if c.sort {
-		return strings.TrimSpace(family + " " + given + " " + particle)
+		if n.Drops || c.opt(nn, "demote-non-dropping-particle") != "never" {
+			return strings.TrimSpace(family + " " + given + " " + particle)
+		}
+		return strings.TrimSpace(particle + " " + family + " " + given)
 	}
 	if !inverted {
 		s := strings.TrimSpace(given + " " + strings.TrimSpace(particle+" "+family))
@@ -1028,7 +1032,7 @@ func (c *rctx) oneName(nn *node, n Name, form string, inverted bool) string {
 		sep = v
 	}
 	fam := strings.TrimSpace(particle + " " + family)
-	if particle != "" && o("demote-non-dropping-particle") == "display-and-sort" {
+	if particle != "" && (n.Drops || o("demote-non-dropping-particle") == "display-and-sort") {
 		fam, given = family, strings.TrimSpace(given+" "+particle)
 	}
 	s := fam
@@ -1175,7 +1179,7 @@ func (c *rctx) affix(s string) string {
 	if s == "" || c.sort {
 		return s
 	}
-	return Escape(s)
+	return cslEscape(s)
 }
 
 func capFirst(s string) string {
@@ -1224,8 +1228,11 @@ func joinParts(parts []string, delim string) string {
 // tidy is the rendered text's punctuation: no doubled periods (Ed..,
 // Title?.), a period or comma inside the closing quote (en-US).
 func (st *Style) tidy(s string) string {
+	s = strings.ReplaceAll(s, "...", "\x00") // an ellipsis is no doubled period
 	s = doubled.ReplaceAllString(s, "$1$2")
+	s = strings.ReplaceAll(s, "\x00", "...")
 	s = strings.ReplaceAll(s, ",,", ",")
+	s = quoteStop.ReplaceAllString(s, "$1$2") // “Names?,” as “Names?”
 	s = strings.ReplaceAll(s, " ,", ",")
 	s = strings.ReplaceAll(s, "  ", " ")
 	if st.punctInQuote {
@@ -1235,7 +1242,8 @@ func (st *Style) tidy(s string) string {
 }
 
 var (
-	doubled    = mustRegexp(`([.?!])((?:\*|”|’|\))*)\\?\.`)
+	doubled    = mustRegexp(`([.?!])((?:\*|”|’)*)\\?\.`)
+	quoteStop  = mustRegexp(`([?!])([”’]+)[,.]`)
 	quotePunct = mustRegexp(`([”’]+)([.,])`)
 )
 
@@ -1393,7 +1401,7 @@ func (st *Style) cluster(items []*item, inText bool) string {
 	for i := 0; i < len(items); i++ {
 		it := items[i]
 		if it.e == nil {
-			parts = append(parts, join(it.prefix, Escape(it.key)+"?")+it.after)
+			parts = append(parts, join(it.prefix, cslEscape(it.key)+"?")+it.after)
 			continue
 		}
 		plain := func(x *item) bool { return x.e != nil && x.locator == "" && x.prefix == "" && x.after == "" }
@@ -1486,3 +1494,20 @@ func (st *Style) hanging() bool {
 }
 
 func mustRegexp(s string) *regexp.Regexp { return regexp.MustCompile(s) }
+
+// cslEscape is text as Markdown that shows it as written, escaping only
+// what would be read as markup ((, [ and the like stay: Fyne's rich
+// text, the Text preview's, shows a backslash as written).
+func cslEscape(s string) string {
+	if !strings.ContainsAny(s, "\\`*_<>$~|") {
+		return s
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if strings.ContainsRune("\\`*_<>$~|", r) {
+			b.WriteByte('\\')
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}

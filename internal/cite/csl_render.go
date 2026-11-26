@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/LaPingvino/accolade/internal/editor/syntax"
 )
@@ -118,17 +119,13 @@ func RenderWith(body string, lib *Library, nocite []string, st *Style) string {
 	var refs []string
 	for _, w := range works {
 		s, _ := st.render(w, st.bib, false)
-		if st.hanging() {
+		if st.hanging() { // (1. Doe J without the mark, as the Text preview has it, is a list of the same numbers)
 			s = EntryMark + s
-		} else {
-			s = listStart.ReplaceAllString(s, `$1\.`)
 		}
 		refs = append(refs, s)
 	}
 	return placeRefs(lines, strings.Join(refs, "\n\n"))
 }
-
-var listStart = regexp.MustCompile(`^(\d+)\.`)
 
 var noteDef = regexp.MustCompile(`^\[\^([^\]\s]+)\]:`)
 
@@ -149,23 +146,27 @@ func readingOrder(lines []string) func(line, col int) [4]int {
 	}
 	mark := map[string][2]int{}
 	for i, l := range lines {
-		if _, def := defOf[i]; def && noteDef.MatchString(l) {
-			l = noteDef.ReplaceAllString(l, "")
+		off := 0 // l's start in lines[i], in bytes
+		if _, def := defOf[i]; def {
+			if m := noteDef.FindStringIndex(l); m != nil {
+				off = m[1]
+			}
 		}
 		for {
-			j := strings.Index(l, "[^")
+			j := strings.Index(l[off:], "[^")
 			if j < 0 {
 				break
 			}
+			j += off
 			k := strings.IndexByte(l[j:], ']')
 			if k < 0 {
 				break
 			}
 			id := l[j+2 : j+k]
 			if _, ok := mark[id]; !ok {
-				mark[id] = [2]int{i, len([]rune(lines[i][:min(len(lines[i]), j)]))}
+				mark[id] = [2]int{i, utf8.RuneCountInString(l[:j])}
 			}
-			l = l[j+k:]
+			off = j + k
 		}
 	}
 	return func(line, col int) [4]int {

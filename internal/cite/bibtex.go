@@ -387,6 +387,9 @@ func (r *bibRaw) entry() *Entry {
 		case "mastersthesis":
 			e.Genre = "Master's thesis"
 		}
+		if e.Genre != "" { // Pandoc's, for CSL
+			e.setMore("genre#csl", strings.Replace(e.Genre, "diss.", "thesis", 1))
+		}
 	}
 	e.DOI = f("doi")
 	e.URL = f("url")
@@ -542,6 +545,7 @@ func parseName(s string) Name {
 	}
 	join := func(ws []string) string { return decodeLaTeX(strings.Join(ws, " ")) }
 	n.Given, n.Particle, n.Family = join(first), join(von), join(last)
+	n.Drops = n.Particle != ""
 	return n
 }
 

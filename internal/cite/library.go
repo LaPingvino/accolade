@@ -18,8 +18,9 @@ type Library struct {
 	// Style is the document's csl: style file, read with the library
 	// for the document's csl: StyleFor (nil: none found there; a name of
 	// Accolade's own styles needs no file, BuiltinStyle).
-	Style    *Style
-	StyleFor string
+	Style     *Style
+	StyleFor  string
+	StyleNote string // why the csl: style is not used ("": it is)
 }
 
 // StyleOf is the style a document's csl: names, with lib its library:

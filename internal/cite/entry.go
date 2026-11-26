@@ -16,6 +16,7 @@ import (
 type Name struct {
 	Family, Given string
 	Particle      string // von, van der, de: before the family name
+	Drops         bool   // the particle is CSL's dropping one (BibTeX's von part): Berg, J. van der
 	Suffix        string // Jr., III
 	Literal       string // the whole name as is (no family/given)
 }

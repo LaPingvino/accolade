@@ -204,10 +204,17 @@ func (in citeInputs) readStyle(lib *cite.Library) {
 	if lib == nil || in.csl == "" {
 		return
 	}
-	if data := in.cslFile(in.csl); data != nil {
-		if st, err := cite.ParseStyle(data); err == nil {
-			lib.Style, lib.StyleFor = st, in.csl
+	data := in.cslFile(in.csl)
+	switch {
+	case data != nil:
+		st, err := cite.ParseStyle(data)
+		if err != nil {
+			lib.StyleNote = fmt.Sprintf("The style %s cannot be used (%v): cited in Accolade's own.", in.csl, err)
+			return
 		}
+		lib.Style, lib.StyleFor = st, in.csl
+	case cite.BuiltinCSL(in.csl) == nil:
+		lib.StyleNote = "No style " + in.csl + " here: cited in Accolade's own (Pandoc's export looks for it itself)."
 	}
 }
 
@@ -296,6 +303,9 @@ func (w *MainWindow) libraryNote() string {
 	}
 	if st.lib.Warning != "" {
 		s += " " + st.lib.Warning
+	}
+	if st.lib.StyleNote != "" {
+		s += " " + st.lib.StyleNote
 	}
 	return s
 }
