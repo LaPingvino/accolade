@@ -20,6 +20,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Open Recent | `file.recent` |  |  |  | F R | :recent |
 | Open Sample | `file.openSample` |  |  |  | F S | :open-sample |
 | Import as Markdown… | `file.import` |  |  |  | F T | :import-as-markdown |
+| Import Storyboarder Boards… | `file.importStoryboarder` |  |  |  |  | :import-storyboarder-boards |
 | Import PDF as Screenplay… | `file.importPDFScreenplay` |  |  |  |  | :import-pdf-as-screenplay |
 | Import PDF as Markdown… | `file.importPDFMarkdown` |  |  |  |  | :import-pdf-as-markdown |
 | Import with pandoc… | `file.importPandoc` |  |  | — | F H | :import-with-pandoc |
@@ -36,6 +37,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Join a Shared Script… | `file.join` |  |  |  | C J | :join-shared-script |
 | Title Page… | `file.titlePage` | Ctrl+Shift+T | Cmd+Shift+T | Ctrl+Shift+Alt+T | W G | :title-page |
 | Export… | `file.export` | Ctrl+E | Cmd+E | Ctrl+E | F X | :export |
+| Export Storyboard Timeline (OTIO)… | `file.exportBoards` |  |  |  |  | :export-storyboard-timeline-otio |
 | Export Clean Fountain… | `file.exportClean` |  |  |  | F C | :export-clean-fountain |
 | Export Outline (OPML) — for Workflowy, OmniOutliner… | `file.exportOutline` |  |  |  |  | :export-outline |
 | Export Treatment (PDF, Word)… | `file.exportTreatment` |  |  |  |  | :export-treatment |
@@ -70,6 +72,8 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Italic | `format.italic` | Ctrl+I | Cmd+I | Ctrl+I | W 1 | :italic |
 | Underline | `format.underline` | Ctrl+U | Cmd+U | Ctrl+U | W U | :underline |
 | Storyboard Frame… | `write.storyboardFrame` |  |  |  | W F | :storyboard-frame |
+| New Storyboard Frame | `write.newFrame` |  |  |  |  | :new-storyboard-frame |
+| Edit Frame in… | `write.editFrame` |  |  |  |  | :edit-frame-in |
 | Include File… | `write.include` |  |  |  |  | :include |
 | Marker… | `write.marker` | Ctrl+M | Control+M | Ctrl+M |  | :marker |
 | Next Marker | `write.nextMarker` | Ctrl+Alt+M | Control+Option+M | Ctrl+Alt+M |  | :next-marker |

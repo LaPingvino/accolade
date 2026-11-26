@@ -562,6 +562,10 @@ func newRegistry() *registry {
 		&command{id: "file.openSample", label: "Open Sample", icon: theme.DocumentIcon, submenu: (*MainWindow).sampleMenu},
 		&command{id: "file.import", label: "Import as Markdown…", icon: theme.UploadIcon, run: (*MainWindow).ImportDocument},
 		// a PDF either way, named: Open chooses by what it reads (pdf_open.go)
+		// Storyboarder's boards made frames, one way (storyboarder_import.go)
+		&command{id: "file.importStoryboarder", label: "Import Storyboarder Boards…", icon: theme.UploadIcon, when: screenplayOnly,
+			tip: "Storyboarder's boards (storyboards/ beside the script, or a .storyboarder) as frames: flattened PNGs and [[board:]] notes",
+			run: (*MainWindow).importStoryboarder},
 		&command{id: "file.importPDFScreenplay", label: "Import PDF as Screenplay…", icon: theme.UploadIcon, run: (*MainWindow).ImportPDFAsScreenplay},
 		&command{id: "file.importPDFMarkdown", label: "Import PDF as Markdown…", icon: theme.UploadIcon, run: (*MainWindow).ImportPDFAsMarkdown},
 		&command{id: "file.importPandoc", label: "Import with pandoc…", icon: theme.UploadIcon, when: withPandoc, run: (*MainWindow).ImportWithPandoc}, // more formats
@@ -589,6 +593,10 @@ func newRegistry() *registry {
 		&command{id: "file.export", label: "Export…", tip: "Export to PDF, HTML, FDX…", mdTip: "Export to Word, ODT, HTML, PDF…",
 			keys: []fyne.Shortcut{shortcut(fyne.KeyE, 0)}, icon: theme.DownloadIcon, run: (*MainWindow).showExportDialog},
 		// a copy without Accolade's data, for other apps (clean_fountain.go)
+		// the frames as an OpenTimelineIO timeline (otio.go)
+		&command{id: "file.exportBoards", label: "Export Storyboard Timeline (OTIO)…", text: "Export Storyboard (OTIO)",
+			tip:  "The storyboard frames, timed, with a marker per scene, as an OpenTimelineIO .otio: for Resolve, Premiere and Final Cut through OTIO",
+			icon: theme.MediaVideoIcon, when: screenplayOnly, run: (*MainWindow).exportBoardTimeline},
 		&command{id: "file.exportClean", label: "Export Clean Fountain…", tip: "A .fountain without Accolade's data, for other apps",
 			icon: theme.DocumentIcon, when: screenplayOnly, run: (*MainWindow).showCleanFountain},
 		// the structure alone, for an outliner or to read (outline_io.go, treatment.go)
@@ -665,6 +673,13 @@ func newRegistry() *registry {
 		&command{id: "write.storyboardFrame", label: "Storyboard Frame…", text: "Frame", ribbonLabel: "Frame",
 			tip: "A storyboard frame under this line: a picture, kept with the script ([[board: …]])", icon: func() fyne.Resource { return imageIcon },
 			when: scriptEditing, run: (*MainWindow).askFrame},
+		// frames drawn in Inkscape, Krita, Glaxnimate, Synfig (frames.go)
+		&command{id: "write.newFrame", label: "New Storyboard Frame", text: "New Frame",
+			tip:  "A blank frame (SVG, the script's shape) under this line, opened in Inkscape (desktop)",
+			icon: func() fyne.Resource { return imageIcon }, when: scriptEditing, run: (*MainWindow).newFrame},
+		&command{id: "write.editFrame", label: "Edit Frame in…", text: "Edit Frame",
+			tip:  "The frame on this line in its program: Inkscape (SVG), Krita (PNG, .kra), Glaxnimate (Lottie), Synfig (.sif); a save shows here (desktop)",
+			icon: theme.DocumentCreateIcon, when: scriptEditing, run: (*MainWindow).editFrame},
 		// Highland's directives (highland_directives.go)
 		&command{id: "write.include", label: "Include File…", ex: "include",
 			tip:  "Another file printed where this line is: Highland's {{INCLUDE: file}}, relative to the script's folder",
@@ -927,9 +942,9 @@ func newRegistry() *registry {
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"), at("set.newLanguage"),
-			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.newStructure"), at("file.mergeChanges"), at("file.import"), at("file.importPDFScreenplay"), at("file.importPDFMarkdown"), at("file.importPandoc"), at("file.startScreenplay"),
+			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.newStructure"), at("file.mergeChanges"), at("file.import"), at("file.importPDFScreenplay"), at("file.importPDFMarkdown"), at("file.importPandoc"), at("file.importStoryboarder"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
-			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.exportOutline"), at("file.exportTreatment"), at("file.pageSetup"), at("file.print"),
+			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.exportBoards"), at("file.exportOutline"), at("file.exportTreatment"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
 		}},
 		{title: "Edit", homes: []home{
@@ -945,7 +960,7 @@ func newRegistry() *registry {
 			at("format.rtl"), at("format.color"),
 			sep(), at("format.bold"), at("format.italic"), at("format.underline"), at("md.strike"), at("md.code"),
 			sep()), append(headings,
-			sep(), at("write.newScene"), at("write.insertStructure"), at("format.numberScenes"), at("write.storyboardFrame"), at("write.include"), at("write.marker"), at("write.nextMarker"), at("write.previousMarker"), at("write.note"), at("write.unsortedNote"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
+			sep(), at("write.newScene"), at("write.insertStructure"), at("format.numberScenes"), at("write.storyboardFrame"), at("write.newFrame"), at("write.editFrame"), at("write.include"), at("write.marker"), at("write.nextMarker"), at("write.previousMarker"), at("write.note"), at("write.unsortedNote"), at("md.link"), at("md.image"), at("md.footnote"), at("md.noteJump"), at("md.renumberNotes"),
 			sep(), at("md.bullets"), at("md.numbers"), at("md.tasks"), at("md.quote"),
 			sep(), at("md.codeBlock"), at("md.rule"), at("md.table"),
 		)...)},

@@ -90,7 +90,7 @@ func toMarkdownSaving(path string, save func(name string, data []byte) (string, 
 		d.EachImage(func(img *prose.Image) {
 			if img.Data == nil && !images.IsRemote(img.Src) && !strings.HasPrefix(strings.ToLower(img.Src), "data:") {
 				if p := images.New(dir).Load(img.Src); p.Data != nil {
-					img.Data, img.Src = p.Data, filepath.Base(filepath.FromSlash(img.Src))
+					img.Data, img.Src = p.Orig, filepath.Base(filepath.FromSlash(img.Src))
 				}
 			}
 		})

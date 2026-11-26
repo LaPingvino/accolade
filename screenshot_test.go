@@ -651,3 +651,45 @@ func findSelect(o fyne.CanvasObject) *widget.Select {
 	walk(o)
 	return found
 }
+
+// TestStoryboardFramesScreenshot: frames drawn in the open programs — an
+// SVG (Inkscape), a .kra (Krita) and an animated Lottie (its time from
+// its file) as chips, and a frame's dialog with Edit in Inkscape
+// (SHOT_DIR as above).
+func TestStoryboardFramesScreenshot(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	fakeTools(t, []string{"inkscape", "krita"}, nil)
+	w, _ := newDialogTestWindow(t)
+	w.fyneWindow.Resize(fyne.NewSize(1000, 650))
+	src := t.TempDir()
+	frame := strings.Replace(string(blankFrame(2.35)), `id="drawing"/>`, `id="drawing"><circle cx="700" cy="420" r="260" fill="#3a6ea5"/><rect x="1100" y="250" width="500" height="320" fill="#d9822b"/></g>`, 1)
+	os.WriteFile(filepath.Join(src, "harbour.svg"), []byte(frame), 0o644)
+	os.WriteFile(filepath.Join(src, "anna.kra"), krita(t, testPicture(t, 320, 136)), 0o644)
+	os.WriteFile(filepath.Join(src, "waves.json"), []byte(lottieJSON), 0o644)
+	script := filepath.Join(src, "harbour.fountain")
+	os.WriteFile(script, []byte("[[aspectRatio: 2.35]]\n\nINT. HARBOUR - DAWN\n\nThe boats come in.\n[[board: harbour.svg, duration: 2.50]]\n\nANNA\nThere he is.\n[[board: anna.kra]]\n\nEXT. SEA - DAY\n\nThe waves roll.\n[[board: waves.json]]\n"), 0o644)
+	if err := w.LoadFile(script); err != nil {
+		t.Fatal(err)
+	}
+	shot := func(name string) {
+		w.fyneWindow.Content().Refresh()
+		f, err := os.Create(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		png.Encode(f, w.fyneWindow.Canvas().Capture())
+		f.Close()
+	}
+	w.textEditor.SetCursorOffset(0)
+	shot("frames-chips.png")
+	text := w.textEditor.Text()
+	for _, f := range findFrames(text) {
+		if f.board.File == "harbour.svg" {
+			w.showFrame(f.board, f.board.File, f.start)
+		}
+	}
+	shot("frames-dialog.png")
+}

@@ -318,7 +318,7 @@ func (v *tableReadView) update() {
 		return
 	}
 	v.text = text
-	v.script = readTable(text, w.sceneStarts(), w.dialect(), w.storyboarder())
+	v.script = readTableWith(text, w.sceneStarts(), w.dialect(), w.storyboarder(), w.frameFileSecs)
 	v.tags = w.tableReadTags(v.script)
 	v.photos = map[string]string{}
 	list := charListOf(text)

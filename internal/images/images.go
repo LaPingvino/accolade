@@ -11,8 +11,8 @@
 // (http, https, anything with a host) are never fetched — not in the
 // preview, not in an export: privacy, working offline, and the browser's
 // CORS. They come back as ErrRemote, and the caller shows the alt text
-// and the link. PNG, JPEG, GIF and WebP are read; SVG is not (ErrSVG:
-// its alt text for now).
+// and the link. PNG, JPEG, GIF and WebP are read, and SVG, Krita's .kra,
+// Synfig's and Lottie's files as formats.go draws them.
 package images
 
 import (
@@ -38,7 +38,6 @@ import (
 // The reasons a picture is not shown.
 var (
 	ErrRemote = errors.New("a picture on the web: not fetched")
-	ErrSVG    = errors.New("an SVG picture: not drawn yet")
 	ErrFormat = errors.New("not a picture Accolade reads (PNG, JPEG, GIF, WebP)")
 	ErrNone   = errors.New("no picture named")
 )
@@ -70,8 +69,11 @@ func (f FilesFunc) ReadFile(rel string) ([]byte, error) { return f(rel) }
 // Picture is a picture as read: its file's bytes and the image, or why it
 // cannot be shown (Err).
 type Picture struct {
-	Src   string // as the document names it
-	Data  []byte
+	Src  string // as the document names it
+	Data []byte // a picture's bytes: a drawing program's file as its PNG
+	// Orig is the file's bytes as they are (Data, but for a drawing
+	// program's file)
+	Orig  []byte
 	Image image.Image
 	Err   error
 }
@@ -239,14 +241,19 @@ func read(files Files, src string) *Picture {
 	if p.Err != nil {
 		return p
 	}
+	p.Orig = p.Data
 	p.Image, p.Err = Decode(p.Data, s)
+	if p.Err == nil && KindOf(s, p.Data) != "" {
+		p.Data = encodePNG(p.Image)
+	}
 	return p
 }
 
-// Decode reads a picture's bytes (name tells an SVG by its extension).
+// Decode reads a picture's bytes (name tells an SVG, a .kra… by its
+// extension).
 func Decode(data []byte, name string) (image.Image, error) {
-	if isSVG(data, name) {
-		return nil, ErrSVG
+	if k := KindOf(name, data); k != "" {
+		return decodeKind(k, data, name)
 	}
 	img, _, err := image.Decode(bytes.NewReader(data))
 	if err != nil {
@@ -338,8 +345,10 @@ func Why(err error) string {
 		return ""
 	case errors.Is(err, ErrRemote):
 		return "on the web, not fetched"
-	case errors.Is(err, ErrSVG):
-		return "SVG, not drawn"
+	case errors.Is(err, ErrNoRenderer):
+		return "its program (Synfig, Glaxnimate) draws it: not installed"
+	case errors.Is(err, ErrRendering):
+		return "being drawn…"
 	case errors.Is(err, fs.ErrNotExist), errors.Is(err, ErrNone):
 		return "not found"
 	}

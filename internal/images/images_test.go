@@ -31,6 +31,7 @@ func TestLoad(t *testing.T) {
 	os.WriteFile(filepath.Join(dir, "beside.png"), pngOf(t, 4, 2), 0o644)
 	os.WriteFile(filepath.Join(dir, "assets", "in assets.png"), pngOf(t, 3, 3), 0o644)
 	os.WriteFile(filepath.Join(dir, "x.svg"), []byte("<svg xmlns='http://www.w3.org/2000/svg'/>"), 0o644)
+	os.WriteFile(filepath.Join(dir, "drawn.svg"), []byte("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 20'><rect width='40' height='20' fill='red'/></svg>"), 0o644)
 	os.WriteFile(filepath.Join(dir, "text.png"), []byte("not a picture"), 0o644)
 	asked := 0
 	files := FilesFunc(func(rel string) ([]byte, error) {
@@ -55,7 +56,8 @@ func TestLoad(t *testing.T) {
 		{"https://example.com/a.png", 0, ErrRemote},
 		{"//example.com/a.png", 0, ErrRemote},
 		{`\\server\share\a.png`, 0, ErrRemote},
-		{"x.svg", 0, ErrSVG},
+		{"x.svg", 0, ErrFormat}, // (no size)
+		{"drawn.svg", 40, nil},
 		{"text.png", 0, ErrFormat},
 		{"gone.png", 0, fs.ErrNotExist},
 		{"", 0, ErrNone},

@@ -363,7 +363,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := pdfImportMoves(base, languageDefaultMoves(base, notesMoves(base, templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))))))))))) // the moves write Linux keys too
+		want := boardToolsMoves(base, pdfImportMoves(base, languageDefaultMoves(base, notesMoves(base, templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -1009,6 +1009,23 @@ func notesMoves(name, golden string) string {
 
 // frameMoves: Format › Storyboard Frame… at a screenplay's Format menu's
 // end (storyboard.go).
+// boardToolsMoves: File's Import Storyboarder Boards… and Export
+// Storyboard Timeline (OTIO)…, Format's New Storyboard Frame and Edit
+// Frame in… (frames.go, otio.go, storyboarder_import.go), in a
+// screenplay's menu bar.
+func boardToolsMoves(name, golden string) string {
+	if !strings.HasPrefix(name, "menu-screenplay") {
+		return golden
+	}
+	after := "  Import PDF as Markdown…\n"
+	if strings.Contains(name, "pandoc") {
+		after = "  Import with pandoc…\n"
+	}
+	golden = strings.Replace(golden, after, after+"  Import Storyboarder Boards…\n", 1)
+	golden = strings.Replace(golden, "  Export Clean Fountain…\n", "  Export Clean Fountain…\n  Export Storyboard Timeline (OTIO)…\n", 1)
+	return strings.Replace(golden, "  Storyboard Frame…\n", "  Storyboard Frame…\n  New Storyboard Frame\n  Edit Frame in…\n", 1)
+}
+
 func frameMoves(name, golden string) string {
 	if strings.HasPrefix(name, "menu-screenplay") {
 		return strings.Replace(golden, "# Adaptation\n", "  ---\n  Storyboard Frame…\n# Adaptation\n", 1)

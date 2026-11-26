@@ -114,6 +114,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:recent** `item` — File > Open Recent
 - **:open-sample** `item` — File > Open Sample
 - **:import-as-markdown** — File > Import as Markdown
+- **:import-storyboarder-boards** — File > Import Storyboarder Boards (screenplay)
 - **:import-pdf-as-screenplay** — File > Import PDF as Screenplay
 - **:import-pdf-as-markdown** — File > Import PDF as Markdown
 - **:import-with-pandoc** — File > Import with pandoc (not in the browser)
@@ -125,6 +126,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:add-to-my-settings** — File > Add to My Settings (not in the browser)
 - **:merge-changes** — File > Merge Changes
 - **:export** `[format]` — File > Export
+- **:export-storyboard-timeline-otio** — File > Export Storyboard Timeline (OTIO) (screenplay)
 - **:export-clean-fountain** — File > Export Clean Fountain (screenplay)
 - **:export-outline** — The sections, scenes' headings, synopses and notes as an outline (OPML) for an outliner: Workflowy, OmniOutliner, Dynalist… (File > Export Outline (OPML) — for Workflowy, OmniOutliner) (screenplay)
 - **:export-treatment** — The sections, scenes' headings, synopses and notes as a document to read: PDF or Word (File > Export Treatment (PDF, Word)) (screenplay)
@@ -181,6 +183,8 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:italic** — Format > Italic
 - **:underline** — Format > Underline (screenplay)
 - **:storyboard-frame** — Format > Storyboard Frame (screenplay)
+- **:new-storyboard-frame** — Format > New Storyboard Frame (screenplay)
+- **:edit-frame-in** — Format > Edit Frame in (screenplay)
 - **:include** — Another file printed where this line is: Highland's {{INCLUDE: file}}, relative to the script's folder (Format > Include File) (screenplay)
 - **:marker** — A place to come back to, not printed: Highland's {{%m: label}} (Format > Marker) (screenplay)
 - **:next-marker** — To the next {{%m: …}} marker (Format > Next Marker) (screenplay)

@@ -68,6 +68,7 @@ type PreferencesDialog struct {
 	revisionHeaderEntry *widget.Entry  // a changed page's header
 	revisionDateSelect  *widget.Select // its date's layout
 	suggestCheck        *widget.Check
+	frameEditors        map[string]*widget.Entry // the storyboard frames' programs, by kind (frames.go)
 }
 
 func NewPreferencesDialog(app *Application, parent fyne.Window) *PreferencesDialog {
@@ -269,6 +270,41 @@ func (pd *PreferencesDialog) citationsCard() fyne.CanvasObject {
 	return card
 }
 
+// frameEditorsCard is the programs the storyboard frames open in (Edit
+// Frame in…): a command line each, empty for the one found (on PATH, or
+// as a Flatpak), which its placeholder shows; none in the browser.
+func (pd *PreferencesDialog) frameEditorsCard() fyne.CanvasObject {
+	if pd.frameEditors == nil {
+		pd.frameEditors = map[string]*widget.Entry{}
+	}
+	rows := container.NewVBox()
+	for _, kind := range frameToolOrder {
+		t := frameTools[kind]
+		e := widget.NewEntry()
+		e.SetText(pd.settings.GetString(t.pref))
+		if inBrowser {
+			pd.frameEditors[kind] = e
+			continue
+		}
+		if _, how := foundTool(kind); how != "" {
+			e.SetPlaceHolder(t.name + ": " + how)
+		} else {
+			e.SetPlaceHolder(t.name + " (not found)")
+		}
+		pd.frameEditors[kind] = e
+		rows.Add(labelled(frameKindLabel[kind]+":", e))
+	}
+	rows.Add(hint("A command line; {file} is where the frame's file goes (else at the end). Empty: the program found on PATH or as a Flatpak."))
+	card := widget.NewCard("Storyboard Frames", "The programs Edit Frame in… opens a frame in", rows)
+	if inBrowser {
+		card.Hide()
+	}
+	return card
+}
+
+// frameKindLabel is a frame kind as Preferences names it.
+var frameKindLabel = map[string]string{"svg": "SVG", "raster": "PNG, .kra", "lottie": "Lottie (.json)", "sif": "Synfig (.sif)"}
+
 func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 	browse := widget.NewButton("Browse...", func() {
 		dialog.ShowFolderOpen(func(folder fyne.ListableURI, err error) {
@@ -293,6 +329,7 @@ func (pd *PreferencesDialog) createScriptTab() fyne.CanvasObject {
 		)),
 		widget.NewCard("Page Setup", "How Export, Print and Preview PDF lay the page out", container.NewBorder(nil, nil, nil,
 			container.NewVBox(widget.NewButtonWithIcon("Page Setup…", theme.DocumentIcon(), pd.openPageSetup)), pd.pageSummary)),
+		pd.frameEditorsCard(),
 		widget.NewCard("Adapting", "A script made from a story beside it (View > Source)", container.NewVBox(
 			pd.suggestCheck,
 		)),
@@ -342,6 +379,9 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	pd.showFont(s.GetString("font-family"))
 	pd.fontSizeEntry.SetText(strconv.Itoa(s.GetInt("font-size")))
 	pd.lineNumbersCheck.SetChecked(s.GetBoolean("show-line-numbers"))
+	for kind, e := range pd.frameEditors {
+		e.SetText(s.GetString(frameTools[kind].pref))
+	}
 	pd.autoIndentCheck.SetChecked(s.GetBoolean("auto-indent"))
 	pd.autoCloseBracketsCheck.SetChecked(s.GetBoolean("auto-close-brackets"))
 	pd.keysSelect.SetSelected((&MainWindow{settings: s}).editorKeys())
@@ -370,6 +410,9 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 
 func (pd *PreferencesDialog) saveSettings() {
 	s := pd.settings
+	for kind, e := range pd.frameEditors {
+		s.SetString(frameTools[kind].pref, strings.TrimSpace(e.Text))
+	}
 	if pd.roleSelect.Selected != "" {
 		s.SetString(rolePref, roleOfLabel(pd.roleSelect.Selected))
 	}

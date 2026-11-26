@@ -55,6 +55,7 @@ type MainWindow struct {
 	hlChips      highlandCache        // and its includes and markers (highland_directives.go)
 	includeShown *dialog.CustomDialog // an included file shown (showInclude), for the tests
 	sbBoards     *sbProject           // Storyboarder's boards beside the script, as read last (storyboarder.go)
+	frameWatch   frameWatcher         // its frames' files, watched for saves (frames.go)
 	searchBar    *SearchBar
 
 	// UI layout

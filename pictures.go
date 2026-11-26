@@ -337,53 +337,77 @@ func (w *MainWindow) keepPicture(src, folder string, done func(rel string, err e
 	data, err := readPickedFile(src)
 	if err == nil {
 		_, err = images.Decode(data, src)
-		if errors.Is(err, images.ErrSVG) {
-			err = nil // kept: shown as its alt text
+		if errors.Is(err, images.ErrNoRenderer) || errors.Is(err, images.ErrRendering) {
+			err = nil // kept: drawn when its program is there
 		}
 	}
 	if err != nil {
 		done("", fmt.Errorf("%s: %v", filepath.Base(src), err))
 		return
 	}
-	name := pictureName(filepath.Base(src))
-	if b := w.bundle; b != nil {
-		for i := 2; ; i++ { // a name not taken by another picture
-			old, err := b.readExtra(folder + "/" + name)
-			if err != nil || bytes.Equal(old, data) {
-				break
-			}
-			ext := path.Ext(name)
-			name = fmt.Sprintf("%s-%d%s", strings.TrimSuffix(pictureName(filepath.Base(src)), ext), i, ext)
+	w.keepFiles(folder, []bundleFile{{pictureName(filepath.Base(src)), data}}, func(rels []string, err error) {
+		if err != nil {
+			done("", err)
+			return
 		}
-		rel := folder + "/" + name
-		files := []bundleFile{{rel, data}}
+		done(rels[0], nil)
+	})
+}
+
+// keepFiles writes files (by their names) into the document's folder
+// (as pictureFolder names it), each under its own name (numbered if
+// another file has it), and tells done the names the document links
+// them by, relative to it; one bundle write for them all. Read from the
+// folder at once (the loader made again).
+func (w *MainWindow) keepFiles(folder string, files []bundleFile, done func(rels []string, err error)) {
+	rels := make([]string, len(files))
+	if b := w.bundle; b != nil {
+		var put []bundleFile
+		taken := map[string]bool{}
+		for i, f := range files {
+			name := f.name
+			for n := 2; ; n++ { // a name not taken by another file
+				old, err := b.readExtra(folder + "/" + name)
+				if !taken[name] && (err != nil || bytes.Equal(old, f.data)) {
+					break
+				}
+				ext := path.Ext(f.name)
+				name = fmt.Sprintf("%s-%d%s", strings.TrimSuffix(f.name, ext), n, ext)
+			}
+			taken[name] = true
+			rels[i] = folder + "/" + name
+			put = append(put, bundleFile{rels[i], f.data})
+		}
 		w.queueBundle(bundleJob{run: func(b *textBundle) (*textBundle, error) {
 			if b == nil {
 				return nil, errors.New("the script's bundle is gone")
 			}
-			return saveBundleFiles(b, files, false)
+			return saveBundleFiles(b, put, false)
 		}, done: func(err error) {
 			w.pictures().Forget()
-			done(rel, err)
+			done(rels, err)
 		}})
 		return
 	}
 	if w.currentFile == "" || inBrowser {
-		done("", errNoPictureHome)
+		done(nil, errNoPictureHome)
 		return
 	}
 	dir := filepath.Join(filepath.Dir(w.currentFile), filepath.FromSlash(folder))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		done("", err)
+		done(nil, err)
 		return
 	}
-	name = uniqueName(dir, name, data)
-	if err := writeFileAtomic(filepath.Join(dir, name), data); err != nil {
-		done("", err)
-		return
+	for i, f := range files {
+		name := uniqueName(dir, f.name, f.data)
+		if err := writeFileAtomic(filepath.Join(dir, name), f.data); err != nil {
+			done(nil, err)
+			return
+		}
+		rels[i] = folder + "/" + name
 	}
 	w.pictures().Forget()
-	done(folder+"/"+name, nil)
+	done(rels, nil)
 }
 
 // pictureName is a file's name as a picture's in a document: no spaces

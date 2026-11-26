@@ -136,9 +136,13 @@ func (w *MainWindow) frameChips(text string) []editor.Chip {
 	c.text, c.pics, c.gen, c.sb, c.chips = text, pics, pics.Gen(), sb, nil
 	body := text[:bodyEndByte(text)]
 	dataPath := boardDataPath(text)
+	var srcs []string
 	for _, f := range findFrames(body) {
-		c.chips = append(c.chips, frameChip(f, dataPath, pics))
+		src := boardSrc(f.board, dataPath)
+		srcs = append(srcs, src)
+		c.chips = append(c.chips, frameChip(f, dataPath, pics, w.frameFileSecs(src)))
 	}
+	w.watchScriptFrames(srcs) // a save in its program shows (frames.go)
 	if more := storyboarderChips(body, sb, pics); len(more) > 0 {
 		c.chips = append(c.chips, more...)
 		slices.SortFunc(c.chips, func(a, b editor.Chip) int { return a.Start - b.Start })
@@ -146,8 +150,9 @@ func (w *MainWindow) frameChips(text string) []editor.Chip {
 	return c.chips
 }
 
-// frameChip is a frame's chip.
-func frameChip(f frameLine, dataPath string, pics *images.Loader) editor.Chip {
+// frameChip is a frame's chip; fileSecs is how long its file runs, an
+// animation's (0: a still).
+func frameChip(f frameLine, dataPath string, pics *images.Loader, fileSecs float64) editor.Chip {
 	src := boardSrc(f.board, dataPath)
 	name := strings.TrimSuffix(path.Base(f.board.File), path.Ext(f.board.File))
 	if r := []rune(name); len(r) > 14 {
@@ -156,6 +161,8 @@ func frameChip(f frameLine, dataPath string, pics *images.Loader) editor.Chip {
 	label := name
 	if f.board.Duration > 0 {
 		label += " · " + strconv.FormatFloat(f.board.Duration, 'f', -1, 64) + "s"
+	} else if fileSecs > 0 {
+		label += " ▶ " + strconv.FormatFloat(fileSecs, 'f', 1, 64) + "s"
 	}
 	if f.board.Continued {
 		label += " ↻"
@@ -163,6 +170,8 @@ func frameChip(f frameLine, dataPath string, pics *images.Loader) editor.Chip {
 	tip := "Storyboard frame: " + f.board.File
 	if f.board.Duration > 0 {
 		tip += fmt.Sprintf(", %.2f s", f.board.Duration)
+	} else if fileSecs > 0 {
+		tip += fmt.Sprintf(", animated: %.2f s, as its file says", fileSecs)
 	}
 	if f.board.Continued {
 		tip += ", carries on from the frame before"
@@ -270,7 +279,16 @@ func (w *MainWindow) showFrame(b lex.Board, src string, at int) {
 	})
 	closeB := widget.NewButton("Close", func() { d.Hide() })
 	closeB.Importance = widget.HighImportance
-	d = dialog.NewCustomWithoutButtons("Storyboard Frame", container.NewBorder(nil, container.NewVBox(info, w.dialogButtons(edit, closeB)), nil, nil, body), w.fyneWindow)
+	_, tool := w.frameCommand(b.File)
+	draw := widget.NewButton("Edit in "+tool.name, func() { // its program (frames.go)
+		d.Hide()
+		w.openFrame(src)
+	})
+	if inBrowser {
+		draw.Disable()
+		info.SetText(about + "\n" + errFramesDesktop.Error())
+	}
+	d = dialog.NewCustomWithoutButtons("Storyboard Frame", container.NewBorder(nil, container.NewVBox(info, w.dialogButtons(edit, draw, closeB)), nil, nil, body), w.fyneWindow)
 	d.SetOnEscape(d.Hide)
 	d.Show()
 }
@@ -324,7 +342,7 @@ func (w *MainWindow) askFrame() {
 		dialog.ShowError(errNoPictureHome, w.fyneWindow)
 		return
 	}
-	chooseFileIn(w.fyneWindow, pictureExtensions, func(picked string) {
+	chooseFileIn(w.fyneWindow, frameExtensions, func(picked string) {
 		dataPath := boardDataPath(w.textEditor.Text())
 		w.keepPicture(picked, w.pictureFolder(dataPath), func(rel string, err error) {
 			if err != nil {

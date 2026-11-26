@@ -93,6 +93,12 @@ type trScript struct {
 // readTable reads a script's body for the table read; sb, if not nil, is
 // the boards Storyboarder keeps for it.
 func readTable(text string, starts []string, d *fountain.Dialect, sb *sbProject) *trScript {
+	return readTableWith(text, starts, d, sb, nil)
+}
+
+// readTableWith is readTable, a frame's time without one in its note
+// asked of fileSecs (an animated frame's file says it: frames.go).
+func readTableWith(text string, starts []string, d *fountain.Dialect, sb *sbProject, fileSecs func(src string) float64) *trScript {
 	body := text[:bodyEndByte(text)]
 	lines := strings.Split(body, "\n")
 	kinds := syntax.ClassifyIn(lines, starts, d)
@@ -139,7 +145,11 @@ func readTable(text string, starts []string, d *fountain.Dialect, sb *sbProject)
 		case syntax.Note:
 			if t := strings.TrimSpace(t); strings.HasPrefix(t, "[[") && strings.Count(t, "[[") == 1 {
 				if b, ok := lex.ParseBoard(t[2 : len(t)-2]); ok {
-					add(trLine{Line: i, Kind: trFrame, Frame: boardSrc(b, dataPath), Speaker: speaker, Secs: b.Duration})
+					src, secs := boardSrc(b, dataPath), b.Duration
+					if secs <= 0 && fileSecs != nil {
+						secs = fileSecs(src)
+					}
+					add(trLine{Line: i, Kind: trFrame, Frame: src, Speaker: speaker, Secs: secs})
 				}
 			}
 			continue
