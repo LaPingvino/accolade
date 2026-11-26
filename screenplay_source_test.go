@@ -311,7 +311,7 @@ func TestScreenplaySourceResplit(t *testing.T) {
 	script := "INT. FERRY CABIN - NIGHT\n\nMarta counts coins.\n\nMARTA\nThree crossings left.\n\nJonas nods.\n\next. ferry deck - night Rain on the rail. [[fix the rail]]\nJonas smokes.\n"
 	src := "INT. FERRY CABIN - NIGHT\n\nMarta counts coins.\nMARTA\nThree crossings left.\nJonas nods.\n\nEXT. FERRY DECK - NIGHT\n\nRain on the rail.\nJonas smokes.\n"
 	w, _ := sourceWindow(t, script, "")
-	sc := compareWithSource(script, src, w.sourceOptions(src))
+	sc := compareWithSource(script, src, w.sourceOptions(src), nil)
 	if len(sc.m.Changes) != 1 {
 		for _, c := range sc.m.Changes {
 			t.Logf("%q → %q", c.Ours, c.Theirs)
@@ -322,7 +322,7 @@ func TestScreenplaySourceResplit(t *testing.T) {
 	if !strings.Contains(got, "\n\nEXT. FERRY DECK - NIGHT\n\nRain on the rail.") || strings.Count(got, "[[fix the rail]]") != 1 || strings.Contains(strings.ToLower(got), "ext. ferry deck - night rain") {
 		t.Errorf("taken as:\n%s", got)
 	}
-	if n := len(compareWithSource(got, src, w.sourceOptions(src)).m.Changes); n != 0 {
+	if n := len(compareWithSource(got, src, w.sourceOptions(src), nil).m.Changes); n != 0 {
 		t.Errorf("after taking: %d differences", n)
 	}
 }

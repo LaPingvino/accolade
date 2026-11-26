@@ -151,19 +151,24 @@ type screenplayCompare struct {
 	m         *scriptdiff.Merge
 	at        []int // each change's line in the script: where taking it writes
 	heading   func(string) bool
-	scenes    int // the script's scenes
+	scenes    int        // the script's scenes
+	pages     *pageIndex // the source's pages as printed (nil: not kept)
+	page      []int      // each change's page in them (-1: not known)
+	keys      []string   // each change's Keep Mine line
 }
 
 // compareWithSource compares text with the screenplay src, read without
 // its pages' debris.
-func compareWithSource(text, src string, o scriptdiff.MergeOptions) *screenplayCompare {
+func compareWithSource(text, src string, o scriptdiff.MergeOptions, pages *pageIndex) *screenplayCompare {
 	m := scriptdiff.NewMerge(text, text, withoutDebris(src), o)
-	sc := &screenplayCompare{text: text, src: src, m: m, heading: o.IsHeading}
+	sc := &screenplayCompare{text: text, src: src, m: m, heading: o.IsHeading, pages: pages}
 	lines := strings.Split(text, "\n")
 	for _, c := range m.Changes {
 		after, _, _ := m.Apply(map[int]bool{c.ID: true}, nil)
 		sc.at = append(sc.at, firstDifferentLine(lines, after))
+		sc.keys = append(sc.keys, keptLine(c))
 	}
+	sc.page = pagesOf(pages, m, sc.at)
 	for _, l := range lines { // as the pane finds the cursor's scene (a heading run into its action too)
 		if o.IsHeading(l) && !strings.HasPrefix(l, "#") {
 			sc.scenes++
@@ -189,17 +194,29 @@ func firstDifferentLine(lines []string, after string) int {
 	return min(i, max(len(lines)-1, 0))
 }
 
-// changeKey is a change as Keep Mine remembers it: by what it says, so the
-// choice holds while the script changes elsewhere.
+// changeKey is a change as Keep Mine remembers it (keptLine hashes it):
+// by what it says, so the choice holds while the script changes
+// elsewhere.
 func changeKey(c scriptdiff.Change) string {
 	return fmt.Sprint(c.Kind, "\x00", c.Row, "\x00", c.Ours, "\x00", c.Theirs)
 }
 
-// open are the changes not kept as the writer's, in the script's order.
-func (sc *screenplayCompare) open(kept map[string]bool) []int {
+// settled tells whether the writer has decided a change: kept as theirs
+// (Keep Mine), or on a page ticked as looking right. decided are the
+// document's dismissed lines (screenplay_pages.go).
+func (sc *screenplayCompare) settled(id int, decided map[string]bool) (kept, page bool) {
+	if decided[sc.keys[id]] {
+		return true, false
+	}
+	pg := sc.page[id]
+	return false, pg >= 0 && decided[sc.pages.rightLine(pg)]
+}
+
+// open are the changes not settled, in the script's order.
+func (sc *screenplayCompare) open(decided map[string]bool) []int {
 	var ids []int
 	for _, c := range sc.m.Changes {
-		if !kept[changeKey(c)] {
+		if k, p := sc.settled(c.ID, decided); !k && !p {
 			ids = append(ids, c.ID)
 		}
 	}
@@ -227,14 +244,18 @@ func sceneSpanOf(lines []string, line int, heading func(string) bool) (from, to 
 }
 
 // summary is the comparison in a line.
-func (sc *screenplayCompare) summary(kept map[string]bool) string {
+func (sc *screenplayCompare) summary(decided map[string]bool) string {
 	differ := map[int]bool{}
 	sceneOnly := func(l string) bool { return sc.heading(l) && !strings.HasPrefix(l, "#") }
-	var missing, extra, moved, keptN int
+	var missing, extra, moved, keptN, ticked int
 	lines := strings.Split(sc.text, "\n")
 	for _, c := range sc.m.Changes {
-		if kept[changeKey(c)] {
-			keptN++
+		if k, p := sc.settled(c.ID, decided); k || p {
+			if k {
+				keptN++
+			} else {
+				ticked++
+			}
 			continue
 		}
 		switch c.Kind {
@@ -273,6 +294,9 @@ func (sc *screenplayCompare) summary(kept map[string]bool) string {
 	if keptN > 0 {
 		parts = append(parts, plural(keptN, "difference")+" kept as yours")
 	}
+	if ticked > 0 {
+		parts = append(parts, plural(ticked, "difference")+" on pages that look right")
+	}
 	return strings.Join(parts, " · ")
 }
 
@@ -303,15 +327,16 @@ type screenplayView struct {
 	cmp     *screenplayCompare
 	working bool
 	again   bool
-	kept    map[string]bool // Keep Mine, for this source while the window is open
-	keptFor string          // the source they are for
-	shown   string          // what the rows show (their key)
+	pages   *pageIndex // the source's pages as printed, if kept (screenplay_pages.go)
+	pagesOf string     // the source they are for
+	pagesIn bool       // read for it (false: read them again, keepSourcePages wrote them)
+	shown   string     // what the rows show (their key)
 	rows    *fyne.Container
 	box     fyne.CanvasObject
 }
 
 func newScreenplayView(s *sourcePane) *screenplayView {
-	v := &screenplayView{s: s, kept: map[string]bool{}}
+	v := &screenplayView{s: s}
 	v.rows = container.NewVBox()
 	v.box = container.NewVScroll(v.rows)
 	return v
@@ -322,18 +347,18 @@ func newScreenplayView(s *sourcePane) *screenplayView {
 // the cursor's scene.
 func (v *screenplayView) follow() {
 	s, w := v.s, v.s.w
-	if v.keptFor != s.src {
-		v.kept, v.keptFor = map[string]bool{}, s.src
-	}
 	text := w.textEditor.Text()
-	if v.cmp == nil || !sameString(v.cmp.text, text) || !sameString(v.cmp.src, s.src) {
+	if !v.pagesIn || !sameString(v.pagesOf, s.src) {
+		v.pages, v.pagesOf, v.pagesIn = newPageIndex(w.readSourcePages(s.ref)), s.src, true
+	}
+	if v.cmp == nil || !sameString(v.cmp.text, text) || !sameString(v.cmp.src, s.src) || v.cmp.pages != v.pages {
 		if v.working {
 			v.again = true
 			return
 		}
 		v.working = true
-		src, o := s.src, w.sourceOptions(s.src)
-		inBackground(func() *screenplayCompare { return compareWithSource(text, src, o) }, func(sc *screenplayCompare) {
+		src, o, pages := s.src, w.sourceOptions(s.src), v.pages
+		inBackground(func() *screenplayCompare { return compareWithSource(text, src, o, pages) }, func(sc *screenplayCompare) {
 			v.working = false
 			v.cmp = sc
 			if v.again {
@@ -352,18 +377,35 @@ func (v *screenplayView) follow() {
 
 // current is the comparison if it is of the script as it is now.
 func (v *screenplayView) current() *screenplayCompare {
-	if v.cmp == nil || !sameString(v.cmp.text, v.s.w.textEditor.Text()) || !sameString(v.cmp.src, v.s.src) {
+	if v.cmp == nil || !sameString(v.cmp.text, v.s.w.textEditor.Text()) || !sameString(v.cmp.src, v.s.src) || v.cmp.pages != v.pages {
 		return nil
 	}
 	return v.cmp
 }
 
+// decided are the writer's decisions on the source (Keep Mine, pages
+// ticked), kept with the document's dismissed findings.
+func (v *screenplayView) decided() map[string]bool { return v.s.w.allDismissed() }
+
 // inScene are the open differences in the scene of line, its span and
 // heading.
 func (v *screenplayView) inScene(sc *screenplayCompare, line int) (ids []int, head string) {
+	all, head := sc.inScene(line, nil)
+	decided := v.decided()
+	for _, id := range all {
+		if k, p := sc.settled(id, decided); !k && !p {
+			ids = append(ids, id)
+		}
+	}
+	return ids, head
+}
+
+// inScene are all differences in the scene of line (open or not), in
+// the script's order, and its heading.
+func (sc *screenplayCompare) inScene(line int, _ map[string]bool) (ids []int, head string) {
 	lines := strings.Split(sc.text, "\n")
 	from, to, head := sceneSpanOf(lines, line, sc.heading)
-	for _, id := range sc.open(v.kept) {
+	for _, id := range sc.open(nil) {
 		if at := sc.at[id]; at >= from && (at < to || to == len(lines) && at == to-1) {
 			ids = append(ids, id)
 		}
@@ -378,14 +420,15 @@ func (v *screenplayView) show() {
 	if sc == nil {
 		return
 	}
-	s.count.SetText(sc.summary(v.kept))
+	decided := v.decided()
+	s.count.SetText(sc.summary(decided))
 	line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
 	ids, head := v.inScene(sc, line)
 	where := strings.TrimSpace(head)
 	if where == "" {
 		where = "Before the first scene"
 	}
-	open := len(sc.open(v.kept))
+	open := len(sc.open(decided))
 	switch {
 	case open == 0:
 		s.setInfo("The script matches its source, scene for scene.")
@@ -394,7 +437,8 @@ func (v *screenplayView) show() {
 	default:
 		s.setInfo(where + ": " + plural(len(sc.hunks(ids)), "difference") + " from the source")
 	}
-	key := fmt.Sprintf("%p %v %d", sc, ids, len(v.kept))
+	pg := sc.pageOfScene(line)
+	key := fmt.Sprintf("%p %v %d %d %v", sc, ids, len(decided), pg, pg >= 0 && decided[sc.pages.rightLine(pg)])
 	if key == v.shown && len(v.rows.Objects) > 0 {
 		return
 	}
@@ -412,6 +456,9 @@ func (v *screenplayView) show() {
 			break
 		}
 		objs = append(objs, v.row(sc, h), widget.NewSeparator())
+	}
+	if pg >= 0 {
+		objs = append(objs, v.pageBox(sc, pg, decided[sc.pages.rightLine(pg)]))
 	}
 	v.rows.Objects = objs
 	v.rows.Refresh()
@@ -561,13 +608,90 @@ func (v *screenplayView) take(ids ...int) {
 }
 
 // keepMine leaves a difference (its hunk) as the script has it: not
-// shown again while the window has this source.
+// shown again, kept with the document's dismissed findings (beside it or
+// in its notes, as that setting says), where deleting its line brings it
+// back. Kept lines no difference says any more are let go then.
 func (v *screenplayView) keepMine(sc *screenplayCompare, h []int) {
+	var add []string
 	for _, id := range h {
-		v.kept[changeKey(sc.m.Changes[id])] = true
+		add = append(add, sc.keys[id])
 	}
-	v.s.w.setStatus("Kept yours")
-	v.show()
+	err := v.s.w.storeSourceDecisions(add, sc.stillSaid)
+	v.status(err, "Kept yours")
+	v.follow() // in the notes: the script changed
+}
+
+// stillSaid tells whether a decision's line is one this comparison
+// still makes (a page tick is kept whatever: a page is not a difference).
+func (sc *screenplayCompare) stillSaid(k string) bool {
+	return !strings.HasPrefix(k, keptMineHead) || slices.Contains(sc.keys, k)
+}
+
+// status says a decision kept, or why it could not be.
+func (v *screenplayView) status(err error, ok string) {
+	if err != nil {
+		v.s.w.setStatus("Could not keep it beside the document: " + err.Error())
+		return
+	}
+	v.s.w.setStatus(ok)
+}
+
+// pageOfScene is the source page the scene of line is checked against:
+// that of its first difference (open or not), else of its heading's
+// words; -1 when the source keeps no pages.
+func (sc *screenplayCompare) pageOfScene(line int) int {
+	if sc.pages == nil {
+		return -1
+	}
+	ids, head := sc.inScene(line, nil)
+	for _, id := range ids {
+		if sc.page[id] >= 0 {
+			return sc.page[id]
+		}
+	}
+	if head == "" {
+		return -1
+	}
+	pg, _ := sc.pages.find(mergeNumberRe.ReplaceAllString(head, ""), 0)
+	return pg
+}
+
+// pageBox is the source's page pg as printed, beside the scene, with
+// its tick: Looks Right folds its differences away, Unmark brings them
+// back.
+func (v *screenplayView) pageBox(sc *screenplayCompare, pg int, right bool) fyne.CanvasObject {
+	text := widget.NewTextGridFromString(strings.TrimRight(sc.pages.pages[pg], "\n"))
+	title := fmt.Sprintf("Page %d of %d as printed", pg+1, len(sc.pages.pages))
+	label, icon := fmt.Sprintf("Page %d Looks Right", pg+1), theme.ConfirmIcon()
+	if right {
+		title += ", marked as looking right"
+		label, icon = fmt.Sprintf("Unmark Page %d", pg+1), theme.ContentUndoIcon()
+	}
+	tick := widget.NewButtonWithIcon(label, icon, func() { v.tickPage(sc, pg, !right) })
+	tick.Importance = widget.LowImportance
+	item := widget.NewAccordionItem(title, container.NewVBox(container.NewHScroll(text), tick))
+	item.Open = true
+	return widget.NewAccordion(item)
+}
+
+// tickPage marks page pg as looking right (on) or not: its differences
+// fold away, the tick kept as Keep Mine is.
+func (v *screenplayView) tickPage(sc *screenplayCompare, pg int, on bool) {
+	line := sc.pages.rightLine(pg)
+	var add []string
+	keep := sc.stillSaid
+	if on {
+		add = []string{line}
+	} else {
+		keep = func(k string) bool { return k != line && sc.stillSaid(k) }
+	}
+	err := v.s.w.storeSourceDecisions(add, keep)
+	if on {
+		v.status(err, fmt.Sprintf("Page %d looks right: its differences fold away", pg+1))
+	} else {
+		v.status(err, fmt.Sprintf("Page %d unmarked: its differences are back", pg+1))
+	}
+	v.follow()
 }
 
 // step goes to the next (dir 1) or previous scene with a difference
@@ -580,7 +704,7 @@ func (v *screenplayView) step(dir int) {
 		v.follow()
 		return
 	}
-	open := sc.open(v.kept)
+	open := sc.open(v.decided())
 	if len(open) == 0 {
 		w.setStatus("The script matches its source: nothing left to fix")
 		return

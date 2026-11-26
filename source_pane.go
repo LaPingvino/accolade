@@ -1354,8 +1354,10 @@ func (w *MainWindow) chooseSourceFile(path string) {
 	}
 	w.sourceGen++
 	gen, script, bundle := w.sourceGen, w.currentFile, w.bundle
+	var pages string // a PDF's, as printed (screenplay_pages.go)
 	took := func(path, md string, err error) {
 		if w.takeChosenSource(gen, script, bundle, path, md, err) {
+			w.keepSourcePages(pages)
 			w.showSource()
 			if w.bundle != nil {
 				w.setStatus("Source: " + filepath.Base(path) + ", put in " + filepath.Base(w.bundle.Path))
@@ -1374,7 +1376,11 @@ func (w *MainWindow) chooseSourceFile(path string) {
 				scenes = sceneHeaders(chosen)
 			}
 			w.readPDFInBackground(path, "the source", func(ctx context.Context, progress func(done, pages int)) (string, []string, error) {
-				return importPDF(ctx, path, scenes, chosen, ocrText, progress)
+				text, skipped, err := importPDF(ctx, path, scenes, chosen, ocrText, progress)
+				if err == nil {
+					pages = pdfPagesText(path)
+				}
+				return text, skipped, err
 			}, func(text string) { took(fountainName(path), screenplaySourceText(w, text, path), nil) })
 		}
 		w.readPDFAsking(path, lang, readAs, func() { readAs(lang, false) })

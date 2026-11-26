@@ -2111,7 +2111,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | Table Read / cast | levels 1–2 done (Joop's ask); partly: Storyboarder durations, a "beside" frame layout — the agent's own leftovers, so not taken as "first not done"; level 3 (Cast button) waits on Joop's registration |
   | Link up a free adaptation | done |
   | Adaptation benchmark | done (Gutenberg pairs, invented scenes); partly: merged/reworded synthetic pairs; cross-language stretch not started |
-  | SCREENPLAY SOURCES | partly: pattern fixer, Fix-Up tab, OCR offer, screenplay as the source (branch next) and re-split (branch srcfix) done; NOT built: layout learning per document; per-page "looks right" tick |
+  | SCREENPLAY SOURCES | done: pattern fixer, Fix-Up tab, OCR offer, screenplay as the source, re-split, Keep Mine kept beside the document, the PDF's page as printed with a "looks right" tick (branch q1); layout learning not needed after re-split (0 of 267 Hope Talks differences are layout-only) |
   | Structural moves | done |
   | Timeline (cards variant + strip) | done |
   | Stripboard / phone Pages as middle tabs; phone stripboard ribbon | done |
@@ -2199,6 +2199,28 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   the TestScreenplaySource* unchanged.
   Left: the 14 left after taking all (a glued piece pair that comes back); rebuild tidies spaces across a changed
   element, not only at the edit; layout learning per document ("these are cues"), the per-page "looks right" tick.
+- 2026-11-26: SCREENPLAY SOURCES, the rest (branch q1, not merged; screenplay_pages.go).
+  (1) Keep Mine is kept across sessions with the dismissed findings (dismissed_place.go: same setting, beside the
+  document or in its notes block, follows a rename): a line "Source, kept mine: <its words> · #<hash>", deleting it
+  brings the difference back; dismissing a finding no longer lets go of the source's lines, and Keep Mine lets go
+  of its own lines no difference says any more.
+  (2)+(3) A source chosen as a PDF keeps its pages as printed beside it (pdfin.Pages: a kept copy's folder
+  pages.txt, a bundle's assets/production/source-pages.txt; none for a source kept in the script or chosen
+  before). Decided: the page's extracted TEXT in its layout (indent at ten characters an inch, blank lines for the
+  room, a fixed-width grid in a sideways scroll), not an image: Accolade's rasterizer paints its own print, not any
+  PDF, and pdfin only decodes a scan's image. The pane shows the cursor's scene's page (that of its first
+  difference, found by the source's words, else its heading's) below its differences, with "Page N Looks Right":
+  kept as Keep Mine is ("Source page N looks right · #<hash of the page's text>", so another print's page N is not
+  ticked), the page's differences fold away (summary: "N differences on pages that look right"); Unmark Page N
+  brings them back.
+  (4) Layout learning: not needed after re-split. Hope Talks (2011 PDF against the earlier conversion, local,
+  counts only): of the 267 differences, 31 have the same words on both sides, and all 31 differ in punctuation;
+  0 are an element read as another kind (cue/action) with the same text; every one of the 267 found its page
+  (195 pages).
+  Tests: TestScreenplaySourceKeepMineKept (both settings; a finding dismissed after; a new pane after saving),
+  TestScreenplaySourcePageTick (Choose Source on a synthetic PDF: pages kept, the page in its layout, tick and
+  unmark, the tick beside), TestPageIndexFind; screenshot TestScreenplaySourcePageScreenshot
+  (accolade-source-page.png).
 - 2026-11-25 (Joop, after the Markdown revision checks merged): REVISION FOLLOW-UPS, next Accolade turn.
   (1) Where dismissed findings are kept: "support both options and enable keeping it clean". A setting:
       - "beside the document" (default: a sidecar next to a loose file, or inside the .accolade bundle);

@@ -278,6 +278,11 @@ func (w *MainWindow) dismissFinding(it openItem) {
 	}
 	gone := w.allDismissed()
 	now := map[string]bool{it.dismissKey(): true}
+	for k := range gone {
+		if sourceDecision(k) { // the Source pane's (screenplay_pages.go): no finding's
+			now[k] = true
+		}
+	}
 	if w.sourceRef().Origin != sourceNone && w.srcEditor() == nil { // the source's not read now: none let go
 		maps.Copy(now, gone)
 	}

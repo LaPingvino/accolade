@@ -525,3 +525,35 @@ func TestLivePreviewPhoneWidth(t *testing.T) {
 		}
 	}
 }
+
+// TestScreenplaySourcePageScreenshot renders a script with its PDF
+// screenplay source beside it: the deck scene's differences and its page
+// as printed, with its tick (SHOT_DIR as above).
+func TestScreenplaySourcePageScreenshot(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	w, _ := sourceWindow(t, spConverted, "")
+	os.Remove(filepath.Join(filepath.Dir(w.currentFile), "story.md"))
+	pdf := filepath.Join(t.TempDir(), "ferry.pdf")
+	if err := exportAs(spOriginal, pdf, "pdf", exportJob{}); err != nil {
+		t.Fatal(err)
+	}
+	holdUI(t)
+	w.chooseSourceFile(pdf)
+	waitForText(t, w)
+	fyne.DoAndWait(func() {
+		w.fyneWindow.Resize(fyne.NewSize(1300, 1500)) // tall: the page below the differences in sight
+		spCursorTo(t, w, "EXT. FERRY DECK")
+		f, err := os.Create(filepath.Join(dir, "accolade-source-page.png"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		png.Encode(f, w.fyneWindow.Canvas().Capture())
+	})
+}
