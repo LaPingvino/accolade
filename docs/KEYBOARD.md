@@ -346,6 +346,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Pick What Is Read | `tableread.pick` |  |  |  |  | :table-read-pick |
 | Narrator Mode | `tableread.narrator` |  |  |  |  | :table-read-narrator |
 | Show Storyboard Frames | `tableread.storyboard` |  |  |  |  | :table-read-storyboard |
+| Storyboard Beside the Lines | `tableread.beside` |  |  |  |  | :table-read-beside |
 | Actor Tints | `tableread.tints` |  |  |  |  | :table-read-tints |
 | Table Read Full Screen | `tableread.fullscreen` |  |  |  |  | :table-read-fullscreen |
 | Follow in the Table Read | `tableread.follow` |  |  |  |  | :table-read-follow |

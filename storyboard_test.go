@@ -171,6 +171,11 @@ func TestStoryboarderBoards(t *testing.T) {
 	if s == nil || len(s.boards) != 2 || s.boards[0].Action != "Boats." || s.boards[1].Duration != 1500 {
 		t.Errorf("scene %+v", s)
 	}
+	// the Table Read times the scene by its boards: the default 2 s and 1.5 s
+	tr := readTable(w.textEditor.Text(), nil, nil, w.storyboarder())
+	if secs, by := tr.Scenes[0].secs(); secs != 3.5 || !by {
+		t.Errorf("the scene's time %v (by its boards: %v)", secs, by)
+	}
 	if data, _ := os.ReadFile(script); !strings.Contains(string(data), "#1-x2k9q#") {
 		t.Error("the script changed")
 	}

@@ -85,6 +85,35 @@ func TestTableReadReads(t *testing.T) {
 	}
 }
 
+// A scene whose frames all have a time is as long as its boards; one
+// with some untimed is never shorter than the timed ones; one without
+// frames goes by its pages.
+func TestTableReadBoardTimes(t *testing.T) {
+	text := "INT. A - DAY\n\nShort.\n[[board: a.png, duration: 12]]\n[[board: b.png, duration: 2.5]]\n\n" +
+		"INT. B - DAY\n\nShort.\n[[board: c.png, duration: 30]]\n[[board: d.png]]\n\n" +
+		"INT. C - DAY\n\nShort.\n[[board: e.png]]\n"
+	s := readTable(text, nil, nil, nil)
+	if secs, by := s.Scenes[0].secs(); secs != 14.5 || !by {
+		t.Errorf("all timed: %v %v", secs, by)
+	}
+	if secs, by := s.Scenes[1].secs(); secs != 30 || !by || s.Scenes[1].Untimed != 1 {
+		t.Errorf("some timed, longer than read: %v %v", secs, by)
+	}
+	if secs, by := s.Scenes[2].secs(); by || secs <= 0 {
+		t.Errorf("untimed: %v %v", secs, by)
+	}
+	if got := trEstimate(s.Scenes[0].Rows, 14.5); !strings.HasSuffix(got, "~15 s") {
+		t.Errorf("estimate %q", got)
+	}
+	if rows, secs := s.rowsOf([]int{0, 1}); rows == 0 || secs != 44.5 {
+		t.Errorf("the pick: %d rows, %v s", rows, secs)
+	}
+	sec, _ := s.Scenes[2].secs()
+	if _, secs := s.rowsOf([]int{0, 2}); secs != 14.5+sec {
+		t.Errorf("mixed pick %v", secs)
+	}
+}
+
 // The pick: a range, a character's scenes, a tag's, together.
 func TestTableReadPick(t *testing.T) {
 	s := trRead(t)
@@ -217,7 +246,7 @@ func TestTableReadWindow(t *testing.T) {
 	}
 	// the storyboard's frame between the lines, the cast photo on the first cue
 	cmd("tableread.storyboard").run(w)
-	frames, photos := 0, 0
+	frames, beside, photos := 0, 0, 0
 	var walk func(o fyne.CanvasObject)
 	walk = func(o fyne.CanvasObject) {
 		switch o := o.(type) {
@@ -227,6 +256,8 @@ func TestTableReadWindow(t *testing.T) {
 			switch o.MinSize().Width {
 			case 400:
 				frames++
+			case 300:
+				beside++
 			case 72:
 				photos++
 			}
@@ -240,6 +271,18 @@ func TestTableReadWindow(t *testing.T) {
 	if frames != 1 || photos != 1 {
 		t.Errorf("%d frames, %d photos", frames, photos)
 	}
+	// beside: the frame by the line it follows, not between the lines
+	texts := v.shownTexts()
+	cmd("tableread.beside").run(w)
+	frames, photos = 0, 0
+	walk(v.rows)
+	if frames != 0 || beside != 1 || !v.boards {
+		t.Errorf("beside: %d between, %d beside", frames, beside)
+	}
+	if got := v.shownTexts(); !slices.Equal(got, texts) {
+		t.Errorf("the lines beside: %q, between: %q", got, texts)
+	}
+	cmd("tableread.beside").run(w)
 	// only Ben's scenes
 	v.pickCharacter("BEN")
 	if !slices.Equal(v.order, []int{2}) || v.scene != 2 {
@@ -304,6 +347,10 @@ func TestTableReadScreenshots(t *testing.T) {
 	v.togglePanel()
 	v.goLine(v.script.Scenes[2].Line + 3)
 	capture(t, v.win.Canvas(), "tableread-desktop-line.png")
+	v.setBeside(true)
+	v.goLine(v.script.Scenes[1].Line + 2)
+	capture(t, v.win.Canvas(), "tableread-desktop-beside.png")
+	v.setBeside(false)
 	cmd("tableread.close").run(w)
 
 	p := trWindow(t, fyne.NewSize(380, 800))

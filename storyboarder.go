@@ -102,6 +102,15 @@ func (p *sbProject) orNil() *sbProject {
 	return p
 }
 
+// boardSecs is board i's time on screen in seconds: its own, else the
+// scene's default.
+func (s *sbScene) boardSecs(i int) float64 {
+	if d := s.boards[i].Duration; d > 0 {
+		return d / 1000
+	}
+	return s.timing / 1000
+}
+
 // newestIn is the latest change in dir and its scene folders.
 func newestIn(dir string) time.Time {
 	var t time.Time
@@ -212,11 +221,7 @@ func (w *MainWindow) showStoryboarderScene(s *sbScene) {
 		} else {
 			pic = picturePlaceholder("Board "+b.Shot, s.picture[i], p.Err)
 		}
-		d := b.Duration
-		if d == 0 {
-			d = s.timing
-		}
-		about := fmt.Sprintf("%s · %.1f s", cmpOr(b.Shot, fmt.Sprint(b.Number)), d/1000)
+		about := fmt.Sprintf("%s · %.1f s", cmpOr(b.Shot, fmt.Sprint(b.Number)), s.boardSecs(i))
 		for _, t := range []string{b.Action, b.Dialogue, b.Notes} {
 			if t = strings.TrimSpace(t); t != "" {
 				about += "\n" + t

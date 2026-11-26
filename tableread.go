@@ -49,6 +49,8 @@ type trLine struct {
 	// First: the speaker's first cue in the script (the photo shows there)
 	First bool
 	Frame string // a frame's picture, as the loader names it
+	// Secs: a frame's time on screen, in seconds (0: not set)
+	Secs float64
 }
 
 // trScene is a scene of the table read (the lines before the first
@@ -61,6 +63,22 @@ type trScene struct {
 	Lines    []trLine
 	Speakers []string // who speaks in it, in order (charKey)
 	Rows     int      // its printed rows, for the estimate
+	// Timed: its frames' time on screen, in seconds (a [[board:]]'s
+	// duration, a Storyboarder board's, else its scene's default);
+	// Untimed: how many of its frames have none
+	Timed   float64
+	Untimed int
+}
+
+// secs is how long the scene takes, in seconds: its frames' time when
+// every frame has one (the boards are the cut), else a page a minute,
+// but never shorter than the frames timed; byBoards: the frames' time.
+func (sc trScene) secs() (secs float64, byBoards bool) {
+	read := float64(sc.Rows*60) / linesPerPage
+	if sc.Timed > 0 && (sc.Untimed == 0 || sc.Timed > read) {
+		return sc.Timed, true
+	}
+	return read, false
 }
 
 // trScript is a script read for the table read.
@@ -97,6 +115,12 @@ func readTable(text string, starts []string, d *fountain.Dialect, sb *sbProject)
 			l.NarratorStart = !narrating
 		}
 		narrating = l.Narrator || l.Kind == trFrame && narrating
+		if l.Kind == trFrame {
+			sc.Timed += l.Secs
+			if l.Secs == 0 {
+				sc.Untimed++
+			}
+		}
 		sc.Lines = append(sc.Lines, l)
 	}
 	for i, raw := range lines {
@@ -115,7 +139,7 @@ func readTable(text string, starts []string, d *fountain.Dialect, sb *sbProject)
 		case syntax.Note:
 			if t := strings.TrimSpace(t); strings.HasPrefix(t, "[[") && strings.Count(t, "[[") == 1 {
 				if b, ok := lex.ParseBoard(t[2 : len(t)-2]); ok {
-					add(trLine{Line: i, Kind: trFrame, Frame: boardSrc(b, dataPath), Speaker: speaker})
+					add(trLine{Line: i, Kind: trFrame, Frame: boardSrc(b, dataPath), Speaker: speaker, Secs: b.Duration})
 				}
 			}
 			continue
@@ -141,8 +165,8 @@ func readTable(text string, starts []string, d *fountain.Dialect, sb *sbProject)
 			if sb != nil {
 				if m := sbSceneID.FindStringSubmatch(t); m != nil {
 					if p := sb.scenes[m[2]]; p != nil {
-						for _, pic := range p.picture {
-							add(trLine{Line: i, Kind: trFrame, Frame: pic})
+						for j, pic := range p.picture {
+							add(trLine{Line: i, Kind: trFrame, Frame: pic, Secs: p.boardSecs(j)})
 						}
 					}
 				}
@@ -279,18 +303,18 @@ func (s *trScript) tintOf(speaker string) int {
 	return i % len(trTints)
 }
 
-// rowsOf are the printed rows of the scenes.
-func (s *trScript) rowsOf(scenes []int) int {
-	n := 0
+// rowsOf are the printed rows of the scenes, and their time (secs).
+func (s *trScript) rowsOf(scenes []int) (rows int, secs float64) {
 	for _, i := range scenes {
-		n += s.Scenes[i].Rows
+		t, _ := s.Scenes[i].secs()
+		rows, secs = rows+s.Scenes[i].Rows, secs+t
 	}
-	return n
+	return rows, secs
 }
 
 // trEstimate is rows' length as pages (in eighths, as a schedule counts
-// them) and reading time (a page a minute): "1 3/8 pg · ~1 min".
-func trEstimate(rows int) string {
+// them) and secs as a time: "1 3/8 pg · ~1 min".
+func trEstimate(rows int, secs float64) string {
 	if rows == 0 {
 		return "0 pg"
 	}
@@ -304,10 +328,10 @@ func trEstimate(rows int) string {
 	default:
 		pages = fmt.Sprintf("%d %d/8", whole, part)
 	}
-	secs := rows * 60 / linesPerPage
-	t := "~" + plural(max(1, (secs+30)/60), "min")
-	if secs < 45 {
-		t = fmt.Sprintf("~%d s", max(5, (secs+4)/5*5))
+	n := int(secs + 0.5)
+	t := "~" + plural(max(1, (n+30)/60), "min")
+	if n < 45 {
+		t = fmt.Sprintf("~%d s", max(5, (n+4)/5*5))
 	}
 	return pages + " pg · " + t
 }

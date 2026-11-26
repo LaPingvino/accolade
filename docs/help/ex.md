@@ -170,6 +170,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:next-pane** — Next Pane
 - **:previous-pane** — Previous Pane
 - **:ribbon-key-tips** — Ribbon Key Tips
+- **:table-read-beside** — Storyboard Beside the Lines (screenplay)
 
 ### Format
 

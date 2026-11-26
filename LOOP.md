@@ -2108,7 +2108,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | Release v0.7.0 | done (now 0.11.0) |
   | Lexington settings / format TOML editors | done |
   | Shortest unique links, relinking | done |
-  | Table Read / cast | levels 1–2 done (Joop's ask); partly: Storyboarder durations, a "beside" frame layout — the agent's own leftovers, so not taken as "first not done"; level 3 (Cast button) waits on Joop's registration |
+  | Table Read / cast | levels 1–2 done (Joop's ask), and the leftovers 2026-11-26 (branch q2): a scene timed by its boards (every frame timed: the boards' sum, "by its boards"; some: never shorter than they add up to; Storyboarder's boards their own or the default time), a "Beside" layout (frames beside the line they follow, with their time; panel check + ribbon). No Storyboarder export: its files are read, never written (not OSI). Level 3 (Cast button) waits on Joop's registration |
   | Link up a free adaptation | done |
   | Adaptation benchmark | done (Gutenberg pairs, invented scenes); partly: merged/reworded synthetic pairs; cross-language stretch not started |
   | SCREENPLAY SOURCES | done: pattern fixer, Fix-Up tab, OCR offer, screenplay as the source, re-split, Keep Mine kept beside the document, the PDF's page as printed with a "looks right" tick (branch q1); layout learning not needed after re-split (0 of 267 Hope Talks differences are layout-only) |

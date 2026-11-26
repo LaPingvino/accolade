@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"image/png"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -85,6 +86,7 @@ type tableReadView struct {
 	// leader's line, or one tapped
 	line                   int
 	narrator, boards, tint bool
+	beside                 bool // the frames beside the lines (else between)
 	panelShown             bool
 	// follow: the replica followed (tableread_follow.go), its name
 	follow, followName string
@@ -105,7 +107,7 @@ type tableReadView struct {
 	tagSel        *widget.Select
 	castRow       *fyne.Container
 	follower      *widget.Select // who to follow (tableread_follow.go)
-	checks        struct{ narrator, boards, tint *widget.Check }
+	checks        struct{ narrator, boards, beside, tint *widget.Check }
 	marked        map[int]*canvas.Rectangle // each line's background, by script line
 	// win is its window on a desktop (nil: a middle tab)
 	win      fyne.Window
@@ -215,6 +217,7 @@ func newTableReadView(w *MainWindow) *tableReadView {
 	v.castRow = container.NewHBox()
 	v.checks.narrator = widget.NewCheck("Narrator", func(on bool) { v.setNarrator(on) })
 	v.checks.boards = widget.NewCheck("Storyboard", func(on bool) { v.setBoards(on) })
+	v.checks.beside = widget.NewCheck("Beside", func(on bool) { v.setBeside(on) })
 	v.checks.tint = widget.NewCheck("Actor tints", func(on bool) { v.setTint(on) })
 	v.checks.narrator.SetChecked(v.narrator)
 	v.checks.tint.SetChecked(v.tint)
@@ -227,9 +230,9 @@ func newTableReadView(w *MainWindow) *tableReadView {
 	if w.narrow {
 		cols = 1
 	}
-	checks := container.NewGridWithColumns(3, v.checks.narrator, v.checks.boards, v.checks.tint)
+	checks := container.NewGridWithColumns(4, v.checks.narrator, v.checks.boards, v.checks.beside, v.checks.tint)
 	if w.narrow {
-		checks = container.NewGridWithColumns(2, v.checks.narrator, v.checks.boards, v.checks.tint)
+		checks = container.NewGridWithColumns(2, v.checks.narrator, v.checks.tint, v.checks.boards, v.checks.beside)
 	}
 	v.panel = container.NewVBox(
 		container.NewGridWithColumns(cols, labelled("From", v.from), labelled("To", v.to)),
@@ -601,6 +604,20 @@ func (v *tableReadView) setBoards(on bool) {
 	}
 }
 
+// setBeside: the frames beside the lines they follow, or between them
+// (beside shows them: the storyboard on).
+func (v *tableReadView) setBeside(on bool) {
+	if v.beside != on || on && !v.boards {
+		v.beside = on
+		v.checks.beside.SetChecked(on)
+		if on && !v.boards {
+			v.setBoards(true) // shows
+			return
+		}
+		v.show()
+	}
+}
+
 func (v *tableReadView) setTint(on bool) {
 	if v.tint != on {
 		v.tint = on
@@ -637,7 +654,12 @@ func (v *tableReadView) estimateText() string {
 	if v.script == nil || v.scene < 0 {
 		return ""
 	}
-	s := "This scene " + trEstimate(v.script.Scenes[v.scene].Rows)
+	sc := v.script.Scenes[v.scene]
+	secs, byBoards := sc.secs()
+	s := "This scene " + trEstimate(sc.Rows, secs)
+	if byBoards {
+		s += " by its boards"
+	}
 	if len(v.order) > 1 {
 		s += " · picked " + plural(len(v.order), "scene") + ", " + trEstimate(v.script.rowsOf(v.order))
 	}
@@ -654,14 +676,19 @@ func (v *tableReadView) show() {
 	v.marked = map[int]*canvas.Rectangle{}
 	var objs []fyne.CanvasObject
 	if v.script != nil && v.scene >= 0 && v.scene < len(v.script.Scenes) {
-		for _, l := range v.script.Scenes[v.scene].Lines {
+		lines := v.script.Scenes[v.scene].Lines
+		side := v.besideFrames(lines)
+		for i, l := range lines {
+			if l.Kind == trFrame && side != nil {
+				continue
+			}
 			// a gap before each speech, and before the narrator takes over
 			if len(objs) > 0 && (l.Kind == trCue || l.NarratorStart && v.narrator || l.Kind == trHeading) {
 				gap := canvas.NewRectangle(color.Transparent)
 				gap.SetMinSize(fyne.NewSize(0, 14))
 				objs = append(objs, gap)
 			}
-			if o := v.row(l); o != nil {
+			if o := v.row(l, side[i]); o != nil {
 				objs = append(objs, o)
 			}
 		}
@@ -674,10 +701,62 @@ func (v *tableReadView) show() {
 	v.markLine()
 }
 
+// besideFrames are the frames beside each line, by its index in lines
+// (nil: the frames between the lines, or none shown): a frame beside the
+// line it follows, as [[board:]] notes illustrate the line above them
+// (Storyboarder's, under the heading, beside the heading); one before any
+// line beside the first.
+func (v *tableReadView) besideFrames(lines []trLine) map[int][]trLine {
+	if !v.boards || !v.beside {
+		return nil
+	}
+	side := map[int][]trLine{}
+	at, first := -1, -1
+	var early []trLine
+	for i, l := range lines {
+		switch {
+		case l.Kind != trFrame:
+			at = i
+			if first < 0 {
+				first = i
+			}
+		case at < 0:
+			early = append(early, l)
+		default:
+			side[at] = append(side[at], l)
+		}
+	}
+	if first >= 0 && len(early) > 0 {
+		side[first] = append(early, side[first]...)
+	}
+	return side
+}
+
+// frameObject is a frame's picture at w×h (its time under it, when
+// timed), or a placeholder when it is missing.
+func (v *tableReadView) frameObject(l trLine, w, h float32, timed bool) fyne.CanvasObject {
+	img := canvas.NewImageFromImage(v.w.pictures().Thumbnail(l.Frame, 640, 360))
+	img.FillMode = canvas.ImageFillContain
+	img.SetMinSize(fyne.NewSize(w, h))
+	if img.Image == nil {
+		miss := widget.NewLabel("▨ " + l.Frame)
+		miss.Importance = widget.WarningImportance
+		miss.Wrapping = fyne.TextWrapBreak
+		return miss
+	}
+	if !timed || l.Secs <= 0 {
+		return img
+	}
+	t := widget.NewLabel(strconv.FormatFloat(l.Secs, 'f', -1, 64) + " s")
+	t.SizeName = theme.SizeNameCaptionText
+	t.Importance = widget.LowImportance
+	return container.NewVBox(img, t)
+}
+
 // row is a line's row: its text in its tint, the narrator's mark, a
-// photo by a first cue, a frame's picture; a background that shows when it
-// is the line read.
-func (v *tableReadView) row(l trLine) fyne.CanvasObject {
+// photo by a first cue, a frame's picture, the frames beside it (side);
+// a background that shows when it is the line read.
+func (v *tableReadView) row(l trLine, side []trLine) fyne.CanvasObject {
 	s := v.script
 	seg := &widget.TextSegment{Text: l.Text, Style: widget.RichTextStyleParagraph}
 	seg.Style.Inline = false
@@ -695,18 +774,10 @@ func (v *tableReadView) row(l trLine) fyne.CanvasObject {
 		if !v.boards {
 			return nil
 		}
-		img := canvas.NewImageFromImage(v.w.pictures().Thumbnail(l.Frame, 640, 360))
-		img.FillMode = canvas.ImageFillContain
-		img.SetMinSize(fyne.NewSize(400, 225))
 		if v.w.narrow {
-			img.SetMinSize(fyne.NewSize(280, 158))
+			return container.NewHBox(v.frameObject(l, 280, 158, false))
 		}
-		if img.Image == nil {
-			miss := widget.NewLabel("▨ " + l.Frame)
-			miss.Importance = widget.WarningImportance
-			return miss
-		}
-		return container.NewHBox(img)
+		return container.NewHBox(v.frameObject(l, 400, 225, false))
 	case trHeading:
 		seg.Style = widget.RichTextStyleSubHeading
 		seg.Style.Inline = false
@@ -759,6 +830,18 @@ func (v *tableReadView) row(l trLine) fyne.CanvasObject {
 			bar = container.NewBorder(nil, nil, nil, r, pad)
 		}
 		body = container.NewBorder(nil, nil, bar, nil, body)
+	}
+	if len(side) > 0 {
+		fw, fh := float32(300), float32(169)
+		if v.w.narrow {
+			fw, fh = 128, 72
+		}
+		var pics []fyne.CanvasObject
+		for _, f := range side {
+			pics = append(pics, v.frameObject(f, fw, fh, true))
+		}
+		col := container.New(fixedWidth(fw), container.NewVBox(pics...))
+		body = container.NewBorder(nil, nil, nil, col, body)
 	}
 	bg := canvas.NewRectangle(color.Transparent)
 	if l.Kind != trFrame {
