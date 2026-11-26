@@ -61,6 +61,7 @@ type benchRow struct {
 	ranges      [][2]int // none: empty
 	confidence  string
 	first, last string // the words the first and last passage start with
+	kind        string // the synthetic pair's: merged-near, reword-heavy, … (seventh column), or ""
 }
 
 func readBenchMapping(t *testing.T, path string) []benchRow {
@@ -79,6 +80,9 @@ func readBenchMapping(t *testing.T, path string) []benchRow {
 			t.Fatalf("%s:%d: %d fields, want at least 5", path, n+1, len(f))
 		}
 		r := benchRow{heading: f[0], confidence: f[2], first: f[3], last: f[4]}
+		if len(f) >= 7 {
+			r.kind = f[6]
+		}
 		if f[1] != "none" {
 			for _, rg := range strings.Split(f[1], ",") {
 				a, z, ok := strings.Cut(rg, "-")
@@ -123,11 +127,39 @@ func (s *benchScore) add(r benchRow, guess [][2]int) string {
 	return "wrong"
 }
 
-func adaptBenchPair(t *testing.T, dir string) {
-	src, err := os.ReadFile(filepath.Join(dir, "source.md"))
+// covered is how many of a row's ranges the guess overlaps (a merged
+// scene: are both its halves found, or one?).
+func covered(r benchRow, guess [][2]int) int {
+	n := 0
+	for _, rg := range r.ranges {
+		for _, g := range guess {
+			if g[0] <= rg[1] && g[1] >= rg[0] {
+				n++
+				break
+			}
+		}
+	}
+	return n
+}
+
+// benchSource is a pair's source.md, or the one its source.ref names (a
+// path from the pair's folder: the synthetic pair shares the Christmas
+// Carol's).
+func benchSource(t *testing.T, dir string) []byte {
+	t.Helper()
+	path := filepath.Join(dir, "source.md")
+	if ref, err := os.ReadFile(filepath.Join(dir, "source.ref")); err == nil {
+		path = filepath.Join(dir, strings.TrimSpace(string(ref)))
+	}
+	src, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return src
+}
+
+func adaptBenchPair(t *testing.T, dir string) {
+	src := benchSource(t, dir)
 	scriptB, err := os.ReadFile(filepath.Join(dir, "script.fountain"))
 	if err != nil {
 		t.Fatal(err)
@@ -184,14 +216,33 @@ func adaptBenchPair(t *testing.T, dir string) {
 	// scenes: the scene aligner (scene_align.go), silent when unsure
 	guesses := alignScenes(scenes, ps, nil)
 	var sa benchScore
+	byKind := map[string]*benchScore{}
+	var kinds []string
 	for k, r := range rows {
 		g := guesses[k]
 		var guess [][2]int
 		if g.guessed() {
 			guess = [][2]int{{g.First, g.Last}}
 		}
-		t.Logf("scenes  %-60s %-28s guess %d–%d (%d wide, z %.1f, sure %.1f): %s", r.heading, rangesString(r.ranges),
-			g.First, g.Last, g.Last-g.First+1, g.Z, g.Sure, sa.add(r, guess))
+		halves := ""
+		if len(r.ranges) > 1 {
+			halves = fmt.Sprintf(", %d of %d ranges", covered(r, guess), len(r.ranges))
+		}
+		verdict := sa.add(r, guess)
+		t.Logf("scenes  %-60s %-28s guess %d–%d (%d wide, z %.1f, sure %.1f%s): %s", r.heading, rangesString(r.ranges),
+			g.First, g.Last, g.Last-g.First+1, g.Z, g.Sure, halves, verdict)
+		if r.kind != "" {
+			if byKind[r.kind] == nil {
+				byKind[r.kind] = &benchScore{}
+				kinds = append(kinds, r.kind)
+			}
+			byKind[r.kind].add(r, guess)
+		}
+	}
+	for _, k := range kinds {
+		s := byKind[k]
+		t.Logf("%s scenes  kind %-16s %d right, %d wrong, %d silent; invented %d silent, %d guessed",
+			filepath.Base(dir), k, s.right, s.wrong, s.silent, s.noneSilent, s.noneGuessed)
 	}
 	// cuts: the sections the pane would offer as cut; one the mapping
 	// says a scene adapts is wrong
@@ -297,10 +348,7 @@ func scriptPassages(script string, starts []string) ([]passage, []int) {
 // guesses each time (sums over a map's words run in their order).
 func TestAlignScenesSameEachTime(t *testing.T) {
 	dir := filepath.Join("testdata", "adapt-bench", "jane-eyre")
-	src, err := os.ReadFile(filepath.Join(dir, "source.md"))
-	if err != nil {
-		t.Fatal(err)
-	}
+	src := benchSource(t, dir)
 	script, err := os.ReadFile(filepath.Join(dir, "script.fountain"))
 	if err != nil {
 		t.Fatal(err)

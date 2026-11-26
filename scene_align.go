@@ -46,6 +46,7 @@ type sceneGuess struct {
 	Sure        float64 // its margin over the next best placing
 	Linked      bool    // placed by its links, not guessed
 	Gap         bool    // placed in the gap between two placed scenes (the second look)
+	Unordered   bool    // placed out of the source's order (the third look: a flash-forward, a scene moved)
 }
 
 func (g sceneGuess) guessed() bool { return g.First >= 0 && !g.Linked }
@@ -63,6 +64,11 @@ func floorFor(places int) float64 {
 
 // alignSure is the margin (in z) a placing must win by to be shown.
 const alignSure = 2.0
+
+// alignUnorderedFloor: a scene placed out of the source's order needs
+// this many times the floor, and as many times alignSure over any other
+// place (the order holds it nowhere: only its own words do).
+const alignUnorderedFloor = 2.0
 
 // alignOutSlack: against leaving a scene out, its placing needs less
 // margin than against another place (it is above the floor already:
@@ -139,6 +145,28 @@ func alignScenes(scenes []sceneBody, ps []passage, anchors map[int][2]int) []sce
 		u := starts[k]
 		setGuess(&out[k], scores[k], u, at, ps, scenes[k].Words)
 	}
+	// plain: a scene's best place in the whole source when its words
+	// alone point there, well above the floor and well ahead of any other
+	// place (the order holds it nowhere)
+	plain := func(k int) (bu int, best, margin float64, ok bool) {
+		best, bu = math.Inf(-1), -1
+		for u := range n {
+			if z := scores[k].z[u]; z > best {
+				best, bu = z, u
+			}
+		}
+		if bu < 0 || best < alignUnorderedFloor*floor {
+			return -1, 0, 0, false
+		}
+		r := max(scores[k].len[bu], alignReach, n/40)
+		second := 0.0
+		for u := range n {
+			if u < bu-r || u > bu+r {
+				second = max(second, scores[k].z[u])
+			}
+		}
+		return bu, best, best - second, best-second >= alignUnorderedFloor*alignSure
+	}
 	// left out, between two placed ones: looked for again in the gap
 	for changed := true; changed; {
 		changed = false
@@ -186,9 +214,26 @@ func alignScenes(scenes []sceneBody, ps []passage, anchors map[int][2]int) []sce
 			if bu < 0 || best < floor || best-max(second, 0) < alignSure/2 {
 				continue
 			}
+			// its words point plainly to one place outside the gap (a
+			// scene moved, for the third look): not from here
+			if u, _, _, ok := plain(k); ok && (u < lo || u > hi) {
+				continue
+			}
 			setGuess(&out[k], scores[k], bu, at, ps, scenes[k].Words)
 			out[k].Sure, out[k].Gap = best-max(second, 0), true
 			changed = true
+		}
+	}
+	// still left out, but plainly from one place, out of the order: a
+	// scene moved (a flash-forward, a prologue from the end) is no
+	// invented one
+	for k := range scenes {
+		if out[k].First >= 0 {
+			continue
+		}
+		if u, z, margin, ok := plain(k); ok {
+			setGuess(&out[k], scores[k], u, at, ps, scenes[k].Words)
+			out[k].Z, out[k].Sure, out[k].Unordered = z, margin, true
 		}
 	}
 	for k := range out {

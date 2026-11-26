@@ -140,11 +140,22 @@ func sectionsOf(ps []passage, st []passageStatus, gs []sceneGuess) []sourceSecti
 			if g.First >= 0 && g.First <= sec.last && g.Last >= sec.first {
 				sec.scenes = append(sec.scenes, g.Scene+1)
 				sec.linked = sec.linked || g.Linked
+				if !g.Unordered {
+					adapted = k // a scene out of the order is no sign the script got this far
+				}
 			}
 		}
-		if len(sec.scenes) > 0 {
-			adapted = k
+	}
+	// the scene numbers in a section placed in the order (for what lies
+	// around a section with none)
+	ordered := func(sec sourceSection) []int {
+		var ns []int
+		for _, n := range sec.scenes {
+			if !gs[n-1].Unordered {
+				ns = append(ns, n)
+			}
 		}
+		return ns
 	}
 	for k := range out {
 		sec := &out[k]
@@ -157,14 +168,14 @@ func sectionsOf(ps []passage, st []passageStatus, gs []sceneGuess) []sourceSecti
 			// may well come from here)
 			before, after := 0, len(gs)+1 // the scene numbers around it
 			for j := k - 1; j >= 0; j-- {
-				if n := len(out[j].scenes); n > 0 {
-					before = slices.Max(out[j].scenes)
+				if ns := ordered(out[j]); len(ns) > 0 {
+					before = slices.Max(ns)
 					break
 				}
 			}
 			for j := k + 1; j < len(out); j++ {
-				if len(out[j].scenes) > 0 {
-					after = slices.Min(out[j].scenes)
+				if ns := ordered(out[j]); len(ns) > 0 {
+					after = slices.Min(ns)
 					break
 				}
 			}
