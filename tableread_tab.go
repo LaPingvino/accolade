@@ -91,7 +91,7 @@ func tableReadCommands() []*command {
 func tableReadTab() ribbonTab {
 	return ribbonTab{title: "Table Read", when: tableReadInFront, contextual: true, forward: true, groups: []ribbonGroup{
 		{title: "Scenes", homes: []home{big("tableread.previous"), big("tableread.next")}},
-		{title: "Read", homes: []home{big("tableread.pick"), at("tableread.narrator"), at("tableread.storyboard"), at("tableread.tints")}},
+		{title: "Read", homes: []home{big("tableread.pick"), at("tableread.narrator"), at("tableread.storyboard"), at("tableread.beside"), at("tableread.tints")}},
 		{title: "Show", homes: []home{big("tableread.fullscreen")}},
 		{title: "Follow", homes: []home{at("tableread.follow"), at("tableread.followLink")}},
 		{title: "Close", homes: []home{big("tableread.close")}},
@@ -101,5 +101,5 @@ func tableReadTab() ribbonTab {
 // tableReadMenu is the Table Read menu (the Menus look's, while it is in front).
 func tableReadMenu() []home {
 	return []home{at("tableread.previous"), at("tableread.next"), sep(), at("tableread.pick"), at("tableread.narrator"),
-		at("tableread.storyboard"), at("tableread.tints"), sep(), at("tableread.follow"), at("tableread.followLink"), sep(), at("tableread.fullscreen"), at("tableread.close")}
+		at("tableread.storyboard"), at("tableread.beside"), at("tableread.tints"), sep(), at("tableread.follow"), at("tableread.followLink"), sep(), at("tableread.fullscreen"), at("tableread.close")}
 }
