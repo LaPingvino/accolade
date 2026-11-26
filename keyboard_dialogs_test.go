@@ -114,19 +114,21 @@ type dialogAudit struct {
 // own (the system's or Fyne's file dialog, the browser), or that open no
 // dialog on the sample.
 var notOwnDialogs = map[string]string{
-	"file.open":         "Fyne's file dialog",
-	"file.openFolder":   "Fyne's folder dialog",
-	"file.import":       "Fyne's file dialog",
-	"file.importPandoc": "Fyne's file dialog (pandoc)",
-	"file.print":        "the system's print dialog",
-	"help.feedback":     "the web browser",
-	"preview.savePDF":   "Fyne's file dialog",
-	"production.ics":    "Fyne's file dialog",
-	"source.saveAs":     "Fyne's file dialog",
-	"file.exportClean":  "Fyne's file dialog",
-	"file.mergeChanges": "Fyne's file dialog first; the merge itself is audited as \"merge view\"",
-	"file.share":        "shares the script over the network as it opens",
-	"file.join":         "joins over the network",
+	"file.open":                "Fyne's file dialog",
+	"file.openFolder":          "Fyne's folder dialog",
+	"file.import":              "Fyne's file dialog",
+	"file.importPandoc":        "Fyne's file dialog (pandoc)",
+	"file.importPDFScreenplay": "Fyne's file dialog",
+	"file.importPDFMarkdown":   "Fyne's file dialog",
+	"file.print":               "the system's print dialog",
+	"help.feedback":            "the web browser",
+	"preview.savePDF":          "Fyne's file dialog",
+	"production.ics":           "Fyne's file dialog",
+	"source.saveAs":            "Fyne's file dialog",
+	"file.exportClean":         "Fyne's file dialog",
+	"file.mergeChanges":        "Fyne's file dialog first; the merge itself is audited as \"merge view\"",
+	"file.share":               "shares the script over the network as it opens",
+	"file.join":                "joins over the network",
 }
 
 // mustOpen are the dialogs and views the keyboard pass names (LOOP.md):

@@ -363,7 +363,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := languageDefaultMoves(base, notesMoves(base, templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))))))))))) // the moves write Linux keys too
+		want := pdfImportMoves(base, languageDefaultMoves(base, notesMoves(base, templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -1094,6 +1094,15 @@ func newSceneMoves(name, golden string) string {
 func numberScenesMoves(name, golden string) string {
 	if strings.HasPrefix(name, "menu-screenplay") {
 		return strings.Replace(golden, "  New Scene…\n", "  New Scene…\n  Number Scenes in Headings\n", 1)
+	}
+	return golden
+}
+
+// pdfImportMoves: File > Import PDF as Screenplay… and as Markdown…
+// after Import as Markdown… (pdf_open.go).
+func pdfImportMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-") {
+		return strings.Replace(golden, "  Import as Markdown…\n", "  Import as Markdown…\n  Import PDF as Screenplay…\n  Import PDF as Markdown…\n", 1)
 	}
 	return golden
 }

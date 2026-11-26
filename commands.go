@@ -561,6 +561,9 @@ func newRegistry() *registry {
 		// a script to try everything on (sample.go)
 		&command{id: "file.openSample", label: "Open Sample", icon: theme.DocumentIcon, submenu: (*MainWindow).sampleMenu},
 		&command{id: "file.import", label: "Import as Markdown…", icon: theme.UploadIcon, run: (*MainWindow).ImportDocument},
+		// a PDF either way, named: Open chooses by what it reads (pdf_open.go)
+		&command{id: "file.importPDFScreenplay", label: "Import PDF as Screenplay…", icon: theme.UploadIcon, run: (*MainWindow).ImportPDFAsScreenplay},
+		&command{id: "file.importPDFMarkdown", label: "Import PDF as Markdown…", icon: theme.UploadIcon, run: (*MainWindow).ImportPDFAsMarkdown},
 		&command{id: "file.importPandoc", label: "Import with pandoc…", icon: theme.UploadIcon, when: withPandoc, run: (*MainWindow).ImportWithPandoc}, // more formats
 		// a Markdown document is a source to start from
 		&command{id: "file.startScreenplay", label: startScreenplayLabel, text: "Start a Screenplay", icon: theme.DocumentCreateIcon,
@@ -924,7 +927,7 @@ func newRegistry() *registry {
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"), at("set.newLanguage"),
-			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.newStructure"), at("file.mergeChanges"), at("file.import"), at("file.importPandoc"), at("file.startScreenplay"),
+			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.newStructure"), at("file.mergeChanges"), at("file.import"), at("file.importPDFScreenplay"), at("file.importPDFMarkdown"), at("file.importPandoc"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
 			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.exportOutline"), at("file.exportTreatment"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.
@@ -1234,7 +1237,7 @@ var ribbonLabels = map[string]string{
 	// File (the browser's Open and Save say more in their menu items)
 	"file.open": "Open", "file.save": "Save",
 	"file.newEmpty": "Empty", "file.newMarkdown": "Markdown", "file.newWindow": "Window", "file.newEmptyWindow": "Empty Window",
-	"file.recent": "Recent", "file.openSample": "Sample", "file.import": "Import", "file.importPandoc": "With pandoc",
+	"file.recent": "Recent", "file.openSample": "Sample", "file.import": "Import", "file.importPDFScreenplay": "PDF as Screenplay", "file.importPDFMarkdown": "PDF as Markdown", "file.importPandoc": "With pandoc",
 	"file.exportClean": "Clean Fountain", "file.exportWriter": "Writer's Version", "file.exportShooting": "Shooting", "file.pageSetup": "Page Setup",
 	"source.choose": "Choose Source", "file.startScreenplay": "Start Screenplay",
 	// Write

@@ -70,6 +70,7 @@ type MainWindow struct {
 	// relied on Lexington's old reading (loose_reading.go)
 	bottom       *fyne.Container
 	loose        *looseNotice
+	openedAs     *openedAsBar
 	looseUnsaved string // the answer for a script not saved yet
 	// headerArea is the header bar (the toolbar) with its separator
 	headerArea *fyne.Container
@@ -440,7 +441,7 @@ func (w *MainWindow) setupUI() {
 		widget.NewSeparator(),
 		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel, w.openLabel),
 	)
-	w.bottom = container.NewVBox(w.newLooseNotice(), w.statusBar)
+	w.bottom = container.NewVBox(w.newLooseNotice(), w.newOpenedAsBar(), w.statusBar)
 
 	w.relayout()
 
@@ -738,7 +739,7 @@ func (w *MainWindow) importFile(filePath string) error {
 	var marks []importedMark
 	var tags breakdownFile
 	if strings.EqualFold(filepath.Ext(filePath), ".pdf") {
-		w.importPDFAsync(filePath)
+		w.openPDF(filePath)
 		return nil
 	} else {
 		var f *os.File

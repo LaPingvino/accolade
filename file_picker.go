@@ -161,6 +161,15 @@ func pickFilters(exts []string, prefer string) (filters []dialog.NamedFilter, ki
 		if len(of) == 0 {
 			continue
 		}
+		if kind == kindScreenplay || kind == kindNovel {
+			// a file its content tells the kind of may be of this one
+			// (a screenplay in a .txt): the kind toggles sort them
+			for _, e := range exts {
+				if e = strings.ToLower(e); readsKind(e) && !slices.Contains(union, e) {
+					union = append(union, e)
+				}
+			}
+		}
 		if kind != "" {
 			kinds = append(kinds, kind)
 		}
@@ -224,14 +233,22 @@ var sniffing = make(chan struct{}, 4)
 // has it for the next look).
 const sniffLimit = 1500 * time.Millisecond
 
+// readsKind: a file with the extension ext is a screenplay's or a
+// novel's by what it holds.
+func readsKind(ext string) bool {
+	switch ext {
+	case ".pdf", ".txt", ".md", ".markdown", ".accolade", ".textpack":
+		return true
+	}
+	return false
+}
+
 // fileKindOf is the kind of the file at path: by its name where that
 // says it, else by its content (a PDF's first pages, a text's first
 // lines, a bundle's text file).
 func fileKindOf(path string) string {
 	ext := strings.ToLower(filepath.Ext(path))
-	switch ext {
-	case ".pdf", ".txt", ".md", ".markdown", ".accolade", ".textpack":
-	default:
+	if !readsKind(ext) {
 		_, kind := extFormat(ext)
 		return kind
 	}
@@ -406,10 +423,13 @@ func screenplayKind(sp lex.Screenplay) string {
 	// measured on 20 PDFs of Joop's: scripts speak in a third to three
 	// quarters of their lines, books in under 2% (an indented poem, a
 	// list read as names); scene words alone mislead (a book's chapters)
-	if speakers >= 3 && (spoken+speakers)*5 >= lines {
+	switch {
+	case speakers >= 1 && (spoken+speakers)*5 >= lines:
 		return kindScreenplay
+	case lines >= 30: // enough to tell a book by
+		return kindNovel
 	}
-	return kindNovel
+	return ""
 }
 
 // setSaveFilters gives a save dialog the file types it can save as, the

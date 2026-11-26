@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 )
@@ -556,4 +558,96 @@ func TestScreenplaySourcePageScreenshot(t *testing.T) {
 		defer f.Close()
 		png.Encode(f, w.fyneWindow.Canvas().Capture())
 	})
+}
+
+// TestFilePickerScreenshots renders File > Open's dialog with its kind
+// toggles and file types, at desktop and phone width, and Save As's file
+// types open, SHOT_DIR as above.
+func TestFilePickerScreenshots(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := t.TempDir()
+	for name, text := range map[string]string{
+		"The Barn.fountain": "INT. BARN - DAY\n", "The Barn draft.txt": "INT. BARN - NIGHT\n\nJOHN\nIt's coming.\n\nMARY\nWhat is?\n",
+		"Chapter one.md": "# One\n\nIt was a dark night.\n", "Letter.txt": "Dear Ann,\n\nThe barn is finished.\n",
+		"Outline.opml": "<opml/>", "Final.fdx": "<FinalDraft/>",
+	} {
+		os.WriteFile(filepath.Join(files, name), []byte(text), 0o644)
+	}
+	if b, err := os.ReadFile("testdata/scanned-tv-episode.pdf"); err == nil {
+		os.WriteFile(filepath.Join(files, "Episode scan.pdf"), b, 0o644)
+	}
+	loc, err := storage.ListerForURI(storage.NewFileURI(files))
+	if err != nil {
+		t.Fatal(err)
+	}
+	shot := func(w *MainWindow, name string) {
+		time.Sleep(300 * time.Millisecond) // the kinds read
+		f, err := os.Create(filepath.Join(dir, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		if err := png.Encode(f, w.fyneWindow.Canvas().Capture()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, size := range []struct {
+		name string
+		w, h float32
+	}{{"desktop", 1000, 650}, {"phone", 400, 760}} {
+		w, _ := newDialogTestWindow(t)
+		w.fyneWindow.Resize(fyne.NewSize(size.w, size.h))
+		d := dialog.NewFileOpen(func(fyne.URIReadCloser, error) {}, w.fyneWindow)
+		setPickFilters(d, openExtensions(), w.preferredKind())
+		d.SetLocation(loc)
+		d.SetView(dialog.ListView)
+		d.Show()
+		shot(w, "accolade-open-kinds-"+size.name+".png")
+		d.SelectFileKind("")
+		shot(w, "accolade-open-everything-"+size.name+".png")
+	}
+
+	w, _ := newDialogTestWindow(t)
+	w.fyneWindow.Resize(fyne.NewSize(1000, 650))
+	d := dialog.NewFileSave(func(fyne.URIWriteCloser, error) {}, w.fyneWindow)
+	setSaveFilters(d, saveExtensions(), ".fountain")
+	d.SetFileName("The Barn.fountain")
+	d.SetLocation(loc)
+	d.Show()
+	if sel := findSelect(w.fyneWindow.Canvas().Overlays().Top()); sel != nil {
+		sel.Tapped(&fyne.PointEvent{})
+	}
+	shot(w, "accolade-saveas-types.png")
+}
+
+// findSelect is the first select in o.
+func findSelect(o fyne.CanvasObject) *widget.Select {
+	var found *widget.Select
+	var walk func(o fyne.CanvasObject)
+	walk = func(o fyne.CanvasObject) {
+		if found != nil || o == nil {
+			return
+		}
+		switch x := o.(type) {
+		case *widget.Select:
+			found = x
+		case *fyne.Container:
+			for _, c := range x.Objects {
+				walk(c)
+			}
+		case fyne.Widget:
+			r := test.WidgetRenderer(x)
+			for _, c := range r.Objects() {
+				walk(c)
+			}
+		}
+	}
+	walk(o)
+	return found
 }

@@ -114,6 +114,8 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:recent** `item` — File > Open Recent
 - **:open-sample** `item` — File > Open Sample
 - **:import-as-markdown** — File > Import as Markdown
+- **:import-pdf-as-screenplay** — File > Import PDF as Screenplay
+- **:import-pdf-as-markdown** — File > Import PDF as Markdown
 - **:import-with-pandoc** — File > Import with pandoc (not in the browser)
 - **:start-screenplay-from-this-source** — File > Start a Screenplay from This Source (Markdown)
 - **:save** — File > Save

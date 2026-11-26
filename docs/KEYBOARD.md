@@ -20,6 +20,8 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Open Recent | `file.recent` |  |  |  | F R | :recent |
 | Open Sample | `file.openSample` |  |  |  | F S | :open-sample |
 | Import as Markdown… | `file.import` |  |  |  | F T | :import-as-markdown |
+| Import PDF as Screenplay… | `file.importPDFScreenplay` |  |  |  |  | :import-pdf-as-screenplay |
+| Import PDF as Markdown… | `file.importPDFMarkdown` |  |  |  |  | :import-pdf-as-markdown |
 | Import with pandoc… | `file.importPandoc` |  |  | — | F H | :import-with-pandoc |
 | Start a Screenplay from This Source | `file.startScreenplay` |  |  |  |  | :start-screenplay-from-this-source |
 | Save | `file.save` | Ctrl+S | Cmd+S | Ctrl+S | F A | :write |
@@ -419,6 +421,8 @@ Not opened by the audit:
 - Edit Together (`file.share`): shares the script over the network as it opens
 - Export Clean Fountain (`file.exportClean`): Fyne's file dialog
 - Export Shoot Days (.ics) (`production.ics`): Fyne's file dialog
+- Import PDF as Markdown (`file.importPDFMarkdown`): Fyne's file dialog
+- Import PDF as Screenplay (`file.importPDFScreenplay`): Fyne's file dialog
 - Import as Markdown (`file.import`): Fyne's file dialog
 - Import with pandoc (`file.importPandoc`): Fyne's file dialog (pandoc)
 - Join a Shared Script (`file.join`): joins over the network
