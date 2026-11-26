@@ -96,7 +96,7 @@ The elements: `scene-heading`, `action`, `character`, `parenthetical`, `dialogue
 
 - **:h[elp]** `[command or page]` — This list in the Help tab; :h scene the line on :scene; :h fountain a help page
 
-The pages: `index`, `fun`, `fountain`, `structure`, `final-draft`, `adapting`, `fixing-imports`, `production`, `merging`, `table-read`, `together`, `shortcuts`, `keyboard`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
+The pages: `index`, `fun`, `fountain`, `structure`, `final-draft`, `coming-from`, `adapting`, `fixing-imports`, `production`, `merging`, `table-read`, `together`, `shortcuts`, `keyboard`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
 
 ## Accolade's commands
 

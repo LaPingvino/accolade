@@ -202,6 +202,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Fountain Reference | `help.page.fountain` |  |  |  |  | :help fountain |
 | Structure: Sections, Synopses and Notes | `help.page.structure` |  |  |  |  | :help structure |
 | Coming from Final Draft | `help.page.final-draft` |  |  |  |  | :help final-draft |
+| Coming from Another App | `help.page.coming-from` |  |  |  |  | :help coming-from |
 | Adapting a Story | `help.page.adapting` |  |  |  |  | :help adapting |
 | Fixing an Imported Script | `help.page.fixing-imports` |  |  |  |  | :help fixing-imports |
 | Production Help | `help.page.production` |  |  |  |  | :help production |
