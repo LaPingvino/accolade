@@ -154,6 +154,7 @@ type screenplayCompare struct {
 	scenes    int        // the script's scenes
 	pages     *pageIndex // the source's pages as printed (nil: not kept)
 	page      []int      // each change's page in them (-1: not known)
+	near      []int      // where in the pages' words the last sure place before each change was
 	keys      []string   // each change's Keep Mine line
 }
 
@@ -168,7 +169,7 @@ func compareWithSource(text, src string, o scriptdiff.MergeOptions, pages *pageI
 		sc.at = append(sc.at, firstDifferentLine(lines, after))
 		sc.keys = append(sc.keys, keptLine(c))
 	}
-	sc.page = pagesOf(pages, m, sc.at)
+	sc.page, sc.near = pagesOf(pages, m, sc.at)
 	for _, l := range lines { // as the pane finds the cursor's scene (a heading run into its action too)
 		if o.IsHeading(l) && !strings.HasPrefix(l, "#") {
 			sc.scenes++
@@ -390,8 +391,12 @@ func (v *screenplayView) decided() map[string]bool { return v.s.w.allDismissed()
 // inScene are the open differences in the scene of line, its span and
 // heading.
 func (v *screenplayView) inScene(sc *screenplayCompare, line int) (ids []int, head string) {
+	return v.openInScene(sc, line, v.decided())
+}
+
+// openInScene is inScene with the decisions as read.
+func (v *screenplayView) openInScene(sc *screenplayCompare, line int, decided map[string]bool) (ids []int, head string) {
 	all, head := sc.inScene(line, nil)
-	decided := v.decided()
 	for _, id := range all {
 		if k, p := sc.settled(id, decided); !k && !p {
 			ids = append(ids, id)
@@ -423,7 +428,7 @@ func (v *screenplayView) show() {
 	decided := v.decided()
 	s.count.SetText(sc.summary(decided))
 	line, _ := w.textEditor.Buffer().Position(w.textEditor.CursorOffset())
-	ids, head := v.inScene(sc, line)
+	ids, head := v.openInScene(sc, line, decided)
 	where := strings.TrimSpace(head)
 	if where == "" {
 		where = "Before the first scene"
@@ -638,7 +643,8 @@ func (v *screenplayView) status(err error, ok string) {
 
 // pageOfScene is the source page the scene of line is checked against:
 // that of its first difference (open or not), else of its heading's
-// words; -1 when the source keeps no pages.
+// words after the differences before it (a place's heading comes back);
+// -1 when the source keeps no pages.
 func (sc *screenplayCompare) pageOfScene(line int) int {
 	if sc.pages == nil {
 		return -1
@@ -652,8 +658,24 @@ func (sc *screenplayCompare) pageOfScene(line int) int {
 	if head == "" {
 		return -1
 	}
-	pg, _ := sc.pages.find(mergeNumberRe.ReplaceAllString(head, ""), 0)
-	return pg
+	from := 0
+	for id, at := range sc.at {
+		if at < line && sc.page[id] >= 0 {
+			from = max(from, sc.near[id])
+		}
+	}
+	ws := pageWords(mergeNumberRe.ReplaceAllString(head, ""))
+	if len(ws) == 0 {
+		return -1
+	}
+	i := sc.pages.index(ws, from, len(sc.pages.words))
+	if i < 0 {
+		i = sc.pages.index(ws, 0, from)
+	}
+	if i < 0 {
+		return -1
+	}
+	return sc.pages.page[i]
 }
 
 // pageBox is the source's page pg as printed, beside the scene, with
@@ -669,7 +691,7 @@ func (v *screenplayView) pageBox(sc *screenplayCompare, pg int, right bool) fyne
 	}
 	tick := widget.NewButtonWithIcon(label, icon, func() { v.tickPage(sc, pg, !right) })
 	tick.Importance = widget.LowImportance
-	item := widget.NewAccordionItem(title, container.NewVBox(container.NewHScroll(text), tick))
+	item := widget.NewAccordionItem(title, container.NewVBox(tick, container.NewHScroll(text)))
 	item.Open = true
 	return widget.NewAccordion(item)
 }

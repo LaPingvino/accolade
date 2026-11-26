@@ -2213,10 +2213,15 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   kept as Keep Mine is ("Source page N looks right · #<hash of the page's text>", so another print's page N is not
   ticked), the page's differences fold away (summary: "N differences on pages that look right"); Unmark Page N
   brings them back.
-  (4) Layout learning: not needed after re-split. Hope Talks (2011 PDF against the earlier conversion, local,
-  counts only): of the 267 differences, 31 have the same words on both sides, and all 31 differ in punctuation;
-  0 are an element read as another kind (cue/action) with the same text; every one of the 267 found its page
-  (195 pages).
+  A difference's page: its first words found in the pages' words in the script's order; under five words (a page
+  number, a cut piece) only within ~two pages after the last sure place, else its neighbour's page; a scene
+  without differences shows its heading's page after the differences before it (a place that comes back).
+  (4) Layout learning: not needed after re-split. The comparison is by words written into the script's own
+  elements, so a source element read as another kind costs nothing by construction; what layout learning would
+  fix is headings and cues misread so scenes do not pair, and on Hope Talks (2011 PDF against the earlier
+  conversion, local, counts only) they pair: 0 missing, 0 only in yours; of the 267 differences 31 have the same
+  words on both sides, all 31 punctuation. Pages: 266 of 267 differences found their page (195 pages), in
+  order but for one step back of one page (a two-word piece).
   Tests: TestScreenplaySourceKeepMineKept (both settings; a finding dismissed after; a new pane after saving),
   TestScreenplaySourcePageTick (Choose Source on a synthetic PDF: pages kept, the page in its layout, tick and
   unmark, the tick beside), TestPageIndexFind; screenshot TestScreenplaySourcePageScreenshot

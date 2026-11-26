@@ -41,7 +41,12 @@ func TestScreenplaySourceKeepMineKept(t *testing.T) {
 		if inDoc && !strings.Contains(w.textEditor.Text(), line) {
 			t.Errorf("not in the notes:\n%s", w.textEditor.Text())
 		}
-		// a finding dismissed after it keeps it
+		// a finding dismissed after it keeps it, the source open as a
+		// document (the findings' lines let go then)
+		w.openMiddle("source")
+		if w.srcEditor() == nil {
+			t.Fatal("the source is not open as a document")
+		}
 		w.dismissFinding(openItem{Kind: openCheck, Text: "A finding", Raw: "x"})
 		if !w.allDismissed()[line] {
 			t.Errorf("in the document %v: dismissing a finding let Keep Mine go", inDoc)
@@ -52,8 +57,10 @@ func TestScreenplaySourceKeepMineKept(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
+		w.closeMiddle("source")
+		w.dismissed = nil // read again, as a new session does
 		s.sp = newScreenplayView(s)
-		s.follow()
+		s.sp.follow() // the pane, shown again after the tab, follows by itself
 		if !strings.Contains(s.count.Text, "1 difference kept as yours") {
 			t.Errorf("in the document %v: after reopening %q", inDoc, s.count.Text)
 		}
@@ -126,17 +133,78 @@ func TestScreenplaySourcePageTick(t *testing.T) {
 // A page is found by its words, a word broken over a line too; another
 // print's page is not ticked by this one's.
 func TestPageIndexFind(t *testing.T) {
-	p := newPageIndex("INT. A\n\nThe mo-\nney is gone.\n\f\nINT. B\n\nRain.\n")
-	if pg, _ := p.find("The money is gone.", 0); pg != 0 {
+	p := newPageIndex("INT. A\n\nThe mo-\nney is gone for good.\n\f\nINT. B\n\nRain.\n")
+	if pg, _, sure := p.find("The money is gone for good.", 0); pg != 0 || !sure {
+		t.Errorf("page %d, sure %v", pg, sure)
+	}
+	if pg, _, sure := p.find("Rain.", 0); pg != 1 || sure {
+		t.Errorf("page %d, sure %v", pg, sure)
+	}
+	if pg, _, _ := p.find("Snow.", 0); pg != -1 {
 		t.Errorf("page %d", pg)
 	}
-	if pg, _ := p.find("Rain.", 0); pg != 1 {
-		t.Errorf("page %d", pg)
-	}
-	if pg, _ := p.find("Snow.", 0); pg != -1 {
-		t.Errorf("page %d", pg)
+	// a few words are looked for only near the last sure place
+	far := newPageIndex("Rain.\n\f\n" + strings.Repeat("word ", nearWords+10) + "\n\f\nINT. B\n")
+	if pg, _, _ := far.find("INT. B", 0); pg != -1 {
+		t.Errorf("a short text found %d pages away", pg)
 	}
 	if q := newPageIndex("INT. A\n\nOther.\n\f\nINT. B\n\nRain.\n"); q.rightLine(0) == p.rightLine(0) || q.rightLine(1) != p.rightLine(1) {
 		t.Error("ticks not by the page's text")
+	}
+}
+
+// A scene with no differences shows its heading's page after the
+// differences before it: a place that comes back is not its first
+// page's.
+func TestPageOfSceneRecurring(t *testing.T) {
+	script := "INT. KITCHEN - DAY\n\nAnna waits by the window for the bus.\n\nINT. HALL - DAY\n\nBram leaves with the dog and the keys.\n\nINT. KITCHEN - DAY\n\nAnna sits.\n"
+	src := "INT. KITCHEN - DAY\n\nAnna waits by the window for the late bus.\n\nINT. HALL - DAY\n\nBram leaves with the dog and the old keys.\n\nINT. KITCHEN - DAY\n\nAnna sits.\n"
+	pages := newPageIndex("INT. KITCHEN - DAY\n\nAnna waits by the window for the late bus.\n\f\nINT. HALL - DAY\n\nBram leaves with the dog and the old keys.\n\f\nINT. KITCHEN - DAY\n\nAnna sits.\n")
+	w, _ := newDialogTestWindow(t)
+	sc := compareWithSource(script, src, w.sourceOptions(src), pages)
+	if len(sc.m.Changes) != 2 {
+		t.Fatalf("%d changes", len(sc.m.Changes))
+	}
+	if got := sc.pageOfScene(1); got != 0 {
+		t.Errorf("the first kitchen scene on page %d", got)
+	}
+	if got := sc.pageOfScene(9); got != 2 {
+		t.Errorf("the kitchen again on page %d, want 2", got)
+	}
+}
+
+// A bundle keeps its source's pages inside it: read at once (before its
+// queue wrote them) and from the file after; a source chosen without
+// pages takes them away.
+func TestSourcePagesInBundle(t *testing.T) {
+	holdUI(t)
+	w, _ := newDialogTestWindow(t)
+	t.Setenv("XDG_DATA_HOME", t.TempDir())
+	p := filepath.Join(t.TempDir(), "Script.accolade")
+	os.WriteFile(p, makeZip(t, bundleItems("Script.textbundle/")), 0o644)
+	if err := w.LoadFile(p); err != nil {
+		t.Fatal(err)
+	}
+	realPaths(t)
+	flush := func() {
+		done := false
+		w.afterBundleWrites(func() { done = true })
+		waitFor(t, "the writes", func() bool { return done && !w.bundleBusy() })
+	}
+	ref := sourceRef{Origin: sourceBundle}
+	w.keepSourcePages("INT. A\n\f\nINT. B\n")
+	if got := w.readSourcePages(ref); !strings.Contains(got, "INT. B") {
+		t.Errorf("before the write: %q", got)
+	}
+	flush()
+	w.freshPages = nil
+	if got := w.readSourcePages(ref); !strings.Contains(got, "INT. B") {
+		t.Errorf("from the bundle: %q", got)
+	}
+	w.keepSourcePages("")
+	flush()
+	w.freshPages = nil
+	if got := w.readSourcePages(ref); got != "" {
+		t.Errorf("still there: %q", got)
 	}
 }

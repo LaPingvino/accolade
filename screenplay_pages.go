@@ -83,9 +83,10 @@ func pdfPagesText(path string) string {
 // pageIndex is a source's pages, and their words in order (lower case,
 // a word broken over a line joined) with the page each is on.
 type pageIndex struct {
-	pages []string
-	words []string
-	page  []int
+	pages  []string
+	rights []string // each page's tick line (rightLine)
+	words  []string
+	page   []int
 }
 
 // newPageIndex reads layoutPages' text (nil: no pages).
@@ -99,6 +100,7 @@ func newPageIndex(s string) *pageIndex {
 			p.words = append(p.words, w)
 			p.page = append(p.page, i)
 		}
+		p.rights = append(p.rights, fmt.Sprintf("%s%d looks right · #%s", pageRightHead, i+1, shortHash(pg)))
 	}
 	return p
 }
@@ -108,27 +110,44 @@ func pageWords(s string) []string {
 	return strings.FieldsFunc(strings.ToLower(s), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 }
 
-// find is the page (from 0) of text's first words, looked for from the
-// word at onwards and then from the start, and where they are; -1 if
-// they are not.
-func (p *pageIndex) find(text string, at int) (page, where int) {
+// sureWords are how many words make a place in the pages sure: fewer (a
+// page number, a cut piece) are found only near where the last sure
+// one was.
+const sureWords = 5
+
+// nearWords is how far past the last sure place a few words are looked
+// for: about two pages.
+const nearWords = 600
+
+// find is the page (from 0) of text's first words and where they are,
+// looked for from the word at onwards and then from the start; a text of
+// fewer than sureWords words only in the nearWords after at. -1 if they
+// are not; sure says whether the place can be gone on from.
+func (p *pageIndex) find(text string, at int) (page, where int, sure bool) {
 	ws := pageWords(text)
 	if p == nil || len(ws) == 0 {
-		return -1, at
+		return -1, at, false
 	}
-	for _, n := range []int{min(len(ws), 8), min(len(ws), 3)} {
+	if len(ws) < sureWords {
+		if i := p.index(ws, at, at+nearWords); i >= 0 {
+			return p.page[i], i, false
+		}
+		return -1, at, false
+	}
+	for _, n := range []int{min(len(ws), 8), sureWords} {
 		for _, from := range []int{at, 0} {
-			if i := p.index(ws[:n], from); i >= 0 {
-				return p.page[i], i
+			if i := p.index(ws[:n], from, len(p.words)); i >= 0 {
+				return p.page[i], i, true
 			}
 		}
 	}
-	return -1, at
+	return -1, at, false
 }
 
-// index is where the words ws are, from the word from on (-1: not).
-func (p *pageIndex) index(ws []string, from int) int {
-	for i := max(from, 0); i+len(ws) <= len(p.words); i++ {
+// index is where the words ws start, from the word from to before the
+// word to (-1: not).
+func (p *pageIndex) index(ws []string, from, to int) int {
+	for i := max(from, 0); i+len(ws) <= len(p.words) && i < to; i++ {
 		if p.words[i] != ws[0] {
 			continue
 		}
@@ -145,14 +164,15 @@ func (p *pageIndex) index(ws []string, from int) int {
 
 // pagesOf are each change's page in the source (-1: not known): where
 // the source's words of it are, else the script's, else its neighbour's
-// before it, looked for in the script's order.
-func pagesOf(p *pageIndex, m *scriptdiff.Merge, at []int) []int {
-	out := make([]int, len(m.Changes))
+// before it, looked for in the script's order; and where in the pages'
+// words the last sure place before it was.
+func pagesOf(p *pageIndex, m *scriptdiff.Merge, at []int) (out, near []int) {
+	out, near = make([]int, len(m.Changes)), make([]int, len(m.Changes))
 	for i := range out {
 		out[i] = -1
 	}
 	if p == nil {
-		return out
+		return out, near
 	}
 	order := make([]int, len(m.Changes))
 	for i := range order {
@@ -162,18 +182,18 @@ func pagesOf(p *pageIndex, m *scriptdiff.Merge, at []int) []int {
 	last, pos := -1, 0
 	for _, id := range order {
 		c := m.Changes[id]
-		pg, w := p.find(c.Theirs, pos)
+		pg, w, sure := p.find(c.Theirs, pos)
 		if pg < 0 {
-			pg, w = p.find(c.Ours, pos)
+			pg, w, sure = p.find(c.Ours, pos)
 		}
 		if pg < 0 {
 			pg = last
-		} else {
+		} else if sure {
 			pos = w
 		}
-		out[id], last = pg, pg
+		out[id], near[id], last = pg, pos, pg
 	}
-	return out
+	return out, near
 }
 
 // The decisions, as lines among the dismissed findings.
@@ -206,9 +226,7 @@ func keptLine(c scriptdiff.Change) string {
 
 // rightLine is the tick's line for page i (from 0): its number and its
 // text's hash, so another print's page 12 is not ticked.
-func (p *pageIndex) rightLine(i int) string {
-	return fmt.Sprintf("%s%d looks right · #%s", pageRightHead, i+1, shortHash(p.pages[i]))
-}
+func (p *pageIndex) rightLine(i int) string { return p.rights[i] }
 
 // readSourcePages are the pages kept beside the source r ("" none).
 func (w *MainWindow) readSourcePages(r sourceRef) string {
