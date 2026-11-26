@@ -661,8 +661,8 @@ func TestStoryboardFramesScreenshot(t *testing.T) {
 	if dir == "" {
 		t.Skip("set SHOT_DIR to render screenshots")
 	}
-	fakeTools(t, []string{"inkscape", "krita"}, nil)
-	w, _ := newDialogTestWindow(t)
+	fakeTools(t, []string{"inkscape", "krita"}, []string{"org.mattbas.Glaxnimate"})
+	w, app := newDialogTestWindow(t)
 	w.fyneWindow.Resize(fyne.NewSize(1000, 650))
 	src := t.TempDir()
 	frame := strings.Replace(string(blankFrame(2.35)), `id="drawing"/>`, `id="drawing"><circle cx="700" cy="420" r="260" fill="#3a6ea5"/><rect x="1100" y="250" width="500" height="320" fill="#d9822b"/></g>`, 1)
@@ -692,4 +692,12 @@ func TestStoryboardFramesScreenshot(t *testing.T) {
 		}
 	}
 	shot("frames-dialog.png")
+	pd := NewPreferencesDialog(app, w.fyneWindow)
+	pd.Show()
+	pd.tabs.SelectIndex(2)
+	pd.win.Resize(fyne.NewSize(640, 1500))
+	f, _ := os.Create(filepath.Join(dir, "frames-preferences.png"))
+	png.Encode(f, pd.win.Canvas().Capture())
+	f.Close()
+	pd.close()
 }

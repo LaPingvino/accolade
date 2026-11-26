@@ -107,7 +107,11 @@ func boardTimeline(s *trScript, name string, ref func(src string) string) ([]byt
 // by: its file's on the desktop (file:///…), else as the script names it.
 func (w *MainWindow) frameURL(src string) string {
 	if abs, entry, err := w.frameOnDisk(src); err == nil && entry == "" && fileExists(abs) {
-		return (&url.URL{Scheme: "file", Path: filepath.ToSlash(abs)}).String()
+		p := filepath.ToSlash(abs)
+		if !strings.HasPrefix(p, "/") {
+			p = "/" + p // C:/… → file:///C:/…
+		}
+		return (&url.URL{Scheme: "file", Path: p}).String()
 	}
 	return src
 }

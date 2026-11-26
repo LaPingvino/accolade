@@ -2278,16 +2278,16 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   script's [[aspectRatio:]] (else 16:9), its note under the line, opened. Write › Edit Frame in… (and Edit in <Tool> in
   the frame dialog): Inkscape for SVG, Krita for PNG/.kra, Glaxnimate for Lottie, Synfig Studio for .sif — on PATH, else
   the Flatpak (`flatpak run --file-forwarding <id> @@ file @@`), else Preferences › Script › Storyboard Frames (a
-  command line, {file} placed). The frames' files are polled every 0.7 s and a change is acted on once it has settled
+  command line, "quoted" paths, {file} placed). The frames' files are polled every 0.7 s and a change is acted on once it has settled
   for a tick (no import step); a zipped bundle's frame is edited as a working copy in the user cache
-  (accolade/frames/<hash>/…) and written back into the bundle on save. internal/images now draws SVG (fyne-io/oksvg),
+  (accolade/frames/<hash>/…) and written back into that bundle on save (never into another the window opened since). internal/images now draws SVG (fyne-io/oksvg),
   .kra (its mergedimage.png) and, through images.Render, .sif/Lottie by `synfig in -t png -o out --time 0` and
   `glaxnimate in --render out --frame 0` in the background (placeholder meanwhile / without them); Picture.Data is
   their PNG, Picture.Orig the file. An animated frame without a note duration takes Lottie's (op−ip)/fr or Synfig's
   end−begin time (chip "▶ 2.5s", the Table Read). File › Export Storyboard Timeline (OTIO)… (otio.go): Timeline.1 /
   Track.1 / Clip.2 with ExternalReference.1 (file:// URL, else the note's name), 24 fps, untimed frames 2 s, a Marker.2
   per scene, scene/heading/line/text in metadata["accolade"]. File › Import Storyboarder Boards… (one way,
-  storyboarder_import.go): storyboards/ scenes under their #n-XXXXX# headings, else a chosen .storyboarder under the
+  storyboarder_import.go): storyboards/ scenes after their #n-XXXXX# heading's blank line, else a chosen .storyboarder under the
   cursor; layers flattened on white at their opacity (reference, main/url, fill, tone, pencil, ink, notes), poster frame
   as fallback; duration (own, else default) and continued (not newShot) in the notes. No layered SVG/.kra: oksvg draws
   no embedded images, .kra layers are Krita tiles. Browser: New/Edit Frame and the importer say "desktop only"; OTIO

@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/LaPingvino/lexington/pdf"
+
 	"github.com/LaPingvino/accolade/internal/images"
 )
 
@@ -320,9 +322,13 @@ func TestImportStoryboarder(t *testing.T) {
 		t.Fatal(err)
 	}
 	w.importStoryboarder()
-	want := "INT. HARBOUR - DAWN #1-x2k9q#\n[[board: harbour.assets/" + scene + "-1A.png, duration: 2.00]]\n[[board: harbour.assets/" + scene + "-1B.png, duration: 1.50, continued: true]]\n\nThe boats come in.\n"
+	want := "INT. HARBOUR - DAWN #1-x2k9q#\n\n[[board: harbour.assets/" + scene + "-1A.png, duration: 2.00]]\n[[board: harbour.assets/" + scene + "-1B.png, duration: 1.50, continued: true]]\n\nThe boats come in.\n"
 	if got := w.textEditor.Text(); got != want {
 		t.Errorf("the script:\n%q\nwant\n%q", got, want)
+	}
+	tr := readTable(w.textEditor.Text(), nil, nil, nil) // the heading is still one, its scene has the frames
+	if len(tr.Scenes) != 1 || tr.Scenes[0].Heading == "" || tr.Scenes[0].Timed != 3.5 {
+		t.Errorf("the scenes: %+v", tr.Scenes)
 	}
 	data, err := os.ReadFile(filepath.Join(dir, "harbour.assets", scene+"-1A.png"))
 	if err != nil {
@@ -335,5 +341,92 @@ func TestImportStoryboarder(t *testing.T) {
 	mid := func(a, b uint32) bool { return math.Abs(float64(a)-float64(b+0xffff)/2) < 0x300 }
 	if !mid(r, rr) || !mid(g, rg) || !mid(bl, rb) {
 		t.Errorf("the reference layer at half on white: %v %v %v (layer %v %v %v)", r, g, bl, rr, rg, rb)
+	}
+}
+
+// A Lottie frame is drawn by glaxnimate's command line in the background:
+// "being drawn" first, shown once done.
+func TestFrameRenderedInBackground(t *testing.T) {
+	fakeTools(t, []string{"glaxnimate"}, nil)
+	t.Setenv("XDG_CACHE_HOME", t.TempDir())
+	old := runRender
+	t.Cleanup(func() { runRender = old })
+	var ran []string
+	runRender = func(argv []string) error {
+		ran = argv
+		return os.WriteFile(argv[3], testPicture(t, 48, 27), 0o644)
+	}
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "w.json"), []byte(strings.Replace(lottieJSON, `"w":160`, `"w":161`, 1)), 0o644)
+	script := filepath.Join(dir, "s.fountain")
+	os.WriteFile(script, []byte("INT. A - DAY\n\nWaves.\n[[board: w.json]]\n"), 0o644)
+	w := newTestWindow(t, "")
+	before := renderedFrames.Load()
+	if err := w.LoadFile(script); err != nil {
+		t.Fatal(err)
+	}
+	if p := w.pictures().Load("w.json"); !errors.Is(p.Err, images.ErrRendering) {
+		t.Fatalf("first: %v", p.Err)
+	}
+	waitFor(t, "the drawing", func() bool { return renderedFrames.Load() != before })
+	w.pollFrames()
+	if p := w.pictures().Load("w.json"); !p.OK() {
+		t.Fatalf("after: %v", p.Err)
+	}
+	if len(ran) != 6 || ran[0] != "/usr/bin/glaxnimate" || ran[2] != "--render" || ran[5] != "0" {
+		t.Errorf("ran %q", ran)
+	}
+}
+
+// A working copy opened from one zipped bundle is never written into
+// another the window opens after.
+func TestFrameWorkingCopyStaysWithItsBundle(t *testing.T) {
+	w := newTestWindow(t, "")
+	copyPath := filepath.Join(t.TempDir(), "a.png")
+	os.WriteFile(copyPath, testPicture(t, 8, 8), 0o644)
+	w.frameWatch.add(copyPath, "assets/a.png", "/elsewhere/Other.accolade", true)
+	w.pollFrames()
+	if len(w.frameWatch.files) != 0 {
+		t.Error("another bundle's working copy still watched")
+	}
+}
+
+// A command line's words: quotes keep a path with spaces together.
+func TestSplitCommand(t *testing.T) {
+	got := splitCommand(`"C:\Program Files\Inkscape\bin\inkscape.exe" --with-gui {file}`)
+	if !slices.Equal(got, []string{`C:\Program Files\Inkscape\bin\inkscape.exe`, "--with-gui", "{file}"}) {
+		t.Errorf("%q", got)
+	}
+}
+
+// An SVG frame prints in the PDF (its drawing, as PNG).
+func TestPrintSVGFrame(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "a.svg"), blankFrame(16.0/9), 0o644)
+	os.WriteFile(filepath.Join(dir, "b.kra"), krita(t, testPicture(t, 64, 36)), 0o644)
+	script := filepath.Join(dir, "s.fountain")
+	os.WriteFile(script, []byte("INT. A - DAY\n\nShe runs.\n[[board: a.svg]]\n\nShe stops.\n[[board: b.kra]]\n"), 0o644)
+	w := newTestWindow(t, "")
+	if err := w.LoadFile(script); err != nil {
+		t.Fatal(err)
+	}
+	p := w.pageSetup()
+	p.frames = true
+	var d pdf.Drawing
+	j := w.outputJob(p, "pdf", w.textEditor.Text(), nil)
+	j.record = &d
+	if err := exportAs(w.textEditor.Text(), filepath.Join(t.TempDir(), "x.pdf"), "pdf", j); err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, pg := range d.Pages {
+		for _, m := range pg.Marks {
+			if _, ok := m.(pdf.Image); ok {
+				n++
+			}
+		}
+	}
+	if n != 2 {
+		t.Errorf("%d pictures printed, want 2", n)
 	}
 }

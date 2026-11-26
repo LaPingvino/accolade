@@ -253,16 +253,18 @@ func insertBoards(b *buffer.Buffer, all []sbImported) {
 		text string
 	}
 	var puts []put
-	heads := map[string]int{} // a scene id's heading line's end, in runes
+	// a scene id's place: after its heading and the blank line under it
+	// (a heading keeps its blank line), in runes
+	heads := map[string]int{}
 	off := 0
-	for _, line := range strings.Split(text, "\n") {
-		off += utf8.RuneCountInString(line)
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		off += utf8.RuneCountInString(line) + 1
 		if m := sbSceneID.FindStringSubmatch(line); m != nil {
-			if _, ok := heads[m[2]]; !ok {
-				heads[m[2]] = off
+			if _, ok := heads[m[2]]; !ok && i+1 < len(lines) && strings.TrimSpace(lines[i+1]) == "" {
+				heads[m[2]] = off + utf8.RuneCountInString(lines[i+1]) + 1
 			}
 		}
-		off++
 	}
 	rs := []rune(text)
 	cur := b.Cursor()
@@ -270,11 +272,11 @@ func insertBoards(b *buffer.Buffer, all []sbImported) {
 		cur++
 	}
 	for _, imp := range all {
-		at, ok := heads[imp.sceneID]
-		if !ok {
-			at = cur
+		if at, ok := heads[imp.sceneID]; ok && at <= len(rs) {
+			puts = append(puts, put{at, strings.TrimPrefix(notes(imp.boards), "\n") + "\n\n"})
+		} else {
+			puts = append(puts, put{cur, notes(imp.boards)})
 		}
-		puts = append(puts, put{at, notes(imp.boards)})
 	}
 	slices.SortStableFunc(puts, func(a, b put) int { return b.at - a.at }) // from the end: the offsets before stay
 	b.Group(func() {

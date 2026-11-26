@@ -165,7 +165,7 @@ func (w *MainWindow) frameCommand(file string) ([]string, frameTool) {
 	kind := frameToolKind(file)
 	t := frameTools[kind]
 	if w.settings != nil {
-		if set := strings.Fields(w.settings.GetString(t.pref)); len(set) > 0 {
+		if set := splitCommand(w.settings.GetString(t.pref)); len(set) > 0 {
 			out, put := make([]string, 0, len(set)+1), false
 			for _, a := range set {
 				if strings.Contains(a, "{file}") {
@@ -188,6 +188,41 @@ func (w *MainWindow) frameCommand(file string) ([]string, frameTool) {
 		out = append(out, "@@")
 	}
 	return out, t
+}
+
+// splitCommand is a command line's words: split at spaces, but not
+// inside "double quotes" (a program's path with spaces: C:\Program
+// Files\Inkscape\bin\inkscape.exe), the whole line when it names a file
+// there is.
+func splitCommand(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+	if fileExists(s) {
+		return []string{s}
+	}
+	var out []string
+	var cur strings.Builder
+	quoted, had := false, false
+	for _, r := range s {
+		switch {
+		case r == '"':
+			quoted, had = !quoted, true
+		case r == ' ' && !quoted:
+			if cur.Len() > 0 || had {
+				out = append(out, cur.String())
+			}
+			cur.Reset()
+			had = false
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	if cur.Len() > 0 || had {
+		out = append(out, cur.String())
+	}
+	return out
 }
 
 // errFramesDesktop: the browser opens no programs.
@@ -272,7 +307,11 @@ func (w *MainWindow) openFrame(src string) {
 		dialog.ShowError(fmt.Errorf("could not start %s: %v", t.name, err), w.fyneWindow)
 		return
 	}
-	w.frameWatch.add(abs, entry, true)
+	bundle := ""
+	if entry != "" {
+		bundle = w.bundle.Path
+	}
+	w.frameWatch.add(abs, entry, bundle, true)
 	w.armFrameWatch()
 	w.setStatus(fmt.Sprintf("%s opened in %s: a save shows here", filepath.Base(abs), t.name))
 }
@@ -368,7 +407,12 @@ func (w *MainWindow) newFrame() {
 
 // frameWatcher is a window's watch on its frames' files.
 type frameWatcher struct {
-	files   map[string]*watchedFrame // by the path on disk
+	files map[string]*watchedFrame // by the path on disk
+	// secs are the frames' files' animation times as read, for the
+	// loader secsOf at its generation secsGen (frameFileSecs)
+	secs    map[string]float64
+	secsOf  *images.Loader
+	secsGen int
 	armed   bool
 	renders int64 // renderedFrames when looked at last
 }
@@ -376,25 +420,27 @@ type frameWatcher struct {
 // watchedFrame is a frame's file as last seen.
 type watchedFrame struct {
 	entry   string // a zipped bundle's entry its working copy goes back to
+	bundle  string // and that bundle's path (another document's: not written)
 	edited  bool   // opened from here: kept watched when the script no longer names it
 	mod     time.Time
 	size    int64
 	pending bool // changed at the last look: acted on once it is the same at the next
 }
 
-// add watches a file as it is now.
-func (fw *frameWatcher) add(abs, entry string, edited bool) {
+// add watches a file as it is now (entry: a zipped bundle's, at
+// bundle).
+func (fw *frameWatcher) add(abs, entry, bundle string, edited bool) {
 	if fw.files == nil {
 		fw.files = map[string]*watchedFrame{}
 	}
 	if old := fw.files[abs]; old != nil {
 		old.edited = old.edited || edited
 		if entry != "" {
-			old.entry = entry
+			old.entry, old.bundle = entry, bundle
 		}
 		return
 	}
-	f := &watchedFrame{entry: entry, edited: edited}
+	f := &watchedFrame{entry: entry, bundle: bundle, edited: edited}
 	if st, err := os.Stat(abs); err == nil {
 		f.mod, f.size = st.ModTime(), st.Size()
 	}
@@ -417,7 +463,7 @@ func (w *MainWindow) watchScriptFrames(srcs []string) {
 			}
 			if abs, _, err := w.frameOnDisk(src); err == nil {
 				want[abs] = true
-				fw.add(abs, "", false)
+				fw.add(abs, "", "", false)
 			}
 		}
 	}
@@ -460,6 +506,10 @@ func (w *MainWindow) pollFrames() {
 	var changed []string
 	var back []bundleFile
 	for abs, f := range fw.files {
+		if f.entry != "" && (w.bundle == nil || w.bundle.Path != f.bundle) {
+			delete(fw.files, abs) // another document's working copy now: never written into this one
+			continue
+		}
 		st, err := os.Stat(abs)
 		if err != nil {
 			continue // (a rename-save: there again at the next look)
@@ -473,7 +523,7 @@ func (w *MainWindow) pollFrames() {
 		}
 		f.pending = false
 		changed = append(changed, filepath.Base(abs))
-		if f.entry != "" && w.bundle != nil {
+		if f.entry != "" {
 			if data, err := os.ReadFile(abs); err == nil {
 				back = append(back, bundleFile{f.entry, data})
 			}
@@ -520,11 +570,19 @@ func (w *MainWindow) framesChanged() {
 // frameFileSecs is how long an animated frame's file says it runs (0: a
 // still, or not said).
 func (w *MainWindow) frameFileSecs(src string) float64 {
-	p := w.pictures().Load(src)
-	if p.Orig == nil {
-		return 0
+	fw, pics := &w.frameWatch, w.pictures()
+	if fw.secsOf != pics || fw.secsGen != pics.Gen() || fw.secs == nil {
+		fw.secs, fw.secsOf, fw.secsGen = map[string]float64{}, pics, pics.Gen()
 	}
-	return animationSecs(src, p.Orig)
+	if s, ok := fw.secs[src]; ok {
+		return s
+	}
+	s := 0.0
+	if p := pics.Load(src); p.Orig != nil {
+		s = animationSecs(src, p.Orig)
+	}
+	fw.secs[src] = s
+	return s
 }
 
 // animationSecs is an animation's length in seconds from its file:
