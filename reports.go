@@ -522,6 +522,7 @@ func (w *MainWindow) saveNamedFile(name string, write func(p string) error) {
 		}
 	}, w.fyneWindow)
 	d.SetFileName(name)
+	setNamedFileFilter(d, name)
 	if dir := cmp.Or(w.settings.GetString("export-directory"), defaultExportDir()); dir != "" {
 		if l, err := storage.ListerForURI(storage.NewFileURI(dir)); err == nil {
 			d.SetLocation(l)

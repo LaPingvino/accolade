@@ -13,7 +13,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
-	"fyne.io/fyne/v2/storage"
 
 	"github.com/LaPingvino/accolade/internal/images"
 	"github.com/LaPingvino/accolade/internal/prose"
@@ -198,7 +197,7 @@ var chooseFileIn = func(win fyne.Window, exts []string, then func(path string)) 
 		r.Close()
 		then(r.URI().Path())
 	}, win)
-	d.SetFilter(storage.NewExtensionFileFilter(exts))
+	setPickFilters(d, exts, "")
 	d.Show()
 }
 

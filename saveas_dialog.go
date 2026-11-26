@@ -237,7 +237,7 @@ func (w *MainWindow) askWhere(t fileType, name string, chosen *relocation) {
 		}
 		w.saveAsWith(p, chosen)
 	}, w.fyneWindow)
-	fileDialog.SetFilter(storage.NewExtensionFileFilter([]string{t.ext}))
+	setSaveFilters(fileDialog, saveExtensions(), t.ext)
 	fileDialog.SetFileName(name)
 	if w.currentFile != "" {
 		if l, err := storage.ListerForURI(storage.NewFileURI(filepath.Dir(w.currentFile))); err == nil {

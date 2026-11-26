@@ -1022,8 +1022,8 @@ func (w *MainWindow) OpenFile() {
 		w.openPath(filePath)
 	}, w.fyneWindow)
 
-	// what Accolade opens: scripts, Markdown, Final Draft, PDF
-	fileDialog.SetFilter(storage.NewExtensionFileFilter(openExtensions()))
+	// what Accolade opens: scripts, Markdown, Final Draft, PDF, by kind
+	setPickFilters(fileDialog, openExtensions(), w.preferredKind())
 
 	fileDialog.Show()
 }
