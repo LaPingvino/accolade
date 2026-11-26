@@ -232,10 +232,16 @@ var kindCache = struct {
 // sniffing are as many files as are read for their kinds at once.
 var sniffing = make(chan struct{}, 4)
 
-// sniffLimit is as long as a PDF is read for its kind: a book of some
-// 300 pages took 5 to 8 s (measured on Joop's); one that takes longer is
-// of no kind. The file dialog asks in the background, so nothing waits.
-const sniffLimit = 12 * time.Second
+// sniffPages are the pages a PDF is read for its kind: past a title
+// page and a book's front matter (measured on 22 PDFs of Joop's: with 3
+// pages a book's opening poem read as a script, with 10 none did; 51
+// files' kinds took 2.8 s, 1.3 s the longest).
+const sniffPages = 10
+
+// sniffLimit is as long as a PDF is read for its kind; one that takes
+// longer (a broken file) is of no kind. The file dialog asks in the
+// background, so nothing waits.
+const sniffLimit = 5 * time.Second
 
 // readsKind: a file with the extension ext is a screenplay's or a
 // novel's by what it holds.
@@ -393,13 +399,13 @@ func textIsScreenplay(text string) bool {
 	return headings >= 1 && headings+cues >= 2 || cues >= 3 && cues > headers
 }
 
-// sniffPDF tells a PDF's kind as Lexington reads it as a screenplay:
+// sniffPDF tells a PDF's kind as Lexington reads its first pages as a screenplay:
 // a script's lines come out as scene headings, names and their speeches;
 // a novel's mostly as action. A PDF with no text (a scan) is of no kind.
 func sniffPDF(path string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), sniffLimit)
 	defer cancel()
-	sp, err := pdfin.ReadFileWith(path, pdfin.Options{Context: ctx, Scenes: allSceneHeaders()})
+	sp, err := pdfin.ReadFileWith(path, pdfin.Options{Context: ctx, MaxPages: sniffPages, Scenes: allSceneHeaders()})
 	if err != nil {
 		return ""
 	}
@@ -429,7 +435,7 @@ func screenplayKind(sp lex.Screenplay) string {
 	switch {
 	case speakers >= 1 && (spoken+speakers)*5 >= lines:
 		return kindScreenplay
-	case lines >= 30: // enough to tell a book by
+	case lines >= 20: // enough to tell a book by
 		return kindNovel
 	}
 	return ""
