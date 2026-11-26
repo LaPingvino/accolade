@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
@@ -494,5 +495,33 @@ func TestMarkdownRevisionScreenshot(t *testing.T) {
 	w.textEditor.Undo()
 	if _, ok := w.dismissedOf()[it.dismissKey()]; ok {
 		t.Error("Undo did not bring it back")
+	}
+}
+
+// The Live Preview on a 380-wide phone keeps the window at 380: nothing
+// in it asks for more (it once widened it to ~429). SHOT_DIR, as above,
+// keeps the text and pages shots.
+func TestLivePreviewPhoneWidth(t *testing.T) {
+	w, _ := newDialogTestWindow(t)
+	w.setMarkdown(true)
+	w.currentFile = filepath.Join(t.TempDir(), "story.md")
+	w.textEditor.SetText(story)
+	w.fyneWindow.Resize(fyne.NewSize(380, 800))
+	w.onWindowWidth(380)
+	w.preview()
+	for _, mode := range []string{previewText, previewPages} {
+		w.previewPane.mode.SetSelected(mode)
+		time.Sleep(200 * time.Millisecond)
+		fyne.DoAndWait(func() {})
+		w.fyneWindow.Content().Refresh()
+		min := w.fyneWindow.Content().MinSize().Width
+		got := w.fyneWindow.Canvas().Size().Width
+		t.Logf("%s: content min width %.0f, window %.0f", mode, min, got)
+		if min > 380 || got > 380 {
+			t.Errorf("%s: the Live Preview widens a 380 phone: min %.0f, window %.0f", mode, min, got)
+		}
+		if os.Getenv("SHOT_DIR") != "" {
+			capture(t, w.fyneWindow.Canvas(), "livepreview-phone-"+mode+".png")
+		}
 	}
 }

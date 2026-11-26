@@ -1714,6 +1714,13 @@ func (w *MainWindow) relayout() {
 		split := container.NewHSplit(center, w.pages)
 		split.Offset = 0.5
 		center = split
+	} else if w.previewVisible && w.previewPane != nil && w.narrow {
+		// a phone: the Live Preview under the text, still in sight while
+		// writing (beside it, the two asked for more than the width: a
+		// 380 phone's window grew to 429)
+		split := container.NewVSplit(center, narrowFit(w.previewPane.box))
+		split.Offset = 0.5
+		center = split
 	} else if w.previewVisible && w.previewPane != nil {
 		split := container.NewHSplit(center, w.previewPane.box)
 		split.Offset = 0.55

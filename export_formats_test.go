@@ -61,7 +61,8 @@ func TestExportKindle(t *testing.T) {
 
 // The Export dialog's Page Setup card as the format uses the page setup:
 // gone for the outline (OPML), the paper alone for a treatment (no line,
-// no Page Setup…), the line again for a script's format.
+// no Page Setup…), the line again for a script's format; Part of the
+// Script only with the line (the outline and a treatment are the whole).
 func TestExportPageSectionPerFormat(t *testing.T) {
 	w := newTestWindow(t, accoladeScript)
 	ed := NewExportDialog(w)
@@ -76,6 +77,9 @@ func TestExportPageSectionPerFormat(t *testing.T) {
 		{"fdx", true, true, false},
 	} {
 		ed.formatSelect.SetSelected(exportFormatLabel(c.id))
+		if got, want := ed.filterSection.Visible(), c.line; got != want {
+			t.Errorf("%s: Part of the Script shown %v", c.id, got)
+		}
 		if got := ed.pageSection.Visible(); got != c.card {
 			t.Errorf("%s: card shown %v", c.id, got)
 		}

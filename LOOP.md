@@ -2032,8 +2032,8 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   reads it ([[note: …]] at a script's start was read as a title field). (6) In Lexington, branch report-synopsis
   (worktree ~/Projects/lexington-synopsis, not tagged): report.Scene.Synopsis is the scene's own as the outline
   reads it: its first synopsis paragraph (blank lines and notes may come before), its lines joined, not a synopsis
-  after the scene's action. Accolade follows it once tagged and bumped. Left: the Export dialog still shows
-  Part of the Script for the outline and treatment (they use neither); the treatment ignores tags. (Page Setup:
+  after the scene's action. Accolade follows it once tagged and bumped. Left (done 2026-11-26, branch exportfu): the Export dialog still showed
+  Part of the Script for the outline and treatment (they use neither); the treatment ignores tags (by design: the whole story). (Page Setup:
   done 2026-11-25, branch exportdlg: no card for the outline, the paper alone as a note for a treatment.)
 - 2026-11-24: NOTES PANE phase 1 done (branch notespane, not merged). The notepad is gone (notesPanel, docNotes,
   its middle document); View > Notes is a pane over one item model read from the text (open_items.go, memoised;
@@ -2097,7 +2097,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   |---|---|
   | Quick tab, Smart/Fixed | done |
   | Source pane jump, Next/Previous, Adapt… | done |
-  | Page view in a real browser / Android / Fyne mobile | waits (Joop's devices); the rtl/CJK/images PDF parts done since (prosertl, previewcjk, pictures); the 380-wide Live Preview widening to ~429 not checked (testable headless) |
+  | Page view in a real browser / Android / Fyne mobile | waits (Joop's devices); the rtl/CJK/images PDF parts done since (prosertl, previewcjk, pictures); the 380-wide Live Preview widening to ~429: confirmed headless (the text and preview side by side asked 421), fixed on branch exportfu: on a phone the preview goes under the text (TestLivePreviewPhoneWidth, livepreview-phone-*.png) |
   | Preview tab, Refresh, Follow Edits, dirty pages | done |
   | PDF links; page footnotes (jump, renumber, hover) | done |
   | Citations (bibtex-like) | phase 1 + phase 2's style done; numeric style, CSL left — low priority, skipped |
@@ -2129,7 +2129,7 @@ Joop, 2026-11-19: Accolade is in the hourly tick, next to goloco, after Rebekah'
   | Beats: (A) where they land | done (branch beatsland, not merged): Revision ribbon; Cards section headers (✓ p. N / ⚑ Late · p. N · usually a–b%, a tap there with the advice), timeline bands, outline rows (⚑ only), the strip's act ticks in the warning colour; the outline and strip read the last layout, the Cards and timeline ask for one |
   | Beats: (B) real-film ranges | done (branch beatsb, not merged): beat_films.go: measured ranges from Thompson 1999 (73 films, via Cutting 2016: act-one break 24.9% σ2.8, act-two break 76.5% σ3.8, epilog 98.2% σ1.6; range ±2σ) and O'Brien 2026 (10 films, median and min–max from its Table 3: inciting 4–17, midpoint 49–53, low point 66–74, climax 82–94); Three Acts all measured, 15 beats' Catalyst/breaks/Midpoint/All Is Lost, Sequences' breaks + Seq 5; Hero's Journey, Story Circle, Kishōtenketsu all convention (nothing measures them); ribbon, Cards, timeline, outline say measured/convention, advice names the source; off = more than a page outside; Help > Structure cites them. Open: a larger timed corpus (genre splits) if one gets published |
   | Revision tools / Revision tab | done (prose checks and kept dismissals: branch mdrev) |
-  | Structure follow-ups (structure2, OPML, treatment) | done; left: the Export dialog shows Page Setup for outline/treatment |
+  | Structure follow-ups (structure2, OPML, treatment) | done (Page Setup per format: exportdlg; Part of the Script hidden for the outline and a treatment, whose note says it is the whole script's story: exportfu) |
   | Unhandled beats | done (the cards: each its own beats' mark, the Unplaced group at the top, pane and middle alike) |
   | What's open / TODO notes / notes pane / boneyard sidebar / unsorted notes / Restore | done |
 
