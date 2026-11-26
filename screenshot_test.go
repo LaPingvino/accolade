@@ -607,7 +607,7 @@ func TestFilePickerScreenshots(t *testing.T) {
 		setPickFilters(d, openExtensions(), w.preferredKind())
 		d.SetLocation(loc)
 		d.SetView(dialog.ListView)
-		d.Show()
+		showPicker(d, w.fyneWindow)
 		shot(w, "accolade-open-kinds-"+size.name+".png")
 		d.SelectFileKind("")
 		shot(w, "accolade-open-everything-"+size.name+".png")
@@ -619,7 +619,7 @@ func TestFilePickerScreenshots(t *testing.T) {
 	setSaveFilters(d, saveExtensions(), ".fountain")
 	d.SetFileName("The Barn.fountain")
 	d.SetLocation(loc)
-	d.Show()
+	showPicker(d, w.fyneWindow)
 	if sel := findSelect(w.fyneWindow.Canvas().Overlays().Top()); sel != nil {
 		sel.Tapped(&fyne.PointEvent{})
 	}

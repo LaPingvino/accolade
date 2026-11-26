@@ -122,5 +122,5 @@ func (w *MainWindow) choosePDF(kind string, then func(path string)) {
 	})
 	d.SetFileKinds([]string{kindScreenplay, kindNovel}, func(u fyne.URI) string { return fileKindOf(u.Path()) })
 	d.SelectFileKind(kind)
-	d.Show()
+	showPicker(d, w.fyneWindow)
 }

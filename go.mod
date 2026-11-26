@@ -71,6 +71,6 @@ require (
 	golang.org/x/time v0.14.0 // indirect
 )
 
-replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261126164019-0819ac7b8762 // linux-a11y 0819ac7b: file types and file kinds in the file dialog
+replace fyne.io/fyne/v2 => github.com/LaPingvino/fyne/v2 v2.8.2-0.20261126175029-7555ff83e9d5 // linux-a11y 7555ff83: file kinds beside the file type select
 
 replace github.com/fyne-io/glfw-js => github.com/LaPingvino/glfw-js v0.4.1-0.20261024213642-9ce43ce5e3b4

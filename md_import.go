@@ -198,7 +198,7 @@ var chooseFileIn = func(win fyne.Window, exts []string, then func(path string)) 
 		then(r.URI().Path())
 	}, win)
 	setPickFilters(d, exts, "")
-	d.Show()
+	showPicker(d, win)
 }
 
 // ImportDocument is File > Import: a document into a new Markdown one.

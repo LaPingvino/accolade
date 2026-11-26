@@ -1026,8 +1026,7 @@ func (w *MainWindow) OpenFile() {
 
 	// what Accolade opens: scripts, Markdown, Final Draft, PDF, by kind
 	setPickFilters(fileDialog, openExtensions(), w.preferredKind())
-
-	fileDialog.Show()
+	showPicker(fileDialog, w.fyneWindow)
 }
 
 // OpenBundleFolder opens a bundle in its folder form: an .accolade or

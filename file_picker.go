@@ -480,3 +480,10 @@ func setNamedFileFilter(d *dialog.FileDialog, name string) {
 	}
 	d.SetFilters([]dialog.NamedFilter{{Name: format, Filter: storage.NewExtensionFileFilter([]string{ext})}})
 }
+
+// showPicker shows a file dialog as large as the window allows, up to a
+// size where its list has room: Fyne's own is a few rows tall.
+func showPicker(d *dialog.FileDialog, win fyne.Window) {
+	d.Show()
+	d.Resize(fitDialog(win, 860, 620))
+}

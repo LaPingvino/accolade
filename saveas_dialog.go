@@ -244,5 +244,5 @@ func (w *MainWindow) askWhere(t fileType, name string, chosen *relocation) {
 			fileDialog.SetLocation(l)
 		}
 	}
-	fileDialog.Show()
+	showPicker(fileDialog, w.fyneWindow)
 }
