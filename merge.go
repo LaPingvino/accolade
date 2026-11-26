@@ -69,6 +69,12 @@ func (w *MainWindow) readOutside(path string) (*outsideCopy, error) {
 	switch {
 	case ext == ".pdf":
 		return nil, errors.New("a PDF cannot be merged yet: open it as an import and compare with that")
+	case isOtherExt(ext): // Fade In, Trelby, KIT Scenarist… (other_formats.go)
+		t, err := readOtherFormat(oc.path)
+		if err != nil {
+			return nil, fmt.Errorf("could not read %s: %v", oc.name, err)
+		}
+		text, oc.lossy = t, true
 	case ext == ".fdx":
 		f, err := os.Open(path)
 		if err != nil {

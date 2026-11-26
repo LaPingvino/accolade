@@ -71,6 +71,10 @@ func (w *MainWindow) saveAs(filePath string) { w.saveAsWith(filePath, nil) }
 // saveAsWith saves the script as filePath with the choices Save As's
 // chooser made (nil: none made; where a bundle's drafts go is asked).
 func (w *MainWindow) saveAsWith(filePath string, chosen *relocation) {
+	if f, ok := otherSaveFormat(filePath); ok && !w.markdown {
+		w.saveOtherCopy(filePath, f) // a copy in another program's format (other_formats.go)
+		return
+	}
 	w.afterBundleWrites(func() {
 		flattening := w.bundle != nil && len(w.bundle.extras) > 0 && bundleKindOf(filePath) == notBundle
 		if flattening && chosen == nil {

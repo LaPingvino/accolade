@@ -101,6 +101,7 @@ File > Open… (in the browser: Open from Your Computer…) also takes these. Th
 
 - **Final Draft (.fdx)** — the whole script, with scene numbers and colours, notes, revisions, locked pages and breakdown tags. Details in [Coming from Final Draft](final-draft.md#opening-final-draft-files).
 - **PDF of a screenplay** — read back into Fountain by its layout (Lexington's own, Final Draft's, Highland's, Fade In's, Word's). A scanned PDF is read with OCR: Accolade asks what language the pages are in, and uses tesseract if it is installed, else its built-in OCR, which reads English. A scan whose own text layer looks garbled is offered to be read with OCR instead (the writer can keep the text). Check the result: a PDF only shows how a script looked. Lines of a kind it read wrong are set right all at once with Edit > Fix Lines Like This… ([Fixing an Imported Script](fixing-imports.md)).
+- **Fade In (.fadein, .osf), Trelby (.trelby), KIT Scenarist (.kitsp)** — read by Lexington: elements, emphasis, notes, the title page, as much as each app keeps; Save As… writes a copy in each. Details in [Coming from Another App](coming-from.md).
 - **Beat** — a Fountain file from Beat opens as it is; Beat's breakdown tags in its data block are read into the breakdown.
 
 ## Importing documents

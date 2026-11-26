@@ -104,6 +104,9 @@ func extFormat(ext string) (name, kind string) {
 			return t.label + " Fountain", kindScreenplay
 		}
 	}
+	if f, ok := otherFormat("x" + ext); ok { // another program's, as Lexington names it
+		return f.Name, kindScreenplay
+	}
 	return strings.ToUpper(strings.TrimPrefix(ext, ".")), ""
 }
 
@@ -467,6 +470,13 @@ func saveExtensions() []string {
 	for _, t := range knownTypes() {
 		if t.kind != bundleFolder && !slices.Contains(out, t.ext) {
 			out = append(out, t.ext)
+		}
+	}
+	// other programs' formats: a copy written through Lexington
+	// (other_formats.go)
+	for _, e := range otherFormatExts() {
+		if _, ok := otherSaveFormat("x" + e); ok && !slices.Contains(out, e) {
+			out = append(out, e)
 		}
 	}
 	return out

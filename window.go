@@ -609,6 +609,9 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	// the views follow at the end (state.go)
 	defer w.scriptChange()()
 	w.hideOpenedAs() // another file: a PDF's shows it again
+	if f, ok := otherFormat(filePath); ok { // Fade In, Trelby, KIT Scenarist… (other_formats.go)
+		return w.importOther(filePath, f)
+	}
 	switch strings.ToLower(filepath.Ext(filePath)) {
 	case ".fdx", ".pdf":
 		return w.importFile(filePath)

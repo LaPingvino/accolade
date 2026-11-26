@@ -8,7 +8,7 @@
 
 - `-i` — Input from provided filename.
 - `-o` — Output to provided filename.
-- `-from` — Input file type.
+- `-from` — Input file type …
 - `-to` — Output file type.
 - `-template` — Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).
 
@@ -60,6 +60,7 @@
 - `-header` — The page's header for a script with no {{HEADER …
 - `-keeploose` — Write the Fountain input so that it reads under the spec as Lexington before 1.19 read it (blank lines and force marks added), instead of converting it …
 - `-loose` — Read Fountain as Lexington before 1.19 did …
+- `-osfversion` — The Open Screenplay Format version osf and fadein are written in: 4.0 (the default, Fade In 4's), 2.0 or 1.2.
 - `-titlepage` — The title page template …
 - `-titlepages` — List the title page templates for -titlepage.
 

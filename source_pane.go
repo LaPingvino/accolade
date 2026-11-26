@@ -1341,7 +1341,7 @@ func (w *MainWindow) chooseSource() {
 
 // screenplaySourceExts are the screenplays Choose Source reads as one
 // (screenplay_source.go): the script being fixed up was made from it.
-var screenplaySourceExts = []string{".fountain", ".fdx", ".pdf"}
+var screenplaySourceExts = append([]string{".fountain", ".fdx", ".pdf"}, otherFormatExts()...)
 
 // chooseSourceFile makes path the script's source: converted in the
 // background (a Word novel took seconds in the browser), then kept for

@@ -28,6 +28,7 @@ Accolade is a screenplay editor that writes plain Fountain. These pages are in t
 - [Fountain Reference](fountain.md) — every element, with examples, and Accolade's own blocks and links
 - [Structure: Sections, Synopses and Notes](structure.md) — acts, beats and plans written in the script, seen in the outline and the cards, moved, folded and grown into scenes
 - [Coming from Final Draft](final-draft.md) — Tab and Enter as you know them, FDX in and out
+- [Coming from Another App](coming-from.md) — any app's PDF, Highland 2, Final Draft, Fade In, Trelby, KIT Scenarist, WriterDuet and Celtx, Storyboarder: in and back out
 - [Adapting a Story](adapting.md) — the source beside the script, links, statuses and Next
 - [Fixing an Imported Script](fixing-imports.md) — every line of a kind set right at once: headings, cues, page debris, double spacing
 - [Production](production.md) — locking, revisions, breakdown, schedule and reports

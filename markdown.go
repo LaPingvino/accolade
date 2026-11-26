@@ -43,6 +43,9 @@ func kindOfName(name string) (markdown, known bool) {
 	case ".fountain", ".spmd", ".txt", ".fdx", ".pdf", ".highland", ".accolade", ".opml":
 		return false, true
 	}
+	if _, ok := otherFormat(name); ok {
+		return false, true
+	}
 	if _, ok := lexSettings.ExtensionLanguage(name); ok {
 		return false, true
 	}
@@ -54,7 +57,8 @@ func kindOfName(name string) (markdown, known bool) {
 // (bundleOf), or Open Bundle Folder… opens it; a .textbundle that is a
 // zip is a file like a .textpack. An outline (.opml, from Workflowy,
 // OmniOutliner…) opens as a script's sections and synopses (outline_io.go).
-var baseOpenExtensions = []string{".fountain", ".spmd", ".txt", ".md", ".markdown", ".highland", ".accolade", ".textpack", ".textbundle", ".fdx", ".pdf", ".opml", ".toml"}
+var baseOpenExtensions = append([]string{".fountain", ".spmd", ".txt", ".md", ".markdown", ".highland", ".accolade", ".textpack", ".textbundle", ".fdx", ".pdf"},
+	append(otherFormatExts(), ".opml", ".toml")...)
 
 // openExtensions are baseOpenExtensions and the languages' own
 // ([Extensions]: .hekaya).
