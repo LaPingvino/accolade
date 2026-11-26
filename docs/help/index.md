@@ -24,6 +24,7 @@ Accolade is a screenplay editor that writes plain Fountain. These pages are in t
 
 ## Pages
 
+- [Fun Things to Try](fun.md) — a line for every feature, the PDF import first: open any screenplay PDF and keep writing
 - [Fountain Reference](fountain.md) — every element, with examples, and Accolade's own blocks and links
 - [Structure: Sections, Synopses and Notes](structure.md) — acts, beats and plans written in the script, seen in the outline and the cards, moved, folded and grown into scenes
 - [Coming from Final Draft](final-draft.md) — Tab and Enter as you know them, FDX in and out

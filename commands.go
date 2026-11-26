@@ -929,6 +929,7 @@ func newRegistry() *registry {
 	add(stageCommands()...)      // the locked stages, the two versions (stages.go)
 	add(tableReadCommands()...)  // the Table Read's (tableread_tab.go)
 	add(quickCommands()...)      // the ribbon's order and the Quick row (quick.go)
+	add(funCommands()...)        // New from a PDF… (fun.go)
 
 	elements := make([]home, len(toolbarElements))
 	for i, el := range toolbarElements {
@@ -942,7 +943,7 @@ func newRegistry() *registry {
 	r.menuBar = []menuDef{
 		{title: "File", homes: []home{
 			at("file.new"), at("file.newEmpty"), at("file.newWindow"), at("file.newEmptyWindow"), at("file.newMarkdown"), at("set.newLanguage"),
-			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.newStructure"), at("file.mergeChanges"), at("file.import"), at("file.importPDFScreenplay"), at("file.importPDFMarkdown"), at("file.importPandoc"), at("file.importStoryboarder"), at("file.startScreenplay"),
+			at("file.open"), at("file.openFolder"), at("file.recent"), at("file.openSample"), at("file.newStructure"), at("file.newFromPDF"), at("file.mergeChanges"), at("file.import"), at("file.importPDFScreenplay"), at("file.importPDFMarkdown"), at("file.importPandoc"), at("file.importStoryboarder"), at("file.startScreenplay"),
 			sep(), at("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename"), at("file.addSettings"),
 			sep(), at("file.export"), at("file.exportWriter"), at("file.exportShooting"), at("file.exportClean"), at("file.exportBoards"), at("file.exportOutline"), at("file.exportTreatment"), at("file.pageSetup"), at("file.print"),
 			// Fyne appends Quit (Ctrl+Q) to the first menu itself.

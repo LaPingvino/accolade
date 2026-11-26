@@ -363,7 +363,7 @@ func TestCommandsGolden(t *testing.T) {
 		if writer {
 			base += ".golden"
 		}
-		want := boardToolsMoves(base, pdfImportMoves(base, languageDefaultMoves(base, notesMoves(base, templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base))))))))))))))))))))))))))))))) // the moves write Linux keys too
+		want := funMoves(base, boardToolsMoves(base, pdfImportMoves(base, languageDefaultMoves(base, notesMoves(base, templateMoves(base, keyboardMoves(base, highlandMoves(base, numberScenesMoves(base, bundleFolderMoves(base, newSceneMoves(base, referencesMoves(base, stagesMoves(base, mergeMoves(base, tableReadMoves(base, frameMoves(base, topRowMoves(base, stripMoves(base, structureMoves(base, fixLinesMoves(base, linkUpMoves(base, passageMoves(base, sampleMoves(base, toolbarMoves(base, middleMoves(base, dockMoves(base, modeLabelMoves(base, roleMoves(base, regroupMoves(base, helpMoves(base, adaptationMoves(base, readCommandsGolden(t, base)))))))))))))))))))))))))))))))) // the moves write Linux keys too
 		if writer {
 			want = writerMoves(base, want)
 		}
@@ -1232,6 +1232,14 @@ func writerMoves(name, golden string) string {
 	case strings.HasPrefix(name, "context-"):
 		golden = strings.Replace(golden, "Tag as Props\n", "", 1)
 		return strings.Replace(golden, "Tag Selection…\n---\n", "", 1)
+	}
+	return golden
+}
+
+// funMoves: File > New from a PDF… after New from Structure (fun.go).
+func funMoves(name, golden string) string {
+	if strings.HasPrefix(name, "menu-") {
+		return strings.Replace(golden, "  Merge Changes…\n", "  New from a PDF…\n  Merge Changes…\n", 1)
 	}
 	return golden
 }

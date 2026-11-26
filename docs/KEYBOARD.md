@@ -198,6 +198,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Add Note | `write.note` | Ctrl+Shift+K | Cmd+Shift+K | Ctrl+Shift+K |  | :note |
 | New Unsorted Note | `write.unsortedNote` |  |  |  |  | :unsorted-note |
 | Help Contents | `help.page.index` |  |  |  |  | :help index |
+| Fun Things to Try | `help.page.fun` |  |  |  |  | :help fun |
 | Fountain Reference | `help.page.fountain` |  |  |  |  | :help fountain |
 | Structure: Sections, Synopses and Notes | `help.page.structure` |  |  |  |  | :help structure |
 | Coming from Final Draft | `help.page.final-draft` |  |  |  |  | :help final-draft |
@@ -360,6 +361,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Close Table Read | `tableread.close` |  |  |  |  | :table-read-close |
 | Lock Ribbon Order | `view.ribbonLock` |  |  |  |  | :lock-ribbon-order |
 | Quick Row | `set.quickRow` |  |  |  |  | :quick-row |
+| New from a PDF… | `file.newFromPDF` |  |  |  |  | :new-from-pdf |
 
 ## The keys each platform keeps
 

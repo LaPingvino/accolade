@@ -96,7 +96,7 @@ The elements: `scene-heading`, `action`, `character`, `parenthetical`, `dialogue
 
 - **:h[elp]** `[command or page]` — This list in the Help tab; :h scene the line on :scene; :h fountain a help page
 
-The pages: `index`, `fountain`, `structure`, `final-draft`, `adapting`, `fixing-imports`, `production`, `merging`, `table-read`, `together`, `shortcuts`, `keyboard`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
+The pages: `index`, `fun`, `fountain`, `structure`, `final-draft`, `adapting`, `fixing-imports`, `production`, `merging`, `table-read`, `together`, `shortcuts`, `keyboard`, `formats`, `settings`, `lexington`, `vim`, `ex`, `cheat-shortcuts`, `cheat-fountain`, `cheat-blocks`, `cheat-revisions`, `cheat-breakdown`, `cheat-dood`, `cheat-markdown`, `cheat-lexington`.
 
 ## Accolade's commands
 
@@ -136,6 +136,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:language-for-new-scripts** `item` — File > Language for New Scripts
 - **:export-writer** — The writer's draft as locked, without production's layers (File > Export Writer's Version) (screenplay)
 - **:export-shooting** — The shooting script: scene numbers, OMITTED, revisions (File > Export Shooting Version) (screenplay)
+- **:new-from-pdf** — File > New from a PDF
 
 ### Collaboration
 

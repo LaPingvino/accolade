@@ -135,7 +135,7 @@ func (app *Application) Run(args []string) {
 	if len(args) > 1 {
 		app.openFiles(args[1:])
 	} else {
-		app.newWindow()
+		app.newWindow().welcomeOnce() // the first run: where the fun is (fun.go)
 	}
 
 	writeBuiltinFormats(filepath.Join(getConfigDir(), "formats-builtin")) // this version's

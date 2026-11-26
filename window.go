@@ -72,7 +72,8 @@ type MainWindow struct {
 	bottom       *fyne.Container
 	loose        *looseNotice
 	openedAs     *openedAsBar
-	looseUnsaved string // the answer for a script not saved yet
+	dropLine     *fyne.Container // "Got a screenplay as a PDF? Drop it here" (fun.go)
+	looseUnsaved string          // the answer for a script not saved yet
 	// headerArea is the header bar (the toolbar) with its separator
 	headerArea *fyne.Container
 	// the sidebar beside the editor: the outline (View > Outline) or the
@@ -442,7 +443,7 @@ func (w *MainWindow) setupUI() {
 		widget.NewSeparator(),
 		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel, w.openLabel),
 	)
-	w.bottom = container.NewVBox(w.newLooseNotice(), w.newOpenedAsBar(), w.statusBar)
+	w.bottom = container.NewVBox(w.newLooseNotice(), w.newOpenedAsBar(), w.newDropLine(), w.statusBar)
 
 	w.relayout()
 
@@ -1426,6 +1427,7 @@ func (w *MainWindow) onTextChanged(text string) {
 }
 
 func (w *MainWindow) updateTitle() {
+	w.refreshDropLine()
 	w.titleOf = w.frontKey()
 	title := "Accolade"
 	// the script's stage after its name, as refreshStage found it last

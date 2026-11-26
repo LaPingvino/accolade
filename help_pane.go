@@ -45,6 +45,8 @@ func (w *MainWindow) helpPage(slug string) (help.Page, bool) {
 	}
 	env := cmdEnv{markdown: w.editorMarkdown(), browser: inBrowser, editorKeys: w.editorKeys()} // the keys of what the main editor holds
 	switch slug {
+	case "fun":
+		p.Markdown = funPage(false)
 	case "shortcuts":
 		p.Markdown = shortcutsPage(env, false)
 	case "cheat-shortcuts":
@@ -228,6 +230,12 @@ func (h *helpPane) links(segs []widget.RichTextSegment) {
 
 // follow goes to a link's target.
 func (h *helpPane) follow(link string) {
+	if id, ok := strings.CutPrefix(link, "cmd:"); ok { // Fun Things to Try: the line does it (fun.go)
+		if id, err := url.PathUnescape(id); err == nil {
+			h.w.tryFun(id)
+		}
+		return
+	}
 	t := help.Resolve(h.page.Slug, link)
 	switch {
 	case t.URL != "":

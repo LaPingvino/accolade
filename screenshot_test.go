@@ -702,3 +702,33 @@ func TestStoryboardFramesScreenshot(t *testing.T) {
 	f.Close()
 	pd.close()
 }
+
+// TestFunScreenshot: a new window, its drop line over the status bar and
+// Help > Fun Things to Try beside the script (SHOT_DIR as above).
+func TestFunScreenshot(t *testing.T) {
+	dir := os.Getenv("SHOT_DIR")
+	if dir == "" {
+		t.Skip("set SHOT_DIR to render screenshots")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	a := test.NewApp()
+	t.Cleanup(a.Quit)
+	w := NewMainWindow(&Application{fyneApp: a})
+	t.Cleanup(w.stopTimers)
+	w.fyneWindow.Resize(fyne.NewSize(1200, 750))
+	w.welcomeOnce()
+	w.showHelp("fun", "")
+	w.fyneWindow.Content().Refresh()
+	f, err := os.Create(filepath.Join(dir, "accolade-fun.png"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, w.fyneWindow.Canvas().Capture()); err != nil {
+		t.Fatal(err)
+	}
+}
