@@ -26,12 +26,43 @@ func onPagesShown(t *testing.T, f func(*pageView)) {
 	t.Cleanup(func() { pagesShownHook.Store(old) })
 }
 
+// pagesInto sends each page view shown into ch for this test, dropped
+// when ch is full: a send that blocked would hold whatever called
+// pagesShown (the test's own UI turn, under the at-once modes) for good
+// once the test stops reading.
+func pagesInto(t *testing.T, ch chan *pageView) {
+	t.Helper()
+	onPagesShown(t, func(v *pageView) {
+		select {
+		case ch <- v:
+		default:
+		}
+	})
+}
+
 // previewAndWait runs Preview PDF and waits for its pages.
 func previewAndWait(t *testing.T, w *MainWindow) *pageView {
 	t.Helper()
+	return pagesAfter(t, w.previewPDF)
+}
+
+// pagesAfter runs start and waits for the pages it shows, the hook put
+// back once they are there. The hook must not outlive the wait: a later
+// step's shows (CI, 2026-11-27: setDocumentType there and back, in the
+// test's UI turn) would fill the channel nobody reads any more and block
+// on it, the UI turn held, for good. Its send never blocks either.
+func pagesAfter(t *testing.T, start func()) *pageView {
+	t.Helper()
 	shown := make(chan *pageView, 4)
-	onPagesShown(t, func(v *pageView) { shown <- v })
-	w.previewPDF()
+	f := func(v *pageView) {
+		select {
+		case shown <- v:
+		default:
+		}
+	}
+	old := pagesShownHook.Swap(&f)
+	defer pagesShownHook.Store(old)
+	start()
 	return awaitPages(t, shown)
 }
 
@@ -464,7 +495,7 @@ func TestPageViewFollowsSettings(t *testing.T) {
 	v := previewAndWait(t, w)
 	with := len(v.d.Pages)
 	shown := make(chan *pageView, 4)
-	onPagesShown(t, func(v *pageView) { shown <- v })
+	pagesInto(t, shown)
 	w.changeSetting("include-title-page", func(s *Settings) { s.SetBoolean("include-title-page", false) })
 	select {
 	case v = <-shown:

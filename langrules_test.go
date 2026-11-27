@@ -196,7 +196,7 @@ func TestLangRulesScreenshots(t *testing.T) {
 			capture(t, w.fyneWindow.Canvas(), "langrules-"+c.name+"-editor-"+size.name+".png")
 			if c.name == "zh" {
 				shown := make(chan *pageView, 4)
-				onPagesShown(t, func(pv *pageView) { shown <- pv })
+				pagesInto(t, shown)
 				w.previewPDF()
 				select {
 				case <-shown:

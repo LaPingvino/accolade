@@ -190,7 +190,7 @@ func TestTitlePagePicture(t *testing.T) {
 		t.Fatal("a picture before there is one")
 	}
 	shown := make(chan *pageView, 4)
-	onPagesShown(t, func(v *pageView) { shown <- v })
+	pagesInto(t, shown)
 	w.textEditor.Edit(func(b *buffer.Buffer) { b.Replace(0, 0, "Picture: ![Art](art.png)\n") })
 	j := w.outputJob(w.pageSetup(), "pdf", w.textEditor.Text(), nil)
 	if len(j.titlePictures["art.png"]) == 0 {
@@ -268,7 +268,7 @@ func TestTitleTemplateScreenshots(t *testing.T) {
 	r.selectTab("Title Page")
 	shot("titletpl-1-tab-bold-preview.png")
 	shown := make(chan *pageView, 4)
-	onPagesShown(t, func(v *pageView) { shown <- v })
+	pagesInto(t, shown)
 	r.titleTpl.SetSelected("Poster") // the pages follow the page setup
 	v = awaitPages(t, shown)
 	painted(t, v, 0)
@@ -281,7 +281,7 @@ func TestTitleTemplateScreenshots(t *testing.T) {
 	artPNG(t, filepath.Join(filepath.Dir(w.currentFile), "art.png"))
 	w.pictures().Forget()
 	shown = make(chan *pageView, 4)
-	onPagesShown(t, func(v *pageView) { shown <- v })
+	pagesInto(t, shown)
 	w.textEditor.Edit(func(b *buffer.Buffer) { b.Replace(0, 0, "Picture: ![Key art](art.png)\n") })
 	w.previewPDF()
 	v = awaitPages(t, shown)

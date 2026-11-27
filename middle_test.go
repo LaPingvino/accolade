@@ -693,7 +693,7 @@ func TestMiddleScreenshots(t *testing.T) {
 		snap("9-stripboard")
 		w.showMiddle("")
 		shown := make(chan *pageView, 4)
-		onPagesShown(t, func(v *pageView) { shown <- v })
+		pagesInto(t, shown)
 		w.preview() // a phone's: the Pages tab next to Script; a desktop's: beside the script
 		awaitPages(t, shown)
 		snap("10-pages")
@@ -911,7 +911,7 @@ func TestMiddlePhonePages(t *testing.T) {
 	w.openMiddle("cards")
 	w.showMiddle("")
 	shown := make(chan *pageView, 4)
-	onPagesShown(t, func(v *pageView) { shown <- v })
+	pagesInto(t, shown)
 	w.preview()
 	awaitPages(t, shown)
 	if midTitles(w) != "Script [Pages] Cards" || w.mid.body != fyne.CanvasObject(w.pages) {

@@ -41,7 +41,7 @@ func mdPagesOf(t *testing.T, text string, size fyne.Size, before ...func(*MainWi
 	}
 	w.preview()
 	shown := make(chan *pageView, 8)
-	onPagesShown(t, func(v *pageView) { shown <- v })
+	pagesInto(t, shown)
 	w.previewPane.mode.SetSelected(previewText) // (Pages kept from before: shown again)
 	w.previewPane.mode.SetSelected(previewPages)
 	t.Cleanup(func() { w.settings.SetBoolean(previewPagesPref, false) })

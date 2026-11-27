@@ -73,10 +73,7 @@ func switchTo(t *testing.T, w *MainWindow, id string) {
 		w.showMiddle(id)
 		return
 	}
-	shown := make(chan *pageView, 4)
-	onPagesShown(t, func(v *pageView) { shown <- v })
-	w.showMiddle("")
-	awaitPages(t, shown)
+	pagesAfter(t, func() { w.showMiddle("") })
 }
 
 // previewIsOf checks that the preview shown is of tab id, and none of

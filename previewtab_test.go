@@ -293,7 +293,7 @@ func TestFollowEditsOffAndRefresh(t *testing.T) {
 		t.Error("no dot on Refresh")
 	}
 	shownCh := make(chan *pageView, 2)
-	onPagesShown(t, func(v *pageView) { shownCh <- v })
+	pagesInto(t, shownCh)
 	w.keyPreview(fyne.KeyF5, 0) // as the key comes, the script in focus
 	select {
 	case <-shownCh:
@@ -397,7 +397,7 @@ func TestPreviewTabMarkdown(t *testing.T) {
 		t.Fatalf("the tab %q, Pages %v", r.selected, r.byID["preview.pages"])
 	}
 	shown := make(chan *pageView, 4)
-	onPagesShown(t, func(v *pageView) { shown <- v })
+	pagesInto(t, shown)
 	r.byID["preview.pages"][0].press()
 	select {
 	case <-shown:
@@ -465,7 +465,7 @@ func TestPreviewTabScreenshots(t *testing.T) {
 		ribbonOnFor(t, m)
 		m.settings.SetBoolean(previewPagesPref, true)
 		shown := make(chan *pageView, 4)
-		onPagesShown(t, func(v *pageView) { shown <- v })
+		pagesInto(t, shown)
 		m.preview()
 		select {
 		case v = <-shown:
