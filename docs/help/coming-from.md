@@ -34,8 +34,8 @@ Every screenwriting app prints a PDF, so this is the way in that always works: F
 ## Trelby
 
 - **Open:** a `.trelby` file.
-- **What comes in:** every element, Trelby's notes as notes, its act breaks as sections, the title page.
-- **Save:** Save As… with the Trelby type, a copy for Trelby. Trelby keeps plain text: no bold or italics, no dual dialogue (the two speeches one after the other), no scene numbers (Trelby numbers scenes itself), no page breaks; a centred line is action there. Deeper sections and synopses go as notes that read back as what they were.
+- **What comes in:** every element, Trelby's notes as notes, its act breaks as sections, the title page; Fountain's emphasis in its text (`*italics*`, `**bold**`, `_underline_`) and a caret after a second speaker (`MARY ^`) as bold, italics, underline and dual dialogue.
+- **Save:** Save As… with the Trelby type, a copy for Trelby. Trelby keeps plain text, so bold, italics, underline and dual dialogue are written as those same Fountain markers, which show and print in Trelby as they are and read back as they were. No scene numbers (Trelby numbers scenes itself), no page breaks; a centred line is action there. Deeper sections and synopses go as notes that read back as what they were.
 
 ## KIT Scenarist
 
