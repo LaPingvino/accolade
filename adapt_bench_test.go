@@ -40,6 +40,16 @@ import (
 // its sums no longer ran in a map's order (0–3 before, from run to run),
 // both invented ones guessed.
 //
+// The cross-language pair (christmas-carol-fr, 2026-11-27): Barnett's
+// English play against a French translation of the story, the truth moved
+// onto the French by hand. Scenes 3 right, 1 wrong, 8 silent, invented
+// silent (English 12 right). The four guesses are a passage wide, found
+// by names and one cognate. The wrong one is a name clash: the play's
+// Caroline matched the novel's other Caroline. Align is 6 right, 6 wrong,
+// the same as in English, with no sure pair: it is the order, not words.
+// Each pair also logs what guesses as wide would hit by chance, and how
+// many of the script's words are in the source at all (French: 9%).
+//
 // The numbers are the same from run to run (TestAlignScenesSameEachTime).
 func TestAdaptBench(t *testing.T) {
 	if testing.Short() {
@@ -158,13 +168,25 @@ func benchSource(t *testing.T, dir string) []byte {
 	return src
 }
 
-func adaptBenchPair(t *testing.T, dir string) {
-	src := benchSource(t, dir)
-	scriptB, err := os.ReadFile(filepath.Join(dir, "script.fountain"))
+// benchScript is a pair's script.fountain, or the one its script.ref
+// names (the cross-language pair, a translated source, shares the
+// Christmas Carol's play).
+func benchScript(t *testing.T, dir string) string {
+	t.Helper()
+	path := filepath.Join(dir, "script.fountain")
+	if ref, err := os.ReadFile(filepath.Join(dir, "script.ref")); err == nil {
+		path = filepath.Join(dir, strings.TrimSpace(string(ref)))
+	}
+	b, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	script := string(scriptB)
+	return string(b)
+}
+
+func adaptBenchPair(t *testing.T, dir string) {
+	src := benchSource(t, dir)
+	script := benchScript(t, dir)
 	rows := readBenchMapping(t, filepath.Join(dir, "mapping.tsv"))
 	ps := passagesOf(string(src))
 	starts := []string{"INT.", "EXT.", "INT./EXT.", "I/E"}
@@ -215,6 +237,35 @@ func adaptBenchPair(t *testing.T, dir string) {
 	}
 	// scenes: the scene aligner (scene_align.go), silent when unsure
 	guesses := alignScenes(scenes, ps, nil)
+	// what overlapping by chance would give: a guess as wide as this one
+	// put anywhere overlaps a truth range of width w in about
+	// (w + width - 1) of the N places; summed over the scenes guessed
+	chance, words, inSource := 0.0, 0, 0
+	srcWords := map[string]bool{}
+	for _, p := range ps {
+		for _, w := range p.Words {
+			srcWords[w] = true
+		}
+	}
+	for k, r := range rows {
+		for w := range scenes[k].Words {
+			words++
+			if srcWords[w] {
+				inSource++
+			}
+		}
+		if g := guesses[k]; g.guessed() && len(r.ranges) > 0 {
+			hit := map[int]bool{}
+			width := g.Last - g.First + 1
+			for _, rg := range r.ranges {
+				for u := max(0, rg[0]-width+1); u <= rg[1] && u < len(ps); u++ {
+					hit[u] = true
+				}
+			}
+			chance += float64(len(hit)) / float64(len(ps))
+		}
+	}
+	t.Logf("%s: of the script's words (each once a scene) %d of %d (%.0f%%) are in the source at all", filepath.Base(dir), inSource, words, 100*float64(inSource)/float64(max(words, 1)))
 	var sa benchScore
 	byKind := map[string]*benchScore{}
 	var kinds []string
@@ -278,6 +329,7 @@ func adaptBenchPair(t *testing.T, dir string) {
 	}
 	report("align  ", al)
 	report("scenes ", sa)
+	t.Logf("%s scenes : right by chance, guesses as wide put anywhere: %.1f", filepath.Base(dir), chance)
 }
 
 func rangesString(rs [][2]int) string {

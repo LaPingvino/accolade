@@ -7,7 +7,12 @@
 //	go run ./testdata/adapt-bench/convert <pair> <story.txt> <play.txt>
 //
 // writes testdata/adapt-bench/<pair>/source.md and script.fountain (run
-// from the repository's root). The texts are Gutenberg's, fetched by hand
+// from the repository's root). A cross-language pair (a translation of
+// the story against another pair's play, named in its script.ref) takes
+// the story alone and writes only source.md:
+//
+//	go run ./testdata/adapt-bench/convert <pair> <story.txt>
+// The texts are Gutenberg's, fetched by hand
 // (see each pair's README.md); only the pairs below are known.
 package main
 
@@ -29,9 +34,20 @@ type pair struct {
 	playEnd                        string         // the play's last line (kept), its last occurrence
 	cue                            *regexp.Regexp // a speech's start: the cue as written, then the speech
 	cues                           map[string]string
+	subtitle                       bool           // a chapter's title on the line after its heading: joined to it
+	joinHyphens                    bool           // a word broken at a line's end after its hyphen (aurait-/il): joined with no space
 }
 
 var pairs = map[string]pair{
+	// the Christmas Carol in French against Barnett's play (script.ref):
+	// the cross-language pair
+	"christmas-carol-fr": {
+		title: "Cantique de Noël", storyEtext: 16021,
+		chapter:     regexp.MustCompile(`^(Premier|Deuxième|Troisième|Quatrième|Cinquième) couplet$`),
+		storyEnd:    "[1] Locution proverbiale en Angleterre.",
+		subtitle:    true,
+		joinHyphens: true,
+	},
 	"christmas-carol": {
 		title: "A Christmas Carol; or, The Miser's Warning!", author: "C. Z. Barnett",
 		adapter: "Adapted from Charles Dickens' A Christmas Carol", credit: "First produced at the Royal Surrey Theatre, 5 February 1844",
@@ -66,8 +82,8 @@ var pairs = map[string]pair{
 }
 
 func main() {
-	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "usage: convert <pair> <story.txt> <play.txt>")
+	if len(os.Args) != 4 && len(os.Args) != 3 {
+		fmt.Fprintln(os.Stderr, "usage: convert <pair> <story.txt> [<play.txt>]")
 		os.Exit(2)
 	}
 	p, ok := pairs[os.Args[1]]
@@ -77,11 +93,14 @@ func main() {
 	}
 	story, err := gutenbergBody(os.Args[2])
 	check(err)
-	play, err := gutenbergBody(os.Args[3])
-	check(err)
 	dir := filepath.Join("testdata", "adapt-bench", os.Args[1])
 	check(os.MkdirAll(dir, 0o755))
 	check(os.WriteFile(filepath.Join(dir, "source.md"), []byte(storyMarkdown(p, story)), 0o644))
+	if len(os.Args) == 3 {
+		return
+	}
+	play, err := gutenbergBody(os.Args[3])
+	check(err)
 	check(os.WriteFile(filepath.Join(dir, "script.fountain"), []byte(playFountain(p, play)), 0o644))
 }
 
@@ -149,6 +168,21 @@ func blocksOf(lines []string) []block {
 
 func (b block) text() string { return strings.Join(b.lines, " ") }
 
+// joined is the block's text with a word broken after its hyphen at a
+// line's end (aurait-/il, lui-/même) joined again, no space between.
+func (b block) joined() string {
+	var sb strings.Builder
+	for i, l := range b.lines {
+		sb.WriteString(l)
+		if i+1 < len(b.lines) && !(len(l) >= 2 && l[len(l)-1] == '-' && l[len(l)-2] != '-') {
+			sb.WriteString(" ")
+		}
+	}
+	return sb.String()
+}
+
+var footnoteMark = regexp.MustCompile(`\[\d+\]`)
+
 var illustration = regexp.MustCompile(`^\[Illustration`)
 
 // storyMarkdown: from the first chapter on, each chapter heading a ##
@@ -165,6 +199,10 @@ func storyMarkdown(p pair, lines []string) string {
 		if p.chapter.MatchString(first) {
 			started = true
 			h := strings.Join(strings.Fields(b.text()), " ")
+			if p.subtitle && i+1 < len(bs) {
+				i++
+				h += ": " + strings.Join(strings.Fields(bs[i].text()), " ")
+			}
 			// Jane Eyre: CHAPTER I alone on its line
 			fmt.Fprintf(&sb, "## %s\n\n", h)
 			continue
@@ -175,12 +213,16 @@ func storyMarkdown(p pair, lines []string) string {
 		if p.storyEnd != "" && first == p.storyEnd {
 			break
 		}
-		t := strings.Join(strings.Fields(b.text()), " ")
+		raw := b.text()
+		if p.joinHyphens {
+			raw = footnoteMark.ReplaceAllString(b.joined(), "") // the footnotes are left out
+		}
+		t := strings.Join(strings.Fields(raw), " ")
 		if t == "THE END" || t == "THE END." {
 			continue
 		}
-		if strings.HasPrefix(t, "#") || strings.HasPrefix(t, "-") || strings.HasPrefix(t, "*") || startsNumbered(t) {
-			t = `\` + t // not a heading, list or rule
+		if strings.HasPrefix(t, "#") || strings.HasPrefix(t, "-") && !strings.HasPrefix(t, "-- ") || strings.HasPrefix(t, "*") || startsNumbered(t) {
+			t = `\` + t // not a heading, list or rule (a dialogue dash, "-- ", is neither)
 		}
 		sb.WriteString(t + "\n\n")
 	}
@@ -197,6 +239,8 @@ func storyTitle(p pair) string {
 		return "A Christmas Carol"
 	case 1260:
 		return "Jane Eyre"
+	case 16021:
+		return "Cantique de Noël"
 	}
 	return p.title
 }
