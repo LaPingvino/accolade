@@ -39,7 +39,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols libfuse2
-          go install fyne.io/tools/cmd/fyne@latest
+          go install fyne.io/tools/cmd/fyne@v1.7.4
       - name: Package
         env:
           CGO_ENABLED: "1"
@@ -70,7 +70,7 @@ jobs:
           CGO_ENABLED: "1"
           VERSION: "${{ needs.version.outputs.version }}"
         run: |
-          go install fyne.io/tools/cmd/fyne@latest
+          go install fyne.io/tools/cmd/fyne@v1.7.4
           fyne package --target windows --release --app-version "${VERSION%%-*}"
           mkdir -p dist build
           mv Accolade.exe build/
@@ -104,7 +104,7 @@ jobs:
           CGO_LDFLAGS: ${{ matrix.arch == 'amd64' && '-arch x86_64' || '' }}
           VERSION: ${{ needs.version.outputs.version }}
         run: |
-          GOARCH= go install fyne.io/tools/cmd/fyne@latest
+          GOARCH= CGO_CFLAGS= CGO_LDFLAGS= go install fyne.io/tools/cmd/fyne@v1.7.4
           fyne package --target darwin --release --app-version "${VERSION%%-*}"
           mkdir -p dist
           ditto -c -k --keepParent Accolade.app "dist/Accolade-${VERSION}-macos-${{ matrix.arch }}.zip"
