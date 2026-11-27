@@ -6,6 +6,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"github.com/LaPingvino/lexington/cli"
+	"io"
 	"log"
 	"net/url"
 	"os"
@@ -61,36 +62,6 @@ func NewApplication() *Application {
 // setupMetadata used to set the name and version here; they now come from
 // FyneApp.toml, which the fyne tool embeds when packaging.
 func (app *Application) setupMetadata() {}
-
-// version is set when building (-ldflags "-X main.version=$(git describe
-// --tags)": the package and the web version do).
-var version string
-
-// appVersion is Accolade's version: as built, else the commit and date
-// Go recorded, else "dev".
-func appVersion() string {
-	if version != "" {
-		return version
-	}
-	if bi, ok := debug.ReadBuildInfo(); ok {
-		var rev, at string
-		for _, kv := range bi.Settings {
-			switch kv.Key {
-			case "vcs.revision":
-				rev = kv.Value
-			case "vcs.time":
-				at = kv.Value
-			}
-		}
-		if len(rev) >= 7 {
-			if len(at) >= 10 {
-				return "dev " + rev[:7] + " (" + at[:10] + ")"
-			}
-			return "dev " + rev[:7]
-		}
-	}
-	return "dev"
-}
 
 func (app *Application) setupLifecycle() {
 	app.fyneApp.SetIcon(nil) // TODO: Set app icon
@@ -294,7 +265,7 @@ func (app *Application) showAbout() {
 		centered("Version "+appVersion()),
 		centered("A screenplay editor for Fountain:\nthe script laid out as it prints, with Lexington's exports."),
 		widget.NewSeparator(),
-		centered("Lexington "+moduleVersion("github.com/LaPingvino/lexington")+"\nFyne "+moduleVersion("fyne.io/fyne/v2")),
+		centered("Lexington "+moduleVersion(lexingtonModule)+"\nFyne "+moduleVersion("fyne.io/fyne/v2")),
 		link("Website", "https://github.com/LaPingvino/accolade"),
 		link("Report an issue", "https://github.com/LaPingvino/accolade/issues"),
 		widget.NewSeparator(),
@@ -424,10 +395,10 @@ func main() {
 	// options (accolade -i script.fountain -o script.pdf): Lexington's
 	// command line, without a window
 	if len(os.Args) > 1 && strings.HasPrefix(os.Args[1], "-") && os.Args[1] != "-" {
-		ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		code := cli.Main(ctx, os.Args[1:])
-		cancel()
-		os.Exit(code)
+		if wantsVersion(os.Args[1:]) {
+			app.NewWithID(AppID) // the packaged metadata is read through the app
+		}
+		os.Exit(runCLI(os.Args[1:], os.Stdout))
 	}
 
 	// Create application
@@ -435,6 +406,19 @@ func main() {
 
 	// Run application
 	app.Run(os.Args)
+}
+
+// runCLI is accolade with options: -version (Accolade's own version, and
+// the Lexington built in) or Lexington's command line.
+func runCLI(args []string, out io.Writer) int {
+	if wantsVersion(args) {
+		fmt.Fprintln(out, versionLine())
+		return 0
+	}
+	cli.Version = moduleVersion(lexingtonModule) // the Lexington built in
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+	return cli.Main(ctx, args)
 }
 
 // Helper function to show error dialog
@@ -469,7 +453,7 @@ func moduleVersion(path string) string {
 func getDebugInfo() string {
 	info := fmt.Sprintf("Accolade %s\n", appVersion())
 	info += fmt.Sprintf("Fyne: %s\n", moduleVersion("fyne.io/fyne/v2"))
-	info += fmt.Sprintf("Lexington: %s (built in)\n", moduleVersion("github.com/LaPingvino/lexington"))
+	info += fmt.Sprintf("Lexington: %s (built in)\n", moduleVersion(lexingtonModule))
 
 	return info
 }

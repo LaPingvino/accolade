@@ -30,8 +30,8 @@ jobs:
     # build on the oldest supported Ubuntu so the binaries run on older distributions
     runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -46,11 +46,24 @@ jobs:
           VERSION: "${{ needs.version.outputs.version }}"
         run: |
           mkdir -p dist
-          fyne package --target linux --release --tags accessibility --app-version "${VERSION%%-*}"
+          # the version: the Fyne metadata (--app-version), and -X main.version
+          # for what is built without fyne package (the AppImage)
+          GOFLAGS="-ldflags=-X=main.version=${VERSION}" fyne package --target linux --release --tags accessibility --app-version "${VERSION%%-*}"
           mv Accolade.tar.xz "dist/Accolade-${VERSION}-linux-x86_64.tar.xz"
-          go build -trimpath -tags accessibility -ldflags="-s -w" -o accolade .
+          go build -trimpath -tags accessibility -ldflags="-s -w -X main.version=${VERSION}" -o accolade .
           packaging/linux/build-appimage.sh ./accolade "$VERSION" dist
-      - uses: actions/upload-artifact@v4
+      - name: The builds know their version
+        env:
+          VERSION: "${{ needs.version.outputs.version }}"
+        run: |
+          ./accolade --version | tee version.txt
+          grep -q "^Accolade ${VERSION}" version.txt
+          mkdir -p "$RUNNER_TEMP/tar"
+          tar -xJf "dist/Accolade-${VERSION}-linux-x86_64.tar.xz" -C "$RUNNER_TEMP/tar"
+          bin=$(find "$RUNNER_TEMP/tar" -path '*/bin/*' -type f | head -1)
+          "$bin" --version | tee version.txt
+          grep -q "^Accolade ${VERSION%%-*}" version.txt
+      - uses: actions/upload-artifact@v7
         with:
           name: linux
           path: dist/*
@@ -59,8 +72,8 @@ jobs:
     needs: version
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -71,15 +84,17 @@ jobs:
           VERSION: "${{ needs.version.outputs.version }}"
         run: |
           go install fyne.io/tools/cmd/fyne@v1.7.4
-          fyne package --target windows --release --app-version "${VERSION%%-*}"
+          GOFLAGS="-ldflags=-X=main.version=${VERSION}" fyne package --target windows --release --app-version "${VERSION%%-*}"
           mkdir -p dist build
           mv Accolade.exe build/
+          ./build/Accolade.exe --version | tee version.txt
+          grep -q "^Accolade ${VERSION%%-*}" version.txt
           (cd build && 7z a "../dist/Accolade-${VERSION}-windows-x64-portable.zip" Accolade.exe ../LICENSE)
       - name: Installer (Inno Setup)
         shell: pwsh
         run: |
           & "${env:ProgramFiles(x86)}\Inno Setup 6\iscc.exe" "/DAppVersion=${{ needs.version.outputs.version }}" "/DSourceDir=$env:GITHUB_WORKSPACE\build" packaging\windows\accolade.iss
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows
           path: dist/*
@@ -91,8 +106,8 @@ jobs:
       matrix:
         arch: [arm64, amd64]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
           cache: true
@@ -105,10 +120,13 @@ jobs:
           VERSION: ${{ needs.version.outputs.version }}
         run: |
           GOARCH= CGO_CFLAGS= CGO_LDFLAGS= go install fyne.io/tools/cmd/fyne@v1.7.4
-          fyne package --target darwin --release --app-version "${VERSION%%-*}"
+          GOFLAGS="-ldflags=-X=main.version=${VERSION}" fyne package --target darwin --release --app-version "${VERSION%%-*}"
+          bin=$(find Accolade.app/Contents/MacOS -type f | head -1)
+          "$bin" --version | tee version.txt
+          grep -q "^Accolade ${VERSION%%-*}" version.txt
           mkdir -p dist
           ditto -c -k --keepParent Accolade.app "dist/Accolade-${VERSION}-macos-${{ matrix.arch }}.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: macos-${{ matrix.arch }}
           path: dist/*
@@ -118,7 +136,7 @@ jobs:
     needs: [version, linux, windows, macos]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
