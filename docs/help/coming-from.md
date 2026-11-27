@@ -1,6 +1,6 @@
 # Coming from Another App
 
-Whatever you wrote your script in, it can come into Accolade, and go back out to the people who still use that app. Accolade reads and writes these through Lexington, its own converter: the same formats are on its command line (`lexington convert old.fadein new.fountain`, [Lexington on the Command Line](lexington.md)).
+Whatever you wrote your script in, it can come into Accolade, and go back out to the people who still use that app. Accolade reads and writes these through Lexington, its own converter: the same formats are on its command line (`lexington old.fadein new.fountain`, [Lexington on the Command Line](lexington.md)).
 
 Every import opens as a new, unsaved script; Save puts it in a .fountain (or an .accolade) and leaves the original as it was. Check it once: each app keeps some things Fountain has another way of writing.
 

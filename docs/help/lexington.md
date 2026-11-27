@@ -13,7 +13,7 @@ Lexington is the converter inside Accolade: it reads and prints every script Acc
 
 Lexington reads Fountain, FDX (Final Draft), Fade In (`.fadein`, `.osf`), Trelby (`.trelby`), KIT Scenarist (`.kitsp`), its own lex format and PDF. A PDF is read back into a script by its indents (Lexington's own, Final Draft's, Highland's, Fade In's, Word's); a scan with only images is read with OCR when tesseract is installed. The input format comes from the file name, else from what the file holds, or `-from`.
 
-`lexington convert IN OUT` converts any of them into any format below, each by its name: `lexington convert script.pdf script.fountain`, `lexington convert film.fadein film.fdx`. Other options go before or after the two files. See [Coming from Another App](coming-from.md).
+`lexington IN OUT` (or `lexington -i IN -o OUT`) converts any of them into any format below, each by its name, else the input by its content: `lexington script.pdf script.fountain`, `lexington -i film.fadein -o film.fdx`. Other options go before, between or after the two files. See [Coming from Another App](coming-from.md).
 
 It writes the formats below; the output format comes from the file name, or `-to`.
 
