@@ -329,7 +329,7 @@ func (w *MainWindow) itemsIn(ed *editor.ScriptEditor, markdown bool) []openItem 
 	}
 	text := ed.Text()
 	starts := w.sceneStarts()
-	items := openItemsOf(text, starts, markdown)
+	items := openItemsOf(text, starts, markdown, w.everySectionBeat)
 	found := proseItemsOf
 	if !markdown {
 		found = func(text string) []openItem { return checkItemsOf(text, starts) }

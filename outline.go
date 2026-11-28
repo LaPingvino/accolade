@@ -298,7 +298,7 @@ func (o *outlinePanel) refresh() {
 	o.all = o.itemsOf(d)
 	o.beats, o.lands = nil, nil
 	if d.kind == docScript && !w.markdown {
-		o.beats = sectionBeats(d.Text(), w.sceneStarts(), o.all)
+		o.beats = sectionBeats(d.Text(), w.sceneStarts(), o.all, w.everySectionBeat)
 		o.lands = w.landings(o.all, false)
 	}
 	switch {

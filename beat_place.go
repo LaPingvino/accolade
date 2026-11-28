@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
+	"github.com/LaPingvino/lexington/lex"
 	"github.com/LaPingvino/lexington/pdf"
 )
 
@@ -36,6 +37,7 @@ type beatPlace struct {
 	lo, hi      float64      // its typical range, if has
 	film        *filmMeasure // where films put it (beat_films.go), nil: the range is the convention
 	has         bool
+	aim         beatAim // what the structure's section is for, and its tension (tension 0: none)
 }
 
 // rng is the place's range, measured or the convention.
@@ -55,6 +57,15 @@ func (b beatPlace) off() bool {
 // usually is its range as the marks say it: "usually 19–31%, measured".
 func (b beatPlace) usually() string {
 	return fmt.Sprintf("usually %.0f–%.0f%%, %s", b.lo, b.hi, b.rng().kind())
+}
+
+// aimNote is what the section is for, as the tooltip and the list say
+// it: "Lock the hero into the story · tension 3 of 5", "" for none.
+func (b beatPlace) aimNote() string {
+	if b.aim.tension == 0 {
+		return ""
+	}
+	return b.aim.purpose + " · " + b.aim.tensionWord()
 }
 
 // String is how the readout and the list say it.
@@ -77,6 +88,14 @@ func (b beatPlace) advice() string {
 	return fmt.Sprintf("%s comes late: page %d of %d (%.0f%%), usually %.0f–%.0f%% (%s): what before it could go or be shorter?", b.name, b.page, b.pages, b.pct, b.lo, b.hi, b.rng().source())
 }
 
+// adviceWithAim is the advice, with what the section is for.
+func (b beatPlace) adviceWithAim() string {
+	if a := b.aimNote(); a != "" {
+		return b.advice() + " · aim: " + a
+	}
+	return b.advice()
+}
+
 // sectionKey is a section's name as names are matched: letters and
 // digits in lower case, one space between.
 func sectionKey(s string) string {
@@ -88,7 +107,7 @@ func templateSections(t structureTemplate) map[string]bool {
 	out := map[string]bool{}
 	for _, l := range strings.Split(t.body, "\n") {
 		if strings.HasPrefix(l, "#") {
-			out[sectionKey(strings.TrimLeft(l, "#"))] = true
+			out[sectionKey(lex.SectionText(l))] = true // without its [[beat]]
 		}
 	}
 	return out
@@ -154,6 +173,7 @@ func placesOf(text string, starts []string, d pdf.Drawing) (places []beatPlace, 
 			if r, ok := t.ranges[sectionKey(o.Text)]; ok {
 				b.lo, b.hi, b.film, b.has = r.lo, r.hi, r.film, true
 			}
+			b.aim = t.aims[sectionKey(o.Text)]
 		}
 		places = append(places, b)
 	}
@@ -260,6 +280,9 @@ func (w *MainWindow) beatsNamed() string {
 	}
 	if k := w.placeAtCursor(places); k >= 0 {
 		name += ": " + places[k].String()
+		if a := places[k].aimNote(); a != "" {
+			name += ". Its aim: " + a
+		}
 	}
 	if structure != "" {
 		name += " — ranges of " + structure + ": " + rangesNote(structure)
@@ -284,10 +307,13 @@ func (w *MainWindow) beatsMenu() *fyne.Menu {
 	var items []*fyne.MenuItem
 	for _, p := range places {
 		label := strings.Repeat("   ", max(0, p.level-1)) + p.String()
+		if p.aim.tension > 0 { // the tension meant, to read down the list (plain digits: no symbol the fonts may lack)
+			label += fmt.Sprintf(" · tension %d/5", p.aim.tension)
+		}
 		if p.off() {
 			label = "⚑ " + label
 		}
-		items = append(items, fyne.NewMenuItem(label, func() { w.goToScript(p.line); w.setStatus(p.advice()) }))
+		items = append(items, fyne.NewMenuItem(label, func() { w.goToScript(p.line); w.setStatus(p.adviceWithAim()) }))
 	}
 	if len(items) == 0 {
 		say := "No # sections to place yet"
@@ -300,7 +326,9 @@ func (w *MainWindow) beatsMenu() *fyne.Menu {
 	} else if structure != "" {
 		note := fyne.NewMenuItem("Ranges: "+structure+"'s, "+rangesNote(structure), nil)
 		note.Disabled = true
-		items = append(items, fyne.NewMenuItemSeparator(), note)
+		bars := fyne.NewMenuItem("Tension: how tense each beat is meant to feel, 1 calm to 5 the most (Help > Structure)", nil)
+		bars.Disabled = true
+		items = append(items, fyne.NewMenuItemSeparator(), note, bars)
 	}
 	return fyne.NewMenu("Where the Beats Land", items...)
 }
@@ -386,6 +414,30 @@ func beatCommands() []*command {
 		{id: "revision.previousOff", label: "Previous Section Off Its Range", ribbonLabel: "Previous Off", ex: "previous-off-range", icon: theme.NavigateBackIcon,
 			tip:  "The section before the cursor's landing outside its usual range",
 			when: script, run: func(w *MainWindow) { w.stepOff(-1) }},
+		{id: "set.everySectionBeat", label: "Every Section Is a Beat", ex: "every-section-beat", icon: theme.ListIcon,
+			tip: "On: every # section is a beat (in the Notes pane, the counts, the cards), marked [[beat]] or not. " +
+				"Off (the default): only sections marked [[beat]] and synopses standing on their own. The script's own, kept in its .accolade",
+			when: script, checked: func(w *MainWindow) bool { return w.everySectionBeat },
+			run: (*MainWindow).toggleEverySectionBeat},
+	}
+}
+
+// toggleEverySectionBeat turns Every Section Is a Beat on or off for the
+// script (a change to save, as its .accolade keeps it) and shows the
+// beats again where they are read.
+func (w *MainWindow) toggleEverySectionBeat() {
+	w.everySectionBeat = !w.everySectionBeat
+	w.hasChanges = true
+	w.updateTitle()
+	if w.notes != nil {
+		w.notes.read()
+	}
+	w.updateOpen()
+	w.beatsLanded()
+	if w.everySectionBeat {
+		w.setStatus("Every section is a beat now, marked [[beat]] or not (this script's setting)")
+	} else {
+		w.setStatus("Only sections marked [[beat]] and synopses on their own are beats now (this script's setting)")
 	}
 }
 

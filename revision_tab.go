@@ -631,7 +631,7 @@ func revisionCommands() []*command {
 				}
 			}},
 		{id: "revision.dismiss", label: "Dismiss Item", ribbonLabel: "Dismiss", ex: "dismiss-item", icon: theme.VisibilityOffIcon,
-			tip:  "A finding out of sight, a line beside the document or in its notes, as Dismissed in Document says (opening the file again keeps it so; deleting the line brings it back); a note, to-do or revision note taken out of the script (Undo brings it back)",
+			tip:  "A finding out of sight, a line beside the document or in its notes, as Dismissed in Doc says (opening the file again keeps it so; deleting the line brings it back); a note, to-do or revision note taken out of the script (Undo brings it back)",
 			when: script, enabled: func(e cmdEnv) bool { return e.rev.dismissable }, run: (*MainWindow).dismissCurrent},
 		{id: "revision.done", label: "Mark To-do Done", ribbonLabel: "Done", ex: "todo-done", icon: theme.ConfirmIcon,
 			tip:  "The to-do at the cursor written as done, [[done: …]] (again: to do again)",
@@ -648,7 +648,7 @@ func revisionCommands() []*command {
 		{id: "revision.removeDone", label: "Remove Done To-dos…", ribbonLabel: "Remove Done", ex: "remove-done", icon: theme.DeleteIcon,
 			tip:  "Every done to-do taken out of the script, one undo step",
 			when: script, enabled: func(e cmdEnv) bool { return e.rev.doneTodos > 0 }, run: (*MainWindow).removeDoneTodos},
-		{id: "revision.restoreScene", label: "Restore Cuts in This Scene…", ribbonLabel: "Restore Scene's Cuts", ex: "restore-scene-cuts", icon: theme.ContentUndoIcon,
+		{id: "revision.restoreScene", label: "Restore Cuts in This Scene…", ribbonLabel: "Restore in Scene", ex: "restore-scene-cuts", icon: theme.ContentUndoIcon,
 			tip:  "Every cut in the cursor's scene back in the script, one undo step",
 			when: func(e cmdEnv) bool { return !e.away && !e.markdown }, enabled: func(e cmdEnv) bool { return e.rev.sceneCuts > 0 }, run: (*MainWindow).restoreSceneCuts},
 	}
@@ -679,6 +679,8 @@ func revisionTab() ribbonTab {
 			at("revision.restore"), at("revision.newScene"), at("revision.edit")}},
 		{title: "All at Once", homes: []home{at("revision.removeDone"), at("revision.restoreScene"), at("revision.dismissInDoc")}},
 		// a statistic with its call to action (beat_place.go)
-		{title: "Beats", when: func(e cmdEnv) bool { return !e.markdown }, homes: []home{big("revision.beats"), at("revision.nextOff"), at("revision.previousOff")}},
+		{title: "Beats", when: func(e cmdEnv) bool { return !e.markdown }, homes: []home{big("revision.beats"), at("revision.nextOff"), at("revision.previousOff"), at("write.insertStructure")},
+			// its settings, behind its launcher
+			more: []home{at("set.everySectionBeat")}},
 	}}
 }

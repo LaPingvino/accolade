@@ -329,7 +329,7 @@ func (w *MainWindow) openOutline(path string) error {
 // pasteStructure is Edit › Paste as Structure: an outline on the
 // clipboard (OPML, or indented lines copied from Workflowy,
 // OmniOutliner, a list) put in as sections, synopses and beats at the
-// cursor's section boundary, as Insert Structure puts a structure, one
+// cursor's section boundary, as Insert Beats / Structure puts a structure, one
 // undo step.
 func (w *MainWindow) pasteStructure() {
 	cb := w.clipboard()

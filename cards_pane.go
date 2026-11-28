@@ -153,7 +153,7 @@ func (c *cardsPane) update(text string) {
 	c.of = c.w.scriptKey()
 	c.items = c.w.outlineItems(text)
 	c.dots = c.w.peersInScenes(c.items) // who is in which (collab_cursors.go)
-	all := scriptBeats(text, c.items)
+	all := scriptBeats(text, c.items, c.w.everySectionBeat)
 	c.beats = beatsByItem(all)
 	c.showUnplaced(unplacedBeats(strings.Split(text, "\n"), all))
 	if c.row == 0 {

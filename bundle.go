@@ -122,11 +122,14 @@ type accoladeInfo struct {
 	// rules.StandardTitlePage for Fountain's; one of one's own is carried
 	// in an .accolade (lexington_carried.go).
 	TitlePage string `json:"titlePage,omitempty"`
+	// EverySectionBeat: every section of the script is a beat, marked
+	// [[beat]] or not (beatsOf; the script's setting)
+	EverySectionBeat bool `json:"everySectionBeat,omitempty"`
 }
 
 func (a accoladeInfo) empty() bool {
 	return a.DocumentType == "" && a.Source == "" && a.Drafts == "" && !a.HighlandWarned &&
-		a.Language == "" && a.FountainHash == "" && !a.NoFountainCopy && a.Format == "" && a.TitlePage == ""
+		a.Language == "" && a.FountainHash == "" && !a.NoFountainCopy && a.Format == "" && a.TitlePage == "" && !a.EverySectionBeat
 }
 
 // textBundle is a bundle as read (Lexington's: where it is, its form and
@@ -361,6 +364,8 @@ type bundleSave struct {
 	format string
 	// titlePage is the script's title page template (titlepage_choice.go)
 	titlePage string
+	// everySectionBeat is the script's Every Section Is a Beat
+	everySectionBeat bool
 	// form is the form asked for (Save As's Accolade folder; notBundle:
 	// the bundle's own for its file, else as the name has it)
 	form bundleKind
@@ -433,7 +438,7 @@ func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error
 			textName = "text.md"
 		}
 		info := newBundleInfo(s.markdown)
-		ours := accoladeInfo{Version: 1, HighlandWarned: s.highlandWarned, Drafts: draftsIndexIn(s.extra)}
+		ours := accoladeInfo{Version: 1, HighlandWarned: s.highlandWarned, Drafts: draftsIndexIn(s.extra), EverySectionBeat: s.everySectionBeat}
 		if s.source != nil {
 			ours.Source = bundleSourceName
 		}
@@ -460,6 +465,7 @@ func saveBundleText(b *textBundle, dst string, s bundleSave) (*textBundle, error
 	}
 	ours.HighlandWarned = ours.HighlandWarned || s.highlandWarned
 	ours.Drafts = cmp.Or(draftsIndexIn(s.extra), ours.Drafts)
+	ours.EverySectionBeat = s.everySectionBeat
 	files, gone := s.language(&ours, b.textName, b.native, b.noText)
 	carried, old := s.carried(&ours, dst, b.carriedNames)
 	files, gone = append(append(files, carried...), s.extra...), append(gone, old...)

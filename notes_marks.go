@@ -135,14 +135,14 @@ func (w *MainWindow) marksShown() map[int]color.Color {
 // sectionBeats are the beats no scene grew from under each section, by
 // the section's line (-1: before the first): the outline's and the
 // cards' to-do marks.
-func sectionBeats(text string, starts []string, items []outlineItem) map[int][]int {
-	return beatsBySection(scriptBeats(text, items))
+func sectionBeats(text string, starts []string, items []outlineItem, everySection bool) map[int][]int {
+	return beatsBySection(scriptBeats(text, items, everySection))
 }
 
 // scriptBeats are the script's beats no scene grew from (beatsOf).
-func scriptBeats(text string, items []outlineItem) []beatAt {
+func scriptBeats(text string, items []outlineItem, everySection bool) []beatAt {
 	lines := strings.Split(text, "\n")
-	return beatsOf(lines, items, titlePageEnd(lines), endLine(text, fountainBodyEnd(text)))
+	return beatsOf(lines, items, titlePageEnd(lines), endLine(text, fountainBodyEnd(text)), everySection)
 }
 
 // unplacedBeats are the beats before the first heading, as the cards

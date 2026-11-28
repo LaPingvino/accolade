@@ -44,7 +44,7 @@ func TestProseKeepAndDismiss(t *testing.T) {
 		t.Errorf("the kept note does not stand for its finding: %+v", f)
 	}
 	var rev []openItem
-	for _, o := range openItemsOf(kept, nil, true) {
+	for _, o := range openItemsOf(kept, nil, true, false) {
 		if o.Kind == openRevision {
 			rev = append(rev, o)
 		}

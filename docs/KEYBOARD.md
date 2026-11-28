@@ -178,7 +178,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Swap… | `structure.swap` |  |  |  | E W | :swap |
 | Move… | `structure.move` |  |  |  | E V | :move-range |
 | New from Structure | `file.newStructure` |  |  |  |  | :new-from-structure |
-| Insert Structure | `write.insertStructure` |  |  |  |  | :structure |
+| Insert Beats / Structure | `write.insertStructure` |  |  |  | R I | :structure |
 | Outline | `view.outline` | Ctrl+Shift+O | Cmd+Shift+O | Ctrl+Shift+O | V O | :outline |
 | Notes | `view.notes` |  |  |  | V N | :notes |
 | Characters | `view.characters` |  |  |  | V C | :characters |
@@ -331,6 +331,7 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Where the Beats Land | `revision.beats` |  |  |  | R S | :where-beats-land |
 | Next Section Off Its Range | `revision.nextOff` |  |  |  | R E | :next-off-range |
 | Previous Section Off Its Range | `revision.previousOff` |  |  |  | R V | :previous-off-range |
+| Every Section Is a Beat | `set.everySectionBeat` |  |  |  |  | :every-section-beat |
 | Follow | `session.follow` |  |  |  |  | :follow |
 | Stop Following | `session.stopFollowing` |  |  |  |  | :stop-following |
 | Copy the Link | `session.copyLink` |  |  |  |  | :copy-link |

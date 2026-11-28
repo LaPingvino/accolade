@@ -275,7 +275,7 @@ func (w *MainWindow) dismissedAfterRename(oldPath, newPath string) {
 
 // dismissedPlaceCommand is the setting, on the Revision tab.
 func dismissedPlaceCommand() *command {
-	return &command{id: "revision.dismissInDoc", label: "Keep Dismissed Findings in the Document", ribbonLabel: "Dismissed in Document",
+	return &command{id: "revision.dismissInDoc", label: "Keep Dismissed Findings in the Document", ribbonLabel: "Dismissed in Doc",
 		ex: "dismissed-in-document", icon: theme.VisibilityOffIcon,
 		tip:     "On: dismissed findings are a paragraph in the document's notes block. Off (the default): beside it (in a bundle, or a .dismissed file next to the file), the document kept clean. Switching moves them",
 		checked: (*MainWindow).dismissInDocument,

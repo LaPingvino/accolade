@@ -54,7 +54,7 @@ func TestKeepFinding(t *testing.T) {
 	if f := checkItemsOf(kept, en); len(f) != 0 {
 		t.Errorf("the finding still there beside its note: %+v", f)
 	}
-	notes := openItemsOf(kept, en, false)
+	notes := openItemsOf(kept, en, false, false)
 	if len(notes) != 1 || notes[0].Kind != openRevision || notes[0].Text != items[0].Text || !notes[0].open() {
 		t.Errorf("the revision note: %+v", notes)
 	}
@@ -73,12 +73,12 @@ func TestDoneTodos(t *testing.T) {
 		}
 	}
 	text := "INT. A - DAY\n\nHi. [[todo: call Bram]]\n"
-	it := openItemsOf(text, nil, false)[0]
+	it := openItemsOf(text, nil, false, false)[0]
 	done := it.doneEdit(false).apply(text)
 	if done != "INT. A - DAY\n\nHi. [[done: call Bram]]\n" {
 		t.Fatalf("done: %q", done)
 	}
-	d := openItemsOf(done, nil, false)[0]
+	d := openItemsOf(done, nil, false, false)[0]
 	if d.Kind != openTodo || !d.Done || d.open() {
 		t.Errorf("a done to-do: %+v", d)
 	}
@@ -187,7 +187,7 @@ func TestRevisionStepping(t *testing.T) {
 // another scene's.
 func TestSceneCuts(t *testing.T) {
 	text := "INT. A - DAY\n\n/* INT. X - DAY\n\nOne.\n*/\n\n/* INT. Y - DAY\n\nTwo.\n*/\n\nINT. B - DAY\n\n/* INT. Z - DAY\n\nThree.\n*/\n"
-	items := openItemsOf(text, nil, false)
+	items := openItemsOf(text, nil, false, false)
 	if got := sceneCuts(items, text, 3, nil, false); len(got) != 2 {
 		t.Errorf("A's cuts: %+v", got)
 	}

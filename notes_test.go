@@ -315,12 +315,12 @@ func TestNotesPaneEditTwice(t *testing.T) {
 func TestBeatAtTheEnd(t *testing.T) {
 	for _, text := range []string{"# One\n\n= Own.\n\n= Last beat", "# One\n\n= Own.\n\n= Last beat\n\n/* Notes\nx\n*/\n"} {
 		n := 0
-		for _, it := range openItemsOf(text, nil, false) {
+		for _, it := range openItemsOf(text, nil, false, false) {
 			if it.Kind == openBeat {
 				n++
 			}
 		}
-		marks := sectionBeats(text, nil, outlineOf(text, nil))
+		marks := sectionBeats(text, nil, outlineOf(text, nil), false)
 		if n != 1 || len(marks[0]) != 1 {
 			t.Errorf("%q: %d beats in the pane, %v on the mark", text, n, marks)
 		}

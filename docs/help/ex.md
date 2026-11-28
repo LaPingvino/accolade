@@ -206,7 +206,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:footnote** — Format > Footnote (Markdown)
 - **:go-note** — Format > Go to Note or Reference (Markdown)
 - **:renumber-notes** — Format > Renumber Notes (Markdown)
-- **:structure** `item` — A structure's sections and synopses put in after the cursor's section (before the next # section), one undo step (Format > Insert Structure) (screenplay)
+- **:structure** `item` — A structure's beats (sections and synopses) put in after the cursor's section (before the next # section), one undo step (Format > Insert Beats / Structure) (screenplay)
 - **:note** — A note at the cursor, never printed: [[…]] (Markdown: <!-- … -->); [[todo: …]] makes it a to-do (Format > Add Note)
 - **:unsorted-note** — A note about the whole script, not tied to a place: kept at its end, listed in the Notes pane (Format > New Unsorted Note)
 
@@ -400,7 +400,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:previous-item** — The open item before the cursor's, of the kinds shown (Revision > Step > Previous Open Item)
 - **:open-items** — Where the cursor is among the open items: the Notes pane lists them (Revision > Step > Open Items)
 - **:keep-finding** — The finding at the cursor written into the text as a revision note ([[revision: …]] at its line's end; in Markdown <!-- revision: … --> under its paragraph): saved with it, picked up later (Revision > Item > Keep as Revision Note)
-- **:dismiss-item** — A finding out of sight, a line beside the document or in its notes, as Dismissed in Document says (opening the file again keeps it so; deleting the line brings it back); a note, to-do or revision note taken out of the script (Undo brings it back) (Revision > Item > Dismiss Item)
+- **:dismiss-item** — A finding out of sight, a line beside the document or in its notes, as Dismissed in Doc says (opening the file again keeps it so; deleting the line brings it back); a note, to-do or revision note taken out of the script (Undo brings it back) (Revision > Item > Dismiss Item)
 - **:todo-done** — The to-do at the cursor written as done, [[done: …]] (again: to do again) (Revision > Item > Mark To-do Done)
 - **:restore-cut** — The boneyard at the cursor back in the script: its /* */ taken away (an omitted scene with its number) (Revision > Item > Restore Cut)
 - **:beat-scene** — The beat at the cursor grown into a scene: New Scene's form, the beat its synopsis (Revision > Item > New Scene from Beat) (screenplay)
@@ -417,6 +417,7 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:where-beats-land** `item` — Each section's page and place in the script, beside its structure's usual range; each goes there (Revision > Beats > Where the Beats Land) (screenplay)
 - **:next-off-range** — The next section landing outside its structure's usual range, and what to do about it (Revision > Beats > Next Section Off Its Range) (screenplay)
 - **:previous-off-range** — The section before the cursor's landing outside its usual range (Revision > Beats > Previous Section Off Its Range) (screenplay)
+- **:every-section-beat** — On: every # section is a beat (in the Notes pane, the counts, the cards), marked [[beat]] or not. Off (the default): only sections marked [[beat]] and synopses standing on their own. The script's own, kept in its .accolade (Revision > Beats > More… > Every Section Is a Beat) (screenplay)
 
 ### Session
 

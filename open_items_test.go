@@ -57,7 +57,7 @@ Check the lake * / scene.
 `
 
 func TestOpenItems(t *testing.T) {
-	items := openItemsOf(openSample, nil, false)
+	items := openItemsOf(openSample, nil, false, false)
 	type want struct {
 		kind  openKind
 		text  string
@@ -113,7 +113,7 @@ func TestTodoNote(t *testing.T) {
 }
 
 func TestOpenEdits(t *testing.T) {
-	items := openItemsOf(openSample, nil, false)
+	items := openItemsOf(openSample, nil, false, false)
 	edit := func(e textEdit) string { return e.apply(openSample) }
 	// a to-do edited keeps its prefix
 	got := edit(items[2].editTo("give her a gun", openSample, false))
@@ -170,7 +170,7 @@ func TestOpenEdits(t *testing.T) {
 	if got != "INT. HOUSE - DAY\n\nAnna waits.\n\n/* Notes\nFirst.\n*/\n" {
 		t.Errorf("the first unsorted note: %q", got)
 	}
-	if its := openItemsOf(got, nil, false); len(its) != 1 || its[0].Kind != openUnsorted {
+	if its := openItemsOf(got, nil, false, false); len(its) != 1 || its[0].Kind != openUnsorted {
 		t.Errorf("read back: %+v", its)
 	}
 }
@@ -179,12 +179,12 @@ func TestOpenItemsSkip(t *testing.T) {
 	// the title page, Accolade's own end blocks, a heading's tags, a
 	// storyboard frame: none of them items
 	text := "Title: [[not a note]]\n\nINT. HOUSE - DAY [[tag]]\n\nAnna.\n\n[[board: a.png]]\n\n/* Characters\nANNA: the lead\n*/\n"
-	if its := openItemsOf(text, nil, false); len(its) != 0 {
+	if its := openItemsOf(text, nil, false, false); len(its) != 0 {
 		t.Errorf("items: %+v", its)
 	}
 	// prose in the boneyard is a note; a beat before any heading is one
 	text = "= Before it all.\n\nINT. HOUSE - DAY\n\n/*\nShe could be older.\n*/\n"
-	its := openItemsOf(text, nil, false)
+	its := openItemsOf(text, nil, false, false)
 	if len(its) != 2 || its[0].Kind != openBeat || its[0].Ctx != "" || its[1].Kind != openNote || its[1].Text != "She could be older." {
 		t.Errorf("items: %+v", its)
 	}
@@ -192,7 +192,7 @@ func TestOpenItemsSkip(t *testing.T) {
 
 func TestMarkdownOpenItems(t *testing.T) {
 	text := "# One\n\nText.\n\n<!-- TODO: cite it -->\n\n<!--\nA thought.\n-->\n\n<!-- Notes\nGeneral.\n-->\n"
-	its := openItemsOf(text, nil, true)
+	its := openItemsOf(text, nil, true, false)
 	if len(its) != 3 || its[0].Kind != openTodo || its[0].Text != "cite it" || its[1].Kind != openNote || its[1].Text != "A thought." || its[2].Kind != openUnsorted {
 		t.Fatalf("items: %+v", its)
 	}

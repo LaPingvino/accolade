@@ -236,6 +236,9 @@ type command struct {
 	// ex is its name on vim's command line where the label's would not
 	// do (:slurp; the ex completion takes it before the label's)
 	ex string
+	// keywords are other words the palette finds it by, beside its label:
+	// what a writer may call it ("beat sheet" for Insert Beats / Structure)
+	keywords []string
 	// role: who it is for (role.go); production's are put away in Writer,
 	// from menus, the ribbon, the header and their keys alike (the
 	// palette still finds them: palette.go)

@@ -195,7 +195,7 @@ func (c *cardsView) update(text string) {
 		c.hint.SetText("Tap a card to open its scene; drag it to move it; write its synopsis on it.")
 	}
 	lines := strings.Split(text, "\n")
-	all := scriptBeats(text, c.items)
+	all := scriptBeats(text, c.items, c.w.everySectionBeat)
 	beats := beatsByItem(all)            // a card's to-do mark: its own beats no scene grew from (notes_marks.go)
 	lands := c.w.landings(c.items, true) // where a section lands against its structure's range (beat_place.go)
 	c.list.RemoveAll()

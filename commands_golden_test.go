@@ -1133,7 +1133,7 @@ func mergeMoves(name, golden string) string {
 }
 
 // templateMoves: File > New from Structure before Merge Changes…, and a
-// screenplay's Format > Insert Structure after New Scene…, each with the
+// screenplay's Format > Insert Beats / Structure after New Scene…, each with the
 // structures (structure_templates.go).
 func templateMoves(name, golden string) string {
 	if !strings.HasPrefix(name, "menu-") {
@@ -1148,7 +1148,7 @@ func templateMoves(name, golden string) string {
 	}
 	golden = strings.Replace(golden, "  Merge Changes…\n", sub("New from Structure")+"  Merge Changes…\n", 1)
 	if strings.HasPrefix(name, "menu-screenplay") {
-		golden = strings.Replace(golden, "  New Scene…\n", "  New Scene…\n"+sub("Insert Structure"), 1)
+		golden = strings.Replace(golden, "  New Scene…\n", "  New Scene…\n"+sub("Insert Beats / Structure"), 1)
 		// the structure out and in (outline_io.go, treatment.go)
 		golden = strings.Replace(golden, "  Export Clean Fountain…\n", "  Export Clean Fountain…\n  Export Outline (OPML) — for Workflowy, OmniOutliner…\n  Export Treatment (PDF, Word)…\n", 1)
 		golden = strings.Replace(golden, "  Paste\n  Select All\n", "  Paste\n  Paste as Structure\n  Select All\n", 1)

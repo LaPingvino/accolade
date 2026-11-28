@@ -163,6 +163,10 @@ type MainWindow struct {
 	// noFountainCopy: the script's .accolade keeps no text.fountain beside
 	// its language's text (script_text.go)
 	noFountainCopy bool
+	// everySectionBeat: every section of the script is a beat, marked
+	// [[beat]] or not (Revision > Beats: Every Section Is a Beat; the
+	// script's own, kept in its .accolade)
+	everySectionBeat bool
 	// carried is the Lexington configuration the script brought (an
 	// .accolade's, lexington_carried.go), laid over the machine's for it
 	// only; nil for none
@@ -666,6 +670,7 @@ func (w *MainWindow) LoadFile(filePath string) error {
 	// the language, and the text in it (script_text.go)
 	lang, before := "", ""
 	w.noFountainCopy = bundle != nil && bundle.ours.NoFountainCopy
+	w.everySectionBeat = bundle != nil && bundle.ours.EverySectionBeat
 	switch {
 	case w.markdown:
 		lang = languageOf(filePath)
@@ -952,6 +957,7 @@ func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
 		}
 		markdown, gen, lang, noCopy := w.markdown, w.bundleGen, w.language, !w.keepsFountainCopy(filePath)
 		conf, format, titlePage := w.lex(), w.scriptFormatKey(), w.bundleTitlePage()
+		everyBeat := w.everySectionBeat
 		carry := carryFor(conf, lang, format, w.titleTemplate())
 		var extra []bundleFile
 		if w.bundle == nil { // a plain script made a bundle: its extras carried in
@@ -971,7 +977,7 @@ func (w *MainWindow) writeScript(filePath string, data, native []byte) error {
 		w.queueBundle(bundleJob{
 			run: func(b *textBundle) (*textBundle, error) {
 				return saveBundleText(b, filePath, bundleSave{text: data, markdown: markdown, extra: extra, source: source,
-					highlandWarned: warn, native: native, lang: lang, noCopy: noCopy, conf: conf, carry: carry, format: format, titlePage: titlePage, form: form})
+					highlandWarned: warn, native: native, lang: lang, noCopy: noCopy, conf: conf, carry: carry, format: format, titlePage: titlePage, form: form, everySectionBeat: everyBeat})
 			},
 			done: func(err error) {
 				if err == nil && warn {
@@ -1211,6 +1217,7 @@ func (w *MainWindow) createNewFile(empty bool) {
 	w.forgetUnsavedSource()
 	w.setMarkdown(false)
 	w.format = fileFormat{} // a new script is UTF-8
+	w.everySectionBeat = false
 	// the language picked last: New in:'s, else the script's (Script
 	// Language), else the preferences'
 	w.setLanguage(w.newFileLanguage())

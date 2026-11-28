@@ -33,8 +33,9 @@ import (
 // paletteEntry is one line of the palette.
 type paletteEntry struct {
 	c      *command
-	ex     string // its ex name (:fix-lines), matched too
-	label  string // with its menu's for a submenu's item
+	ex     string   // its ex name (:fix-lines), matched too
+	words  []string // its command's keywords, matched too (less than its label)
+	label  string   // with its menu's for a submenu's item
 	home   string
 	keys   string
 	action func() // a submenu item's, else the command's
@@ -59,7 +60,7 @@ func (w *MainWindow) paletteEntries(env cmdEnv) []paletteEntry {
 				if it.IsSeparator || it.Action == nil {
 					continue
 				}
-				out = append(out, paletteEntry{c: c, label: c.labelIn(env) + " > " + it.Label, home: home, action: it.Action, away: away})
+				out = append(out, paletteEntry{c: c, label: c.labelIn(env) + " > " + it.Label, home: home, action: it.Action, away: away, words: c.keywords})
 			}
 			continue
 		}
@@ -71,7 +72,7 @@ func (w *MainWindow) paletteEntries(env cmdEnv) []paletteEntry {
 		e := env
 		e.writer = false
 		ex := commandExName(c)
-		out = append(out, paletteEntry{c: c, label: label, home: home, keys: keys, off: !c.canRun(e), away: away, ex: ex})
+		out = append(out, paletteEntry{c: c, label: label, home: home, keys: keys, off: !c.canRun(e), away: away, ex: ex, words: c.keywords})
 	}
 	return out
 }
@@ -152,6 +153,11 @@ func paletteMatches(entries []paletteEntry, query string) []paletteEntry {
 				s = max(s, x*2)
 			} else if x/2 > s {
 				s = x / 2
+			}
+		}
+		for _, k := range e.words { // a keyword: below a label's match, so "beats" lists Where the Beats Land first
+			if x := fuzzyScore(query, k) / 2; x > s {
+				s = x
 			}
 		}
 		if s > 0 {

@@ -156,3 +156,32 @@ func TestPaletteButtons(t *testing.T) {
 		t.Error("the ribbon's palette button opened nothing")
 	}
 }
+
+// "beats" and "beat sheet" find the structures (Joop looked for the
+// beat templates by that word): the commands with it in their labels
+// first, then every structure to insert or start from, by the keywords.
+func TestPaletteFindsBeatTemplates(t *testing.T) {
+	w := suggestWindow(t, suggestScript)
+	entries := w.paletteEntries(w.cmdEnv())
+	for _, q := range []string{"beats", "beat sheet"} {
+		labels := map[string]bool{}
+		for _, e := range paletteMatches(entries, q) {
+			labels[e.label] = true
+		}
+		for _, want := range []string{"Insert Beats / Structure > Three Acts", "New from Structure > Freytag's Pyramid", "Insert Beats / Structure > Six Stages"} {
+			if !labels[want] {
+				t.Errorf("%q: no %q", q, want)
+			}
+		}
+	}
+	// a label with the word comes before a keyword's match
+	m := paletteMatches(entries, "beats")
+	at := map[string]int{}
+	for i, e := range m {
+		at[e.label] = i
+	}
+	if m[0].label != "Show Beats" || at["Insert Beats / Structure > Three Acts"] > at["New from Structure > Three Acts"] {
+		t.Errorf("beats: %q first, Insert Beats / Structure at %d, New from Structure at %d", m[0].label,
+			at["Insert Beats / Structure > Three Acts"], at["New from Structure > Three Acts"])
+	}
+}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -113,25 +114,28 @@ var openMemo struct {
 	sync.Mutex
 	text     string
 	markdown bool
+	every    bool
 	starts   []string
 	items    []openItem
 	ok       bool
 }
 
 // openItemsOf are the text's items in script order (the unsorted notes
-// last). markdown: a Markdown document's (its comments).
-func openItemsOf(text string, starts []string, markdown bool) []openItem {
+// last). markdown: a Markdown document's (its comments); everySection:
+// every section is a beat (the script's setting, beatsOf).
+func openItemsOf(text string, starts []string, markdown, everySection bool) []openItem {
 	openMemo.Lock()
 	defer openMemo.Unlock()
-	if openMemo.ok && openMemo.markdown == markdown && slices.Equal(openMemo.starts, starts) && sameString(openMemo.text, text) {
+	if openMemo.ok && openMemo.markdown == markdown && openMemo.every == everySection && slices.Equal(openMemo.starts, starts) && sameString(openMemo.text, text) {
 		return openMemo.items
 	}
 	var items []openItem
 	if markdown {
 		items = markdownOpenItems(text)
 	} else {
-		items = fountainOpenItems(text, starts)
+		items = fountainOpenItems(text, starts, everySection)
 	}
+	openMemo.every = everySection
 	openMemo.text, openMemo.markdown, openMemo.starts, openMemo.items, openMemo.ok = text, markdown, slices.Clone(starts), items, true
 	return items
 }
@@ -211,7 +215,7 @@ func inSpans(spans []byteSpan, b int) bool {
 }
 
 // fountainOpenItems are a screenplay's items.
-func fountainOpenItems(text string, starts []string) []openItem {
+func fountainOpenItems(text string, starts []string, everySection bool) []openItem {
 	end := fountainBodyEnd(text)
 	lines := strings.Split(text, "\n")
 	lineAt := lineIndex(text)
@@ -274,7 +278,7 @@ func fountainOpenItems(text string, starts []string) []openItem {
 		}
 		items = append(items, it)
 	}
-	for _, b := range beatsOf(lines, outline, tp, endLine(text, end)) {
+	for _, b := range beatsOf(lines, outline, tp, endLine(text, end), everySection) {
 		items = append(items, beatItem(lines, b.from, b.to))
 	}
 	slices.SortStableFunc(items, func(a, b openItem) int { return a.Start - b.Start })
@@ -291,11 +295,12 @@ func fountainOpenItems(text string, starts []string) []openItem {
 type beatAt struct{ from, to, section, under int }
 
 // beatsOf are the script's beats no scene grew from: the synopses before
-// the first heading (outside the title page, before tp), a section's
-// after its own, a scene's at its end with nothing but plans after them;
+// the first heading (outside the title page, before tp), a section marked
+// [[beat]] while no scene is in it (its own synopsis, else its heading), a
+// section's after its own, a scene's at its end with nothing but plans after them;
 // before line end (the blocks at the script's end are not its). The
 // outline's and the cards' headers count them (outline.go, cards.go).
-func beatsOf(lines []string, outline []outlineItem, tp, end int) []beatAt {
+func beatsOf(lines []string, outline []outlineItem, tp, end int, everySection bool) []beatAt {
 	var out []beatAt
 	first := len(lines)
 	if len(outline) > 0 {
@@ -323,6 +328,20 @@ func beatsOf(lines []string, outline []outlineItem, tp, end int) []beatAt {
 		if k+1 < len(outline) {
 			next = outline[k+1].Line
 		}
+		// a section marked a beat ([[beat]] on its heading: a structure's,
+		// Insert Beats / Structure; any, with Every Section Is a Beat on)
+		// while no scene is in it: its own
+		// synopsis, else its heading
+		if !it.Scene && it.Line < end && (everySection || markedBeat(lines[it.Line])) && !sceneInSection(outline, k) {
+			b := beatAt{it.Line, it.Line + 1, section, it.Line}
+			for i := it.Line + 1; it.Synopsis != "" && i < min(next, end); i++ {
+				if isSynopsisLine(strings.TrimSpace(lines[i])) {
+					b.from, b.to = i, synopsisEnd(lines, i)
+					break
+				}
+			}
+			out = append(out, b)
+		}
 		for _, l := range it.Loose {
 			if l.Line >= end || it.Scene && !onlyPlans(lines[l.Line:next]) {
 				continue
@@ -331,6 +350,32 @@ func beatsOf(lines []string, outline []outlineItem, tp, end int) []beatAt {
 		}
 	}
 	return out
+}
+
+// beatMarkRe is the note that marks a section a beat: [[beat]].
+var beatMarkRe = regexp.MustCompile(`(?i)\[\[\s*beat\s*\]\]`)
+
+// markedBeat tells whether a section's heading line carries [[beat]]:
+// the section is a beat (a note on a heading: never printed, kept in
+// the Fountain; the notes form, = synopses standing on their own, needs
+// no marker).
+func markedBeat(heading string) bool {
+	t := strings.TrimSpace(heading)
+	return strings.HasPrefix(t, "#") && beatMarkRe.MatchString(t)
+}
+
+// sceneInSection tells whether a scene is in the section outline[k]:
+// before the next section of its level or above.
+func sceneInSection(outline []outlineItem, k int) bool {
+	for _, o := range outline[k+1:] {
+		if o.Scene {
+			return true
+		}
+		if o.Level <= outline[k].Level {
+			return false
+		}
+	}
+	return false
 }
 
 // beatsBySection are the beats' first lines by the section they are
@@ -398,6 +443,11 @@ func beatItem(lines []string, from, to int) openItem {
 	var text []string
 	end := start
 	for i := from; i < to; i++ {
+		if t := strings.TrimSpace(lines[i]); strings.HasPrefix(t, "#") { // a marked section without a synopsis: its name
+			text = append(text, lex.SectionText(t))
+			end += len(lines[i]) + 1
+			continue
+		}
 		text = append(text, strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(lines[i]), "=")))
 		end += len(lines[i]) + 1
 	}
