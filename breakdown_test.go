@@ -521,7 +521,7 @@ func TestBreakdownFDX(t *testing.T) {
 		}
 	}
 	// in again: the tags on their words (the cast from the cues too)
-	text2, _, _, tags, err := importFDXTagged(bytes.NewReader(data))
+	text2, _, _, tags, err := importFDXTagged(bytes.NewReader(data), langFor(nil))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -574,7 +574,7 @@ func TestBreakdownFDXMultiLine(t *testing.T) {
 			t.Errorf("no tagged %s in\n%s", want, data)
 		}
 	}
-	text2, _, _, tags, err := importFDXTagged(bytes.NewReader(data))
+	text2, _, _, tags, err := importFDXTagged(bytes.NewReader(data), langFor(nil))
 	if err != nil {
 		t.Fatal(err)
 	}

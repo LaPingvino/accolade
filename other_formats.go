@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"path/filepath"
@@ -9,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/LaPingvino/lexington/cli"
-	"github.com/LaPingvino/lexington/fountain"
+	"github.com/LaPingvino/lexington/rules"
 )
 
 // Other programs' screenplays (Fade In, Trelby, KIT Scenarist, and what
@@ -53,23 +52,20 @@ func otherSaveFormat(path string) (cli.Format, bool) {
 	return cli.FormatFor(in.Key)
 }
 
-// readOtherFormat reads another program's screenplay as Fountain text.
-func readOtherFormat(path string) (string, error) {
+// readOtherFormat reads another program's screenplay as Fountain text,
+// written to be read in lang (the script's language).
+func readOtherFormat(path string, lang rules.Language) (string, error) {
 	sp, err := cli.ReadScreenplay(context.Background(), path, cli.Options{ConfigFile: lexingtonConfig()})
 	if err != nil {
 		return "", err
 	}
-	var buf bytes.Buffer
-	if err := (&fountain.FountainWriter{SceneConfig: englishScenes}).Write(&buf, sp); err != nil {
-		return "", err
-	}
-	return buf.String(), nil
+	return writeFountain(sp, lang)
 }
 
 // importOther opens another program's screenplay as a new, unsaved
 // script, as a Final Draft file opens.
 func (w *MainWindow) importOther(path string, f cli.InputFormat) error {
-	text, err := readOtherFormat(path)
+	text, err := readOtherFormat(path, w.lex().Language(w.language))
 	if err != nil {
 		return fmt.Errorf("could not import %s: %v", filepath.Base(path), err)
 	}

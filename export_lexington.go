@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"fmt"
 	"io"
@@ -26,6 +27,18 @@ var englishScenes = rules.DefaultConf().Scenes("en")
 
 func parseForExport(content string) lex.Screenplay {
 	return fountain.Parse(englishScenes, strings.NewReader(content))
+}
+
+// writeFountain is a screenplay written as Fountain read in lang (the
+// script's language): with the force marks its rules need, and only those
+// (Lexington's FountainWriter.Language). An action line "En la ĉambro…"
+// keeps its "!" in Esperanto, where it would read as a scene heading.
+func writeFountain(sp lex.Screenplay, lang rules.Language) (string, error) {
+	var buf bytes.Buffer
+	if err := (&fountain.FountainWriter{SceneConfig: lang.Scenes, Language: &lang}).Write(&buf, sp); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }
 
 // exportJob is how to export: the script format (a Lexington preset's
@@ -131,7 +144,8 @@ func (j exportJob) options(to, output string) cli.Options {
 		LineTags:     j.lineTags,
 		SceneLengths: j.sceneLengths,
 		MergeOmitted: j.mergeOmitted,
-		SceneIn:      j.language, // the HTML's direction for a line with none of its own
+		SceneIn:      j.language,               // the HTML's direction for a line with none of its own
+		SceneOut:     cmp.Or(j.language, "en"), // Fountain rewritten: the force marks its language needs
 		Header:       j.header,
 		Footer:       j.footer,
 		IncludeFrom:  j.includeFrom,
@@ -250,9 +264,10 @@ func exportAs(content, outputPath, to string, job exportJob) error {
 // command (Lexington's defaults and presets without it).
 func lexingtonConfig() string { return filepath.Join(getConfigDir(), "lexington.toml") }
 
-// importFDX converts a Final Draft document to Fountain text.
-func importFDX(r io.Reader) (string, error) {
-	text, _, _, err := importFDXRevised(r)
+// importFDX converts a Final Draft document to Fountain text, written
+// to be read in lang (the script's language).
+func importFDX(r io.Reader, lang rules.Language) (string, error) {
+	text, _, _, err := importFDXRevised(r, lang)
 	return text, err
 }
 
@@ -260,14 +275,14 @@ func importFDX(r io.Reader) (string, error) {
 // its text uses (oldest first) and the marked lines of the text
 // (revisions.go keeps them). Its locked pages go into the text's
 // production block (lockedpages.go).
-func importFDXRevised(r io.Reader) (text string, sets []lex.RevisionSet, marks []importedMark, err error) {
-	text, sets, marks, _, err = importFDXTagged(r)
+func importFDXRevised(r io.Reader, lang rules.Language) (text string, sets []lex.RevisionSet, marks []importedMark, err error) {
+	text, sets, marks, _, err = importFDXTagged(r, lang)
 	return text, sets, marks, err
 }
 
 // importFDXTagged is importFDXRevised with the document's breakdown tags
 // as Accolade's (breakdown_io.go).
-func importFDXTagged(r io.Reader) (text string, sets []lex.RevisionSet, marks []importedMark, tags breakdownFile, err error) {
+func importFDXTagged(r io.Reader, lang rules.Language) (text string, sets []lex.RevisionSet, marks []importedMark, tags breakdownFile, err error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return "", nil, nil, tags, err
@@ -276,11 +291,9 @@ func importFDXTagged(r io.Reader) (text string, sets []lex.RevisionSet, marks []
 	if err != nil {
 		return "", nil, nil, tags, err
 	}
-	var buf bytes.Buffer
-	if err := (&fountain.FountainWriter{SceneConfig: englishScenes}).Write(&buf, screenplay); err != nil {
+	if text, err = writeFountain(screenplay, lang); err != nil {
 		return "", nil, nil, tags, err
 	}
-	text = buf.String()
 	if len(sets) > 0 {
 		marks = marksOnText(screenplay, text)
 	}
@@ -338,11 +351,8 @@ func importPDF(ctx context.Context, path string, scenes []string, ocrLang string
 	if err != nil {
 		return "", skipped, err
 	}
-	var buf bytes.Buffer
-	if err := (&fountain.FountainWriter{SceneConfig: scenes}).Write(&buf, screenplay); err != nil {
-		return "", skipped, err
-	}
-	return buf.String(), skipped, nil
+	text, err = writeFountain(screenplay, langFor(scenes))
+	return text, skipped, err
 }
 
 // writeViaTemp lets write produce the file under a temporary name next to

@@ -291,7 +291,7 @@ func TestIssueLocksPages(t *testing.T) {
 		t.Fatalf("no page %s in the FDX's LockedPages", a)
 	}
 	// and back: the import keeps them in its production block
-	text, _, _, err := importFDXRevised(strings.NewReader(string(data)))
+	text, _, _, err := importFDXRevised(strings.NewReader(string(data)), langFor(nil))
 	if err != nil {
 		t.Fatal(err)
 	}

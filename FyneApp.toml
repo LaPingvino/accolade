@@ -4,5 +4,5 @@ Website = "https://github.com/LaPingvino/accolade"
 Icon = "Icon.png"
 Name = "Accolade"
 ID = "eu.kiefte.Accolade"
-Version = "0.14.1"
+Version = "0.15.0"
 Build = 8

@@ -759,7 +759,7 @@ func (w *MainWindow) importFile(filePath string) error {
 			return fmt.Errorf("failed to read file: %v", err)
 		}
 		defer f.Close()
-		text, sets, marks, tags, err = importFDXTagged(f)
+		text, sets, marks, tags, err = importFDXTagged(f, w.lex().Language(w.language))
 		from = "Final Draft"
 	}
 	if err != nil {
