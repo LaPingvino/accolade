@@ -7,7 +7,7 @@ tabs: File Write [Edit] Revision Production Collaboration View
   S Copy icon=foreground_content-copy.svg name=Copy (Ctrl+C)
   S Paste icon=foreground_content-paste.svg name=Paste (Ctrl+V)
   S Select All icon=foreground_select-all.svg name=Select All (Ctrl+A)
-  T More Clipboard options icon=foreground_more-horizontal.svg name=More Clipboard options…
+  T More Clipboard icon=foreground_more-horizontal.svg name=More Clipboard: the group's other commands and its settings, on a tab
 ## Find
   L Find icon=foreground_search.svg name=Find… (Ctrl+F)
   S Next icon=foreground_arrow-forward.svg name=Find Next (Ctrl+G)
@@ -20,13 +20,13 @@ tabs: File Write [Edit] Revision Production Collaboration View
   S Demote icon=foreground_arrow-forward.svg name=Demote
   S Swap icon=foreground_view-refresh.svg name=Swap…
   S Move icon=foreground_content-paste.svg name=Move…
-  T More Structure options icon=foreground_more-horizontal.svg name=More Structure options…
+  T More Structure icon=foreground_more-horizontal.svg name=More Structure: the group's other commands and its settings, on a tab
 ## Fix-Up
   L Fix Lines icon=foreground_search-replace.svg name=Fix Lines Like This…
 ## Script
   S Title Page icon=foreground_document.svg name=Title Page… (Ctrl+Shift+T)
   S Language icon=foreground_language.svg name=Script Language…
-  T More Script options icon=foreground_more-horizontal.svg name=More Script options…
+  T More Script icon=foreground_more-horizontal.svg name=More Script: the group's other commands and its settings, on a tab
 ## Settings
   S Editor Keys icon=foreground_editor-keys.svg name=Editor Keys
   S Preferences icon=foreground_settings.svg name=Preferences… (Ctrl+,)

@@ -79,6 +79,10 @@ func (w *MainWindow) applyLook() {
 		w.ribbon.refresh()
 	} else if w.ribbon != nil {
 		w.ribbon.leaveKeyTips(false)
+		if m := w.ribbon.more; m != nil { // its More tab goes with it (Ribbon unticked on it)
+			w.ribbon.dropMore()
+			w.ribbon.selected = m.tab
+		}
 	}
 	if w.headerArea.Objects[0] != top {
 		w.headerArea.Objects[0] = top
@@ -184,6 +188,7 @@ type ribbonBar struct {
 	// goes (followContext)
 	ctxShown      map[string]bool
 	beforeContext string
+	more          *moreOpen     // a group's More tab, open (ribbon_more.go)
 	pageCount     *widget.Label // the Preview tab's "Page n of N"
 	env           cmdEnv
 	stage         int    // the Production stage shown (stageLock …)
@@ -478,6 +483,15 @@ func (r *ribbonBar) refresh() {
 	r.menus.follow(env)
 	r.order.follow(env)
 	r.followContext(env) // a contextual tab came or went
+	// another tab chosen, or come forward: the More tab closes
+	if r.more != nil && r.selected != moreTabTitle {
+		r.dropMore()
+		env = w.cmdEnv()
+		r.env = env
+		for i, t := range commands().ribbon {
+			setVisible(r.tabs[i], tabShown(t, env))
+		}
+	}
 	if t, ok := tabOf(r.selected); !ok || !tabShown(t, env) {
 		r.selected = "Write" // the tab gone (Fixed has no Quick tab), or none chosen yet
 		if env.smart {
@@ -488,7 +502,7 @@ func (r *ribbonBar) refresh() {
 		tb.setSelected(tb.title == r.selected)
 	}
 	r.phone = phone
-	if title := r.selected + " ▾"; r.switcher.title != title {
+	if title := r.tabName(r.selected) + " ▾"; r.switcher.title != title {
 		r.switcher.title = title
 		r.switcher.Refresh()
 	}
@@ -501,7 +515,7 @@ func (r *ribbonBar) refresh() {
 	key := strings.Join([]string{r.selected, boolKey(env.markdown), boolKey(env.source), boolKey(env.browser), boolKey(env.pandoc), boolKey(env.writer),
 		boolKey(env.away), boolKey(env.midDoc), boolKey(env.strips), boolKey(phone), boolKey(env.preview), boolKey(env.livePreview), boolKey(env.cards), boolKey(env.timeline),
 		boolKey(env.fixup), boolKey(env.fixupPDF), boolKey(env.titlePage), boolKey(env.characters), boolKey(env.shared), boolKey(env.compare), w.hereKey(), string(rune('0' + stage + 1)), w.scriptFormatKey(), w.language, w.newScriptLanguage(),
-		boolKey(env.smart), strconv.Itoa(w.quick().gen), boolKey(r.quickRowShown()), r.titleTemplateKey(env)}, "\x00")
+		boolKey(env.smart), strconv.Itoa(w.quick().gen), boolKey(r.quickRowShown()), r.titleTemplateKey(env), r.moreKey()}, "\x00")
 	if key != r.builtFor {
 		r.builtFor = key
 		r.phone = phone
@@ -589,6 +603,15 @@ func (r *ribbonBar) build() {
 	strut.SetMinSize(fyne.NewSize(0, h))
 	r.groupBox.Add(strut)
 	first := true
+	if t.title == moreTabTitle { // a group's More tab (ribbon_more.go)
+		for _, mg := range r.moreGroups() {
+			if !first {
+				r.groupBox.Add(widget.NewSeparator())
+			}
+			first = false
+			r.groupBox.Add(container.NewBorder(nil, groupTitle(mg.caption), nil, nil, mg.content))
+		}
+	}
 	for _, g := range r.groupsOf(t) { // in Smart the most used first (quick.go)
 		content := r.groupContent(g)
 		if content == nil {
@@ -602,12 +625,7 @@ func (r *ribbonBar) build() {
 		if r.env.markdown && g.mdTitle != "" {
 			caption = g.mdTitle
 		}
-		title := widget.NewLabel(capsLabel(caption))
-		title.SizeName = theme.SizeNameCaptionText
-		title.Importance = widget.LowImportance
-		title.TextStyle.Bold = themeTraits().caps
-		title.Alignment = fyne.TextAlignCenter
-		fyne.SetAccessibleLabel(title, caption+" group")
+		title := groupTitle(caption)
 		var under fyne.CanvasObject = title
 		if more := r.groupLauncher(t, g, caption); more != nil {
 			r.add(more)  // after the group's buttons: the arrows and key tips reach it last
@@ -626,6 +644,17 @@ func (r *ribbonBar) build() {
 		r.height = h
 		w.relayoutTop()
 	}
+}
+
+// groupTitle is a group's title, under its buttons.
+func groupTitle(caption string) *widget.Label {
+	title := widget.NewLabel(capsLabel(caption))
+	title.SizeName = theme.SizeNameCaptionText
+	title.Importance = widget.LowImportance
+	title.TextStyle.Bold = themeTraits().caps
+	title.Alignment = fyne.TextAlignCenter
+	fyne.SetAccessibleLabel(title, caption+" group")
+	return title
 }
 
 // groupContent is a group's buttons: large ones a column each, small
@@ -792,42 +821,26 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 	return container.NewHBox(cols...)
 }
 
-// groupLauncher is g's launcher, the small button in its corner (a
-// phone's at its row's end): the palette narrowed to the group's less
-// common commands (more) and its settings, searchable and by the keys as
-// the palette is; nil if none of the less common ones applies.
+// groupLauncher is g's launcher, the small ⋯ button in its corner (a
+// phone's at its row's end): it opens the group's More tab, its less
+// common commands (more) and its settings (ribbon_more.go); nil if none
+// of the less common ones applies.
 func (r *ribbonBar) groupLauncher(t ribbonTab, g ribbonGroup, caption string) *ribbonButton {
-	var ids []string
+	some := false
 	for _, h := range g.more {
-		if h.id != "" && cmd(h.id).applies(r.env) {
-			ids = append(ids, h.id)
-		}
+		some = some || h.id != "" && cmd(h.id).applies(r.env)
 	}
-	if len(ids) == 0 {
+	if !some {
 		return nil
 	}
-	for _, h := range g.homes { // the group's settings beside them: its part's setup in one place
-		if strings.HasPrefix(h.id, "set.") && cmd(h.id).applies(r.env) {
-			ids = append(ids, h.id)
-		}
-	}
-	name := "More " + launcherName(t.title, caption) + "…"
+	name := moreName(t.title, caption)
 	b := newRibbonButton(r, nil, false)
-	b.compact, b.launcher = true, true
+	b.compact, b.launcher, b.moreOf = true, true, caption
 	b.icon = theme.MoreHorizontalIcon()
-	b.label, b.name = strings.TrimSuffix(name, "…"), name // the label is the key tips' (no "…" on the ribbon)
-	b.onTap = func() { r.w.showGroupPalette(b.label, ids) }
+	b.label, b.name = name, name+": the group's other commands and its settings, on a tab"
+	tab := t.title
+	b.onTap = func() { r.openMore(tab, caption, g) }
 	return b
-}
-
-// launcherName is what a group's launcher offers more of: "Export
-// options", "Production options" for a tab's Options group.
-func launcherName(tab, caption string) string {
-	switch caption {
-	case "Options", "Settings":
-		return tab + " " + strings.ToLower(caption)
-	}
-	return caption + " options"
 }
 
 // groupCaption lays a group's title out with its launcher in the bottom
@@ -941,7 +954,7 @@ func (r *ribbonBar) tabMenu(keys bool) *fyne.Menu {
 	var items, ctx []*fyne.MenuItem // the contextual ones after a line
 	for _, tb := range r.shownTabs() {
 		title := tb.title
-		it := fyne.NewMenuItem(title, func() {
+		it := fyne.NewMenuItem(r.tabName(title), func() {
 			r.selectTab(title)
 			if keys {
 				r.down()
@@ -1084,7 +1097,7 @@ func (r *ribbonBar) assignTips(level int) {
 		}
 		labels := make([]string, 0, len(tabs)+3+len(r.rowButtons))
 		for _, t := range tabs {
-			labels = append(labels, strings.TrimSuffix(t.title, " ▾"))
+			labels = append(labels, strings.TrimSuffix(r.tabName(t.title), " ▾"))
 		}
 		ends := r.tipEnds()
 		for _, b := range ends {
@@ -1348,7 +1361,25 @@ func (t *ribbonTabButton) setTip(tip string) {
 	}
 }
 
-func (t *ribbonTabButton) Tapped(*fyne.PointEvent) { t.onTap() }
+func (t *ribbonTabButton) Tapped(e *fyne.PointEvent) {
+	if t.closable() && e.Position.X >= t.Size().Width-tabCloseWidth() { // its ✕
+		t.r.closeMore()
+		return
+	}
+	t.onTap()
+}
+
+// closable reports whether t has a ✕: the More tab's (ribbon_more.go).
+func (t *ribbonTabButton) closable() bool { return t.title == moreTabTitle && !t.switcher }
+
+// tabCloseWidth is the width of a tab's ✕, its room to be tapped.
+func tabCloseWidth() float32 {
+	return fyne.MeasureText(tabCloseMark, theme.TextSize(), fyne.TextStyle{}).Width + 2*theme.InnerPadding()
+}
+
+// tabCloseMark is the More tab's ✕.
+const tabCloseMark = "✕"
+
 func (t *ribbonTabButton) MouseIn(*desktop.MouseEvent) {
 	t.hovered = true
 	t.Refresh()
@@ -1409,7 +1440,7 @@ func (t *ribbonTabButton) TypedKey(k *fyne.KeyEvent) {
 		case fyne.KeyReturn, fyne.KeyEnter:
 			t.r.showTabMenu(true)
 		case fyne.KeyEscape:
-			if !t.r.keyTipEscape() {
+			if !t.r.keyTipEscape() && !t.r.moreEscape() {
 				t.r.w.focusMain()
 			}
 		}
@@ -1427,7 +1458,7 @@ func (t *ribbonTabButton) TypedKey(k *fyne.KeyEvent) {
 		t.onTap()
 		t.r.down()
 	case fyne.KeyEscape:
-		if !t.r.keyTipEscape() {
+		if !t.r.keyTipEscape() && !t.r.moreEscape() {
 			t.r.w.focusMain()
 		}
 	}
@@ -1435,7 +1466,10 @@ func (t *ribbonTabButton) TypedKey(k *fyne.KeyEvent) {
 
 func (t *ribbonTabButton) AccessibilityLabel() string {
 	if t.switcher {
-		return "Ribbon tab: " + t.r.selected
+		return "Ribbon tab: " + t.r.tabName(t.r.selected)
+	}
+	if t.closable() {
+		return t.r.tabName(t.title) + " tab (Esc or ✕ closes it)"
 	}
 	return t.title + " tab"
 }
@@ -1459,37 +1493,59 @@ func (t *ribbonTabButton) AccessibilityPerformAction(fyne.AccessibleAction) bool
 	return true
 }
 
+// shown is the name t shows: the More tab's its group's.
+func (t *ribbonTabButton) shown() string {
+	if t.switcher {
+		return t.title
+	}
+	return t.r.tabName(t.title)
+}
+
 func (t *ribbonTabButton) CreateRenderer() fyne.WidgetRenderer {
 	bg := canvas.NewRectangle(color.Transparent)
 	bg.CornerRadius = theme.InputRadiusSize()
 	line := canvas.NewRectangle(color.Transparent)
-	text := canvas.NewText(t.title, theme.Color(theme.ColorNameForeground))
+	text := canvas.NewText(t.shown(), theme.Color(theme.ColorNameForeground))
 	text.TextSize = theme.TextSize()
+	cross := canvas.NewText(tabCloseMark, theme.Color(theme.ColorNameForeground)) // the More tab's ✕
+	cross.TextSize = theme.TextSize()
 	badge := newKeyTipBadge()
-	r := &ribbonRenderer{objects: []fyne.CanvasObject{bg, line, text, badge.bg, badge.text}}
+	r := &ribbonRenderer{objects: []fyne.CanvasObject{bg, line, text, cross, badge.bg, badge.text}}
+	closeW := func() float32 {
+		if t.closable() {
+			return tabCloseWidth()
+		}
+		return 0
+	}
 	r.layout = func(size fyne.Size) {
 		bg.Resize(size)
 		line.Move(fyne.NewPos(0, size.Height-3))
 		line.Resize(fyne.NewSize(size.Width, 3))
 		ts := text.MinSize()
-		text.Move(fyne.NewPos((size.Width-ts.Width)/2, (size.Height-ts.Height)/2))
+		cw := closeW()
+		text.Move(fyne.NewPos((size.Width-cw-ts.Width)/2, (size.Height-ts.Height)/2))
+		cs := cross.MinSize()
+		cross.Move(fyne.NewPos(size.Width-cw+(cw-cs.Width)/2-theme.InnerPadding()/2, (size.Height-cs.Height)/2))
 		badge.place(size, true)
 	}
 	r.min = func() fyne.Size {
-		ts := fyne.MeasureText(t.title, theme.TextSize(), fyne.TextStyle{Bold: true})
+		ts := fyne.MeasureText(t.shown(), theme.TextSize(), fyne.TextStyle{Bold: true})
 		h := ts.Height + 2*theme.InnerPadding()
 		if t.r.phone {
 			h = max(h, 44)
 		}
-		return fyne.NewSize(ts.Width+3*theme.InnerPadding(), h)
+		return fyne.NewSize(ts.Width+3*theme.InnerPadding()+closeW(), h)
 	}
 	r.refresh = func() {
-		text.Text = t.title
+		text.Text = t.shown()
 		paintTab(bg, line, text, t.selected, t.focused, t.hovered)
+		cross.Hidden = !t.closable()
+		cross.Color = text.Color
 		badge.show(t.tip)
 		bg.Refresh()
 		line.Refresh()
 		text.Refresh()
+		cross.Refresh()
 	}
 	r.refresh()
 	return r
@@ -1512,10 +1568,12 @@ type ribbonButton struct {
 	keys string
 	// homeLabel is its place's own label, if any (Source Pane)
 	homeLabel string
-	iconOnly  bool // no label on a phone (the palette's: the tabs have the row)
-	top       bool // added to the top row (toprow.go)
-	compact   bool // an icon alone, always (B I U)
-	launcher  bool // a group's launcher (groupLauncher)
+	iconOnly  bool   // no label on a phone (the palette's: the tabs have the row)
+	top       bool   // added to the top row (toprow.go)
+	compact   bool   // an icon alone, always (B I U)
+	launcher  bool   // a group's launcher (groupLauncher)
+	moreOf    string // a launcher's: its group's caption
+	toggle    bool   // on a More tab: a setting or a choice, ✓ when on (ribbon_more.go)
 	large     bool
 	onTap     func()
 	quick     bool // on the Quick tab or the Quick row (quick.go)
@@ -1767,7 +1825,7 @@ func (b *ribbonButton) TypedKey(k *fyne.KeyEvent) {
 		b.r.leaveKeyTips(false)
 		b.press()
 	case fyne.KeyEscape:
-		if !b.r.keyTipEscape() {
+		if !b.r.keyTipEscape() && !b.r.moreEscape() {
 			b.r.w.focusMain()
 		}
 	}
@@ -1987,6 +2045,12 @@ func (b *ribbonButton) CreateRenderer() fyne.WidgetRenderer {
 		img.Resource = ic
 		img.Hidden = ic == nil || b.mark != ""
 		mark.Text = b.mark
+		if b.toggle { // a More tab's setting or choice: ✓ when on, else nothing
+			img.Hidden, mark.Text = true, ""
+			if b.checked {
+				mark.Text = "✓"
+			}
+		}
 		mark.Color = fg
 		keyT.Text = keyShown()
 		keyT.TextSize = keySize()

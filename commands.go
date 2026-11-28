@@ -68,6 +68,8 @@ type cmdEnv struct {
 	// ribbon: the ribbon shows; smart: in its Smart order; phone: at a
 	// phone's width (quick.go)
 	ribbon, smart, phone bool
+	// moreOpen: a group's More tab is open (ribbon_more.go)
+	moreOpen bool
 	// cards: the cards are the middle tab in front (the Cards tab);
 	// timeline: as their timeline; grouped: their grid grouped by other
 	// than section (cards_tab.go)
@@ -128,6 +130,7 @@ func (w *MainWindow) cmdEnv() cmdEnv {
 	e.ribbon = w.ribbonOn()
 	e.smart = e.ribbon && w.ribbonSmart()
 	e.phone = w.narrow
+	e.moreOpen = e.ribbon && w.ribbon != nil && w.ribbon.more != nil
 	e.topEdited = w.topRowEdited()
 	w.contextEnv(&e)
 	w.charactersEnv(&e)
@@ -1248,8 +1251,9 @@ type ribbonGroup struct {
 	stage   int
 	homes   []home
 	// more: its less common commands, behind its launcher (the small
-	// button in the group's corner, ribbon.go: groupLauncher), which
-	// opens the palette narrowed to them and the group's settings
+	// ⋯ button in the group's corner, ribbon.go: groupLauncher), which
+	// opens the group's More tab: them and the group's settings, each
+	// submenu a group of its own (ribbon_more.go)
 	more []home
 }
 
@@ -1434,5 +1438,6 @@ func ribbonLayout() []ribbonTab {
 		sessionTab(),    // while the script is shared (session_tab.go)
 		compareTab(),    // while Compare is in front (compare_tab.go)
 		tableReadTab(),  // while the Table Read is in front (tableread_tab.go)
+		moreTab(),       // a group's More tab, while its launcher has it open (ribbon_more.go)
 	}
 }

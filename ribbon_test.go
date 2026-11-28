@@ -962,78 +962,170 @@ func TestRibbonFitsPhone(t *testing.T) {
 	c.Overlays().Remove(c.Overlays().Top())
 }
 
-// launcherOf is the ribbon's launcher named name (nil if none shows).
+// launcherOf is the launcher named name ("More Output") among the
+// ribbon's buttons, nil if none.
 func launcherOf(r *ribbonBar, name string) *ribbonButton {
 	for _, b := range r.buttons {
-		if b.c == nil && b.AccessibilityLabel() == name {
+		if b.launcher && b.label == name {
 			return b
 		}
 	}
 	return nil
 }
 
-// A group's launcher (its corner button) opens the palette narrowed to
-// the group's less common commands and its settings: named, by the keys
-// (Enter on it, the arrows reach it), and at a phone's width too.
+// moreLabels are the More tab's groups and their buttons' labels, ✓ by
+// one on, as "## Group" lines and "label" lines.
+func moreLabels(r *ribbonBar) []string {
+	var out []string
+	for _, line := range strings.Split(dumpRibbon(r), "\n") {
+		if strings.HasPrefix(line, "## ") {
+			out = append(out, line)
+		}
+	}
+	for _, b := range r.buttons {
+		l := b.label
+		if b.toggle && b.checked {
+			l = "✓ " + l
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
+// A group's launcher (its corner ⋯) opens the group's More tab: a
+// contextual tab of its less common commands, each submenu a group of
+// its own with its whole depth, its settings ✓ when on; brought to the
+// front with the focus on it. Its ✕, Esc and another tab chosen close
+// it, the first two back to the launcher's tab and the focus on the
+// launcher; at a phone's width it is in the switcher's menu.
 func TestGroupLauncher(t *testing.T) {
 	holdUI(t)
 	w, _ := scriptWindow(t, revScript)
 	r := ribbonOnFor(t, w)
 	w.fyneWindow.Resize(fyne.NewSize(1400, 900))
+	c := w.fyneWindow.Canvas()
 	r.selectTab("File")
-	b := launcherOf(r, "More Output options…")
+	b := launcherOf(r, "More Output")
 	if b == nil {
 		t.Fatal("File > Output: no launcher")
 	}
-	w.fyneWindow.Canvas().Focus(b)
-	b.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
-	p := w.palette
-	if p == nil || !p.pop.Visible() {
-		t.Fatal("the launcher opened no palette")
-	}
-	var got []string
-	for _, e := range p.shown {
-		got = append(got, e.c.id)
-	}
-	want := []string{"file.exportShooting", "file.exportTreatment", "file.exportOutline", "file.exportBoards"}
-	if !slices.Equal(got, want) {
-		t.Errorf("Output's launcher: %q, want %q", got, want)
-	}
-	if fyne.Focusable(p.entry) != w.fyneWindow.Canvas().Focused() {
-		t.Error("the launcher's palette has not the keyboard")
-	}
-	p.entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
-	if p.pop.Visible() || w.fyneWindow.Canvas().Focused() != fyne.Focusable(b) {
-		t.Error("Esc: the focus not back on the launcher")
-	}
-	// the settings come with the less common commands, a setting on marked
-	r.selectTab("View")
-	b = launcherOf(r, "More Window options…")
-	if b == nil {
-		t.Fatal("View > Window: no launcher")
-	}
-	b.press()
-	ids := map[string]string{}
-	for _, e := range w.palette.shown {
-		ids[e.c.id] = e.label
-	}
-	w.palette.close()
-	for _, id := range []string{"set.toolbar", "view.topRowAdd", "set.ribbon", "set.textLarger"} {
-		if _, ok := ids[id]; !ok {
-			t.Errorf("View > Window's launcher: no %s (%v)", id, ids)
+	open := func(b *ribbonButton) {
+		t.Helper()
+		c.Focus(b)
+		b.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+		c.Capture()
+		if r.selected != moreTabTitle || r.more == nil || !tabButton(r, moreTabTitle).Visible() {
+			t.Fatalf("the launcher opened no More tab: %s chosen", r.selected)
 		}
 	}
-	if !strings.HasSuffix(ids["set.ribbon"], "✓") {
-		t.Errorf("the ribbon is on: %q", ids["set.ribbon"])
+	open(b)
+	tb := tabButton(r, moreTabTitle)
+	if tb.shown() != "More Output" || !strings.HasPrefix(tb.AccessibilityLabel(), "More Output tab") {
+		t.Errorf("the tab shows %q (%q)", tb.shown(), tb.AccessibilityLabel())
 	}
-	// a phone's: a button at the group's end, a finger's size
+	var ids []string
+	for _, x := range r.buttons {
+		if x.c != nil {
+			ids = append(ids, x.c.id)
+		}
+	}
+	if want := []string{"file.exportShooting", "file.exportTreatment", "file.exportOutline", "file.exportBoards"}; !slices.Equal(ids, want) {
+		t.Errorf("More Output's commands: %q, want %q", ids, want)
+	}
+	if f, ok := c.Focused().(*ribbonButton); !ok || f.c == nil || f.c.id != "file.exportShooting" {
+		t.Errorf("the focus on %T %v, not the More tab's first command", c.Focused(), c.Focused())
+	}
+	// the arrows and the key tips as on any tab
+	r.move(c.Focused(), 1)
+	if f, _ := c.Focused().(*ribbonButton); f == nil || f.c == nil || f.c.id != "file.exportTreatment" {
+		t.Errorf("→: the focus on %v", c.Focused())
+	}
+	r.tipsOn = true
+	r.assignTips(2)
+	for _, x := range r.buttons {
+		if x.tip == "" {
+			t.Errorf("%q has no key tip", x.label)
+		}
+	}
+	r.leaveKeyTips(false)
+	// Esc: back to File, the focus on the launcher
+	c.Focus(r.buttons[1])
+	r.buttons[1].TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+	if r.more != nil || r.selected != "File" || tabButton(r, moreTabTitle).Visible() {
+		t.Fatalf("Esc: %s chosen, the More tab %v", r.selected, r.more)
+	}
+	if b = launcherOf(r, "More Output"); b == nil || c.Focused() != fyne.Focusable(b) {
+		t.Errorf("Esc: the focus on %v, not the launcher", c.Focused())
+	}
+	// the tab's ✕
+	open(b)
+	tb = tabButton(r, moreTabTitle)
+	tb.Tapped(&fyne.PointEvent{Position: fyne.NewPos(tb.Size().Width-4, tb.Size().Height/2)})
+	if r.more != nil || r.selected != "File" {
+		t.Fatalf("✕: %s chosen", r.selected)
+	}
+	if b = launcherOf(r, "More Output"); b == nil || c.Focused() != fyne.Focusable(b) {
+		t.Errorf("✕: the focus on %v, not the launcher", c.Focused())
+	}
+	// another tab chosen closes it
+	open(b)
+	r.selectTab("Edit")
+	if r.more != nil || r.selected != "Edit" || tabButton(r, moreTabTitle).Visible() {
+		t.Errorf("Edit chosen: %s chosen, the More tab %v", r.selected, r.more)
+	}
+	// a submenu a group of its own, its levels kept: File > New's
+	// language for new scripts, a chosen one ✓, More variants a menu
+	r.selectTab("File")
+	open(launcherOf(r, "More New"))
+	got := moreLabels(r)
+	for _, want := range []string{"## Close", "## New", "## Language for New Scripts", "## New from Structure", "Three Acts",
+		"✓ " + defaultLanguageLabel(w, w.newFileLanguage()), "Use for New Scripts by Default"} {
+		if !slices.ContainsFunc(got, func(s string) bool { return s == want || s == "✓ "+want }) {
+			t.Errorf("More New: no %q in %q", want, got)
+		}
+	}
+	if _, hidden := shownLanguages(scriptLanguages(), w.newFileLanguage()); len(hidden) > 0 && !slices.Contains(got, "More variants ▾") {
+		t.Errorf("More New: the variants flattened: %q", got)
+	}
+	for _, l := range got {
+		if strings.Contains(l, " > ") {
+			t.Errorf("More New: a flattened item %q", l)
+		}
+	}
+	var other *ribbonButton // another language chosen: the ✓ moves, the tab stays
+	for _, x := range r.buttons {
+		if x.toggle && !x.checked && x.c == nil && x.label == defaultLanguageLabel(w, "fr") {
+			other = x
+		}
+	}
+	if other == nil {
+		t.Fatalf("More New: no French in %q", got)
+	}
+	other.press()
+	if w.newLanguage != "fr" || r.selected != moreTabTitle || !slices.Contains(moreLabels(r), "✓ "+defaultLanguageLabel(w, "fr")) {
+		t.Errorf("French chosen: %q, %s chosen, %q", w.newLanguage, r.selected, moreLabels(r))
+	}
+	w.newLanguage = ""
+	r.closeMore()
+	// a group's settings: ✓ when on, choices as groups
+	r.selectTab("View")
+	open(launcherOf(r, "More Window"))
+	got = moreLabels(r)
+	for _, want := range []string{"## Settings", "✓ Ribbon", "## Theme", "## Font", "Larger Text"} {
+		if !slices.ContainsFunc(got, func(s string) bool { return strings.HasPrefix(s, want) }) {
+			t.Errorf("More Window: no %q in %q", want, got)
+		}
+	}
+	r.closeMore()
+	// a phone's: the launcher at the group's end, a finger's size; the
+	// tab in the switcher with the contextual ones, Close on it
 	w.fyneWindow.Resize(fyne.NewSize(380, 800))
-	w.fyneWindow.Canvas().Capture()
+	c.Capture()
 	if !r.phone {
 		t.Fatal("not narrow")
 	}
 	r.selectTab("File")
-	b = launcherOf(r, "More Output options…")
+	b = launcherOf(r, "More Output")
 	if b == nil {
 		t.Fatal("a phone's File > Output: no launcher")
 	}
@@ -1041,8 +1133,33 @@ func TestGroupLauncher(t *testing.T) {
 		t.Errorf("a phone's launcher %v high", s.Height)
 	}
 	b.press()
-	if w.palette == nil || !w.palette.pop.Visible() || len(w.palette.shown) != len(want) {
-		t.Error("a phone's launcher: not its palette")
+	if r.selected != moreTabTitle || r.switcher.title != "More Output ▾" {
+		t.Fatalf("a phone's launcher: %s chosen, the switcher %q", r.selected, r.switcher.title)
 	}
-	w.palette.close()
+	m := r.tabMenu(false)
+	if last := m.Items[len(m.Items)-1]; last.Label != "More Output" || !last.Checked {
+		t.Errorf("the switcher's menu ends with %q", last.Label)
+	}
+	var closeB *ribbonButton
+	for _, x := range r.buttons {
+		if x.label == "Close" {
+			closeB = x
+		}
+	}
+	if closeB == nil || closeB.MinSize().Height < 44 {
+		t.Fatal("a phone's More tab: no Close a finger's size")
+	}
+	closeB.press()
+	if r.more != nil || r.selected != "File" {
+		t.Errorf("a phone's Close: %s chosen", r.selected)
+	}
+	b.press() // another tab from the switcher's menu closes it
+	for _, it := range r.tabMenu(false).Items {
+		if it.Label == "Edit" {
+			it.Action()
+		}
+	}
+	if r.more != nil || r.selected != "Edit" {
+		t.Errorf("a phone's Edit chosen: %s chosen", r.selected)
+	}
 }

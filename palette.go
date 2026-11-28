@@ -197,27 +197,6 @@ func (w *MainWindow) showPalette() {
 	w.openPalette(w.paletteEntries(w.cmdEnv()), "Type a command", "Command palette: type to find a command")
 }
 
-// showGroupPalette opens the palette narrowed to ids, in their order (a
-// ribbon group's launcher: its less common commands and its settings),
-// named name; a setting that is on says so.
-func (w *MainWindow) showGroupPalette(name string, ids []string) {
-	if w.palette != nil && w.palette.pop.Visible() {
-		w.palette.close()
-	}
-	byID := map[string][]paletteEntry{}
-	for _, e := range w.paletteEntries(w.cmdEnv()) {
-		if e.c.checked != nil && e.action == nil && e.c.checked(w) {
-			e.label += " ✓"
-		}
-		byID[e.c.id] = append(byID[e.c.id], e)
-	}
-	var entries []paletteEntry
-	for _, id := range ids {
-		entries = append(entries, byID[id]...)
-	}
-	w.openPalette(entries, "Type to narrow: "+name, name+": type to narrow, Enter runs")
-}
-
 // openPalette opens the palette over entries: placeholder in its field,
 // name the field's for a screen reader.
 func (w *MainWindow) openPalette(entries []paletteEntry, placeholder, name string) {

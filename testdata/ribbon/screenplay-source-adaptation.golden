@@ -5,19 +5,19 @@ tabs: File Write Edit [Adaptation] Revision Production Collaboration View
   S Save As icon=foreground_document-save.svg name=Save Source As…
   S Keep in Script icon=foreground_keep-inside.svg name=Keep Source in the Script
   S In the Middle icon=foreground_swap.svg name=Source in the Middle
-  T More Source options icon=foreground_more-horizontal.svg name=More Source options…
+  T More Source icon=foreground_more-horizontal.svg name=More Source: the group's other commands and its settings, on a tab
 ## Passages
   L Adapt icon=foreground_adapt.svg name=Adapt Source Passage… (Ctrl+Alt+A)
   S Next icon=foreground_arrow-forward.svg name=Next Source Passage (Ctrl+Alt+J)
   S Previous icon=foreground_arrow-back.svg name=Previous Source Passage (Ctrl+Alt+K)
   S Mark as Cut icon=foreground_content-cut.svg name=Mark Source Passage as Cut
-  T More Passages options icon=foreground_more-horizontal.svg name=More Passages options…
+  T More Passages icon=foreground_more-horizontal.svg name=More Passages: the group's other commands and its settings, on a tab
 ## Links
   L Link icon=foreground_link.svg name=Link to Source Passage
   S Link Up icon=foreground_suggest.svg name=Link Up the Script…
   S Update icon=foreground_view-refresh.svg name=Update Source Links
   S Headings as Sections icon=foreground_toc.svg name=Source Headings as Sections
-  T More Links options icon=foreground_more-horizontal.svg name=More Links options…
+  T More Links icon=foreground_more-horizontal.svg name=More Links: the group's other commands and its settings, on a tab
 ## Learned
   L Learned Notes icon=foreground_learned.svg name=What Accolade Learned…
 ## Options

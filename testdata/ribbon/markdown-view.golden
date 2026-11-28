@@ -6,7 +6,7 @@ tabs: File Write Edit Adaptation Revision Collaboration [View]
   S References icon=foreground_document.svg name=References
   S Help icon=foreground_help.svg name=Help
   S Side Panes icon=foreground_dock.svg name=Side Panes
-  T More Panes options icon=foreground_more-horizontal.svg name=More Panes options…
+  T More Panes icon=foreground_more-horizontal.svg name=More Panes: the group's other commands and its settings, on a tab
 ## Show
   L Preview icon=foreground_visibility.svg name=Live Preview (Ctrl+Shift+P)
   S Line Numbers icon=foreground_line-numbers.svg name=Line Numbers
@@ -24,4 +24,4 @@ tabs: File Write Edit Adaptation Revision Collaboration [View]
   T Smaller Text icon=foreground_text-smaller.svg name=Smaller Text
   T Larger Text icon=foreground_text-larger.svg name=Larger Text
   T Font icon=foreground_font.svg name=Font
-  T More Window options icon=foreground_more-horizontal.svg name=More Window options…
+  T More Window icon=foreground_more-horizontal.svg name=More Window: the group's other commands and its settings, on a tab
