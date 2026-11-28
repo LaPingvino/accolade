@@ -112,6 +112,7 @@ var funLines = map[string][]funLine{
 	},
 	"Exporting": {
 		{run: "file.export", also: []string{"file.pageSetup", "set.sceneNumbers"}, line: "Export to PDF, Final Draft, Word, HTML or an e-book"},
+		{run: "file.saveAs", line: "Open a screenplay PDF and keep writing it in Celtx from 2010"},
 		{run: "file.print", line: "Print it, title page and all"},
 		{run: "file.exportWriter", also: []string{"file.exportShooting"}, line: "Export the writer's version and the shooting version from one script"},
 		{run: "file.exportClean", line: "Hand over a clean Fountain, without the notes and marks"},
@@ -125,7 +126,7 @@ var funLines = map[string][]funLine{
 // funQuiet are the commands with no line: the plain ones, and the help's
 // own pages ("x." is all of x.*).
 var funQuiet = []string{
-	"file.open", "file.openFolder", "file.recent", "file.save", "file.saveAs", "file.rename", "file.undoRename", "app.preferences",
+	"file.open", "file.openFolder", "file.recent", "file.save", "file.rename", "file.undoRename", "app.preferences",
 	"edit.undo", "edit.redo", "edit.find", "edit.replace", "edit.findReplace", "edit.findNext", "edit.findPrevious",
 	"edit.cut", "edit.copy", "edit.paste", "edit.selectAll", "format.bold", "format.italic", "format.underline",
 	"view.documentType", "view.nextPane", "view.previousPane", "view.dock", "view.help",

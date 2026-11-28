@@ -67,6 +67,7 @@ Made from Accolade's own list of commands, so nothing is left out. In the app ea
 ## Exporting
 
 - Export to PDF, Final Draft, Word, HTML or an e-book (Export) — **Ctrl+E**
+- Open a screenplay PDF and keep writing it in Celtx from 2010 (Save As) — **Ctrl+Shift+S**
 - Print it, title page and all (Print) — **Ctrl+P**
 - Export the writer's version and the shooting version from one script (Export Writer's Version)
 - Hand over a clean Fountain, without the notes and marks (Export Clean Fountain)

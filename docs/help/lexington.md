@@ -19,7 +19,7 @@ It writes the formats below; the output format comes from the file name, or `-to
 
 <!-- formats -->
 
-- **Its own:** PDF (`pdf`), HTML (`html`), Word (DOCX) (`docx`), OpenDocument (ODT) (`odt`), Final Draft (FDX) (`fdx`), Fade In (`fadein`), Open Screenplay Format (OSF) (`osf`), Trelby (`trelby`), KIT Scenarist (`kitsp`), Fountain (`fountain`), LaTeX (`latex`), Lexington's own (lex) (`lex`).
+- **Its own:** PDF (`pdf`), HTML (`html`), Word (DOCX) (`docx`), OpenDocument (ODT) (`odt`), Final Draft (FDX) (`fdx`), Fade In (`fadein`), Open Screenplay Format (OSF) (`osf`), Trelby (`trelby`), KIT Scenarist (`kitsp`), Celtx (`celtx`), Fountain (`fountain`), LaTeX (`latex`), Lexington's own (lex) (`lex`).
 - **With other programs installed:** PDF through HTML (`htmlpdf`), with wkhtmltopdf; PDF through LaTeX (`latexpdf`), with LaTeX; EPUB (`epub`), with pandoc; Kindle (AZW3) (`azw3`), with Calibre; Mobipocket (MOBI) (`mobi`), with Calibre; Mobipocket (PRC) (`prc`), with Calibre; FictionBook (FB2) (`fb2`), with Calibre; eReader (PDB) (`pdb`), with Calibre; Sony Reader (LRF) (`lrf`), with Calibre; Microsoft Reader (LIT) (`lit`), with Calibre; Rich Text (RTF) (`rtf`), with pandoc; Markdown (`markdown`), with pandoc; reStructuredText (`rst`), with pandoc; Pandoc JSON (`json`), with pandoc; Pandoc native (`native`), with pandoc; Manual page (`man`), with pandoc; Textile (`textile`), with pandoc; MediaWiki (`mediawiki`), with pandoc; Org mode (`org`), with pandoc; AsciiDoc (`asciidoc`), with pandoc.
 
 <!-- /formats -->
@@ -34,8 +34,8 @@ Made from Lexington's own list, so none is missing. `-i` and `-o` default to sta
 
 - `-i string` — Input from provided filename. - means standard input. A bundle (.accolade, .highland, .textbundle, .textpack, zipped or a folder) is read for its text; a .fadein too, zipped or a folder. (default "-")
 - `-o string` — Output to provided filename. - means standard output. A bundle (.accolade, .highland, .textbundle, .textpack) gets the script as Fountain, all else in it kept; a .fadein its OSF document. (default "-")
-- `-from string` — Input file type: fountain, fdx, pdf, fadein, osf, trelby, kitsp, lex (default: as the input's name, else its content, says).
-- `-to string` — Output file type. Choose from pdf, html, docx, odt, fdx, fadein, osf, trelby, kitsp, fountain, latex, lex, or external formats requiring other programs: htmlpdf, latexpdf, epub, azw3, mobi, prc, fb2, pdb, lrf, lit, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc.
+- `-from string` — Input file type: fountain, fdx, pdf, fadein, osf, trelby, kitsp, celtx, lex (default: as the input's name, else its content, says).
+- `-to string` — Output file type. Choose from pdf, html, docx, odt, fdx, fadein, osf, trelby, kitsp, celtx, fountain, latex, lex, or external formats requiring other programs: htmlpdf, latexpdf, epub, azw3, mobi, prc, fb2, pdb, lrf, lit, rtf, markdown, rst, json, native, man, textile, mediawiki, org, asciidoc.
 - `-template string` — Path to a custom template file (e.g., for HTML, FDX, or LaTeX output).
 
 ### Format, paper and pagination
@@ -87,6 +87,8 @@ Made from Lexington's own list, so none is missing. `-i` and `-o` default to sta
 - `-keeploose` — Write the Fountain input so that it reads under the spec as Lexington before 1.19 read it (blank lines and force marks added), instead of converting it; says how many places changed.
 - `-loose` — Read Fountain as Lexington before 1.19 did: a scene word starts a heading anywhere, capitals after action are a name, any line ending in " TO:" is a transition, a line of spaces ends a speech.
 - `-osfversion string` — The Open Screenplay Format version osf and fadein are written in: 5.0 (the default, Fade In 5's), 4.0, 2.0 or 1.2.
+- `-script string` — The script to read of a Celtx project with several (a screenplay and its stage play): its number from 1 or its title (default: the first; -scripts lists them).
+- `-scripts` — List the scripts of the Celtx project IN, for -script.
 - `-titlepage string` — The title page template: standard (Fountain's, the default), bold, poster, or one of the [TitlePages] in the settings file (see -titlepages).
 - `-titlepages` — List the title page templates for -titlepage.
 

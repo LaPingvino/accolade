@@ -44,13 +44,20 @@ Every screenwriting app prints a PDF, so this is the way in that always works: F
 - **Save:** Save As… with the KIT Scenarist type, a copy as a new KIT project. KIT has no page breaks.
 - KIT Scenarist's successor, Story Architect (STARC), opens Fountain and Final Draft files: take either of those.
 
-## WriterDuet and Celtx
+## Celtx
 
-Neither has a file of its own to open outside it, but both export and import Final Draft and Fountain:
+- **Open:** a `.celtx` project from the desktop Celtx (2.x, the one given up around 2012). A project can hold several scripts, a screenplay and its stage adaptation: the first in the project's tree opens; for another, Lexington's `-script` takes its number or title (`lexington -scripts film.celtx` lists them).
+- **What comes in:** every element and its bold, italic and underline, Celtx's notes as notes, a stage play's acts as sections, each scene's index card as its synopsis, the title page (title, author, credit, source, copyright, contact). Celtx numbers scenes itself, so its numbers stay behind; attachments, the storyboard and the schedule too. Its breakdown tags do not yet come into Accolade's breakdown.
+- **Save:** Save As… with the Celtx type, a copy as a new Celtx project of one screenplay. Celtx has no dual dialogue, centred lines, lyrics or outline, so they go as Fountain's markers that read back as they were (`MARY ^`, `> THE END <`, `~la la`), sections and synopses as notes; no scene numbers or page breaks. The Celtx copy is new in this version: it follows what Celtx itself writes, but has not been opened in Celtx yet.
+- Any screenplay PDF goes to Celtx the same way: open the PDF, then Save As… Celtx.
 
-- **In:** export the script from WriterDuet or Celtx as Final Draft (.fdx), which keeps the most (notes, scene numbers), or as Fountain, and open that.
+## WriterDuet
+
+WriterDuet has no file of its own to open outside it, but exports and imports Final Draft and Fountain:
+
+- **In:** export the script from WriterDuet as Final Draft (.fdx), which keeps the most (notes, scene numbers), or as Fountain, and open that.
 - **Out:** File > Export… > Final Draft (FDX), or save the Fountain itself, and import it there.
-- Failing both, their PDF reads as any other ([From any program: its PDF](#from-any-program-its-pdf)).
+- Failing both, its PDF reads as any other ([From any program: its PDF](#from-any-program-its-pdf)).
 
 ## Storyboarder
 
