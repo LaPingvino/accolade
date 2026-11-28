@@ -924,6 +924,7 @@ func newRegistry() *registry {
 	add(notesCommands()...)      // Add Note, New Unsorted Note (notes_pane.go)
 	add(helpCommands()...)       // help_pane.go
 	add(settingCommands()...)    // ribbon_settings.go
+	add(tipCommands()...)        // the status bar's tips (tips.go)
 	add(previewCommands()...)    // the Preview tab's (previewtab.go)
 	add(stripsCommands()...)     // the Stripboard tab's (stripstab.go)
 	add(cardsCommands()...)      // the Cards tab's (cards_tab.go)
@@ -1427,7 +1428,8 @@ func ribbonLayout() []ribbonTab {
 			{title: "Panes", homes: dockRibbonHomes(),
 				more: []home{at("view.paneMiddle"), at("view.paneSide"), at("view.paneTop"), at("view.paneBottom"), at("view.midNext"), at("view.midPrev")}},
 			// what the window shows; its look (the preferences changed while working: ribbon_settings.go)
-			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")}},
+			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")},
+				more: []home{at("view.tip"), at("set.tips")}}, // the status bar's tips (tips.go)
 			// the story's shape: its folds, and the timeline strip over the script
 			{title: "Story", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll"), at("view.timelineStrip"), at("view.stages")}},
 			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),

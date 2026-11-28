@@ -85,6 +85,12 @@ type vim struct {
 	tree func() *structure.Tree
 	// exWith opens the command line with the lines given and text typed
 	exWith func(visual [2]int, text string)
+	// beats are the script's beats, the window's way (beatsOf); nil:
+	// read plainly
+	beats func() []beatAt
+	// noticed is told what the keys did, for the status bar's tips
+	// (tips.go): "dd" and the line, an object's or a motion's keys
+	noticed func(what string, line int)
 }
 
 func newVim(e *editor.ScriptEditor) *vim {
@@ -524,6 +530,9 @@ func (v *vim) operatorKey(r rune) {
 	switch {
 	case r == op || (op == 'y' && r == 'y'): // dd cc yy: n lines
 		lines = true
+		if op == 'd' && v.noticed != nil {
+			v.noticed("dd", v.curLine())
+		}
 		from, _ = lineBounds(t, c)
 		to = c
 		for i := 0; i < n; i++ {

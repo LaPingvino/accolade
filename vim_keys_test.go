@@ -26,9 +26,9 @@ func modeState(e *editor.ScriptEditor, v *vim, called string) string {
 }
 
 // modeEditor is an editor in mode's normal mode, every hook a recorder,
-// the cursor in the middle of a scene.
+// the cursor in the middle of a scene's action (a speech two lines down).
 func modeEditor(mode string) (*editor.ScriptEditor, *vim, *string) {
-	text := vimStructScript
+	text := vimObjScript // speeches, a note and beats beside the scenes (vim_objects_test.go)
 	e, v := vimOn(text)
 	if mode == "helix" {
 		v.helix = func() bool { return true }
@@ -114,7 +114,7 @@ func TestModeKeysDocumented(t *testing.T) {
 		// selection, a register, a change to undo, two selections)
 		for _, d := range docs {
 			ok := false
-			for _, primer := range []string{"", "x", "yy", "xy", "xd", "xdu", "C"} {
+			for _, primer := range []string{"", "x", "yy", "xy", "xd", "xdu", "C", "jj", "jjjjj", "gg"} {
 				e, v, called := modeEditor(mode)
 				vimKeys(e, primer)
 				before := modeState(e, v, *called)

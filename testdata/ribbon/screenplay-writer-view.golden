@@ -13,6 +13,7 @@ tabs: File Write Edit Revision Collaboration [View]
   S Statistics icon=foreground_statistics.svg name=Statistics…
   S Line Numbers icon=foreground_line-numbers.svg name=Line Numbers
   S Status Bar icon=foreground_status-bar.svg (checked) name=Status Bar
+  T More Show icon=foreground_more-horizontal.svg name=More Show: the group's other commands and its settings, on a tab
 ## Story
   S Fold Here icon=foreground_fold.svg name=Fold or Unfold Here (Ctrl+Shift+.)
   S Fold Sections icon=foreground_fold-sections.svg name=Fold All (Sections Only)

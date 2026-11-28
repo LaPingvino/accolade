@@ -49,6 +49,7 @@ func (s *Settings) loadDefaults() {
 		"toolbar-visible":   true,
 		"look":              defaultLook, // "ribbon" or "menus" (ribbon.go)
 		"statusbar-visible": true,
+		tipsPref:            true, // the status bar's tips (tips.go)
 
 		// Editor behavior
 		"auto-save":          true,

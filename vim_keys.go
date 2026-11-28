@@ -62,8 +62,17 @@ var modeKeys = []modeKey{
 	{"both", "Text objects and the structure", "]s [s", "the next / previous section heading (helix: select that section)", []string{"]s", "[s"}},
 	{"vim", "Text objects and the structure", "as is", "a text object: a scene with the blank lines after it / its inside: das, cis, yas, vis, 2das", []string{"das", "dis", "vas", "vis"}},
 	{"vim", "Text objects and the structure", "aS iS", "a section with all it holds / its inside: daS, yiS, vaS", []string{"daS", "diS", "vaS", "viS"}},
-	{"vim", "Text objects and the structure", "m + an object", "move it through the structure engine: mas opens :'<,'>move , then after 12 or before #Act Two", []string{"m", "mas", "maS", "mis", "miS"}},
+	{"vim", "Text objects and the structure", "ad id", "a speech: its cue, parentheticals and dialogue (two side by side: the pair) / its dialogue lines: dad, cid, 2dad; yad then p puts it after the cursor's speech or paragraph", []string{"dad", "did", "vad", "vid", "cid"}},
+	{"vim", "Text objects and the structure", "ac ic", "a character cue with its extension, (V.O.) or (CONT'D) / its name alone: cic renames, the extension kept", []string{"dac", "dic", "vac", "vic", "cic"}},
+	{"vim", "Text objects and the structure", "aB iB", "a beat (a synopsis standing on its own, a section marked a beat or every section with Every Section Is a Beat) / its lines: daB, yaB", []string{"daB", "diB", "vaB", "viB"}},
+	{"vim", "Text objects and the structure", "an in", "a note with its [[ ]] / what it says: dan, cin", []string{"dan", "din", "van", "vin", "cin"}},
+	{"vim", "Text objects and the structure", "aa ia", "an action paragraph with the blank lines after it / alone: daa, yaa", []string{"daa", "dia", "vaa", "via"}},
+	{"vim", "Text objects and the structure", "m + an object", "move it through the structure engine: mas opens :'<,'>move , then after 12 or before #Act Two; mad, maa and a synopsis's maB select it for Alt+j and Alt+k", []string{"m", "mas", "maS", "mis", "miS", "mad", "maa"}},
 	{"helix", "Text objects and the structure", "mas mis maS miS", "select a scene, its inside, a section, its inside; then d c y p, or : to move it", []string{"m", "mas", "mis", "maS", "miS"}},
+	{"helix", "Text objects and the structure", "mad mid mac mic maB miB man min maa mia", "select a speech, a cue, a beat, a note, an action paragraph (a: with its blank lines, extension or [[ ]]; i: inside); then d c y p", []string{"mad", "mid", "mac", "mic", "maB", "miB", "man", "min", "maa", "mia"}},
+	{"both", "Text objects and the structure", "]d [d", "the next / previous speech's cue, each of a pair (helix: select that speech)", []string{"]d", "[d"}},
+	{"both", "Text objects and the structure", "]B [B", "the next / previous beat (helix: select it)", []string{"]B", "[B"}},
+	{"both", "Text objects and the structure", "]n [n", "the next / previous note (helix: select it)", []string{"]n", "[n"}},
 	{"both", "Text objects and the structure", "Alt+j Alt+k", "move the unit at the cursor (a scene or section with all it holds, a speech, a paragraph) down / up past the next", nil},
 	{"both", "Text objects and the structure", "Alt+h Alt+l", "promote / demote it (a scene out of its section, into the one before)", nil},
 	{"both", "Text objects and the structure", "Alt+J Alt+K", "into the next / previous scene", nil},
@@ -81,6 +90,7 @@ var modeKeys = []modeKey{
 	{"helix", "Several selections", "S", "split the selections where a pattern matches", []string{"S"}},
 	{"helix", "Several selections", "Alt+s", "split the selections into lines", nil},
 	{"helix", "Several selections", "C", "a selection like the last one on the next line", []string{"C"}},
+	{"helix", "Several selections", "M", "in a speech: every speech of that character as a selection (each of a pair alone); then d c y i a at all of them", []string{"M"}},
 	{"helix", "Several selections", ",", "keep the primary selection only", []string{","}},
 	{"helix", "Several selections", "Alt+,", "drop the primary selection", nil},
 	{"helix", "Several selections", "d c i a with several", "act at every selection; typing goes to all of them", nil},
@@ -101,7 +111,7 @@ var modeKeys = []modeKey{
 // modeUnsupported is what Accolade's modes do not have, said on the page.
 var modeUnsupported = map[string]string{
 	"vim": "marks (m and ' with a letter: m is the structure's move), named registers (\" and a letter: one register), macros (q, @), repeat (.), " +
-		"f t F T, %, * #, n N (the search bar's Find Next and Find Previous, Ctrl+G, do that), the word and paragraph objects (iw aw ip ap), " +
+		"f t F T, %, * #, n N (the search bar's Find Next and Find Previous, Ctrl+G, do that), the word and paragraph objects (iw aw ip ap: the screenplay's ad aa aB stand in), " +
 		"block visual (Ctrl+V), > < ~, and :set",
 	"helix": "goto mode beyond gg (g and a letter: the outline's, as vim's), space mode, match mode beyond mi and ma with s and S (mm, ms), " +
 		"registers, macros, repeat (.), f t, n N (the search bar does that), the tree-sitter objects (a function, a class)",
@@ -154,7 +164,9 @@ func vimHelpPage() string {
 		"The menus' shortcuts work in every mode ([Keyboard Shortcuts](shortcuts.md)), and so do the command palette and the ribbon's key tips. " +
 		"**:** opens the command line, which completes every command as you type, Accolade's own (`:renumber`, `:move 3..5 after 9`, `:scene`) among vim's: [Ex Commands](ex.md).\n\n")
 	b.WriteString("The screenplay's own: a **scene** is a text object (`as`, `is`), so is a **section** with all it holds (`aS`, `iS`); `]]` and `[[` go from scene to scene, `]s` and `[s` from section to section. " +
-		"A scene deleted or yanked as one (`das`, `yas`) is put back after or before the cursor's scene, never inside it. Moving goes through the structure engine, as Alt+Up and View > Structure do: the links, tags, colours and locked numbers go with the scenes.\n")
+		"Inside a scene, a **speech** (`ad`, `id`), its **cue** (`ac`, `ic`), a **beat** (`aB`, `iB`), a **note** (`an`, `in`) and an **action paragraph** (`aa`, `ia`) are objects too, and `]d`, `]B` and `]n` go to the next speech, beat or note. " +
+		"They read the script as the window does, in its language: an Esperanto script's EN. and EKST. are its scene headings. " +
+		"A scene deleted or yanked as one (`das`, `yas`) is put back after or before the cursor's scene, never inside it; a speech or paragraph (`dad`, `yaa`) after or before the cursor's. Moving goes through the structure engine, as Alt+Up and View > Structure do: the links, tags, colours and locked numbers go with the scenes.\n")
 	for _, mode := range []string{"vim", "helix"} {
 		fmt.Fprintf(&b, "\n## %s\n", modeTitle(mode))
 		if mode == "helix" {

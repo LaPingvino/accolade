@@ -4,6 +4,7 @@ package main
 
 import (
 	"strings"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -58,6 +59,12 @@ func (c *tabChip) Cursor() desktop.Cursor { return desktop.PointerCursor }
 func (w *MainWindow) setStatus(text string) {
 	if w.statusLabel == nil {
 		return
+	}
+	if text != w.statusLabel.Text || w.statusHint != "" {
+		w.statusAt = time.Now()
+	}
+	if text != "" && !strings.HasPrefix(text, "-- ") { // a message: the tip goes (tips.go)
+		w.hideTip()
 	}
 	if rest, ok := strings.CutPrefix(text, hintPrefix); ok && w.tabChip != nil {
 		w.statusHint = text

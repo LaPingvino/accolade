@@ -343,6 +343,9 @@ type MainWindow struct {
 	statusHint  string   // the "Tab: …" hint shown, "" none (status_hint.go)
 	tabChip     *tabChip // before it: a tap is Tab
 	statsLabel  *widget.Label
+	tipLabel    *widget.Label // a tip after the status (tips.go)
+	tips        *tipper
+	statusAt    time.Time // when the status was said
 	// openLabel is the status bar's count of what is open, openTimer its
 	// pause; noteMarks the margin's marks of the notes (notes_marks.go)
 	openLabel *linkLabel
@@ -384,6 +387,7 @@ func NewMainWindow(app *Application) *MainWindow {
 	window.updateTitle()
 	window.updateCurrentElement()
 	window.updateStatusBar()
+	window.startTips() // the status bar's tips (tips.go)
 
 	return window
 }
@@ -445,9 +449,13 @@ func (w *MainWindow) setupUI() {
 	w.openLabel = newLinkLabel(w.showNotes)             // what is open: the Notes pane (notes_marks.go)
 	w.openLabel.Importance = widget.WarningImportance
 	w.openLabel.Hide()
+	w.tipLabel = small("") // a tip now and then (tips.go)
+	w.tipLabel.TextStyle.Italic = true
+	w.tipLabel.Truncation = fyne.TextTruncateEllipsis
+	w.tipLabel.Hide()
 	w.statusBar = container.NewVBox(
 		widget.NewSeparator(),
-		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel, w.openLabel),
+		container.New(&statusRow{}, w.tabChip, w.statusLabel, w.statsLabel, w.openLabel, w.tipLabel),
 	)
 	w.bottom = container.NewVBox(w.newLooseNotice(), w.newOpenedAsBar(), w.newDropLine(), w.statusBar)
 
@@ -1289,6 +1297,18 @@ func (r *statusRow) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	mw := r.fit(msg, max(size.Width-cw, 0))
 	msg.Move(fyne.NewPos(cw, 0))
 	mw += cw
+	if tip := objs[4].(*widget.Label); tip.Visible() { // a tip: in what the statistics leave
+		if msg.Text != "" {
+			mw += theme.Padding()
+		}
+		tw := min(r.natural(tip), size.Width-mw-r.natural(objs[2].(*widget.Label)))
+		if tw < 4*statsMin {
+			tw = 0 // no room: none
+		}
+		tip.Move(fyne.NewPos(mw, 0))
+		tip.Resize(fyne.NewSize(tw, tip.MinSize().Height))
+		mw += tw
+	}
 	if left := size.Width - mw; left >= statsMin || msg.Text == "" {
 		stats.Show()
 		stats.Move(fyne.NewPos(mw, 0))

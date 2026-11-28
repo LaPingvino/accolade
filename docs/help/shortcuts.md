@@ -166,7 +166,15 @@ Preferences > Editor > Keys gives the editor vim's or helix's keys; the menus' s
 - **]s [s** — the next / previous section heading (helix: select that section)
 - **as is** — a text object: a scene with the blank lines after it / its inside: das, cis, yas, vis, 2das
 - **aS iS** — a section with all it holds / its inside: daS, yiS, vaS
-- **m + an object** — move it through the structure engine: mas opens :'<,'>move , then after 12 or before #Act Two
+- **ad id** — a speech: its cue, parentheticals and dialogue (two side by side: the pair) / its dialogue lines: dad, cid, 2dad; yad then p puts it after the cursor's speech or paragraph
+- **ac ic** — a character cue with its extension, (V.O.) or (CONT'D) / its name alone: cic renames, the extension kept
+- **aB iB** — a beat (a synopsis standing on its own, a section marked a beat or every section with Every Section Is a Beat) / its lines: daB, yaB
+- **an in** — a note with its [[ ]] / what it says: dan, cin
+- **aa ia** — an action paragraph with the blank lines after it / alone: daa, yaa
+- **m + an object** — move it through the structure engine: mas opens :'<,'>move , then after 12 or before #Act Two; mad, maa and a synopsis's maB select it for Alt+j and Alt+k
+- **]d [d** — the next / previous speech's cue, each of a pair (helix: select that speech)
+- **]B [B** — the next / previous beat (helix: select it)
+- **]n [n** — the next / previous note (helix: select it)
 - **Alt+j Alt+k** — move the unit at the cursor (a scene or section with all it holds, a speech, a paragraph) down / up past the next
 - **Alt+h Alt+l** — promote / demote it (a scene out of its section, into the one before)
 - **Alt+J Alt+K** — into the next / previous scene
@@ -222,6 +230,10 @@ Preferences > Editor > Keys gives the editor vim's or helix's keys; the menus' s
 - **]] [[** — the next / previous scene heading (helix: select that scene)
 - **]s [s** — the next / previous section heading (helix: select that section)
 - **mas mis maS miS** — select a scene, its inside, a section, its inside; then d c y p, or : to move it
+- **mad mid mac mic maB miB man min maa mia** — select a speech, a cue, a beat, a note, an action paragraph (a: with its blank lines, extension or [[ ]]; i: inside); then d c y p
+- **]d [d** — the next / previous speech's cue, each of a pair (helix: select that speech)
+- **]B [B** — the next / previous beat (helix: select it)
+- **]n [n** — the next / previous note (helix: select it)
 - **Alt+j Alt+k** — move the unit at the cursor (a scene or section with all it holds, a speech, a paragraph) down / up past the next
 - **Alt+h Alt+l** — promote / demote it (a scene out of its section, into the one before)
 - **Alt+J Alt+K** — into the next / previous scene
@@ -239,6 +251,7 @@ Preferences > Editor > Keys gives the editor vim's or helix's keys; the menus' s
 - **S** — split the selections where a pattern matches
 - **Alt+s** — split the selections into lines
 - **C** — a selection like the last one on the next line
+- **M** — in a speech: every speech of that character as a selection (each of a pair alone); then d c y i a at all of them
 - **,** — keep the primary selection only
 - **Alt+,** — drop the primary selection
 - **d c i a with several** — act at every selection; typing goes to all of them

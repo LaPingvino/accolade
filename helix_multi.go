@@ -19,6 +19,7 @@ import (
 //	Alt-s   split the selections into lines
 //	C       a selection like the last one on the next line
 //	,       keep the primary selection only;  Alt-,  drop it
+//	M       every speech of the cue's character (the cursor in one)
 //	d c y i a   act at every selection (y: the primary's text)
 //
 // Typing, Backspace and Delete then go to all of them; moving keeps the
@@ -51,6 +52,15 @@ func (v *vim) multiKey(r rune) bool {
 		return true
 	case ',':
 		v.setSpans(b.Spans()[:1])
+		return true
+	case 'M': // every speech of the cue's character (vim_objects.go)
+		spans, name := v.speechSpans(v.curLine())
+		if len(spans) == 0 {
+			v.status("Put the cursor in a speech: M selects every speech of its character")
+			return true
+		}
+		v.setSpans(spans)
+		v.status(fmt.Sprintf("-- HELIX NORMAL -- %d of %s's speeches", len(spans), name))
 		return true
 	}
 	if !b.HasOthers() {

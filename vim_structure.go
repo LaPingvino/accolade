@@ -22,7 +22,9 @@ import (
 //	m            with an object: mas opens :'<,'>move … to move it by the engine
 //	v            vas, viS: select it (line-wise)
 //	p P          a scene or section in the register goes after or before
-//	             the cursor's scene or section, never inside it
+//	             the cursor's scene or section, never inside it; a speech,
+//	             paragraph or beat after or before the cursor's block
+//	ad ac aB an aa, ]d ]B ]n …: the units inside a scene (vim_objects.go)
 //
 // helix: ]] [[ ]s [s select the next / previous unit; mas mis maS miS
 // select one; then d c y p act on it, and : (with '<,'>) moves it.
@@ -129,75 +131,8 @@ func unitWord(k structure.Kind) string {
 }
 
 // objectKey completes a text object: ia is i or a, f what it is for, r
-// its letter.
-func (v *vim) objectKey(ia, f, r rune) {
-	n := v.times()
-	k, ok := unitKindOf(r)
-	if !ok {
-		v.say("No text object " + string(ia) + string(r) + ": the screenplay's are as, is, aS and iS")
-		return
-	}
-	tr := v.unitTree()
-	first, last, ok := tr.SpanOf(v.curLine(), k, n)
-	if !ok {
-		v.say("Not in a " + unitWord(k))
-		return
-	}
-	head := first
-	if ia == 'a' {
-		last = tr.Trail(last)
-	} else {
-		first++
-		for first <= last && strings.TrimSpace(tr.S.Lines[first]) == "" {
-			first++
-		}
-	}
-	b := v.e.Buffer()
-	t := []rune(v.e.Text())
-	if first > last { // an empty inside
-		if f == 'c' {
-			v.edit(func(b *buffer.Buffer, _ []rune, _ int) {
-				at := b.LineEnd(head)
-				b.Replace(at, at, "\n\n")
-				b.SetCursor(at+2, false)
-			})
-			v.setMode(vimInsert)
-			return
-		}
-		v.say("This " + unitWord(k) + " has nothing inside")
-		return
-	}
-	from, to := b.LineStart(first), b.LineEnd(last)
-	switch f {
-	case 'd', 'c', 'y':
-		v.apply(f, t, from, to, true)
-		if ia == 'a' && f != 'c' {
-			v.unitKind, v.unitText = r, v.reg
-		}
-	case 'm':
-		if v.exWith == nil {
-			v.say("Moving needs the window's command line")
-			return
-		}
-		v.setMode(vimNormal)
-		v.exWith([2]int{first, last}, "move ")
-	case 'v':
-		v.anchor, v.vcur = from, b.LineStart(last)
-		v.visualUnit = [3]int{0, 0, 0}
-		if ia == 'a' {
-			v.visualUnit = [3]int{int(r), v.anchor, v.vcur}
-		}
-		v.mode = vimVisualLine
-		v.select_()
-		v.say(v.mode.String())
-	case 'h':
-		end := min(to+1, len(t))
-		v.e.Navigate(func(bf *buffer.Buffer) { bf.Select(from, end) })
-		if ia == 'a' {
-			v.helixUnit = [3]int{int(r), from, end}
-		}
-	}
-}
+// its letter (vim_objects.go).
+func (v *vim) objectKey(ia, f, r rune) { v.doObject(ia, f, r) }
 
 // bracketKey completes ]] [[ ]s [s: b is the first key, r the second.
 func (v *vim) bracketKey(b, r rune) {
@@ -207,6 +142,9 @@ func (v *vim) bracketKey(b, r rune) {
 	case r == b:
 		k = structure.Scene
 	case r == 's':
+	case r == 'd' || r == 'B' || r == 'n': // speeches, beats, notes (vim_objects.go)
+		v.unitMotion(r, b == '[', n)
+		return
 	default:
 		return
 	}
@@ -249,9 +187,16 @@ func (v *vim) putUnit(before bool, n int) bool {
 		return false
 	}
 	k, _ := unitKindOf(v.unitKind)
+	block := v.unitKind == 'p' // a speech, a paragraph, a beat: by the blocks
 	tr := v.unitTree()
 	cur := v.curLine()
-	first, last, ok := tr.Span(cur, k)
+	var first, last int
+	var ok bool
+	if block {
+		first, last, ok = tr.BlockAt(cur)
+	} else {
+		first, last, ok = tr.Span(cur, k)
+	}
 	place := -1 // not in a unit: a line to put it at
 	if !ok {
 		// in the blocks at the end (das on the last scene): before them;
@@ -261,7 +206,9 @@ func (v *vim) putUnit(before bool, n int) bool {
 			for place < len(tr.S.Lines) && strings.TrimSpace(tr.S.Lines[place]) == "" {
 				place++ // the end block's own line: the blank ones before it stay before the scene
 			}
-		} else if h, found := tr.HeadAfter(cur, k, 1, false); found {
+		} else if h, found := tr.HeadAfter(cur, k, 1, false); found && !block {
+			place = h
+		} else if h, found := tr.BlockAfter(cur); found && block {
 			place = h
 		} else {
 			place = end

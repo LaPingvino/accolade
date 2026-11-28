@@ -42,6 +42,7 @@ type PreferencesDialog struct {
 	lookSelect            *widget.Select // the header's rows or the ribbon
 	toolbarVisibleCheck   *widget.Check
 	statusbarVisibleCheck *widget.Check
+	tipsCheck             *widget.Check // the status bar's tips (tips.go)
 	quickRowCheck         *widget.Check // the ribbon's Quick row (quick.go)
 	autoSaveCheck         *widget.Check
 	autoSaveInterval      *widget.Entry
@@ -112,6 +113,7 @@ func (pd *PreferencesDialog) createWidgets() {
 	pd.lookSelect = widget.NewSelect(lookChoices, nil)
 	pd.toolbarVisibleCheck = widget.NewCheck("Show toolbar", nil)
 	pd.statusbarVisibleCheck = widget.NewCheck("Show status bar", nil)
+	pd.tipsCheck = widget.NewCheck("Tips in the status bar, now and then", nil)
 	pd.quickRowCheck = widget.NewCheck("Quick row under the ribbon (the Fixed order)", nil)
 	pd.autoSaveCheck = widget.NewCheck("Auto-save documents", nil)
 	pd.autoSaveInterval = widget.NewEntry()
@@ -226,6 +228,7 @@ func (pd *PreferencesDialog) createGeneralTab() fyne.CanvasObject {
 			hint("Menus: the menu bar and the toolbar's two rows. Ribbon: tabs of large buttons in their place, the menus under ☰ at the tab row's end (a Mac keeps its menu bar); F10, or Alt pressed alone, shows their keys."),
 			pd.toolbarVisibleCheck,
 			pd.statusbarVisibleCheck,
+			pd.tipsCheck,
 			pd.quickRowRow(),
 		)),
 		widget.NewCard("Saving", "", container.NewVBox(
@@ -376,6 +379,7 @@ func (pd *PreferencesDialog) loadFrom(s *Settings) {
 	}
 	pd.toolbarVisibleCheck.SetChecked(s.GetBoolean("toolbar-visible"))
 	pd.statusbarVisibleCheck.SetChecked(s.GetBoolean("statusbar-visible"))
+	pd.tipsCheck.SetChecked(s.GetBoolean(tipsPref))
 	pd.quickRowCheck.SetChecked(s.GetBoolean(quickRowPref))
 	pd.autoSaveCheck.SetChecked(s.GetBoolean("auto-save"))
 	pd.autoSaveInterval.SetText(strconv.Itoa(s.GetInt("auto-save-interval")))
@@ -433,6 +437,7 @@ func (pd *PreferencesDialog) saveSettings() {
 	}
 	s.SetBoolean("toolbar-visible", pd.toolbarVisibleCheck.Checked)
 	s.SetBoolean("statusbar-visible", pd.statusbarVisibleCheck.Checked)
+	s.SetBoolean(tipsPref, pd.tipsCheck.Checked)
 	s.SetBoolean(quickRowPref, pd.quickRowCheck.Checked)
 	s.SetBoolean("auto-save", pd.autoSaveCheck.Checked)
 	if interval, err := strconv.Atoi(pd.autoSaveInterval.Text); err == nil && interval > 0 {

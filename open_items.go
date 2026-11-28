@@ -202,6 +202,35 @@ func boneyards(text string, end int) []byteSpan {
 	return out
 }
 
+// noteSpans are the notes in text[from:end], [[ to ]] in bytes: from a
+// [[ to the first ]] in its paragraph, outside the boneyards.
+func noteSpans(text string, from, end int, bones []byteSpan) []byteSpan {
+	var out []byteSpan
+	for at := from; at < end; {
+		o := strings.Index(text[at:end], "[[")
+		if o < 0 {
+			break
+		}
+		o += at
+		if inSpans(bones, o) {
+			at = o + 2
+			continue
+		}
+		c := strings.Index(text[o+2:end], "]]")
+		if c < 0 {
+			break
+		}
+		c += o + 2
+		if p := strings.Index(text[o:c], "\n\n"); p >= 0 { // a note ends with its paragraph
+			at = o + p
+			continue
+		}
+		at = c + 2
+		out = append(out, byteSpan{start: o, end: c + 2})
+	}
+	return out
+}
+
 // inSpans tells whether b is in one of spans (sorted).
 func inSpans(spans []byteSpan, b int) bool {
 	i, _ := slices.BinarySearchFunc(spans, b, func(s byteSpan, b int) int {
@@ -244,26 +273,8 @@ func fountainOpenItems(text string, starts []string, everySection bool) []openIt
 	}
 	// the notes: from a [[ to the first ]] in its paragraph, outside the
 	// boneyard and the title page
-	for at := tpEnd; at < end; {
-		o := strings.Index(text[at:end], "[[")
-		if o < 0 {
-			break
-		}
-		o += at
-		if inSpans(bones, o) {
-			at = o + 2
-			continue
-		}
-		c := strings.Index(text[o+2:end], "]]")
-		if c < 0 {
-			break
-		}
-		c += o + 2
-		if p := strings.Index(text[o:c], "\n\n"); p >= 0 { // a note ends with its paragraph
-			at = o + p
-			continue
-		}
-		at = c + 2
+	for _, n := range noteSpans(text, tpEnd, end, bones) {
+		o, c := n.start, n.end-2
 		inside := text[o+2 : c]
 		line := lineAt(o)
 		it := openItem{Kind: openNote, Shape: shapeNote, Start: o, End: c + 2, Line: line, Text: strings.TrimSpace(inside)}
@@ -294,7 +305,10 @@ func fountainOpenItems(text string, starts []string, everySection bool) []openIt
 // beatAt is a beat no scene grew from yet: its lines [from, to), the
 // line of the section it is under and of the outline item it is loose
 // under (-1 none: before the first heading).
-type beatAt struct{ from, to, section, under int }
+type beatAt struct {
+	from, to, section, under int
+	sect                     bool // a section marked a beat (from, to: its synopsis or heading)
+}
 
 // beatsOf are the script's beats no scene grew from: the synopses before
 // the first heading (outside the title page, before tp), a section marked
@@ -317,7 +331,7 @@ func beatsOf(lines []string, outline []outlineItem, tp, end int, everySection bo
 		}
 		if isSynopsisLine(t) {
 			e := synopsisEnd(lines, i)
-			out = append(out, beatAt{i, e, -1, -1})
+			out = append(out, beatAt{i, e, -1, -1, false})
 			i = e - 1
 		}
 	}
@@ -335,7 +349,7 @@ func beatsOf(lines []string, outline []outlineItem, tp, end int, everySection bo
 		// while no scene is in it: its own
 		// synopsis, else its heading
 		if !it.Scene && it.Line < end && (everySection || markedBeat(lines[it.Line])) && !sceneInSection(outline, k) {
-			b := beatAt{it.Line, it.Line + 1, section, it.Line}
+			b := beatAt{it.Line, it.Line + 1, section, it.Line, true}
 			for i := it.Line + 1; it.Synopsis != "" && i < min(next, end); i++ {
 				if isSynopsisLine(strings.TrimSpace(lines[i])) {
 					b.from, b.to = i, synopsisEnd(lines, i)
@@ -348,7 +362,7 @@ func beatsOf(lines []string, outline []outlineItem, tp, end int, everySection bo
 			if l.Line >= end || it.Scene && !onlyPlans(lines[l.Line:next]) {
 				continue
 			}
-			out = append(out, beatAt{l.Line, synopsisEnd(lines, l.Line), section, it.Line})
+			out = append(out, beatAt{l.Line, synopsisEnd(lines, l.Line), section, it.Line, false})
 		}
 	}
 	return out

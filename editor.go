@@ -102,6 +102,21 @@ func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 		tr, _ := w.structTree(e.Text())
 		return tr
 	}
+	vi.beats = func() []beatAt { // the window's: its language's headings, Every Section Is a Beat
+		if !script || w == nil || w.markdown {
+			return nil
+		}
+		text := e.Text()
+		if b := scriptBeats(text, outlineOf(text, w.sceneStarts()), w.everySectionBeat); b != nil {
+			return b
+		}
+		return []beatAt{} // none: not read plainly again
+	}
+	vi.noticed = func(what string, line int) {
+		if script && w != nil {
+			w.tipNoticed(what, line)
+		}
+	}
 	vi.exWith = func(visual [2]int, text string) {
 		if w != nil {
 			w.showExWith(visual, text)
@@ -134,6 +149,9 @@ func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 		}
 	}
 	e.OnKey = func(k *fyne.KeyEvent) bool {
+		if w != nil {
+			w.tipInput() // no tip while typing (tips.go)
+		}
 		if script && w != nil && w.compl.key(k) { // the completion list's ↑↓, Enter, Esc (complete_list.go)
 			return true
 		}
@@ -153,6 +171,9 @@ func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 		return vi.shortcut(s)
 	}
 	e.OnRune = func(r rune) bool {
+		if w != nil {
+			w.tipInput()
+		}
 		if vi.rune(r) {
 			return true
 		}

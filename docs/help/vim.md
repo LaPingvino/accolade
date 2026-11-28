@@ -4,7 +4,7 @@ Preferences > Editor > Keys makes the editor's keys vim's or helix's. This page 
 
 Both start in normal mode, where letters move and edit; i, a and the rest go to insert mode, where you write as ever — Tab and Enter there are the screenplay's ([Coming from Final Draft](final-draft.md)) — and Esc comes back. The menus' shortcuts work in every mode ([Keyboard Shortcuts](shortcuts.md)), and so do the command palette and the ribbon's key tips. **:** opens the command line, which completes every command as you type, Accolade's own (`:renumber`, `:move 3..5 after 9`, `:scene`) among vim's: [Ex Commands](ex.md).
 
-The screenplay's own: a **scene** is a text object (`as`, `is`), so is a **section** with all it holds (`aS`, `iS`); `]]` and `[[` go from scene to scene, `]s` and `[s` from section to section. A scene deleted or yanked as one (`das`, `yas`) is put back after or before the cursor's scene, never inside it. Moving goes through the structure engine, as Alt+Up and View > Structure do: the links, tags, colours and locked numbers go with the scenes.
+The screenplay's own: a **scene** is a text object (`as`, `is`), so is a **section** with all it holds (`aS`, `iS`); `]]` and `[[` go from scene to scene, `]s` and `[s` from section to section. Inside a scene, a **speech** (`ad`, `id`), its **cue** (`ac`, `ic`), a **beat** (`aB`, `iB`), a **note** (`an`, `in`) and an **action paragraph** (`aa`, `ia`) are objects too, and `]d`, `]B` and `]n` go to the next speech, beat or note. They read the script as the window does, in its language: an Esperanto script's EN. and EKST. are its scene headings. A scene deleted or yanked as one (`das`, `yas`) is put back after or before the cursor's scene, never inside it; a speech or paragraph (`dad`, `yaa`) after or before the cursor's. Moving goes through the structure engine, as Alt+Up and View > Structure do: the links, tags, colours and locked numbers go with the scenes.
 
 ## Vim
 
@@ -42,7 +42,15 @@ The screenplay's own: a **scene** is a text object (`as`, `is`), so is a **secti
 - **]s [s** — the next / previous section heading (helix: select that section)
 - **as is** — a text object: a scene with the blank lines after it / its inside: das, cis, yas, vis, 2das
 - **aS iS** — a section with all it holds / its inside: daS, yiS, vaS
-- **m + an object** — move it through the structure engine: mas opens :'<,'>move , then after 12 or before #Act Two
+- **ad id** — a speech: its cue, parentheticals and dialogue (two side by side: the pair) / its dialogue lines: dad, cid, 2dad; yad then p puts it after the cursor's speech or paragraph
+- **ac ic** — a character cue with its extension, (V.O.) or (CONT'D) / its name alone: cic renames, the extension kept
+- **aB iB** — a beat (a synopsis standing on its own, a section marked a beat or every section with Every Section Is a Beat) / its lines: daB, yaB
+- **an in** — a note with its [[ ]] / what it says: dan, cin
+- **aa ia** — an action paragraph with the blank lines after it / alone: daa, yaa
+- **m + an object** — move it through the structure engine: mas opens :'<,'>move , then after 12 or before #Act Two; mad, maa and a synopsis's maB select it for Alt+j and Alt+k
+- **]d [d** — the next / previous speech's cue, each of a pair (helix: select that speech)
+- **]B [B** — the next / previous beat (helix: select it)
+- **]n [n** — the next / previous note (helix: select it)
 - **Alt+j Alt+k** — move the unit at the cursor (a scene or section with all it holds, a speech, a paragraph) down / up past the next
 - **Alt+h Alt+l** — promote / demote it (a scene out of its section, into the one before)
 - **Alt+J Alt+K** — into the next / previous scene
@@ -69,7 +77,7 @@ The screenplay's own: a **scene** is a text object (`as`, `is`), so is a **secti
 
 ### Not there
 
-Vim mode is not a full Vim: marks (m and ' with a letter: m is the structure's move), named registers (" and a letter: one register), macros (q, @), repeat (.), f t F T, %, * #, n N (the search bar's Find Next and Find Previous, Ctrl+G, do that), the word and paragraph objects (iw aw ip ap), block visual (Ctrl+V), > < ~, and :set.
+Vim mode is not a full Vim: marks (m and ' with a letter: m is the structure's move), named registers (" and a letter: one register), macros (q, @), repeat (.), f t F T, %, * #, n N (the search bar's Find Next and Find Previous, Ctrl+G, do that), the word and paragraph objects (iw aw ip ap: the screenplay's ad aa aB stand in), block visual (Ctrl+V), > < ~, and :set.
 
 ## Helix
 
@@ -104,6 +112,10 @@ Selection first: a motion selects what it passes over, then a command acts on th
 - **]] [[** — the next / previous scene heading (helix: select that scene)
 - **]s [s** — the next / previous section heading (helix: select that section)
 - **mas mis maS miS** — select a scene, its inside, a section, its inside; then d c y p, or : to move it
+- **mad mid mac mic maB miB man min maa mia** — select a speech, a cue, a beat, a note, an action paragraph (a: with its blank lines, extension or [[ ]]; i: inside); then d c y p
+- **]d [d** — the next / previous speech's cue, each of a pair (helix: select that speech)
+- **]B [B** — the next / previous beat (helix: select it)
+- **]n [n** — the next / previous note (helix: select it)
 - **Alt+j Alt+k** — move the unit at the cursor (a scene or section with all it holds, a speech, a paragraph) down / up past the next
 - **Alt+h Alt+l** — promote / demote it (a scene out of its section, into the one before)
 - **Alt+J Alt+K** — into the next / previous scene
@@ -121,6 +133,7 @@ Selection first: a motion selects what it passes over, then a command acts on th
 - **S** — split the selections where a pattern matches
 - **Alt+s** — split the selections into lines
 - **C** — a selection like the last one on the next line
+- **M** — in a speech: every speech of that character as a selection (each of a pair alone); then d c y i a at all of them
 - **,** — keep the primary selection only
 - **Alt+,** — drop the primary selection
 - **d c i a with several** — act at every selection; typing goes to all of them

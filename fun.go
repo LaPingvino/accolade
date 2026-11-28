@@ -74,6 +74,7 @@ var funLines = map[string][]funLine{
 		{run: "view.fullscreen", line: "Go full screen and let the rest of the world fall away"},
 		{run: "set.editorKeys", line: "Write with Vim or Helix keys, if your fingers want them"},
 		{run: "app.palette", line: "Forget the menus: a few letters find any command"},
+		{run: "view.tip", also: []string{"set.tips"}, line: "Ask the status bar for a tip about where the cursor is (View > Show > More)"},
 		{run: "view.keyTips", also: []string{"set.ribbon", "view.ribbonLock", "set.quickRow", "view.topRowAdd", "view.topRowReset", "set.toolbar", "view.menu"},
 			line: "Show a key on every ribbon button and never reach for the mouse"},
 		{run: "set.theme", also: []string{"set.textLarger", "set.textSmaller", "set.font", "set.lineNumbers", "set.statusBar"}, line: "Try another theme, or larger text for a long night"},

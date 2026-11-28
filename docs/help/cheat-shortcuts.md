@@ -115,7 +115,7 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - Modes: **Esc** · **i a** · **I A** · **o O** · **v V**
 - Moving: **h j k l** · **w b e** · **0 ^ $** · **gg G** · **Enter, Backspace** · **1 … 9**
 - Changing: **d c y + a motion** · **dd cc yy** · **D C Y** · **x X** · **p P** · **J** · **r + a character** · **u, Ctrl+R**
-- Text objects and the structure: **]] [[** · **]s [s** · **as is** · **aS iS** · **m + an object** · **Alt+j Alt+k** · **Alt+h Alt+l** · **Alt+J Alt+K** · **Alt+H Alt+L**
+- Text objects and the structure: **]] [[** · **]s [s** · **as is** · **aS iS** · **ad id** · **ac ic** · **aB iB** · **an in** · **aa ia** · **m + an object** · **]d [d** · **]B [B** · **]n [n** · **Alt+j Alt+k** · **Alt+h Alt+l** · **Alt+J Alt+K** · **Alt+H Alt+L**
 - Selecting: **a motion in visual mode** · **vas viS …**
 - Search and commands: **/** · **:**
 - Folds and the outline: **za zc zo** · **zR zM** · **Tab, Shift+Tab** · **gj gk** · **gh gl** · **gs**
@@ -125,9 +125,9 @@ Ctrl is Cmd on a Mac. All of them: [Keyboard Shortcuts](shortcuts.md).
 - Modes: **Esc** · **i a** · **I A** · **o O** · **v**
 - Moving: **h j k l** · **w b e** · **0 ^ $** · **gg G** · **Enter, Backspace** · **1 … 9**
 - Changing: **d c y** · **p P** · **r + a character** · **u U, Ctrl+R**
-- Text objects and the structure: **]] [[** · **]s [s** · **mas mis maS miS** · **Alt+j Alt+k** · **Alt+h Alt+l** · **Alt+J Alt+K** · **Alt+H Alt+L**
+- Text objects and the structure: **]] [[** · **]s [s** · **mas mis maS miS** · **mad mid mac mic maB miB man min maa mia** · **]d [d** · **]B [B** · **]n [n** · **Alt+j Alt+k** · **Alt+h Alt+l** · **Alt+J Alt+K** · **Alt+H Alt+L**
 - Selecting: **x** · **%** · **;**
-- Several selections: **s** · **S** · **Alt+s** · **C** · **,** · **Alt+,** · **d c i a with several**
+- Several selections: **s** · **S** · **Alt+s** · **C** · **M** · **,** · **Alt+,** · **d c i a with several**
 - Search and commands: **/** · **:**
 - Folds and the outline: **za zc zo** · **zR zM** · **Tab, Shift+Tab** · **gj gk** · **gh gl** · **gs**
 
