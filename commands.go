@@ -1212,6 +1212,11 @@ func homesOf(id string) []string {
 					return []string{t.title + " > " + g.title + " > " + cmd(id).label}
 				}
 			}
+			for _, h := range g.more {
+				if h.id == id {
+					return []string{t.title + " > " + g.title + " > More… > " + cmd(id).label}
+				}
+			}
 		}
 	}
 	return nil
@@ -1242,7 +1247,26 @@ type ribbonGroup struct {
 	when    func(cmdEnv) bool
 	stage   int
 	homes   []home
+	// more: its less common commands, behind its launcher (the small
+	// button in the group's corner, ribbon.go: groupLauncher), which
+	// opens the palette narrowed to them and the group's settings
+	more []home
 }
+
+// menuOnly are the menu bar's commands that stay off the ribbon, and why
+// (TestNothingMenuOnly): every other one has a ribbon home, a group's
+// launcher at least.
+var menuOnly = func() map[string]string {
+	m := map[string]string{}
+	// the ribbon is for working: help is the Help menu's, on the ribbon's
+	// ☰ (Menus…) at the tab row's end and found by name in the palette (F1)
+	for _, h := range helpMenu() {
+		if h.id != "" && h.id != "app.palette" {
+			m[h.id] = "Help: the Help menu, under the ribbon's ☰ (Menus…), and the palette (F1)"
+		}
+	}
+	return m
+}()
 
 // ribbonLabels are the ribbon's short labels, where the group around a
 // button says the rest: "Next" in Adaptation > Links is the next source
@@ -1288,6 +1312,8 @@ var ribbonLabels = map[string]string{
 // "formatButtons" and "scriptFormat" are the Write tab's element buttons,
 // the script format's own buttons and its list.
 func ribbonLayout() []ribbonTab {
+	// the exports for another use than the script's own (File > Output's launcher)
+	outputMore := []home{at("file.exportShooting"), at("file.exportTreatment"), at("file.exportOutline"), at("file.exportBoards")}
 	noSource := func(e cmdEnv) bool { return !e.markdown && !e.source }
 	noMarkdown := func(e cmdEnv) bool { return !e.markdown }
 	markdownEnv := func(e cmdEnv) bool { return e.markdown }
@@ -1297,12 +1323,15 @@ func ribbonLayout() []ribbonTab {
 			{title: quickTab, homes: []home{{id: quickHome}}}}},
 		{title: "File", groups: []ribbonGroup{
 			{title: "New", homes: []home{big("file.new"), at("file.newEmpty"), at("file.newMarkdown"), at("file.newWindow"), at("file.newEmptyWindow"),
-				at("set.newLanguage"), at("file.openSample")}}, // "New in: English": the language they are in; the sample to try things on
-			{title: "Open", homes: []home{big("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc")}},
+				at("set.newLanguage"), at("file.openSample")}, // "New in: English": the language they are in; the sample to try things on
+				more: []home{at("file.newStructure"), at("file.newFromPDF")}},
+			{title: "Open", homes: []home{big("file.open"), at("file.recent"), at("file.import"), at("file.importPandoc")},
+				more: []home{at("file.importPDFScreenplay"), at("file.importPDFMarkdown"), at("file.importStoryboarder"), at("file.openFolder")}},
 			{title: "Save", homes: []home{big("file.save"), at("file.saveAs"), at("file.rename"), at("file.undoRename")}},
-			{title: "Output", when: noMarkdown, homes: []home{big("file.export"), big("file.print"), at("file.exportWriter"), at("file.exportClean"), at("file.pageSetup")}},
+			{title: "Output", when: noMarkdown, homes: []home{big("file.export"), big("file.print"), at("file.exportWriter"), at("file.exportClean"), at("file.pageSetup")},
+				more: outputMore},
 			// a document's, without Clean Fountain: Print small over Page Setup, so the tab fits
-			{title: "Output", when: markdownEnv, homes: []home{big("file.export"), at("file.print"), at("file.pageSetup")}},
+			{title: "Output", when: markdownEnv, homes: []home{big("file.export"), at("file.print"), at("file.pageSetup")}, more: outputMore},
 			// a source to adapt: the Adaptation tab once there is one
 			{title: "Adapt", when: noSource, homes: []home{big("source.choose")}},
 			{title: "Adapt", homes: []home{big("file.startScreenplay")}},
@@ -1310,7 +1339,11 @@ func ribbonLayout() []ribbonTab {
 		{title: "Write", groups: []ribbonGroup{
 			{title: "Element", homes: []home{{id: "elements"}}},
 			// a whole new scene first (new_scene.go); the color a tool under the emphasis, for room
-			{title: "Scene", homes: []home{at("write.newScene"), at("write.place"), at("write.character")}},
+			{title: "Scene", homes: []home{at("write.newScene"), at("write.place"), at("write.character")},
+				// a note, the markers to come back to, what goes in a scene
+				// beside its lines (behind the launcher: the tab fits 1000 px)
+				more: []home{at("write.note"), at("write.marker"), at("write.nextMarker"), at("write.previousMarker"), at("write.unsortedNote"),
+					at("write.insertStructure"), at("write.newFrame"), at("write.editFrame"), at("write.include")}},
 			// a Markdown document's elements: its headings, given by their keys
 			// as a screenplay's elements are (Ctrl+1…6, Ctrl+0)
 			{title: "Heading", homes: []home{keyed("md.heading1"), keyed("md.heading2"), keyed("md.heading3"),
@@ -1326,26 +1359,35 @@ func ribbonLayout() []ribbonTab {
 		}},
 		{title: "Edit", groups: []ribbonGroup{
 			{title: "Undo", homes: []home{at("edit.undo"), at("edit.redo")}},
-			{title: "Clipboard", homes: []home{at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll")}},
+			{title: "Clipboard", homes: []home{at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll")},
+				more: []home{at("edit.pasteStructure")}},
 			// verb + variants (as File's New, Open, Save): the big verb, the
 			// small ones named by what differs
 			{title: "Find", homes: []home{big("edit.find"), at("edit.findNext"), at("edit.findPrevious"), at("edit.replace")}},
 			{title: "Structure", homes: []home{at("structure.up"), at("structure.down"), at("structure.promote"), at("structure.demote"),
-				at("structure.swap"), at("structure.move")}},
+				at("structure.swap"), at("structure.move")},
+				// the structural editing's finer moves (View > Structure)
+				more: []home{at("structure.expand"), at("structure.shrink"), at("structure.raise"), at("structure.lower"),
+					at("structure.slurp"), at("structure.barf"), at("structure.intoNext"), at("structure.intoPrev"), at("structure.transpose")}},
 			// an imported script's lines set right, many at once (fixup.go)
 			{title: "Fix-Up", homes: []home{big("edit.fixLines")}},
-			{title: "Script", mdTitle: "Document", homes: []home{at("file.titlePage"), at("format.language")}},
+			{title: "Script", mdTitle: "Document", homes: []home{at("file.titlePage"), at("format.language")},
+				more: []home{at("format.numberScenes"), at("set.defaultLanguage")}},
 			// the editor's keys (standard, vim, helix), beside the rest of the preferences
-			{title: "Settings", homes: []home{at("set.editorKeys"), at("app.preferences")}},
+			{title: "Settings", homes: []home{at("set.editorKeys"), at("app.preferences")},
+				more: []home{at("file.addSettings")}},
 		}},
 		// a source's, or a story's next step
 		{title: "Adaptation", when: func(e cmdEnv) bool { return e.source || e.markdown }, groups: []ribbonGroup{
 			{title: "Source", homes: []home{{id: "view.source", label: "Source Pane", short: "Source", large: true},
-				atShort("source.choose", "Choose"), at("source.saveAs"), at("source.keepInside"), at("source.middle")}},
+				atShort("source.choose", "Choose"), at("source.saveAs"), at("source.keepInside"), at("source.middle")},
+				more: []home{at("source.lock"), at("source.unlock")}},
 			// Adapt… is the adapting's step, Next and Previous find what to
 			// adapt; Link is the verb by hand, Suggest and Update its variants
-			{title: "Passages", homes: []home{big("source.adapt"), at("source.next"), at("source.previous"), at("source.cut")}},
-			{title: "Links", homes: []home{big("source.link"), at("source.linkUp"), at("source.update"), at("source.sections")}},
+			{title: "Passages", homes: []home{big("source.adapt"), at("source.next"), at("source.previous"), at("source.cut")},
+				more: []home{at("source.goScene")}},
+			{title: "Links", homes: []home{big("source.link"), at("source.linkUp"), at("source.update"), at("source.sections")},
+				more: []home{at("source.linkGuess"), at("source.relinkFromHere")}},
 			{title: "Learned", homes: []home{big("source.learned")}},
 			{title: "Options", homes: []home{at("set.suggest")}},
 			{title: "Start", homes: []home{big("file.startScreenplay")}},
@@ -1373,13 +1415,15 @@ func ribbonLayout() []ribbonTab {
 		}},
 		{title: "View", groups: []ribbonGroup{
 			// the side dock's panes (dock.go)
-			{title: "Panes", homes: dockRibbonHomes()},
+			{title: "Panes", homes: dockRibbonHomes(),
+				more: []home{at("view.paneMiddle"), at("view.paneSide"), at("view.paneTop"), at("view.paneBottom"), at("view.midNext"), at("view.midPrev")}},
 			// what the window shows; its look (the preferences changed while working: ribbon_settings.go)
 			{title: "Show", homes: []home{big("view.preview"), at("view.statistics"), at("set.lineNumbers"), at("set.statusBar")}},
 			// the story's shape: its folds, and the timeline strip over the script
 			{title: "Story", homes: []home{at("view.foldHere"), at("view.foldSections"), at("view.headingsOnly"), at("view.unfoldAll"), at("view.timelineStrip"), at("view.stages")}},
 			{title: "Window", homes: []home{at("view.fullscreen"), at("view.documentType"), at("view.role"), at("set.ribbon"), at("set.theme"),
-				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")}},
+				tool("set.textSmaller"), tool("set.textLarger"), tool("set.font")},
+				more: []home{at("set.toolbar"), at("set.quickRow"), at("view.topRowAdd"), at("view.topRowReset")}},
 		}},
 		fixUpTab(),      // after an import until saved (contextual.go)
 		titlePageTab(),  // while the cursor is in the title page

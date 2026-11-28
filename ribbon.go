@@ -152,16 +152,16 @@ type ribbonBar struct {
 	w   *MainWindow
 	box *fyne.Container
 
-	tabBox  *fyne.Container // the tabs
-	tabs    []*ribbonTabButton
+	tabBox *fyne.Container // the tabs
+	tabs   []*ribbonTabButton
 	// a phone's one switcher in the tabs' place: the tab chosen, ▾, its
 	// menu every tab that applies (the contextual ones too)
 	switcher *ribbonTabButton
-	title   *scriptTitle
-	palette *ribbonButton // the command palette's, at the tab row's end
-	order   *ribbonButton // the lock: Smart or Fixed (quick.go)
-	menus   *ribbonButton // ☰: the menus, beside it
-	tabRow  *fyne.Container
+	title    *scriptTitle
+	palette  *ribbonButton // the command palette's, at the tab row's end
+	order    *ribbonButton // the lock: Smart or Fixed (quick.go)
+	menus    *ribbonButton // ☰: the menus, beside it
+	tabRow   *fyne.Container
 	// the tab row's end (toprow.go): the name, what was added, the
 	// search field (the palette's button on a phone), the lock, ☰;
 	// those without room in its … menu
@@ -608,7 +608,16 @@ func (r *ribbonBar) build() {
 		title.TextStyle.Bold = themeTraits().caps
 		title.Alignment = fyne.TextAlignCenter
 		fyne.SetAccessibleLabel(title, caption+" group")
-		r.groupBox.Add(container.NewBorder(nil, title, nil, nil, content))
+		var under fyne.CanvasObject = title
+		if more := r.groupLauncher(t, g, caption); more != nil {
+			r.add(more)  // after the group's buttons: the arrows and key tips reach it last
+			if r.phone { // no corner at a finger's size: the row's last button
+				content = container.NewHBox(content, more)
+			} else {
+				under = container.New(groupCaption{}, title, more)
+			}
+		}
+		r.groupBox.Add(container.NewBorder(nil, under, nil, nil, content))
 	}
 	r.groupBox.Refresh()
 	r.groups.Refresh()
@@ -782,6 +791,64 @@ func (r *ribbonBar) groupContent(g ribbonGroup) fyne.CanvasObject {
 	}
 	return container.NewHBox(cols...)
 }
+
+// groupLauncher is g's launcher, the small button in its corner (a
+// phone's at its row's end): the palette narrowed to the group's less
+// common commands (more) and its settings, searchable and by the keys as
+// the palette is; nil if none of the less common ones applies.
+func (r *ribbonBar) groupLauncher(t ribbonTab, g ribbonGroup, caption string) *ribbonButton {
+	var ids []string
+	for _, h := range g.more {
+		if h.id != "" && cmd(h.id).applies(r.env) {
+			ids = append(ids, h.id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	for _, h := range g.homes { // the group's settings beside them: its part's setup in one place
+		if strings.HasPrefix(h.id, "set.") && cmd(h.id).applies(r.env) {
+			ids = append(ids, h.id)
+		}
+	}
+	name := "More " + launcherName(t.title, caption) + "…"
+	b := newRibbonButton(r, nil, false)
+	b.compact, b.launcher = true, true
+	b.icon = theme.MoreHorizontalIcon()
+	b.label, b.name = strings.TrimSuffix(name, "…"), name // the label is the key tips' (no "…" on the ribbon)
+	b.onTap = func() { r.w.showGroupPalette(b.label, ids) }
+	return b
+}
+
+// launcherName is what a group's launcher offers more of: "Export
+// options", "Production options" for a tab's Options group.
+func launcherName(tab, caption string) string {
+	switch caption {
+	case "Options", "Settings":
+		return tab + " " + strings.ToLower(caption)
+	}
+	return caption + " options"
+}
+
+// groupCaption lays a group's title out with its launcher in the bottom
+// right corner, no taller than the title: every tab keeps its height.
+type groupCaption struct{}
+
+func (groupCaption) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	t := objects[0].MinSize()
+	return fyne.NewSize(t.Width+2*launcherSize(t.Height), t.Height) // the title centred clear of it
+}
+
+func (groupCaption) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	objects[0].Move(fyne.NewPos(0, 0))
+	objects[0].Resize(size)
+	s := launcherSize(size.Height)
+	objects[1].Move(fyne.NewPos(size.Width-s, size.Height-s))
+	objects[1].Resize(fyne.NewSquareSize(s))
+}
+
+// launcherSize is a launcher's side in a caption h high: small, a corner's.
+func launcherSize(h float32) float32 { return min(h, 22) }
 
 // ribbonRows lays a column of small buttons out in the group's three
 // rows, each row a third of the height, each button centred in its row:
@@ -1047,10 +1114,12 @@ func (r *ribbonBar) assignTips(level int) {
 	}
 	var bs []*ribbonButton
 	var labels []string
-	for _, b := range r.buttons {
-		if !b.Disabled() {
-			bs = append(bs, b)
-			labels = append(labels, b.label)
+	for _, launchers := range []bool{false, true} { // the launchers' after the rest: they take no button's letter
+		for _, b := range r.buttons {
+			if !b.Disabled() && b.launcher == launchers {
+				bs = append(bs, b)
+				labels = append(labels, b.label)
+			}
 		}
 	}
 	tips := keyTipsFor(labels)
@@ -1446,6 +1515,7 @@ type ribbonButton struct {
 	iconOnly  bool // no label on a phone (the palette's: the tabs have the row)
 	top       bool // added to the top row (toprow.go)
 	compact   bool // an icon alone, always (B I U)
+	launcher  bool // a group's launcher (groupLauncher)
 	large     bool
 	onTap     func()
 	quick     bool // on the Quick tab or the Quick row (quick.go)

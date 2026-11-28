@@ -7,6 +7,7 @@ tabs: File Write Edit Revision Collaboration [View]
   S Source icon=foreground_source.svg name=Source
   S Help icon=foreground_help.svg name=Help
   S Side Panes icon=foreground_dock.svg (checked) name=Side Panes
+  T More Panes options icon=foreground_more-horizontal.svg name=More Panes options…
 ## Show
   L Preview icon=foreground_visibility.svg name=Preview PDF (Ctrl+Shift+P)
   S Statistics icon=foreground_statistics.svg name=Statistics…
@@ -28,3 +29,4 @@ tabs: File Write Edit Revision Collaboration [View]
   T Smaller Text icon=foreground_text-smaller.svg name=Smaller Text
   T Larger Text icon=foreground_text-larger.svg name=Larger Text
   T Font icon=foreground_font.svg name=Font
+  T More Window options icon=foreground_more-horizontal.svg name=More Window options…

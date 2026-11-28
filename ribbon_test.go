@@ -58,7 +58,12 @@ func dumpRibbon(r *ribbonBar) string {
 		if !ok || len(c.Objects) < 2 {
 			continue
 		}
-		title := c.Objects[1].(*widget.Label).Text
+		var launcher fyne.CanvasObject // a group's corner button (groupLauncher)
+		under := c.Objects[1]
+		if cap, ok := under.(*fyne.Container); ok {
+			under, launcher = cap.Objects[0], cap.Objects[1]
+		}
+		title := under.(*widget.Label).Text
 		b.WriteString("## " + title + "\n")
 		var walk func(o fyne.CanvasObject)
 		walk = func(o fyne.CanvasObject) {
@@ -97,6 +102,9 @@ func dumpRibbon(r *ribbonBar) string {
 			}
 		}
 		walk(c.Objects[0])
+		if launcher != nil {
+			walk(launcher)
+		}
 	}
 	return b.String()
 }
@@ -952,4 +960,89 @@ func TestRibbonFitsPhone(t *testing.T) {
 	shot("ribbon_phone_menu")
 	c.Overlays().Top().Hide()
 	c.Overlays().Remove(c.Overlays().Top())
+}
+
+// launcherOf is the ribbon's launcher named name (nil if none shows).
+func launcherOf(r *ribbonBar, name string) *ribbonButton {
+	for _, b := range r.buttons {
+		if b.c == nil && b.AccessibilityLabel() == name {
+			return b
+		}
+	}
+	return nil
+}
+
+// A group's launcher (its corner button) opens the palette narrowed to
+// the group's less common commands and its settings: named, by the keys
+// (Enter on it, the arrows reach it), and at a phone's width too.
+func TestGroupLauncher(t *testing.T) {
+	holdUI(t)
+	w, _ := scriptWindow(t, revScript)
+	r := ribbonOnFor(t, w)
+	w.fyneWindow.Resize(fyne.NewSize(1400, 900))
+	r.selectTab("File")
+	b := launcherOf(r, "More Output options…")
+	if b == nil {
+		t.Fatal("File > Output: no launcher")
+	}
+	w.fyneWindow.Canvas().Focus(b)
+	b.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
+	p := w.palette
+	if p == nil || !p.pop.Visible() {
+		t.Fatal("the launcher opened no palette")
+	}
+	var got []string
+	for _, e := range p.shown {
+		got = append(got, e.c.id)
+	}
+	want := []string{"file.exportShooting", "file.exportTreatment", "file.exportOutline", "file.exportBoards"}
+	if !slices.Equal(got, want) {
+		t.Errorf("Output's launcher: %q, want %q", got, want)
+	}
+	if fyne.Focusable(p.entry) != w.fyneWindow.Canvas().Focused() {
+		t.Error("the launcher's palette has not the keyboard")
+	}
+	p.entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+	if p.pop.Visible() || w.fyneWindow.Canvas().Focused() != fyne.Focusable(b) {
+		t.Error("Esc: the focus not back on the launcher")
+	}
+	// the settings come with the less common commands, a setting on marked
+	r.selectTab("View")
+	b = launcherOf(r, "More Window options…")
+	if b == nil {
+		t.Fatal("View > Window: no launcher")
+	}
+	b.press()
+	ids := map[string]string{}
+	for _, e := range w.palette.shown {
+		ids[e.c.id] = e.label
+	}
+	w.palette.close()
+	for _, id := range []string{"set.toolbar", "view.topRowAdd", "set.ribbon", "set.textLarger"} {
+		if _, ok := ids[id]; !ok {
+			t.Errorf("View > Window's launcher: no %s (%v)", id, ids)
+		}
+	}
+	if !strings.HasSuffix(ids["set.ribbon"], "✓") {
+		t.Errorf("the ribbon is on: %q", ids["set.ribbon"])
+	}
+	// a phone's: a button at the group's end, a finger's size
+	w.fyneWindow.Resize(fyne.NewSize(380, 800))
+	w.fyneWindow.Canvas().Capture()
+	if !r.phone {
+		t.Fatal("not narrow")
+	}
+	r.selectTab("File")
+	b = launcherOf(r, "More Output options…")
+	if b == nil {
+		t.Fatal("a phone's File > Output: no launcher")
+	}
+	if s := b.MinSize(); s.Height < 44 {
+		t.Errorf("a phone's launcher %v high", s.Height)
+	}
+	b.press()
+	if w.palette == nil || !w.palette.pop.Visible() || len(w.palette.shown) != len(want) {
+		t.Error("a phone's launcher: not its palette")
+	}
+	w.palette.close()
 }

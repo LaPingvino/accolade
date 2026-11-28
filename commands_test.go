@@ -67,6 +67,7 @@ func TestRegistryIsWhole(t *testing.T) {
 	for _, tab := range r.ribbon {
 		for _, g := range tab.groups {
 			note(g.homes)
+			note(g.more)
 		}
 	}
 	for _, el := range toolbarElements {
@@ -314,5 +315,50 @@ func TestCommandMenuScreenshots(t *testing.T) {
 			t.Fatal(err)
 		}
 		f.Close()
+	}
+}
+
+// Nothing is in the menus alone (Joop, 2026-11-27: "some things are menu
+// only, hard to find"): every command of the menu bar is on the ribbon,
+// on a group or behind a group's launcher, unless menuOnly keeps it there
+// and says why.
+func TestNothingMenuOnly(t *testing.T) {
+	r := commands()
+	onRibbon := map[string]bool{}
+	for _, tab := range r.ribbon {
+		for _, g := range tab.groups {
+			for _, h := range append(flatHomes(g.homes), flatHomes(g.more)...) {
+				onRibbon[h.id] = true
+			}
+			for _, h := range g.homes {
+				if h.id == "elements" {
+					for _, el := range toolbarElements {
+						onRibbon[elementCommandID(el)] = true
+					}
+				}
+			}
+		}
+	}
+	for _, h := range r.ribbonEnd {
+		onRibbon[h.id] = true
+	}
+	for id, why := range menuOnly {
+		if _, ok := r.byID[id]; !ok {
+			t.Errorf("menuOnly: no command %s", id)
+		}
+		if strings.TrimSpace(why) == "" {
+			t.Errorf("menuOnly: %s without a reason", id)
+		}
+		if onRibbon[id] {
+			t.Errorf("menuOnly: %s is on the ribbon", id)
+		}
+	}
+	for _, m := range r.menuBar {
+		for _, h := range flatHomes(m.homes) {
+			if h.id == "" || onRibbon[h.id] || menuOnly[h.id] != "" {
+				continue
+			}
+			t.Errorf("%s > %s (%s) is in the menus only: give it a ribbon home (a group's more, its launcher, at least) or a menuOnly reason", m.title, cmd(h.id).label, h.id)
+		}
 	}
 }

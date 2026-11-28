@@ -194,15 +194,42 @@ func (w *MainWindow) showPalette() {
 		w.fyneWindow.Canvas().Focus(w.palette.entry)
 		return
 	}
+	w.openPalette(w.paletteEntries(w.cmdEnv()), "Type a command", "Command palette: type to find a command")
+}
+
+// showGroupPalette opens the palette narrowed to ids, in their order (a
+// ribbon group's launcher: its less common commands and its settings),
+// named name; a setting that is on says so.
+func (w *MainWindow) showGroupPalette(name string, ids []string) {
+	if w.palette != nil && w.palette.pop.Visible() {
+		w.palette.close()
+	}
+	byID := map[string][]paletteEntry{}
+	for _, e := range w.paletteEntries(w.cmdEnv()) {
+		if e.c.checked != nil && e.action == nil && e.c.checked(w) {
+			e.label += " ✓"
+		}
+		byID[e.c.id] = append(byID[e.c.id], e)
+	}
+	var entries []paletteEntry
+	for _, id := range ids {
+		entries = append(entries, byID[id]...)
+	}
+	w.openPalette(entries, "Type to narrow: "+name, name+": type to narrow, Enter runs")
+}
+
+// openPalette opens the palette over entries: placeholder in its field,
+// name the field's for a screen reader.
+func (w *MainWindow) openPalette(entries []paletteEntry, placeholder, name string) {
 	c := w.fyneWindow.Canvas()
 	p := &palette{w: w, from: c.Focused()}
 	if w.ribbon != nil {
 		w.ribbon.leaveKeyTips(false)
 	}
-	p.all = w.paletteEntries(w.cmdEnv())
+	p.all = entries
 	p.entry = newPaletteField(p)
-	p.entry.SetPlaceHolder("Type a command")
-	fyne.SetAccessibleLabel(p.entry, "Command palette: type to find a command")
+	p.entry.SetPlaceHolder(placeholder)
+	fyne.SetAccessibleLabel(p.entry, name)
 	p.list = widget.NewList(func() int { return len(p.shown) },
 		func() fyne.CanvasObject {
 			label := widget.NewLabel("")
