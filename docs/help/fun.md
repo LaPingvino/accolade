@@ -9,6 +9,7 @@ Made from Accolade's own list of commands, so nothing is left out. In the app ea
 - Start a script in the language you write in: New brings a scene of its own (New) — **Ctrl+N**
 - Write in Hebrew, Arabic, Japanese or Esperanto: the cues and headings follow the language (Script Language)
 - Begin from a structure, Save the Cat or the hero's journey, and fill in the beats (New from Structure)
+- Plan in sections alone: turn on Every Section Is a Beat and each one waits in the Notes pane until a scene grows from it (Every Section Is a Beat)
 - Make any line any element with Ctrl+1 to 8; mostly Tab and Enter guess it first (Character) — **Ctrl+3**
 - Ask for a new scene and get the heading written for you (New Scene)
 - Leave yourself a note mid-line; the Notes pane gathers them all (Add Note) — **Ctrl+Shift+K**

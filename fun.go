@@ -54,6 +54,7 @@ var funLines = map[string][]funLine{
 			line: "Start a script in the language you write in: New brings a scene of its own"},
 		{run: "format.language", also: []string{"format.rtl"}, line: "Write in Hebrew, Arabic, Japanese or Esperanto: the cues and headings follow the language"},
 		{run: "file.newStructure", also: []string{"write.insertStructure", "edit.pasteStructure"}, line: "Begin from a structure, Save the Cat or the hero's journey, and fill in the beats"},
+		{run: "set.everySectionBeat", line: "Plan in sections alone: turn on Every Section Is a Beat and each one waits in the Notes pane until a scene grows from it"},
 		{run: "format.element.Character", also: []string{"format.element.", "write.elementKind"}, line: "Make any line any element with Ctrl+1 to 8; mostly Tab and Enter guess it first"},
 		{run: "write.newScene", also: []string{"write.place", "write.character", "format.numberScenes"}, line: "Ask for a new scene and get the heading written for you"},
 		{run: "write.note", also: []string{"write.unsortedNote", "view.notes"}, line: "Leave yourself a note mid-line; the Notes pane gathers them all"},
