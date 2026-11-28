@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // The auto-save timer as the app has it; the test holds the UI turn
 // (holdUI, waitfor_test.go), so it runs under -race too.
 

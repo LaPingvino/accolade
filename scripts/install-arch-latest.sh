@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: MIT OR GPL-3.0-or-later
 # Installs the Arch package of the latest main from GitHub (built by the
 # Arch package workflow, .github/workflows/arch.yml), without building it
 # here. Needs gh and sudo.

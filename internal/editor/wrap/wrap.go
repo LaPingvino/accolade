@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package wrap lays the lines of a text out in rows of a fixed number of
 // columns, for Accolade's grid-based editor (docs/EDITOR_WIDGET.md, step
 // 2). The editor's font is monospace, and a text takes the cells Lekhan

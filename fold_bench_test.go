@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 package main
 
 // Keystrokes in the script with Accolade's own blocks folded and its

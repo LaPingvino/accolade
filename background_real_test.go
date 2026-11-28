@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // The debounce and the background work as the app has them, not at
 // once as the other tests run them (background_test.go). The tests hold
 // the UI turn (holdUI, waitfor_test.go): the timers' and the results'

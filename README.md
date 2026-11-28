@@ -52,3 +52,13 @@ For development with the included Nix flake:
 nix develop
 go build -v -o accolade .
 ```
+
+## License
+
+Accolade is yours under the MIT License ([LICENSE-MIT](LICENSE-MIT)) or the
+GNU GPL version 3 or later ([LICENSE-GPL](LICENSE-GPL)), as you choose
+(`MIT OR GPL-3.0-or-later`). A few bundled items keep their own licenses:
+the Material Design icons (Apache-2.0), the citation styles (CC-BY-SA-3.0)
+and the Noto fonts (OFL-1.1). [LICENSING.md](LICENSING.md) lists them, and
+the audit behind the MIT offer: Accolade began as a fork of Apostrophe, and
+nothing of Apostrophe's is left in the current code.

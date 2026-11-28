@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package cluster counts the columns a text takes in the editor's grid
 // and where its clusters (drawn whole, the cursor round them) start: by
 // Lekhan monospace (lekhan), and Arabic's lam-alef one cluster of one

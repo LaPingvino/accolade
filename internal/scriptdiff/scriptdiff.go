@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package scriptdiff compares two versions of a script (or of a story in
 // Markdown) element by element, as a writer reads the change: which
 // scenes changed, and in them which elements were cut, added or changed,

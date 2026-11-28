@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package images is the one place Accolade reads pictures from: a
 // Markdown document's ![alt](path), a screenplay's storyboard frames
 // ([[board: …]]) and the characters' cast photos all go through a

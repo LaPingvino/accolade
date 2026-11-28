@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 package collab
 
 // The Doc before runs (a node, a map entry and an op per rune), kept as

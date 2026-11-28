@@ -115,7 +115,7 @@
           meta = with pkgs.lib; {
             description = "A distraction-free Fountain editor for screenwriters";
             homepage = "https://github.com/LaPingvino/accolade";
-            license = licenses.gpl3Plus;
+            license = with licenses; [ mit gpl3Plus ];
             maintainers = [ ];
             platforms = platforms.linux;
           };

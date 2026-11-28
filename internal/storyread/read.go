@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package storyread reads a story's prose for adapting it into a
 // screenplay (docs/ADAPTATION.md, section 4): who is in it, what they
 // say and who says it, where its scenes start and what their headings

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package collab is a text CRDT for editing a script together: an RGA
 // (replicated growable array) of runes. Every rune has an ID (a Lamport
 // counter and the replica that made it) and is inserted after the rune it

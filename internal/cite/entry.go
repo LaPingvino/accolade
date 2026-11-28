@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package cite reads a document's bibliography (the library its
 // citations name): CSL-JSON, as Zotero's Better BibTeX exports it, and
 // BibTeX/BibLaTeX through a small parser of its own. It finds which file

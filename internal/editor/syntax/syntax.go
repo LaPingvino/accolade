@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package syntax tells which Fountain element each line of a script is,
 // for colouring it in Accolade's editor (docs/EDITOR_WIDGET.md, step 5).
 // It follows the Fountain rules as lexington parses them, line by line.

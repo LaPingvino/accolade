@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package structure moves the parts of a script as units, keeping it
 // well-formed (LOOP.md: STRUCTURAL MOVES, paredit for scripts; swapping
 // and moving parts of the script).

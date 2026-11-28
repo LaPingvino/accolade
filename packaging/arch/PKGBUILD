@@ -9,7 +9,7 @@ pkgrel=1
 pkgdesc="Screenplay editor for Fountain, with PDF/HTML/FDX export"
 arch=('x86_64' 'aarch64')
 url="https://github.com/LaPingvino/accolade"
-license=('GPL-3.0-or-later')
+license=('MIT' 'GPL-3.0-or-later')
 depends=('glibc' 'libgl' 'libx11' 'libxcursor' 'libxrandr' 'libxinerama' 'libxi' 'libxxf86vm' 'libxkbcommon' 'wayland')
 makedepends=('go' 'git' 'pkgconf' 'mesa' 'libxkbcommon' 'wayland')
 provides=('accolade')
@@ -40,4 +40,5 @@ package() {
   install -Dm644 Icon.png "$pkgdir/usr/share/icons/hicolor/512x512/apps/accolade.png"
   install -Dm644 packaging/linux/accolade-fountain.xml "$pkgdir/usr/share/mime/packages/accolade-fountain.xml"
   install -Dm644 README.md "$pkgdir/usr/share/doc/accolade/README.md"
+  install -Dm644 LICENSE-MIT "$pkgdir/usr/share/licenses/$pkgname/LICENSE-MIT"
 }

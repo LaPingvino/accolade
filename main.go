@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 package main
 
 import (
@@ -269,7 +271,7 @@ func (app *Application) showAbout() {
 		link("Website", "https://github.com/LaPingvino/accolade"),
 		link("Report an issue", "https://github.com/LaPingvino/accolade/issues"),
 		widget.NewSeparator(),
-		centered("© 2024–2026 Joop Kiefte · GPL-3.0-or-later\nAccolade began as a fork of Apostrophe."),
+		centered("© 2024–2026 Joop Kiefte · MIT or GPL-3.0-or-later\nAccolade began as a fork of Apostrophe."),
 	)
 	dialog.NewCustom("About Accolade", "Close", content, parent).Show()
 }

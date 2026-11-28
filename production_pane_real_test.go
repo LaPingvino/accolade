@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Real timers (realPaths), the UI turn held (holdUI) as in background_real_test.go.
 
 package main

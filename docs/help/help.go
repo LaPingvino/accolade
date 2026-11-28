@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package help is Accolade's help: pages written once as Markdown in this
 // folder, embedded in the app (the Help tab beside Notes, Source and
 // Production) and published as web pages with the browser version

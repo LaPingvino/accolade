@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 package main
 
 // Benchmarks of the source pane on a novel (docs/PERF-SOURCE.md): a

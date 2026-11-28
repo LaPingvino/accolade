@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 package main
 
 // What a peer's edit costs the window it reaches (docs/COLLAB.md, What is

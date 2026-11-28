@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: MIT OR GPL-3.0-or-later
 # Builds Accolade-<version>-<arch>.AppImage from a built accolade binary.
 #   packaging/linux/build-appimage.sh <binary> <version> [outdir]
 set -eu

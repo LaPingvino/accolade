@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 # uia-read.ps1 -ProcessId <pid> [-Title <part of the window title>] [-Out <file>]
 #
 # Reads a running application through Windows UI Automation, the API

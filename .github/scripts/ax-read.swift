@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // ax-read.swift <pid> (swift .github/scripts/ax-read.swift <pid>, on a Mac
 // that allows the terminal accessibility access): reads a running application through the macOS
 // accessibility API (what VoiceOver uses): its windows' trees with roles

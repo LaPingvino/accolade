@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Command helpsite writes Accolade's help as web pages, for the browser
 // version (scripts/build-web.sh): helpsite -version v1.2.3 dist/web/help
 package main

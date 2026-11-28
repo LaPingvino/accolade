@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 package wrap
 
 // The wrap as it was before a row stopped counting the rest of its line

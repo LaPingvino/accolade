@@ -1,4 +1,11 @@
+// SPDX-License-Identifier: (MIT OR GPL-3.0-or-later) AND Apache-2.0
+
 package main
+
+import (
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
+)
 
 // The commands' own icons (Material Design, Apache 2.0), where the theme
 // has none or one meant for something else: Markdown's, the ribbon's and
@@ -77,4 +84,22 @@ var (
 	marksIcon        = icon("marks", "M12 17.25l-6.19 3.75l1.64 -7.03l-5.44 -4.73l7.17 -0.61l2.81 -6.61l2.81 6.61l7.17 0.61l-5.44 4.73l1.64 7.03z")                                                                                                                                                                                                                                                                                                                                             // star
 	letteringIcon    = icon("lettering", "M15.75 16.12h6.09v1.59h-8.53v-1.27l5.91 -8.58h-5.86v-1.59h8.3v1.27zM4.97 13.64h3.89l-1.97 -5.2zM6.09 6.28h1.64l4.5 11.44h-1.83l-0.94 -2.44h-5.11l-0.94 2.44h-1.83zM10.27 19.36h4.64l-2.34 2.34zM14.95 4.64h-4.73l2.34 -2.34z")                                                                                                                                                                                                                        // sort_by_alpha
 	continuedIcon    = icon("continued", "M12 9.98c1.08 0 2.02 0.94 2.02 2.02s-0.94 2.02 -2.02 2.02s-2.02 -0.94 -2.02 -2.02s0.94 -2.02 2.02 -2.02zM18 9.98c1.08 0 2.02 0.94 2.02 2.02s-0.94 2.02 -2.02 2.02s-2.02 -0.94 -2.02 -2.02s0.94 -2.02 2.02 -2.02zM6 9.98c1.08 0 2.02 0.94 2.02 2.02s-0.94 2.02 -2.02 2.02s-2.02 -0.94 -2.02 -2.02s0.94 -2.02 2.02 -2.02z")                                                                                                                             // more_horiz
+)
+
+// icon is a Material Design icon from its SVG path on the 24 grid,
+// coloured by the theme.
+func icon(name, path string) fyne.Resource {
+	return theme.NewThemedResource(fyne.NewStaticResource(name+".svg",
+		[]byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#000" d="`+path+`"/></svg>`)))
+}
+
+// The emphasis icons and the views' (Material Design, Apache 2.0).
+var (
+	boldIcon   = icon("bold", "M15.6 10.79c.97-.67 1.65-1.77 1.65-2.79 0-2.26-1.75-4-4-4H7v14h7.04c2.09 0 3.71-1.7 3.71-3.79 0-1.52-.86-2.82-2.15-3.42zM10 6.5h3c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5h-3v-3zm3.5 9H10v-3h3.5c.83 0 1.5.67 1.5 1.5s-.67 1.5-1.5 1.5z")
+	italicIcon = icon("italic", "M10 4v3h2.21l-3.42 8H6v3h8v-3h-2.21l3.42-8H18V4z")
+	// sourceIcon is Material's "menu_book": the story the script adapts
+	sourceIcon = icon("source", "M21 5c-1.11-.35-2.33-.5-3.5-.5-1.95 0-4.05.4-5.5 1.5-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5 1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5V6c-.6-.45-1.25-.75-2-1zm0 13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5V8c1.35-.85 3.8-1.5 5.5-1.5 1.2 0 2.4.15 3.5.5v11.5z")
+	// productionIcon is Material's "movie": the shoot the script goes to
+	productionIcon = icon("production", "M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H5L3 4H2.01C.9 4 .01 4.9.01 6L0 18c0 1.1.9 2 2 2h20c1.1 0 2-.9 2-2V4h-6z")
+	underlineIcon  = icon("underline", "M12 17c3.31 0 6-2.69 6-6V3h-2.5v8c0 1.93-1.57 3.5-3.5 3.5S8.5 12.93 8.5 11V3H6v8c0 3.31 2.69 6 6 6zm-7 2v2h14v-2H5z")
 )

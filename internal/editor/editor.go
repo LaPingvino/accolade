@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package editor is Accolade's own script editor: a text model (buffer)
 // wrapped into rows (wrap) and drawn in a Fyne TextGrid, so selection,
 // highlights and single-step undo are under Accolade's control. See

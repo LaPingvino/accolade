@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package tooltip adds hover tooltips to Fyne buttons, which Fyne 2.8
 // lacks.
 //

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package buffer is the text model of Accolade's editor: the text, the
 // cursor and selection, edits and their undo history. It has no GUI;
 // positions are rune offsets into the text. See docs/EDITOR_WIDGET.md.

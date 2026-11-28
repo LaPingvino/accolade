@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // memfs.js: an in-memory file system for Go programs compiled to
 // WebAssembly (GOOS=js), loaded before wasm_exec.js. Go's os package
 // calls a Node.js-style globalThis.fs; in a browser there is none, so

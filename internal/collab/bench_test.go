@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 package collab
 
 // Benchmarks of a Doc on a novel-sized text (docs/COLLAB.md, What is left

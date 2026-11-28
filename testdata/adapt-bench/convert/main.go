@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Command convert turns the Project Gutenberg plain-text files of the
 // adaptation benchmark's pairs into what the benchmark reads: the story
 // as Markdown (source.md: its chapters as ## headings, its paragraphs as

@@ -1,4 +1,5 @@
 #!/bin/sh
+# SPDX-License-Identifier: MIT OR GPL-3.0-or-later
 # Builds Accolade's web version into dist/web (or $1): the WebAssembly,
 # Go's wasm_exec.js, the page in web/ and the help pages in help/. Serve the folder over http(s).
 set -eu

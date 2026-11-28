@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // The service worker: the app works offline after one visit. Every
 // request goes to the network first, so a new version shows at once, and
 // what came is kept for when there is no network.

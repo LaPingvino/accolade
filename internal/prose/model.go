@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package prose converts prose documents to and from Markdown, in pure
 // Go so the browser version has it too (docs/ADAPTATION.md, step 2): Word
 // (DOCX) and OpenDocument (ODT) both ways, HTML in. Each goes through one

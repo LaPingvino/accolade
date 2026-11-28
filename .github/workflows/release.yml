@@ -89,7 +89,7 @@ jobs:
           mv Accolade.exe build/
           ./build/Accolade.exe --version | tee version.txt
           grep -q "^Accolade ${VERSION%%-*}" version.txt
-          (cd build && 7z a "../dist/Accolade-${VERSION}-windows-x64-portable.zip" Accolade.exe ../LICENSE)
+          (cd build && 7z a "../dist/Accolade-${VERSION}-windows-x64-portable.zip" Accolade.exe ../LICENSE-MIT ../LICENSE-GPL ../LICENSING.md)
       - name: Installer (Inno Setup)
         shell: pwsh
         run: |

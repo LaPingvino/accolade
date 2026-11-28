@@ -27,7 +27,7 @@ PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
-LicenseFile=..\..\LICENSE
+LicenseFile=..\..\LICENSE-MIT
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -35,7 +35,8 @@ Name: "fountainassoc"; Description: "Open .fountain files with Accolade"; GroupD
 
 [Files]
 Source: "{#SourceDir}\Accolade.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\LICENSE"; DestDir: "{app}"; DestName: "LICENSE.txt"; Flags: ignoreversion
+Source: "..\..\LICENSE-MIT"; DestDir: "{app}"; DestName: "LICENSE-MIT.txt"; Flags: ignoreversion
+Source: "..\..\LICENSE-GPL"; DestDir: "{app}"; DestName: "LICENSE-GPL.txt"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\Accolade"; Filename: "{app}\Accolade.exe"

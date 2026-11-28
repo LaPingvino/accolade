@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package pace keeps long work from freezing the web version.
 //
 // In the browser Go runs on the page's one thread, and the page gets it

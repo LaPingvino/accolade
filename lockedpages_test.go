@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // These tests run the real background work; they hold the UI turn
 // (holdUI, waitfor_test.go), the results coming in between their steps.
 

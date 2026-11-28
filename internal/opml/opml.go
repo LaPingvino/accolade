@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 // Package opml reads and writes outlines: OPML, the file outliners such
 // as Workflowy and OmniOutliner export and open, and the indented text
 // they copy to the clipboard. An outline is a tree of items, each with a

@@ -55,10 +55,10 @@ of it:
 | screenshots/focus, footnote, formula, preview, search, table .png | Apostrophe's screenshots of its own UI (Manuel Genovés, 2018–2024), unused | removed |
 | .gitlab/issue_templates/*.md | Apostrophe's GitLab issue templates (Manuel Genovés), unused on GitHub | removed |
 | NEWS | Apostrophe's release notes (1.0–3.0) | removed (Accolade's are in docs/RELEASE-*.md and the GitHub releases) |
-| accolade.doap | DOAP skeleton from apostrophe.doap | rewritten |
+| accolade.doap | DOAP skeleton from apostrophe.doap, used by nothing | removed |
 | .gitignore | a few patterns from Apostrophe's | rewritten |
 | README.md | a few blank lines and the "About"/"Building" headings | trivial; no other content |
-| LICENSE | the GPL-3.0 text itself | now LICENSE-GPL |
+| LICENSE | the GPL-3.0 text itself | now LICENSE-GPL, in its current wording from gnu.org |
 | AUTHORS | Joop's credit of Apostrophe's authors | kept |
 
 No Apostrophe-derived file remains, so nothing in the current tree is

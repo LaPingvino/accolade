@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: MIT OR GPL-3.0-or-later
+
 package main
 
 // The themes as they were before the theme set (the light, dark and sepia
