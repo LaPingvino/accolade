@@ -26,4 +26,4 @@ tabs: File Write Edit [Revision] Production Collaboration View
   S Next Off icon=foreground_arrow-forward.svg name=Next Section Off Its Range
   S Previous Off icon=foreground_arrow-back.svg name=Previous Section Off Its Range
   S Insert Beats / Structure icon=foreground_list.svg name=Insert Beats / Structure
-  T More Beats options icon=foreground_more-horizontal.svg name=More Beats options…
+  T More Beats icon=foreground_more-horizontal.svg name=More Beats: the group's other commands and its settings, on a tab
