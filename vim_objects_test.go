@@ -5,6 +5,9 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 )
 
 // vimObjScript: speeches (one with an extension and a parenthetical, a
@@ -228,5 +231,81 @@ func TestVimObjectsEsperanto(t *testing.T) {
 	vimKeys(e, "M")
 	if n := len(e.Buffer().Spans()); n != 1 || e.SelectedText() != "ĴOZEFO\nĜis!\n" {
 		t.Errorf("M in Esperanto: %d, %q", n, e.SelectedText())
+	}
+}
+
+// helix: each object selected by m, a pair, and the motions back.
+func TestHelixSceneObjectsEach(t *testing.T) {
+	for _, c := range []struct{ from, keys, sel string }{
+		{"Hello", "mid", "Hello there.\nAgain.\n"},
+		{"Hello", "mac", "BOB (V.O.)"},
+		{"check", "min", "check the door"},
+		{"= Bob", "maB", "= Bob leaves angry\n\n"},
+		{"= Bob", "miB", "= Bob leaves angry\n"},
+		{"Alpha", "maa", "Alpha walks in. [[check the door]]\n\n"},
+		{"Alpha", "mia", "Alpha walks in. [[check the door]]\n"},
+		{"Screw it", "mad", "BRICK\nScrew retirement.\n\nSTEEL ^\nScrew it.\n\n"}, // the pair
+		{"Screw it", "mic", "STEEL"},
+		{"Beta", "[d", "STEEL ^\nScrew it.\n"},
+		{"Beta", "[B", "= Bob leaves angry\n"},
+		{"Beta", "]n", "[[beat]]"},
+	} {
+		e := helixOn(vimObjScript)
+		cursorTo(t, e, vimObjScript, c.from)
+		vimKeys(e, c.keys)
+		if got := e.SelectedText(); got != c.sel {
+			t.Errorf("%s %q: %q, want %q", c.from, c.keys, got, c.sel)
+		}
+	}
+	// M on a half of a pair: that character's speeches, the half alone
+	text := strings.Replace(vimObjScript, "BOB\nBye.", "STEEL\nBye.", 1)
+	e := helixOn(text)
+	cursorTo(t, e, text, "Screw it")
+	vimKeys(e, "M")
+	if n := len(e.Buffer().Spans()); n != 2 {
+		t.Fatalf("M on a half: %d selections", n)
+	}
+	vimKeys(e, "d")
+	if strings.Contains(e.Text(), "STEEL") || !strings.Contains(e.Text(), "BRICK\nScrew retirement.") {
+		t.Errorf("M d on a half: %q", e.Text())
+	}
+}
+
+// With Every Section Is a Beat on, a section with no scene in it is a
+// beat without its [[beat]]; off, it is none.
+func TestVimBeatsEverySection(t *testing.T) {
+	const text = "Rain first.\n\n# Plan\n\n# Act\n\nINT. A - DAY\n\nRain.\n"
+	for _, every := range []bool{true, false} {
+		w := newTestWindow(t, text)
+		w.everySectionBeat = every
+		w.settings.SetString("editor-keys", "vim")
+		t.Cleanup(func() { w.settings.SetString("editor-keys", "standard") })
+		w.vim.reset(true)
+		e := w.textEditor
+		vimKeys(e, "]B")
+		if l := strings.Split(e.Text(), "\n")[vimCursorLine(e)]; (l == "# Plan") != every {
+			t.Errorf("every section %v: ]B on %q", every, l)
+		}
+		cursorTo(t, e, text, "# Plan")
+		vimKeys(e, "daB")
+		if got := e.Text(); (got == strings.Replace(text, "# Plan\n\n", "", 1)) != every || !every && got != text {
+			t.Errorf("every section %v: daB: %q", every, got)
+		}
+	}
+}
+
+// mad selects the speech for Alt+j, which moves it by the engine.
+func TestVimSpeechMovedAfterMad(t *testing.T) {
+	const text = "INT. A - DAY\n\nBOB\nHi.\n\nALICE\nYo.\n"
+	w := newTestWindow(t, text)
+	w.settings.SetString("editor-keys", "vim")
+	t.Cleanup(func() { w.settings.SetString("editor-keys", "standard") })
+	w.vim.reset(true)
+	e := w.textEditor
+	cursorTo(t, e, text, "Hi.")
+	vimKeys(e, "mad")
+	e.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyJ, Modifier: fyne.KeyModifierAlt})
+	if want := "INT. A - DAY\n\nALICE\nYo.\n\nBOB\nHi.\n"; e.Text() != want {
+		t.Errorf("mad Alt+j: %q, want %q", e.Text(), want)
 	}
 }

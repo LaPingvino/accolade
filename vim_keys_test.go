@@ -39,7 +39,7 @@ func modeEditor(mode string) (*editor.ScriptEditor, *vim, *string) {
 	v.search = func() { rec("search") }
 	v.ex = func([2]int) { rec("ex") }
 	v.exWith = func([2]int, string) { rec("exWith") }
-	v.prompt = func(string, func(string)) { rec("prompt") }
+	v.prompt = func(string, []string, func(string)) { rec("prompt") }
 	v.fold = func(r rune) { // as the window's: these alone fold (editor.go)
 		if strings.ContainsRune("acoRM", r) {
 			rec("fold" + string(r))

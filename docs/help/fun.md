@@ -26,6 +26,7 @@ Made from Accolade's own list of commands, so nothing is left out. In the app ea
 - Go full screen and let the rest of the world fall away (Fullscreen) — **Ctrl+Shift+F, Alt+Enter**
 - Write with Vim or Helix keys, if your fingers want them (Editor Keys)
 - Forget the menus: a few letters find any command (Command Palette) — **Ctrl+K, F1**
+- Select every character cue at once, or every note or parenthetical, and type at all of them (with Helix keys: % then s @cue) (Select All Character Cues)
 - Ask the status bar for a tip about where the cursor is (View > Show > More) (Show a Tip)
 - Show a key on every ribbon button and never reach for the mouse (Ribbon Key Tips) — **F10**
 - Try another theme, or larger text for a long night (Theme)

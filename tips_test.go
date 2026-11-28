@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"fyne.io/fyne/v2"
 )
 
 // A tip comes only after a pause in typing, and not again before tipGap;
@@ -117,7 +119,7 @@ func TestTipContextChoice(t *testing.T) {
 func TestTipsFromTheRegistry(t *testing.T) {
 	for _, ct := range append(slices.Clone(contextTips), ddTip) {
 		for _, u := range ct.uses {
-			if ct.mode == "standard" {
+			if strings.Contains(u, ".") {
 				if _, ok := commands().byID[u]; !ok {
 					t.Errorf("tip %q: no command %s", ct.text, u)
 				}
@@ -178,6 +180,10 @@ func TestTipsInWindow(t *testing.T) {
 	w.tipTick(later)
 	if got := w.tipText(); !strings.HasPrefix(got, "dad ") {
 		t.Fatalf("the tip on a cue: %q", got)
+	}
+	w.statusBar.Resize(fyne.NewSize(900, 40)) // drawn, not only said
+	if w.tipLabel.Size().Width <= 0 {
+		t.Error("the tip has no width in the bar")
 	}
 	w.setStatus("Exported to film.pdf")
 	if w.tipText() != "" {

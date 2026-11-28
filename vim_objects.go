@@ -457,3 +457,48 @@ func (v *vim) speechSpans(line int) ([]buffer.Span, string) {
 	}
 	return out, sp.Name
 }
+
+// The key hints (as helix's popup): after ] [ or an object's i or a, or
+// helix's m, the status bar says what can come next.
+
+// objectOrder are the objects' letters in the hints' order.
+const objectOrder = "sSdcBna"
+
+// objectHintLetters are the objects as a hint lists them.
+func objectHintLetters() string {
+	var parts []string
+	for _, r := range objectOrder {
+		parts = append(parts, string(r)+" "+objectWords[r])
+	}
+	return strings.Join(parts, " · ")
+}
+
+// objectHint is the hint after an object's i or a.
+func objectHint(ia rune) string {
+	what := "around (with what goes with it)"
+	if ia == 'i' {
+		what = "inside"
+	}
+	return string(ia) + "…  " + what + ": " + objectHintLetters()
+}
+
+// bracketHint is the hint after ] or [.
+func bracketHint(b rune) string {
+	dir := "next"
+	if b == '[' {
+		dir = "previous"
+	}
+	return string(b) + "…  the " + dir + ": " + string(b) + " scene · s section · d speech · B beat · n note"
+}
+
+// hintDone puts the mode's line back in place of a key hint.
+func (v *vim) hintDone() {
+	switch {
+	case v.helix != nil && v.helix() && v.mode == vimVisual:
+		v.say("-- HELIX SELECT --")
+	case v.helix != nil && v.helix():
+		v.say("-- HELIX NORMAL --")
+	default:
+		v.say(v.mode.String())
+	}
+}

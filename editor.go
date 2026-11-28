@@ -143,9 +143,9 @@ func attachVim(w *MainWindow, e *editor.ScriptEditor, script bool) *vim {
 			f.foldAll(false)
 		}
 	}
-	vi.prompt = func(label string, done func(string)) {
+	vi.prompt = func(label string, names []string, done func(string)) {
 		if w != nil {
-			w.showPrompt(label, done)
+			w.showPromptNames(label, names, done)
 		}
 	}
 	e.OnKey = func(k *fyne.KeyEvent) bool {

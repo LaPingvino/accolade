@@ -41,17 +41,21 @@ func (v *vim) structureKey(r rune) bool {
 	case v.bracket != 0:
 		b := v.bracket
 		v.bracket = 0
+		v.hintDone()
 		v.bracketKey(b, r)
 		return true
 	case v.obj != 0:
 		ia, f := v.obj, v.objFor
 		v.obj = 0
+		v.hintDone()
 		v.objectKey(ia, f, r)
 		return true
 	case v.match:
 		v.match = false
+		v.hintDone()
 		if r == 'i' || r == 'a' {
 			v.obj, v.objFor = r, 'h'
+			v.say(objectHint(r))
 		}
 		return true
 	}
@@ -59,13 +63,17 @@ func (v *vim) structureKey(r rune) bool {
 	switch {
 	case (r == ']' || r == '[') && v.op == 0:
 		v.bracket = r
+		v.say(bracketHint(r))
 	case helix && r == 'm':
 		v.match = true
+		v.say("m…  i inside · a around, then " + objectHintLetters())
 	case !helix && v.op != 0 && (r == 'i' || r == 'a'):
 		v.obj, v.objFor = r, v.op
 		v.op = 0
+		v.say(objectHint(r))
 	case !helix && v.visual() && (r == 'i' || r == 'a'):
 		v.obj, v.objFor = r, 'v'
+		v.say(objectHint(r))
 	default:
 		return false
 	}

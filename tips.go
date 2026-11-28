@@ -43,6 +43,7 @@ type tipContext struct {
 	keys                                      string // standard, vim, helix
 	onCue, inSpeech, inBeat, inNote, inAction bool
 	inScene, onHeading                        bool
+	selection                                 bool // something selected
 	markdown                                  bool
 }
 
@@ -64,9 +65,15 @@ func tipInNote(c tipContext) bool   { return c.inNote }
 func tipInAction(c tipContext) bool { return c.inAction }
 func tipInScene(c tipContext) bool  { return c.inScene }
 func tipOnHead(c tipContext) bool   { return c.onHeading }
+func tipSelected(c tipContext) bool { return c.selection }
 
 // contextTips are the tips for places, the most particular first.
 var contextTips = []contextTip{
+	{"helix", tipSelected, []string{"s"}, "s @dialogue selects the dialogue in the selection; @cue @paren @note @beat and more (S splits at them)"},
+	{"helix", tipSelected, []string{"structure.expand"}, "%s grows the selection to the speech, the scene, the section"},
+	{"vim", tipSelected, []string{"structure.expand"}, "%s grows the selection to the speech, the scene, the section"},
+	{"standard", tipSelected, []string{"structure.expand"}, "%s grows the selection to the speech, the scene, the section"},
+	{"standard", tipSelected, []string{"select.cue"}, "%s, and the other Select All commands, pick out every element of a kind in the selection"},
 	{"vim", tipInNote, []string{"dan", "cin"}, "dan deletes this note, cin rewrites what it says"},
 	{"vim", tipOnCue, []string{"dad"}, "dad deletes this speech; cic renames the cue, keeping its (V.O.)"},
 	{"vim", tipInSpeech, []string{"]d", "cid"}, "]d jumps to the next speech; cid says this one again"},
@@ -92,7 +99,7 @@ var ddTip = contextTip{"vim", nil, []string{"das"}, "das deletes a whole scene, 
 // textOf is t's line: a standard tip's %s is its command's key, or its
 // name where it has none.
 func (t contextTip) textOf() string {
-	if t.mode != "standard" {
+	if !strings.Contains(t.uses[0], ".") { // a key of the modes' table
 		return t.text
 	}
 	c, ok := commands().byID[t.uses[0]]
@@ -254,6 +261,9 @@ func randomTips(keys string, markdown bool) []string {
 // startTips arms the window's tips: it looks every tipTick.
 func (w *MainWindow) startTips() {
 	w.tips = newTipper(time.Now())
+	if debounceAtOnce { // the tests: they tick themselves (a timer's function would run beside them)
+		return
+	}
 	var tick func()
 	tick = func() {
 		w.tipTick(time.Now())
@@ -346,6 +356,7 @@ func (w *MainWindow) tipContextHere() tipContext {
 	if sp, ok := tr.SpeechAt(line); ok {
 		c.inSpeech, c.onCue = true, line == sp.Cue
 	}
+	c.selection = w.textEditor.Buffer().HasSelection()
 	_, why := v.objectSpan('a', 'B', 1)
 	c.inBeat = why == ""
 	_, why = v.objectSpan('a', 'n', 1)

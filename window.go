@@ -86,13 +86,14 @@ type MainWindow struct {
 	// (applyEditorSettings), "" before the first
 	keysApplied string
 	// the ex command line (ex_window.go)
-	exState  exState
-	exBar    *fyne.Container
-	exEntry  *exLine
-	exLabel  *widget.Label
-	exPrompt func(string) // the line is a prompt's (helix s), not a command
-	exVisual [2]int
-	exPop    *exPop // the ':' line's completion list (ex_window.go)
+	exState       exState
+	exBar         *fyne.Container
+	exEntry       *exLine
+	exLabel       *widget.Label
+	exPrompt      func(string) // the line is a prompt's (helix s), not a command
+	exPromptNames []string     // what the prompt completes (helix s: @cue …)
+	exVisual      [2]int
+	exPop         *exPop // the ':' line's completion list (ex_window.go)
 	// cites is a Markdown document's library, citePop the @ list over the
 	// editor (citations.go, cite_complete.go)
 	cites      *citeState
@@ -1301,8 +1302,9 @@ func (r *statusRow) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 		if msg.Text != "" {
 			mw += theme.Padding()
 		}
-		tw := min(r.natural(tip), size.Width-mw-r.natural(objs[2].(*widget.Label)))
-		if tw < 4*statsMin {
+		room := size.Width - mw - r.natural(objs[2].(*widget.Label))
+		tw := min(r.natural(tip), room)
+		if room < 2*statsMin {
 			tw = 0 // no room: none
 		}
 		tip.Move(fyne.NewPos(mw, 0))

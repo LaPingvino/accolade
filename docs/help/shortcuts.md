@@ -247,8 +247,8 @@ Preferences > Editor > Keys gives the editor vim's or helix's keys; the menus' s
 
 #### Several selections
 
-- **s** — select what a pattern matches inside the selections (asked on the command line)
-- **S** — split the selections where a pattern matches
+- **s** — select what a pattern matches inside the selections (asked on the command line); @ and a kind selects the screenplay's elements instead, read by the structure engine: @cue @speech @dialogue @paren @action @heading @section @transition @note @beat (% s @cue: every cue; mas s @dialogue: a scene's dialogue); @@ is a literal @
+- **S** — split the selections where a pattern (or an @kind) matches
 - **Alt+s** — split the selections into lines
 - **C** — a selection like the last one on the next line
 - **M** — in a speech: every speech of that character as a selection (each of a pair alone); then d c y i a at all of them

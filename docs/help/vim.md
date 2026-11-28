@@ -129,8 +129,8 @@ Selection first: a motion selects what it passes over, then a command acts on th
 
 ### Several selections
 
-- **s** — select what a pattern matches inside the selections (asked on the command line)
-- **S** — split the selections where a pattern matches
+- **s** — select what a pattern matches inside the selections (asked on the command line); @ and a kind selects the screenplay's elements instead, read by the structure engine: @cue @speech @dialogue @paren @action @heading @section @transition @note @beat (% s @cue: every cue; mas s @dialogue: a scene's dialogue); @@ is a literal @
+- **S** — split the selections where a pattern (or an @kind) matches
 - **Alt+s** — split the selections into lines
 - **C** — a selection like the last one on the next line
 - **M** — in a speech: every speech of that character as a selection (each of a pair alone); then d c y i a at all of them
@@ -155,6 +155,10 @@ Selection first: a motion selects what it passes over, then a command acts on th
 ### Not there
 
 Helix mode is not a full Helix: goto mode beyond gg (g and a letter: the outline's, as vim's), space mode, match mode beyond mi and ma with s and S (mm, ms), registers, macros, repeat (.), f t, n N (the search bar does that), the tree-sitter objects (a function, a class).
+
+## Selecting by kind
+
+Helix's `s` and `S` take the screenplay's kinds as well as patterns: `@cue`, `@speech`, `@dialogue`, `@paren`, `@action`, `@heading`, `@section`, `@transition`, `@note` and `@beat`, completed as you type the @. They read the script as the window does, in its language, never by a pattern: `%` then `s @cue` selects every cue; `mas` then `s @dialogue` a scene's dialogue; `maS` then `s @paren` and `d` takes a section's parentheticals out; `%`, `s @cue`, `s BOB` and `c` renames BOB everywhere. Select All Character Cues and the rest do the same in any keys, from the command palette ("select all cues") or the : line (:select-cue), and Alt+O grows a selection to the speech, the scene, the section. After ] [ m and an object's i or a, the status bar lists what can come next.
 
 ## How they differ from vim and helix
 

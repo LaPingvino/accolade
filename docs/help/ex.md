@@ -166,6 +166,16 @@ Every command of the menus, the ribbon and the palette, by a name made from its 
 - **:script-language** — Edit > Script Language (screenplay)
 - **:editor-keys** `item` — Edit > Settings > Editor Keys
 - **:scripts-language-for-new-scripts-by-default** — Edit > Script's Language for New Scripts by Default (screenplay)
+- **:select-cue** — Select every character cue in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Character Cues) (screenplay)
+- **:select-speech** — Select every speech: cue, parentheticals and dialogue (each of a pair) in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Speeches) (screenplay)
+- **:select-dialogue** — Select the dialogue lines (a run between parentheticals as one) in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Dialogue) (screenplay)
+- **:select-paren** — Select the parentheticals in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Parentheticals) (screenplay)
+- **:select-action** — Select the action paragraphs in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Action Paragraphs) (screenplay)
+- **:select-heading** — Select the scene headings in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Scene Headings) (screenplay)
+- **:select-section** — Select the section headings in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Section Headings) (screenplay)
+- **:select-transition** — Select the transitions in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Transitions) (screenplay)
+- **:select-note** — Select the notes, [[ ]] and all in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Notes) (screenplay)
+- **:select-beat** — Select the beats: synopses standing on their own, sections marked a beat in the selection (none: the whole script), to type at all of them (Edit > Clipboard > More… > Select All Beats) (screenplay)
 
 ### Elsewhere
 

@@ -86,7 +86,7 @@ func (l *exLine) KeyUp(k *fyne.KeyEvent) {
 }
 
 // completing reports whether the line completes (not a prompt's).
-func (l *exLine) completing() bool { return l.w.exPrompt == nil }
+func (l *exLine) completing() bool { return l.w.exPrompt == nil || len(l.w.exPromptNames) > 0 }
 
 func (l *exLine) TypedKey(k *fyne.KeyEvent) {
 	switch k.Name {
@@ -152,6 +152,15 @@ func (l *exLine) set(text string) {
 func (l *exLine) typed(text string) {
 	l.stem, l.chosen, l.moved = text, -1, false
 	if !l.completing() {
+		return
+	}
+	if l.w.exPrompt != nil { // a prompt's names (helix s @cue): once it starts with @
+		l.comp = promptCompletion(l.w.exPromptNames, text)
+		if len(l.comp.choices) == 0 {
+			l.w.exPopup().hide()
+			return
+		}
+		l.w.exPopup().show(l)
 		return
 	}
 	l.comp = exCommands().complete(l.ctx, text)
@@ -222,9 +231,13 @@ func (l *exLine) choose(step int) {
 func (l *exLine) submit() {
 	w := l.w
 	if run := w.exPrompt; run != nil { // a prompt's, not a command
+		text := l.Text
+		if l.moved && l.chosen >= 0 && l.chosen < len(l.comp.choices) {
+			text = l.choiceText(l.chosen)
+		}
 		w.hideEx()
-		w.exPrompt = nil
-		run(l.Text)
+		w.exPrompt, w.exPromptNames = nil, nil
+		run(text)
 		return
 	}
 	text := l.Text
@@ -498,11 +511,31 @@ func (r *exRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 
 // showPrompt asks for a line in the command line's place (helix's s and
 // S), done gets it.
-func (w *MainWindow) showPrompt(label string, done func(string)) {
+func (w *MainWindow) showPrompt(label string, done func(string)) { w.showPromptNames(label, nil, done) }
+
+// showPromptNames asks as showPrompt, completing names once the line
+// starts with their first character (helix s: @cue, @note …).
+func (w *MainWindow) showPromptNames(label string, names []string, done func(string)) {
 	w.showEx([2]int{-1, -1})
 	w.exLabel.SetText(label)
-	w.exPrompt = done
+	w.exPrompt, w.exPromptNames = done, names
 	w.exPopup().hide()
+}
+
+// promptCompletion are the names text begins, once it starts as they do
+// (@@ is no name's: a literal @).
+func promptCompletion(names []string, text string) exCompletion {
+	var c exCompletion
+	if text == "" || len(names) == 0 || !strings.HasPrefix(names[0], text[:1]) || strings.HasPrefix(text, "@@") {
+		return c
+	}
+	c.arg = true
+	for _, n := range names {
+		if strings.HasPrefix(n, strings.ToLower(text)) && n != text {
+			c.choices = append(c.choices, exChoice{text: n, label: n, desc: kindDesc(n)})
+		}
+	}
+	return c
 }
 
 // showEx opens the command line, with '<,'> for the lines given.
@@ -519,7 +552,7 @@ func (w *MainWindow) showExWith(visual [2]int, more string) {
 		w.statusBar.Add(w.exBar)
 	}
 	w.exLabel.SetText(":")
-	w.exPrompt = nil
+	w.exPrompt, w.exPromptNames = nil, nil
 	w.exVisual = visual
 	l := w.exEntry
 	l.back = 0

@@ -86,8 +86,8 @@ var modeKeys = []modeKey{
 	{"helix", "Selecting", ";", "the selection down to the cursor", []string{";"}},
 
 	// Several selections
-	{"helix", "Several selections", "s", "select what a pattern matches inside the selections (asked on the command line)", []string{"s"}},
-	{"helix", "Several selections", "S", "split the selections where a pattern matches", []string{"S"}},
+	{"helix", "Several selections", "s", "select what a pattern matches inside the selections (asked on the command line); @ and a kind selects the screenplay's elements instead, read by the structure engine: @cue @speech @dialogue @paren @action @heading @section @transition @note @beat (% s @cue: every cue; mas s @dialogue: a scene's dialogue); @@ is a literal @", []string{"s"}},
+	{"helix", "Several selections", "S", "split the selections where a pattern (or an @kind) matches", []string{"S"}},
 	{"helix", "Several selections", "Alt+s", "split the selections into lines", nil},
 	{"helix", "Several selections", "C", "a selection like the last one on the next line", []string{"C"}},
 	{"helix", "Several selections", "M", "in a speech: every speech of that character as a selection (each of a pair alone); then d c y i a at all of them", []string{"M"}},
@@ -175,6 +175,11 @@ func vimHelpPage() string {
 		b.WriteString(modeKeysMarkdown(mode, "###"))
 		fmt.Fprintf(&b, "\n### Not there\n\n%s is not a full %s: %s.\n", modeTitle(mode)+" mode", modeTitle(mode), modeUnsupported[mode])
 	}
+	b.WriteString("\n## Selecting by kind\n\n" +
+		"Helix's `s` and `S` take the screenplay's kinds as well as patterns: `@cue`, `@speech`, `@dialogue`, `@paren`, `@action`, `@heading`, `@section`, `@transition`, `@note` and `@beat`, completed as you type the @. " +
+		"They read the script as the window does, in its language, never by a pattern: `%` then `s @cue` selects every cue; `mas` then `s @dialogue` a scene's dialogue; `maS` then `s @paren` and `d` takes a section's parentheticals out; `%`, `s @cue`, `s BOB` and `c` renames BOB everywhere. " +
+		"Select All Character Cues and the rest do the same in any keys, from the command palette (\"select all cues\") or the : line (:select-cue), and Alt+O grows a selection to the speech, the scene, the section. " +
+		"After ] [ m and an object's i or a, the status bar lists what can come next.\n")
 	b.WriteString("\n## How they differ from vim and helix\n\n" +
 		"- One register, shared by the modes and the `:` line's :d and :y; the system clipboard is Ctrl+C and Ctrl+V as ever.\n" +
 		"- Each command is one undo step, and Undo asks before taking back a step an issue tagged, as the menu's does.\n" +

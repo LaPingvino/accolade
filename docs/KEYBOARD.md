@@ -246,6 +246,16 @@ Keys per platform: Linux and Windows have the registry's keys, a Mac its macKeys
 | Compare Drafts Side by Side | `set.draftsSide` |  |  |  | C B | :compare-drafts-side-by-side |
 | Show a Tip | `view.tip` |  |  |  |  | :tip |
 | Tips in the Status Bar | `set.tips` |  |  |  |  | :tips-in-status-bar |
+| Select All Character Cues | `select.cue` |  |  |  |  | :select-cue |
+| Select All Speeches | `select.speech` |  |  |  |  | :select-speech |
+| Select All Dialogue | `select.dialogue` |  |  |  |  | :select-dialogue |
+| Select All Parentheticals | `select.paren` |  |  |  |  | :select-paren |
+| Select All Action Paragraphs | `select.action` |  |  |  |  | :select-action |
+| Select All Scene Headings | `select.heading` |  |  |  |  | :select-heading |
+| Select All Section Headings | `select.section` |  |  |  |  | :select-section |
+| Select All Transitions | `select.transition` |  |  |  |  | :select-transition |
+| Select All Notes | `select.note` |  |  |  |  | :select-note |
+| Select All Beats | `select.beat` |  |  |  |  | :select-beat |
 | Fit Width | `preview.fit` |  |  |  |  | :fit-width |
 | Actual Size | `preview.actual` |  |  |  |  | :actual-size |
 | Zoom In | `preview.zoomIn` |  |  |  |  | :zoom-in |

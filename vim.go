@@ -53,7 +53,7 @@ type vim struct {
 	status  func(string)                          // shows the mode
 	search  func()                                // "/": the search bar
 	ex      func(visual [2]int)                   // ":": the command line ('<,'> the lines given, -1 none)
-	prompt  func(label string, done func(string)) // asks for a line (helix s and S)
+	prompt  func(label string, names []string, done func(string)) // asks for a line (helix s and S), completing names
 	fold    func(cmd rune)                        // z a, c, o, R, M: folds
 	org     func(cmd string) bool                 // evil-org keys: tab, stab, gj gk gh gl, M-j M-k M-h M-l
 	z       bool                                  // a pending z

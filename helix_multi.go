@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
@@ -14,8 +15,9 @@ import (
 
 // Helix's several selections (helix keys):
 //
-//	s       select what a regex matches in the selections
-//	S       split the selections where a regex matches
+//	s       select what a regex matches in the selections, or with @ a
+//	        kind of the screenplay's: s @cue, s @dialogue (helix_kinds.go)
+//	S       split the selections where a regex (or a kind) matches
 //	Alt-s   split the selections into lines
 //	C       a selection like the last one on the next line
 //	,       keep the primary selection only;  Alt-,  drop it
@@ -38,7 +40,17 @@ func (v *vim) multiKey(r rune) bool {
 		if r == 'S' {
 			label = "split:"
 		}
-		v.prompt(label, func(pattern string) {
+		v.prompt(label, elementKindNames(), func(pattern string) {
+			if name, ok := strings.CutPrefix(pattern, "@"); ok && !strings.HasPrefix(name, "@") { // a kind (helix_kinds.go)
+				spans, known := v.kindSpans(name, b.Spans(), r == 'S')
+				if !known {
+					v.status("No kind @" + name + ": the kinds are " + strings.Join(elementKindNames(), " "))
+					return
+				}
+				v.setSpans(spans)
+				return
+			}
+			pattern = strings.Replace(pattern, "@@", "@", 1) // @@: a literal @ at the start
 			re, err := regexp.Compile(pattern)
 			if err != nil {
 				v.status(err.Error())

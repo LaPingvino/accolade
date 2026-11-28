@@ -124,6 +124,9 @@ func (t *Tree) BlockAfter(i int) (int, bool) {
 	return best, best >= 0
 }
 
+// InBoneyard tells whether line i is in a boneyard (/* … */).
+func (t *Tree) InBoneyard(i int) bool { return i >= 0 && i < len(t.bone) && t.bone[i] }
+
 // CueParts is a cue's line in three: what comes before the name (its
 // indent, an @), the name, and what comes after (extensions, a ^).
 func CueParts(l string) (pre, name, post string) { return cueParts(l) }

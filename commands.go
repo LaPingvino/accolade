@@ -925,6 +925,7 @@ func newRegistry() *registry {
 	add(helpCommands()...)       // help_pane.go
 	add(settingCommands()...)    // ribbon_settings.go
 	add(tipCommands()...)        // the status bar's tips (tips.go)
+	add(kindCommands()...)       // Select All Character Cues … (helix_kinds.go)
 	add(previewCommands()...)    // the Preview tab's (previewtab.go)
 	add(stripsCommands()...)     // the Stripboard tab's (stripstab.go)
 	add(cardsCommands()...)      // the Cards tab's (cards_tab.go)
@@ -1370,7 +1371,7 @@ func ribbonLayout() []ribbonTab {
 		{title: "Edit", groups: []ribbonGroup{
 			{title: "Undo", homes: []home{at("edit.undo"), at("edit.redo")}},
 			{title: "Clipboard", homes: []home{at("edit.cut"), at("edit.copy"), at("edit.paste"), at("edit.selectAll")},
-				more: []home{at("edit.pasteStructure")}},
+				more: append([]home{at("edit.pasteStructure")}, kindHomes()...)}, // Select All Character Cues … (helix_kinds.go)
 			// verb + variants (as File's New, Open, Save): the big verb, the
 			// small ones named by what differs
 			{title: "Find", homes: []home{big("edit.find"), at("edit.findNext"), at("edit.findPrevious"), at("edit.replace")}},
